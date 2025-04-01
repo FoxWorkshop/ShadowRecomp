@@ -1,0 +1,1 @@
+add_subdirectory(${SHADOW_RECOMP_TOOLS_ROOT}/XboxRecomp)

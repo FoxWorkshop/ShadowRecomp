@@ -1,0 +1,47 @@
+#pragma once
+
+#define NOMINMAX
+
+#if defined(_WIN32)
+#include <windows.h>
+#include <ShlObj_core.h>
+#include <wrl/client.h>
+
+using Microsoft::WRL::ComPtr;
+#elif defined(__linux__)
+#include <unistd.h>
+#include <pwd.h>
+#endif
+
+#ifdef SHADOW_RECOMP_D3D12
+#include <dxcapi.h>
+#endif
+
+#include <algorithm>
+#include <mutex>
+#include <filesystem>
+#include <fstream>
+#include <vector>
+#include <string>
+#include <cassert>
+#include <chrono>
+#include <span>
+#include <x86/x86_recomp_shared.h>
+
+
+#include <stb_image.h>
+#include <o1heap.h>
+#include <cstddef>
+#include <set>
+#include <fmt/core.h>
+#include <list>
+
+#include <semaphore>
+#include <numeric>
+#include <charconv>
+
+//nclude "framework.h"
+
+#ifndef _WIN32
+#include <sys/mman.h>
+#endif
