@@ -1,0 +1,15 @@
+[submodule "thirdparty/D3D12MemoryAllocator"]
+	path = thirdparty/D3D12MemoryAllocator
+	url = https://github.com/GPUOpen-LibrariesAndSDKs/D3D12MemoryAllocator
+[submodule "thirdparty/SDL"]
+	path = thirdparty/SDL
+	url = https://github.com/libsdl-org/SDL.git
+[submodule "thirdparty/vcpkg"]
+	path = thirdparty/vcpkg
+	url = https://github.com/microsoft/vcpkg.git
+[submodule "tools/XboxRecomp"]
+	path = tools/XboxRecomp
+	url = https://github.com/FoxWorkshop/XboxRecomp
+[submodule "thirdparty/stb"]
+	path = thirdparty/stb
+	url = https://github.com/nothings/stb
