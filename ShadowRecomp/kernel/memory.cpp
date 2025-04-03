@@ -28,8 +28,6 @@ Memory::Memory()
         if (X86FuncMappings[i].host != nullptr)
             InsertFunction(X86FuncMappings[i].guest, X86FuncMappings[i].host);
     } 
-
-
 }
 
 void* MmGetHostAddress(uint32_t ptr)

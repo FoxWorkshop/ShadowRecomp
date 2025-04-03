@@ -2,13 +2,16 @@
 #include "heap.h"
 #include "memory.h"
 
-constexpr size_t RESERVED_BEGIN = 0x0010000;
-constexpr size_t RESERVED_END = 0x6A08AF;
+constexpr size_t XBE_LOAD_ADDR = 0x00010000ull;
+constexpr size_t XBE_END_ADDR = 0x006A1000ull;
+constexpr size_t HEAP_BEGIN = XBE_END_ADDR;    //Start heap after XBE 
+constexpr size_t HEAP_END = 0x01FFFFFFull;  
+constexpr size_t PHYS_HEAP_END = 0x03FFFFFFull;
 
 void Heap::Init()
 {
-    heap = o1heapInit(g_memory.Translate(0x20000), RESERVED_BEGIN - 0x20000);
-    physicalHeap = o1heapInit(g_memory.Translate(RESERVED_END), 0x100000000 - RESERVED_END);
+    heap = o1heapInit(g_memory.Translate(HEAP_BEGIN), HEAP_END - HEAP_BEGIN);
+    physicalHeap = o1heapInit(g_memory.Translate(HEAP_END), PHYS_HEAP_END - HEAP_END);
 }
 
 void* Heap::Alloc(size_t size)

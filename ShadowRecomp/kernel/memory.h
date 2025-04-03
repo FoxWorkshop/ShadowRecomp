@@ -19,7 +19,7 @@ struct Memory
     void* Translate(size_t offset) const noexcept
     {
         if (offset)
-            assert(offset < X86_MEMORY_SIZE);
+            assert(offset < 0x100000000ull);
 
         return base + offset;
     }

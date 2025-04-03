@@ -52,7 +52,7 @@ struct ArgTranslator
 
     static double GetPrecisionArgumentValue(const X86Context& ctx, uint8_t* base, size_t arg) noexcept
     {
-        if (arg < 4) 
+        if (arg < 4)
         {
             //Fall back to stack if not in registers
             return ctx.vec[arg].f32[0];

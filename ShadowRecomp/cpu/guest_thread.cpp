@@ -5,7 +5,6 @@
 #include <kernel/function.h>
 #include "x86_context.h"
 
-// Updated sizes for original Xbox
 constexpr size_t PCR_SIZE = 0x1CC0;  // KPCR size
 constexpr size_t TLS_SIZE = 0x1000;  // TLS slots
 constexpr size_t TEB_SIZE = 0x1000;  // Full TEB
@@ -14,7 +13,9 @@ constexpr size_t TOTAL_SIZE = PCR_SIZE + TLS_SIZE + TEB_SIZE + STACK_SIZE;
 
 GuestThreadContext::GuestThreadContext(uint32_t cpuNumber)
 {
-    thread = (uint8_t*)g_userHeap.Alloc(PCR_SIZE + TLS_SIZE + TEB_SIZE + STACK_SIZE);
+
+    thread = (uint8_t*)g_userHeap.Alloc(TOTAL_SIZE);
+    memset(thread, 0, TOTAL_SIZE);
 
     // Set FS segment (x86-specific)
     x86Context.fs = 0x30;  // TEB selector in OG Xbox kernel

@@ -38,15 +38,26 @@ uint32_t LoadXbeModule(const std::filesystem::path& path)
         assert("Failed to load module" && false);
         return 0;
     }
-    auto srcData = module.data();
-
-    const auto* header = reinterpret_cast<const XbeHeader*>(srcData);
 
 
-    auto destData = reinterpret_cast<uint8_t*>(g_memory.Translate(header->baseAddress));
+    const auto* header = reinterpret_cast<const XbeHeader*>(module.data());
+    const uint32_t sectionHeadersOffset = header->sectionHeadersAddress - header->baseAddress;
+    const auto* sectionHeaders = reinterpret_cast<const XbeSectionHeader*>(module.data() + sectionHeadersOffset);
 
-    return decode_entry_point(header->m_entry, module.size());
+    uint32_t firstSectionVA = sectionHeaders[0].virtualAddress; 
+    uint32_t headersSize = firstSectionVA - header->baseAddress;        
 
+    //Copy headers to their expected VA 
+    void* headersDest = g_memory.Translate(header->baseAddress); 
+    memcpy(headersDest, module.data(), headersSize);
+
+    for (uint32_t i = 0; i < header->numSections; i++)
+    {
+        auto srcData = module.data() + sectionHeaders[i].rawAddress;
+        auto destData = g_memory.Translate(sectionHeaders[i].virtualAddress);
+        memcpy(destData, srcData, sectionHeaders[i].rawSize);
+    }
+    return decode_entry_point(header->m_entry, header->sizeOfImage);
 }
 
 void HostStartup()
