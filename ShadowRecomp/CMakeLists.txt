@@ -25,7 +25,7 @@ endif()
 
 add_compile_definitions(
     SDL_MAIN_HANDLED
-    _DISABLE_CONSTEXPR_MUTEX_CONSTRUCTOR # Microsoft wtf?
+    _DISABLE_CONSTEXPR_MUTEX_CONSTRUCTOR 
     _CRT_SECURE_NO_WARNINGS)
 
 set(SHADOW_RECOMP_PRECOMPILED_HEADERS
@@ -63,7 +63,6 @@ if (WIN32)
 
     add_executable(ShadowRecomp ${SHADOW_RECOMP_CXX_SOURCES})
 
-    # Hide console for release configurations.
     if (${CMAKE_BUILD_TYPE} MATCHES "Release")
         target_link_options(ShadowRecomp PRIVATE "/SUBSYSTEM:WINDOWS" "/ENTRY:mainCRTStartup")
     endif()
