@@ -15,7 +15,8 @@ functions = [
 	{ address = 0xDCCF0, size = 0x84 },  # todo check if this is correct, this could be multiple functions that ida failed to detect
 	{ address = 0xE0690, size = 0x83 },  # same	
 	{ address = 0xEBEF0, size = 0x301 },  # same	
-	{ address = 0xFFE00, size = 0x99 },  # same
+	{ address = 0xFFE00, size = 0x99 },  # same	
+	{ address = 0x2AFADF, size = 0x74 },  #callback in the start function
 ]
 
 banned_addresses = [
