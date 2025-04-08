@@ -11,227 +11,177 @@
 #include <Windows.h>
 #include <windef.h>
 
-// Function type definitions
-typedef void (*XbeFunction)(X86Context& ctx, uint8_t* base);
-typedef void (*XbeOriginalFn)();
-
-// Argument extraction utilities
-template <typename R, typename... T>
-constexpr std::tuple<T...> function_args(R(*)(T...)) noexcept {
-    return std::tuple<T...>();
-}
-
-template<auto V>
-static constexpr decltype(V) constant_v = V;
-
 template<typename T>
-static constexpr bool is_precise_v = std::is_same_v<T, float> || std::is_same_v<T, double>;
+struct function_traits;
 
-template<auto Func>
-struct arg_count_t {
-    static constexpr size_t value = std::tuple_size_v<decltype(function_args(Func))>;
+template<typename R, typename... Args>
+struct function_traits<R(*)(Args...)> {
+    using args_tuple = std::tuple<Args...>;
+    static constexpr size_t arg_count = sizeof...(Args);
 };
 
-// X86-specific argument translator
-struct ArgTranslator {
-    // Get arguments from X86 context (CDECL calling convention)
+// Helper to get function arguments as tuple
+template<auto Func>
+constexpr auto get_function_args() {
+    return typename function_traits<decltype(Func)>::args_tuple();
+}
+
+// Add an enum for calling conventions
+enum class CallingConvention {
+    Cdecl,
+    Stdcall,
+    Fastcall,
+    Thiscall
+};
+
+// Templated ArgTranslator with specializations
+template <CallingConvention Conv>
+struct ArgTranslator;
+
+// Cdecl specialization: all arguments on the stack
+template <>
+struct ArgTranslator<CallingConvention::Cdecl> {
     template<typename T>
-    static T GetValue(X86Context& ctx, uint8_t* base, size_t idx) 
+    static T GetValue(X86Context& ctx, uint8_t* base, size_t idx) {
+        if constexpr (std::is_floating_point_v<T>) {
+            // Floats passed via XMM registers in this ABI
+            if (idx < 8) return ctx.vec[idx].f32[0];
+            uint32_t stack_offset = 4 + (idx - 8) * 4;
+            return *reinterpret_cast<T*>(base + ctx.esp.u32 + stack_offset);
+        }
+        else {
+            uint32_t stack_offset = 4 + idx * 4;
+            uint32_t val = *reinterpret_cast<uint32_t*>(base + ctx.esp.u32 + stack_offset);
+            if constexpr (std::is_pointer_v<T>) return val ? reinterpret_cast<T>(base + val) : nullptr;
+            else return static_cast<T>(val);
+        }
+    }
+
+    template<typename T>
+    static void SetReturnValue(X86Context& ctx, T value) 
     {
-        if constexpr (is_precise_v<T>) {
-            // Floating point args in XMM0-XMM3 (Windows) or XMM0-XMM7 (System V)
-            if (idx < 8) {
-                return ctx.vec[idx].f32[0];
-            }
-            // For stack-passed floats
-            return *reinterpret_cast<float*>(base + ctx.esp.u32 + 4 + (idx - 8) * 4);
-        }
-        else if constexpr (std::is_pointer_v<T>) {
-            // Integer/pointer args in ECX, EDX, then stack
-            uint32_t val;
-            if (idx == 0) val = ctx.ecx.u32;
-            else if (idx == 1) val = ctx.edx.u32;
-            else val = *reinterpret_cast<uint32_t*>(base + ctx.esp.u32 + 4 + (idx - 2) * 4);
-
-            return val ? reinterpret_cast<T>(base + val) : nullptr;
-        }
-        else {
-            // Integer args
-            uint32_t val;
-            if (idx == 0) 
-                val = ctx.ecx.u32;
-            else if (idx == 1) 
-                val = ctx.edx.u32;
-            else 
-                val = *reinterpret_cast<uint32_t*>(base + ctx.esp.u32 + 4 + (idx - 2) * 4);
-
-            return static_cast<T>(val);
-        }
-    }
-
-    // Set arguments in context
-    template<typename T>
-    static void SetValue(X86Context& ctx, size_t idx, T value) {
-        if constexpr (is_precise_v<T>) {
-            if (idx < 8) {
-                ctx.vec[idx].f32[0] = value;
-            }
-            else {
-                // Stack-passed floats not implemented
-                assert(false && "Stack-passed floats not supported");
-            }
-        }
-        else if constexpr (std::is_pointer_v<T>) {
-            uint32_t val = value ? g_memory.MapVirtual(value) : 0;
-            if (idx == 0) ctx.ecx.u32 = val;
-            else if (idx == 1) ctx.edx.u32 = val;
-            else {
-                *reinterpret_cast<uint32_t*>(ctx.base + ctx.esp.u32 + 4 + (idx - 2) * 4) = val;
-            }
-        }
-        else {
-            if (idx == 0) ctx.ecx.u32 = static_cast<uint32_t>(value);
-            else if (idx == 1) ctx.edx.u32 = static_cast<uint32_t>(value);
-            else {
-                *reinterpret_cast<uint32_t*>(ctx.base + ctx.esp.u32 + 4 + (idx - 2) * 4) =
-                    static_cast<uint32_t>(value);
-            }
-        }
-    }
-
-    // Set return values
-    template<typename T>
-    static void SetReturnValue(X86Context& ctx, T value) {
-        if constexpr (is_precise_v<T>) {
+        if constexpr (std::is_floating_point_v<T>) 
             ctx.vec[0].f32[0] = value;
-        }
-        else if constexpr (std::is_pointer_v<T>) {
+        else if constexpr (std::is_pointer_v<T>) 
             ctx.eax.u32 = value ? g_memory.MapVirtual(value) : 0;
+        else 
+            ctx.eax.u32 = static_cast<uint32_t>(value);
+    }
+};
+
+// Stdcall specialization: args on stack, callee cleanup
+template <>
+struct ArgTranslator<CallingConvention::Stdcall> {
+    template<typename T>
+    static T GetValue(X86Context& ctx, uint8_t* base, size_t idx) {
+        uint32_t stack_offset = 4 + idx * 4;
+        if constexpr (std::is_floating_point_v<T>) {
+            return *reinterpret_cast<T*>(base + ctx.esp.u32 + stack_offset);
         }
         else {
+            uint32_t val = *reinterpret_cast<uint32_t*>(base + ctx.esp.u32 + stack_offset);
+            if constexpr (std::is_pointer_v<T>) return val ? reinterpret_cast<T>(base + val) : nullptr;
+            else return static_cast<T>(val);
+        }
+    }
+
+    template<typename T>
+    static void SetReturnValue(X86Context& ctx, T value)
+    {
+        if constexpr (std::is_floating_point_v<T>)
+            ctx.vec[0].f32[0] = value;
+        else if constexpr (std::is_pointer_v<T>)
+            ctx.eax.u32 = value ? g_memory.MapVirtual(value) : 0;
+        else
             ctx.eax.u32 = static_cast<uint32_t>(value);
+    }
+};
+
+// Fastcall specialization: first two in ECX/EDX
+template <>
+struct ArgTranslator<CallingConvention::Fastcall> {
+    template<typename T>
+    static T GetValue(X86Context& ctx, uint8_t* base, size_t idx) {
+        if constexpr (std::is_floating_point_v<T>) {
+            if (idx < 8) return ctx.vec[idx].f32[0];
+            uint32_t stack_offset = 4 + (idx - 8) * 4;
+            return *reinterpret_cast<T*>(base + ctx.esp.u32 + stack_offset);
+        }
+        else if (idx < 2) {
+            uint32_t val = (idx == 0) ? ctx.ecx.u32 : ctx.edx.u32;
+            if constexpr (std::is_pointer_v<T>) return val ? reinterpret_cast<T>(base + val) : nullptr;
+            else return static_cast<T>(val);
+        }
+        else {
+            uint32_t stack_offset = 4 + (idx - 2) * 4;
+            uint32_t val = *reinterpret_cast<uint32_t*>(base + ctx.esp.u32 + stack_offset);
+            if constexpr (std::is_pointer_v<T>) return val ? reinterpret_cast<T>(base + val) : nullptr;
+            else return static_cast<T>(val);
         }
     }
 };
 
-struct Argument {
-    int type{};  // 0 = integer, 1 = float
-    int ordinal{};
-};
-
-template<typename T1>
-constexpr std::array<Argument, std::tuple_size_v<T1>> GatherFunctionArguments(const T1& tpl) {
-    std::array<Argument, std::tuple_size_v<T1>> args{};
-    int floatOrdinal = 0;
-    size_t i = 0;
-
-    if constexpr (!args.empty()) {
-        std::apply([&](const auto&... elements) {
-            ([&](const auto& element) {
-                using ElementType = std::decay_t<decltype(element)>;
-                if constexpr (is_precise_v<ElementType>) {
-                    args[i] = { 1, floatOrdinal++ };
-                }
-                else {
-                    args[i] = { 0, static_cast<int>(i) };
-                }
-                i++;
-                }(elements), ...);
-            }, tpl);
+// Thiscall specialization: 'this' in ECX, others on stack
+template <>
+struct ArgTranslator<CallingConvention::Thiscall> {
+    template<typename T>
+    static T GetValue(X86Context& ctx, uint8_t* base, size_t idx) {
+        if constexpr (std::is_floating_point_v<T>) {
+            if (idx < 8) return ctx.vec[idx].f32[0];
+            uint32_t stack_offset = 4 + (idx - 8) * 4;
+            return *reinterpret_cast<T*>(base + ctx.esp.u32 + stack_offset);
+        }
+        else if (idx == 0) {
+            uint32_t val = ctx.ecx.u32;
+            if constexpr (std::is_pointer_v<T>) return val ? reinterpret_cast<T>(base + val) : nullptr;
+            else return static_cast<T>(val);
+        }
+        else {
+            uint32_t stack_offset = 4 + (idx - 1) * 4;
+            uint32_t val = *reinterpret_cast<uint32_t*>(base + ctx.esp.u32 + stack_offset);
+            if constexpr (std::is_pointer_v<T>) return val ? reinterpret_cast<T>(base + val) : nullptr;
+            else return static_cast<T>(val);
+        }
     }
-
-    return args;
-}
-
-template<auto Func>
-constexpr std::array<Argument, arg_count_t<Func>::value> GatherFunctionArguments() {
-    return GatherFunctionArguments(function_args(Func));
-}
-
-template<auto Func, size_t I>
-struct arg_ordinal_t {
-    static constexpr size_t value = GatherFunctionArguments<Func>()[I].ordinal;
 };
 
-template<auto Func, int I = 0, typename... TArgs>
-void _translate_args_to_host(X86Context& ctx, uint8_t* base, std::tuple<TArgs...>&) noexcept
-    requires (I >= sizeof...(TArgs)) {}
+template <CallingConvention Conv, auto Func>
+void HostToGuestFunction(X86Context& ctx, uint8_t* base) {
+    using Traits = function_traits<decltype(Func)>;
+    using ret_t = decltype(std::apply(Func, get_function_args<Func>()));
 
-template<auto Func, int I = 0, typename... TArgs>
-std::enable_if_t<(I < sizeof...(TArgs)), void>
-    _translate_args_to_host(X86Context& ctx, uint8_t* base, std::tuple<TArgs...>& tpl) noexcept {
-    using T = std::tuple_element_t<I, std::remove_reference_t<decltype(tpl)>>;
-    std::get<I>(tpl) = ArgTranslator::GetValue<T>(ctx, base, arg_ordinal_t<Func, I>::value);
-    _translate_args_to_host<Func, I + 1>(ctx, base, tpl);
-}
+    // Create and populate arguments tuple
+    typename Traits::args_tuple args;
 
-template<int I = 0, typename... TArgs>
-void _translate_args_to_guest(X86Context& ctx, uint8_t* base, std::tuple<TArgs...>&) noexcept
-    requires (I >= sizeof...(TArgs)) {}
+    // Translate each argument
+    [&] <size_t... I>(std::index_sequence<I...>) {
+        ([&] {
+            using ArgType = std::tuple_element_t<I, typename Traits::args_tuple>;
+            std::get<I>(args) = ArgTranslator<Conv>::GetValue<ArgType>(ctx, base, I);
+            }(), ...);
+    }(std::make_index_sequence<Traits::arg_count>{});
 
-template<int I = 0, typename... TArgs>
-std::enable_if_t<(I < sizeof...(TArgs)), void>
-    _translate_args_to_guest(X86Context& ctx, uint8_t* base, std::tuple<TArgs...>& tpl) noexcept {
-    using T = std::tuple_element_t<I, std::remove_reference_t<decltype(tpl)>>;
-    ArgTranslator::SetValue(ctx, I, std::get<I>(tpl));
-    _translate_args_to_guest<I + 1>(ctx, base, tpl);
-}
-
-// Hook implementation templates
-template<auto Func>
-void HostToGuestFunction(X86Context& ctx, uint8_t* base) 
-{
-    using ret_t = decltype(std::apply(Func, function_args(Func)));
-    auto args = function_args(Func);
-    _translate_args_to_host<Func>(ctx, base, args);
-
-    if constexpr (std::is_same_v<ret_t, void>) {
+    // Call the function and handle return
+    if constexpr (std::is_void_v<ret_t>) {
         std::apply(Func, args);
     }
     else {
-        auto v = std::apply(Func, args);
-
-        if constexpr (std::is_pointer_v<ret_t>) {
-            ArgTranslator::SetReturnValue(ctx, v);
-        }
-        else if constexpr (is_precise_v<ret_t>) {
-            ArgTranslator::SetReturnValue(ctx, v);
-        }
-        else {
-            ArgTranslator::SetReturnValue(ctx, v);
-        }
+        ArgTranslator<Conv>::SetReturnValue(ctx, std::apply(Func, args));
     }
 }
 
-template<typename T, typename TFunction, typename... TArgs>
-T GuestToHostFunction(const TFunction& func, TArgs&&... argv) {
-    auto args = std::make_tuple(std::forward<TArgs>(argv)...);
-    auto& currentCtx = *GetX86Context();
-
-    X86Context newCtx;
-    newCtx = currentCtx; // Copy all registers
-    newCtx.base = g_memory.base;
-
-    _translate_args_to_guest(newCtx, g_memory.base, args);
-    SetX86Context(newCtx);
-
-    if constexpr (std::is_function_v<std::remove_pointer_t<TFunction>>) {
-        func(newCtx, g_memory.base);
-    }
-    else {
-        g_memory.FindFunction(func)(newCtx, g_memory.base);
-    }
-
-    currentCtx = newCtx; // Restore context
-    SetX86Context(currentCtx);
-
-    if constexpr (!std::is_void_v<T>) {
-        return ArgTranslator::GetValue<T>(newCtx, g_memory.base, 0);
-    }
-}
-
+// New hook macros for each convention
 #define GUEST_FUNCTION_HOOK(subroutine, function) \
-    X86_FUNC(subroutine) { HostToGuestFunction<function>(ctx, base); }
+    X86_FUNC(subroutine) { HostToGuestFunction<CallingConvention::Cdecl, function>(ctx, base); }
+
+#define GUEST_FUNCTION_HOOK_STDCALL(subroutine, function) \
+    X86_FUNC(subroutine) { HostToGuestFunction<CallingConvention::Stdcall, function>(ctx, base); }
+
+#define GUEST_FUNCTION_HOOK_FASTCALL(subroutine, function) \
+    X86_FUNC(subroutine) { HostToGuestFunction<CallingConvention::Fastcall, function>(ctx, base); }
+
+#define GUEST_FUNCTION_HOOK_THISCALL(subroutine, function) \
+    X86_FUNC(subroutine) { HostToGuestFunction<CallingConvention::Thiscall, function>(ctx, base); }
 
 #define GUEST_FUNCTION_STUB(subroutine) \
     X86_FUNC(subroutine) { }

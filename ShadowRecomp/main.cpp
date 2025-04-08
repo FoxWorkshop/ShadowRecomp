@@ -15,6 +15,7 @@ static const std::string GameExecutableFile = "default.xbe";
 #ifdef _WIN32
 #include <timeapi.h>
 #endif
+#include <iostream>
 
 #if defined(_WIN32) && defined(SHADOW_RECOMP_D3D12)
 static std::array<std::string_view, 3> g_D3D12RequiredModules =
@@ -69,13 +70,28 @@ void HostStartup()
     g_userHeap.Init();
 }
 
+
+void FakeCallBack()
+{
+    X86Context x86Context{0};
+
+    g_memory.FindFunction(0x2AFB53)(x86Context, g_memory.base);
+
+    assert(GetX86Context() == nullptr);
+    SetX86Context(x86Context);
+}
+
 int main(int argc, char* argv[])
 {
+    //std::set_terminate(exception_handler);
     HostStartup();
 
     std::filesystem::path xbePath;
     xbePath = GameExecutableFile;
     uint32_t entry = LoadXbeModule(xbePath);
+	printf("XBE loaded, starting GuestThread::Start with entry function\n");
     GuestThread::Start({ entry, 0, 0 });
+	// Cleanup
+    printf("function Main is returning 0\n");
 	return 0;
 }

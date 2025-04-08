@@ -8,8 +8,17 @@ Memory::Memory()
 #ifdef _WIN32
     base = (uint8_t*)VirtualAlloc((void*)0x100000000ull, X86_MEMORY_SIZE, MEM_COMMIT | MEM_RESERVE, PAGE_READWRITE);
 
+    if (base == nullptr) {
+        DWORD error = GetLastError();
+        fprintf(stderr, "Failed to allocate at 0x10000000 (Error: 0x%lX)\n", error);
+        base = (uint8_t*)VirtualAlloc(nullptr, X86_MEMORY_SIZE, MEM_COMMIT | MEM_RESERVE, PAGE_READWRITE);
+    }
+
     if (base == nullptr)
         base = (uint8_t*)VirtualAlloc(nullptr, X86_MEMORY_SIZE, MEM_COMMIT | MEM_RESERVE, PAGE_READWRITE);
+
+    if (base == nullptr)
+        return;
 
     DWORD oldProtect;
     VirtualProtect(base, 4096, PAGE_NOACCESS, &oldProtect);

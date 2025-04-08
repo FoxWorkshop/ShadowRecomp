@@ -9,6 +9,9 @@
 // * note : XBox Kernel Declarations
 // *
 // ******************************************************************
+
+#pragma pack(push, 4) 
+
 #ifndef XBOXKRNL_H
 #define XBOXKRNL_H
 
@@ -2674,4 +2677,4 @@ namespace xbox
 
 #endif
 
-
+#pragma pack(pop)

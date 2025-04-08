@@ -34,6 +34,7 @@ set(SHADOW_RECOMP_PRECOMPILED_HEADERS
 
 set(SHADOW_RECOMP_KERNEL_CXX_SOURCES
     "kernel/imports.cpp"
+    "kernel/kernel.cpp"
     "kernel/heap.cpp"
     "kernel/memory.cpp"
     "kernel/io/file_system.cpp"

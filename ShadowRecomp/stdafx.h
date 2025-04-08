@@ -41,6 +41,7 @@ using Microsoft::WRL::ComPtr;
 #include <charconv>
 
 //nclude "framework.h"
+#include "mutex.h"
 
 #ifndef _WIN32
 #include <sys/mman.h>

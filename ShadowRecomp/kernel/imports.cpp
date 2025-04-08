@@ -1,4 +1,4 @@
-#include <stdafx.h>
+﻿#include <stdafx.h>
 #include <cpu/x86_context.h>
 #include <cpu/guest_thread.h>
 #include "io/file_system.h"
@@ -9,6 +9,8 @@
 #include "heap.h"
 #include "memory.h"
 #include <memory>
+#include "kernel.h"
+#include <xbox.h>
 
 const std::string XBOX_BASE_DIR = ""; //todo
 
@@ -62,26 +64,27 @@ void AvGetSavedDataAddress()
 }
 
 
-int32_t NtFreeVirtualMemory(IN OUT PVOID* BaseAddress, IN OUT PULONG FreeSize, IN uint32_t FreeType)
+int32_t NtFreeVirtualMemory(IN OUT uint32_t* BaseAddress, IN OUT ULONG32 FreeSize, IN uint32_t FreeType)
 {
+	printf("NtFreeVirtualMemory\n");
 	g_userHeap.Free(g_memory.Translate((size_t)BaseAddress));
 	return X_STATUS_SUCCESS;
 }
 
-int32_t NtAllocateVirtualMemory(PHANDLE ProcessHandle, PVOID* BaseAddress,
-	ULONG_PTR ZeroBits, PSIZE_T RegionSize, ULONG AllocationType, ULONG Protect)
+int32_t NtAllocateVirtualMemory(uint32_t* ProcessHandle, uint32_t* BaseAddress,
+	uint32_t* ZeroBits, int32_t* RegionSize, ULONG AllocationType, ULONG Protect)
 {
 	void* ptr = g_userHeap.Alloc(*RegionSize);
 
 	uint32_t xbox_addr = g_memory.MapVirtual(ptr);
-	*BaseAddress = reinterpret_cast<PVOID>(xbox_addr);
+	*BaseAddress = reinterpret_cast<uint32_t>(xbox_addr);
 
 	printf("NtAllocateVirtualMemory: %zu bytes -> 0x%08X", *RegionSize, xbox_addr);
 	return X_STATUS_SUCCESS;
 }
 
 void* AvSavedDataAddress;
-void AvSetSavedDataAddress(IN  PVOID   Address)
+void AvSetSavedDataAddress(IN  uint32_t* Address)
 {
 	LOG_UTILITY("%d", Address);
 	AvSavedDataAddress = Address;
@@ -132,28 +135,22 @@ typedef enum {
 } NV_SETTING_TYPE;
 
 LONG ExQueryNonVolatileSetting(
-	uint32_t SettingType,
-	void* OutputBuffer,
-	size_t OutputSize,
-	size_t* BytesWritten
+	IN  dword_xt   ValueIndex,
+	OUT dword_xt* Type,
+	OUT uint32_t* Value,
+	IN  size_xt  ValueLength,
+	OUT uint32_t* ResultLength OPTIONAL
 ) {
-	printf("[STUB] ExQueryNonVolatileSetting(%d, %p, %zu, %p)\n",
-		SettingType, OutputBuffer, OutputSize, BytesWritten);
+
 
 	// Default values for common settings
-	switch (SettingType) {
-	case NV_SETTING_VIDEO_MODE:
-		*(DWORD*)OutputBuffer = 0x00010000; // 480p default
-		break;
-	case NV_SETTING_LANGUAGE:
-		*(DWORD*)OutputBuffer = 1; // English
-		break;
+	switch (ValueIndex)
+	{
 	default:
 		printf("  Unknown setting type, returning 0\n");
-		memset(OutputBuffer, 0, OutputSize);
+		memset(Value, 0, ValueLength);
 	}
 
-	if (BytesWritten) *BytesWritten = OutputSize;
 	return X_STATUS_SUCCESS;
 }
 
@@ -170,11 +167,7 @@ uint32_t HalGetInterruptVector(uint32_t BusInterruptLevel, std::uint8_t* Irql)
 	return 0x20; //Return a dummy vector (typical for ISA IRQs)
 }
 
-void HalRegisterShutdownNotification
-(
-	IN int ShutdownRegistration,
-	IN std::uint8_t Register
-)
+void HalRegisterShutdownNotification(int32_t* ShutdownRegistration, uint8_t Register)
 {
 	printf("[STUB] HalRegisterShutdownNotification(%p, %d)\n",
 		ShutdownRegistration, Register);
@@ -190,7 +183,7 @@ void HalReadWritePCISpace
 	IN uint32_t   BusNumber,
 	IN uint32_t   SlotNumber,
 	IN uint32_t   RegisterNumber,
-	IN PVOID   Buffer,
+	IN uint32_t* Buffer,
 	IN uint32_t   Length,
 	IN std::uint8_t WritePCISpace
 )
@@ -206,9 +199,9 @@ void HalReadWritePCISpace
 	memset(Buffer, 0, Length);
 }
 
-LONG IoCreateSymbolicLink(void* SymbolicLinkName_, void* DeviceName_)
+LONG IoCreateSymbolicLink(uint32_t* SymbolicLinkName_, uint32_t* DeviceName_)
 {
-	xbox::PUNICODE_STRING DeviceName = (xbox::PUNICODE_STRING)DeviceName_;	
+	xbox::PUNICODE_STRING DeviceName = (xbox::PUNICODE_STRING)DeviceName_;
 	xbox::PUNICODE_STRING SymbolicLinkName = (xbox::PUNICODE_STRING)SymbolicLinkName_;
 
 	printf("[STUB] IoCreateSymbolicLink(%.*S -> %.*S)\n",
@@ -218,7 +211,7 @@ LONG IoCreateSymbolicLink(void* SymbolicLinkName_, void* DeviceName_)
 	return X_STATUS_SUCCESS;
 }
 
-LONG IoDeleteSymbolicLink(void* SymbolicLinkName_)
+LONG IoDeleteSymbolicLink(uint32_t* SymbolicLinkName_)
 {
 	xbox::PSTRING SymbolicLinkName = (xbox::PSTRING)SymbolicLinkName_;
 	printf("[STUB] IoDeleteSymbolicLink(%.*S)\n",
@@ -227,7 +220,7 @@ LONG IoDeleteSymbolicLink(void* SymbolicLinkName_)
 	return X_STATUS_SUCCESS;
 }
 
-int32_t KeBugCheckEx(IN std::uint32_t BugCheckCode, IN PVOID BugCheckParameter1, IN PVOID BugCheckParameter2, IN PVOID BugCheckParameter3, IN PVOID BugCheckParameter4)
+int32_t KeBugCheckEx(IN std::uint32_t BugCheckCode, IN uint32_t* BugCheckParameter1, IN uint32_t* BugCheckParameter2, IN PVOID BugCheckParameter3, IN PVOID BugCheckParameter4)
 {
 
 	static bool KeBugCheckIgnored = false;
@@ -268,37 +261,37 @@ std::uint8_t KeRaiseIrqlToDpcLevel()
 	return DISPATCH_LEVEL;
 }
 
-void KeQuerySystemTime(void* CurrentTime_)
+void KeQuerySystemTime(uint32_t* CurrentTime_)
 {
-	PLARGE_INTEGER CurrentTime = (PLARGE_INTEGER)CurrentTime_;
+	xpointer<PLARGE_INTEGER*> CurrentTime = xpointer<PLARGE_INTEGER*>(*CurrentTime_);
 	static LONGLONG fakeTime = 0;
 	fakeTime += 10000000; // Increment by 1 second
 
-	CurrentTime->QuadPart = fakeTime;
-	printf("[STUB] KeQuerySystemTime() -> %lld\n", CurrentTime->QuadPart);
+	//CurrentTime->QuadPart = fakeTime;
+	//printf("[STUB] KeQuerySystemTime() -> %lld\n", CurrentTime->QuadPart);
 }
 
-LONG KeQueryBasePriorityThread(IN void* Thread)
+LONG KeQueryBasePriorityThread(IN uint32_t* Thread)
 {
-	xbox::PKTHREAD t = (xbox::PKTHREAD)Thread;
-	printf("[STUB] KeQueryBasePriorityThread(%p)\n", t);
+	//xbox::PKTHREAD t = (xbox::PKTHREAD)Thread;
+	printf("[STUB] KeQueryBasePriorityThread(%p)\n");
 	return 8;
 }
 
-std::uint8_t KeInsertQueueDpc(void* Dpc_, PVOID Argument1, PVOID Argument2)
+std::uint8_t KeInsertQueueDpc(uint32_t* Dpc_, uint32_t* Argument1, uint32_t* Argument2)
 {
-	xbox::PKDPC Dpc = (xbox::PKDPC)Dpc_;
+	xpointer<xbox::KDPC*> Dpc = xpointer<xbox::KDPC*>(*Dpc_);
 	printf("[STUB] KeInsertQueueDpc(%p, %p, %p)\n", Dpc, Argument1, Argument2);
 	return TRUE;
 }
 
 #define IRQ_BASE 0x30 
 #define VECTOR2IRQ(vector)  ((vector)-IRQ_BASE)
-void KeInitializeInterrupt(void* Interrupt_, void* ServiceRoutine_,
-	PVOID ServiceContext, ULONG Vector, std::uint8_t Irql,
+void KeInitializeInterrupt(uint32_t* Interrupt_, uint32_t* ServiceRoutine_,
+	uint32_t* ServiceContext, ULONG Vector, std::uint8_t Irql,
 	uint32_t InterruptMode_, BOOLEAN ShareVector)
 {
-	xbox::KINTERRUPT_MODE InterruptMode = (xbox::KINTERRUPT_MODE)InterruptMode_;
+	/**xbox::KINTERRUPT_MODE InterruptMode = (xbox::KINTERRUPT_MODE)InterruptMode_;
 	xbox::PKSERVICE_ROUTINE ServiceRoutine = (xbox::PKSERVICE_ROUTINE)ServiceRoutine_;
 	xbox::PKINTERRUPT Interrupt = (xbox::PKINTERRUPT)Interrupt_;
 	Interrupt->ServiceRoutine = ServiceRoutine;
@@ -306,67 +299,84 @@ void KeInitializeInterrupt(void* Interrupt_, void* ServiceRoutine_,
 	Interrupt->BusInterruptLevel = VECTOR2IRQ(Vector);
 	Interrupt->Irql = Irql;
 	Interrupt->Connected = FALSE;
-	Interrupt->Mode = InterruptMode;
+	Interrupt->Mode = InterruptMode;*/
 
 	printf("[STUB] KeInitializeInterrupt(Vector 0x%X, Irql %d)\n", Vector, Irql);
 }
 
-void KeDisconnectInterrupt(void* Interrupt_)
+void KeDisconnectInterrupt(uint32_t* Interrupt_)
 {
 	xbox::PKINTERRUPT Interrupt = (xbox::PKINTERRUPT)Interrupt;
 	printf("[STUB] KeDisconnectInterrupt(%p)\n", Interrupt);
 }
 
-LONG KeDelayExecutionThread(uint8_t WaitMode, BOOLEAN Alertable, PLARGE_INTEGER Interval)
+uint32_t GuestTimeoutToMilliseconds(uint32_t* timeout)
+{
+	return timeout ? (*timeout * -1) / 10000 : INFINITE;
+}
+
+LONG KeDelayExecutionThread(uint8_t WaitMode, BOOLEAN Alertable, uint32_t* Interval)
 {
 
-	DWORD ms = Interval->QuadPart / -10000;
-	printf("[STUB] KeDelayExecutionThread(%d ms)\n", ms);
+	LOG_UTILITY("KeDelayExecutionThread\n");
+	// We don't do async file reads.
+	if (Alertable)
+		return STATUS_USER_APC;
 
-	//Actual sleep would go here
-	// Sleep(ms);
+	uint32_t timeout = GuestTimeoutToMilliseconds(Interval);
+
+#ifdef _WIN32
+	Sleep(timeout);
+#else
+	if (timeout == 0)
+		std::this_thread::yield();
+	else
+		std::this_thread::sleep_for(std::chrono::milliseconds(timeout));
+#endif
+
 	return X_STATUS_SUCCESS;
 }
 
-std::uint8_t KeConnectInterrupt(void* Interrupt_)
+std::uint8_t KeConnectInterrupt(uint32_t* Interrupt_)
 {
 	xbox::PKINTERRUPT Interrupt = (xbox::PKINTERRUPT)Interrupt;
 	printf("[STUB] KeConnectInterrupt(%p)\n", Interrupt);
 	return X_STATUS_SUCCESS;
 }
 
-std::uint8_t KeCancelTimer(void* Timer_)
+std::uint8_t KeCancelTimer(uint32_t* Timer_)
 {
 	xbox::PKTIMER Timer = (xbox::PKTIMER)Timer_;
 	printf("[STUB] KeCancelTimer(%p)\n", Timer);
 	return TRUE;
 }
 
-VOID KeInitializeDpc(void* Dpc_,
-	void* DeferredRoutine_,
-	PVOID DeferredContext
-) {
-	xbox::PKDPC Dpc = (xbox::PKDPC)Dpc_;
-	xbox::PKDEFERRED_ROUTINE DeferredRoutine = (xbox::PKDEFERRED_ROUTINE)DeferredRoutine_;
-	printf("[STUB] KeInitializeDpc(%p, %p, %p)\n",
-		Dpc, DeferredRoutine, DeferredContext);
-	Dpc->Type = 19;
-	Dpc->Inserted = FALSE;
-	Dpc->DeferredRoutine = DeferredRoutine;
-	Dpc->DeferredContext = DeferredContext;
+VOID KeInitializeDpc(uint32_t* Dpc_, uint32_t* DeferredContext, uint32_t* DeferredRoutine_)
+{
+	if (Dpc_ != NULL)
+	{
+		/**xpointer<KDPC> Dpc = xpointer<KDPC>(*Dpc_);
+		xpointer<PKDEFERRED_ROUTINE> DeferredRoutine = xpointer<PKDEFERRED_ROUTINE>(*DeferredRoutine_);
+		printf("[STUB] KeInitializeDpc(%p, %p, %p)\n",
+			Dpc, DeferredRoutine, DeferredContext);
+		Dpc->Type = 19;
+		Dpc->Inserted = FALSE;
+		Dpc->DeferredRoutine = *DeferredRoutine.get();
+		Dpc->DeferredContext = (void*)DeferredContext;*/
+	}
 }
 
-void InitializeListHead(void* pListHead_)
+void InitializeListHead(xpointer<xbox::LIST_ENTRY> pListHead_)
 {
 	xbox::PLIST_ENTRY pListHead = (xbox::PLIST_ENTRY)pListHead_;
 	pListHead->Flink = pListHead->Blink = pListHead;
 }
 
-VOID KeInitializeTimerEx(void* Timer_, uint32_t Type_)
+VOID KeInitializeTimerEx(uint32_t* Timer_, uint32_t Type)
 {
-	xbox::PKTIMER Timer = (xbox::PKTIMER)Timer_;
-	xbox::TIMER_TYPE Type = (xbox::TIMER_TYPE)Type_;
-	printf("[STUB] KeInitializeTimerEx(%p, Type %d)\n", Timer, Type);
+	return;
+	//xbox::KTIMER* Timer = (xbox::KTIMER*)Timer_;
+	xpointer<xbox::KTIMER> Timer = xpointer<xbox::KTIMER>(*Timer_);
 	assert(Timer);
 
 	// Initialize header :
@@ -374,7 +384,8 @@ VOID KeInitializeTimerEx(void* Timer_, uint32_t Type_)
 	Timer->Header.Inserted = FALSE;
 	Timer->Header.Size = sizeof(xbox::KTIMER) / sizeof(ULONG);
 	Timer->Header.SignalState = 0;
-	InitializeListHead(&(Timer->Header.WaitListHead));
+	xpointer<xbox::LIST_ENTRY> pListHead = xpointer<xbox::LIST_ENTRY>(&Timer->TimerListEntry);
+
 	// Initialize specific fields :
 	Timer->TimerListEntry.Blink = NULL;
 	Timer->TimerListEntry.Flink = NULL;
@@ -382,7 +393,7 @@ VOID KeInitializeTimerEx(void* Timer_, uint32_t Type_)
 	Timer->Period = 0;
 }
 
-std::uint8_t KeRemoveQueueDpc(void* Dpc_)
+std::uint8_t KeRemoveQueueDpc(uint32_t* Dpc_)
 {
 	xbox::PKDPC Dpc = (xbox::PKDPC)Dpc_;
 	printf("[STUB] KeRemoveQueueDpc(%p)\n", Dpc);
@@ -390,7 +401,7 @@ std::uint8_t KeRemoveQueueDpc(void* Dpc_)
 }
 
 // In a real implementation, would restore FPU/XMM registers
-int32_t KeRestoreFloatingPointState(void* SaveArea_)
+int32_t KeRestoreFloatingPointState(uint32_t* SaveArea_)
 {
 	xbox::PKFLOATING_SAVE SaveArea = (xbox::PKFLOATING_SAVE)SaveArea_;
 	printf("[STUB] KeRestoreFloatingPointState(%p)\n", SaveArea);
@@ -398,14 +409,14 @@ int32_t KeRestoreFloatingPointState(void* SaveArea_)
 	return ret;
 }
 
-LONG KeSaveFloatingPointState(void* SaveArea_)
+LONG KeSaveFloatingPointState(uint32_t* SaveArea_)
 {
 	xbox::PKFLOATING_SAVE SaveArea = (xbox::PKFLOATING_SAVE)SaveArea_;
 	printf("[STUB] KeSaveFloatingPointState(%p)\n", SaveArea);
 	return X_STATUS_SUCCESS;
 }
 
-std::int32_t KeSetBasePriorityThread(void* Thread_, LONG Priority)
+std::int32_t KeSetBasePriorityThread(uint32_t* Thread_, LONG Priority)
 {
 	xbox::PKTHREAD Thread = (xbox::PKTHREAD)Thread_;
 	Thread->Priority = Priority;
@@ -414,7 +425,7 @@ std::int32_t KeSetBasePriorityThread(void* Thread_, LONG Priority)
 	return ret;
 }
 
-std::uint8_t KeSetDisableBoostThread(void* Thread_, BOOLEAN Disable)
+std::uint8_t KeSetDisableBoostThread(uint32_t* Thread_, BOOLEAN Disable)
 {
 	xbox::PKTHREAD Thread = (xbox::PKTHREAD)Thread_;
 	printf("[STUB] KeSetDisableBoostThread(%p, %s)\n",
@@ -432,9 +443,10 @@ LONG KeSetEvent(void* Event_, uint32_t Increment_, BOOLEAN Wait)
 	return 1;
 }
 
-BOOLEAN KeSetTimer(void* Timer_, void* DueTime_, void* Dpc_)
+BOOLEAN KeSetTimer(uint32_t* Dpc_, uint32_t* DueTime_, uint32_t* Timer_)
 {
-	_LARGE_INTEGER DueTime = *(_LARGE_INTEGER*)DueTime_;
+	return FALSE;
+	_LARGE_INTEGER DueTime;
 	if (DueTime_)
 		DueTime = *(_LARGE_INTEGER*)DueTime_;
 	else
@@ -451,21 +463,19 @@ VOID KeStallExecutionProcessor(ULONG Microseconds)
 	printf("[STUB] KeStallExecutionProcessor(%u)\n", Microseconds);
 }
 
-BOOLEAN KeSynchronizeExecution(void* Interrupt_, void* SynchronizeRoutine_, PVOID SynchronizeContext)
+BOOLEAN KeSynchronizeExecution(uint32_t* Interrupt_, uint32_t* SynchronizeRoutine_, uint32_t SynchronizeContext)
 {
 	xbox::PKSYNCHRONIZE_ROUTINE SynchronizeRoutine = (xbox::PKSYNCHRONIZE_ROUTINE)SynchronizeRoutine_;
 	xbox::PKINTERRUPT Interrupt = (xbox::PKINTERRUPT)Interrupt_;
 	printf("[STUB] KeSynchronizeExecution(Int %p, Routine %p, Ctx %p)\n", Interrupt, SynchronizeRoutine, SynchronizeContext);
-	return SynchronizeRoutine(SynchronizeContext);
+	return SynchronizeRoutine(&SynchronizeContext);
 }
 
-LONG KeWaitForSingleObject(PVOID Object, uint32_t WaitReason_, uint8_t WaitMode, BOOLEAN Alertable,
-	PLARGE_INTEGER Timeout
+LONG KeWaitForSingleObject(uint32_t Object, uint32_t WaitReason_, uint8_t WaitMode, BOOLEAN Alertable,
+	uint32_t* Timeout
 ) {
-	xbox::KWAIT_REASON WaitReason = (xbox::KWAIT_REASON)WaitReason_;
-	printf("[STUB] KeWaitForSingleObject(%p, Reason %d, %s, Timeout %lld)\n",
-		Object, WaitReason, Alertable ? "Alertable" : "Non-Alertable",
-		Timeout ? Timeout->QuadPart : -1);
+	//xbox::KWAIT_REASON WaitReason = (xbox::KWAIT_REASON)WaitReason_;
+	printf("[STUB] KeWaitForSingleObject(%p, Reason %d, %s, Timeout %lld)\n");
 
 	return X_STATUS_SUCCESS; //Pretend object was signaled
 }
@@ -477,20 +487,20 @@ std::uint8_t KfRaiseIrql(std::uint8_t NewIrql)
 	return old; // Return previous IRQL
 }
 
-PVOID MmAllocateContiguousMemory(SIZE_T NumberOfBytes)
+uint32_t* MmAllocateContiguousMemory(uint32_t NumberOfBytes)
 {
 	printf("[STUB] MmAllocateContiguousMemory(%zu bytes)\n", NumberOfBytes);
-	return reinterpret_cast<PVOID>(g_memory.MapVirtual(g_userHeap.AllocPhysical(NumberOfBytes, GPU_ALIGNMENT)));
+	return reinterpret_cast<uint32_t*>(g_memory.MapVirtual(g_userHeap.AllocPhysical(NumberOfBytes, GPU_ALIGNMENT)));
 }
 
-PVOID MmAllocateContiguousMemoryEx(uint32_t NumberOfBytes, uint32_t LowestAcceptableAddress,
+uint32_t* MmAllocateContiguousMemoryEx(uint32_t NumberOfBytes, uint32_t LowestAcceptableAddress,
 	uint32_t HighestAcceptableAddress, uint32_t Alignment,
 	uint32_t ProtectionType
 )
 {
-	printf("[STUB] MmAllocateContiguousMemoryEx(%zu bytes, Align %u)\n",
-		NumberOfBytes, Alignment);
-	return reinterpret_cast<PVOID>(g_memory.MapVirtual(g_userHeap.AllocPhysical(NumberOfBytes, Alignment)));
+	/**printf("[STUB] MmAllocateContiguousMemoryEx(%zu bytes, Align %u)\n",
+		NumberOfBytes, Alignment);*/
+	return reinterpret_cast<uint32_t*>(g_memory.MapVirtual(g_userHeap.AllocPhysical(NumberOfBytes, Alignment)));
 }
 
 PVOID MmClaimGpuInstanceMemory(SIZE_T NumberOfBytes, ULONG Protect
@@ -501,13 +511,13 @@ PVOID MmClaimGpuInstanceMemory(SIZE_T NumberOfBytes, ULONG Protect
 	return reinterpret_cast<PVOID>(g_memory.MapVirtual(g_userHeap.AllocPhysical(NumberOfBytes, GPU_ALIGNMENT)));
 }
 
-VOID MmFreeContiguousMemory(PVOID BaseAddress)
+VOID MmFreeContiguousMemory(uint32_t* BaseAddress)
 {
 	printf("[STUB] MmFreeContiguousMemory(%p)\n", BaseAddress);
 	g_userHeap.Free(g_memory.Translate((size_t)BaseAddress));
 }
 
-VOID MmFreeSystemMemory(PVOID BaseAddress, SIZE_T NumberOfBytes)
+VOID MmFreeSystemMemory(uint32_t* BaseAddress, uint32_t NumberOfBytes)
 {
 	printf("[STUB] MmFreeSystemMemory(%p, %zu bytes)\n",
 		BaseAddress, NumberOfBytes);
@@ -515,7 +525,7 @@ VOID MmFreeSystemMemory(PVOID BaseAddress, SIZE_T NumberOfBytes)
 	g_userHeap.Free(g_memory.Translate((size_t)BaseAddress));
 }
 
-PVOID MmAllocateSystemMemory(SIZE_T NumberOfBytes, ULONG Protect)
+PVOID MmAllocateSystemMemory(uint32_t NumberOfBytes, ULONG Protect)
 {
 	printf("[STUB] MmAllocateSystemMemory(%zu bytes, Prot 0x%X)\n",
 		NumberOfBytes, Protect);
@@ -528,15 +538,37 @@ void KfLowerIrql(std::uint8_t NewIrql)
 }
 
 
-LONG NtClose(HANDLE Handle)
+LONG NtClose(uint32_t Handle)
 {
-	printf("NtClose(%p)", Handle);
-	return X_STATUS_SUCCESS;
+	printf("NtClose(%p) called\n", Handle);
+
+	if (Handle == 0)
+	{
+		printf("NtClose: No handle detected for this thread, aborting deleting handle.\n");
+		return X_STATUS_SUCCESS;
+	}
+
+	if (Handle == GUEST_INVALID_HANDLE_VALUE)
+		return 0xFFFFFFFF;
+
+	if (IsKernelObject(Handle))
+	{
+		DestroyKernelObject(Handle);
+		return 0;
+	}
+	else
+	{
+		assert(false && "Unrecognized kernel object.");
+		return 0xFFFFFFFF;
+	}
+
+	return 1;
 }
 
-LONG NtCreateEvent(PHANDLE EventHandle, void*  bjectAttributes, uint32_t EventType, std::uint8_t InitialState) 
+LONG NtCreateEvent(uint32_t* EventHandle, uint32_t* bjectAttributes, uint32_t EventType, std::uint8_t InitialState)
 {
-	*EventHandle = reinterpret_cast<HANDLE>(0xDEADBEEF); // Dummy handle
+
+	*EventHandle = reinterpret_cast<uint32_t>(0xDEADBEEF); // Dummy handle
 	LOG_UTILITY("NtCreateEvent() -> 0x%p", *EventHandle);
 	return X_STATUS_SUCCESS;
 }
@@ -551,11 +583,11 @@ using FileHandleType = int;
 #endif
 
 LONG NtCreateFile(
-	OUT PHANDLE             FileHandle,
+	OUT uint32_t* FileHandle,
 	IN  uint32_t         DesiredAccess,
-	IN  void*  ObjectAttributes_,
-	OUT void*  IoStatusBlock_,
-	IN  void*      AllocationSize_ OPTIONAL,
+	IN  uint32_t* ObjectAttributes_,
+	OUT uint32_t* IoStatusBlock_,
+	IN  uint32_t* AllocationSize_ OPTIONAL,
 	IN  uint32_t               FileAttributes,
 	IN  uint32_t               ShareAccess,
 	IN  uint32_t               CreateDisposition,
@@ -610,7 +642,7 @@ LONG NtCreateFile(
 		return STATUS_INVALID_PARAMETER;
 	}
 
-	*FileHandle = reinterpret_cast<HANDLE>(host_handle);
+	*FileHandle = reinterpret_cast<uint32_t>(host_handle);
 
 
 	if (IoStatusBlock) {
@@ -622,9 +654,9 @@ LONG NtCreateFile(
 LONG NtDeviceIoControlFile(
 	HANDLE FileHandle,
 	HANDLE Event,
-	void* ApcRoutine,
+	uint32_t* ApcRoutine,
 	PVOID ApcContext,
-	void* IoStatusBlock,
+	uint32_t* IoStatusBlock,
 	ULONG IoControlCode,
 	PVOID InputBuffer,
 	ULONG InputBufferLength,
@@ -635,7 +667,7 @@ LONG NtDeviceIoControlFile(
 	return X_STATUS_SUCCESS;
 }
 
-LONG NtFlushBuffersFile(HANDLE FileHandle, void* IoStatusBlock)
+LONG NtFlushBuffersFile(HANDLE FileHandle, uint32_t* IoStatusBlock)
 {
 #ifdef _WIN32
 	FlushFileBuffers(FileHandle);
@@ -646,15 +678,15 @@ LONG NtFlushBuffersFile(HANDLE FileHandle, void* IoStatusBlock)
 }
 
 LONG NtFsControlFile(
-	HANDLE FileHandle,
-	HANDLE Event,
-	void* ApcRoutine,
-	PVOID ApcContext,
-	void* IoStatusBlock,
+	uint32_t* FileHandle,
+	uint32_t* Event,
+	uint32_t* ApcRoutine,
+	uint32_t* ApcContext,
+	uint32_t* IoStatusBlock,
 	ULONG FsControlCode,
-	PVOID InputBuffer,
+	uint32_t* InputBuffer,
 	ULONG InputBufferLength,
-	PVOID OutputBuffer,
+	uint32_t* OutputBuffer,
 	ULONG OutputBufferLength
 ) {
 	LOG_UTILITY("NtFsControlFile(0x%X)", FsControlCode);
@@ -662,20 +694,20 @@ LONG NtFsControlFile(
 }
 
 LONG NtOpenFile(
-	PHANDLE FileHandle,
+	uint32_t* FileHandle,
 	ACCESS_MASK DesiredAccess,
-	void* ObjectAttributes_,
-	void* IoStatusBlock_,
+	uint32_t* ObjectAttributes_,
+	uint32_t* IoStatusBlock_,
 	ULONG ShareAccess,
 	ULONG OpenOptions
 ) {
 
-	xbox::POBJECT_ATTRIBUTES ObjectAttributes = (xbox::POBJECT_ATTRIBUTES)ObjectAttributes_;
-	xbox::PIO_STATUS_BLOCK IoStatusBlock = (xbox::PIO_STATUS_BLOCK)IoStatusBlock_;
+	//xbox::POBJECT_ATTRIBUTES ObjectAttributes = (xbox::POBJECT_ATTRIBUTES)ObjectAttributes_;
+	//xbox::PIO_STATUS_BLOCK IoStatusBlock = (xbox::PIO_STATUS_BLOCK)IoStatusBlock_;
 	// Reuse NtCreateFile logic
-	_LARGE_INTEGER t;
-	memset(&t, 0, sizeof(_LARGE_INTEGER));
-	return NtCreateFile(FileHandle, DesiredAccess, ObjectAttributes, IoStatusBlock, (void*)&t, ShareAccess, FILE_OPEN, OpenOptions, NULL);
+	//_LARGE_INTEGER t;
+	//memset(&t, 0, sizeof(_LARGE_INTEGER));
+	return NtCreateFile(FileHandle, DesiredAccess, ObjectAttributes_, IoStatusBlock_, 0, ShareAccess, FILE_OPEN, OpenOptions, NULL);
 }
 
 LONG NtOpenSymbolicLinkObject(OUT PHANDLE LinkHandle, IN void* ObjectAttributes
@@ -687,53 +719,56 @@ LONG NtOpenSymbolicLinkObject(OUT PHANDLE LinkHandle, IN void* ObjectAttributes
 LONG NtQueryDirectoryFile(
 	IN  HANDLE FileHandle,
 	IN  HANDLE Event OPTIONAL,
-	IN  PVOID ApcRoutine, // Todo: define this routine's prototype
-	IN  PVOID ApcContext,
-	OUT void* IoStatusBlock,
+	IN  uint32_t* ApcRoutine, // Todo: define this routine's prototype
+	IN  uint32_t* ApcContext,
+	OUT uint32_t* IoStatusBlock,
 	OUT uint32_t* FileInformation_,
 	IN  uint32_t Length,
 	IN  uint32_t FileInformationClass,
-	IN  xbox::PSTRING FileMask,
+	IN  uint32_t* FileMask,
 	IN  std::uint8_t RestartScan
 )
 {
-	xbox::FILE_INFORMATION_CLASS fileInfo = (xbox::FILE_INFORMATION_CLASS)FileInformationClass;
-	xbox::_FILE_DIRECTORY_INFORMATION FileInformation = (xbox::_FILE_DIRECTORY_INFORMATION)*FileInformation_;
+	printf("QUERY DIRECTION FILE STUB\n");
+	//xbox::FILE_INFORMATION_CLASS fileInfo = (xbox::FILE_INFORMATION_CLASS)FileInformationClass;
+	//xbox::_FILE_DIRECTORY_INFORMATION FileInformation = (xbox::_FILE_DIRECTORY_INFORMATION)*FileInformation_;
 	//memset(FileInformation, 0, Length);
 	return X_STATUS_SUCCESS;
 }
 
-LONG NtQueryFullAttributesFile(void* ObjectAttributes_, void* FileInformation_
-) 
+LONG NtQueryFullAttributesFile(uint32_t* ObjectAttributes_, uint32_t* FileInformation_
+)
 {
-	xbox::POBJECT_ATTRIBUTES ObjectAttributes = (xbox::POBJECT_ATTRIBUTES)ObjectAttributes_;
-	xbox::PFILE_NETWORK_OPEN_INFORMATION FileInformation = (xbox::PFILE_NETWORK_OPEN_INFORMATION)ObjectAttributes_;
-	FileInformation->EndOfFile.QuadPart = 0x1000; // Dummy size
+	printf("NtQueryFullAttributesFile STUB\n");
+	//xbox::POBJECT_ATTRIBUTES ObjectAttributes = (xbox::POBJECT_ATTRIBUTES)ObjectAttributes_;
+	//xbox::PFILE_NETWORK_OPEN_INFORMATION FileInformation = (xbox::PFILE_NETWORK_OPEN_INFORMATION)ObjectAttributes_;
+	//FileInformation->EndOfFile.QuadPart = 0x1000; // Dummy size
 	return X_STATUS_SUCCESS;
 }
 
 LONG NtQueryInformationFile(
-	HANDLE FileHandle,
-	void* IoStatusBlock_,
-	PVOID FileInformation,
+	uint32_t* FileHandle,
+	uint32_t* IoStatusBlock_,
+	uint32_t* FileInformation,
 	ULONG FileInformationLength,
 	uint32_t FileInformationClass_
-) 
+)
 {
-	
-	xbox::FILE_INFORMATION_CLASS FileInformationClass = (xbox::FILE_INFORMATION_CLASS)FileInformationClass_;
+	LOG_UTILITY("NtQueryInformationFile STUB\n");
+	/**xbox::FILE_INFORMATION_CLASS FileInformationClass = (xbox::FILE_INFORMATION_CLASS)FileInformationClass_;
 	xbox::PIO_STATUS_BLOCK IoStatusBlock = (xbox::PIO_STATUS_BLOCK)IoStatusBlock_;
 
 	if (FileInformationClass == xbox::FileStandardInformation)
 	{
 		auto* info = reinterpret_cast<xbox::FILE_STANDARD_INFORMATION*>(FileInformation);
 		info->EndOfFile.QuadPart = 0x1000; // Dummy 4KB file
-	}
+	}*/
+
 	return X_STATUS_SUCCESS;
 }
 
 LONG NtQuerySymbolicLinkObject(HANDLE LinkHandle, void* TargetName_, PULONG ReturnedLength
-) 
+)
 {
 
 	xbox::PUNICODE_STRING TargetName = (xbox::PUNICODE_STRING)TargetName_;
@@ -761,15 +796,16 @@ LONG NtQuerySymbolicLinkObject(HANDLE LinkHandle, void* TargetName_, PULONG Retu
 	return X_STATUS_SUCCESS;
 }
 
-LONG NtQueryVirtualMemory(PVOID BaseAddress, PMEMORY_BASIC_INFORMATION Buffer) 
+LONG NtQueryVirtualMemory(uint32_t* BaseAddress, uint32_t* Buffer)
 {
+	LOG_UTILITY("STUB NtQueryVirtualMemory\n");
 
 	if (!Buffer)
 		return X_STATUS_UNSUCCESSFUL;
 
-	memset(Buffer, 0, sizeof(MEMORY_BASIC_INFORMATION));
+	//memset(Buffer, 0, sizeof(MEMORY_BASIC_INFORMATION));
 
-	if (!g_memory.IsInMemoryRange(BaseAddress))
+	/**if (!g_memory.IsInMemoryRange(BaseAddress))
 	{
 		Buffer->BaseAddress = BaseAddress;
 		Buffer->State = MEM_FREE;
@@ -782,20 +818,21 @@ LONG NtQueryVirtualMemory(PVOID BaseAddress, PMEMORY_BASIC_INFORMATION Buffer)
 	Buffer->RegionSize = X86_MEMORY_SIZE;
 	Buffer->State = MEM_COMMIT;
 	Buffer->Protect = PAGE_READWRITE;
-	Buffer->Type = MEM_PRIVATE;
+	Buffer->Type = MEM_PRIVATE;*/
 
 	return X_STATUS_SUCCESS;
 }
 
 
-xbox::physical_address_xt MmGetPhysicalAddress(PVOID BaseAddress) {
+xbox::physical_address_xt MmGetPhysicalAddress(uint32_t* BaseAddress)
+{
 	xbox::physical_address_xt pa;
 	pa = static_cast<ULONG>(g_memory.MapVirtual(BaseAddress)); // Returns 32-bit offset
 	LOG_UTILITY("MmGetPhysicalAddress(%p) -> 0x%08X", BaseAddress, pa);
 	return pa;
 }
 
-LONG MmLockUnlockBufferPages(PVOID BaseAddress, SIZE_T NumberOfBytes, BOOLEAN Lock)
+LONG MmLockUnlockBufferPages(uint32_t* BaseAddress, uint32_t NumberOfBytes, BOOLEAN Lock)
 {
 	LOG_UTILITY("MmLockUnlockBufferPages(%p, %zu, %s)", BaseAddress, NumberOfBytes, Lock ? "Lock" : "Unlock");
 	return X_STATUS_SUCCESS; // No-op in recompiler
@@ -809,35 +846,38 @@ LONG MmLockUnlockPhysicalPage(uint32_t PhysicalAddress_, BOOLEAN Lock)
 	return X_STATUS_SUCCESS;
 }
 
-VOID MmPersistContiguousMemory(PVOID BaseAddress, SIZE_T NumberOfBytes, BOOLEAN Persist) 
+VOID MmPersistContiguousMemory(uint32_t* BaseAddress, uint32_t NumberOfBytes, BOOLEAN Persist)
 {
 	LOG_UTILITY("MmPersistContiguousMemory(%p, %zu, %s)", BaseAddress, NumberOfBytes, Persist ? "Persist" : "Unpersist");
 }
 
-LONG MmQueryAddressProtect(PVOID BaseAddress, PULONG Protect)
+LONG MmQueryAddressProtect(uint32_t* BaseAddress, uint32_t* Protect)
 {
+	LOG_UTILITY("MmQueryAddressProtect");
 	*Protect = PAGE_READWRITE;
 	return X_STATUS_SUCCESS;
 }
 
-SIZE_T MmQueryAllocationSize(PVOID BaseAddress)
+SIZE_T MmQueryAllocationSize(uint32_t* BaseAddress)
 {
-	return g_userHeap.Size(BaseAddress);
+	return g_userHeap.Size(&BaseAddress);
 }
 
-LONG MmSetAddressProtect(PVOID BaseAddress, SIZE_T NumberOfBytes, ULONG NewProtect)
+LONG MmSetAddressProtect(uint32_t* BaseAddress, SIZE_T NumberOfBytes, ULONG NewProtect)
 {
-	LOG_UTILITY("MmSetAddressProtect(%p, %zu, 0x%X)", BaseAddress, NumberOfBytes, NewProtect);
+	LOG_UTILITY("MmSetAddressProtect(%p, %zu, 0x%X)", &BaseAddress, NumberOfBytes, NewProtect);
 	return X_STATUS_SUCCESS;
 }
 
-LONG NtWaitForSingleObject(HANDLE Handle, BOOLEAN Alertable, PLARGE_INTEGER Timeout)
+LONG NtWaitForSingleObject(uint32_t* Handle, BOOLEAN Alertable, uint32_t* Timeout)
 {
+	LOG_UTILITY("NtWaitForSingleObject\n");
 	return X_STATUS_SUCCESS; // Pretend the object is always signaled
 }
 
-LONG NtSetEvent(HANDLE Handle, PULONG PreviousState)
+LONG NtSetEvent(uint32_t* Handle, uint32_t* PreviousState)
 {
+	LOG_UTILITY("NtSetEvent\n");
 	if (PreviousState)
 		*PreviousState = 1;
 
@@ -845,28 +885,31 @@ LONG NtSetEvent(HANDLE Handle, PULONG PreviousState)
 }
 
 LONG NtWriteFile(
-	HANDLE FileHandle,
-	HANDLE Event,
-	void* ApcRoutine_,
-	PVOID ApcContext,
-	void* IoStatusBlock_,
-	PVOID Buffer,
+	uint32_t* FileHandle,
+	uint32_t* Event,
+	uint32_t** ApcRoutine_,
+	uint32_t* ApcContext,
+	uint32_t** IoStatusBlock_,
+	uint32_t* Buffer,
 	ULONG Length,
-	PLARGE_INTEGER ByteOffset
+	uint32_t* ByteOffset
 ) {
 
-	xbox::PIO_APC_ROUTINE Apcroutine = (xbox::PIO_APC_ROUTINE)ApcRoutine_;
+	LOG_UTILITY("NtWriteFile\n");
+	/**xbox::PIO_APC_ROUTINE Apcroutine = (xbox::PIO_APC_ROUTINE)ApcRoutine_;
 	xbox::PIO_STATUS_BLOCK IoStatusBlock = (xbox::PIO_STATUS_BLOCK)IoStatusBlock_;
-	if (IoStatusBlock) 
+	if (IoStatusBlock)
 	{
 		IoStatusBlock->Status = X_STATUS_SUCCESS;
 		IoStatusBlock->Information = Length; // Pretend all bytes were written
-	}
+	}*/
+
 	return X_STATUS_SUCCESS;
 }
 
 ULONG RtlLONGToDosError(LONG Status)
 {
+	LOG_UTILITY("RtlLONGToDosError STUB\n");
 	return X_STATUS_SUCCESS;
 }
 
@@ -874,7 +917,7 @@ void NtYieldExecution() {
 	std::this_thread::yield();
 }
 
-SIZE_T RtlCompareMemoryUlong(PVOID Buffer, SIZE_T Length, ULONG Pattern)
+SIZE_T RtlCompareMemoryUlong(uint32_t* Buffer, uint32_t Length, ULONG Pattern)
 {
 	return Length; // Pretend all bytes match
 }
@@ -884,30 +927,77 @@ BOOLEAN RtlEqualString(PCSTR String1, PCSTR String2)
 	return strcmp(String1, String2) == 0;
 }
 
-LONG NtSuspendThread(HANDLE ThreadHandle, PULONG PreviousSuspendCount)
+LONG NtSuspendThread(GuestThreadHandle* ThreadHandle, uint32_t* PreviousSuspendCount)
 {
-	if (PreviousSuspendCount)
-		*PreviousSuspendCount = 0;
+	LOG_UTILITY("NtSuspendThread(0x%X)\n", ThreadHandle);	
+	assert(ThreadHandle != GetKernelObject(CURRENT_THREAD_HANDLE) && ThreadHandle->thread.get_id() == std::this_thread::get_id());
 
-	return X_STATUS_SUCCESS;
+	ThreadHandle->suspended = true;
+	ThreadHandle->suspended.wait(true);
+
+	return S_OK;
 }
 
-LONG NtResumeThread(HANDLE ThreadHandle, PULONG PreviousSuspendCount)
+LONG NtResumeThread(GuestThreadHandle* ThreadHandle, uint32_t* PreviousSuspendCount)
 {
-	if (PreviousSuspendCount)
-		*PreviousSuspendCount = 0;
+
+	LOG_UTILITY("NtResumeThread(0x%X)\n", ThreadHandle);
+	assert(ThreadHandle != GetKernelObject(CURRENT_THREAD_HANDLE));
+
+	ThreadHandle->suspended = false;
+	ThreadHandle->suspended.notify_all();
 
 	return X_STATUS_SUCCESS;
+
+
+
 }
+
+typedef void_xt(NTAPI* PKSTART_ROUTINE)
+(
+	IN PVOID StartContext
+	);
+
+typedef void_xt(NTAPI* PKSYSTEM_ROUTINE)
+(
+	IN PKSTART_ROUTINE StartRoutine OPTIONAL,
+	IN PVOID StartContext OPTIONAL
+	);
 
 LONG PsCreateSystemThreadEx(
 	PHANDLE ThreadHandle,
-	ULONG Flags,
-	SIZE_T StackSize,
-	SIZE_T Reserved,
-	PVOID StartContext
-) {
-	//*ThreadHandle = reinterpret_cast<HANDLE>(0x12345678); // Dummy handle
+	uint32_t StartRoutine,
+	ULONG StackSize,
+	PULONG ThreadId,
+	ULONG Reserved,
+	PVOID StartContext,
+	ULONG ProcessedStackSize,
+	ULONG Unknown,
+	PKSTART_ROUTINE SystemRoutine)
+
+{
+
+	//KernelStackSize = KernelStackSize;
+	LOG_UTILITY("PsCreateSystemThreadEx: Creating thread - Handle: 0x%X, Start Addr: 0x%x, Stack Size: 0x%X, Thread ID: 0x%X\n",
+		(uintptr_t)ThreadHandle, StartRoutine, StackSize, ThreadId);
+
+
+	// Variable to receive the native thread ID
+	uint32_t hostThreadId;
+
+	auto handle = GetKernelHandle(GuestThread::Start({ StartRoutine, 0, 0 }, &hostThreadId));
+	//the game can pass a null value
+	if (ThreadHandle)
+	{
+		*ThreadHandle = (PHANDLE)handle;
+	}
+
+	// If thread ID output was requested, set it
+	if (ThreadId != nullptr)
+	{
+		*ThreadId = hostThreadId;
+	}
+
 	return X_STATUS_SUCCESS;
 }
 
@@ -917,11 +1007,11 @@ void PsTerminateSystemThread(LONG ExitStatus)
 }
 
 LONG ObReferenceObjectByHandle(
-	HANDLE Handle,
-	PVOID ObjectType,
-	PVOID* Object
+	uint32_t* Handle,
+	uint32_t* ObjectType,
+	uint32_t* Object
 ) {
-	*Object = reinterpret_cast<PVOID>(0xDEADBEEF); // Dummy object
+	*Object = reinterpret_cast<uint32_t>(0xDEADBEEF); // Dummy object
 	return X_STATUS_SUCCESS;
 }
 
@@ -929,37 +1019,38 @@ void ObfDereferenceObject(PVOID Object) {
 	// No-op
 }
 
-void RtlInitializeCriticalSection(void* CritSec) {
-
-}
-
-void RtlEnterCriticalSection(void* CritSec) {
-
-}
-
-void RtlLeaveCriticalSection(void* CritSec) {
-
-}
-
-void RtlInitAnsiString(void* Destination_, char* Source)
+void RtlInitializeCriticalSection(uint32_t* CritSec)
 {
-	xbox::PANSI_STRING Destination = (xbox::PANSI_STRING)Destination_;
+	LOG_UTILITY("RtlInitializeCriticalSection STUB\n");
+}
+
+void RtlEnterCriticalSection(uint32_t* CritSec) {
+	LOG_UTILITY("RtlEnterCriticalSection STUB\n");
+}
+
+void RtlLeaveCriticalSection(uint32_t* CritSec) {
+	LOG_UTILITY("RtlLeaveCriticalSection STUB\n");
+}
+
+void RtlInitAnsiString(uint32_t* Destination_, char* Source)
+{
+	/**xbox::PANSI_STRING Destination = (xbox::PANSI_STRING)Destination_;
 	Destination->Buffer = const_cast<PCHAR>(Source);
 	Destination->Length = static_cast<USHORT>(strlen(Source));
-	Destination->MaximumLength = Destination->Length + 1;
+	Destination->MaximumLength = Destination->Length + 1;*/
 }
 
 LONG NtQueryVolumeInformationFile(
-	HANDLE FileHandle,
-	void* IoStatusBlock_,
-	PVOID FsInformation,
+	uint32_t* FileHandle,
+	uint32_t* IoStatusBlock_,
+	uint32_t* FsInformation,
 	ULONG Length,
 	uint32_t FsInformationClass_
-) 
+)
 {
-	xbox::PIO_STATUS_BLOCK IoStatusBlock = (xbox::PIO_STATUS_BLOCK)IoStatusBlock_;
+	/**xbox::PIO_STATUS_BLOCK IoStatusBlock = (xbox::PIO_STATUS_BLOCK)IoStatusBlock_;
 	xbox::FS_INFORMATION_CLASS FsInformationClass = (xbox::FS_INFORMATION_CLASS)FsInformationClass_;
-	if (IoStatusBlock) 
+	if (IoStatusBlock)
 	{
 		IoStatusBlock->Status = X_STATUS_SUCCESS;
 		IoStatusBlock->Information = 0;
@@ -971,27 +1062,27 @@ LONG NtQueryVolumeInformationFile(
 		auto* info = (xbox::FILE_FS_VOLUME_INFORMATION*)FsInformation;
 		info->VolumeSerialNumber = 0x1234ABCD;
 		info->VolumeLabelLength = 0;
-	}
+	}*/
 
 	return X_STATUS_SUCCESS;
 }
 
 LONG NtSetInformationFile(
-	HANDLE FileHandle,
-	void* IoStatusBlock_,
-	PVOID FileInformation,
+	uint32_t* FileHandle,
+	uint32_t* IoStatusBlock_,
+	uint32_t* FileInformation,
 	ULONG Length,
-	void* FileInformationClass
-) 
+	uint32_t* FileInformationClass
+)
 {
 
-	xbox::PIO_STATUS_BLOCK IoStatusBlock = (xbox::PIO_STATUS_BLOCK)IoStatusBlock_;
+	/**xbox::PIO_STATUS_BLOCK IoStatusBlock = (xbox::PIO_STATUS_BLOCK)IoStatusBlock_;
 	//xbox::FILE_INFORMATION_CLASS fileInfo = (xbox::FILE_INFORMATION_CLASS*)FileInformationClass;
 	if (IoStatusBlock)
 	{
 		IoStatusBlock->Status = X_STATUS_SUCCESS;
 		IoStatusBlock->Information = 0;
-	}
+	}*/
 	return X_STATUS_SUCCESS;
 }
 
@@ -1009,27 +1100,27 @@ LONG XeUnloadSection(const char* Name)
 	return X_STATUS_SUCCESS;
 }
 
-void XcSHAInit(void* Context)
+void XcSHAInit(uint32_t* Context)
 {
 	memset(Context, 0, 20); //SHA-1 context size
 }
 
-void XcSHAUpdate(void* Context, const void* Data, ULONG Length)
+void XcSHAUpdate(uint32_t* Context, const uint32_t* Data, ULONG Length)
 {
 	// No-op
 }
 
-void XcSHAFinal(void* Context, void* Digest)
+void XcSHAFinal(uint32_t* Context, uint32_t* Digest)
 {
 	memset(Digest, 0xAA, 20); //Dummy SHA-1 hash
 }
 
-void XcHMAC(void* Key, ULONG KeySize, void* Data, ULONG DataSize, void* Digest)
+void XcHMAC(uint32_t* Key, ULONG KeySize, uint32_t* Data, ULONG DataSize, uint32_t* Digest)
 {
 	memset(Digest, 0xBB, 20);
 }
 
-void RtlRaiseException_(void* ExceptionRecord) 
+void RtlRaiseException_(uint32_t* ExceptionRecord)
 {
 	LOG_UTILITY("[STUB] RtlRaiseException() - Crashing intentionally");
 	std::terminate();
@@ -1046,44 +1137,44 @@ void RtlNtStatusToDosError()
 }
 
 LONG NtWaitForSingleObjectEx(
-	HANDLE Handle,
+	uint32_t* Handle,
 	BOOLEAN Alertable,
-	PLARGE_INTEGER Timeout,
+	uint32_t* Timeout,
 	DWORD WaitMode
 ) {
 	return NtWaitForSingleObject(Handle, Alertable, Timeout); // Reuse stub
 }
 
 
-GUEST_FUNCTION_HOOK(__imp__RtlInitializeCriticalSection, RtlInitializeCriticalSection);
-GUEST_FUNCTION_HOOK(__imp__RtlEnterCriticalSection, RtlEnterCriticalSection);
-GUEST_FUNCTION_HOOK(__imp__RtlLeaveCriticalSection, RtlLeaveCriticalSection);
-GUEST_FUNCTION_HOOK(__imp__RtlCompareMemoryUlong, RtlCompareMemoryUlong);
-GUEST_FUNCTION_HOOK(__imp__NtFreeVirtualMemory, NtFreeVirtualMemory);
-GUEST_FUNCTION_HOOK(__imp__NtAllocateVirtualMemory, NtAllocateVirtualMemory);
-GUEST_FUNCTION_HOOK(__imp__NtQueryVirtualMemory, NtQueryVirtualMemory);
-GUEST_FUNCTION_HOOK(__imp__RtlRaiseException, RtlRaiseException_);
-GUEST_FUNCTION_HOOK(__imp__MmPersistContiguousMemory, MmPersistContiguousMemory);
-GUEST_FUNCTION_HOOK(__imp__MmAllocateContiguousMemory, MmAllocateContiguousMemory);
-GUEST_FUNCTION_HOOK(__imp__NtQueryFullAttributesFile, NtQueryFullAttributesFile);
-GUEST_FUNCTION_HOOK(__imp__RtlInitAnsiString, RtlInitAnsiString);
-GUEST_FUNCTION_HOOK(__imp__NtOpenFile, NtOpenFile);
-GUEST_FUNCTION_HOOK(__imp__NtClose, NtClose);
+GUEST_FUNCTION_HOOK_STDCALL(__imp__RtlInitializeCriticalSection, RtlInitializeCriticalSection);
+GUEST_FUNCTION_HOOK_STDCALL(__imp__RtlEnterCriticalSection, RtlEnterCriticalSection);
+GUEST_FUNCTION_HOOK_STDCALL(__imp__RtlLeaveCriticalSection, RtlLeaveCriticalSection);
+GUEST_FUNCTION_HOOK_STDCALL(__imp__RtlCompareMemoryUlong, RtlCompareMemoryUlong);
+GUEST_FUNCTION_HOOK_STDCALL(__imp__NtFreeVirtualMemory, NtFreeVirtualMemory);
+GUEST_FUNCTION_HOOK_STDCALL(__imp__NtAllocateVirtualMemory, NtAllocateVirtualMemory);
+GUEST_FUNCTION_HOOK_STDCALL(__imp__NtQueryVirtualMemory, NtQueryVirtualMemory);
+GUEST_FUNCTION_HOOK_STDCALL(__imp__RtlRaiseException, RtlRaiseException_);
+GUEST_FUNCTION_HOOK_STDCALL(__imp__MmPersistContiguousMemory, MmPersistContiguousMemory);
+GUEST_FUNCTION_HOOK_STDCALL(__imp__MmAllocateContiguousMemory, MmAllocateContiguousMemory);
+GUEST_FUNCTION_HOOK_STDCALL(__imp__NtQueryFullAttributesFile, NtQueryFullAttributesFile);
+GUEST_FUNCTION_HOOK_STDCALL(__imp__RtlInitAnsiString, RtlInitAnsiString);
+GUEST_FUNCTION_HOOK_STDCALL(__imp__NtOpenFile, NtOpenFile);
+GUEST_FUNCTION_HOOK_STDCALL(__imp__NtClose, NtClose);
 GUEST_FUNCTION_HOOK(__imp__NtSetInformationFile, NtSetInformationFile);
-GUEST_FUNCTION_HOOK(__imp__ExQueryNonVolatileSetting, ExQueryNonVolatileSetting);
+GUEST_FUNCTION_HOOK_STDCALL(__imp__ExQueryNonVolatileSetting, ExQueryNonVolatileSetting);
 GUEST_FUNCTION_HOOK(__imp__HalReturnToFirmware, HalReturnToFirmware);
 GUEST_FUNCTION_HOOK(__imp__MmFreeContiguousMemory, MmFreeContiguousMemory);
-GUEST_FUNCTION_HOOK(__imp__RtlNtStatusToDosError, RtlNtStatusToDosError);
-GUEST_FUNCTION_HOOK(__imp__FscSetCacheSize, FscSetCacheSize);
-GUEST_FUNCTION_HOOK(__imp__NtQueryDirectoryFile, NtQueryDirectoryFile);
-GUEST_FUNCTION_HOOK(__imp__NtCreateEvent, NtCreateEvent);
-GUEST_FUNCTION_HOOK(__imp__NtSetEvent, NtSetEvent);
-GUEST_FUNCTION_HOOK(__imp__NtWaitForSingleObjectEx, NtWaitForSingleObjectEx);
-GUEST_FUNCTION_HOOK(__imp__KeDelayExecutionThread, KeDelayExecutionThread)
-GUEST_FUNCTION_HOOK(__imp__ObfDereferenceObject, ObfDereferenceObject);
-GUEST_FUNCTION_HOOK(__imp__KeSetBasePriorityThread, KeSetBasePriorityThread);
-GUEST_FUNCTION_HOOK(__imp__ObReferenceObjectByHandle, ObReferenceObjectByHandle);
-GUEST_FUNCTION_HOOK(__imp__PsCreateSystemThreadEx, PsCreateSystemThreadEx);
+GUEST_FUNCTION_HOOK_STDCALL(__imp__RtlNtStatusToDosError, RtlNtStatusToDosError);
+GUEST_FUNCTION_HOOK_STDCALL(__imp__FscSetCacheSize, FscSetCacheSize);
+GUEST_FUNCTION_HOOK_STDCALL(__imp__NtQueryDirectoryFile, NtQueryDirectoryFile);
+GUEST_FUNCTION_HOOK_STDCALL(__imp__NtCreateEvent, NtCreateEvent);
+GUEST_FUNCTION_HOOK_STDCALL(__imp__NtSetEvent, NtSetEvent);
+GUEST_FUNCTION_HOOK_STDCALL(__imp__NtWaitForSingleObjectEx, NtWaitForSingleObjectEx);
+GUEST_FUNCTION_HOOK_STDCALL(__imp__KeDelayExecutionThread, KeDelayExecutionThread)
+GUEST_FUNCTION_HOOK_STDCALL(__imp__ObfDereferenceObject, ObfDereferenceObject);
+GUEST_FUNCTION_HOOK_STDCALL(__imp__KeSetBasePriorityThread, KeSetBasePriorityThread);
+GUEST_FUNCTION_HOOK_STDCALL(__imp__ObReferenceObjectByHandle, ObReferenceObjectByHandle);
+GUEST_FUNCTION_HOOK_STDCALL(__imp__PsCreateSystemThreadEx, PsCreateSystemThreadEx);
 GUEST_FUNCTION_HOOK(__imp__KeQueryBasePriorityThread, KeQueryBasePriorityThread);
 GUEST_FUNCTION_HOOK(__imp__KeSetDisableBoostThread, KeSetDisableBoostThread);
 GUEST_FUNCTION_HOOK(__imp__NtResumeThread, NtResumeThread);
@@ -1101,67 +1192,83 @@ GUEST_FUNCTION_HOOK(__imp__NtDeviceIoControlFile, NtDeviceIoControlFile);
 GUEST_FUNCTION_HOOK(__imp__XcSHAInit, XcSHAInit);
 GUEST_FUNCTION_HOOK(__imp__XcSHAUpdate, XcSHAUpdate);
 GUEST_FUNCTION_HOOK(__imp__XcSHAFinal, XcSHAFinal);
-
 GUEST_FUNCTION_HOOK(__imp__KeQuerySystemTime, KeQuerySystemTime);
 
-GUEST_FUNCTION_HOOK(__imp__NtCreateFile, NtCreateFile); //get value hook error
+GUEST_FUNCTION_HOOK_STDCALL(__imp__NtCreateFile, NtCreateFile); //get value hook error
 GUEST_FUNCTION_HOOK(__imp__IoCreateSymbolicLink, IoCreateSymbolicLink);
-GUEST_FUNCTION_HOOK(__imp__IoDeleteSymbolicLink, IoDeleteSymbolicLink);
+GUEST_FUNCTION_HOOK_STDCALL(__imp__IoDeleteSymbolicLink, IoDeleteSymbolicLink);
 GUEST_FUNCTION_HOOK(__imp__NtQuerySymbolicLinkObject, NtQuerySymbolicLinkObject);
 GUEST_FUNCTION_HOOK(__imp__NtOpenSymbolicLinkObject, NtOpenSymbolicLinkObject);
 GUEST_FUNCTION_HOOK(__imp__MmFreeSystemMemory, MmFreeSystemMemory);
 
 GUEST_FUNCTION_HOOK(__imp__MmAllocateSystemMemory, MmAllocateSystemMemory);
-GUEST_FUNCTION_HOOK(__imp__KfLowerIrql, KfLowerIrql);
+GUEST_FUNCTION_HOOK_THISCALL(__imp__KfLowerIrql, KfLowerIrql);
 
 GUEST_FUNCTION_HOOK(__imp__KeRaiseIrqlToDpcLevel, KeRaiseIrqlToDpcLevel);
-GUEST_FUNCTION_HOOK(__imp__HalRegisterShutdownNotification, HalRegisterShutdownNotification);
-GUEST_FUNCTION_HOOK(__imp__KeInitializeTimerEx, KeInitializeTimerEx);
-GUEST_FUNCTION_HOOK(__imp__KeSetTimer, KeSetTimer);
-GUEST_FUNCTION_HOOK(__imp__KeCancelTimer, KeCancelTimer);
+GUEST_FUNCTION_HOOK_STDCALL(__imp__HalRegisterShutdownNotification, HalRegisterShutdownNotification);
+GUEST_FUNCTION_HOOK_STDCALL(__imp__KeInitializeTimerEx, KeInitializeTimerEx);
+GUEST_FUNCTION_HOOK_STDCALL(__imp__KeSetTimer, KeSetTimer);
+GUEST_FUNCTION_HOOK_STDCALL(__imp__KeCancelTimer, KeCancelTimer);
 
 
+GUEST_FUNCTION_HOOK_STDCALL(__imp__RtlLONGToDosError, RtlLONGToDosError);
+GUEST_FUNCTION_HOOK_STDCALL(__imp__RtlUnwind, RtlUnwind_);
+GUEST_FUNCTION_HOOK_STDCALL(__imp__XcHMAC, XcHMAC);
+GUEST_FUNCTION_HOOK_STDCALL(__imp__XeLoadSection, XeLoadSection);
+GUEST_FUNCTION_HOOK_STDCALL(__imp__XeUnloadSection, XeUnloadSection);
+GUEST_FUNCTION_HOOK_STDCALL(__imp__HalInitiateShutdown, HalInitiateShutdown);
+GUEST_FUNCTION_HOOK_STDCALL(__imp__RtlEqualString, RtlEqualString);
+GUEST_FUNCTION_HOOK_STDCALL(__imp__MmSetAddressProtect, MmSetAddressProtect);
+GUEST_FUNCTION_HOOK_STDCALL(__imp__MmQueryAllocationSize, MmQueryAllocationSize);
+GUEST_FUNCTION_HOOK_STDCALL(__imp__MmQueryAddressProtect, MmQueryAddressProtect);
 
-GUEST_FUNCTION_HOOK(__imp__RtlLONGToDosError, RtlLONGToDosError);
-GUEST_FUNCTION_HOOK(__imp__RtlUnwind, RtlUnwind_);
-GUEST_FUNCTION_HOOK(__imp__XcHMAC, XcHMAC);
-GUEST_FUNCTION_HOOK(__imp__XeLoadSection, XeLoadSection);
-GUEST_FUNCTION_HOOK(__imp__XeUnloadSection, XeUnloadSection);
-GUEST_FUNCTION_HOOK(__imp__HalInitiateShutdown, HalInitiateShutdown);
-GUEST_FUNCTION_HOOK(__imp__RtlEqualString, RtlEqualString);
-GUEST_FUNCTION_HOOK(__imp__MmSetAddressProtect, MmSetAddressProtect);
-GUEST_FUNCTION_HOOK(__imp__MmQueryAllocationSize, MmQueryAllocationSize);
-GUEST_FUNCTION_HOOK(__imp__MmQueryAddressProtect, MmQueryAddressProtect);
+GUEST_FUNCTION_HOOK_STDCALL(__imp__MmLockUnlockPhysicalPage, MmLockUnlockPhysicalPage);
+GUEST_FUNCTION_HOOK_STDCALL(__imp__MmLockUnlockBufferPages, MmLockUnlockBufferPages);
+GUEST_FUNCTION_HOOK_STDCALL(__imp__MmGetPhysicalAddress, MmGetPhysicalAddress);
+GUEST_FUNCTION_HOOK_STDCALL(__imp__KfRaiseIrql, KfRaiseIrql);
+GUEST_FUNCTION_HOOK_STDCALL(__imp__KeWaitForSingleObject, KeWaitForSingleObject);
+GUEST_FUNCTION_HOOK_STDCALL(__imp__KeSynchronizeExecution, KeSynchronizeExecution);
+GUEST_FUNCTION_HOOK_STDCALL(__imp__MmClaimGpuInstanceMemory, MmClaimGpuInstanceMemory);
+GUEST_FUNCTION_HOOK_STDCALL(__imp__MmAllocateContiguousMemoryEx, MmAllocateContiguousMemoryEx);
+GUEST_FUNCTION_HOOK_STDCALL(__imp__KeStallExecutionProcessor, KeStallExecutionProcessor);
+GUEST_FUNCTION_HOOK_STDCALL(__imp__KeSetEvent, KeSetEvent);
+GUEST_FUNCTION_HOOK_STDCALL(__imp__KeSaveFloatingPointState, KeSaveFloatingPointState);
+GUEST_FUNCTION_HOOK_STDCALL(__imp__KeRestoreFloatingPointState, KeRestoreFloatingPointState);
 
-GUEST_FUNCTION_HOOK(__imp__MmLockUnlockPhysicalPage, MmLockUnlockPhysicalPage);
-GUEST_FUNCTION_HOOK(__imp__MmLockUnlockBufferPages, MmLockUnlockBufferPages);
-GUEST_FUNCTION_HOOK(__imp__MmGetPhysicalAddress, MmGetPhysicalAddress);
-GUEST_FUNCTION_HOOK(__imp__KfRaiseIrql, KfRaiseIrql);
-GUEST_FUNCTION_HOOK(__imp__KeWaitForSingleObject, KeWaitForSingleObject);
-GUEST_FUNCTION_HOOK(__imp__KeSynchronizeExecution, KeSynchronizeExecution);
-GUEST_FUNCTION_HOOK(__imp__MmClaimGpuInstanceMemory, MmClaimGpuInstanceMemory);
-GUEST_FUNCTION_HOOK(__imp__MmAllocateContiguousMemoryEx, MmAllocateContiguousMemoryEx);
-GUEST_FUNCTION_HOOK(__imp__KeStallExecutionProcessor, KeStallExecutionProcessor);
-GUEST_FUNCTION_HOOK(__imp__KeSetEvent, KeSetEvent);
-GUEST_FUNCTION_HOOK(__imp__KeSaveFloatingPointState, KeSaveFloatingPointState);
-GUEST_FUNCTION_HOOK(__imp__KeRestoreFloatingPointState, KeRestoreFloatingPointState);
+GUEST_FUNCTION_HOOK_STDCALL(__imp__KeRemoveQueueDpc, KeRemoveQueueDpc);
+GUEST_FUNCTION_HOOK_STDCALL(__imp__KeInitializeDpc, KeInitializeDpc);
+GUEST_FUNCTION_HOOK_STDCALL(__imp__KeConnectInterrupt, KeConnectInterrupt);
+GUEST_FUNCTION_HOOK_STDCALL(__imp__KeDisconnectInterrupt, KeDisconnectInterrupt);
+GUEST_FUNCTION_HOOK_STDCALL(__imp__KeInitializeInterrupt, KeInitializeInterrupt);
+GUEST_FUNCTION_HOOK_STDCALL(__imp__KeInsertQueueDpc, KeInsertQueueDpc);
+GUEST_FUNCTION_HOOK_STDCALL(__imp__KeBugCheck, KeBugCheck);
+GUEST_FUNCTION_HOOK_STDCALL(__imp__ExQueryPoolBlockSize, ExQueryPoolBlockSize);
+GUEST_FUNCTION_HOOK_STDCALL(__imp__HalReadWritePCISpace, HalReadWritePCISpace);
+GUEST_FUNCTION_HOOK_STDCALL(__imp__HalGetInterruptVector, HalGetInterruptVector);
+GUEST_FUNCTION_HOOK_STDCALL(__imp__ExAllocatePoolWithTag, ExAllocatePoolWithTag);
 
-GUEST_FUNCTION_HOOK(__imp__KeRemoveQueueDpc, KeRemoveQueueDpc);
-GUEST_FUNCTION_HOOK(__imp__KeInitializeDpc, KeInitializeDpc);
-GUEST_FUNCTION_HOOK(__imp__KeConnectInterrupt, KeConnectInterrupt);
-GUEST_FUNCTION_HOOK(__imp__KeDisconnectInterrupt, KeDisconnectInterrupt);
-GUEST_FUNCTION_HOOK(__imp__KeInitializeInterrupt, KeInitializeInterrupt);
-GUEST_FUNCTION_HOOK(__imp__KeInsertQueueDpc, KeInsertQueueDpc);
-GUEST_FUNCTION_HOOK(__imp__KeBugCheck, KeBugCheck);
-GUEST_FUNCTION_HOOK(__imp__ExQueryPoolBlockSize, ExQueryPoolBlockSize);
-GUEST_FUNCTION_HOOK(__imp__HalReadWritePCISpace, HalReadWritePCISpace);
-GUEST_FUNCTION_HOOK(__imp__HalGetInterruptVector, HalGetInterruptVector);
-GUEST_FUNCTION_HOOK(__imp__ExAllocatePoolWithTag, ExAllocatePoolWithTag);
-
-GUEST_FUNCTION_HOOK(__imp__ExFreePool, ExFreePool);
-GUEST_FUNCTION_HOOK(__imp__AvGetSavedDataAddress, AvGetSavedDataAddress);
-GUEST_FUNCTION_HOOK(__imp__AvSetSavedDataAddress, AvSetSavedDataAddress);
-GUEST_FUNCTION_HOOK(__imp__AvSetDisplayMode, AvSetDisplayMode);
-GUEST_FUNCTION_HOOK(__imp__AvSendTVEncoderOption, AvSendTVEncoderOption);
+GUEST_FUNCTION_HOOK_STDCALL(__imp__ExFreePool, ExFreePool);
+GUEST_FUNCTION_HOOK_STDCALL(__imp__AvGetSavedDataAddress, AvGetSavedDataAddress);
+GUEST_FUNCTION_HOOK_STDCALL(__imp__AvSetSavedDataAddress, AvSetSavedDataAddress);
+GUEST_FUNCTION_HOOK_STDCALL(__imp__AvSetDisplayMode, AvSetDisplayMode);
+GUEST_FUNCTION_HOOK_STDCALL(__imp__AvSendTVEncoderOption, AvSendTVEncoderOption);
 GUEST_FUNCTION_HOOK(__imp__DbgPrint, DbgPrintV);
 
+
+X86_FUNC_IMPL(__imp__sub_11AD0);
+X86_FUNC(sub_11AD0)
+{
+	LOG_UTILITY("Launch Game\n");
+	__imp__sub_11AD0(ctx, base);
+}
+
+
+X86_FUNC_IMPL(__imp__sub_2AD4E4);
+X86_FUNC(sub_2AD4E4)
+{
+	LOG_UTILITY("XLaunchNewImageA\n");
+	__imp__sub_2AD4E4(ctx, base);
+}
+
+
+//GUEST_FUNCTION_HOOK(sub_2ADF0B, CreateThread_r);

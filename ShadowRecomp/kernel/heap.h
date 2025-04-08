@@ -3,11 +3,16 @@
 
 struct Heap
 {
-   // Mutex mutex;
-    O1HeapInstance* heap;
 
-   // Mutex physicalMutex;
+    Mutex mutex;
+    O1HeapInstance* heap;
+    uintptr_t heapStart;  // Untranslated base address
+    uintptr_t heapEnd;
+
+    Mutex physicalMutex;
     O1HeapInstance* physicalHeap;
+    uintptr_t physicalHeapStart;
+    uintptr_t physicalHeapEnd;
 
     void Init();
 
