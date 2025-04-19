@@ -11,43 +11,6 @@
 #endif 
 #include <intrin.h>
 
-
-
-constexpr size_t TIB_SIZE = 0x38;
-constexpr size_t NTTIB_SIZE = 0x1C;
-constexpr size_t SELFPCR_SIZE = 0x4;
-constexpr size_t PRCB_SIZE = 0x26C;  
-constexpr size_t IRQL_SIZE = 0x1;
-constexpr size_t PRCBDATA_SIZE = PRCB_SIZE;
-
-constexpr size_t TLS_SIZE = 0x2000;//0x1000;
-constexpr size_t STACK_SIZE = 0x10000;
-constexpr size_t TOTAL_SIZE = 0x280; //TIB_SIZE + SELFPCR_SIZE + PRCB_SIZE + IRQL_SIZE + PRCBDATA_SIZE + TLS_SIZE + STACK_SIZE;
-
-constexpr int8_t TLS_INDEX = -37; //hardcoded by the game on startup
-
-uint8_t KPRCB_blob[PRCB_SIZE] = {};
-
-bool isHostThread = true;
-
-//from CXBX's code
-xbox::dword_xt EmuGenerateStackSize(xbox::addr_xt& espBaseAddress, xbox::ulong_xt TlsDataSize)
-{
-	using namespace xbox;
-	dword_xt StackSize = espBaseAddress & 15; //Ensure 16-byte alignment
-	espBaseAddress -= StackSize;
-
-	StackSize += 528; //FX_SAVE_AREA 
-
-	TlsDataSize = ALIGN_UP(TlsDataSize, ulong_xt); 
-	StackSize += TlsDataSize;
-
-	StackSize += 24; //KSTART_FRAME and KSWITCHFRAME are 12 bytes each
-
-	return StackSize;
-}
-
-
 struct KTHREAD_R
 {
 	/* 0x0/0 */ uint8_t header[16];
@@ -68,20 +31,14 @@ typedef struct _ETHREAD_R
 ETHREAD_R;
 static_assert(sizeof(ETHREAD_R) == 0x140);
 
-typedef struct _KSWITCHFRAME_R
-{
-	uint32_t ExceptionList;
-	uint32_t Unknown;
-	uint32_t RetAddr;
-} KSWITCHFRAME_R, * PKSWITCHFRAME_R;
+constexpr size_t KPCR_SIZE = 0x280;
+constexpr size_t ETHREAD_R_SIZE = sizeof(_ETHREAD_R);
 
+constexpr size_t TLS_SIZE = 0x2000;//0x1000;
+constexpr size_t STACK_SIZE = 0x10000;
+size_t TOTAL_SIZE = KPCR_SIZE + TLS_SIZE + STACK_SIZE + ETHREAD_R_SIZE;
 
-typedef struct _KSTART_FRAME_R
-{
-	uint32_t SystemRoutine;
-	uint32_t StartRoutine;
-	uint32_t StartContext;
-} KSTART_FRAME_R, * PKSTART_FRAME_R;
+bool isHostThread = true;
 
 void KiInitializeContextThread(
 	IN KTHREAD_R* Thread,
@@ -91,53 +48,35 @@ void KiInitializeContextThread(
 	IN uint32_t StartContext
 )
 {
-	auto StackAddress = static_cast<uint8_t*>(g_memory.Translate(Thread->StackBase));
-
-
 	*(uint32_t*)(Thread + 0x30) = NPX_STATE_NOT_LOADED;
-
-	/* Setup the Stack for TlsData dynamic sized array */
-	//TlsDataSize = ALIGN_UP(TlsDataSize, uint32_t);
-
-	/**StackAddress -= TlsDataSize; // TlsData section (optional)
-	if (TlsDataSize) 
-	{
-		Thread->TlsData = g_memory.MapVirtual(StackAddress);
-	}
-	else {
-		Thread->TlsData = 0;
-	}*/
-
-	/**StackAddress -= sizeof(KSTART_FRAME_R);
-	KSTART_FRAME_R* StartFrame = reinterpret_cast<KSTART_FRAME_R*>(StackAddress);
-	StackAddress -= sizeof(KSWITCHFRAME_R);
-	PKSWITCHFRAME_R CtxSwitchFrame = reinterpret_cast<PKSWITCHFRAME_R>(StackAddress);
-
-	/**StartFrame->StartContext = StartContext;
-	StartFrame->StartRoutine = StartRoutine;
-	StartFrame->SystemRoutine = SystemRoutine;
-
-	CtxSwitchFrame->RetAddr = 0;
-	CtxSwitchFrame->Unknown = 0x200; 
-	CtxSwitchFrame->ExceptionList = reinterpret_cast<uint32_t>(X_EXCEPTION_CHAIN_END);
-
-	/* Save back the new value of the kernel stack. 
-	Thread->KernelStack = g_memory.MapVirtual(CtxSwitchFrame);*/
 }
 
 GuestThreadContext::GuestThreadContext(GuestThreadParams params)
 {
 	auto KernelStackSize = params.kernelStackSize;
 	auto tlsSize = params.tlsSize;
-	auto stack = params.stack; //already mapped
+
+	if (tlsSize <= 0)
+		tlsSize = TLS_SIZE;
+
+	if (KernelStackSize <= 0)
+		KernelStackSize = STACK_SIZE;
+
+	TOTAL_SIZE = KPCR_SIZE + tlsSize + KernelStackSize + ETHREAD_R_SIZE;
 
 	assert(thread == nullptr);
 	thread = (uint8_t*)g_userHeap.Alloc(TOTAL_SIZE);
-	ETHREAD_R* eThread = (ETHREAD_R*)g_userHeap.Alloc(sizeof(ETHREAD_R));
-	uint8_t* memory = (uint8_t*)g_userHeap.Alloc(STACK_SIZE + TLS_SIZE);
-	uint8_t* stack_limit = memory + TLS_SIZE;
-	uint8_t* stack_top = stack_limit + STACK_SIZE;
-	uint8_t* tls_region = memory;
+	//ETHREAD_R* eThread = (ETHREAD_R*)g_userHeap.Alloc(sizeof(ETHREAD_R));
+	//uint8_t* memory = (uint8_t*)g_userHeap.Alloc(KernelStackSize + tlsSize);	
+	
+
+	ETHREAD_R* eThread = (ETHREAD_R*)thread + KPCR_SIZE + tlsSize + KernelStackSize;
+
+	//uint8_t* memory = thread + KernelStackSize + tlsSize;
+
+	uint8_t* stack_limit = thread + KPCR_SIZE + tlsSize;
+	uint8_t* stack_top = stack_limit + KernelStackSize;
+	uint8_t* tls_region = thread + KPCR_SIZE;
 
 	memset(thread, 0, TOTAL_SIZE);
 	memset(eThread, 0, sizeof(ETHREAD_R));
@@ -146,25 +85,17 @@ GuestThreadContext::GuestThreadContext(GuestThreadParams params)
 	uint8_t* NewPcr = thread;   //FS:[0x00] points here
 	memset(NewPcr, 0, TOTAL_SIZE);
 	uint8_t* XbTib = (NewPcr + 0x0);
+
 	uint8_t* Prcb = NewPcr + 0x28; //FS:[0x28] = prcbData
-	//uint8_t* unkData = prcb + 0x250;  //[prcb + 0x250] used by the game
 
-
-	//uint8_t* hTib = XbTib;
-
+	*(uint32_t*)(NewPcr + 0x04) = g_memory.MapVirtual(thread + 0x04);
 	*(uint32_t*)(NewPcr + 0x01C) = g_memory.MapVirtual(NewPcr); //SelfPcr
 	*(uint32_t*)(NewPcr + 0x018) = g_memory.MapVirtual(XbTib); //Self
 	*(uint32_t*)(NewPcr + 0x020) = g_memory.MapVirtual(Prcb);  //fs:[0x20] = Prcb
 
-
-
 	*(uint32_t*)(Prcb + 0x30) = FALSE;
 	*(uint32_t*)(NewPcr + 0x24) = PASSIVE_LEVEL;
 
-	uint32_t Host2XbStackBaseReserved = (uint32_t)g_memory.MapVirtual(g_userHeap.Alloc(KernelStackSize));
-	uint32_t Host2XbStackSizeReserved = EmuGenerateStackSize(Host2XbStackBaseReserved, tlsSize);
-
-	void* kenrelStackhost = nullptr;
 
 	if (isHostThread)
 	{
@@ -179,50 +110,19 @@ GuestThreadContext::GuestThreadContext(GuestThreadParams params)
 	else
 	{
 		eThread->Tcb.StackBase = g_memory.MapVirtual(stack_top); // stack;
-		//auto host_stack = static_cast<uint8_t*>(g_memory.Translate(stack));
-	//	auto host_stack_limit = host_stack - KernelStackSize;
-		auto host_stack_limit = memory + TLS_SIZE;
-		eThread->Tcb.StackLimit = g_memory.MapVirtual((const void*)(host_stack_limit));
-		eThread->Tcb.KernelStack = g_memory.MapVirtual(stack_top);
+		eThread->Tcb.StackLimit = g_memory.MapVirtual(stack_limit);
+		eThread->Tcb.KernelStack = eThread->Tcb.StackBase; // g_memory.MapVirtual(stack_top);
 		eThread->Tcb.TlsData = g_memory.MapVirtual(tls_region);
 		KiInitializeContextThread(&eThread->Tcb, tlsSize, 0, 0, 0);
 
 	}
 
-	// Allocate space in the stack for TLS (+ pointer to data array)
+	// Allocate space in the stack for TLS, todo check if needed
 	if (eThread->Tcb.TlsData) 
 	{
-		/**uint32_t RawTlsDataSize = m_TLS->dwDataEndAddr - m_TLS->dwDataStartAddr;
-		uint32_t TlsSizeTotal = RawTlsDataSize + m_TLS->dwSizeofZeroFill;
-		xbox::addr_xt* TlsData = reinterpret_cast<xbox::addr_xt*>(g_memory.Translate(eThread->Tcb.TlsData));
-		*TlsData = reinterpret_cast<xbox::addr_xt>(eThread->Tcb.TlsData) + sizeof(xbox::addr_xt);
-
-		TlsData += 1;
-		std::memcpy(TlsData, reinterpret_cast<xbox::PVOID>(m_TLS->dwDataStartAddr), RawTlsDataSize);
-
-		if (m_TLS->dwSizeofZeroFill) 
-			std::memset(reinterpret_cast<xbox::PBYTE>(TlsData) + RawTlsDataSize, 0, m_TLS->dwSizeofZeroFill);*/
-
 		uint32_t RawTlsDataSize = m_TLS->dwDataEndAddr - m_TLS->dwDataStartAddr;
 		uint32_t TlsSizeTotal = RawTlsDataSize + m_TLS->dwSizeofZeroFill;
-
-
-		/**std::memcpy(
-			g_memory.Translate(eThread->Tcb.TlsData),
-			reinterpret_cast<xbox::PVOID>(m_TLS->dwDataStartAddr),
-			RawTlsDataSize
-		);
-
-		// Zero-fill remaining space if needed
-		if (m_TLS->dwSizeofZeroFill) {
-			std::memset(
-				reinterpret_cast<xbox::PBYTE>(g_memory.Translate(eThread->Tcb.TlsData)) + RawTlsDataSize,
-				0,
-				m_TLS->dwSizeofZeroFill
-			);
-		}*/
 	}
-
 
 
 	if (isHostThread == false)
@@ -235,9 +135,6 @@ GuestThreadContext::GuestThreadContext(GuestThreadParams params)
 
 	memset(&x86Context, 0, sizeof(x86Context));
 
-	// Segment registers (Xbox-specific values)
- 
-	// Stack setup (Xbox uses downward-growing stack)
 
 	if (isHostThread)
 	{
@@ -257,7 +154,8 @@ GuestThreadContext::GuestThreadContext(GuestThreadParams params)
 	x86Context.fpu.cw = 0x037F;
 	x86Context.mxcsr = 0x1F80;
 	x86Context.kpcr_ptr = g_memory.MapVirtual(thread);
-	x86Context.stack_ptr = g_memory.MapVirtual(thread + 0x4); //unsued for now
+
+	x86Context.kpcr_ptr = *(uint32_t*)(NewPcr + 0x04); //unused for now
 
 	assert(GetX86Context() == nullptr);
 	SetX86Context(x86Context);
@@ -272,7 +170,7 @@ GuestThreadContext::~GuestThreadContext()
 
 static void GuestThreadFunc(GuestThreadHandle* hThread)
 {
-	printf("GuestThreadFunc(GuestThreadHandle* hThread): Function %08X\n", hThread->params.function);
+	//printf("GuestThreadFunc(GuestThreadHandle* hThread): Function %08X\n", hThread->params.function);
 	hThread->suspended.wait(true);
 	GuestThread::Start(hThread->params);
 }
@@ -311,7 +209,7 @@ static uint32_t GetThreadId(const std::thread::id& id)
 
 GuestThreadHandle* GuestThread::Start(const GuestThreadParams& params, uint32_t* threadId)
 {
-	printf("GuestThread::Start(const GuestThreadParams& params, uint32_t* threadId), function: %08X\n", params.function);
+	//printf("GuestThread::Start(const GuestThreadParams& params, uint32_t* threadId), function: %08X\n", params.function);
 	auto hThread = CreateKernelObject<GuestThreadHandle>(params);
 
 	if (threadId != nullptr)
@@ -343,8 +241,7 @@ uint32_t GuestThread::Start(const GuestThreadParams& params)
 	//ctx.x86Context.esp.u32 = (ctx.x86Context.esp.u32 - 16) & ~0xF;
 		//ctx.x86Context.ecx.u32 = params.value;
 	ctx.x86Context.esp.u32 -= 4; //in x86, the CPU always adjust the stack pointer by 4 bytes before calling a function
-	//call function, if it crashes there the function was most likely not found in the map array
-	g_memory.FindFunction(params.function)(ctx.x86Context, g_memory.base);
+	g_memory.FindFunction(params.function)(ctx.x86Context, g_memory.base); 	//call function, if it crashes there the function was most likely not found in the map array
 	return ctx.x86Context.eax.u32;
 }
 

@@ -1032,8 +1032,6 @@ LONG PsCreateSystemThreadEx(
 	IN  uint32_t SystemRoutine OPTIONAL)
 {
 
-
-
 	if (KernelStackSize < KERNEL_STACK_SIZE)
 		KernelStackSize = KERNEL_STACK_SIZE;
 
@@ -1041,14 +1039,11 @@ LONG PsCreateSystemThreadEx(
 	uint32_t hKernelStackSize = KernelStackSize * 2;
 
 	// round up to the next page boundary if un-aligned
-	KernelStackSize = RoundUp(KernelStackSize, PAGE_SIZE);
 	hKernelStackSize = RoundUp(hKernelStackSize, PAGE_SIZE);
 
-	auto stack = MmAllocateSystemMemory(KernelStackSize, 0);
 	uint32_t hostThreadId;
-	auto handle = GetKernelHandle(GuestThread::Start({ (uint32_t)StartRoutine, 0, 0, TlsDataSize, stack, KernelStackSize }, &hostThreadId));
+	auto handle = GetKernelHandle(GuestThread::Start({ (uint32_t)StartRoutine, 0, 0, TlsDataSize, hKernelStackSize }, &hostThreadId));
 	*ThreadHandle = handle;
-
 
 	return X_STATUS_SUCCESS;
 }

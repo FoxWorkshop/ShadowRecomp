@@ -10,7 +10,6 @@ struct GuestThreadParams
     uint32_t value;
     uint32_t flags;
     uint32_t tlsSize;
-    uint32_t stack;
     uint32_t kernelStackSize;
 };
 
