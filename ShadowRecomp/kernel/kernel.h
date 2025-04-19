@@ -7,6 +7,21 @@
 
 #define GUEST_INVALID_HANDLE_VALUE 0xFFFFFFFF
 
+//from CXBX's code:
+#define TIB_ArbitraryDataSlot  0x14 // = 20 = offsetof(NT_TIB, ArbitraryUserPointer)
+#define TIB_LinearSelfAddress  0x18 // = 24 = offsetof(NT_TIB, Self)
+#define XBOX_KERNEL_BASE                    (PHYSICAL_MAP_BASE + XBE_IMAGE_BASE)
+#define KERNEL_PHYSICAL_ADDRESS             XBE_IMAGE_BASE // = 0x10000
+#define KERNEL_SIZE                         sizeof(DUMMY_KERNEL)
+#define KERNEL_STACK_SIZE                   12288 // 0x03000, needed by PsCreateSystemThreadEx, however the current implementation doesn't use it
+
+// Miscellaneous memory variables
+// Xbox pages are (1 << 12) = 0x00001000 = 4096 bytes in size. Large pages are 4 MiB instead
+// NOTE: PAGE_SIZE is also defined in xfile.h (oxdk) and linux_wrapper.h (oxdk)
+#define PAGE_SHIFT                          12 // 2^12 = 4 KiB
+#define PAGE_SIZE                           (1 << PAGE_SHIFT) 
+#define PAGE_MASK                           (PAGE_SIZE - 1)
+
 struct KernelObject
 {
     virtual ~KernelObject()

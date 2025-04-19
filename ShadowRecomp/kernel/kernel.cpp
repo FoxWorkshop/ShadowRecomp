@@ -24,7 +24,7 @@ uint32_t GetKernelHandle(KernelObject* obj)
 
 bool IsKernelObject(uint32_t handle)
 {
-    return (handle & 0x80000000) != 0;
+    return handle != 0;
 }
 
 bool IsKernelObject(void* obj)

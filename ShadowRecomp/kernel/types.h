@@ -582,8 +582,8 @@ namespace xbox
 
 #define EXCEPTION_MAXIMUM_PARAMETERS 15 // maximum number of exception parameters
 
-#define ALIGN_DOWN(length, type) ((ulong_xt)(length) & ~(sizeof(type) - 1))
-#define ALIGN_UP(length, type) (ALIGN_DOWN(((ulong_xt)(length) + sizeof(type) - 1), type))
+#define ALIGN_DOWN(length, type) ((uint32_t)(length) & ~(sizeof(type) - 1))
+#define ALIGN_UP(length, type) (ALIGN_DOWN(((uint32_t)(length) + sizeof(type) - 1), type))
 #define ALIGN_DOWN_POINTER(address, type) ((PVOID)((ulong_ptr_xt)(address) & ~((ulong_ptr_xt)sizeof(type) - 1)))
 #define ALIGN_UP_POINTER(address, type) (ALIGN_DOWN_POINTER(((ulong_ptr_xt)(address) + sizeof(type) - 1), type))
 

@@ -4,21 +4,26 @@
 
 #define CURRENT_THREAD_HANDLE uint32_t(-2)
 
-struct GuestThreadContext
-{
-    X86Context x86Context{};
-    uint8_t* thread = nullptr;
-
-    GuestThreadContext(uint32_t cpuNumber);
-    ~GuestThreadContext();
-};
-
 struct GuestThreadParams
 {
     uint32_t function;
     uint32_t value;
     uint32_t flags;
+    uint32_t tlsSize;
+    uint32_t stack;
+    uint32_t kernelStackSize;
 };
+
+struct GuestThreadContext
+{
+    X86Context x86Context{};
+    uint8_t* thread = nullptr;
+
+    GuestThreadContext(GuestThreadParams params);
+    ~GuestThreadContext();
+};
+
+
 
 struct GuestThreadHandle : KernelObject
 {
@@ -44,3 +49,7 @@ struct GuestThread
     //static void SetThreadName(uint32_t threadId, const char* name);
 #endif
 };
+
+#include "kernel/xbox_types.h"
+
+extern TLS* m_TLS;

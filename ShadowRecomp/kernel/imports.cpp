@@ -10,6 +10,7 @@
 #include "memory.h"
 #include <memory>
 #include "kernel.h"
+#include <util.h>
 #include <xbox.h>
 
 const std::string XBOX_BASE_DIR = ""; //todo
@@ -36,7 +37,10 @@ void AvSendTVEncoderOption
 	OUT uint32_t* Result
 )
 {
-	LOG_UTILITY("!!! STUB !!!");
+	if (Option == 6)
+	{
+
+	}
 }
 
 uint32_t AvSetDisplayMode
@@ -71,15 +75,18 @@ int32_t NtFreeVirtualMemory(IN OUT uint32_t* BaseAddress, IN OUT ULONG32 FreeSiz
 	return X_STATUS_SUCCESS;
 }
 
-int32_t NtAllocateVirtualMemory(uint32_t* ProcessHandle, uint32_t* BaseAddress,
-	uint32_t* ZeroBits, int32_t* RegionSize, ULONG AllocationType, ULONG Protect)
+int32_t NtAllocateVirtualMemory(IN OUT uint32_t* BaseAddress,
+	IN ulong_xt         ZeroBits,
+	IN OUT uint32_t*    AllocationSize,
+	IN dword_xt         AllocationType,
+	IN dword_xt         Protect)
 {
-	void* ptr = g_userHeap.Alloc(*RegionSize);
+	void* ptr = g_userHeap.Alloc(*AllocationSize);
 
 	uint32_t xbox_addr = g_memory.MapVirtual(ptr);
 	*BaseAddress = reinterpret_cast<uint32_t>(xbox_addr);
 
-	printf("NtAllocateVirtualMemory: %zu bytes -> 0x%08X", *RegionSize, xbox_addr);
+	printf("NtAllocateVirtualMemory: %zu bytes -> 0x%08X\n\n", *AllocationSize, xbox_addr);
 	return X_STATUS_SUCCESS;
 }
 
@@ -129,29 +136,63 @@ uint32_t ExQueryPoolBlockSize
 }
 
 
-typedef enum {
-	NV_SETTING_VIDEO_MODE = 0,
-	NV_SETTING_LANGUAGE,
-} NV_SETTING_TYPE;
+void LockEeprom()
+{
+	//EnterCriticalSection(get_eeprom_crit_section());
+}
 
 LONG ExQueryNonVolatileSetting(
-	IN  dword_xt   ValueIndex,
+	IN  dword_xt  ValueIndex,
 	OUT dword_xt* Type,
-	OUT uint32_t* Value,
-	IN  size_xt  ValueLength,
-	OUT uint32_t* ResultLength OPTIONAL
-) {
+	OUT uint32_t*   Value,
+	IN  size_xt   ValueLength,
+	OUT uint32_t*  ResultLength OPTIONAL
+)
+{
 
+	// Default to REG_DWORD (common for Xbox settings)
+	if (Type) 
+		*Type = REG_DWORD;
 
-	// Default values for common settings
-	switch (ValueIndex)
+	// Handle known settings
+	switch (ValueIndex) 
 	{
+	case 17:
+		return X_STATUS_SUCCESS;
+	case 0x1000: // Language (en-US)
+		if (ValueLength >= 4) 
+		{
+			*(DWORD*)Value = 0x0409; // English
+			if (ResultLength) 
+				*ResultLength = 4;
+			return X_STATUS_SUCCESS;
+		}
+		break;
+
+	case 0x2002:
+		if (ValueLength >= 4) 
+		{
+			*(DWORD*)Value = 0; // 640x480
+			if (ResultLength) *ResultLength = 4;
+			return X_STATUS_SUCCESS;
+		}
+		break;
+
+	case xbox::XC_FACTORY_GAME_REGION: 
+		if (ValueLength >= 4) 
+		{
+			*(DWORD*)Value = 0x01; 
+			if (ResultLength) *ResultLength = 4;
+			return X_STATUS_SUCCESS;
+		}
+		break;
 	default:
-		printf("  Unknown setting type, returning 0\n");
-		memset(Value, 0, ValueLength);
+		break;
 	}
 
-	return X_STATUS_SUCCESS;
+	// Fallback: Log unknown indices and return "not found"
+	printf("ExQueryNonVolatileSetting: Unhandled index 0x%X\n", ValueIndex);
+	return X_STATUS_OBJECT_NAME_NOT_FOUND;
 }
 
 LONG FscSetCacheSize(ULONG NumberOfCachePages)
@@ -167,10 +208,10 @@ uint32_t HalGetInterruptVector(uint32_t BusInterruptLevel, std::uint8_t* Irql)
 	return 0x20; //Return a dummy vector (typical for ISA IRQs)
 }
 
+//allows drivers or system components to register a callback function to be notified when the console is about to shut down.
 void HalRegisterShutdownNotification(int32_t* ShutdownRegistration, uint8_t Register)
 {
-	printf("[STUB] HalRegisterShutdownNotification(%p, %d)\n",
-		ShutdownRegistration, Register);
+	printf("[STUB] HalRegisterShutdownNotification(%p, %d)\n", ShutdownRegistration, Register);
 }
 
 void HalReturnToFirmware(ULONG Action)
@@ -201,12 +242,8 @@ void HalReadWritePCISpace
 
 LONG IoCreateSymbolicLink(uint32_t* SymbolicLinkName_, uint32_t* DeviceName_)
 {
-	xbox::PUNICODE_STRING DeviceName = (xbox::PUNICODE_STRING)DeviceName_;
-	xbox::PUNICODE_STRING SymbolicLinkName = (xbox::PUNICODE_STRING)SymbolicLinkName_;
 
-	printf("[STUB] IoCreateSymbolicLink(%.*S -> %.*S)\n",
-		SymbolicLinkName->Length / 2, SymbolicLinkName->Buffer,
-		DeviceName->Length / 2, DeviceName->Buffer);
+	printf("[STUB] IoCreateSymbolicLink\n");
 
 	return X_STATUS_SUCCESS;
 }
@@ -280,7 +317,7 @@ LONG KeQueryBasePriorityThread(IN uint32_t* Thread)
 
 std::uint8_t KeInsertQueueDpc(uint32_t* Dpc_, uint32_t* Argument1, uint32_t* Argument2)
 {
-	xpointer<xbox::KDPC*> Dpc = xpointer<xbox::KDPC*>(*Dpc_);
+	xpointer<KDPC> Dpc = xpointer<KDPC>(*Dpc_);
 	printf("[STUB] KeInsertQueueDpc(%p, %p, %p)\n", Dpc, Argument1, Argument2);
 	return TRUE;
 }
@@ -319,7 +356,7 @@ LONG KeDelayExecutionThread(uint8_t WaitMode, BOOLEAN Alertable, uint32_t* Inter
 {
 
 	LOG_UTILITY("KeDelayExecutionThread\n");
-	// We don't do async file reads.
+
 	if (Alertable)
 		return STATUS_USER_APC;
 
@@ -351,19 +388,13 @@ std::uint8_t KeCancelTimer(uint32_t* Timer_)
 	return TRUE;
 }
 
-VOID KeInitializeDpc(uint32_t* Dpc_, uint32_t* DeferredContext, uint32_t* DeferredRoutine_)
+
+VOID KeInitializeDpc(_KDPC* Dpc, uint32_t DeferredRoutine, uint32_t* DeferredContext)
 {
-	if (Dpc_ != NULL)
-	{
-		/**xpointer<KDPC> Dpc = xpointer<KDPC>(*Dpc_);
-		xpointer<PKDEFERRED_ROUTINE> DeferredRoutine = xpointer<PKDEFERRED_ROUTINE>(*DeferredRoutine_);
-		printf("[STUB] KeInitializeDpc(%p, %p, %p)\n",
-			Dpc, DeferredRoutine, DeferredContext);
-		Dpc->Type = 19;
-		Dpc->Inserted = FALSE;
-		Dpc->DeferredRoutine = *DeferredRoutine.get();
-		Dpc->DeferredContext = (void*)DeferredContext;*/
-	}
+	Dpc->Type = 19;
+	Dpc->Inserted = FALSE;
+	Dpc->DeferredRoutine = (PKDEFERRED_ROUTINE)DeferredRoutine;
+	Dpc->DeferredContext = (xpointer<void>)DeferredContext;
 }
 
 void InitializeListHead(xpointer<xbox::LIST_ENTRY> pListHead_)
@@ -372,30 +403,30 @@ void InitializeListHead(xpointer<xbox::LIST_ENTRY> pListHead_)
 	pListHead->Flink = pListHead->Blink = pListHead;
 }
 
-VOID KeInitializeTimerEx(uint32_t* Timer_, uint32_t Type)
+xbox::_KTIMER* g_timers = nullptr;
+
+void InitializeListHead(xbox::PLIST_ENTRY pListHead)
 {
-	return;
-	//xbox::KTIMER* Timer = (xbox::KTIMER*)Timer_;
-	xpointer<xbox::KTIMER> Timer = xpointer<xbox::KTIMER>(*Timer_);
-	assert(Timer);
+	pListHead->Flink = pListHead->Blink = pListHead;
+}
 
-	// Initialize header :
-	Timer->Header.Type = Type + xbox::TimerNotificationObject;
+VOID KeInitializeTimerEx(xbox::_KTIMER* Timer, uint32_t Type)
+{
+	Timer->Header.Type = Type + 8;
 	Timer->Header.Inserted = FALSE;
-	Timer->Header.Size = sizeof(xbox::KTIMER) / sizeof(ULONG);
+	Timer->Header.Size = sizeof(xbox::_KTIMER) / sizeof(ULONG);
 	Timer->Header.SignalState = 0;
-	xpointer<xbox::LIST_ENTRY> pListHead = xpointer<xbox::LIST_ENTRY>(&Timer->TimerListEntry);
-
-	// Initialize specific fields :
+	InitializeListHead(&(Timer->Header.WaitListHead));
 	Timer->TimerListEntry.Blink = NULL;
 	Timer->TimerListEntry.Flink = NULL;
 	Timer->DueTime.QuadPart = 0;
 	Timer->Period = 0;
+
 }
 
 std::uint8_t KeRemoveQueueDpc(uint32_t* Dpc_)
 {
-	xbox::PKDPC Dpc = (xbox::PKDPC)Dpc_;
+	KDPC Dpc = (KDPC)*Dpc_;
 	printf("[STUB] KeRemoveQueueDpc(%p)\n", Dpc);
 	return TRUE;
 }
@@ -445,7 +476,7 @@ LONG KeSetEvent(void* Event_, uint32_t Increment_, BOOLEAN Wait)
 
 BOOLEAN KeSetTimer(uint32_t* Dpc_, uint32_t* DueTime_, uint32_t* Timer_)
 {
-	return FALSE;
+	//return FALSE;
 	_LARGE_INTEGER DueTime;
 	if (DueTime_)
 		DueTime = *(_LARGE_INTEGER*)DueTime_;
@@ -453,7 +484,7 @@ BOOLEAN KeSetTimer(uint32_t* Dpc_, uint32_t* DueTime_, uint32_t* Timer_)
 		DueTime.QuadPart = 0;
 
 	xbox::PKTIMER Timer = (xbox::PKTIMER)Timer_;
-	xbox::PKDPC Dpc = (xbox::PKDPC)Dpc_;
+	KDPC* Dpc = (KDPC*)Dpc_;
 	printf("[STUB] KeSetTimer(%p, %lld ns, Dpc %p)\n", Timer, DueTime.QuadPart, Dpc);
 	return FALSE; // Timer wasn't already active
 }
@@ -525,11 +556,11 @@ VOID MmFreeSystemMemory(uint32_t* BaseAddress, uint32_t NumberOfBytes)
 	g_userHeap.Free(g_memory.Translate((size_t)BaseAddress));
 }
 
-PVOID MmAllocateSystemMemory(uint32_t NumberOfBytes, ULONG Protect)
+uint32_t MmAllocateSystemMemory(uint32_t NumberOfBytes, ULONG Protect)
 {
 	printf("[STUB] MmAllocateSystemMemory(%zu bytes, Prot 0x%X)\n",
 		NumberOfBytes, Protect);
-	return (void*)g_memory.MapVirtual(g_userHeap.Alloc(NumberOfBytes));
+	return g_memory.MapVirtual(g_userHeap.Alloc(NumberOfBytes));
 }
 
 void KfLowerIrql(std::uint8_t NewIrql)
@@ -537,9 +568,10 @@ void KfLowerIrql(std::uint8_t NewIrql)
 	printf("[STUB] KfLowerIrql(%d)\n", NewIrql);
 }
 
-
 LONG NtClose(uint32_t Handle)
 {
+	auto test = GetX86Context();
+	test = test;
 	printf("NtClose(%p) called\n", Handle);
 
 	if (Handle == 0)
@@ -575,6 +607,7 @@ LONG NtCreateEvent(uint32_t* EventHandle, uint32_t* bjectAttributes, uint32_t Ev
 
 #ifdef _WIN32
 #include <windows.h>
+
 using FileHandleType = HANDLE;
 #define INVALID_HANDLE_VALUE_WIN32 INVALID_HANDLE_VALUE
 #else
@@ -848,7 +881,7 @@ LONG MmLockUnlockPhysicalPage(uint32_t PhysicalAddress_, BOOLEAN Lock)
 
 VOID MmPersistContiguousMemory(uint32_t* BaseAddress, uint32_t NumberOfBytes, BOOLEAN Persist)
 {
-	LOG_UTILITY("MmPersistContiguousMemory(%p, %zu, %s)", BaseAddress, NumberOfBytes, Persist ? "Persist" : "Unpersist");
+	LOG_UTILITY("MmPersistContiguousMemory(%p, %zu, %s\n)", BaseAddress, NumberOfBytes, Persist ? "Persist" : "Unpersist");
 }
 
 LONG MmQueryAddressProtect(uint32_t* BaseAddress, uint32_t* Protect)
@@ -929,7 +962,7 @@ BOOLEAN RtlEqualString(PCSTR String1, PCSTR String2)
 
 LONG NtSuspendThread(GuestThreadHandle* ThreadHandle, uint32_t* PreviousSuspendCount)
 {
-	LOG_UTILITY("NtSuspendThread(0x%X)\n", ThreadHandle);	
+	LOG_UTILITY("NtSuspendThread(0x%X)\n", ThreadHandle);
 	assert(ThreadHandle != GetKernelObject(CURRENT_THREAD_HANDLE) && ThreadHandle->thread.get_id() == std::this_thread::get_id());
 
 	ThreadHandle->suspended = true;
@@ -964,39 +997,58 @@ typedef void_xt(NTAPI* PKSYSTEM_ROUTINE)
 	IN PVOID StartContext OPTIONAL
 	);
 
-LONG PsCreateSystemThreadEx(
-	PHANDLE ThreadHandle,
-	uint32_t StartRoutine,
-	ULONG StackSize,
-	PULONG ThreadId,
-	ULONG Reserved,
-	PVOID StartContext,
-	ULONG ProcessedStackSize,
-	ULONG Unknown,
-	PKSTART_ROUTINE SystemRoutine)
 
+void KeInitializeThread(
+	IN OUT uint32_t Thread,
+	IN uint32_t KernelStack,
+	IN ulong_xt KernelStackSize,
+	IN ulong_xt TlsDataSize
+)
+{
+	/* ReactOS's KeInitThread inline code begin */
+
+	/* Initialize the Dispatcher Header */
+	*(uint32_t*)(Thread + 0) = xbox::ThreadObject;
+	*(uint32_t*)(Thread + 0 + 2) = 272 / sizeof(xbox::long_xt);
+	// ThreadControlFlags
+	// DebugActive
+
+	/* Set the Thread Stacks */
+	*(uint32_t*)(Thread + 0x1c) = KernelStack;
+	*(uint32_t*)(Thread  + 0x20) = (reinterpret_cast<ulong_ptr_xt>(KernelStack) - KernelStackSize);
+
+}
+
+LONG PsCreateSystemThreadEx(
+	OUT uint32_t*         ThreadHandle,
+	IN  ulong_xt           ThreadExtensionSize,
+	IN  ulong_xt           KernelStackSize,
+	IN  ulong_xt           TlsDataSize,
+	OUT uint32_t          ThreadId OPTIONAL,
+	IN  uint32_t StartRoutine,
+	IN  uint32_t           StartContext,
+	IN  boolean_xt         CreateSuspended,
+	IN  boolean_xt         DebuggerThread,
+	IN  uint32_t SystemRoutine OPTIONAL)
 {
 
-	//KernelStackSize = KernelStackSize;
-	LOG_UTILITY("PsCreateSystemThreadEx: Creating thread - Handle: 0x%X, Start Addr: 0x%x, Stack Size: 0x%X, Thread ID: 0x%X\n",
-		(uintptr_t)ThreadHandle, StartRoutine, StackSize, ThreadId);
 
 
-	// Variable to receive the native thread ID
+	if (KernelStackSize < KERNEL_STACK_SIZE)
+		KernelStackSize = KERNEL_STACK_SIZE;
+
+	// Double the stack size, this is to account for the overhead HLE patching adds to the stack
+	uint32_t hKernelStackSize = KernelStackSize * 2;
+
+	// round up to the next page boundary if un-aligned
+	KernelStackSize = RoundUp(KernelStackSize, PAGE_SIZE);
+	hKernelStackSize = RoundUp(hKernelStackSize, PAGE_SIZE);
+
+	auto stack = MmAllocateSystemMemory(KernelStackSize, 0);
 	uint32_t hostThreadId;
+	auto handle = GetKernelHandle(GuestThread::Start({ (uint32_t)StartRoutine, 0, 0, TlsDataSize, stack, KernelStackSize }, &hostThreadId));
+	*ThreadHandle = handle;
 
-	auto handle = GetKernelHandle(GuestThread::Start({ StartRoutine, 0, 0 }, &hostThreadId));
-	//the game can pass a null value
-	if (ThreadHandle)
-	{
-		*ThreadHandle = (PHANDLE)handle;
-	}
-
-	// If thread ID output was requested, set it
-	if (ThreadId != nullptr)
-	{
-		*ThreadId = hostThreadId;
-	}
 
 	return X_STATUS_SUCCESS;
 }
@@ -1131,9 +1183,12 @@ void RtlUnwind_()
 	LOG_UTILITY("[STUB] RtlUnwind() - Ignoring");
 }
 
-void RtlNtStatusToDosError()
+uint32_t RtlNtStatusToDosError(xbox::ntstatus_xt status)
 {
-	LOG_UTILITY("[STUB]");
+	if (!status || (status & 0x20000000))
+		return TRUE;
+
+	return TRUE;
 }
 
 LONG NtWaitForSingleObjectEx(
@@ -1145,6 +1200,13 @@ LONG NtWaitForSingleObjectEx(
 	return NtWaitForSingleObject(Handle, Alertable, Timeout); // Reuse stub
 }
 
+
+
+
+void sub_2B126A_r()
+{
+	LOG_UTILITY("[STUB] sub_2B126A_r() - Ignoring");
+}
 
 GUEST_FUNCTION_HOOK_STDCALL(__imp__RtlInitializeCriticalSection, RtlInitializeCriticalSection);
 GUEST_FUNCTION_HOOK_STDCALL(__imp__RtlEnterCriticalSection, RtlEnterCriticalSection);
@@ -1202,7 +1264,7 @@ GUEST_FUNCTION_HOOK(__imp__NtOpenSymbolicLinkObject, NtOpenSymbolicLinkObject);
 GUEST_FUNCTION_HOOK(__imp__MmFreeSystemMemory, MmFreeSystemMemory);
 
 GUEST_FUNCTION_HOOK(__imp__MmAllocateSystemMemory, MmAllocateSystemMemory);
-GUEST_FUNCTION_HOOK_THISCALL(__imp__KfLowerIrql, KfLowerIrql);
+GUEST_FUNCTION_HOOK(__imp__KfLowerIrql, KfLowerIrql); //todo implement thiscall
 
 GUEST_FUNCTION_HOOK(__imp__KeRaiseIrqlToDpcLevel, KeRaiseIrqlToDpcLevel);
 GUEST_FUNCTION_HOOK_STDCALL(__imp__HalRegisterShutdownNotification, HalRegisterShutdownNotification);
@@ -1221,6 +1283,7 @@ GUEST_FUNCTION_HOOK_STDCALL(__imp__RtlEqualString, RtlEqualString);
 GUEST_FUNCTION_HOOK_STDCALL(__imp__MmSetAddressProtect, MmSetAddressProtect);
 GUEST_FUNCTION_HOOK_STDCALL(__imp__MmQueryAllocationSize, MmQueryAllocationSize);
 GUEST_FUNCTION_HOOK_STDCALL(__imp__MmQueryAddressProtect, MmQueryAddressProtect);
+
 
 GUEST_FUNCTION_HOOK_STDCALL(__imp__MmLockUnlockPhysicalPage, MmLockUnlockPhysicalPage);
 GUEST_FUNCTION_HOOK_STDCALL(__imp__MmLockUnlockBufferPages, MmLockUnlockBufferPages);
@@ -1247,6 +1310,8 @@ GUEST_FUNCTION_HOOK_STDCALL(__imp__HalReadWritePCISpace, HalReadWritePCISpace);
 GUEST_FUNCTION_HOOK_STDCALL(__imp__HalGetInterruptVector, HalGetInterruptVector);
 GUEST_FUNCTION_HOOK_STDCALL(__imp__ExAllocatePoolWithTag, ExAllocatePoolWithTag);
 
+
+
 GUEST_FUNCTION_HOOK_STDCALL(__imp__ExFreePool, ExFreePool);
 GUEST_FUNCTION_HOOK_STDCALL(__imp__AvGetSavedDataAddress, AvGetSavedDataAddress);
 GUEST_FUNCTION_HOOK_STDCALL(__imp__AvSetSavedDataAddress, AvSetSavedDataAddress);
@@ -1255,10 +1320,11 @@ GUEST_FUNCTION_HOOK_STDCALL(__imp__AvSendTVEncoderOption, AvSendTVEncoderOption)
 GUEST_FUNCTION_HOOK(__imp__DbgPrint, DbgPrintV);
 
 
+
 X86_FUNC_IMPL(__imp__sub_11AD0);
 X86_FUNC(sub_11AD0)
 {
-	LOG_UTILITY("Launch Game\n");
+	LOG_UTILITY("PreMainLauncher\n");
 	__imp__sub_11AD0(ctx, base);
 }
 
@@ -1270,5 +1336,42 @@ X86_FUNC(sub_2AD4E4)
 	__imp__sub_2AD4E4(ctx, base);
 }
 
+X86_FUNC_IMPL(__imp__sub_11430);
+X86_FUNC(sub_11430)
+{
+	LOG_UTILITY("RsRwInitialize\n");
+	__imp__sub_11430(ctx, base);
+}
 
+//XAutoPowerDownResetTimer
+GUEST_FUNCTION_STUB(sub_2B17E8);
+
+int CreateThread_r(int ignoreHandle, int ThreadHandle, int startRoutine, int startContext, unsigned int a5, int threadID)
+{
+	return 1;
+
+}
+
+
+void LogStackValues(const X86Context& ctx, uint8_t* base, size_t count) 
+{
+	/**printf("Stack values at ESP=%08X:\n", ctx.esp.u32);
+	for (size_t i = 0; i < count; i++) {
+		uint32_t addr = ctx.esp.u32 + 4 + (i * 4);
+		uint32_t value = *reinterpret_cast<uint32_t*>(base + addr);
+		printf("  [ESP+%02X] = %08X\n", 4 + (i * 4), value);
+	}*/
+}
+
+int XAPILIBCloseHandle(uint32_t Handle)
+{
+
+	auto v1 = NtClose((uint32_t)Handle);
+	if (v1 >= 0)
+		return 1;
+	//XapiSetLastNTError(v1);
+	return 0;
+}
+
+//GUEST_FUNCTION_HOOK(sub_2AD8B2, XAPILIBCloseHandle);
 //GUEST_FUNCTION_HOOK(sub_2ADF0B, CreateThread_r);

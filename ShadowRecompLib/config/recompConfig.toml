@@ -2,6 +2,7 @@
 file_path = "default.xbe"
 out_directory_path = "../extracted"
 switch_table_file_path = "jumpTable.toml"
+tls_indexAddress = 0x5599A8
 
 functions = [
     { address = 0xe9180, size = 0x671 },   
@@ -17,6 +18,18 @@ functions = [
 	{ address = 0xEBEF0, size = 0x301 },  # same	
 	{ address = 0xFFE00, size = 0x99 },  # same	
 	{ address = 0x2AFADF, size = 0x74 },  #callback in the start function	
+	{ address = 0x2ABFCB, size = 0x424 },  #failed to detect full size of it	
+	{ address = 0x381F6C, size = 0x73 },  #vftable which had no reference
+	{ address = 0x3864B8, size = 0x10 }, 	
+	{ address = 0x3864C8, size = 0x61 }, 	
+	{ address = 0x386694, size = 0x65 }, 	
+	{ address = 0x37d835, size = 0x14 }, 	
+	{ address = 0x37D8C9, size = 0x28 },	
+	{ address = 0x3834DA, size = 0xA9 }, 	
+	{ address = 0x386389, size = 0x28 }, 	
+	{ address = 0x382B8E, size = 0x12 }, 	
+	{ address = 0x382BA0, size = 0xC }, 	
+	{ address = 0x3827f7, size = 0x5A }, 
 ]
 
 banned_addresses = [

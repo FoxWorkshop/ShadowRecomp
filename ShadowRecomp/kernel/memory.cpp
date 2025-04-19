@@ -70,5 +70,18 @@ void* mAlloc(size_t Size)
     return (void*)g_memory.MapVirtual(g_userHeap.Alloc(Size));
 }
 
+char* AllocateMemoryDogShitEdition(int* memData, int a2, unsigned int size)
+{
+    auto sizeAdjust = (size + 31) & 0xFFFFFFF0;
+    void* ptr = g_userHeap.Alloc(sizeAdjust);
+
+    uint32_t xbox_addr = g_memory.MapVirtual(ptr);
+    return (char*)xbox_addr;
+}
+
+GUEST_FUNCTION_HOOK_STDCALL(sub_2AC3EF, AllocateMemoryDogShitEdition);
+
 GUEST_FUNCTION_HOOK(sub_37D6B3, ObjectHeapMallocThing); 
 GUEST_FUNCTION_HOOK(sub_2DB5F0, mAlloc);
+GUEST_FUNCTION_HOOK(sub_37DF4C, mAlloc);
+GUEST_FUNCTION_HOOK(sub_380FC0, mAlloc);
