@@ -21,7 +21,7 @@ set(SHADOW_RECOMP_X86_RECOMPILED_SOURCES
     "${CMAKE_CURRENT_SOURCE_DIR}/x86/x86_recomp_shared.h"
 )
 
-foreach(i RANGE 0 65)
+foreach(i RANGE 0 100)
     list(APPEND SHADOW_RECOMP_X86_RECOMPILED_SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/x86/x86_recomp.${i}.cpp")
 endforeach()
 

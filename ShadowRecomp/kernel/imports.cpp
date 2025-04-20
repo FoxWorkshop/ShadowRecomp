@@ -952,11 +952,13 @@ void NtYieldExecution() {
 
 SIZE_T RtlCompareMemoryUlong(uint32_t* Buffer, uint32_t Length, ULONG Pattern)
 {
+	LOG_UTILITY("RtlCompareMemoryUlong Pretend bytes match\n");
 	return Length; // Pretend all bytes match
 }
 
 BOOLEAN RtlEqualString(PCSTR String1, PCSTR String2)
 {
+	LOG_UTILITY("RtlEqualString\n");
 	return strcmp(String1, String2) == 0;
 }
 

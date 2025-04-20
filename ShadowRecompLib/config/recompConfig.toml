@@ -5,14 +5,12 @@ switch_table_file_path = "jumpTable.toml"
 tls_indexAddress = 0x5599A8
 
 functions = [
-    { address = 0xe9180, size = 0x671 },   
-	{ address = 0x155DE0, size = 0xC10 }, 	
+    { address = 0xE9180, size = 0x671 },  #wrong size 
 	{ address = 0xE7C20, size = 0x11C }, 	
 	{ address = 0xE7D10, size = 0x2C }, 	
 	{ address = 0x2b8080, size = 0xC0 }, 	
 	{ address = 0x383735, size = 0xB7D }, 	
-	{ address = 0x3872fe, size = 0xC5 }, 	
-	{ address = 0x37EB60, size = 0x86 }, 	
+	{ address = 0x3872fe, size = 0xC5 }, 		
 	{ address = 0xDCCF0, size = 0x84 },  # todo check if this is correct, this could be multiple functions that ida failed to detect
 	{ address = 0xE0690, size = 0x83 },  # same	
 	{ address = 0xEBEF0, size = 0x301 },  # same	
@@ -29,7 +27,9 @@ functions = [
 	{ address = 0x386389, size = 0x28 }, 	
 	{ address = 0x382B8E, size = 0x12 }, 	
 	{ address = 0x382BA0, size = 0xC }, 	
-	{ address = 0x3827f7, size = 0x5A }, 
+	{ address = 0x3827f7, size = 0x5A }, 	
+	{ address = 0x1e8920, size = 0x7BB }, #wrong size	
+	{ address = 0x20B530, size = 0x360 }, 
 ]
 
 banned_addresses = [
