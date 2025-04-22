@@ -71,7 +71,7 @@ void AvGetSavedDataAddress()
 int32_t NtFreeVirtualMemory(IN OUT uint32_t* BaseAddress, IN OUT ULONG32 FreeSize, IN uint32_t FreeType)
 {
 	printf("NtFreeVirtualMemory\n");
-	g_userHeap.Free(g_memory.Translate((size_t)BaseAddress));
+	//g_userHeap.Free(g_memory.Translate((size_t)BaseAddress));
 	return X_STATUS_SUCCESS;
 }
 
@@ -81,12 +81,12 @@ int32_t NtAllocateVirtualMemory(IN OUT uint32_t* BaseAddress,
 	IN dword_xt         AllocationType,
 	IN dword_xt         Protect)
 {
-	void* ptr = g_userHeap.Alloc(*AllocationSize);
+	/**void* ptr = g_userHeap.Alloc(*AllocationSize);
 
 	uint32_t xbox_addr = g_memory.MapVirtual(ptr);
 	*BaseAddress = reinterpret_cast<uint32_t>(xbox_addr);
 
-	printf("NtAllocateVirtualMemory: %zu bytes -> 0x%08X\n\n", *AllocationSize, xbox_addr);
+	printf("NtAllocateVirtualMemory: %zu bytes -> 0x%08X\n\n", *AllocationSize, xbox_addr);*/
 	return X_STATUS_SUCCESS;
 }
 
@@ -529,8 +529,7 @@ uint32_t* MmAllocateContiguousMemoryEx(uint32_t NumberOfBytes, uint32_t LowestAc
 	uint32_t ProtectionType
 )
 {
-	/**printf("[STUB] MmAllocateContiguousMemoryEx(%zu bytes, Align %u)\n",
-		NumberOfBytes, Alignment);*/
+	printf("MmAllocateContiguousMemoryEx(%zu bytes, Align %u)\n\n", NumberOfBytes, Alignment);
 	return reinterpret_cast<uint32_t*>(g_memory.MapVirtual(g_userHeap.AllocPhysical(NumberOfBytes, Alignment)));
 }
 
@@ -1318,27 +1317,7 @@ GUEST_FUNCTION_HOOK(__imp__DbgPrint, DbgPrintV);
 
 
 
-X86_FUNC_IMPL(__imp__sub_11AD0);
-X86_FUNC(sub_11AD0)
-{
-	LOG_UTILITY("PreMainLauncher\n");
-	__imp__sub_11AD0(ctx, base);
-}
 
-
-X86_FUNC_IMPL(__imp__sub_2AD4E4);
-X86_FUNC(sub_2AD4E4)
-{
-	LOG_UTILITY("XLaunchNewImageA\n");
-	__imp__sub_2AD4E4(ctx, base);
-}
-
-X86_FUNC_IMPL(__imp__sub_11430);
-X86_FUNC(sub_11430)
-{
-	LOG_UTILITY("RsRwInitialize\n");
-	__imp__sub_11430(ctx, base);
-}
 
 //XAutoPowerDownResetTimer
 GUEST_FUNCTION_STUB(sub_2B17E8);

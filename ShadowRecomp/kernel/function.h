@@ -64,25 +64,7 @@ struct ArgTranslator
         int count = argCount;
 
         uint32_t esp = ctx.esp.u32;
-        int offset = 0;
 
-        if (ctx.eax.u32 == 0x01fff270)
-        {
-            //offset += 4;
-            /**uint32_t addr = esp + (0 * 4);
-            uint32_t value = *reinterpret_cast<uint32_t*>(base + addr);
-            return value;*/
-    
-        }
-
-       // Debug: Print stack near ESP
-        /**printf("Stack at ESP=%08X:\n", esp);
-        for (int i = -12; i <= 12; i++) { // Inspect 12 dwords above/below ESP
-            uint32_t addr = esp + (i * 4);
-            uint32_t value = *reinterpret_cast<uint32_t*>(base + addr);
-            printf("  [ESP%+d] = %08X\n", i * 4, value);
-        }*/
-        
         esp = ctx.esp.u32 + 4 + (arg * 4);
         return *reinterpret_cast<uint32_t*>(base + esp);
     }

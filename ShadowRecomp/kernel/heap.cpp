@@ -1,6 +1,7 @@
 #include <stdafx.h>
 #include "heap.h"
 #include "memory.h"
+#include "function.h"
 
 constexpr size_t XBE_LOAD_ADDR = 0x00010000ull;
 constexpr size_t XBE_END_ADDR = 0x006A1000ull;
@@ -76,7 +77,10 @@ size_t Heap::Size(void* ptr)
 
 uint32_t RtlAllocateHeap(uint32_t heapHandle, uint32_t flags, uint32_t size)
 {
-    void* ptr = g_userHeap.Alloc(size);
+    auto sizeAdjust = (size + 31) & 0xFFFFFFF0;
+
+    void* ptr = g_userHeap.Alloc(sizeAdjust);
+
     if ((flags & 0x8) != 0)
         memset(ptr, 0, size);
 
@@ -130,8 +134,37 @@ uint32_t XAllocMem(uint32_t size, uint32_t flags)
     return g_memory.MapVirtual(ptr);
 }
 
-void XFreeMem(uint32_t baseAddress, uint32_t flags)
+void XAPILIB_XMemFree_r(int hMem, int flag)
 {
-    if (baseAddress != NULL)
-        g_userHeap.Free(g_memory.Translate(baseAddress));
+    g_userHeap.Free(g_memory.Translate(hMem));
 }
+
+
+
+//heap alloc memory shit
+
+uint32_t AllocateHeap_r(int a1, uint32_t a2, uint32_t size, int a4, int a5, uint32_t Src)
+{
+   return g_memory.MapVirtual(g_userHeap.Alloc(size));
+}
+
+void free_r(uint32_t mem)
+{
+    g_userHeap.Free(g_memory.Translate(mem));
+}
+
+char FreeBlock(uint32_t heapPtr, int flag, uint32_t mem)
+{
+    g_userHeap.Free(g_memory.Translate(mem));
+    return 0;
+}
+
+//create heap
+GUEST_FUNCTION_HOOK(sub_2ABFCB, AllocateHeap_r);
+
+GUEST_FUNCTION_HOOK_STDCALL(sub_2AC3EF, RtlAllocateHeap);
+GUEST_FUNCTION_HOOK_STDCALL(sub_2ACD5E, RtlReAllocateHeap); //will get called by realloc too
+
+GUEST_FUNCTION_HOOK(sub_37E229, free_r);
+GUEST_FUNCTION_HOOK_STDCALL(sub_2B0494, XAPILIB_XMemFree_r);
+GUEST_FUNCTION_HOOK_STDCALL(sub_2ACB6A, FreeBlock);

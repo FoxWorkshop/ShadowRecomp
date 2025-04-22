@@ -44,6 +44,10 @@ set(SHADOW_RECOMP_CPU_CXX_SOURCES
     "cpu/guest_thread.cpp"
 )
 
+set(SHADOW_RECOMP_GPU_CXX_SOURCES
+    "gpu/video.cpp"
+)
+
 set(SHADOW_RECOMP_PATCHES_CXX_SOURCES
     "patches/start_patches.cpp"
 )
@@ -57,10 +61,12 @@ set_source_files_properties(${SHADOW_RECOMP_THIRDPARTY_SOURCES} PROPERTIES SKIP_
 set(SHADOW_RECOMP_CXX_SOURCES
     "main.cpp"
     "stdafx.cpp"
+    "logs.cpp"
     
     ${SHADOW_RECOMP_KERNEL_CXX_SOURCES}
     ${SHADOW_RECOMP_LOCALE_CXX_SOURCES}
     ${SHADOW_RECOMP_CPU_CXX_SOURCES}
+    ${SHADOW_RECOMP_GPU_CXX_SOURCES}
     ${SHADOW_RECOMP_PATCHES_CXX_SOURCES}
 )
 
