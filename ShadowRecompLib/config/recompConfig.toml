@@ -29,7 +29,17 @@ functions = [
 	{ address = 0x382BA0, size = 0xC }, 	
 	{ address = 0x3827f7, size = 0x5A }, 	
 	{ address = 0x1e8920, size = 0x7BB }, #wrong size	
-	{ address = 0x20B530, size = 0x360 }, 
+	{ address = 0x20B530, size = 0x360 }, 	
+	{ address = 0x2DE4D0, size = 0x298 }, 	
+	{ address = 0x2D9020, size = 0x13 }, 	
+	{ address = 0x2E6A90, size = 0xB }, 
+	{ address = 0x2E4250, size = 0xB }, 
+	{ address = 0x2DEC20, size = 0x49 }, 
+	{ address = 0x2D9920, size = 0xD8 }, 	
+	{ address = 0x2CB920, size = 0x92 }, 	
+	{ address = 0x2CB9B2, size = 0x23 }, 	
+	{ address = 0x2CC030, size = 0x10 }, 	
+	{ address = 0x423B38, size = 0x20B }, 
 ]
 
 banned_addresses = [

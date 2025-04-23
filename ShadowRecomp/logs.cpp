@@ -38,7 +38,13 @@ X86_FUNC(sub_11430)
 	__imp__sub_11430(ctx, base);
 }
 
-
+X86_FUNC_IMPL(__imp__sub_578B0);
+X86_FUNC(sub_578B0)
+{
+	printf("\nSuccessfully initialized RenderWare\n");
+	printf("....Now Loading Game Files...\n");
+	__imp__sub_578B0(ctx, base);
+}
 
 
 GUEST_FUNCTION_HOOK(sub_11210, PrintError);

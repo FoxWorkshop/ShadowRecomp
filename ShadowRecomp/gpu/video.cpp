@@ -411,7 +411,6 @@ GUEST_FUNCTION_HOOK_STDCALL(sub_3D5F10, D3DResource_Release);
 GUEST_FUNCTION_HOOK(sub_3D4C00, D3D_MakeRequestedSpace_);
 
 //--------------set renderstate stuff--------------
-
 GUEST_FUNCTION_HOOK_STDCALL(sub_3D2C40, D3DDevice_SetRenderState_VertexBlend);
 GUEST_FUNCTION_HOOK_STDCALL(sub_3D27A0, D3DDevice_SetRenderState_FogColor);
 
@@ -431,7 +430,7 @@ GUEST_FUNCTION_HOOK_STDCALL(sub_3D29B0, D3DDevice_SetRenderStateSTUB); //Dxt1Noi
 GUEST_FUNCTION_HOOK_STDCALL(sub_3D3810, D3DDevice_SetRenderStateSTUB); //YuvEnable
 GUEST_FUNCTION_HOOK_STDCALL(sub_3D3840, D3DDevice_SetRenderStateSTUB); //OcclusionCullEgnable
 GUEST_FUNCTION_HOOK_THISCALL(sub_3D38B0, D3DDevice_SetRenderStateSTUBEsp); //StencilCullEnable
-//----------end of renderstate stuff---------------
+//--------------end of renderstate stuff--------------
 
 GUEST_FUNCTION_HOOK(sub_3D3240, D3DDevice_SetRenderStateSTUB); //CommonSetDebugRegisters
 GUEST_FUNCTION_HOOK_FASTCALL(sub_3D3310, D3D_CommonSetMultiSampleModeAndScale); 
