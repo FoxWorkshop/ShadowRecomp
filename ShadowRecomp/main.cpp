@@ -7,8 +7,9 @@
 #include <file.h>
 #include <image.h>
 
-
 static const std::string GameExecutableFile = "default.xbe";
+static const std::string MainGameFolder = "game";
+static const std::string GameExecutable = MainGameFolder + "/" + GameExecutableFile;
 
 #include <xbe.h>
 #ifdef _WIN32
@@ -55,7 +56,7 @@ uint32_t LoadXbeModule(const std::filesystem::path& path)
 
     if (module.empty())
     {
-        assert("Failed to load module" && false);
+        assert("Failed to load XBE file, please make sure game files are present." && false);
         return 0;
     }
 
@@ -100,13 +101,11 @@ void HostStartup()
 
 int main(int argc, char* argv[])
 {
-    //std::set_terminate(exception_handler);
+
     HostStartup();
-	//InitializeFunctionOffsets();
     std::filesystem::path xbePath;
-    xbePath = GameExecutableFile;
+    xbePath = GameExecutable;
     uint32_t entry = LoadXbeModule(xbePath);
-	printf("XBE loaded, starting entry function\n");
     GuestThreadParams params = { entry, 0, 0, 0, 0 };
     GuestThread::Start(params);
 

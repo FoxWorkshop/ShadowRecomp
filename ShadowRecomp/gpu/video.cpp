@@ -65,7 +65,7 @@ int D3D_GetAdapterModeCount(int a1)
 	return 4 * 1;
 }
 
-//force XBOXDeviceSystemOpen to work due to a weird check that fail, might be able to stub it entirely?
+//force XBOXDeviceSystemOpen to work due to a weird adapter mode check that fail, might be able to stub it entirely?
 X86_FUNC(sub_2DD620)
 {
 	// sub esp, 0x18

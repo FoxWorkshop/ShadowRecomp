@@ -37,34 +37,12 @@ Memory::Memory()
 		if (X86FuncMappings[i].host != nullptr)
 			InsertFunction(X86FuncMappings[i].guest, X86FuncMappings[i].host);
 	}
+
 }
 
 void* MmGetHostAddress(uint32_t ptr)
 {
 	return g_memory.Translate(ptr);
-}
-
-void* ObjectHeapMallocThing(int Size)
-{
-	void* result;
-
-	while (1)
-	{
-		void* result = g_userHeap.Alloc(Size);
-
-		if (result)
-			break;
-
-		printf("bad allocation");
-		__debugbreak();
-	}
-
-	return (void*)g_memory.MapVirtual(result);
-}
-
-void* mAlloc(size_t Size)
-{
-	return (void*)g_memory.MapVirtual(g_userHeap.Alloc(Size));
 }
 
 

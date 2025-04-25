@@ -2,13 +2,13 @@
 #include "heap.h"
 #include "memory.h"
 #include "function.h"
-
-constexpr size_t XBE_LOAD_ADDR = 0x00010000ull;
-constexpr size_t XBE_END_ADDR = 0x006A1000ull;
-constexpr size_t HEAP_BEGIN = XBE_END_ADDR;    //Start heap after XBE 
+#include "x86_context.h"
+                
+constexpr size_t XBE_END_ADDR = 0x006A1000ull; 
+constexpr size_t HEAP_BEGIN = XBE_END_ADDR + 0x400000;    //Start heap way after XBE 
 constexpr size_t HEAP_END = (0x01FFFFFFull & ~0xFFF);  // Align to 4KB boundary
 constexpr size_t PHYS_HEAP_END = 0x03FFFFFFull; //todo check if this is correct
-
+                                
 void Heap::Init()
 {
     printf("Heap Init\n");

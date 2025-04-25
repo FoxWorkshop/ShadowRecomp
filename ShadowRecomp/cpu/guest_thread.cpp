@@ -6,6 +6,7 @@
 #include <kernel/function.h>
 #include "x86_context.h"
 #include <kernel/types.h>
+#include <cstring>
 #ifdef _WIN32
 #include <windows.h>
 #endif 
@@ -274,3 +275,14 @@ GUEST_FUNCTION_HOOK(sub_37FDA0, memcpy);
 GUEST_FUNCTION_HOOK(sub_380F60, memset);
 GUEST_FUNCTION_HOOK(sub_380720, strncat);
 GUEST_FUNCTION_HOOK(sub_37E820, memmove);
+//GUEST_FUNCTION_HOOK(sub_37E7BB, vsprintf); -> used for logs
+GUEST_FUNCTION_HOOK(sub_37FC10, strcpy);
+GUEST_FUNCTION_HOOK(sub_37FC20, strcat);
+
+GUEST_FUNCTION_HOOK(sub_37DEC0, strncmp);
+
+//GUEST_FUNCTION_HOOK(sub_37E577, sprintf);
+//GUEST_FUNCTION_HOOK(sub_37F0C6, sscanf);
+//GUEST_FUNCTION_HOOK(sub_37EB60, std::strstr);
+
+GUEST_FUNCTION_HOOK(sub_2AAEDE, OutputDebugStringA);
