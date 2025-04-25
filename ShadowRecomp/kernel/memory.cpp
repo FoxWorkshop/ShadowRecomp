@@ -68,8 +68,3 @@ void* mAlloc(size_t Size)
 }
 
 
-
-GUEST_FUNCTION_HOOK(sub_37D6B3, ObjectHeapMallocThing);
-GUEST_FUNCTION_HOOK(sub_2DB5F0, mAlloc);
-GUEST_FUNCTION_HOOK(sub_37DF4C, mAlloc);
-GUEST_FUNCTION_HOOK(sub_380FC0, mAlloc);

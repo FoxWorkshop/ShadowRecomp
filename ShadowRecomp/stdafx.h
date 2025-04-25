@@ -27,7 +27,8 @@ using Microsoft::WRL::ComPtr;
 #include <chrono>
 #include <span>
 #include <x86/x86_recomp_shared.h>
-
+#include <SDL.h>
+//#include <SDL_mixer.h>
 
 #include <stb_image.h>
 #include <o1heap.h>
@@ -35,12 +36,11 @@ using Microsoft::WRL::ComPtr;
 #include <set>
 #include <fmt/core.h>
 #include <list>
-
 #include <semaphore>
 #include <numeric>
 #include <charconv>
 
-//nclude "framework.h"
+#include "util.h"
 #include "mutex.h"
 
 #ifndef _WIN32

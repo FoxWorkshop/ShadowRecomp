@@ -34,14 +34,14 @@ X86_FUNC(sub_2AD4E4)
 X86_FUNC_IMPL(__imp__sub_11430);
 X86_FUNC(sub_11430)
 {
-	printf("\nRsRwInitialize\n");
+	printf("\n....RsRwInitialize....\n");
 	__imp__sub_11430(ctx, base);
 }
 
 X86_FUNC_IMPL(__imp__sub_578B0);
 X86_FUNC(sub_578B0)
 {
-	printf("\nSuccessfully initialized RenderWare\n");
+	printf("\nSuccessfully initialized RenderWare.\n");
 	printf("....Now Loading Game Files...\n");
 	__imp__sub_578B0(ctx, base);
 }

@@ -48,6 +48,10 @@ set(SHADOW_RECOMP_GPU_CXX_SOURCES
     "gpu/video.cpp"
 )
 
+set(SHADOW_RECOMP_HID_CXX_SOURCES
+    "input/input.cpp"
+)
+
 set(SHADOW_RECOMP_PATCHES_CXX_SOURCES
     "patches/start_patches.cpp"
 )
@@ -67,6 +71,7 @@ set(SHADOW_RECOMP_CXX_SOURCES
     ${SHADOW_RECOMP_LOCALE_CXX_SOURCES}
     ${SHADOW_RECOMP_CPU_CXX_SOURCES}
     ${SHADOW_RECOMP_GPU_CXX_SOURCES}
+    ${SHADOW_RECOMP_HID_CXX_SOURCES}
     ${SHADOW_RECOMP_PATCHES_CXX_SOURCES}
 )
 
@@ -99,6 +104,8 @@ target_link_libraries(ShadowRecomp PRIVATE
     fmt::fmt
     o1heap
     XboxUtils
+    SDL2::SDL2-static
+    #SDL2_mixer
     ShadowRecompLib
 )
 

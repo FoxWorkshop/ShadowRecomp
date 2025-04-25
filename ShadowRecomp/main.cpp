@@ -3,6 +3,7 @@
 #include <kernel/heap.h>
 #include <kernel/function.h>
 #include <cpu/guest_thread.h>
+#include <input/input.h>
 #include <file.h>
 #include <image.h>
 
@@ -93,18 +94,8 @@ void HostStartup()
     CoInitializeEx(nullptr, COINIT_MULTITHREADED);
 #endif
 
+    input::Init();
     g_userHeap.Init();
-}
-
-
-void FakeCallBack()
-{
-    X86Context x86Context{0};
-
-    g_memory.FindFunction(0x2AFB53)(x86Context, g_memory.base);
-
-    assert(GetX86Context() == nullptr);
-    SetX86Context(x86Context);
 }
 
 int main(int argc, char* argv[])
@@ -115,11 +106,10 @@ int main(int argc, char* argv[])
     std::filesystem::path xbePath;
     xbePath = GameExecutableFile;
     uint32_t entry = LoadXbeModule(xbePath);
-	printf("XBE loaded, starting GuestThread::Start with entry function\n");
-    //GuestThread::Start({ entry, 0, 0 });
+	printf("XBE loaded, starting entry function\n");
     GuestThreadParams params = { entry, 0, 0, 0, 0 };
     GuestThread::Start(params);
-	// Cleanup
+
     printf("function Main is returning 0\n");
 	return 0;
 }

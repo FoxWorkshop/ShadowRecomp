@@ -122,7 +122,7 @@ void* ExAllocatePoolWithTag
 )
 {
 	void* ptr = reinterpret_cast<PVOID>(g_memory.MapVirtual(g_userHeap.Alloc(NumberOfBytes > 0 ? NumberOfBytes : 1)));
-	printf("  Allocated dummy ptr: %p\n", ptr);
+	printf("Allocated dummy ptr: %p\n", ptr);
 	return ptr;
 }
 
@@ -549,8 +549,7 @@ VOID MmFreeContiguousMemory(uint32_t* BaseAddress)
 
 VOID MmFreeSystemMemory(uint32_t* BaseAddress, uint32_t NumberOfBytes)
 {
-	printf("[STUB] MmFreeSystemMemory(%p, %zu bytes)\n",
-		BaseAddress, NumberOfBytes);
+	printf("[STUB] MmFreeSystemMemory(%p, %zu bytes)\n", BaseAddress, NumberOfBytes);
 
 	g_userHeap.Free(g_memory.Translate((size_t)BaseAddress));
 }
@@ -564,7 +563,7 @@ uint32_t MmAllocateSystemMemory(uint32_t NumberOfBytes, ULONG Protect)
 
 void KfLowerIrql(std::uint8_t NewIrql)
 {
-	printf("[STUB] KfLowerIrql(%d)\n", NewIrql);
+	//printf("[STUB] KfLowerIrql(%d)\n", NewIrql);
 }
 
 LONG NtClose(uint32_t Handle)
@@ -856,17 +855,16 @@ LONG NtQueryVirtualMemory(uint32_t* BaseAddress, uint32_t* Buffer)
 }
 
 
-xbox::physical_address_xt MmGetPhysicalAddress(uint32_t* BaseAddress)
+uint32_t MmGetPhysicalAddress(uint32_t BaseAddress)
 {
-	xbox::physical_address_xt pa;
-	pa = static_cast<ULONG>(g_memory.MapVirtual(BaseAddress)); // Returns 32-bit offset
-	LOG_UTILITY("MmGetPhysicalAddress(%p) -> 0x%08X", BaseAddress, pa);
-	return pa;
+	printf("MmGetPhysicalAddress: 0x%08X\n", BaseAddress);
+	return BaseAddress;
 }
 
 LONG MmLockUnlockBufferPages(uint32_t* BaseAddress, uint32_t NumberOfBytes, BOOLEAN Lock)
 {
 	LOG_UTILITY("MmLockUnlockBufferPages(%p, %zu, %s)", BaseAddress, NumberOfBytes, Lock ? "Lock" : "Unlock");
+	printf("\n");
 	return X_STATUS_SUCCESS; // No-op in recompiler
 }
 
@@ -875,6 +873,7 @@ LONG MmLockUnlockPhysicalPage(uint32_t PhysicalAddress_, BOOLEAN Lock)
 	xbox::physical_address_xt PhysicalAddress = PhysicalAddress_;
 	uint32_t addr = static_cast<uint32_t>(PhysicalAddress);
 	LOG_UTILITY("MmLockUnlockPhysicalPage(0x%08X, %s)", addr, Lock ? "Lock" : "Unlock");
+	printf("\n");
 	return X_STATUS_SUCCESS;
 }
 
@@ -885,7 +884,7 @@ VOID MmPersistContiguousMemory(uint32_t* BaseAddress, uint32_t NumberOfBytes, BO
 
 LONG MmQueryAddressProtect(uint32_t* BaseAddress, uint32_t* Protect)
 {
-	LOG_UTILITY("MmQueryAddressProtect");
+	LOG_UTILITY("MmQueryAddressProtect\n");
 	*Protect = PAGE_READWRITE;
 	return X_STATUS_SUCCESS;
 }
@@ -1260,7 +1259,7 @@ GUEST_FUNCTION_HOOK(__imp__NtOpenSymbolicLinkObject, NtOpenSymbolicLinkObject);
 GUEST_FUNCTION_HOOK(__imp__MmFreeSystemMemory, MmFreeSystemMemory);
 
 GUEST_FUNCTION_HOOK(__imp__MmAllocateSystemMemory, MmAllocateSystemMemory);
-GUEST_FUNCTION_HOOK(__imp__KfLowerIrql, KfLowerIrql); //todo implement thiscall
+GUEST_FUNCTION_HOOK_THISCALL(__imp__KfLowerIrql, KfLowerIrql); //todo implement thiscall
 
 GUEST_FUNCTION_HOOK(__imp__KeRaiseIrqlToDpcLevel, KeRaiseIrqlToDpcLevel);
 GUEST_FUNCTION_HOOK_STDCALL(__imp__HalRegisterShutdownNotification, HalRegisterShutdownNotification);
