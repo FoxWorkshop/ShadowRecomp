@@ -39,15 +39,27 @@ functions = [
 	{ address = 0x2CB920, size = 0x92 }, 	
 	{ address = 0x2CB9B2, size = 0x23 }, 	
 	{ address = 0x2CC030, size = 0x10 }, 	
-	{ address = 0x423B38, size = 0x20B }, 
+	{ address = 0x423B38, size = 0x20B }, 	
+	{ address = 0x424433, size = 0x6C },	
+	{ address = 0x427F5C, size = 0xE2 }, 	
+	{ address = 0x427945, size = 0x50 }, 	
+	{ address = 0x425fd2, size = 0x12 }, 	
+	{ address = 0x2DF870, size = 0x161 }, 
+	{ address = 0x2DD9C0, size = 0x22F }, 
+	{ address = 0x2DDBF0, size = 0x10 }, 
+	{ address = 0x2E05C0, size = 0x1B }, 
+	{ address = 0x2E0670, size = 0x26 }, 	
+	{ address = 0x2DDC00, size = 0x4D }, 	
+	{ address = 0x2DF500, size = 0x358 }, 	
+	{ address = 0x2EE190, size = 0x1E }, 
 ]
 
 banned_addresses = [
-    { start = 0x41FF90, end = 0x423B38 }, # variables xgraphics    
+    { start = 0x41FF90, end = 0x423B37 }, # variables xgraphics    
 	{ start = 0x37E8FD, end = 0x37E91F }, # jmp table mid function	
 	{ start = 0x37FE7D, end = 0x37FE9F }, # jmp table mid function
 	{ start = 0x37FE03, end = 0x37FE0F }, # jmp table mid function	
-	{ start = 0x37FEEA, end = 0x37FEFB }, # jmp table mid function	
+	{ start = 0x37FEEA, end = 0x37FEFB }, # jmp table mid function
 	{ start = 0x380086, end = 0x380097 }, # jmp table mid function		
 	{ start = 0x37E96A, end = 0x37E97B }, # jmp table mid function		
 	{ start = 0x37EA99, end = 0x37EABB }, # jmp table mid function	
