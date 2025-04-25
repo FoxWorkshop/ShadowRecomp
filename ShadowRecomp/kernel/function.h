@@ -59,26 +59,59 @@ void LogStackValues(const X86Context& ctx, uint8_t* base, size_t count);
 
 struct ArgTranslator
 {
-    static uint32_t GetIntegerArgumentValue(const X86Context& ctx, uint8_t* base, size_t arg, size_t argCount = 0) noexcept
+    static uint32_t GetIntegerArgumentValue(const X86Context& ctx, uint8_t* base, size_t arg, size_t argCount = 0, CallConvention cc = Cdecl) noexcept
     {
-        int count = argCount;
+        if (cc == Fastcall)
+        {
+            // First two arguments in registers
+            if (arg == 0) return ctx.ecx.u32;
+            if (arg == 1) return ctx.edx.u32;
+
+            // Remaining arguments are on the stack, after the return address
+            const uint32_t stack_ptr = ctx.esp.u32;
+            const uint32_t offset = 4 + ((arg - 2) * 4);
+            return *reinterpret_cast<uint32_t*>(base + stack_ptr + offset);
+        }
+
+        if (cc == Thiscall)
+        {
+            // 'this' pointer is in ECX
+            if (arg == 0)
+            {
+                return ctx.ecx.u32;
+            }
+
+            const uint32_t stack_ptr = ctx.esp.u32;
+            const uint32_t offset = 4 + ((arg - 1) * 4);
+            auto value = *reinterpret_cast<uint32_t*>(base + stack_ptr + offset);
+            return value;
+        }
+
 
         uint32_t esp = ctx.esp.u32;
-
         esp = ctx.esp.u32 + 4 + (arg * 4);
         return *reinterpret_cast<uint32_t*>(base + esp);
     }
 
     // Set integer value on the stack
-    static void SetIntegerArgumentValue(X86Context& ctx, uint8_t* base, size_t arg, uint32_t value) noexcept
+    static void SetIntegerArgumentValue(X86Context& ctx, uint8_t* base, size_t arg, uint32_t value, CallConvention cc = Cdecl) noexcept
     {
+        if (cc == Thiscall)
+        {
+            if (arg == 0) { ctx.ecx.u32 = value; return; }
+
+            const uint32_t stack_ptr = ctx.esp.u32;
+            *reinterpret_cast<uint32_t*>(base + stack_ptr + ((arg - 1) * 4)) = value;
+            return;
+        }
+
         const uint32_t stack_ptr = ctx.esp.u32;
         *reinterpret_cast<uint32_t*>(base + stack_ptr + 4 + (arg * 4)) = value;
     }
 
 
     template<typename T>
-    static std::enable_if_t<!std::is_pointer_v<T>, T> GetValue(const X86Context& ctx, uint8_t* base, size_t idx, const size_t argCount = 0) noexcept
+    static std::enable_if_t<!std::is_pointer_v<T>, T> GetValue(const X86Context& ctx, uint8_t* base, size_t idx, const size_t argCount = 0, CallConvention cc = Cdecl) noexcept
     {
 
         /**if constexpr (is_float_v<T>)
@@ -91,14 +124,14 @@ struct ArgTranslator
         }
         else*/
         {
-            return static_cast<T>(GetIntegerArgumentValue(ctx, base, idx, argCount));
+            return static_cast<T>(GetIntegerArgumentValue(ctx, base, idx, argCount, cc));
         }
     }
 
     template<typename T>
-    static std::enable_if_t<std::is_pointer_v<T>, T> GetValue(const X86Context& ctx, uint8_t* base, size_t idx, const size_t argCount = 0) noexcept
+    static std::enable_if_t<std::is_pointer_v<T>, T> GetValue(const X86Context& ctx, uint8_t* base, size_t idx, const size_t argCount = 0, CallConvention cc = Cdecl) noexcept
     {
-        const auto v = GetIntegerArgumentValue(ctx, base, idx, argCount);
+        const auto v = GetIntegerArgumentValue(ctx, base, idx, argCount, cc);
         if (!v)
         {
             return nullptr;
@@ -192,33 +225,35 @@ struct arg_ordinal_t
     static constexpr size_t value = GatherFunctionArguments<Func>()[I].ordinal;
 };
 
-template<auto Func, int I = 0, typename ...TArgs>
-void _translate_args_to_host(const X86Context& ctx, uint8_t* base, std::tuple<TArgs...>& tpl) noexcept
-    requires (I >= sizeof...(TArgs))
+// Update the argument translation functions to accept CallConvention
+template<auto Func, CallConvention CC, int I = 0, typename ...TArgs>
+std::enable_if_t<(I >= sizeof...(TArgs)), void>
+_translate_args_to_host(const X86Context& ctx, uint8_t* base, std::tuple<TArgs...>& tpl) noexcept
 {
 }
 
-template <auto Func, int I = 0, typename ...TArgs>
-std::enable_if_t<(I < sizeof...(TArgs)), void> _translate_args_to_host(const X86Context& ctx, uint8_t* base, std::tuple<TArgs...>& tpl) noexcept
+template<auto Func, CallConvention CC, int I = 0, typename ...TArgs>
+std::enable_if_t<(I < sizeof...(TArgs)), void>
+    _translate_args_to_host(const X86Context& ctx, uint8_t* base, std::tuple<TArgs...>& tpl) noexcept
 {
     using T = std::tuple_element_t<I, std::remove_reference_t<decltype(tpl)>>;
-    std::get<I>(tpl) = ArgTranslator::GetValue<T>(ctx, base, arg_ordinal_t<Func, I>::value, arg_count_t<Func>::value);
-
-    _translate_args_to_host<Func, I + 1>(ctx, base, tpl);
+    std::get<I>(tpl) = ArgTranslator::GetValue<T>(ctx, base, arg_ordinal_t<Func, I>::value, arg_count_t<Func>::value, CC);
+    _translate_args_to_host<Func, CC, I + 1>(ctx, base, tpl);
 }
 
-template <int I = 0, typename ...TArgs>
+
+template <auto Func, CallConvention CC, int I = 0, typename ...TArgs>
 std::enable_if_t<(I >= sizeof...(TArgs)), void> _translate_args_to_guest(X86Context& ctx, uint8_t* base, std::tuple<TArgs...>& tpl) noexcept
 {
 }
 
-template <int I = 0, typename ...TArgs>
+template <auto Func, CallConvention CC, int I = 0, typename ...TArgs>
 std::enable_if_t<(I < sizeof...(TArgs)), void> _translate_args_to_guest(X86Context& ctx, uint8_t* base, std::tuple<TArgs...>& tpl) noexcept
 {
     using T = std::tuple_element_t<I, std::remove_reference_t<decltype(tpl)>>;
     ArgTranslator::SetValue<T>(ctx, base, GatherFunctionArguments(std::tuple<TArgs...>{})[I].ordinal, std::get<I>(tpl));
 
-    _translate_args_to_guest<I + 1>(ctx, base, tpl);
+    _translate_args_to_guest<Func, CC, I + 1>(ctx, base, tpl);
 }
 
 //Function to handle translation from host (C++) to guest (x86)
@@ -228,7 +263,8 @@ X86_FUNC(HostToGuestFunction)
     using ret_t = decltype(std::apply(Func, function_args(Func)));
 
     auto args = function_args(Func);
-    _translate_args_to_host<Func>(ctx, base, args);
+
+    _translate_args_to_host<Func, CC>(ctx, base, args);
 	LogStackValues(ctx, base, arg_count_t<Func>::value);    
     if constexpr (std::is_same_v<ret_t, void>)
     {
@@ -255,10 +291,16 @@ X86_FUNC(HostToGuestFunction)
         }
     }
 
-    if constexpr (CC == Stdcall)
+    if constexpr (CC == Stdcall || CC == Thiscall)
     {
         // Remove arguments from the stack (callee cleans up)
-        ctx.esp.u32 += static_cast<uint32_t>(arg_count_t<Func>::value * 4);
+        ctx.esp.u32 += static_cast<uint32_t>((arg_count_t<Func>::value - (CC == Thiscall ? 1 : 0)) * 4);
+    }
+    else if constexpr (CC == Fastcall)
+    {
+        // Only clean up stack arguments (first two are in registers)
+        const int stackArgs = std::max(0, static_cast<int>(arg_count_t<Func>::value) - 2);
+        ctx.esp.u32 += static_cast<uint32_t>(stackArgs * 4);
     }
 
 	ctx.esp.u32 += 0x4; //Adjust ESP for the return address (this will affect jmp tail todo: find a way to detect those)
