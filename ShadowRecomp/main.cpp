@@ -6,10 +6,7 @@
 #include <input/input.h>
 #include <file.h>
 #include <image.h>
-
-static const std::string GameExecutableFile = "default.xbe";
-static const std::string MainGameFolder = "game";
-static const std::string GameExecutable = MainGameFolder + "/" + GameExecutableFile;
+#include <kernel/io/file_system.h>
 
 #include <xbe.h>
 #ifdef _WIN32

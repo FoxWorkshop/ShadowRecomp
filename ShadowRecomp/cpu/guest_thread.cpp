@@ -262,6 +262,11 @@ int XAPILIBGetCurrentThreadId()
 	return GuestThread::GetCurrentThreadId();
 }
 
+const char* strstr_(const char* src, const char* subStr)
+{
+	return strstr(src, subStr);
+}
+
 GUEST_FUNCTION_HOOK(sub_2ADF79, XAPILIBGetCurrentThreadId);
 
 GUEST_FUNCTION_STUB(sub_2B126A); // Some kernel hardware check, not needed on PC.
@@ -278,11 +283,12 @@ GUEST_FUNCTION_HOOK(sub_37E820, memmove);
 //GUEST_FUNCTION_HOOK(sub_37E7BB, vsprintf); -> used for logs
 GUEST_FUNCTION_HOOK(sub_37FC10, strcpy);
 GUEST_FUNCTION_HOOK(sub_37FC20, strcat);
+GUEST_FUNCTION_HOOK(sub_37F1E0, strncpy);
 
 GUEST_FUNCTION_HOOK(sub_37DEC0, strncmp);
 
 //GUEST_FUNCTION_HOOK(sub_37E577, sprintf);
 //GUEST_FUNCTION_HOOK(sub_37F0C6, sscanf);
-//GUEST_FUNCTION_HOOK(sub_37EB60, std::strstr);
+GUEST_FUNCTION_HOOK(sub_37EB60, strstr_);
 
 GUEST_FUNCTION_HOOK(sub_2AAEDE, OutputDebugStringA);
