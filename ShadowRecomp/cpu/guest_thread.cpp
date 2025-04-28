@@ -273,8 +273,6 @@ GUEST_FUNCTION_STUB(sub_2B126A); // Some kernel hardware check, not needed on PC
 //GUEST_FUNCTION_STUB(sub_381F6C);
 
 //GUEST_FUNCTION_STUB(sub_2B1815); 
-//GUEST_FUNCTION_STUB(sub_37F6FC); //SEH prolog shit
-//GUEST_FUNCTION_STUB(sub_37F737); //SEH ending s
 
 GUEST_FUNCTION_HOOK(sub_37FDA0, memcpy);
 GUEST_FUNCTION_HOOK(sub_380F60, memset);

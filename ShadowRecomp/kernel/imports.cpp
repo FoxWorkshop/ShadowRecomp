@@ -29,6 +29,88 @@ constexpr uint32_t GPU_ALIGNMENT = 4096;
 #define POWER_LEVEL 30
 #define HIGH_LEVEL 31
 
+template<typename TGuest>
+struct HostObject
+{
+	typedef TGuest guest_type;
+};
+
+struct Event final : KernelObject, HostObject<XKEVENT>
+{
+	bool manualReset;
+	std::atomic<bool> signaled;
+
+	Event(XKEVENT* header)
+		: manualReset(!header->Type), signaled(!!header->SignalState)
+	{
+	}
+
+	Event(bool manualReset, bool initialState)
+		: manualReset(manualReset), signaled(initialState)
+	{
+	}
+
+	uint32_t Wait(uint32_t timeout) override
+	{
+		if (timeout == 0)
+		{
+			if (manualReset)
+			{
+				if (!signaled)
+					return STATUS_TIMEOUT;
+			}
+			else
+			{
+				bool expected = true;
+				if (!signaled.compare_exchange_strong(expected, false))
+					return STATUS_TIMEOUT;
+			}
+		}
+		else if (timeout == INFINITE)
+		{
+			if (manualReset)
+			{
+				signaled.wait(false);
+			}
+			else
+			{
+				while (true)
+				{
+					bool expected = true;
+					if (signaled.compare_exchange_weak(expected, false))
+						break;
+
+					signaled.wait(expected);
+				}
+			}
+		}
+		else
+		{
+			assert(false && "Unhandled timeout value.");
+		}
+
+		return X_STATUS_SUCCESS;
+	}
+
+	bool Set()
+	{
+		signaled = true;
+
+		if (manualReset)
+			signaled.notify_all();
+		else
+			signaled.notify_one();
+
+		return TRUE;
+	}
+
+	bool Reset()
+	{
+		signaled = false;
+		return TRUE;
+	}
+};
+
 void AvSendTVEncoderOption
 (
 	IN  PVOID   RegisterBase,
@@ -595,11 +677,9 @@ LONG NtClose(uint32_t Handle)
 	return 1;
 }
 
-LONG NtCreateEvent(uint32_t* EventHandle, uint32_t* bjectAttributes, uint32_t EventType, std::uint8_t InitialState)
+LONG NtCreateEvent(uint32_t* EventHandle, void* bjectAttributes, uint32_t EventType, std::uint8_t InitialState)
 {
-
-	*EventHandle = reinterpret_cast<uint32_t>(0xDEADBEEF); // Dummy handle
-	LOG_UTILITY("NtCreateEvent() -> 0x%p", *EventHandle);
+	*EventHandle = GetKernelHandle(CreateKernelObject<Event>(!EventType, !!InitialState));
 	return X_STATUS_SUCCESS;
 }
 
@@ -1251,7 +1331,7 @@ GUEST_FUNCTION_HOOK(__imp__XcSHAUpdate, XcSHAUpdate);
 GUEST_FUNCTION_HOOK(__imp__XcSHAFinal, XcSHAFinal);
 GUEST_FUNCTION_HOOK(__imp__KeQuerySystemTime, KeQuerySystemTime);
 
-GUEST_FUNCTION_HOOK_STDCALL(__imp__NtCreateFile, NtCreateFile); //get value hook error
+GUEST_FUNCTION_HOOK_STDCALL(__imp__NtCreateFile, NtCreateFile); 
 GUEST_FUNCTION_HOOK(__imp__IoCreateSymbolicLink, IoCreateSymbolicLink);
 GUEST_FUNCTION_HOOK_STDCALL(__imp__IoDeleteSymbolicLink, IoDeleteSymbolicLink);
 GUEST_FUNCTION_HOOK(__imp__NtQuerySymbolicLinkObject, NtQuerySymbolicLinkObject);
@@ -1259,7 +1339,7 @@ GUEST_FUNCTION_HOOK(__imp__NtOpenSymbolicLinkObject, NtOpenSymbolicLinkObject);
 GUEST_FUNCTION_HOOK(__imp__MmFreeSystemMemory, MmFreeSystemMemory);
 
 GUEST_FUNCTION_HOOK(__imp__MmAllocateSystemMemory, MmAllocateSystemMemory);
-GUEST_FUNCTION_HOOK_THISCALL(__imp__KfLowerIrql, KfLowerIrql); //todo implement thiscall
+GUEST_FUNCTION_HOOK_THISCALL(__imp__KfLowerIrql, KfLowerIrql); 
 
 GUEST_FUNCTION_HOOK(__imp__KeRaiseIrqlToDpcLevel, KeRaiseIrqlToDpcLevel);
 GUEST_FUNCTION_HOOK_STDCALL(__imp__HalRegisterShutdownNotification, HalRegisterShutdownNotification);
@@ -1306,7 +1386,6 @@ GUEST_FUNCTION_HOOK_STDCALL(__imp__HalGetInterruptVector, HalGetInterruptVector)
 GUEST_FUNCTION_HOOK_STDCALL(__imp__ExAllocatePoolWithTag, ExAllocatePoolWithTag);
 
 
-
 GUEST_FUNCTION_HOOK_STDCALL(__imp__ExFreePool, ExFreePool);
 GUEST_FUNCTION_HOOK_STDCALL(__imp__AvGetSavedDataAddress, AvGetSavedDataAddress);
 GUEST_FUNCTION_HOOK_STDCALL(__imp__AvSetSavedDataAddress, AvSetSavedDataAddress);
@@ -1315,38 +1394,5 @@ GUEST_FUNCTION_HOOK_STDCALL(__imp__AvSendTVEncoderOption, AvSendTVEncoderOption)
 GUEST_FUNCTION_HOOK(__imp__DbgPrint, DbgPrintV);
 
 
-
-
-
 //XAutoPowerDownResetTimer
 GUEST_FUNCTION_STUB(sub_2B17E8);
-
-int CreateThread_r(int ignoreHandle, int ThreadHandle, int startRoutine, int startContext, unsigned int a5, int threadID)
-{
-	return 1;
-
-}
-
-
-void LogStackValues(const X86Context& ctx, uint8_t* base, size_t count) 
-{
-	/**printf("Stack values at ESP=%08X:\n", ctx.esp.u32);
-	for (size_t i = 0; i < count; i++) {
-		uint32_t addr = ctx.esp.u32 + 4 + (i * 4);
-		uint32_t value = *reinterpret_cast<uint32_t*>(base + addr);
-		printf("  [ESP+%02X] = %08X\n", 4 + (i * 4), value);
-	}*/
-}
-
-int XAPILIBCloseHandle(uint32_t Handle)
-{
-
-	auto v1 = NtClose((uint32_t)Handle);
-	if (v1 >= 0)
-		return 1;
-	//XapiSetLastNTError(v1);
-	return 0;
-}
-
-//GUEST_FUNCTION_HOOK(sub_2AD8B2, XAPILIBCloseHandle);
-//GUEST_FUNCTION_HOOK(sub_2ADF0B, CreateThread_r);

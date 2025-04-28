@@ -55,7 +55,6 @@ std::enable_if_t<(I < sizeof...(TArgs)), void> _tuple_for(std::tuple<TArgs...>& 
     _tuple_for<TCallable, I + 1>(tpl, callable);
 }
 
-void LogStackValues(const X86Context& ctx, uint8_t* base, size_t count);
 
 struct ArgTranslator
 {
@@ -88,8 +87,7 @@ struct ArgTranslator
         }
 
 
-        uint32_t esp = ctx.esp.u32;
-        esp = ctx.esp.u32 + 4 + (arg * 4);
+        uint32_t esp = ctx.esp.u32 + 4 + (arg * 4);
         return *reinterpret_cast<uint32_t*>(base + esp);
     }
 
@@ -265,7 +263,7 @@ X86_FUNC(HostToGuestFunction)
     auto args = function_args(Func);
 
     _translate_args_to_host<Func, CC>(ctx, base, args);
-	LogStackValues(ctx, base, arg_count_t<Func>::value);    
+	//LogStackValues(ctx, base, arg_count_t<Func>::value);    
     if constexpr (std::is_same_v<ret_t, void>)
     {
         std::apply(Func, args);

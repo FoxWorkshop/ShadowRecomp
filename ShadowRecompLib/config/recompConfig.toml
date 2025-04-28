@@ -52,6 +52,29 @@ functions = [
 	{ address = 0x2DDC00, size = 0x4D }, 	
 	{ address = 0x2DF500, size = 0x358 }, 	
 	{ address = 0x2EE190, size = 0x1E }, 
+	{ address = 0x38066D, size = 0xA5 }, 	
+	{ address = 0x2EC190, size = 0x1E }, 		
+	{ address = 0x37FC10, size = 0x7 }, #size is wrong but we will patch this with a hook anyway	
+	{ address = 0x37FC20, size = 0xF8 }, 	
+	{ address = 0x55560, size = 0xC }, 
+	{ address = 0x558A0, size = 0x114 },
+	{ address = 0x25C10, size = 0x3F },
+	{ address = 0x25C50, size = 0x5A },
+	{ address = 0x26980, size = 0x62 },
+	{ address = 0x26D30, size = 0xAC },
+	{ address = 0x3FBF0, size = 0x590 },
+	{ address = 0x415E0, size = 0x4E },
+	{ address = 0x49070, size = 0x15 },
+	{ address = 0x4E330, size = 0x1C },
+	{ address = 0x51830, size = 0x6C },
+	{ address = 0x51910, size = 0x70 },
+	{ address = 0x51B40, size = 0xBF },
+	{ address = 0x51C00, size = 0x9C },
+	{ address = 0x51D50, size = 0x9C },
+	{ address = 0x5FF80, size = 0x3A },
+	{ address = 0x60630, size = 0xD3 },
+	{ address = 0x63510, size = 0x22 },		
+	{ address = 0x37DF88, size = 0x1C5 }, #todo check if this is correct
 ]
 
 banned_addresses = [

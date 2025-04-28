@@ -36,7 +36,7 @@ namespace xbox
 	// ******************************************************************
 	// * Calling conventions
 	// ******************************************************************
-	// TODO: Remove __stdcall once lib86cpu is implemented.
+
 #define XBOXAPI             __stdcall
 #define XCALLBACK           XBOXAPI
 
@@ -139,14 +139,4 @@ namespace xbox
 	// ******************************************************************
 	constexpr uint_xt max_path{ 260 }; // Xbox file path max limitation
 }
-
-struct TLS
-{
-	uint32_t dwDataStartAddr;             // raw start address
-	uint32_t dwDataEndAddr;               // raw end address
-	uint32_t dwTLSIndexAddr;              // tls index address
-	uint32_t dwTLSCallbackAddr;           // tls callback address
-	uint32_t dwSizeofZeroFill;            // size of zero fill
-	uint32_t dwCharacteristics;           // characteristics
-};
 

@@ -1,6 +1,7 @@
 #pragma once
 
 #include <kernel/kernel.h>
+#include <xbox.h>
 
 #define CURRENT_THREAD_HANDLE uint32_t(-2)
 
@@ -49,6 +50,5 @@ struct GuestThread
 #endif
 };
 
-#include "kernel/xbox_types.h"
 
 extern TLS* m_TLS;
