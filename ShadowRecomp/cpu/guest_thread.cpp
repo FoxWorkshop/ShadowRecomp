@@ -156,7 +156,7 @@ GuestThreadContext::GuestThreadContext(GuestThreadParams params)
 	x86Context.mxcsr = 0x1F80;
 	x86Context.kpcr_ptr = g_memory.MapVirtual(thread);
 
-	x86Context.kpcr_ptr = *(uint32_t*)(NewPcr + 0x04); //unused for now
+	x86Context.stack_ptr = *(uint32_t*)(NewPcr + 0x04); //unused for now
 
 	assert(GetX86Context() == nullptr);
 	SetX86Context(x86Context);
@@ -204,8 +204,7 @@ uint32_t GuestThreadHandle::Wait(uint32_t timeout)
 
 static uint32_t GetThreadId(const std::thread::id& id)
 {
-	auto id_ = *reinterpret_cast<const uint32_t*>(&id);
-	return id_;
+	return *reinterpret_cast<const uint32_t*>(&id);
 }
 
 GuestThreadHandle* GuestThread::Start(const GuestThreadParams& params, uint32_t* threadId)
@@ -222,14 +221,6 @@ GuestThreadHandle* GuestThread::Start(const GuestThreadParams& params, uint32_t*
 
 uint32_t GuestThread::GetCurrentThreadId()
 {
-	/**auto ctx = GetX86Context();
-	if (ctx)
-	{
-		return *(uint32_t*)(ctx->teb_ptr + 0x20);
-	}
-
-	return 0;*/
-
 	return GetThreadId(std::this_thread::get_id());
 }
 
@@ -246,10 +237,6 @@ uint32_t GuestThread::Start(const GuestThreadParams& params)
 	return ctx.x86Context.eax.u32;
 }
 
-uint32_t GetCurrentThreadId(X86Context& ctx, uint8_t* base)
-{
-	return GetThreadId(std::this_thread::get_id());
-}
 
 // Function to clean the stack after a function call
 X86_FUNC(StubWithCleanStack)
@@ -262,11 +249,6 @@ int XAPILIBGetCurrentThreadId()
 	return GuestThread::GetCurrentThreadId();
 }
 
-const char* strstr_(const char* src, const char* subStr)
-{
-	return strstr(src, subStr);
-}
-
 GUEST_FUNCTION_HOOK(sub_2ADF79, XAPILIBGetCurrentThreadId);
 
 GUEST_FUNCTION_STUB(sub_2B126A); // Some kernel hardware check, not needed on PC.
@@ -274,19 +256,4 @@ GUEST_FUNCTION_STUB(sub_2B126A); // Some kernel hardware check, not needed on PC
 
 //GUEST_FUNCTION_STUB(sub_2B1815); 
 
-GUEST_FUNCTION_HOOK(sub_37FDA0, memcpy);
-GUEST_FUNCTION_HOOK(sub_380F60, memset);
-GUEST_FUNCTION_HOOK(sub_380720, strncat);
-GUEST_FUNCTION_HOOK(sub_37E820, memmove);
-//GUEST_FUNCTION_HOOK(sub_37E7BB, vsprintf); -> used for logs
-GUEST_FUNCTION_HOOK(sub_37FC10, strcpy);
-GUEST_FUNCTION_HOOK(sub_37FC20, strcat);
-GUEST_FUNCTION_HOOK(sub_37F1E0, strncpy);
 
-GUEST_FUNCTION_HOOK(sub_37DEC0, strncmp);
-
-//GUEST_FUNCTION_HOOK(sub_37E577, sprintf);
-//GUEST_FUNCTION_HOOK(sub_37F0C6, sscanf);
-GUEST_FUNCTION_HOOK(sub_37EB60, strstr_);
-
-GUEST_FUNCTION_HOOK(sub_2AAEDE, OutputDebugStringA);

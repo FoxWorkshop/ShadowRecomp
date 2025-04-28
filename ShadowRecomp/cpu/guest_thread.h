@@ -1,7 +1,7 @@
 #pragma once
 
 #include <kernel/kernel.h>
-#include <xbox.h>
+
 
 #define CURRENT_THREAD_HANDLE uint32_t(-2)
 

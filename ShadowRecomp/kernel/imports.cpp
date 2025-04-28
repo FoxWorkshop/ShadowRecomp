@@ -5,17 +5,17 @@
 #include "function.h"
 
 #include "xbox_types.h"
+#include "xbox.h"
 #include "types.h"
 #include "heap.h"
 #include "memory.h"
 #include <memory>
 #include "kernel.h"
 #include <util.h>
-#include <xbox.h>
-
-const std::string XBOX_BASE_DIR = ""; //todo
 
 
+
+static std::atomic<uint32_t> g_keSetEventGeneration;
 constexpr uint32_t GPU_ALIGNMENT = 4096;
 
 #define LOG_UTILITY printf //todo replace
@@ -110,6 +110,7 @@ struct Event final : KernelObject, HostObject<XKEVENT>
 		return TRUE;
 	}
 };
+
 
 void AvSendTVEncoderOption
 (
@@ -362,7 +363,7 @@ int32_t KeBugCheckEx(IN std::uint32_t BugCheckCode, IN uint32_t* BugCheckParamet
 		BugCheckCode, BugCheckParameter1, BugCheckParameter2, BugCheckParameter3, BugCheckParameter4);
 
 
-	exit(0);
+	__builtin_debugtrap();
 	KeBugCheckIgnored = true;
 	return S_OK;
 }
@@ -430,12 +431,12 @@ void KeDisconnectInterrupt(uint32_t* Interrupt_)
 	printf("[STUB] KeDisconnectInterrupt(%p)\n", Interrupt);
 }
 
-uint32_t GuestTimeoutToMilliseconds(uint32_t* timeout)
+uint32_t GuestTimeoutToMilliseconds(int64_t* timeout)
 {
 	return timeout ? (*timeout * -1) / 10000 : INFINITE;
 }
 
-LONG KeDelayExecutionThread(uint8_t WaitMode, BOOLEAN Alertable, uint32_t* Interval)
+LONG KeDelayExecutionThread(uint8_t WaitMode, BOOLEAN Alertable, int64_t* Interval)
 {
 
 	LOG_UTILITY("KeDelayExecutionThread\n");
@@ -514,10 +515,11 @@ std::uint8_t KeRemoveQueueDpc(uint32_t* Dpc_)
 	return TRUE;
 }
 
+uint32_t SaveArea;
 // In a real implementation, would restore FPU/XMM registers
 int32_t KeRestoreFloatingPointState(uint32_t* SaveArea_)
 {
-	xbox::PKFLOATING_SAVE SaveArea = (xbox::PKFLOATING_SAVE)SaveArea_;
+	SaveArea_ = &SaveArea;
 	printf("[STUB] KeRestoreFloatingPointState(%p)\n", SaveArea);
 	LONG ret = X_STATUS_SUCCESS;
 	return ret;
@@ -525,36 +527,43 @@ int32_t KeRestoreFloatingPointState(uint32_t* SaveArea_)
 
 LONG KeSaveFloatingPointState(uint32_t* SaveArea_)
 {
-	xbox::PKFLOATING_SAVE SaveArea = (xbox::PKFLOATING_SAVE)SaveArea_;
+	SaveArea = *SaveArea_;
 	printf("[STUB] KeSaveFloatingPointState(%p)\n", SaveArea);
 	return X_STATUS_SUCCESS;
 }
 
-std::int32_t KeSetBasePriorityThread(uint32_t* Thread_, LONG Priority)
+std::int32_t KeSetBasePriorityThread(GuestThreadHandle* hThread, LONG priority)
 {
-	xbox::PKTHREAD Thread = (xbox::PKTHREAD)Thread_;
-	Thread->Priority = Priority;
-	std::int32_t ret = Thread->Priority;
-	printf("[STUB] KeSetBasePriorityThread(%p, %ld)\n", Thread, Priority);
-	return ret;
+#ifdef _WIN32
+	if (priority == 16)
+	{
+		priority = 15;
+	}
+	else if (priority == -16)
+	{
+		priority = -15;
+	}
+
+	SetThreadPriority(hThread == GetKernelObject(CURRENT_THREAD_HANDLE) ? GetCurrentThread() : hThread->thread.native_handle(), priority);
+#endif
+
+	return priority;
 }
 
 std::uint8_t KeSetDisableBoostThread(uint32_t* Thread_, BOOLEAN Disable)
 {
-	xbox::PKTHREAD Thread = (xbox::PKTHREAD)Thread_;
-	printf("[STUB] KeSetDisableBoostThread(%p, %s)\n",
-		Thread, Disable ? "TRUE" : "FALSE");
-	std::uint8_t prevDisableBoost = Thread->DisableBoost;
-	Thread->DisableBoost = (CHAR)Disable;
-	return prevDisableBoost;
+	printf("[STUB] KeSetDisableBoostThread(%p, %s)\n");
+	return 0;
 }
 
-LONG KeSetEvent(void* Event_, uint32_t Increment_, BOOLEAN Wait)
+LONG KeSetEvent(XKEVENT* pEvent, uint32_t Increment, bool Wait)
 {
-	xbox::PKEVENT Event = (xbox::PKEVENT)Event_;
-	xbox::KPRIORITY Increment = (xbox::KPRIORITY)Increment_;
-	printf("[STUB] KeSetEvent(%p, %d, %s)\n", Event, Increment, Wait ? "TRUE" : "FALSE");
-	return 1;
+	bool result = QueryKernelObject<Event>(*pEvent)->Set();
+
+	++g_keSetEventGeneration;
+	g_keSetEventGeneration.notify_all();
+
+	return result;
 }
 
 BOOLEAN KeSetTimer(uint32_t* Dpc_, uint32_t* DueTime_, uint32_t* Timer_)
@@ -585,13 +594,23 @@ BOOLEAN KeSynchronizeExecution(uint32_t* Interrupt_, uint32_t* SynchronizeRoutin
 	return SynchronizeRoutine(&SynchronizeContext);
 }
 
-LONG KeWaitForSingleObject(uint32_t Object, uint32_t WaitReason_, uint8_t WaitMode, BOOLEAN Alertable,
-	uint32_t* Timeout
-) {
-	//xbox::KWAIT_REASON WaitReason = (xbox::KWAIT_REASON)WaitReason_;
-	printf("[STUB] KeWaitForSingleObject(%p, Reason %d, %s, Timeout %lld)\n");
+LONG KeWaitForSingleObject(XDISPATCHER_HEADER* Object, uint32_t WaitReason, uint32_t WaitMode, bool Alertable, int64_t* Timeout) 
+{
+	const uint32_t timeout = GuestTimeoutToMilliseconds(Timeout);
+	assert(timeout == INFINITE);
 
-	return X_STATUS_SUCCESS; //Pretend object was signaled
+	switch (Object->Type)
+	{
+	case 0:
+	case 1:
+		QueryKernelObject<Event>(*Object)->Wait(timeout);
+		break;
+	default:
+		assert(false && "Unrecognized kernel object type.");
+		return STATUS_TIMEOUT;
+	}
+
+	return X_STATUS_SUCCESS;
 }
 
 std::uint8_t KfRaiseIrql(std::uint8_t NewIrql)
@@ -651,8 +670,6 @@ void KfLowerIrql(std::uint8_t NewIrql)
 
 LONG NtClose(uint32_t Handle)
 {
-	auto test = GetX86Context();
-	test = test;
 	printf("NtClose(%p) called\n", Handle);
 
 	if (Handle == 0)
@@ -707,60 +724,8 @@ LONG NtCreateFile(
 )
 {
 
-	xbox::PIO_STATUS_BLOCK IoStatusBlock = (xbox::PIO_STATUS_BLOCK)IoStatusBlock_;
-	xbox::POBJECT_ATTRIBUTES ObjectAttributes = (xbox::POBJECT_ATTRIBUTES)ObjectAttributes_;
-	LARGE_INTEGER AllocationSize = *(LARGE_INTEGER*)AllocationSize_;
-	const char* xbox_path = (const char*)ObjectAttributes->ObjectName->Buffer;
-	if (!xbox_path) {
-		return STATUS_INVALID_PARAMETER;
-	}
-
-	// --- Step 2: Convert Xbox path to host path ---
-	std::string host_path;
-	if (strncmp(xbox_path, "D:\\", 3) == 0)
-	{
-		host_path = XBOX_BASE_DIR + (xbox_path + 3);
-	}
-	else {
-		// Handle other prefixes (e.g., "\\Device\\Cdrom0")
-		host_path = xbox_path; // Fallback (may need special handling)
-	}
-
-	// --- Step 3: Open the file ---
-	FileHandleType host_handle = INVALID_HANDLE_VALUE_WIN32;
-
-#ifdef _WIN32
-	// Windows implementation
-	DWORD win_access = 0;
-	if (DesiredAccess & GENERIC_READ) win_access |= GENERIC_READ;
-	if (DesiredAccess & GENERIC_WRITE) win_access |= GENERIC_WRITE;
-
-	host_handle = CreateFileA(
-		host_path.c_str(),
-		win_access,
-		ShareAccess,
-		NULL, // No security attributes
-		CreateDisposition, // OPEN_EXISTING, CREATE_ALWAYS, etc.
-		FileAttributes,
-		NULL
-	);
-#else
-	// Linux implementation todo
-
-#endif
-
-	if (host_handle == INVALID_HANDLE_VALUE_WIN32)
-	{
-		return STATUS_INVALID_PARAMETER;
-	}
-
-	*FileHandle = reinterpret_cast<uint32_t>(host_handle);
-
-
-	if (IoStatusBlock) {
-		IoStatusBlock->Status = X_STATUS_SUCCESS;
-		IoStatusBlock->Information = 0;
-	}
+	printf("Stub ntCreatefile\n");
+	return 0;
 }
 
 LONG NtDeviceIoControlFile(
@@ -981,17 +946,27 @@ LONG MmSetAddressProtect(uint32_t* BaseAddress, SIZE_T NumberOfBytes, ULONG NewP
 	return X_STATUS_SUCCESS;
 }
 
-LONG NtWaitForSingleObject(uint32_t* Handle, BOOLEAN Alertable, uint32_t* Timeout)
+LONG NtWaitForSingleObject(uint32_t Handle, BOOLEAN Alertable, int64_t* Timeout)
 {
-	LOG_UTILITY("NtWaitForSingleObject\n");
-	return X_STATUS_SUCCESS; // Pretend the object is always signaled
+	uint32_t timeout = GuestTimeoutToMilliseconds(Timeout);
+	assert(timeout == 0 || timeout == INFINITE);
+
+	if (IsKernelObject(Handle))
+	{
+		return GetKernelObject(Handle)->Wait(timeout);
+	}
+	else
+	{
+		assert(false && "Unrecognized handle value.");
+	}
+
+	return STATUS_TIMEOUT;
 }
 
-LONG NtSetEvent(uint32_t* Handle, uint32_t* PreviousState)
+LONG NtSetEvent(Event* handle, uint32_t* PreviousState)
 {
 	LOG_UTILITY("NtSetEvent\n");
-	if (PreviousState)
-		*PreviousState = 1;
+	handle->Set();
 
 	return X_STATUS_SUCCESS;
 }
@@ -1054,7 +1029,6 @@ LONG NtSuspendThread(GuestThreadHandle* ThreadHandle, uint32_t* PreviousSuspendC
 
 LONG NtResumeThread(GuestThreadHandle* ThreadHandle, uint32_t* PreviousSuspendCount)
 {
-
 	LOG_UTILITY("NtResumeThread(0x%X)\n", ThreadHandle);
 	assert(ThreadHandle != GetKernelObject(CURRENT_THREAD_HANDLE));
 
@@ -1062,9 +1036,6 @@ LONG NtResumeThread(GuestThreadHandle* ThreadHandle, uint32_t* PreviousSuspendCo
 	ThreadHandle->suspended.notify_all();
 
 	return X_STATUS_SUCCESS;
-
-
-
 }
 
 typedef void_xt(NTAPI* PKSTART_ROUTINE)
@@ -1079,26 +1050,6 @@ typedef void_xt(NTAPI* PKSYSTEM_ROUTINE)
 	);
 
 
-void KeInitializeThread(
-	IN OUT uint32_t Thread,
-	IN uint32_t KernelStack,
-	IN ulong_xt KernelStackSize,
-	IN ulong_xt TlsDataSize
-)
-{
-	/* ReactOS's KeInitThread inline code begin */
-
-	/* Initialize the Dispatcher Header */
-	*(uint32_t*)(Thread + 0) = xbox::ThreadObject;
-	*(uint32_t*)(Thread + 0 + 2) = 272 / sizeof(xbox::long_xt);
-	// ThreadControlFlags
-	// DebugActive
-
-	/* Set the Thread Stacks */
-	*(uint32_t*)(Thread + 0x1c) = KernelStack;
-	*(uint32_t*)(Thread  + 0x20) = (reinterpret_cast<ulong_ptr_xt>(KernelStack) - KernelStackSize);
-
-}
 
 LONG PsCreateSystemThreadEx(
 	OUT uint32_t*         ThreadHandle,
@@ -1134,12 +1085,9 @@ void PsTerminateSystemThread(LONG ExitStatus)
 	// No-op (thread cleanup is handled by the recompiler)
 }
 
-LONG ObReferenceObjectByHandle(
-	uint32_t* Handle,
-	uint32_t* ObjectType,
-	uint32_t* Object
-) {
-	*Object = reinterpret_cast<uint32_t>(0xDEADBEEF); // Dummy object
+LONG ObReferenceObjectByHandle(uint32_t Handle, uint32_t ObjectType, uint32_t* Object) 
+{
+	*Object = Handle;
 	return X_STATUS_SUCCESS;
 }
 
@@ -1147,25 +1095,67 @@ void ObfDereferenceObject(PVOID Object) {
 	// No-op
 }
 
-void RtlInitializeCriticalSection(uint32_t* CritSec)
+typedef struct _XRTL_CRITICAL_SECTION
 {
-	LOG_UTILITY("RtlInitializeCriticalSection STUB\n");
-}
+	XDISPATCHER_HEADER   Event;
+	long_xt             LockCount;
+	long_xt             RecursionCount;
+	uint32_t           OwningThread;	
+} XRTL_CRITICAL_SECTION;
 
-void RtlEnterCriticalSection(uint32_t* CritSec) {
-	LOG_UTILITY("RtlEnterCriticalSection STUB\n");
-}
+typedef struct _XANSI_STRING {
+	uint16_t Length;
+	uint16_t MaximumLength;
+	xpointer<char> Buffer;
+} XANSI_STRING;
 
-void RtlLeaveCriticalSection(uint32_t* CritSec) {
-	LOG_UTILITY("RtlLeaveCriticalSection STUB\n");
-}
-
-void RtlInitAnsiString(uint32_t* Destination_, char* Source)
+void RtlInitializeCriticalSection(XRTL_CRITICAL_SECTION* CritSec)
 {
-	/**xbox::PANSI_STRING Destination = (xbox::PANSI_STRING)Destination_;
-	Destination->Buffer = const_cast<PCHAR>(Source);
-	Destination->Length = static_cast<USHORT>(strlen(Source));
-	Destination->MaximumLength = Destination->Length + 1;*/
+	CritSec->Event.Absolute = 0;
+	CritSec->LockCount = -1;
+	CritSec->RecursionCount = 0;
+	CritSec->OwningThread = 0;
+}
+
+void RtlEnterCriticalSection(XRTL_CRITICAL_SECTION* CritSec)
+{
+	uint32_t thisThread = g_x86Context->kpcr_ptr;
+	assert(thisThread != NULL);
+
+	std::atomic_ref owningThread(CritSec->OwningThread);
+
+	while (true)
+	{
+		uint32_t previousOwner = 0;
+
+		if (owningThread.compare_exchange_weak(previousOwner, thisThread) || previousOwner == thisThread)
+		{
+			CritSec->RecursionCount++;
+			return;
+		}
+
+		owningThread.wait(previousOwner);
+	}
+}
+
+void RtlLeaveCriticalSection(XRTL_CRITICAL_SECTION* CritSec)
+{
+	CritSec->RecursionCount--;
+
+	if (CritSec->RecursionCount != 0)
+		return;
+
+	std::atomic_ref owningThread(CritSec->OwningThread);
+	owningThread.store(0);
+	owningThread.notify_one();
+}
+
+void RtlInitAnsiString(_XANSI_STRING* Destination, char* Source)
+{
+	const uint16_t length = Source ? (uint16_t)strlen(Source) : 0;
+	Destination->Length = length;
+	Destination->MaximumLength = length + 1;
+	Destination->Buffer = (xpointer<char>)(Source);
 }
 
 LONG NtQueryVolumeInformationFile(
@@ -1267,16 +1257,22 @@ uint32_t RtlNtStatusToDosError(xbox::ntstatus_xt status)
 	return TRUE;
 }
 
-LONG NtWaitForSingleObjectEx(
-	uint32_t* Handle,
-	BOOLEAN Alertable,
-	uint32_t* Timeout,
-	DWORD WaitMode
-) {
-	return NtWaitForSingleObject(Handle, Alertable, Timeout); // Reuse stub
+uint32_t NtWaitForSingleObjectEx(uint32_t Handle, uint32_t WaitMode, uint32_t Alertable, int64_t* Timeout)
+{
+	uint32_t timeout = GuestTimeoutToMilliseconds(Timeout);
+	assert(timeout == 0 || timeout == INFINITE);
+
+	if (IsKernelObject(Handle))
+	{
+		return GetKernelObject(Handle)->Wait(timeout);
+	}
+	else
+	{
+		assert(false && "Unrecognized handle value.");
+	}
+
+	return STATUS_TIMEOUT;
 }
-
-
 
 
 void sub_2B126A_r()

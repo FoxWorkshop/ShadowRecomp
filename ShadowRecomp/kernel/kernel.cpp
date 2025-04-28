@@ -1,4 +1,5 @@
 #include <stdafx.h>
+#include "xbox.h"
 #include "kernel.h"
 #include "freelist.h"
 

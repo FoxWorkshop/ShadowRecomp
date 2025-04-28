@@ -68,6 +68,7 @@ set_source_files_properties(${SHADOW_RECOMP_THIRDPARTY_SOURCES} PROPERTIES SKIP_
 
 set(SHADOW_RECOMP_CXX_SOURCES
     "main.cpp"
+    "misc_impl.cpp"
     "stdafx.cpp"
     "logs.cpp"
     

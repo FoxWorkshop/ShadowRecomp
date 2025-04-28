@@ -26,6 +26,7 @@ using Microsoft::WRL::ComPtr;
 #include <cassert>
 #include <chrono>
 #include <span>
+
 #include <x86/x86_recomp_shared.h>
 #include <SDL.h>
 //#include <SDL_mixer.h>

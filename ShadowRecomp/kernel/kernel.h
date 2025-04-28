@@ -1,10 +1,11 @@
 
 #pragma once
-#include <cstdint>
 #include "heap.h"
 #include "memory.h"
+#include <xbox.h>
 #include <unordered_map>
 
+#define OBJECT_SIGNATURE   (uint32_t)'XBOX'
 #define GUEST_INVALID_HANDLE_VALUE 0xFFFFFFFF
 
 //from CXBX's code:
@@ -68,3 +69,21 @@ inline T* GetInvalidKernelObject()
 }
 
 extern Mutex g_kernelLock;
+
+template<typename T>
+inline T* QueryKernelObject(XDISPATCHER_HEADER &header)
+{
+    std::lock_guard guard{ g_kernelLock };
+    if (header.WaitListHead.Flink != OBJECT_SIGNATURE)
+    {
+        header.WaitListHead.Flink = OBJECT_SIGNATURE;
+        auto* obj = CreateKernelObject<T>(reinterpret_cast<typename T::guest_type*>(&header));
+        header.WaitListHead.Blink = g_memory.MapVirtual(obj);
+
+        return obj;
+    }
+
+    return static_cast<T*>(g_memory.Translate(header.WaitListHead.Blink));
+}
+
+
