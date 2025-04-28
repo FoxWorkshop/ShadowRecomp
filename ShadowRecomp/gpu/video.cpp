@@ -441,3 +441,4 @@ GUEST_FUNCTION_HOOK_THISCALL(sub_3D0CD0, D3DDevice_SetTexture); //esp sub AND re
 
 
 
+GUEST_FUNCTION_STUB(sub_37DF88); //might not be graphic related? Ton of missing float instruction

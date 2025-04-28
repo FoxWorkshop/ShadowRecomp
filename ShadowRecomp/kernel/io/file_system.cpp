@@ -263,23 +263,29 @@ X86_FUNC(sub_382D53)
 	ctx.esp.u32 -= 4; //the og function adjusted esp, we need to take that in account 
 	ebp = X86_LOAD_U32(ctx.esp.u32 + 4 + (7 * 4)); //get the edited buffer from og function
 	std::string newBuffer = (char*)(base + ebp);
-	if (ctx.eax.u32 > backup.size() + 5 || newBuffer.size() < backup.size()) //if there is a huge size difference, assume it cuts a few characters
+	bool stringNeedFix = newBuffer.size() < backup.size();
+	if (ctx.eax.u32 > backup.size() + 5 || stringNeedFix) //if there is a huge size difference, assume it cuts a few characters
 	{
 		//add missing string part that got cut
-		int offset = backup.size() - newBuffer.size();
-		newBuffer += backup.substr(backup.length() - offset);
-		char* writable = (char*)g_userHeap.Alloc(newBuffer.size() + 1); // +1 for null terminator
-		std::copy(newBuffer.begin(), newBuffer.end(), writable);
-		writable[newBuffer.size()] = '\0'; // Null-terminate manually
-
-		uint32_t targetAddr = ctx.esp.u32 + 4 + (34 * 4);
-		for (size_t i = 0; i < newBuffer.size() + 1; ++i)
+		if (stringNeedFix)
 		{
-			*(volatile uint8_t*)(base + targetAddr + i) = writable[i]; //write new string to esp so function can access it
+			int offset = backup.size() - newBuffer.size();
+			newBuffer += backup.substr(backup.length() - offset);
+			char* writable = (char*)g_userHeap.Alloc(newBuffer.size() + 1); // +1 for null terminator
+			std::copy(newBuffer.begin(), newBuffer.end(), writable);
+			writable[newBuffer.size()] = '\0'; // Null-terminate manually
+
+			uint32_t targetAddr = ctx.esp.u32 + 4 + (34 * 4);
+			for (size_t i = 0; i < newBuffer.size() + 1; ++i)
+			{
+				*(volatile uint8_t*)(base + targetAddr + i) = writable[i]; //write new string to esp so function can access it
+			}
+
+			auto map = g_memory.MapVirtual(writable);
+			ctx.esi.u32 = (uint32_t)(base + map);
 		}
 
-		auto map = g_memory.MapVirtual(writable);
-		ctx.esi.u32 = (uint32_t)(base + map);
+
 		ctx.eax.u32 = newBuffer.size(); //sprintf returns the number of characters, so we fix it here just in case
 	}
 

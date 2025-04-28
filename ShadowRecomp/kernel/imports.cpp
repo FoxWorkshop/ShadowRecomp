@@ -214,7 +214,8 @@ uint32_t ExQueryPoolBlockSize
 )
 {
 	printf("[STUB] ExQueryPoolBlockSize(%p) -> Dummy 4096\n", PoolBlock);
-	return 4096;
+	auto size = g_userHeap.Size(PoolBlock);
+	return size;
 }
 
 
