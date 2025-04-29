@@ -392,10 +392,9 @@ void KeQuerySystemTime(uint32_t* CurrentTime_)
 	//printf("[STUB] KeQuerySystemTime() -> %lld\n", CurrentTime->QuadPart);
 }
 
-LONG KeQueryBasePriorityThread(IN uint32_t* Thread)
+LONG KeQueryBasePriorityThread(GuestThreadHandle* Thread)
 {
 	//xbox::PKTHREAD t = (xbox::PKTHREAD)Thread;
-	printf("[STUB] KeQueryBasePriorityThread(%p)\n");
 	return 8;
 }
 
@@ -1093,6 +1092,8 @@ LONG ObReferenceObjectByHandle(uint32_t Handle, uint32_t ObjectType, uint32_t* O
 
 void ObfDereferenceObject(PVOID Object) {
 	// No-op
+	printf("done\n");
+
 }
 
 typedef struct _XRTL_CRITICAL_SECTION
@@ -1100,7 +1101,7 @@ typedef struct _XRTL_CRITICAL_SECTION
 	XDISPATCHER_HEADER   Event;
 	long_xt             LockCount;
 	long_xt             RecursionCount;
-	uint32_t           OwningThread;	
+	uint32_t           OwningThread;
 } XRTL_CRITICAL_SECTION;
 
 typedef struct _XANSI_STRING {
@@ -1294,10 +1295,10 @@ GUEST_FUNCTION_HOOK_STDCALL(__imp__NtQueryFullAttributesFile, NtQueryFullAttribu
 GUEST_FUNCTION_HOOK_STDCALL(__imp__RtlInitAnsiString, RtlInitAnsiString);
 GUEST_FUNCTION_HOOK_STDCALL(__imp__NtOpenFile, NtOpenFile);
 GUEST_FUNCTION_HOOK_STDCALL(__imp__NtClose, NtClose);
-GUEST_FUNCTION_HOOK(__imp__NtSetInformationFile, NtSetInformationFile);
+GUEST_FUNCTION_HOOK_STDCALL(__imp__NtSetInformationFile, NtSetInformationFile);
 GUEST_FUNCTION_HOOK_STDCALL(__imp__ExQueryNonVolatileSetting, ExQueryNonVolatileSetting);
-GUEST_FUNCTION_HOOK(__imp__HalReturnToFirmware, HalReturnToFirmware);
-GUEST_FUNCTION_HOOK(__imp__MmFreeContiguousMemory, MmFreeContiguousMemory);
+GUEST_FUNCTION_HOOK_STDCALL(__imp__HalReturnToFirmware, HalReturnToFirmware);
+GUEST_FUNCTION_HOOK_STDCALL(__imp__MmFreeContiguousMemory, MmFreeContiguousMemory);
 GUEST_FUNCTION_HOOK_STDCALL(__imp__RtlNtStatusToDosError, RtlNtStatusToDosError);
 GUEST_FUNCTION_HOOK_STDCALL(__imp__FscSetCacheSize, FscSetCacheSize);
 GUEST_FUNCTION_HOOK_STDCALL(__imp__NtQueryDirectoryFile, NtQueryDirectoryFile);
@@ -1305,47 +1306,47 @@ GUEST_FUNCTION_HOOK_STDCALL(__imp__NtCreateEvent, NtCreateEvent);
 GUEST_FUNCTION_HOOK_STDCALL(__imp__NtSetEvent, NtSetEvent);
 GUEST_FUNCTION_HOOK_STDCALL(__imp__NtWaitForSingleObjectEx, NtWaitForSingleObjectEx);
 GUEST_FUNCTION_HOOK_STDCALL(__imp__KeDelayExecutionThread, KeDelayExecutionThread)
-GUEST_FUNCTION_HOOK_STDCALL(__imp__ObfDereferenceObject, ObfDereferenceObject);
+GUEST_FUNCTION_HOOK_FASTCALL(__imp__ObfDereferenceObject, ObfDereferenceObject);
 GUEST_FUNCTION_HOOK_STDCALL(__imp__KeSetBasePriorityThread, KeSetBasePriorityThread);
 GUEST_FUNCTION_HOOK_STDCALL(__imp__ObReferenceObjectByHandle, ObReferenceObjectByHandle);
 GUEST_FUNCTION_HOOK_STDCALL(__imp__PsCreateSystemThreadEx, PsCreateSystemThreadEx);
-GUEST_FUNCTION_HOOK(__imp__KeQueryBasePriorityThread, KeQueryBasePriorityThread);
-GUEST_FUNCTION_HOOK(__imp__KeSetDisableBoostThread, KeSetDisableBoostThread);
-GUEST_FUNCTION_HOOK(__imp__NtResumeThread, NtResumeThread);
-GUEST_FUNCTION_HOOK(__imp__NtSuspendThread, NtSuspendThread);
-GUEST_FUNCTION_HOOK(__imp__NtYieldExecution, NtYieldExecution);
-GUEST_FUNCTION_HOOK(__imp__PsTerminateSystemThread, PsTerminateSystemThread);
-GUEST_FUNCTION_HOOK(__imp__NtWaitForSingleObject, NtWaitForSingleObject);
-GUEST_FUNCTION_HOOK(__imp__NtReadFile, NtReadFile);
-GUEST_FUNCTION_HOOK(__imp__NtWriteFile, NtWriteFile);
-GUEST_FUNCTION_HOOK(__imp__NtQueryInformationFile, NtQueryInformationFile);
-GUEST_FUNCTION_HOOK(__imp__NtQueryVolumeInformationFile, NtQueryVolumeInformationFile);
-GUEST_FUNCTION_HOOK(__imp__NtFlushBuffersFile, NtFlushBuffersFile);
-GUEST_FUNCTION_HOOK(__imp__NtFsControlFile, NtFsControlFile);
-GUEST_FUNCTION_HOOK(__imp__NtDeviceIoControlFile, NtDeviceIoControlFile);
-GUEST_FUNCTION_HOOK(__imp__XcSHAInit, XcSHAInit);
-GUEST_FUNCTION_HOOK(__imp__XcSHAUpdate, XcSHAUpdate);
-GUEST_FUNCTION_HOOK(__imp__XcSHAFinal, XcSHAFinal);
-GUEST_FUNCTION_HOOK(__imp__KeQuerySystemTime, KeQuerySystemTime);
+GUEST_FUNCTION_HOOK_STDCALL(__imp__KeQueryBasePriorityThread, KeQueryBasePriorityThread);
+GUEST_FUNCTION_HOOK_STDCALL(__imp__KeSetDisableBoostThread, KeSetDisableBoostThread);
+GUEST_FUNCTION_HOOK_STDCALL(__imp__NtResumeThread, NtResumeThread);
+GUEST_FUNCTION_HOOK_STDCALL(__imp__NtSuspendThread, NtSuspendThread);
+GUEST_FUNCTION_HOOK_STDCALL(__imp__NtYieldExecution, NtYieldExecution);
+GUEST_FUNCTION_HOOK_STDCALL(__imp__PsTerminateSystemThread, PsTerminateSystemThread);
+GUEST_FUNCTION_HOOK_STDCALL(__imp__NtWaitForSingleObject, NtWaitForSingleObject);
+GUEST_FUNCTION_HOOK_STDCALL(__imp__NtReadFile, NtReadFile);
+GUEST_FUNCTION_HOOK_STDCALL(__imp__NtWriteFile, NtWriteFile);
+GUEST_FUNCTION_HOOK_STDCALL(__imp__NtQueryInformationFile, NtQueryInformationFile);
+GUEST_FUNCTION_HOOK_STDCALL(__imp__NtQueryVolumeInformationFile, NtQueryVolumeInformationFile);
+GUEST_FUNCTION_HOOK_STDCALL(__imp__NtFlushBuffersFile, NtFlushBuffersFile);
+GUEST_FUNCTION_HOOK_STDCALL(__imp__NtFsControlFile, NtFsControlFile);
+GUEST_FUNCTION_HOOK_STDCALL(__imp__NtDeviceIoControlFile, NtDeviceIoControlFile);
+GUEST_FUNCTION_HOOK_STDCALL(__imp__XcSHAInit, XcSHAInit);
+GUEST_FUNCTION_HOOK_STDCALL(__imp__XcSHAUpdate, XcSHAUpdate);
+GUEST_FUNCTION_HOOK_STDCALL(__imp__XcSHAFinal, XcSHAFinal);
+GUEST_FUNCTION_HOOK_STDCALL(__imp__KeQuerySystemTime, KeQuerySystemTime);
 
 GUEST_FUNCTION_HOOK_STDCALL(__imp__NtCreateFile, NtCreateFile); 
-GUEST_FUNCTION_HOOK(__imp__IoCreateSymbolicLink, IoCreateSymbolicLink);
+GUEST_FUNCTION_HOOK_STDCALL(__imp__IoCreateSymbolicLink, IoCreateSymbolicLink);
 GUEST_FUNCTION_HOOK_STDCALL(__imp__IoDeleteSymbolicLink, IoDeleteSymbolicLink);
-GUEST_FUNCTION_HOOK(__imp__NtQuerySymbolicLinkObject, NtQuerySymbolicLinkObject);
-GUEST_FUNCTION_HOOK(__imp__NtOpenSymbolicLinkObject, NtOpenSymbolicLinkObject);
-GUEST_FUNCTION_HOOK(__imp__MmFreeSystemMemory, MmFreeSystemMemory);
+GUEST_FUNCTION_HOOK_STDCALL(__imp__NtQuerySymbolicLinkObject, NtQuerySymbolicLinkObject);
+GUEST_FUNCTION_HOOK_STDCALL(__imp__NtOpenSymbolicLinkObject, NtOpenSymbolicLinkObject);
+GUEST_FUNCTION_HOOK_STDCALL(__imp__MmFreeSystemMemory, MmFreeSystemMemory);
 
-GUEST_FUNCTION_HOOK(__imp__MmAllocateSystemMemory, MmAllocateSystemMemory);
-GUEST_FUNCTION_HOOK_THISCALL(__imp__KfLowerIrql, KfLowerIrql); 
+GUEST_FUNCTION_HOOK_STDCALL(__imp__MmAllocateSystemMemory, MmAllocateSystemMemory);
+GUEST_FUNCTION_HOOK_FASTCALL(__imp__KfLowerIrql, KfLowerIrql);
 
-GUEST_FUNCTION_HOOK(__imp__KeRaiseIrqlToDpcLevel, KeRaiseIrqlToDpcLevel);
+GUEST_FUNCTION_HOOK_STDCALL(__imp__KeRaiseIrqlToDpcLevel, KeRaiseIrqlToDpcLevel);
 GUEST_FUNCTION_HOOK_STDCALL(__imp__HalRegisterShutdownNotification, HalRegisterShutdownNotification);
 GUEST_FUNCTION_HOOK_STDCALL(__imp__KeInitializeTimerEx, KeInitializeTimerEx);
 GUEST_FUNCTION_HOOK_STDCALL(__imp__KeSetTimer, KeSetTimer);
 GUEST_FUNCTION_HOOK_STDCALL(__imp__KeCancelTimer, KeCancelTimer);
 
 
-GUEST_FUNCTION_HOOK_STDCALL(__imp__RtlLONGToDosError, RtlLONGToDosError);
+GUEST_FUNCTION_HOOK_STDCALL(__imp__RtlLONGToDosError, RtlLONGToDosError); //not found???? 
 GUEST_FUNCTION_HOOK_STDCALL(__imp__RtlUnwind, RtlUnwind_);
 GUEST_FUNCTION_HOOK_STDCALL(__imp__XcHMAC, XcHMAC);
 GUEST_FUNCTION_HOOK_STDCALL(__imp__XeLoadSection, XeLoadSection);
@@ -1360,7 +1361,7 @@ GUEST_FUNCTION_HOOK_STDCALL(__imp__MmQueryAddressProtect, MmQueryAddressProtect)
 GUEST_FUNCTION_HOOK_STDCALL(__imp__MmLockUnlockPhysicalPage, MmLockUnlockPhysicalPage);
 GUEST_FUNCTION_HOOK_STDCALL(__imp__MmLockUnlockBufferPages, MmLockUnlockBufferPages);
 GUEST_FUNCTION_HOOK_STDCALL(__imp__MmGetPhysicalAddress, MmGetPhysicalAddress);
-GUEST_FUNCTION_HOOK_STDCALL(__imp__KfRaiseIrql, KfRaiseIrql);
+GUEST_FUNCTION_HOOK_FASTCALL(__imp__KfRaiseIrql, KfRaiseIrql);
 GUEST_FUNCTION_HOOK_STDCALL(__imp__KeWaitForSingleObject, KeWaitForSingleObject);
 GUEST_FUNCTION_HOOK_STDCALL(__imp__KeSynchronizeExecution, KeSynchronizeExecution);
 GUEST_FUNCTION_HOOK_STDCALL(__imp__MmClaimGpuInstanceMemory, MmClaimGpuInstanceMemory);
@@ -1393,3 +1394,11 @@ GUEST_FUNCTION_HOOK(__imp__DbgPrint, DbgPrintV);
 
 //XAutoPowerDownResetTimer
 GUEST_FUNCTION_STUB(sub_2B17E8);
+
+
+int sub_3325F0_r(const char* a1, int a2)
+{
+	return 0;
+}
+
+//GUEST_FUNCTION_HOOK(sub_3325F0, sub_3325F0_r);

@@ -10,9 +10,9 @@ void PrintError(const char* a1)
 
 void DebugPrint(char* const Buffer, const char* const Format, va_list ArgList)
 {
+	vsprintf(Buffer, Format, ArgList);
 	printf(Buffer);
 	printf("\n\n");
-	vsprintf(Buffer, Format, ArgList);
 }
 
 
