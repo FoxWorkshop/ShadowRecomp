@@ -642,17 +642,17 @@ PVOID MmClaimGpuInstanceMemory(SIZE_T NumberOfBytes, ULONG Protect
 	return reinterpret_cast<PVOID>(g_memory.MapVirtual(g_userHeap.AllocPhysical(NumberOfBytes, GPU_ALIGNMENT)));
 }
 
-VOID MmFreeContiguousMemory(uint32_t* BaseAddress)
+void MmFreeContiguousMemory(uint32_t guestAddress)
 {
-	printf("[STUB] MmFreeContiguousMemory(%p)\n", BaseAddress);
-	g_userHeap.Free(g_memory.Translate((size_t)BaseAddress));
+	if (guestAddress != NULL)
+		g_userHeap.Free(g_memory.Translate(guestAddress));
 }
 
 VOID MmFreeSystemMemory(uint32_t* BaseAddress, uint32_t NumberOfBytes)
 {
 	printf("[STUB] MmFreeSystemMemory(%p, %zu bytes)\n", BaseAddress, NumberOfBytes);
 
-	g_userHeap.Free(g_memory.Translate((size_t)BaseAddress));
+	//g_userHeap.Free(g_memory.Translate((size_t)BaseAddress));
 }
 
 uint32_t MmAllocateSystemMemory(uint32_t NumberOfBytes, ULONG Protect)
@@ -795,7 +795,7 @@ LONG NtOpenSymbolicLinkObject(OUT PHANDLE LinkHandle, IN void* ObjectAttributes
 LONG NtQueryDirectoryFile(
 	IN  HANDLE FileHandle,
 	IN  HANDLE Event OPTIONAL,
-	IN  uint32_t* ApcRoutine, // Todo: define this routine's prototype
+	IN  uint32_t* ApcRoutine, 
 	IN  uint32_t* ApcContext,
 	OUT uint32_t* IoStatusBlock,
 	OUT uint32_t* FileInformation_,
@@ -1092,7 +1092,7 @@ LONG ObReferenceObjectByHandle(uint32_t Handle, uint32_t ObjectType, uint32_t* O
 
 void ObfDereferenceObject(PVOID Object) {
 	// No-op
-	printf("done\n");
+	printf("stub ObfDereferenceObject\n");
 
 }
 
