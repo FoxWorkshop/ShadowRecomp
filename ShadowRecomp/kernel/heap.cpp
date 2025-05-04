@@ -5,15 +5,15 @@
 #include "x86_context.h"
                 
 constexpr size_t XBE_END_ADDR = 0x006A1000ull; 
-constexpr size_t HEAP_BEGIN = XBE_END_ADDR + 0x400000;    //Start heap way after XBE 
-constexpr size_t HEAP_END = (0x01FFFFFFull & ~0xFFF);  // Align to 4KB boundary
+constexpr size_t HEAP_BEGIN = XBE_END_ADDR + 0x1000000;    //Start heap way after XBE 
+constexpr size_t HEAP_END = 0xA0000000;  // Align to 4KB boundary
 constexpr size_t PHYS_HEAP_END = 0x03FFFFFFull; //todo check if this is correct
                                 
 void Heap::Init()
 {
     printf("Heap Init\n");
     heap = o1heapInit(g_memory.Translate(HEAP_BEGIN), HEAP_END - HEAP_BEGIN);
-    physicalHeap = o1heapInit(g_memory.Translate(HEAP_END), PHYS_HEAP_END - HEAP_END);
+    physicalHeap = o1heapInit(g_memory.Translate(HEAP_END), 0x100000000 - HEAP_END);
 
     printf("Regular Heap: %p - %p\n", heap, (char*)heap + (HEAP_END - HEAP_BEGIN));
     printf("Physical Heap: %p - %p\n", physicalHeap, (char*)physicalHeap + (PHYS_HEAP_END - HEAP_END));
