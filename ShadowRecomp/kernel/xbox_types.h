@@ -140,3 +140,11 @@ namespace xbox
 	constexpr uint_xt max_path{ 260 }; // Xbox file path max limitation
 }
 
+
+typedef struct _XOVERLAPPED {
+	uint32_t Internal;
+	uint32_t InternalHigh;
+	uint32_t Offset;
+	uint32_t OffsetHigh;
+	uint32_t hEvent;
+} XOVERLAPPED;

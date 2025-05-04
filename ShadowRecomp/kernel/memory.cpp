@@ -2,6 +2,7 @@
 #include "heap.h"
 #include "memory.h"
 #include "function.h"
+#include "x86_context.h"
 
 Memory::Memory()
 {
@@ -37,7 +38,6 @@ Memory::Memory()
 		if (X86FuncMappings[i].host != nullptr)
 			InsertFunction(X86FuncMappings[i].guest, X86FuncMappings[i].host);
 	}
-
 }
 
 void* MmGetHostAddress(uint32_t ptr)

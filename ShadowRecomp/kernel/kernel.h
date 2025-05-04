@@ -47,7 +47,7 @@ inline T* CreateKernelObject(Args&&... args)
 template<typename T = KernelObject>
 inline T* GetKernelObject(uint32_t handle)
 {
-	printf("GetKernelObject %s\n", typeid(T).name());
+	//printf("GetKernelObject %s\n", typeid(T).name());
     assert(handle != GUEST_INVALID_HANDLE_VALUE);
     return reinterpret_cast<T*>(g_memory.Translate(handle));
 }

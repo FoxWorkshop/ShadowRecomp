@@ -1,6 +1,11 @@
 #include <stdafx.h>
 #include <kernel/function.h>
-
+#include <kernel/io/file_system.h>
+#include <cpu/guest_thread.h>
+#include <kernel/kernel.h>
+#include <iostream>
+#include <filesystem>
+#include <iostream>
 
 void* unknownSoundPtr = nullptr;
 uint8_t* ppDS = nullptr;

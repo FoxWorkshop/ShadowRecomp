@@ -18,8 +18,6 @@
 static std::atomic<uint32_t> g_keSetEventGeneration;
 constexpr uint32_t GPU_ALIGNMENT = 4096;
 
-#define LOG_UTILITY printf //todo replace
-
 //IRQL levels
 #define PASSIVE_LEVEL 0
 #define DISPATCH_LEVEL 2
@@ -136,18 +134,18 @@ uint32_t AvSetDisplayMode
 	IN  uint32_t   FrameBuffer
 )
 {
-	LOG_UTILITY("!!! STUB !!!");
+	LOG_UTIL("!!! STUB !!!");
 	return X_STATUS_SUCCESS;
 }
 
 void NtReadFile()
 {
-	LOG_UTILITY("!!! STUB !!!");
+	LOG_UTIL("!!! STUB !!!");
 }
 
 void AvGetSavedDataAddress()
 {
-	LOG_UTILITY("!!! STUB !!!");
+	LOG_UTIL("!!! STUB !!!");
 }
 
 
@@ -176,7 +174,7 @@ int32_t NtAllocateVirtualMemory(IN OUT uint32_t* BaseAddress,
 void* AvSavedDataAddress;
 void AvSetSavedDataAddress(IN  uint32_t* Address)
 {
-	LOG_UTILITY("%d", Address);
+	printf("AvSetSavedDataAddress %d\n", Address);
 	AvSavedDataAddress = Address;
 }
 
@@ -195,7 +193,7 @@ uint32_t DbgPrint(PCHAR Format, ...) {
 
 void ExFreePool()
 {
-	LOG_UTILITY("!!! STUB !!!");
+	LOG_UTIL("!!! STUB !!!");
 }
 
 void* ExAllocatePoolWithTag
@@ -437,9 +435,6 @@ uint32_t GuestTimeoutToMilliseconds(int64_t* timeout)
 
 LONG KeDelayExecutionThread(uint8_t WaitMode, BOOLEAN Alertable, int64_t* Interval)
 {
-
-	LOG_UTILITY("KeDelayExecutionThread\n");
-
 	if (Alertable)
 		return STATUS_USER_APC;
 
@@ -551,7 +546,7 @@ std::int32_t KeSetBasePriorityThread(GuestThreadHandle* hThread, LONG priority)
 
 std::uint8_t KeSetDisableBoostThread(uint32_t* Thread_, BOOLEAN Disable)
 {
-	printf("[STUB] KeSetDisableBoostThread(%p, %s)\n");
+	printf("[STUB] KeSetDisableBoostThread(%p, %d)\n");
 	return 0;
 }
 
@@ -657,8 +652,7 @@ VOID MmFreeSystemMemory(uint32_t* BaseAddress, uint32_t NumberOfBytes)
 
 uint32_t MmAllocateSystemMemory(uint32_t NumberOfBytes, ULONG Protect)
 {
-	printf("[STUB] MmAllocateSystemMemory(%zu bytes, Prot 0x%X)\n",
-		NumberOfBytes, Protect);
+	printf("MmAllocateSystemMemory(%zu bytes, Prot 0x%X)", NumberOfBytes, Protect);
 	return g_memory.MapVirtual(g_userHeap.Alloc(NumberOfBytes));
 }
 
@@ -739,7 +733,7 @@ LONG NtDeviceIoControlFile(
 	PVOID OutputBuffer,
 	ULONG OutputBufferLength
 ) {
-	LOG_UTILITY("NtDeviceIoControlFile(0x%X)", IoControlCode);
+	LOG_UTIL("!!! STUB !!!");
 	return X_STATUS_SUCCESS;
 }
 
@@ -765,7 +759,7 @@ LONG NtFsControlFile(
 	uint32_t* OutputBuffer,
 	ULONG OutputBufferLength
 ) {
-	LOG_UTILITY("NtFsControlFile(0x%X)", FsControlCode);
+	LOG_UTIL("!!! STUB !!!");
 	return X_STATUS_SUCCESS;
 }
 
@@ -830,7 +824,7 @@ LONG NtQueryInformationFile(
 	uint32_t FileInformationClass_
 )
 {
-	LOG_UTILITY("NtQueryInformationFile STUB\n");
+	LOG_UTIL("!!! STUB !!!");
 	/**xbox::FILE_INFORMATION_CLASS FileInformationClass = (xbox::FILE_INFORMATION_CLASS)FileInformationClass_;
 	xbox::PIO_STATUS_BLOCK IoStatusBlock = (xbox::PIO_STATUS_BLOCK)IoStatusBlock_;
 
@@ -874,7 +868,7 @@ LONG NtQuerySymbolicLinkObject(HANDLE LinkHandle, void* TargetName_, PULONG Retu
 
 LONG NtQueryVirtualMemory(uint32_t* BaseAddress, uint32_t* Buffer)
 {
-	LOG_UTILITY("STUB NtQueryVirtualMemory\n");
+	LOG_UTIL("STUB NtQueryVirtualMemory\n");
 
 	if (!Buffer)
 		return X_STATUS_UNSUCCESSFUL;
@@ -908,7 +902,7 @@ uint32_t MmGetPhysicalAddress(uint32_t BaseAddress)
 
 LONG MmLockUnlockBufferPages(uint32_t* BaseAddress, uint32_t NumberOfBytes, BOOLEAN Lock)
 {
-	LOG_UTILITY("MmLockUnlockBufferPages(%p, %zu, %s)", BaseAddress, NumberOfBytes, Lock ? "Lock" : "Unlock");
+	LOG_UTIL("!!! STUB !!!");
 	printf("\n");
 	return X_STATUS_SUCCESS; // No-op in recompiler
 }
@@ -917,19 +911,19 @@ LONG MmLockUnlockPhysicalPage(uint32_t PhysicalAddress_, BOOLEAN Lock)
 {
 	xbox::physical_address_xt PhysicalAddress = PhysicalAddress_;
 	uint32_t addr = static_cast<uint32_t>(PhysicalAddress);
-	LOG_UTILITY("MmLockUnlockPhysicalPage(0x%08X, %s)", addr, Lock ? "Lock" : "Unlock");
+	printf("MmLockUnlockPhysicalPage(0x%08X, %s)\n", addr, Lock ? "Lock" : "Unlock");
 	printf("\n");
 	return X_STATUS_SUCCESS;
 }
 
 VOID MmPersistContiguousMemory(uint32_t* BaseAddress, uint32_t NumberOfBytes, BOOLEAN Persist)
 {
-	LOG_UTILITY("MmPersistContiguousMemory(%p, %zu, %s\n)", BaseAddress, NumberOfBytes, Persist ? "Persist" : "Unpersist");
+	LOG_UTIL("!!! STUB !!!");
 }
 
 LONG MmQueryAddressProtect(uint32_t* BaseAddress, uint32_t* Protect)
 {
-	LOG_UTILITY("MmQueryAddressProtect\n");
+	printf("MmQueryAddressProtect\n");
 	*Protect = PAGE_READWRITE;
 	return X_STATUS_SUCCESS;
 }
@@ -941,7 +935,7 @@ SIZE_T MmQueryAllocationSize(uint32_t* BaseAddress)
 
 LONG MmSetAddressProtect(uint32_t* BaseAddress, SIZE_T NumberOfBytes, ULONG NewProtect)
 {
-	LOG_UTILITY("MmSetAddressProtect(%p, %zu, 0x%X)", &BaseAddress, NumberOfBytes, NewProtect);
+	LOG_UTIL("!!! STUB !!!");
 	return X_STATUS_SUCCESS;
 }
 
@@ -964,7 +958,7 @@ LONG NtWaitForSingleObject(uint32_t Handle, BOOLEAN Alertable, int64_t* Timeout)
 
 LONG NtSetEvent(Event* handle, uint32_t* PreviousState)
 {
-	LOG_UTILITY("NtSetEvent\n");
+	LOG_UTIL(" Handle Set");
 	handle->Set();
 
 	return X_STATUS_SUCCESS;
@@ -981,7 +975,7 @@ LONG NtWriteFile(
 	uint32_t* ByteOffset
 ) {
 
-	LOG_UTILITY("NtWriteFile\n");
+	LOG_UTIL("!!! STUB !!!");
 	/**xbox::PIO_APC_ROUTINE Apcroutine = (xbox::PIO_APC_ROUTINE)ApcRoutine_;
 	xbox::PIO_STATUS_BLOCK IoStatusBlock = (xbox::PIO_STATUS_BLOCK)IoStatusBlock_;
 	if (IoStatusBlock)
@@ -995,7 +989,7 @@ LONG NtWriteFile(
 
 ULONG RtlLONGToDosError(LONG Status)
 {
-	LOG_UTILITY("RtlLONGToDosError STUB\n");
+	LOG_UTIL("!!! STUB !!!");
 	return X_STATUS_SUCCESS;
 }
 
@@ -1005,19 +999,19 @@ void NtYieldExecution() {
 
 SIZE_T RtlCompareMemoryUlong(uint32_t* Buffer, uint32_t Length, ULONG Pattern)
 {
-	LOG_UTILITY("RtlCompareMemoryUlong Pretend bytes match\n");
+	printf("RtlCompareMemoryUlong Pretend bytes match\n");
 	return Length; // Pretend all bytes match
 }
 
 BOOLEAN RtlEqualString(PCSTR String1, PCSTR String2)
 {
-	LOG_UTILITY("RtlEqualString\n");
+	printf("RtlEqualString\n");
 	return strcmp(String1, String2) == 0;
 }
 
 LONG NtSuspendThread(GuestThreadHandle* ThreadHandle, uint32_t* PreviousSuspendCount)
 {
-	LOG_UTILITY("NtSuspendThread(0x%X)\n", ThreadHandle);
+	printf("NtSuspendThread(0x%X)\n", ThreadHandle);
 	assert(ThreadHandle != GetKernelObject(CURRENT_THREAD_HANDLE) && ThreadHandle->thread.get_id() == std::this_thread::get_id());
 
 	ThreadHandle->suspended = true;
@@ -1028,7 +1022,7 @@ LONG NtSuspendThread(GuestThreadHandle* ThreadHandle, uint32_t* PreviousSuspendC
 
 LONG NtResumeThread(GuestThreadHandle* ThreadHandle, uint32_t* PreviousSuspendCount)
 {
-	LOG_UTILITY("NtResumeThread(0x%X)\n", ThreadHandle);
+	printf("NtResumeThread(0x%X)\n", ThreadHandle);
 	assert(ThreadHandle != GetKernelObject(CURRENT_THREAD_HANDLE));
 
 	ThreadHandle->suspended = false;
@@ -1092,8 +1086,6 @@ LONG ObReferenceObjectByHandle(uint32_t Handle, uint32_t ObjectType, uint32_t* O
 
 void ObfDereferenceObject(PVOID Object) {
 	// No-op
-	printf("stub ObfDereferenceObject\n");
-
 }
 
 typedef struct _XRTL_CRITICAL_SECTION
@@ -1206,7 +1198,7 @@ LONG NtSetInformationFile(
 }
 
 void HalInitiateShutdown() {
-	LOG_UTILITY("[STUB] HalInitiateShutdown() - Ignoring");
+	LOG_UTIL("!!! STUB !!!");
 }
 
 LONG XeLoadSection(const char* Name)
@@ -1241,13 +1233,13 @@ void XcHMAC(uint32_t* Key, ULONG KeySize, uint32_t* Data, ULONG DataSize, uint32
 
 void RtlRaiseException_(uint32_t* ExceptionRecord)
 {
-	LOG_UTILITY("[STUB] RtlRaiseException() - Crashing intentionally");
+	printf("RtlRaiseException\n");
 	std::terminate();
 }
 
 void RtlUnwind_()
 {
-	LOG_UTILITY("[STUB] RtlUnwind() - Ignoring");
+	LOG_UTIL("!!! STUB !!!");
 }
 
 uint32_t RtlNtStatusToDosError(xbox::ntstatus_xt status)
@@ -1275,11 +1267,6 @@ uint32_t NtWaitForSingleObjectEx(uint32_t Handle, uint32_t WaitMode, uint32_t Al
 	return STATUS_TIMEOUT;
 }
 
-
-void sub_2B126A_r()
-{
-	LOG_UTILITY("[STUB] sub_2B126A_r() - Ignoring");
-}
 
 GUEST_FUNCTION_HOOK_STDCALL(__imp__RtlInitializeCriticalSection, RtlInitializeCriticalSection);
 GUEST_FUNCTION_HOOK_STDCALL(__imp__RtlEnterCriticalSection, RtlEnterCriticalSection);

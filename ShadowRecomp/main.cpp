@@ -98,7 +98,8 @@ void HostStartup()
 
 int main(int argc, char* argv[])
 {
-
+    InitLogs();
+    LOGN("Starting Shadow Recomp...");
     HostStartup();
     std::filesystem::path xbePath;
     xbePath = GameExecutable;

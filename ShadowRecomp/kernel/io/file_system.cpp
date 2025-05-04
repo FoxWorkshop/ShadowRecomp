@@ -120,7 +120,7 @@ FileHandle* XCreateFile_r(const char* SourceString, ULONG CreateDisposition, ULO
 	std::ios::openmode fileOpenMode = std::ios::binary;
 	if (CreateDisposition_ == FILE_OPEN || CreateDisposition_ == FILE_OPEN_IF)
 	{
-		std::cout << "Reading: " << filePath << "\n" << std::endl;
+		logs.LogFile("Loading", filePath.c_str());
 		fileOpenMode |= std::ios::in;
 	}
 	else
@@ -144,14 +144,19 @@ FileHandle* XCreateFile_r(const char* SourceString, ULONG CreateDisposition, ULO
 	return fileHandle;
 }
 
-uint32_t XReadFile_r(FileHandle* Handle, void* buffer, int length, uint32_t* bytesRead, int* overLapped)
+uint32_t XReadFile_r(FileHandle* Handle, void* buffer, int length, uint32_t* bytesRead, XOVERLAPPED* overLapped)
 {
-
 	uint32_t result = FALSE;
-	if (overLapped != nullptr) //todo
+
+	if (overLapped != nullptr) 
 	{
-		printf("XREADFILE OVERLAPPED!!!\n");
-		return FALSE;
+		std::streamoff streamOffset = overLapped->Offset + (std::streamoff(overLapped->OffsetHigh) << 32U);
+		Handle->stream.clear();
+		Handle->stream.seekg(streamOffset, std::ios::beg);
+		if (Handle->stream.bad())
+		{
+			return FALSE;
+		}
 	}
 
 	uint32_t numberOfBytesRead;
@@ -164,9 +169,10 @@ uint32_t XReadFile_r(FileHandle* Handle, void* buffer, int length, uint32_t* byt
 
 	if (result)
 	{
-		if (overLapped != nullptr) //todo
+		if (overLapped != nullptr)
 		{
-
+			overLapped->Internal = 0;
+			overLapped->InternalHigh = numberOfBytesRead;
 		}
 		else if (bytesRead != nullptr)
 		{
@@ -335,11 +341,22 @@ uint32_t XFindNextFile(FindHandle* Handle, WIN32_FIND_DATAA* lpFindFileData)
 	}
 }
 
-int CacheGameFiles(const char** a1, DWORD* a2)
+int CacheGameFiles(int a1)
 {
-	printf("STUB\n");
+
+	LOGN("CACHE STUB");
 	return 0;
 }
+
+BOOL IsPtrEqual(DWORD* this_, DWORD* a2)
+{
+	auto ctx = GetX86Context();
+	ctx->esp.u32 += 4;
+	return *a2 == *this_;
+}
+
+
+//GUEST_FUNCTION_HOOK_THISCALL(sub_14D10, IsPtrEqual);
 
 //GUEST_FUNCTION_HOOK(sub_382D53, sub382D53_r);
 //GUEST_FUNCTION_HOOK(sub_37E577, sub_37E577_r);
@@ -354,7 +371,7 @@ GUEST_FUNCTION_HOOK_STDCALL(sub_2AE331, XSetFilePointerEx_r);
 GUEST_FUNCTION_HOOK_STDCALL(sub_2AD93C, XFindFirstFile);
 GUEST_FUNCTION_HOOK_STDCALL(sub_2ADA49, XFindNextFile);
 
-GUEST_FUNCTION_HOOK(sub_3328E0, CacheGameFiles);
+GUEST_FUNCTION_HOOK(sub_332B60, CacheGameFiles);
 
 
 //hacky way to repair sprintf which strip the last 4 characters for some reason.
@@ -366,37 +383,19 @@ X86_FUNC(sub_382D53)
 {
 	uint32_t ebp = X86_LOAD_U32(ctx.ebp.u32 + 12);
 	std::string backup = (char*)(base + ebp); //first we backup the string that got passed
+	/**ebp = X86_LOAD_U32(ctx.ebp.u32 + 8);
+	char* buffer = (char*)(base + ebp);
+	ebp = X86_LOAD_U32(ctx.ebp.u32 + 16);
+	char* arg1 = (char*)(base + ebp);
 
+	int res = sprintf(buffer, backup.c_str(), arg1);*/
 	__imp__sub_382D53(ctx, base); //call og function
 
 	ctx.esp.u32 -= 4; //the og function adjusted esp, we need to take that in account 
+
 	ebp = X86_LOAD_U32(ctx.esp.u32 + 4 + (7 * 4)); //get the edited buffer from og function
-	std::string newBuffer = (char*)(base + ebp);
-	bool stringNeedFix = newBuffer.size() < backup.size();
-	if (ctx.eax.u32 > backup.size() + 5 || stringNeedFix) //if there is a huge size difference, assume it cuts a few characters
-	{
-		//add missing string part that got cut
-		if (stringNeedFix)
-		{
-			int offset = backup.size() - newBuffer.size();
-			newBuffer += backup.substr(backup.length() - offset);
-			char* writable = (char*)g_userHeap.Alloc(newBuffer.size() + 1); // +1 for null terminator
-			std::copy(newBuffer.begin(), newBuffer.end(), writable);
-			writable[newBuffer.size()] = '\0'; // Null-terminate manually
+	char* newBuffer = (char*)(base + ebp);
+	newBuffer = newBuffer;
+	ctx.esp.u32 += 4;
 
-			uint32_t targetAddr = ctx.esp.u32 + 4 + (34 * 4);
-			for (size_t i = 0; i < newBuffer.size() + 1; ++i)
-			{
-				*(volatile uint8_t*)(base + targetAddr + i) = writable[i]; //write new string to esp so function can access it
-			}
-
-			auto map = g_memory.MapVirtual(writable);
-			ctx.esi.u32 = (uint32_t)(base + map);
-		}
-
-
-		ctx.eax.u32 = newBuffer.size(); //sprintf returns the number of characters, so we fix it here just in case
-	}
-
-	ctx.esp.u32 += 4; //bring back esp to what it was when og function was called
 }

@@ -6,7 +6,6 @@ struct Mutex : CRITICAL_SECTION
 {
     Mutex()
     {
-        printf("[MUTEX] Initializing %p\n", this);
         InitializeCriticalSection(this);
     }
     ~Mutex()
