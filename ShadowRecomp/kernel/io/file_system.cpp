@@ -344,15 +344,9 @@ uint32_t XFindNextFile(FindHandle* Handle, WIN32_FIND_DATAA* lpFindFileData)
 int CacheGameFiles(int a1)
 {
 
-	LOGN("CACHE STUB");
-	return 0;
-}
-
-BOOL IsPtrEqual(DWORD* this_, DWORD* a2)
-{
-	auto ctx = GetX86Context();
-	ctx->esp.u32 += 4;
-	return *a2 == *this_;
+		LOGN("CACHE STUB");
+		return 0;
+	
 }
 
 

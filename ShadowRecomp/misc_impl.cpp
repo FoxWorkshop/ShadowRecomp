@@ -64,8 +64,17 @@ char* __cdecl _StrrChr(char* a1, char a2)
     return strrchr(a1, a2);
 }
 
-//GUEST_FUNCTION_HOOK(sub_2C0390, sub_2C0390_r);
-#include<string.h>
+//sscanF
+X86_FUNC_IMPL(__imp__sub_383735);
+X86_FUNC(sub_383735)
+{
+    uint32_t ebp = X86_LOAD_U32(ctx.ebp.u32 + 12);
+    const char* path = (char*)(base + ebp);
+    path = path;
+    __imp__sub_383735(ctx, base);
+}
+
+
 GUEST_FUNCTION_HOOK_STDCALL(sub_2AAF10, QueryPerformanceFrequencyImpl);
 GUEST_FUNCTION_HOOK(sub_388458, GetKeTickCountImpl);
 
@@ -91,7 +100,8 @@ GUEST_FUNCTION_HOOK(sub_2EC140, _strlwr);
 GUEST_FUNCTION_HOOK(sub_38066D, strtok);
 
 //GUEST_FUNCTION_HOOK(sub_37E577, sprintf);
-//GUEST_FUNCTION_HOOK(sub_37F0C6, sscanf);
+//GUEST_FUNCTION_HOOK(sub_37F0C6, sscanf_);
+//GUEST_FUNCTION_HOOK(sub_383735, sscanf_r);
 
 
 GUEST_FUNCTION_HOOK(sub_2AAEDE, OutputDebugStringA);

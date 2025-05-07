@@ -97,17 +97,10 @@ X86_FUNC(sub_578B0)
 	__imp__sub_578B0(ctx, base);
 }
 
-X86_FUNC_IMPL(__imp__sub_59D50);
-X86_FUNC(sub_59D50)
-{
-	LOGN_WARNING("\n....Now Loading Task....");
-	__imp__sub_59D50(ctx, base);
-}
-
 X86_FUNC_IMPL(__imp__sub_28AF30);
 X86_FUNC(sub_28AF30)
 {
-	LOGN_WARNING("\n....ADVERTISE...");
+	LOGN_UTIL("....ADVERTISE...");
 	__imp__sub_28AF30(ctx, base);
 }
 
