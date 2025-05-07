@@ -137,6 +137,47 @@ labels = [
 	0x2DEE2B,
 ]
 
+[[switch]]
+base = 0x25F45A
+r = 2
+default = 0x25F874
+end = 0x25F894
+labels = [
+	0x25F461,
+	0x25F4BA,
+	0x25F517,
+	0x25F574,
+	0x25F62D,
+	0x25F6E5,
+	0x25F79D,
+	0x25F7FA,
+]
+
+[[switch]]
+base = 0x25858
+r = 2
+default = 0x25A44
+end = 0x25A50
+labels = [
+	0x2589C,
+	0x2587b,
+	0x2587b,
+]
+
+[[switch]]
+base = 0x2E04EB
+r = 2
+default = 0x2E05A8
+end = 0x2E05C0
+labels = [
+	0x2E051A,
+	0x2E04F2,
+	0x2E050F,	
+	0x2E057C,
+	0x2E051A,
+	0x2E051A,
+]
+
 # ---- ABSOLUTE JUMPTABLE ----
 
 [[switch]]
