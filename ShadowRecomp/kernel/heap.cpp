@@ -26,7 +26,7 @@ void* Heap::Alloc(size_t size)
 {
 	std::lock_guard lock(mutex);
 	void* ptr = o1heapAllocate(heap, std::max<size_t>(1, size));
-	printf("[ALLOC] %p (size: 0x%zX)\n", ptr, size);
+	//printf("[ALLOC] %p (size: 0x%zX)\n", ptr, size);
 	return ptr;
 }
 
@@ -43,7 +43,7 @@ void* Heap::AllocPhysical(size_t size, size_t alignment)
 	*((void**)aligned - 1) = ptr;
 	*((size_t*)aligned - 2) = size + O1HEAP_ALIGNMENT;
 
-	printf("[ALLOCPHYSICAL] %p ( aligned: 0x%zX, size: 0x%zX)\n", ptr, aligned, size);
+	//printf("[ALLOCPHYSICAL] %p ( aligned: 0x%zX, size: 0x%zX)\n", ptr, aligned, size);
 
 	return (void*)aligned;
 }
@@ -54,13 +54,13 @@ void Heap::Free(void* ptr)
 	// Check if pointer is in physical heap region
 	if (ptr >= physicalHeap)
 	{
-		printf("[FREE PHYSICAL] ptr: %p\n", ptr);
+		//printf("[FREE PHYSICAL] ptr: %p\n", ptr);
 		std::lock_guard lock(physicalMutex);
 		o1heapFree(physicalHeap, *((void**)ptr - 1));
 	}
 	else
 	{
-		printf("[FREE REGULAR] ptr: %p\n", ptr);
+		//printf("[FREE REGULAR] ptr: %p\n", ptr);
 		std::lock_guard lock(mutex);
 		o1heapFree(heap, ptr);
 	}

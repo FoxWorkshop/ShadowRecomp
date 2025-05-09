@@ -88,10 +88,18 @@ X86_FUNC(sub_2DD620)
 	// push eax
 	X86_PUSH(ctx, base, ctx.eax.u32);
 	// rep stosd
-	for (uint32_t i = 0; i < ctx.ecx.u32; ++i) {
-		X86_STORE_U32(static_cast<uintptr_t>(ctx.edi.u32) + i * 4, ctx.eax.u32);
+	if (ctx.eflags.value & X86EFlags::DF) {
+		for (uint32_t i = 0; i < ctx.ecx.u32; ++i) {
+			X86_STORE_U32(static_cast<uintptr_t>(ctx.edi.u32) - i * 4, ctx.eax.u32);
+		}
+		ctx.edi.u32 -= ctx.ecx.u32 * 4;
 	}
-	ctx.edi.u32 += ctx.ecx.u32 * 4;
+	else {
+		for (uint32_t i = 0; i < ctx.ecx.u32; ++i) {
+			X86_STORE_U32(static_cast<uintptr_t>(ctx.edi.u32) + i * 4, ctx.eax.u32);
+		}
+		ctx.edi.u32 += ctx.ecx.u32 * 4;
+	}
 	ctx.ecx.u32 = 0;
 	// call 0x003DD8A0
 	ctx.esp.u32 -= 0x4; //Adjust stack pointer
@@ -176,12 +184,12 @@ loc_2DD6A0:
 	// mov edx, [esp+0x10]
 	ctx.edx.u32 = X86_LOAD_U32(ctx.esp.u32 + 16);
 	// cmp edx, [ebx]
-	ctx.eflags.update_compare_flags<uint32_t>(ctx.edx.u32, X86_LOAD_U32(ctx.ebx.u32));
+	ctx.eflags.update_compare_flags_U32(ctx.edx.u32, X86_LOAD_U32(ctx.ebx.u32));
 	// jnz 0x002DD6FA
 	// mov eax, [esp+0x14]
 	ctx.eax.u32 = X86_LOAD_U32(ctx.esp.u32 + 20);
 	// cmp eax, [ebx+0x04]
-	ctx.eflags.update_compare_flags<uint32_t>(ctx.eax.u32, X86_LOAD_U32(ctx.ebx.u32 + 4));
+	ctx.eflags.update_compare_flags_U32(ctx.eax.u32, X86_LOAD_U32(ctx.ebx.u32 + 4));
 	// jnz 0x002DD6FA
 	// mov eax, [ebx+0x08]
 	ctx.eax.u32 = X86_LOAD_U32(ctx.ebx.u32 + 8);
@@ -196,11 +204,11 @@ loc_2DD6A0:
 	ctx.esp.u32 -= 0x4; //Adjust stack pointer
 	sub_2DD550(ctx, base);
 	// cmp eax, ecx
-	ctx.eflags.update_compare_flags<uint32_t>(ctx.eax.u32, ctx.ecx.u32);
+	ctx.eflags.update_compare_flags_U32(ctx.eax.u32, ctx.ecx.u32);
 	// mov ecx, [ebx+0x1C]
 loc_2DD717:
 	// cmp esi, [0x0057DD78]
-	ctx.eflags.update_compare_flags<uint32_t>(ctx.esi.u32, X86_LOAD_U32(5758328));
+	ctx.eflags.update_compare_flags_U32(ctx.esi.u32, X86_LOAD_U32(5758328));
 	// mov [0x0057DD84], esi
 	X86_STORE_U32(5758340, ctx.esi.u32);
 	// jl 0x002DD745
@@ -245,19 +253,19 @@ loc_2DD745:
 	// mov eax, [0x0057DD68]
 	ctx.eax.u32 = X86_LOAD_U32(5758312);
 	// cmp eax, 0x2A
-	ctx.eflags.update_compare_flags<uint32_t>(ctx.eax.u32, 0x2Au);
+	ctx.eflags.update_compare_flags_U32(ctx.eax.u32, 0x2Au);
 	// jz 0x002DD777
 	if ((ctx.eflags.value & X86EFlags::ZF) != 0) goto loc_2DD777;
 	// cmp eax, 0x2B
-	ctx.eflags.update_compare_flags<uint32_t>(ctx.eax.u32, 0x2Bu);
+	ctx.eflags.update_compare_flags_U32(ctx.eax.u32, 0x2Bu);
 	// jz 0x002DD777
 	if ((ctx.eflags.value & X86EFlags::ZF) != 0) goto loc_2DD777;
 	// cmp eax, 0x2E
-	ctx.eflags.update_compare_flags<uint32_t>(ctx.eax.u32, 0x2Eu);
+	ctx.eflags.update_compare_flags_U32(ctx.eax.u32, 0x2Eu);
 	// jz 0x002DD777
 	if ((ctx.eflags.value & X86EFlags::ZF) != 0) goto loc_2DD777;
 	// cmp eax, 0x2F
-	ctx.eflags.update_compare_flags<uint32_t>(ctx.eax.u32, 0x2Fu);
+	ctx.eflags.update_compare_flags_U32(ctx.eax.u32, 0x2Fu);
 	// mov dword ptr [0x0057DD88], 0x10
 	X86_STORE_U32(5758344, 0x10u);
 	// jnz 0x002DD781
@@ -400,6 +408,37 @@ int D3DDevice_SetTexture(void* this_, int a2, int a3)
 	return 0;
 }
 
+int D3DTexture_GetSurfaceLevel_r(void* this_, int a2, int a3)
+{
+	return 0;
+}
+
+unsigned int D3DDevice_SetRenderTarget(int a1, int a2)
+{
+	return 1;
+}
+
+unsigned int D3DDevice_SetViewport(DWORD* a1)
+{
+	return 1;
+}
+
+unsigned int D3DDevice_Clear(int a1, int a2, int a3, int a4, float a5, int a6)
+{
+	return 1;
+}
+
+int D3DDevice_SetTransform(int a1, float* a2)
+{
+	return 0;
+}
+
+//not really DX related, but is a part of "RenderStart" class
+int sub_157570_r(int a1)
+{
+	return 0;
+}
+
 GUEST_FUNCTION_HOOK_STDCALL(sub_3DDAB0, Direct3D_CreateDevice_r);
 GUEST_FUNCTION_HOOK_STDCALL(sub_3DD8B0, D3D_GetAdapterModeCount);
 GUEST_FUNCTION_HOOK_STDCALL(sub_3DD950, D3D_EnumAdapterModes);
@@ -441,4 +480,11 @@ GUEST_FUNCTION_HOOK_THISCALL(sub_3D0CD0, D3DDevice_SetTexture); //esp sub AND re
 
 
 
-GUEST_FUNCTION_STUB(sub_37DF88); //might not be graphic related? Ton of missing float instruction
+GUEST_FUNCTION_STUB(sub_37DF88); //might not be graphic related? Ton of missing float instruction seem that the game can work without this
+
+GUEST_FUNCTION_HOOK_STDCALL(sub_3DD7C0, D3DTexture_GetSurfaceLevel_r); 
+GUEST_FUNCTION_HOOK_STDCALL(sub_3D0040, D3DDevice_SetRenderTarget);
+GUEST_FUNCTION_HOOK_STDCALL(sub_3D0680, D3DDevice_SetViewport);
+GUEST_FUNCTION_HOOK_STDCALL(sub_3D6BF0, D3DDevice_Clear);
+GUEST_FUNCTION_HOOK_STDCALL(sub_157570, sub_157570_r); //remove when graphics is implemented
+GUEST_FUNCTION_HOOK_STDCALL(sub_3CFCD0, D3DDevice_SetTransform);

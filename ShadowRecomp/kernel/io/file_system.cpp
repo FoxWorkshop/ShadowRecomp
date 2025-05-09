@@ -128,6 +128,11 @@ FileHandle* XCreateFile_r(const char* SourceString, ULONG CreateDisposition, ULO
 		fileOpenMode |= std::ios::out;
 	}
 
+	if (filePath.string().find("number.txd") != std::string::npos)
+	{
+		printf("ok\n");
+	}
+
 	std::error_code ec;
 	fileStream.open(filePath, fileOpenMode);
 	if (!std::filesystem::exists(filePath))
@@ -148,7 +153,7 @@ uint32_t XReadFile_r(FileHandle* Handle, void* buffer, int length, uint32_t* byt
 {
 	uint32_t result = FALSE;
 
-	if (overLapped != nullptr) 
+	if (overLapped != nullptr)
 	{
 		std::streamoff streamOffset = overLapped->Offset + (std::streamoff(overLapped->OffsetHigh) << 32U);
 		Handle->stream.clear();
@@ -344,9 +349,9 @@ uint32_t XFindNextFile(FindHandle* Handle, WIN32_FIND_DATAA* lpFindFileData)
 int CacheGameFiles(int a1)
 {
 
-		LOGN("CACHE STUB");
-		return 0;
-	
+	LOGN("CACHE STUB");
+	return 0;
+
 }
 
 
@@ -372,24 +377,106 @@ GUEST_FUNCTION_HOOK(sub_332B60, CacheGameFiles);
 //note that I'd simply hook sprintf if it was possible, but since the numbers of parameters are undertermined
 //until runtime it's complicated, so I take a dirty shortcut.
 
-X86_FUNC_IMPL(__imp__sub_382D53);
-X86_FUNC(sub_382D53)
+//sprintf
+bool trackingThisCrap = false;
+X86_FUNC_IMPL(__imp__sub_37E577);
+X86_FUNC(sub_37E577)
 {
-	uint32_t ebp = X86_LOAD_U32(ctx.ebp.u32 + 12);
-	std::string backup = (char*)(base + ebp); //first we backup the string that got passed
-	/**ebp = X86_LOAD_U32(ctx.ebp.u32 + 8);
-	char* buffer = (char*)(base + ebp);
-	ebp = X86_LOAD_U32(ctx.ebp.u32 + 16);
-	char* arg1 = (char*)(base + ebp);
 
-	int res = sprintf(buffer, backup.c_str(), arg1);*/
-	__imp__sub_382D53(ctx, base); //call og function
+	if (trackingThisCrap)
+	{
+		uint32_t ebp = X86_LOAD_U32(ctx.esp.u32 + 4 + (0 * 4));
+		const char* arg0 = (char*)(base + ebp);
+		ebp = X86_LOAD_U32(ctx.esp.u32 + 4 + (1 * 4));
+		auto arg1 = (char*)(base + ebp);
+		arg1 = arg1;
+		ebp = X86_LOAD_U32(ctx.esp.u32 + 4 + (2 * 4));
+		auto arg2 = (char*)(base + ebp);
+		arg2 = arg2;
+		ebp = X86_LOAD_U32(ctx.esp.u32 + 4 + (3 * 4));
+		auto arg3 = (char*)(base + ebp);
+		arg3 = arg3;
 
-	ctx.esp.u32 -= 4; //the og function adjusted esp, we need to take that in account 
+	}
 
-	ebp = X86_LOAD_U32(ctx.esp.u32 + 4 + (7 * 4)); //get the edited buffer from og function
-	char* newBuffer = (char*)(base + ebp);
-	newBuffer = newBuffer;
-	ctx.esp.u32 += 4;
+	__imp__sub_37E577(ctx, base); //call og function
+
+	if (trackingThisCrap)
+	{
+		ctx.esp.u32 -= 4;
+		uint32_t ebp = X86_LOAD_U32(ctx.esp.u32 + 4 + (0 * 4));
+		const char* arg0 = (char*)(base + ebp);
+		ebp = X86_LOAD_U32(ctx.esp.u32 + 4 + (1 * 4));
+		auto arg1 = (char*)(base + ebp);
+		arg1 = arg1;
+		ebp = X86_LOAD_U32(ctx.esp.u32 + 4 + (2 * 4));
+		auto arg2 = (char*)(base + ebp);
+		arg2 = arg2;
+		ebp = X86_LOAD_U32(ctx.esp.u32 + 4 + (3 * 4));
+		auto arg3 = (char*)(base + ebp);
+		arg3 = arg3;
+		ctx.esp.u32 += 4;
+
+	}
+
+
+}
+
+//sscanF
+X86_FUNC_IMPL(__imp__sub_37F0C6);
+X86_FUNC(sub_37F0C6)
+{
+
+	if (trackingThisCrap)
+	{
+
+		uint32_t ebp = X86_LOAD_U32(ctx.esp.u32 + 4 + (0 * 4));
+		const char* arg0 = (char*)(base + ebp);
+		ebp = X86_LOAD_U32(ctx.esp.u32 + 4 + (1 * 4));
+		auto arg1 = (char*)(base + ebp);
+		ebp = X86_LOAD_U32(ctx.esp.u32 + 4 + (2 * 4));
+		auto arg2 = (char*)(base + ebp);
+		ebp = X86_LOAD_U32(ctx.esp.u32 + 4 + (3 * 4));
+		auto arg3 = (char*)(base + ebp);
+		arg3 = arg3;
+		//auto test = sscanf(arg0, arg1, arg2, arg3);
+		//test = test;
+	}
+	__imp__sub_37F0C6(ctx, base);
+
+	if (trackingThisCrap)
+	{
+		ctx.esp.u32 -= 4;
+		uint32_t ebp = X86_LOAD_U32(ctx.esp.u32 + 4 + (0 * 4));
+		const char* arg0 = (char*)(base + ebp);
+		ebp = X86_LOAD_U32(ctx.esp.u32 + 4 + (1 * 4));
+		auto arg1 = (char*)(base + ebp);
+		arg1 = arg1;
+		ebp = X86_LOAD_U32(ctx.esp.u32 + 4 + (2 * 4));
+		auto arg2 = (char*)(base + ebp);
+		ebp = X86_LOAD_U32(ctx.esp.u32 + 4 + (3 * 4));
+		auto arg3 = (char*)(base + ebp);
+		arg3 = arg3;
+		ctx.esp.u32 += 4;
+	}
+}
+
+
+
+int __cdecl sub_382D53_r(char* buffer, char* format, uint32_t va)
+{
+	auto ctx = GetX86Context();
+	auto base = g_memory.base;
+	if (!trackingThisCrap)
+	{
+		//__imp__sub_382D53(*ctx, base);
+		ctx->esp.u32 -= 4; //esp got adjusted already but the hook will redo it, we need to fix it 
+		return ctx->eax.u32;
+	}
+	else
+	{
+		auto res = vsprintf(buffer, format, (va_list)va);
+		return res;
+	}
 
 }
