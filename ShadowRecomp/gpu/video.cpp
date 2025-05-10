@@ -384,6 +384,13 @@ uint32_t D3DDevice_SetRenderStateSTUBEsp(int a1)
 	return 0;
 }
 
+uint32_t D3DDevice_SetRenderState_FillMode(void* this_, int a1)
+{
+	auto ctx = GetX86Context();
+	ctx->esp.u32 += 4;
+	return 0;
+}
+
 uint32_t sub_3D2FF0_r(int a1, int a2)
 {
 
@@ -454,7 +461,7 @@ GUEST_FUNCTION_HOOK_STDCALL(sub_3D2C40, D3DDevice_SetRenderState_VertexBlend);
 GUEST_FUNCTION_HOOK_STDCALL(sub_3D27A0, D3DDevice_SetRenderState_FogColor);
 
 //special case that crash by using FS segment, should be resolved once we implement proper rendering and skip FS
-GUEST_FUNCTION_HOOK_THISCALL(sub_3D2B10, D3DDevice_SetRenderStateSTUBEsp);
+GUEST_FUNCTION_HOOK_THISCALL(sub_3D2B10, D3DDevice_SetRenderState_FillMode);
 GUEST_FUNCTION_HOOK_STDCALL(sub_3D2B60, D3DDevice_SetRenderStateSTUB);
 GUEST_FUNCTION_HOOK_STDCALL(sub_3D2BC0, D3DDevice_SetRenderStateSTUB);
 
@@ -471,7 +478,12 @@ GUEST_FUNCTION_HOOK_STDCALL(sub_3D3840, D3DDevice_SetRenderStateSTUB); //Occlusi
 GUEST_FUNCTION_HOOK_THISCALL(sub_3D38B0, D3DDevice_SetRenderStateSTUBEsp); //StencilCullEnable
 //--------------end of renderstate stuff--------------
 
-GUEST_FUNCTION_HOOK(sub_3D3240, D3DDevice_SetRenderStateSTUB); //CommonSetDebugRegisters
+DWORD* D3D_CommonSetDebugRegisters()
+{
+	return 0;
+}
+
+GUEST_FUNCTION_HOOK(sub_3D3240, D3D_CommonSetDebugRegisters); //CommonSetDebugRegisters
 GUEST_FUNCTION_HOOK_FASTCALL(sub_3D3310, D3D_CommonSetMultiSampleModeAndScale); 
 
 //texture stuff
@@ -482,9 +494,61 @@ GUEST_FUNCTION_HOOK_THISCALL(sub_3D0CD0, D3DDevice_SetTexture); //esp sub AND re
 
 GUEST_FUNCTION_STUB(sub_37DF88); //might not be graphic related? Ton of missing float instruction seem that the game can work without this
 
-GUEST_FUNCTION_HOOK_STDCALL(sub_3DD7C0, D3DTexture_GetSurfaceLevel_r); 
+int D3DTexture_GetSurfaceLevel2_r(int a1, int a2)
+{
+	return 0;
+}
+
+DWORD* D3DDevice_SetRenderState_ZEnable(int a1)
+{
+	return 0;
+}
+
+DWORD* D3DDevice_SetRenderState_CullMode(void* this_, int a2)
+{
+	auto ctx = GetX86Context();
+	ctx->esp.u32 += 4;
+	return 0;
+}
+
+GUEST_FUNCTION_HOOK_STDCALL(sub_3DD7C0, D3DTexture_GetSurfaceLevel2_r);
 GUEST_FUNCTION_HOOK_STDCALL(sub_3D0040, D3DDevice_SetRenderTarget);
 GUEST_FUNCTION_HOOK_STDCALL(sub_3D0680, D3DDevice_SetViewport);
 GUEST_FUNCTION_HOOK_STDCALL(sub_3D6BF0, D3DDevice_Clear);
 GUEST_FUNCTION_HOOK_STDCALL(sub_157570, sub_157570_r); //remove when graphics is implemented
 GUEST_FUNCTION_HOOK_STDCALL(sub_3CFCD0, D3DDevice_SetTransform);
+GUEST_FUNCTION_HOOK_STDCALL(sub_3D3670, D3DDevice_SetRenderState_ZEnable);
+
+GUEST_FUNCTION_HOOK_THISCALL(sub_3D27F0, D3DDevice_SetRenderState_CullMode);
+
+unsigned int D3D_LazySetPointParams(int a1)
+{
+	return 0;
+}
+
+int RW_SetTextureStageStates(int a1, int a2)
+{
+	return 0;
+}
+
+unsigned int D3DDevice_DrawVerticesUP(int a1, unsigned int a2, int a3, int a4)
+{
+	return 0;
+}
+
+GUEST_FUNCTION_HOOK_STDCALL(sub_3D86F0, D3D_LazySetPointParams);
+GUEST_FUNCTION_HOOK_STDCALL(sub_3DB990, RW_SetTextureStageStates);
+GUEST_FUNCTION_HOOK_STDCALL(sub_3DBFE0, D3DDevice_DrawVerticesUP);
+
+unsigned int D3D_SetFence(void* this_, char a2)
+{
+	return 0;
+}
+
+int D3DDevice_Swap(void* this_, int a1)
+{
+	return 0;
+}
+
+GUEST_FUNCTION_HOOK_THISCALL(sub_3D4890, D3D_SetFence);
+GUEST_FUNCTION_HOOK_THISCALL(sub_3DD560, D3DDevice_Swap);
