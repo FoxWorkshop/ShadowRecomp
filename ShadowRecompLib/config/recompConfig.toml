@@ -6,7 +6,7 @@ tls_indexAddress = 0x5599A8
 
 functions = [
     { address = 0xE9180, size = 0x671 },  #wrong size 
-	{ address = 0xE7C20, size = 0x11C }, 		
+	{ address = 0xE7C20, size = 0x11C },	
 	{ address = 0x2b8080, size = 0xC0 }, 	
 	{ address = 0x383735, size = 0xB7D }, 	
 	{ address = 0x3872fe, size = 0xC5 }, 		
@@ -135,7 +135,8 @@ functions = [
 	{ address = 0x3810B8, size = 0x3E },
 	{ address = 0x2CBDB0, size = 0x22 }, 
 	{ address = 0x4E330, size = 0x1C },
-	{ address = 0x157570, size = 0x46 },
+	{ address = 0x157570, size = 0x46 },	
+	{ address = 0x2DCD60, size = 0x41 },
 
 ]
 
