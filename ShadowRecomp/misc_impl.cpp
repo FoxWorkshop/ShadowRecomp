@@ -6,10 +6,18 @@ uint32_t GetKeTickCountImpl()
     return uint32_t(std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now().time_since_epoch()).count());
 }
 
+BOOL QueryPerformanceCounterImpl(LARGE_INTEGER* lpPerformanceCount)
+{
+    auto now = std::chrono::high_resolution_clock::now().time_since_epoch();
+    auto res = std::chrono::duration_cast<std::chrono::microseconds>(now).count();
+    lpPerformanceCount->QuadPart = (std::chrono::steady_clock::now().time_since_epoch().count());
+    return TRUE;
+}
 
 BOOL QueryPerformanceFrequencyImpl(LARGE_INTEGER* lpPerformanceCount)
 {
     lpPerformanceCount->QuadPart = std::chrono::steady_clock::period::den / std::chrono::steady_clock::period::num;
+    //lpPerformanceCount->QuadPart = 733'000'000ull;
     return TRUE;
 }
 
@@ -65,7 +73,8 @@ char* __cdecl _StrrChr(char* a1, char a2)
 }
 
 
-GUEST_FUNCTION_HOOK_STDCALL(sub_2AAF10, QueryPerformanceFrequencyImpl);
+GUEST_FUNCTION_HOOK_STDCALL(sub_2AAF10, QueryPerformanceCounterImpl);
+GUEST_FUNCTION_HOOK_STDCALL(sub_2AAF21, QueryPerformanceFrequencyImpl);
 GUEST_FUNCTION_HOOK(sub_388458, GetKeTickCountImpl);
 
 GUEST_FUNCTION_HOOK(sub_37FDA0, memcpy);

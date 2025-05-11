@@ -480,3 +480,30 @@ int __cdecl sub_382D53_r(char* buffer, char* format, uint32_t va)
 	}
 
 }
+
+X86_FUNC_IMPL(__imp__sub_56FC0);
+X86_FUNC(sub_56FC0)
+{
+	auto byte_54DD44 = X86_LOAD_U32(0x54DD44);
+	auto dword_54DD40 = X86_LOAD_U32(0x54DD40);	
+	auto dword_54DD80 = X86_LOAD_U32(0x54DD80);
+	auto v0 = (int)(float)((float)(1.0f / (float)dword_54DD80) * 1000000.0f);
+	auto res = v0 * dword_54DD40;
+	__imp__sub_56FC0(ctx, base);
+
+}
+
+
+X86_FUNC_IMPL(__imp__sub_37F3E0);
+X86_FUNC(sub_37F3E0)
+{
+	if (trackingThisCrap)
+	{
+		uint32_t esp = X86_LOAD_U32(ctx.esp.u32 + 4 + (0 * 4));
+		int64_t arg0 = (int64_t)(base + esp);
+		esp = X86_LOAD_U32(ctx.esp.u32 + 4 + (1 * 4));
+		auto arg1 = (int64_t)(base + esp);
+		arg1 = arg1;
+	}
+	__imp__sub_37F3E0(ctx, base);
+}
