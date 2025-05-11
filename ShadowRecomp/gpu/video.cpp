@@ -542,12 +542,16 @@ GUEST_FUNCTION_HOOK_STDCALL(sub_3DBFE0, D3DDevice_DrawVerticesUP);
 
 unsigned int D3D_SetFence(void* this_, char a2)
 {
+	auto ctx = GetX86Context();
+	ctx->esp.u32 += 4;
 	return 0;
 }
 
 int D3DDevice_Swap(void* this_, int a1)
 {
-	return 0;
+	auto ctx = GetX86Context();
+	ctx->esp.u32 += 4;
+	return 1;
 }
 
 GUEST_FUNCTION_HOOK_THISCALL(sub_3D4890, D3D_SetFence);
