@@ -139,6 +139,10 @@ void XAPILIB_XMemFree_r(int hMem, int flag)
 	g_userHeap.Free(g_memory.Translate(hMem));
 }
 
+uint32_t XAPILIB_VirtualAlloc_r(int baseAddr, int size, int allocType, int protect)
+{
+	return g_memory.MapVirtual(g_userHeap.Alloc(size));
+}
 
 
 //heap alloc memory shit
@@ -164,6 +168,7 @@ GUEST_FUNCTION_HOOK(sub_2ABFCB, AllocateHeap_r);
 
 GUEST_FUNCTION_HOOK_STDCALL(sub_2AC3EF, RtlAllocateHeap);
 GUEST_FUNCTION_HOOK_STDCALL(sub_2ACD5E, RtlReAllocateHeap); //will get called by realloc too
+GUEST_FUNCTION_HOOK_STDCALL(sub_2ADA9A, XAPILIB_VirtualAlloc_r); 
 
 GUEST_FUNCTION_HOOK(sub_37E229, free_r);
 GUEST_FUNCTION_HOOK_STDCALL(sub_2B0494, XAPILIB_XMemFree_r);

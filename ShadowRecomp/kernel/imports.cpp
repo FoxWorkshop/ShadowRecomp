@@ -380,11 +380,17 @@ std::uint8_t KeRaiseIrqlToDpcLevel()
 	return DISPATCH_LEVEL;
 }
 
-void KeQuerySystemTime(uint32_t* CurrentTime_)
+void KeQuerySystemTime(uint64_t* CurrentTime_)
 {
-	xpointer<PLARGE_INTEGER*> CurrentTime = xpointer<PLARGE_INTEGER*>(*CurrentTime_);
-	static LONGLONG fakeTime = 0;
-	fakeTime += 10000000; // Increment by 1 second
+	constexpr int64_t FILETIME_EPOCH_DIFFERENCE = 116444736000000000LL;
+
+	auto now = std::chrono::system_clock::now();
+	auto timeSinceEpoch = now.time_since_epoch();
+
+	int64_t currentTime100ns = std::chrono::duration_cast<std::chrono::duration<int64_t, std::ratio<1, 10000000>>>(timeSinceEpoch).count();
+	currentTime100ns += FILETIME_EPOCH_DIFFERENCE;
+
+	*CurrentTime_ = currentTime100ns;
 
 	//CurrentTime->QuadPart = fakeTime;
 	//printf("[STUB] KeQuerySystemTime() -> %lld\n", CurrentTime->QuadPart);
@@ -1382,10 +1388,22 @@ GUEST_FUNCTION_HOOK(__imp__DbgPrint, DbgPrintV);
 //XAutoPowerDownResetTimer
 GUEST_FUNCTION_STUB(sub_2B17E8);
 
-
-int sub_3325F0_r(const char* a1, int a2)
+extern uint8_t* D3D_g_pDevice;
+//TODO DELETE WHEN RENDERING IS IMPLEMENTED
+int D3DDevice_BlockUntilVerticalBlank()
 {
+
+		// Calculate address of the event inside the D3D device struct
+		void* vblankEvent = (char*)D3D_g_pDevice + 7612;
+
+		// Signal the VBlank event to unblock game logic
+		//KeWaitForSingleObject((XDISPATCHER_HEADER*)vblankEvent, 0, 0, 0, 0);  // 0, 0: default priority, do not wait
+
+		// Wait ~16.67ms to simulate 60Hz refresh rate
+		Sleep(17);
+	
+
 	return 0;
 }
 
-//GUEST_FUNCTION_HOOK(sub_3325F0, sub_3325F0_r);
+GUEST_FUNCTION_HOOK(sub_3CFE70, D3DDevice_BlockUntilVerticalBlank);

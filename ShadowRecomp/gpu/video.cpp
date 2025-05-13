@@ -515,7 +515,7 @@ GUEST_FUNCTION_HOOK_STDCALL(sub_3DD7C0, D3DTexture_GetSurfaceLevel2_r);
 GUEST_FUNCTION_HOOK_STDCALL(sub_3D0040, D3DDevice_SetRenderTarget);
 GUEST_FUNCTION_HOOK_STDCALL(sub_3D0680, D3DDevice_SetViewport);
 GUEST_FUNCTION_HOOK_STDCALL(sub_3D6BF0, D3DDevice_Clear);
-GUEST_FUNCTION_HOOK_STDCALL(sub_157570, sub_157570_r); //remove when graphics is implemented
+//GUEST_FUNCTION_HOOK_STDCALL(sub_157570, sub_157570_r); //remove when graphics is implemented
 GUEST_FUNCTION_HOOK_STDCALL(sub_3CFCD0, D3DDevice_SetTransform);
 GUEST_FUNCTION_HOOK_STDCALL(sub_3D3670, D3DDevice_SetRenderState_ZEnable);
 
@@ -536,9 +536,56 @@ unsigned int D3DDevice_DrawVerticesUP(int a1, unsigned int a2, int a3, int a4)
 	return 0;
 }
 
+//drawvertices up
+int __cdecl sub_2ECC80_r(int a1, int a2, unsigned int a3)
+{
+	return 1;
+}
+
+int sub_2EC980_r()
+{
+	return 1;
+}
+
+//set texture state, does corrupt the stack if not stubbed
+int sub_2E8060_r(void* a1)
+{
+	return 0;
+}
+
+GUEST_FUNCTION_HOOK_FASTCALL(sub_2E8060, sub_2E8060_r);
+
+//GUEST_FUNCTION_HOOK(sub_2EC980, sub_2EC980_r);
+
+//GUEST_FUNCTION_HOOK(sub_2ECC80, sub_2ECC80_r);
 GUEST_FUNCTION_HOOK_STDCALL(sub_3D86F0, D3D_LazySetPointParams);
 GUEST_FUNCTION_HOOK_STDCALL(sub_3DB990, RW_SetTextureStageStates);
 GUEST_FUNCTION_HOOK_STDCALL(sub_3DBFE0, D3DDevice_DrawVerticesUP);
+
+//this one crash the game for some reason
+int D3DDevice_SetRenderStateNotInline(int a1, int a2)
+{
+	return 1;
+}
+
+//GUEST_FUNCTION_HOOK_STDCALL(sub_3D2450, D3DDevice_SetRenderStateNotInline);
+
+int* D3DDevice_SetPalette(int a1, DWORD* a2)
+{
+	return 0;
+}
+
+GUEST_FUNCTION_STUB(sub_2DDC00); //seems to corrupt the stack (even when the 2 functions it call are stub!?)
+
+GUEST_FUNCTION_HOOK_STDCALL(sub_3D0E80, D3DDevice_SetPalette);
+
+//test nop :(
+int sub_1575c0_r(int a1)
+{
+	return 0;
+}
+
+//GUEST_FUNCTION_HOOK_STDCALL(sub_1575C0, sub_1575c0_r);
 
 unsigned int D3D_SetFence(void* this_, char a2)
 {
@@ -553,6 +600,37 @@ int D3DDevice_Swap(void* this_, int a1)
 	ctx->esp.u32 += 4;
 	return 1;
 }
+
+//potentially corrupt the stack to do check
+/**X86_FUNC_IMPL(__imp__sub_1575C0);
+X86_FUNC(sub_1575C0)
+{
+	ctx.esp.u32 += 8;
+	return;
+	//__imp__sub_1575C0(ctx, base);
+}*/
+
+//fmv
+X86_FUNC_IMPL(__imp__sub_24A90);
+X86_FUNC(sub_24A90)
+{
+	__imp__sub_24A90(ctx, base);
+}
+
+
+
+unsigned int D3DDevice_DrawIndexedVertices(__int32 a1, unsigned int a2, __int32* a3)
+{
+	return 0;
+}
+
+DWORD* D3DDevice_DrawVertices(int a1, int a2, unsigned int a3)
+{
+	return 0;
+}
+
+GUEST_FUNCTION_HOOK_STDCALL(sub_3DC1F0, D3DDevice_DrawIndexedVertices);
+GUEST_FUNCTION_HOOK_STDCALL(sub_3DC150, D3DDevice_DrawVertices);
 
 GUEST_FUNCTION_HOOK_THISCALL(sub_3D4890, D3D_SetFence);
 GUEST_FUNCTION_HOOK_THISCALL(sub_3DD560, D3DDevice_Swap);
