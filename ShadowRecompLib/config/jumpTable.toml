@@ -77,6 +77,20 @@ labels = [
 ]
 
 [[switch]]
+base = 0x34BF67 
+r = 2
+default = 0x34BFE0
+end = 0x34BFF8
+labels = [
+	0x34BF6E,
+	0x34BF87,
+	0x34BF90,
+	0x34BF97,
+	0x34BFBE,
+	0x34BFBE,
+]
+
+[[switch]]
 base = 0x228E77
 r = 0
 default = 0x228F98
