@@ -610,12 +610,6 @@ X86_FUNC(sub_1575C0)
 	//__imp__sub_1575C0(ctx, base);
 }*/
 
-//fmv
-X86_FUNC_IMPL(__imp__sub_24A90);
-X86_FUNC(sub_24A90)
-{
-	__imp__sub_24A90(ctx, base);
-}
 
 
 
