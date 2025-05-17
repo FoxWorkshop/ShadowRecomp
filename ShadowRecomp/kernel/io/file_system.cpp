@@ -128,9 +128,16 @@ FileHandle* XCreateFile_r(const char* SourceString, ULONG CreateDisposition, ULO
 		fileOpenMode |= std::ios::out;
 	}
 
-	if (filePath.string().find("number.txd") != std::string::npos)
+	if (filePath.string().find("Op.sfd") != std::string::npos)
 	{
-		printf("ok\n");
+		printf("op file loaded\n");
+	}
+	else
+	{
+		if (filePath.string().find("sng_sys01.adx") != std::string::npos)
+		{
+			printf("song loaded\n");
+		}
 	}
 
 	std::error_code ec;
@@ -378,12 +385,12 @@ GUEST_FUNCTION_HOOK(sub_332B60, CacheGameFiles);
 //until runtime it's complicated, so I take a dirty shortcut.
 
 //sprintf
-bool trackingThisCrap = false;
+
 X86_FUNC_IMPL(__imp__sub_37E577);
 X86_FUNC(sub_37E577)
 {
 
-	if (trackingThisCrap)
+	/**if (1)
 	{
 		uint32_t ebp = X86_LOAD_U32(ctx.esp.u32 + 4 + (0 * 4));
 		const char* arg0 = (char*)(base + ebp);
@@ -396,12 +403,11 @@ X86_FUNC(sub_37E577)
 		ebp = X86_LOAD_U32(ctx.esp.u32 + 4 + (3 * 4));
 		auto arg3 = (char*)(base + ebp);
 		arg3 = arg3;
-
-	}
+	}*/
 
 	__imp__sub_37E577(ctx, base); //call og function
 
-	if (trackingThisCrap)
+	/**if (1)
 	{
 		ctx.esp.u32 -= 4;
 		uint32_t ebp = X86_LOAD_U32(ctx.esp.u32 + 4 + (0 * 4));
@@ -417,7 +423,7 @@ X86_FUNC(sub_37E577)
 		arg3 = arg3;
 		ctx.esp.u32 += 4;
 
-	}
+	}*/
 
 
 }
@@ -427,7 +433,7 @@ X86_FUNC_IMPL(__imp__sub_37F0C6);
 X86_FUNC(sub_37F0C6)
 {
 
-	if (trackingThisCrap)
+	/**if (1)
 	{
 
 		uint32_t ebp = X86_LOAD_U32(ctx.esp.u32 + 4 + (0 * 4));
@@ -441,10 +447,10 @@ X86_FUNC(sub_37F0C6)
 		arg3 = arg3;
 		//auto test = sscanf(arg0, arg1, arg2, arg3);
 		//test = test;
-	}
+	}*/
 	__imp__sub_37F0C6(ctx, base);
 
-	if (trackingThisCrap)
+	/**if (1)
 	{
 		ctx.esp.u32 -= 4;
 		uint32_t ebp = X86_LOAD_U32(ctx.esp.u32 + 4 + (0 * 4));
@@ -458,25 +464,5 @@ X86_FUNC(sub_37F0C6)
 		auto arg3 = (char*)(base + ebp);
 		arg3 = arg3;
 		ctx.esp.u32 += 4;
-	}
-}
-
-
-
-int __cdecl sub_382D53_r(char* buffer, char* format, uint32_t va)
-{
-	auto ctx = GetX86Context();
-	auto base = g_memory.base;
-	if (!trackingThisCrap)
-	{
-		//__imp__sub_382D53(*ctx, base);
-		ctx->esp.u32 -= 4; //esp got adjusted already but the hook will redo it, we need to fix it 
-		return ctx->eax.u32;
-	}
-	else
-	{
-		auto res = vsprintf(buffer, format, (va_list)va);
-		return res;
-	}
-
+	}*/
 }
