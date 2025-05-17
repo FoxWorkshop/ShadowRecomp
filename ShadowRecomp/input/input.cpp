@@ -3,7 +3,7 @@
 #include <SDL.h>
 #include "input.h"
 #include <kernel/function.h>
-
+#include <string>
 
 input::EInputDevice input::g_inputDevice;
 input::EInputDevice input::g_inputDeviceController;
@@ -132,6 +132,7 @@ public:
         pad.wButtons |= TRANSLATE_INPUT(SDL_CONTROLLER_BUTTON_B, XINPUT_GAMEPAD_B);
         pad.wButtons |= TRANSLATE_INPUT(SDL_CONTROLLER_BUTTON_X, XINPUT_GAMEPAD_X);
         pad.wButtons |= TRANSLATE_INPUT(SDL_CONTROLLER_BUTTON_Y, XINPUT_GAMEPAD_Y);
+
     }
 
 
@@ -331,10 +332,18 @@ uint32_t input::GetState(uint32_t dwUserIndex, XINPUT_STATE* pState)
     if (!g_activeController)
         return ERROR_DEVICE_NOT_CONNECTED;
 
+    SDL_ShowCursor(SDL_DISABLE);
+    SetControllerInputDevice(g_activeController);
+
+    //g_activeController->Poll(); //added to do figure out a better way
+    //g_activeController->state.wButtons |= XINPUT_GAMEPAD_START;
+
     pState->Gamepad = g_activeController->state;
 
     return ERROR_SUCCESS;
 }
+
+
 
 uint32_t input::SetState(uint32_t dwUserIndex, _XINPUT_VIBRATION* pVibration)
 {
@@ -368,59 +377,58 @@ uint8_t sub_424276_r()
 #define _WORD int16_t
 #define _DWORD int32_t
 
-struct DeviceTypeInfo
+struct _XPP_DEVICE_TYPE
 {
-    uint32_t deviceTypePtr;
-    int count;
-    int flags;
+    uint32_t CurrentConnected;
+    uint32_t ChangeConnected;
+    uint32_t PreviousConnected;
+};
+
+typedef enum class _XBOX_INPUT_DEVICE : int {
+    DEVICE_INVALID = -1,
+    MS_CONTROLLER_DUKE,
+    MS_CONTROLLER_S,
+    LIGHTGUN,
+    STEERING_WHEEL,
+    MEMORY_UNIT,
+    IR_DONGLE,
+    STEEL_BATTALION_CONTROLLER,
+    ARCADE_STICK,
+    DEVICE_MAX,
+    // Devices with the HW_ prefix (= hardware) indicate a real xbox device. Always add these after DEVICE_MAX
+    HW_STEEL_BATTALION_CONTROLLER,
+    HW_XBOX_CONTROLLER,
+}
+XBOX_INPUT_DEVICE;
+
+struct DeviceState {
+    std::string port;
+    int port_idx;
+    XBOX_INPUT_DEVICE type;
+    bool bPendingRemoval;
+    bool bSignaled;
+    char info[56];
+    uint32_t padding[2];
 };
 
 
-struct struct_this
+HANDLE XInputOpen(int* a1, int a2)
 {
-    char char0;
-    _BYTE gap1[47];
-    _WORD word30;
-    char char32;
-    _BYTE gap33[47];
-    _WORD word62;
-    char char64;
-    _BYTE gap65[47];
-    _WORD word94;
-    _DWORD flag;
-    _DWORD gamePadPtr;
-    _BYTE size;
-    _BYTE byteA1;
-    _DWORD dwordA4;
-    _DWORD dwordA8;
-    _DWORD dwordAC;
-    _DWORD dwordB0;
-};
 
-uint32_t XInitDevices(int flag, DeviceTypeInfo* gamePadPtr)
-{
-    gamePadPtr = gamePadPtr;
-    gamePadPtr->deviceTypePtr = gamePadPtr->deviceTypePtr;
+    if (g_controllers[0].controller)
+    {
+        SetControllerInputDevice(&g_controllers[0]);
+        auto base = g_memory.base;
+
+        X86_STORE_U32(0x559984, (uint32_t)&g_controllers[0]);
+    }
     return 0;
 }
 
-uint32_t IsGamePadInValide(struct_this* data_)
-{
-    //struct_this data2 = *(struct_this*)data_;
-    return data_->gamePadPtr == 0;
-}
 
-unsigned int IUsbInit_GetMaxDeviceTypeCount(DWORD* this_, int a2)
-{
-    auto ctx = GetX86Context();
-        ctx->esp.u32 += 4;
-    return 1;
-}
-
-void sub_423B38_r(struct_this* a1)
-{
-    a1 = a1;
-}
+GUEST_FUNCTION_HOOK_STDCALL(sub_4248A6, input::GetState);
+GUEST_FUNCTION_HOOK_STDCALL(sub_424919, input::SetState);
+GUEST_FUNCTION_HOOK_STDCALL(sub_2AAC20, XInputOpen);
 
 //GUEST_FUNCTION_HOOK_STDCALL(sub_423D43, XInitDevices);
 //GUEST_FUNCTION_HOOK_STDCALL(sub_423B38, sub_423B38_r);

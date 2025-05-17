@@ -65,6 +65,16 @@ void DebugPrint(char* const Buffer, const char* const Format, va_list ArgList)
 }
 
 
+X86_FUNC_IMPL(__imp__sub_32EFE0);
+X86_FUNC(sub_32EFE0)
+{
+	auto msg = X86_LOAD_U32(ctx.eax.u32);
+	auto s = (char*)(base + msg);
+	PrintError(s);
+	__imp__sub_32EFE0(ctx, base);
+}
+
+
 X86_FUNC_IMPL(__imp__sub_11AD0);
 X86_FUNC(sub_11AD0)
 {

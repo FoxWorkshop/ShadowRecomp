@@ -163,6 +163,13 @@ char FreeBlock(uint32_t heapPtr, int flag, uint32_t mem)
 	return 0;
 }
 
+int XAPILIB_VirtualFree_r(int baseAddr, int size, int allocType)
+{
+	if (size)
+		g_userHeap.Free(g_memory.Translate(size));
+	return 0;
+}
+
 //create heap
 GUEST_FUNCTION_HOOK(sub_2ABFCB, AllocateHeap_r);
 
@@ -173,5 +180,6 @@ GUEST_FUNCTION_HOOK_STDCALL(sub_2ADA9A, XAPILIB_VirtualAlloc_r);
 GUEST_FUNCTION_HOOK(sub_37E229, free_r);
 GUEST_FUNCTION_HOOK_STDCALL(sub_2B0494, XAPILIB_XMemFree_r);
 GUEST_FUNCTION_HOOK_STDCALL(sub_2ACB6A, FreeBlock);
+GUEST_FUNCTION_HOOK_STDCALL(sub_2ADAC8, XAPILIB_VirtualFree_r);
 
 GUEST_FUNCTION_HOOK_STDCALL(sub_2AD48C, RtlFreeHeap);

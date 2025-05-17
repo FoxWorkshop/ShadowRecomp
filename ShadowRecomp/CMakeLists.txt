@@ -68,6 +68,7 @@ set(SHADOW_RECOMP_THIRDPARTY_INCLUDES
 set_source_files_properties(${SHADOW_RECOMP_THIRDPARTY_SOURCES} PROPERTIES SKIP_PRECOMPILE_HEADERS ON)
 
 set(SHADOW_RECOMP_CXX_SOURCES
+    "app.cpp"
     "main.cpp"
     "misc_impl.cpp"
     "stdafx.cpp"
