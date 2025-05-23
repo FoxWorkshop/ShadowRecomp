@@ -4,6 +4,7 @@
 #include <kernel/function.h>
 #include <stdafx.h>
 #include <iostream>
+#include <audio/audio.h>
 
 //Original code from Unleashed Recomp, O.G Xbox uses similar file / write operation functions than Xbox 360.
 
@@ -13,31 +14,31 @@ struct FileHandle : KernelObject
 	std::filesystem::path path;
 };
 
+
 struct FindHandle : KernelObject
 {
 	std::error_code ec;
-	ankerl::unordered_dense::map<std::u8string, std::pair<size_t, bool>> searchResult; // Relative path, file size, is directory
+	ankerl::unordered_dense::map<std::u8string, std::pair<size_t, bool>> searchResult;
 	decltype(searchResult)::iterator iterator;
 
-	FindHandle(const std::string_view& path)
+
+	FindHandle() = default;
+
+	FindHandle(const std::string& directoryPath)
 	{
 		auto addDirectory = [&](const std::filesystem::path& directory)
 			{
 				for (auto& entry : std::filesystem::directory_iterator(directory, ec))
 				{
-					std::u8string relativePath = entry.path().lexically_relative(directory).u8string();
-					searchResult.emplace(relativePath, std::make_pair(entry.is_directory(ec) ? 0 : entry.file_size(ec), entry.is_directory(ec)));
+					std::u8string relativePath = entry.path().filename().u8string();
+					searchResult.emplace(relativePath, std::make_pair(
+						entry.is_directory(ec) ? 0 : entry.file_size(ec),
+						entry.is_directory(ec)
+					));
 				}
 			};
 
-		std::string_view pathNoPrefix = path;
-		size_t index = pathNoPrefix.find(":\\");
-		if (index != std::string_view::npos)
-			pathNoPrefix.remove_prefix(index + 2);
-
-
-		addDirectory(FileSystem::ResolvePath(path, false));
-
+		addDirectory(std::filesystem::path(directoryPath));
 		iterator = searchResult.begin();
 	}
 
@@ -49,8 +50,8 @@ struct FindHandle : KernelObject
 			lpFindFileData->dwFileAttributes = FILE_ATTRIBUTE_NORMAL;
 
 		strncpy(lpFindFileData->cFileName, (const char*)(iterator->first.c_str()), sizeof(lpFindFileData->cFileName));
-		lpFindFileData->nFileSizeLow = (uint32_t(iterator->second.first >> 32U));
-		lpFindFileData->nFileSizeHigh = (uint32_t(iterator->second.first));
+		lpFindFileData->nFileSizeLow = (uint32_t(iterator->second.first));
+		lpFindFileData->nFileSizeHigh = (uint32_t(iterator->second.first >> 32U));
 		lpFindFileData->ftCreationTime = {};
 		lpFindFileData->ftLastAccessTime = {};
 		lpFindFileData->ftLastWriteTime = {};
@@ -59,7 +60,6 @@ struct FindHandle : KernelObject
 
 std::filesystem::path FileSystem::ResolvePath(const std::string_view& path, bool checkForMods)
 {
-
 	thread_local std::string builtPath;
 	builtPath.clear();
 	builtPath = MainGameFolder + "/";
@@ -68,15 +68,7 @@ std::filesystem::path FileSystem::ResolvePath(const std::string_view& path, bool
 	if (index != std::string::npos)
 	{
 		std::string_view relativePart = path.substr(index + 2);
-		// Remove leading "dvd\" if present (case-insensitive)
-		if (relativePart.size() >= 4 &&
-			std::tolower(relativePart[0]) == 'd' &&
-			std::tolower(relativePart[1]) == 'v' &&
-			std::tolower(relativePart[2]) == 'd' &&
-			(relativePart[3] == '\\' || relativePart[3] == '/'))
-		{
-			relativePart.remove_prefix(4); // skip "dvd\"
-		}
+
 
 		builtPath += relativePart;
 	}
@@ -86,10 +78,10 @@ std::filesystem::path FileSystem::ResolvePath(const std::string_view& path, bool
 	}
 
 	std::replace(builtPath.begin(), builtPath.end(), '\\', '/');
-
 	return std::u8string_view((const char8_t*)builtPath.c_str());
 }
 
+bool adxTest = false;
 FileHandle* XCreateFile_r(const char* SourceString, ULONG CreateDisposition, ULONG ShareAccess, int a4, int mode, unsigned int a6, int a7)
 {
 	ULONG CreateDisposition_ = FILE_OPEN;
@@ -130,12 +122,14 @@ FileHandle* XCreateFile_r(const char* SourceString, ULONG CreateDisposition, ULO
 
 	if (filePath.string().find("Op.sfd") != std::string::npos)
 	{
+		adxTest = true;
 		printf("op file loaded\n");
 	}
 	else
 	{
-		if (filePath.string().find("sng_sys01.adx") != std::string::npos)
+		if (filePath.string().find("PRS_VOICE_E") != std::string::npos)
 		{
+			
 			printf("song loaded\n");
 		}
 	}
@@ -312,30 +306,81 @@ uint32_t XWriteFile_r(FileHandle* hFile, const void* lpBuffer, uint32_t nNumberO
 	return TRUE;
 }
 
+
 FindHandle* XFindFirstFile(const char* lpFileName, WIN32_FIND_DATAA* lpFindFileData)
 {
-	std::string_view path = lpFileName;
-	if (path.find("\\*") == (path.size() - 2) || path.find("/*") == (path.size() - 2))
+	printf("XFindFirstFile: %s\n", lpFileName);
+	std::string_view originalPath = lpFileName;
+
+	// First, resolve the Xbox path to PC path before processing wildcards
+	std::string resolvedPathStr;
+	bool isDirectorySearch = false;
+
+	// Check for wildcards in the original path first
+	if (originalPath.find("\\*") == (originalPath.size() - 2) || originalPath.find("/*") == (originalPath.size() - 2))
 	{
-		path.remove_suffix(1);
+		// Directory search with "*" - remove the wildcard before resolving
+		std::string_view pathWithoutWildcard = originalPath.substr(0, originalPath.size() - 2);
+		resolvedPathStr = FileSystem::ResolvePath(pathWithoutWildcard, true).string();
+		isDirectorySearch = true;
 	}
-	else if (path.find("\\*.*") == (path.size() - 4) || path.find("/*.*") == (path.size() - 4))
+	else if (originalPath.find("\\*.*") == (originalPath.size() - 4) || originalPath.find("/*.*") == (originalPath.size() - 4))
 	{
-		path.remove_suffix(3);
+		// Directory search with "*.*" - remove the wildcard before resolving
+		std::string_view pathWithoutWildcard = originalPath.substr(0, originalPath.size() - 4);
+		resolvedPathStr = FileSystem::ResolvePath(pathWithoutWildcard, true).string();
+		isDirectorySearch = true;
 	}
 	else
 	{
-		assert(!std::filesystem::path(path).has_extension() && "Unknown search pattern.");
+		// Resolve the full path as-is
+		resolvedPathStr = FileSystem::ResolvePath(originalPath, true).string();
 	}
 
-	FindHandle findHandle(path);
+	if (isDirectorySearch)
+	{
+		// Handle directory search
+		FindHandle findHandle(resolvedPathStr);
 
-	if (findHandle.searchResult.empty())
-		return GetInvalidKernelObject<FindHandle>();
+		if (findHandle.searchResult.empty())
+			return GetInvalidKernelObject<FindHandle>();
 
-	findHandle.fillFindData(lpFindFileData);
+		findHandle.fillFindData(lpFindFileData);
+		return CreateKernelObject<FindHandle>(std::move(findHandle));
+	}
+	else
+	{
+		// Handle specific file search
+		std::filesystem::path resolvedPath(resolvedPathStr);
+		std::error_code ec;
 
-	return CreateKernelObject<FindHandle>(std::move(findHandle));
+		if (std::filesystem::exists(resolvedPath, ec) && !ec)
+		{
+			// It's a specific file - create a search result with just this file
+			FindHandle* findHandle = CreateKernelObject<FindHandle>();
+
+			std::filesystem::path filename = resolvedPath.filename();
+			bool isDirectory = std::filesystem::is_directory(resolvedPath, ec);
+			size_t fileSize = isDirectory ? 0 : std::filesystem::file_size(resolvedPath, ec);
+
+			findHandle->searchResult.emplace(
+				filename.u8string(),
+				std::make_pair(fileSize, isDirectory)
+			);
+			findHandle->iterator = findHandle->searchResult.begin();
+			findHandle->ec = ec;
+
+			findHandle->fillFindData(lpFindFileData);
+			return findHandle;
+		}
+		else
+		{
+			// File doesn't exist
+			printf("XFindFirstFile: File not found: %s (resolved to %s)\n",
+				lpFileName, resolvedPathStr.c_str());
+			return GetInvalidKernelObject<FindHandle>();
+		}
+	}
 }
 
 uint32_t XFindNextFile(FindHandle* Handle, WIN32_FIND_DATAA* lpFindFileData)
@@ -379,10 +424,6 @@ GUEST_FUNCTION_HOOK_STDCALL(sub_2ADA49, XFindNextFile);
 
 GUEST_FUNCTION_HOOK(sub_332B60, CacheGameFiles);
 
-
-//hacky way to repair sprintf which strip the last 4 characters for some reason.
-//note that I'd simply hook sprintf if it was possible, but since the numbers of parameters are undertermined
-//until runtime it's complicated, so I take a dirty shortcut.
 
 //sprintf
 
