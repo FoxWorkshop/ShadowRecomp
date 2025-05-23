@@ -30,7 +30,7 @@ using Microsoft::WRL::ComPtr;
 #include <ankerl/unordered_dense.h>
 #include <x86/x86_recomp_shared.h>
 #include <SDL.h>
-//#include <SDL_mixer.h>
+#include <SDL_mixer.h>
 
 #include <stb_image.h>
 #include <o1heap.h>

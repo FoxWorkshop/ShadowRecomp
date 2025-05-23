@@ -50,6 +50,7 @@ set(SHADOW_RECOMP_GPU_CXX_SOURCES
 
 set(SHADOW_RECOMP_APU_CXX_SOURCES
     "audio/audio.cpp"
+    "audio/driver/sdl2_driver.cpp"
 )
 
 set(SHADOW_RECOMP_HID_CXX_SOURCES
@@ -113,7 +114,9 @@ target_link_libraries(ShadowRecomp PRIVATE
     o1heap
     XboxUtils
     SDL2::SDL2-static
-    #SDL2_mixer
+    SDL2_mixer
+    #vgmstream::vgmstream-static
+    #libvgmstream
     ShadowRecompLib
 )
 

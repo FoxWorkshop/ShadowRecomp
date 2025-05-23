@@ -15,6 +15,9 @@ set(SDL2MIXER_OPUS OFF)
 set(SDL2MIXER_VORBIS "VORBISFILE")
 set(SDL2MIXER_WAVPACK OFF)
 
+
 add_subdirectory("${SHADOW_RECOMP_THIRDPARTY_ROOT}/o1heap")
 add_subdirectory("${SHADOW_RECOMP_THIRDPARTY_ROOT}/SDL")
-#add_subdirectory("${SHADOW_RECOMP_THIRDPARTY_ROOT}/SDL_mixer")
+
+#add_subdirectory("${SHADOW_RECOMP_THIRDPARTY_ROOT}/vgmstream")
+add_subdirectory("${SHADOW_RECOMP_THIRDPARTY_ROOT}/SDL_mixer")

@@ -4,9 +4,6 @@
 [submodule "thirdparty/SDL"]
 	path = thirdparty/SDL
 	url = https://github.com/libsdl-org/SDL.git
-[submodule "thirdparty/vcpkg"]
-	path = thirdparty/vcpkg
-	url = https://github.com/microsoft/vcpkg.git
 [submodule "tools/XboxRecomp"]
 	path = tools/XboxRecomp
 	url = https://github.com/FoxWorkshop/XboxRecomp
@@ -19,3 +16,12 @@
 [submodule "thirdparty/unordered_dense"]
 	path = thirdparty/unordered_dense
 	url = https://github.com/martinus/unordered_dense.git
+[submodule "thirdparty/vorbis"]
+	path = thirdparty/vorbis
+	url = https://github.com/xiph/vorbis.git
+[submodule "thirdparty/ogg"]
+	path = thirdparty/ogg
+	url = https://github.com/xiph/ogg.git
+[submodule "thirdparty/vcpkg"]
+	path = thirdparty/vcpkg
+	url = https://github.com/microsoft/vcpkg

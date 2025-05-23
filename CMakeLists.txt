@@ -3,7 +3,11 @@
 #
 cmake_minimum_required (VERSION 3.20)
 
+if(NOT DEFINED ENV{VCPKG_ROOT})
+    message(FATAL_ERROR "VCPKG_ROOT is not defined!")
+endif()
 
+include($ENV{VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake)
 set(SHADOW_RECOMP_THIRDPARTY_ROOT ${CMAKE_SOURCE_DIR}/thirdparty)
 set(SHADOW_RECOMP_TOOLS_ROOT ${CMAKE_SOURCE_DIR}/tools)
 set(CMAKE_CXX_STANDARD 20)
