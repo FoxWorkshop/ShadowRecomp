@@ -158,7 +158,7 @@ int32_t NtFreeVirtualMemory(IN OUT uint32_t* BaseAddress, IN OUT ULONG32 FreeSiz
 
 int32_t NtAllocateVirtualMemory(IN OUT uint32_t* BaseAddress,
 	IN ulong_xt         ZeroBits,
-	IN OUT uint32_t*    AllocationSize,
+	IN OUT uint32_t* AllocationSize,
 	IN dword_xt         AllocationType,
 	IN dword_xt         Protect)
 {
@@ -218,41 +218,37 @@ uint32_t ExQueryPoolBlockSize
 }
 
 
-void LockEeprom()
-{
-	//EnterCriticalSection(get_eeprom_crit_section());
-}
 
 LONG ExQueryNonVolatileSetting(
 	IN  dword_xt  ValueIndex,
 	OUT dword_xt* Type,
-	OUT uint32_t*   Value,
+	OUT uint32_t* Value,
 	IN  size_xt   ValueLength,
-	OUT uint32_t*  ResultLength OPTIONAL
+	OUT uint32_t* ResultLength OPTIONAL
 )
 {
 
 	// Default to REG_DWORD (common for Xbox settings)
-	if (Type) 
+	if (Type)
 		*Type = REG_DWORD;
 
 	// Handle known settings
-	switch (ValueIndex) 
+	switch (ValueIndex)
 	{
 	case 17:
 		return X_STATUS_SUCCESS;
 	case 0x1000: // Language (en-US)
-		if (ValueLength >= 4) 
+		if (ValueLength >= 4)
 		{
 			*(DWORD*)Value = 0x0409; // English
-			if (ResultLength) 
+			if (ResultLength)
 				*ResultLength = 4;
 			return X_STATUS_SUCCESS;
 		}
 		break;
 
 	case 0x2002:
-		if (ValueLength >= 4) 
+		if (ValueLength >= 4)
 		{
 			*(DWORD*)Value = 0; // 640x480
 			if (ResultLength) *ResultLength = 4;
@@ -260,10 +256,10 @@ LONG ExQueryNonVolatileSetting(
 		}
 		break;
 
-	case xbox::XC_FACTORY_GAME_REGION: 
-		if (ValueLength >= 4) 
+	case xbox::XC_FACTORY_GAME_REGION:
+		if (ValueLength >= 4)
 		{
-			*(DWORD*)Value = 0x01; 
+			*(DWORD*)Value = 0x01;
 			if (ResultLength) *ResultLength = 4;
 			return X_STATUS_SUCCESS;
 		}
@@ -370,7 +366,6 @@ int32_t KeBugCheckEx(IN std::uint32_t BugCheckCode, IN uint32_t* BugCheckParamet
 void KeBugCheck(IN uint32_t BugCheckMode)
 {
 	printf("KeBugCheckEx");
-
 	KeBugCheckEx(BugCheckMode, 0, 0, 0, 0);
 }
 
@@ -391,9 +386,6 @@ void KeQuerySystemTime(uint64_t* CurrentTime_)
 	currentTime100ns += FILETIME_EPOCH_DIFFERENCE;
 
 	*CurrentTime_ = currentTime100ns;
-
-	//CurrentTime->QuadPart = fakeTime;
-	//printf("[STUB] KeQuerySystemTime() -> %lld\n", CurrentTime->QuadPart);
 }
 
 LONG KeQueryBasePriorityThread(GuestThreadHandle* Thread)
@@ -481,26 +473,28 @@ VOID KeInitializeDpc(_KDPC* Dpc, uint32_t DeferredRoutine, uint32_t* DeferredCon
 	Dpc->DeferredContext = (xpointer<void>)DeferredContext;
 }
 
-void InitializeListHead(xpointer<xbox::LIST_ENTRY> pListHead_)
+
+
+
+
+typedef struct _XKTIMER
 {
-	xbox::PLIST_ENTRY pListHead = (xbox::PLIST_ENTRY)pListHead_;
-	pListHead->Flink = pListHead->Blink = pListHead;
+	XDISPATCHER_HEADER   Header;           // 0x00
+	ULARGE_INTEGER      DueTime;          // 0x10
+	LIST_ENTRY          TimerListEntry;   // 0x18
+	struct _KDPC* Dpc;              // 0x20
+	long_xt             Period;           // 0x24
 }
+KTIMER, * PKTIMER;
 
-xbox::_KTIMER* g_timers = nullptr;
 
-void InitializeListHead(xbox::PLIST_ENTRY pListHead)
-{
-	pListHead->Flink = pListHead->Blink = pListHead;
-}
-
-VOID KeInitializeTimerEx(xbox::_KTIMER* Timer, uint32_t Type)
+VOID KeInitializeTimerEx(_XKTIMER* Timer, uint32_t Type)
 {
 	Timer->Header.Type = Type + 8;
 	Timer->Header.Inserted = FALSE;
 	Timer->Header.Size = sizeof(xbox::_KTIMER) / sizeof(ULONG);
 	Timer->Header.SignalState = 0;
-	InitializeListHead(&(Timer->Header.WaitListHead));
+
 	Timer->TimerListEntry.Blink = NULL;
 	Timer->TimerListEntry.Flink = NULL;
 	Timer->DueTime.QuadPart = 0;
@@ -530,6 +524,22 @@ LONG KeSaveFloatingPointState(uint32_t* SaveArea_)
 	SaveArea = *SaveArea_;
 	printf("[STUB] KeSaveFloatingPointState(%p)\n", SaveArea);
 	return X_STATUS_SUCCESS;
+}
+
+int map_xbox_priority(int xbox_priority) {
+	switch (xbox_priority) {
+	case -2:
+		return THREAD_PRIORITY_LOWEST;
+	case 1:
+	case 2:
+		return THREAD_PRIORITY_BELOW_NORMAL;
+	case 8:
+		return THREAD_PRIORITY_NORMAL;
+	case 16:
+		return THREAD_PRIORITY_TIME_CRITICAL;
+	default:
+		return THREAD_PRIORITY_NORMAL;
+	}
 }
 
 std::int32_t KeSetBasePriorityThread(GuestThreadHandle* hThread, LONG priority)
@@ -566,18 +576,12 @@ LONG KeSetEvent(XKEVENT* pEvent, uint32_t Increment, bool Wait)
 	return result;
 }
 
-BOOLEAN KeSetTimer(uint32_t* Dpc_, uint32_t* DueTime_, uint32_t* Timer_)
+BOOLEAN KeSetTimer(uint32_t* Dpc, uint32_t* DueTime, uint32_t* Timer)
 {
 	//return FALSE;
-	_LARGE_INTEGER DueTime;
-	if (DueTime_)
-		DueTime = *(_LARGE_INTEGER*)DueTime_;
-	else
-		DueTime.QuadPart = 0;
 
-	xbox::PKTIMER Timer = (xbox::PKTIMER)Timer_;
-	KDPC* Dpc = (KDPC*)Dpc_;
-	printf("[STUB] KeSetTimer(%p, %lld ns, Dpc %p)\n", Timer, DueTime.QuadPart, Dpc);
+
+	//printf("[STUB] KeSetTimer(%p, %lld ns, Dpc %p)\n", Timer, DueTime.QuadPart, Dpc);
 	return FALSE; // Timer wasn't already active
 }
 
@@ -594,7 +598,7 @@ BOOLEAN KeSynchronizeExecution(uint32_t* Interrupt_, uint32_t* SynchronizeRoutin
 	return SynchronizeRoutine(&SynchronizeContext);
 }
 
-LONG KeWaitForSingleObject(XDISPATCHER_HEADER* Object, uint32_t WaitReason, uint32_t WaitMode, bool Alertable, int64_t* Timeout) 
+LONG KeWaitForSingleObject(XDISPATCHER_HEADER* Object, uint32_t WaitReason, uint32_t WaitMode, bool Alertable, int64_t* Timeout)
 {
 	const uint32_t timeout = GuestTimeoutToMilliseconds(Timeout);
 	assert(timeout == INFINITE);
@@ -795,7 +799,7 @@ LONG NtOpenSymbolicLinkObject(OUT PHANDLE LinkHandle, IN void* ObjectAttributes
 LONG NtQueryDirectoryFile(
 	IN  HANDLE FileHandle,
 	IN  HANDLE Event OPTIONAL,
-	IN  uint32_t* ApcRoutine, 
+	IN  uint32_t* ApcRoutine,
 	IN  uint32_t* ApcContext,
 	OUT uint32_t* IoStatusBlock,
 	OUT uint32_t* FileInformation_,
@@ -1017,7 +1021,7 @@ BOOLEAN RtlEqualString(PCSTR String1, PCSTR String2)
 
 LONG NtSuspendThread(GuestThreadHandle* ThreadHandle, uint32_t* PreviousSuspendCount)
 {
-	printf("NtSuspendThread(0x%X)\n", ThreadHandle);
+	//printf("NtSuspendThread(0x%X) id: (0x%X)\n", ThreadHandle, ThreadHandle->thread.get_id());
 	assert(ThreadHandle != GetKernelObject(CURRENT_THREAD_HANDLE) && ThreadHandle->thread.get_id() == std::this_thread::get_id());
 
 	ThreadHandle->suspended = true;
@@ -1028,7 +1032,7 @@ LONG NtSuspendThread(GuestThreadHandle* ThreadHandle, uint32_t* PreviousSuspendC
 
 LONG NtResumeThread(GuestThreadHandle* ThreadHandle, uint32_t* PreviousSuspendCount)
 {
-	printf("NtResumeThread(0x%X)\n", ThreadHandle);
+	//printf("NtResumeThread(0x%X), id: (0x%X)\n", ThreadHandle, ThreadHandle->thread.get_id());
 	assert(ThreadHandle != GetKernelObject(CURRENT_THREAD_HANDLE));
 
 	ThreadHandle->suspended = false;
@@ -1051,7 +1055,7 @@ typedef void_xt(NTAPI* PKSYSTEM_ROUTINE)
 
 
 LONG PsCreateSystemThreadEx(
-	OUT uint32_t*         ThreadHandle,
+	OUT uint32_t* ThreadHandle,
 	IN  ulong_xt           ThreadExtensionSize,
 	IN  ulong_xt           KernelStackSize,
 	IN  ulong_xt           TlsDataSize,
@@ -1084,7 +1088,7 @@ void PsTerminateSystemThread(LONG ExitStatus)
 	// No-op (thread cleanup is handled by the recompiler)
 }
 
-LONG ObReferenceObjectByHandle(uint32_t Handle, uint32_t ObjectType, uint32_t* Object) 
+LONG ObReferenceObjectByHandle(uint32_t Handle, uint32_t ObjectType, uint32_t* Object)
 {
 	*Object = Handle;
 	return X_STATUS_SUCCESS;
@@ -1322,7 +1326,7 @@ GUEST_FUNCTION_HOOK_STDCALL(__imp__XcSHAUpdate, XcSHAUpdate);
 GUEST_FUNCTION_HOOK_STDCALL(__imp__XcSHAFinal, XcSHAFinal);
 GUEST_FUNCTION_HOOK_STDCALL(__imp__KeQuerySystemTime, KeQuerySystemTime);
 
-GUEST_FUNCTION_HOOK_STDCALL(__imp__NtCreateFile, NtCreateFile); 
+GUEST_FUNCTION_HOOK_STDCALL(__imp__NtCreateFile, NtCreateFile);
 GUEST_FUNCTION_HOOK_STDCALL(__imp__IoCreateSymbolicLink, IoCreateSymbolicLink);
 GUEST_FUNCTION_HOOK_STDCALL(__imp__IoDeleteSymbolicLink, IoDeleteSymbolicLink);
 GUEST_FUNCTION_HOOK_STDCALL(__imp__NtQuerySymbolicLinkObject, NtQuerySymbolicLinkObject);
@@ -1392,16 +1396,35 @@ extern uint8_t* D3D_g_pDevice;
 //TODO DELETE WHEN RENDERING IS IMPLEMENTED
 int D3DDevice_BlockUntilVerticalBlank()
 {
+	auto ctx = *GetX86Context();
+	auto base = g_memory.base;
+	// mov eax, [0x003E0A18]
+	ctx.eax.u32 = X86_LOAD_U32(4065816);
+	// push 0x00
+	X86_PUSH(ctx, base, 0x0);
+	// push 0x00
+	X86_PUSH(ctx, base, 0x0);
+	// push 0x01
+	X86_PUSH(ctx, base, 0x1);
+	// mov dword ptr [eax+0x1DC0], 0x00
+	X86_STORE_U32(ctx.eax.u32 + 7616, 0x0u);
+	// push 0x06
+	X86_PUSH(ctx, base, 0x6);
+	// add eax, 0x1DBC
+	auto temp_3CFE87_U32_OLD = ctx.eax.u32;
+	auto temp_3CFE87_U32_SRC = 7612;
+	ctx.eax.u32 = temp_3CFE87_U32_OLD + temp_3CFE87_U32_SRC;
+	ctx.eflags.update_flags_add_U32(temp_3CFE87_U32_OLD, temp_3CFE87_U32_SRC, ctx.eax.u32);
+	// push eax
+	X86_PUSH(ctx, base, ctx.eax.u32);
+	ctx.esp.u32 += 0x4;  //Adjust stack pointer
 
-		// Calculate address of the event inside the D3D device struct
-		void* vblankEvent = (char*)D3D_g_pDevice + 7612;
+	// Signal the VBlank event to unblock game logic
+	//KeWaitForSingleObject((XDISPATCHER_HEADER*)vblankEvent, 0, 0, 0, 0);  // 0, 0: default priority, do not wait
 
-		// Signal the VBlank event to unblock game logic
-		//KeWaitForSingleObject((XDISPATCHER_HEADER*)vblankEvent, 0, 0, 0, 0);  // 0, 0: default priority, do not wait
+	// Wait ~16.67ms to simulate 60Hz refresh rate
+	Sleep(15);
 
-		// Wait ~16.67ms to simulate 60Hz refresh rate
-		Sleep(17);
-	
 
 	return 0;
 }

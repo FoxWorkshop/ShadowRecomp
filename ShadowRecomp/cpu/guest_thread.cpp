@@ -67,13 +67,10 @@ GuestThreadContext::GuestThreadContext(GuestThreadParams params)
 
 	assert(thread == nullptr);
 	thread = (uint8_t*)g_userHeap.Alloc(TOTAL_SIZE);
-	//ETHREAD_R* eThread = (ETHREAD_R*)g_userHeap.Alloc(sizeof(ETHREAD_R));
-	//uint8_t* memory = (uint8_t*)g_userHeap.Alloc(KernelStackSize + tlsSize);	
-	
 
-	ETHREAD_R* eThread = (ETHREAD_R*)thread + KPCR_SIZE + tlsSize + KernelStackSize;
 
-	//uint8_t* memory = thread + KernelStackSize + tlsSize;
+	ETHREAD_R* eThread = reinterpret_cast<ETHREAD_R*>(thread + KPCR_SIZE + tlsSize + KernelStackSize);
+
 
 	uint8_t* stack_limit = thread + KPCR_SIZE + tlsSize;
 	uint8_t* stack_top = stack_limit + KernelStackSize;
@@ -98,31 +95,31 @@ GuestThreadContext::GuestThreadContext(GuestThreadParams params)
 	*(uint32_t*)(NewPcr + 0x24) = PASSIVE_LEVEL;
 
 
-	if (isHostThread)
-	{
-		/**xbox::ulong_xt KernelStackSize_ = Host2XbStackBaseReserved - reinterpret_cast<xbox::ulong_xt>(*(uint32_t*)(hTib + 12));
-		auto guestAddr = g_memory.MapVirtual((const void*)(stack));
-		eThread->Tcb.StackBase = static_cast<uint32_t>(guestAddr);
+	eThread->Tcb.StackBase = g_memory.MapVirtual(stack_top); // stack;
+	eThread->Tcb.StackLimit = g_memory.MapVirtual(stack_limit);
+	eThread->Tcb.KernelStack = eThread->Tcb.StackBase; // g_memory.MapVirtual(stack_top);
+	eThread->Tcb.TlsData = g_memory.MapVirtual(tls_region);
+	KiInitializeContextThread(&eThread->Tcb, tlsSize, 0, 0, 0);
 
-		eThread->Tcb.StackLimit = g_memory.MapVirtual((uint32_t*)(stack - KernelStackSize_));
-		KiInitializeContextThread(&eThread->Tcb, tlsSize, 0, 0, 0);*/
 
-	}
-	else
-	{
-		eThread->Tcb.StackBase = g_memory.MapVirtual(stack_top); // stack;
-		eThread->Tcb.StackLimit = g_memory.MapVirtual(stack_limit);
-		eThread->Tcb.KernelStack = eThread->Tcb.StackBase; // g_memory.MapVirtual(stack_top);
-		eThread->Tcb.TlsData = g_memory.MapVirtual(tls_region);
-		KiInitializeContextThread(&eThread->Tcb, tlsSize, 0, 0, 0);
-
-	}
-
-	// Allocate space in the stack for TLS, todo check if needed
 	if (eThread->Tcb.TlsData) 
 	{
+		auto newPtr = g_memory.Translate(eThread->Tcb.TlsData);
 		uint32_t RawTlsDataSize = m_TLS->dwDataEndAddr - m_TLS->dwDataStartAddr;
 		uint32_t TlsSizeTotal = RawTlsDataSize + m_TLS->dwSizeofZeroFill;
+
+		xbox::addr_xt* TlsData = reinterpret_cast<xbox::addr_xt*>(newPtr);
+		
+		*TlsData = reinterpret_cast<xbox::addr_xt>(newPtr) + sizeof(xbox::addr_xt);
+		// Set the actual tls data from xbe.
+		TlsData += 1;
+		std::memcpy(TlsData, reinterpret_cast<xbox::PVOID>(m_TLS->dwDataStartAddr), RawTlsDataSize);
+
+		if (m_TLS->dwSizeofZeroFill) {
+			std::memset(reinterpret_cast<xbox::PBYTE>(TlsData) + RawTlsDataSize, 0, m_TLS->dwSizeofZeroFill);
+		}
+
+		eThread->Tcb.TlsData = g_memory.MapVirtual(TlsData);
 	}
 
 
@@ -144,9 +141,11 @@ GuestThreadContext::GuestThreadContext(GuestThreadParams params)
 	}
 	else
 	{
+
 		x86Context.esp.u32 = eThread->Tcb.StackBase & ~0xF;
 		x86Context.ebp.u32 = x86Context.esp.u32;
 	}
+
 
 	// Default flags (Interrupts enabled)
 	x86Context.eflags.value = 0x202; // IF=1, reserved bit 1=1

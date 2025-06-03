@@ -69,7 +69,6 @@ std::filesystem::path FileSystem::ResolvePath(const std::string_view& path, bool
 	{
 		std::string_view relativePart = path.substr(index + 2);
 
-
 		builtPath += relativePart;
 	}
 	else
@@ -81,6 +80,7 @@ std::filesystem::path FileSystem::ResolvePath(const std::string_view& path, bool
 	return std::u8string_view((const char8_t*)builtPath.c_str());
 }
 
+void logESP(const char* funcName, X86Context ctx, uint8_t* base);
 bool adxTest = false;
 FileHandle* XCreateFile_r(const char* SourceString, ULONG CreateDisposition, ULONG ShareAccess, int a4, int mode, unsigned int a6, int a7)
 {
@@ -123,13 +123,14 @@ FileHandle* XCreateFile_r(const char* SourceString, ULONG CreateDisposition, ULO
 	if (filePath.string().find("Op.sfd") != std::string::npos)
 	{
 		adxTest = true;
+		std::ofstream outFile("adxsjd_decode_exec.txt", std::ios::app);
+		outFile << '\n' << "LOADED OP.SFD" << '\n';
 		printf("op file loaded\n");
 	}
 	else
 	{
-		if (filePath.string().find("PRS_VOICE_E") != std::string::npos)
+		if (filePath.string().find("sng_sys01.adx") != std::string::npos)
 		{
-			
 			printf("song loaded\n");
 		}
 	}
@@ -306,10 +307,8 @@ uint32_t XWriteFile_r(FileHandle* hFile, const void* lpBuffer, uint32_t nNumberO
 	return TRUE;
 }
 
-
 FindHandle* XFindFirstFile(const char* lpFileName, WIN32_FIND_DATAA* lpFindFileData)
 {
-	printf("XFindFirstFile: %s\n", lpFileName);
 	std::string_view originalPath = lpFileName;
 
 	// First, resolve the Xbox path to PC path before processing wildcards
@@ -375,7 +374,6 @@ FindHandle* XFindFirstFile(const char* lpFileName, WIN32_FIND_DATAA* lpFindFileD
 		}
 		else
 		{
-			// File doesn't exist
 			printf("XFindFirstFile: File not found: %s (resolved to %s)\n",
 				lpFileName, resolvedPathStr.c_str());
 			return GetInvalidKernelObject<FindHandle>();

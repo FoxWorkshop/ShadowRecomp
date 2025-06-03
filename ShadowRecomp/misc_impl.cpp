@@ -1,5 +1,6 @@
 #include "stdafx.h"
 #include <kernel/function.h>
+#include <string>
 
 uint32_t GetKeTickCountImpl()
 {
@@ -29,6 +30,8 @@ const char* strstr_(const char* src, const char* subStr)
 
 int strcmp_(const char* Str1, const char* Str2)
 {
+
+    //printf("strcmp Str1: %s, Str2: %s\n", Str1, Str2);
     return strcmp(Str1, Str2);
 }
 

@@ -7,6 +7,7 @@
 #include <file.h>
 #include <image.h>
 #include <kernel/io/file_system.h>
+#include <audio/audio.h>
 
 #include <xbe.h>
 #ifdef _WIN32
@@ -94,6 +95,7 @@ void HostStartup()
 
     input::Init();
     g_userHeap.Init();
+    XAudioRegisterClient();
 }
 
 int main(int argc, char* argv[])

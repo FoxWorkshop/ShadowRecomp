@@ -71,7 +71,7 @@ X86_FUNC(sub_2DD620)
 	// sub esp, 0x18
 	auto temp_2DD620_U32 = ctx.esp.u32;
 	ctx.esp.u32 -= 0x18u;
-	ctx.eflags.update_flags_sub(temp_2DD620_U32, 0x18u, ctx.esp.u32);
+	ctx.eflags.update_flags_sub_U32(temp_2DD620_U32, 0x18u, ctx.esp.u32);
 	// push ebx
 	X86_PUSH(ctx, base, ctx.ebx.u32);
 	// mov ebx, [eax]
@@ -117,7 +117,7 @@ X86_FUNC(sub_2DD620)
 	// add esp, 0x18
 	auto temp_2DD646_U32 = ctx.esp.u32;
 	ctx.esp.u32 += 0x18u;
-	ctx.eflags.update_flags_add(temp_2DD646_U32, 0x18u, ctx.esp.u32);
+	ctx.eflags.update_flags_add_U32(temp_2DD646_U32, 0x18u, ctx.esp.u32);
 	// ret
 	ctx.esp.u32 += 0x4;  //Adjust stack pointer
 	return;
@@ -134,7 +134,7 @@ loc_2DD64A:
 	// add esp, 0x08
 	auto temp_2DD65B_U32 = ctx.esp.u32;
 	ctx.esp.u32 += 0x8u;
-	ctx.eflags.update_flags_add(temp_2DD65B_U32, 0x8u, ctx.esp.u32);
+	ctx.eflags.update_flags_add_U32(temp_2DD65B_U32, 0x8u, ctx.esp.u32);
 	// push 0x00
 	X86_PUSH(ctx, base, 0x0);
 	// call 0x003DD8B0
@@ -228,7 +228,7 @@ loc_2DD725:
 	// add esp, 0x18
 	auto temp_2DD734_U32 = ctx.esp.u32;
 	ctx.esp.u32 += 0x18u;
-	ctx.eflags.update_flags_add(temp_2DD734_U32, 0x18u, ctx.esp.u32);
+	ctx.eflags.update_flags_add_U32(temp_2DD734_U32, 0x18u, ctx.esp.u32);
 	// ret
 	ctx.esp.u32 += 0x4;  //Adjust stack pointer
 	return;
@@ -241,7 +241,7 @@ loc_2DD738:
 	// add esp, 0x04
 	auto temp_2DD742_U32 = ctx.esp.u32;
 	ctx.esp.u32 += 0x4u;
-	ctx.eflags.update_flags_add(temp_2DD742_U32, 0x4u, ctx.esp.u32);
+	ctx.eflags.update_flags_add_U32(temp_2DD742_U32, 0x4u, ctx.esp.u32);
 loc_2DD745:
 	// mov eax, [0x0057DD58]
 	ctx.eax.u32 = X86_LOAD_U32(5758296);
@@ -275,7 +275,7 @@ loc_2DD777:
 	X86_STORE_U32(5758344, 0x20u);
 loc_2DD781:
 	// stmxcsr [esp+0x0C]
-	//MISSING INSTRUCTION HERE TODO ADD
+	X86_STORE_U32(ctx.esp.u32 + 12, ctx.mxcsr);
 	// mov eax, [esp+0x0C]
 	ctx.eax.u32 = X86_LOAD_U32(ctx.esp.u32 + 12);
 	// or eax, 0x8000
@@ -286,7 +286,7 @@ loc_2DD781:
 	// mov [esp+0x08], eax
 	X86_STORE_U32(ctx.esp.u32 + 8, ctx.eax.u32);
 	// ldmxcsr [esp+0x08]
-	//MISSING INSTRUCTION HERE TODO ADD
+	ctx.mxcsr = X86_LOAD_U32(ctx.esp.u32 + 8);
 	// pop edi
 	ctx.edi.u32 = X86_POP(ctx, base);
 	// mov eax, 0x01
@@ -296,7 +296,7 @@ loc_2DD781:
 	// add esp, 0x18
 	auto temp_2DD7A0_U32 = ctx.esp.u32;
 	ctx.esp.u32 += 0x18u;
-	ctx.eflags.update_flags_add(temp_2DD7A0_U32, 0x18u, ctx.esp.u32);
+	ctx.eflags.update_flags_add_U32(temp_2DD7A0_U32, 0x18u, ctx.esp.u32);
 	// ret
 	ctx.esp.u32 += 0x4;  //Adjust stack pointer
 	return;
@@ -612,7 +612,6 @@ X86_FUNC(sub_1575C0)
 
 
 
-
 unsigned int D3DDevice_DrawIndexedVertices(__int32 a1, unsigned int a2, __int32* a3)
 {
 	return 0;
@@ -622,6 +621,87 @@ DWORD* D3DDevice_DrawVertices(int a1, int a2, unsigned int a3)
 {
 	return 0;
 }
+
+
+
+X86_FUNC_IMPL(__imp__sub_3427C0);
+X86_FUNC(sub_3427C0)
+{
+	__imp__sub_3427C0(ctx, base);
+	ctx.esp.u32 -= 4;
+	uint32_t esp = X86_LOAD_U32(ctx.esp.u32 + 12);
+	auto ptrData = *reinterpret_cast<uint32_t*>(base + esp);
+	//printf("sub_3427C0 ptr data %d\n", ptrData);
+	ctx.esp.u32 += 4;
+}
+
+
+/**X86_FUNC_IMPL(__imp__sub_34D580);
+BOOL __cdecl sub_34D580_r(int a1, int a2)
+{
+	auto base = g_memory.base;
+	auto ctx = *GetX86Context();
+	__imp__sub_34D580(ctx, base);
+
+
+	ctx.esp.u32 -= 4;
+	return ctx.eax.u32;
+}
+
+GUEST_FUNCTION_HOOK(sub_34D580, sub_34D580_r);*/
+
+X86_FUNC_IMPL(__imp__sub_342120);
+X86_FUNC(sub_342120)
+{
+	__imp__sub_342120(ctx, base);
+	printf("sub_342120 res %d\n", ctx.eax.u32);
+}
+
+X86_FUNC_IMPL(__imp__sub_34C7E0);
+X86_FUNC(sub_34C7E0)
+{
+	__imp__sub_34C7E0(ctx, base);
+	printf("sub_34C7E0 res %d\n", ctx.eax.u32);
+}
+
+X86_FUNC_IMPL(__imp__sub_34C760);
+X86_FUNC(sub_34C760)
+{
+	__imp__sub_34C760(ctx, base);
+	printf("sub_34C760 res %d\n", ctx.eax.u32);
+}
+
+X86_FUNC_IMPL(__imp__sub_34CBA0);
+X86_FUNC(sub_34CBA0)
+{
+	__imp__sub_34CBA0(ctx, base);
+	printf("usercall sub_34CBA0 res %d\n", ctx.eax.u32);
+}
+
+X86_FUNC_IMPL(__imp__sub_24F60);
+X86_FUNC(sub_24F60)
+{
+	__imp__sub_24F60(ctx, base);
+	printf("DESTRUCTOR MOVIE\n", ctx.eax.u32);
+}
+
+float* updateTime = nullptr;
+double getCurrentTime(float* this_)
+{
+	printf("Current Time %f\n", this_[29]);
+	updateTime = &this_[29];
+	updateTime = updateTime;
+	return this_[29];
+}
+
+double getTimerGoalMaybe(float* this_)
+{
+	printf("Time goal %f\n", this_[33]);
+	return this_[33];
+}
+
+//GUEST_FUNCTION_HOOK_THISCALL(sub_2BB140, getCurrentTime);
+//GUEST_FUNCTION_HOOK_THISCALL(sub_2BB1C0, getTimerGoalMaybe);
 
 GUEST_FUNCTION_HOOK_STDCALL(sub_3DC1F0, D3DDevice_DrawIndexedVertices);
 GUEST_FUNCTION_HOOK_STDCALL(sub_3DC150, D3DDevice_DrawVertices);

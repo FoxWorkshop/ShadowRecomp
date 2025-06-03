@@ -20,6 +20,16 @@ enum CallConvention
 	Stdcall,
 	Fastcall,
 	Thiscall,
+    Usercall,
+    Userpurge
+};
+
+enum Register
+{
+    rEAX,
+    rEBX,
+    rECX,
+    rEDX,
 };
 
 template <typename R, typename... T>

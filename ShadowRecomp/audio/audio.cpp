@@ -5,7 +5,16 @@
 #include <kernel/kernel.h>
 #include <iostream>
 #include <filesystem>
-#include <iostream>
+
+
+void PlayMusic(const char* filename)
+{
+	/**VGMSTREAM* vgmstream = init_vgmstream(filename);
+
+	if (!vgmstream) {
+		printf("Failed to load ADX file: %s\n", filename);
+	}*/
+}
 
 void* unknownSoundPtr = nullptr;
 uint8_t* ppDS = nullptr;
@@ -78,15 +87,68 @@ HRESULT DirectSoundCreate_r(LPCGUID pcGuidDevice, uint32_t* ppDS_, LPUNKNOWN pUn
 	return 0;
 }
 
+GUEST_FUNCTION_HOOK(sub_3E5A27, DirectSoundCreate_r);
 
-GUEST_FUNCTION_HOOK_THISCALL(sub_3E7516, sub_3E7516_r);
-GUEST_FUNCTION_HOOK_THISCALL(sub_3E8B60, sub_3E7516_r);
-GUEST_FUNCTION_HOOK_THISCALL(sub_3EA05B, sub_3E7516_r);
-GUEST_FUNCTION_HOOK_THISCALL(sub_3E3885, sub_3E7516_r);
-GUEST_FUNCTION_HOOK_STDCALL(sub_3E5881, sub_3E5881_r);
-GUEST_FUNCTION_HOOK_THISCALL(sub_3E353C, sub_3E353C_r);
+int sub_3EBA02_r(int a1)
+{
+	return 1;
+}
 
-GUEST_FUNCTION_HOOK_STDCALL(sub_3E4105, IDirectSound_DownloadEffectsImage);
-GUEST_FUNCTION_HOOK_STDCALL(sub_3E5A27, DirectSoundCreate_r);
+int sub_3EBAFA_r(char* a1)
+{
+	return 1;
+}
 
-GUEST_FUNCTION_HOOK_STDCALL(sub_3E5A6E, DSound_CMemoryManager_PoolAlloc);
+int sub_3E8B60_r(int a1)
+{
+	return 0;
+}
+
+
+int CDirectSound_DownloadEffectsImage_r(int a1, DWORD* a2, int a3, int a4, DWORD* a5)
+{
+	return 0;
+}
+
+int CMcpxAPU_ServiceDeferredCommandsLow(int this_)
+{
+	return 0;
+}
+
+
+
+X86_FUNC_IMPL(__imp__sub_3356C0);
+X86_FUNC(sub_3356C0)
+{
+	__imp__sub_3356C0(ctx, base);
+}
+
+X86_FUNC_IMPL(__imp__sub_335090);
+X86_FUNC(sub_335090)
+{
+	__imp__sub_335090(ctx, base);
+}
+
+void* sub_3E5ACD_r(int a1, int a2, int a3, int a4)
+{
+	return 0;
+}
+
+int  sub_3E6D68_r(void** this_)
+{
+	return 0;
+}
+
+GUEST_FUNCTION_HOOK_STDCALL(sub_3EBA02, sub_3EBA02_r);
+GUEST_FUNCTION_HOOK_STDCALL(sub_3EB429, sub_3EBA02_r);
+GUEST_FUNCTION_HOOK_STDCALL(sub_3EB460, sub_3EBA02_r);
+GUEST_FUNCTION_HOOK_STDCALL(sub_3EB4F2, sub_3EBA02_r);
+GUEST_FUNCTION_HOOK_STDCALL(sub_3EB497, sub_3EBA02_r);
+GUEST_FUNCTION_HOOK_THISCALL(sub_3EBAFA, sub_3EBAFA_r);
+GUEST_FUNCTION_HOOK_STDCALL(sub_3E5ACD, sub_3E5ACD_r);
+//GUEST_FUNCTION_HOOK_THISCALL(sub_3E7516, sub_3E7516_r);
+//GUEST_FUNCTION_HOOK_THISCALL(sub_3E8B60, sub_3E8B60_r);
+GUEST_FUNCTION_HOOK_THISCALL(sub_3E6D68, sub_3E6D68_r);
+GUEST_FUNCTION_HOOK_STDCALL(sub_3E35B5, CDirectSound_DownloadEffectsImage_r);
+//GUEST_FUNCTION_HOOK_THISCALL(sub_3E6FA8, CMcpxAPU_ServiceDeferredCommandsLow);
+
