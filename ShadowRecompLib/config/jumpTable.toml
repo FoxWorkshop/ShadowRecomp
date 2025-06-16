@@ -722,6 +722,19 @@ labels = [
 	0x2C056E,
 ]
 
+[[switch]]
+base = 0x2E19A2
+r = 5
+default = 0x2E1A68
+end = 0x2E1A7C
+labels = [
+	0x2E19D9,
+	0x2E19F7,
+	0x2E19A9,
+	0x2E19CE,
+	0x2E19C3,
+]
+
 # ---- ABSOLUTE JUMPTABLE ----
 
 [[switch]]

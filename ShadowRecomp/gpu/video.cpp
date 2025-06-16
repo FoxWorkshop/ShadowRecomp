@@ -700,6 +700,21 @@ double getTimerGoalMaybe(float* this_)
 	return this_[33];
 }
 
+unsigned int D3DVertexBuffer_Lock2(int a1, char a2)
+{
+	return 0;
+}
+
+GUEST_FUNCTION_HOOK_STDCALL(sub_3D5FE0, D3DVertexBuffer_Lock2);
+
+
+int sub_2F0CF0_r()
+{
+	return 0;
+}
+
+GUEST_FUNCTION_HOOK_STDCALL(sub_2F0CF0, sub_2F0CF0_r);
+
 //GUEST_FUNCTION_HOOK_THISCALL(sub_2BB140, getCurrentTime);
 //GUEST_FUNCTION_HOOK_THISCALL(sub_2BB1C0, getTimerGoalMaybe);
 

@@ -193,9 +193,9 @@ uint32_t DbgPrint(PCHAR Format, ...) {
 	return result;
 }
 
-void ExFreePool()
+void ExFreePool(void* ptr)
 {
-	LOG_UTIL("!!! STUB !!!");
+	g_userHeap.Free(g_memory.Translate(reinterpret_cast<uint32_t>(ptr)));
 }
 
 void* ExAllocatePoolWithTag
@@ -205,7 +205,7 @@ void* ExAllocatePoolWithTag
 )
 {
 	void* ptr = reinterpret_cast<PVOID>(g_memory.MapVirtual(g_userHeap.Alloc(NumberOfBytes > 0 ? NumberOfBytes : 1)));
-	printf("Allocated dummy ptr: %p\n", ptr);
+	printf("ExAllocatePoolWithTag ptr: %p\n", ptr);
 	return ptr;
 }
 
@@ -792,7 +792,7 @@ LONG NtOpenFile(
 	// Reuse NtCreateFile logic
 	//_LARGE_INTEGER t;
 	//memset(&t, 0, sizeof(_LARGE_INTEGER));
-	return NtCreateFile(FileHandle, DesiredAccess, ObjectAttributes_, IoStatusBlock_, 0, ShareAccess, FILE_OPEN, OpenOptions, NULL);
+	return -1; // NtCreateFile(FileHandle, DesiredAccess, ObjectAttributes_, IoStatusBlock_, 0, ShareAccess, FILE_OPEN, OpenOptions, NULL);
 }
 
 LONG NtOpenSymbolicLinkObject(OUT PHANDLE LinkHandle, IN void* ObjectAttributes
@@ -1102,20 +1102,6 @@ LONG ObReferenceObjectByHandle(uint32_t Handle, uint32_t ObjectType, uint32_t* O
 void ObfDereferenceObject(PVOID Object) {
 	// No-op
 }
-
-typedef struct _XRTL_CRITICAL_SECTION
-{
-	XDISPATCHER_HEADER   Event;
-	long_xt             LockCount;
-	long_xt             RecursionCount;
-	uint32_t           OwningThread;
-} XRTL_CRITICAL_SECTION;
-
-typedef struct _XANSI_STRING {
-	uint16_t Length;
-	uint16_t MaximumLength;
-	xpointer<char> Buffer;
-} XANSI_STRING;
 
 void RtlInitializeCriticalSection(XRTL_CRITICAL_SECTION* CritSec)
 {
