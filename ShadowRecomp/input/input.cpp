@@ -135,7 +135,6 @@ public:
 
     }
 
-
     void SetLED(const uint8_t r, const uint8_t g, const uint8_t b) const
     {
         SDL_GameControllerSetLED(controller, r, g, b);
@@ -299,6 +298,7 @@ int Input_OnSDLEvent(void*, SDL_Event* event)
 
 void input::Init()
 {
+
     SDL_SetHint(SDL_HINT_JOYSTICK_ALLOW_BACKGROUND_EVENTS, "1");
     SDL_SetHint(SDL_HINT_JOYSTICK_HIDAPI_GAMECUBE, "1");
     SDL_SetHint(SDL_HINT_JOYSTICK_HIDAPI_PS3, "1");
@@ -309,13 +309,14 @@ void input::Init()
     SDL_SetHint(SDL_HINT_JOYSTICK_HIDAPI_PS5_RUMBLE, "1");
     SDL_SetHint(SDL_HINT_JOYSTICK_HIDAPI_WII, "1");
     SDL_SetHint(SDL_HINT_XINPUT_ENABLED, "1");
-
+    SDL_SetHint(SDL_HINT_JOYSTICK_THREAD, "1");
     SDL_SetHint(SDL_HINT_GAMECONTROLLER_USE_BUTTON_LABELS, "0"); // Uses Button Labels. This hint is disabled for Nintendo Controllers.
 
     SDL_InitSubSystem(SDL_INIT_EVENTS);
     SDL_AddEventWatch(Input_OnSDLEvent, nullptr);
 
-    SDL_InitSubSystem(SDL_INIT_GAMECONTROLLER);
+   SDL_Init(SDL_INIT_JOYSTICK | SDL_INIT_GAMECONTROLLER);
+
 }
 
 uint32_t input::GetState(uint32_t dwUserIndex, XINPUT_STATE* pState)
@@ -335,14 +336,12 @@ uint32_t input::GetState(uint32_t dwUserIndex, XINPUT_STATE* pState)
     SDL_ShowCursor(SDL_DISABLE);
     SetControllerInputDevice(g_activeController);
 
-    //g_activeController->Poll(); //added to do figure out a better way
-    //g_activeController->state.wButtons |= XINPUT_GAMEPAD_START;
-
+   // g_activeController->Poll();        // Poll buttons
+    //g_activeController->PollAxis();    // Poll axes
     pState->Gamepad = g_activeController->state;
 
     return ERROR_SUCCESS;
 }
-
 
 
 uint32_t input::SetState(uint32_t dwUserIndex, _XINPUT_VIBRATION* pVibration)
@@ -424,6 +423,7 @@ HANDLE XInputOpen(int* a1, int a2)
     }
     return 0;
 }
+
 
 
 GUEST_FUNCTION_HOOK_STDCALL(sub_4248A6, input::GetState);
