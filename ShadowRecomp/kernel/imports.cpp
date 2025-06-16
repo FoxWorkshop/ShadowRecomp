@@ -13,7 +13,9 @@
 #include "kernel.h"
 #include <util.h>
 
-
+#define MMIO_BASE  0xFE800000
+#define MMIO_SIZE  0x00800000 
+uint8_t g_mmio[MMIO_SIZE];  // Global/shared MMIO region
 
 static std::atomic<uint32_t> g_keSetEventGeneration;
 constexpr uint32_t GPU_ALIGNMENT = 4096;
@@ -407,15 +409,7 @@ void KeInitializeInterrupt(uint32_t* Interrupt_, uint32_t* ServiceRoutine_,
 	uint32_t* ServiceContext, ULONG Vector, std::uint8_t Irql,
 	uint32_t InterruptMode_, BOOLEAN ShareVector)
 {
-	/**xbox::KINTERRUPT_MODE InterruptMode = (xbox::KINTERRUPT_MODE)InterruptMode_;
-	xbox::PKSERVICE_ROUTINE ServiceRoutine = (xbox::PKSERVICE_ROUTINE)ServiceRoutine_;
-	xbox::PKINTERRUPT Interrupt = (xbox::PKINTERRUPT)Interrupt_;
-	Interrupt->ServiceRoutine = ServiceRoutine;
-	Interrupt->ServiceContext = ServiceContext;
-	Interrupt->BusInterruptLevel = VECTOR2IRQ(Vector);
-	Interrupt->Irql = Irql;
-	Interrupt->Connected = FALSE;
-	Interrupt->Mode = InterruptMode;*/
+	memset(Interrupt_, 0, 0x20);
 
 	printf("[STUB] KeInitializeInterrupt(Vector 0x%X, Irql %d)\n", Vector, Irql);
 }
@@ -454,7 +448,7 @@ std::uint8_t KeConnectInterrupt(uint32_t* Interrupt_)
 {
 	xbox::PKINTERRUPT Interrupt = (xbox::PKINTERRUPT)Interrupt;
 	printf("[STUB] KeConnectInterrupt(%p)\n", Interrupt);
-	return X_STATUS_SUCCESS;
+	return TRUE;
 }
 
 std::uint8_t KeCancelTimer(uint32_t* Timer_)
@@ -514,7 +508,7 @@ uint32_t SaveArea;
 int32_t KeRestoreFloatingPointState(uint32_t* SaveArea_)
 {
 	SaveArea_ = &SaveArea;
-	printf("[STUB] KeRestoreFloatingPointState(%p)\n", SaveArea);
+	//printf("[STUB] KeRestoreFloatingPointState(%p)\n", SaveArea);
 	LONG ret = X_STATUS_SUCCESS;
 	return ret;
 }
@@ -522,7 +516,7 @@ int32_t KeRestoreFloatingPointState(uint32_t* SaveArea_)
 LONG KeSaveFloatingPointState(uint32_t* SaveArea_)
 {
 	SaveArea = *SaveArea_;
-	printf("[STUB] KeSaveFloatingPointState(%p)\n", SaveArea);
+	//printf("[STUB] KeSaveFloatingPointState(%p)\n", SaveArea);
 	return X_STATUS_SUCCESS;
 }
 
@@ -541,7 +535,8 @@ int map_xbox_priority(int xbox_priority) {
 		return THREAD_PRIORITY_NORMAL;
 	}
 }
-
+static bool once = false;
+extern int adxm_vsyncThread;
 std::int32_t KeSetBasePriorityThread(GuestThreadHandle* hThread, LONG priority)
 {
 #ifdef _WIN32
@@ -553,8 +548,18 @@ std::int32_t KeSetBasePriorityThread(GuestThreadHandle* hThread, LONG priority)
 	{
 		priority = -15;
 	}
+	else if (priority == 8)
+	{
+		priority = THREAD_PRIORITY_NORMAL;
+	}
 
-	SetThreadPriority(hThread == GetKernelObject(CURRENT_THREAD_HANDLE) ? GetCurrentThread() : hThread->thread.native_handle(), priority);
+
+	//SetThreadPriority(hThread == GetKernelObject(CURRENT_THREAD_HANDLE) ? GetCurrentThread() : hThread->thread.native_handle(), priority);
+
+	if (!SetThreadPriority(hThread == GetKernelObject(CURRENT_THREAD_HANDLE) ? GetCurrentThread() : hThread->thread.native_handle(), priority)) 
+	{
+		printf("Failed to set priority: %d\n", GetLastError());
+	}
 #endif
 
 	return priority;
@@ -587,7 +592,7 @@ BOOLEAN KeSetTimer(uint32_t* Dpc, uint32_t* DueTime, uint32_t* Timer)
 
 VOID KeStallExecutionProcessor(ULONG Microseconds)
 {
-	printf("[STUB] KeStallExecutionProcessor(%u)\n", Microseconds);
+	//printf("[STUB] KeStallExecutionProcessor(%u)\n", Microseconds);
 }
 
 BOOLEAN KeSynchronizeExecution(uint32_t* Interrupt_, uint32_t* SynchronizeRoutine_, uint32_t SynchronizeContext)
@@ -620,7 +625,7 @@ LONG KeWaitForSingleObject(XDISPATCHER_HEADER* Object, uint32_t WaitReason, uint
 std::uint8_t KfRaiseIrql(std::uint8_t NewIrql)
 {
 	std::uint8_t old = PASSIVE_LEVEL;
-	printf("[STUB] KfRaiseIrql(%d) -> %d\n", NewIrql, old);
+	//printf("[STUB] KfRaiseIrql(%d) -> %d\n", NewIrql, old);
 	return old; // Return previous IRQL
 }
 
@@ -940,7 +945,7 @@ LONG MmQueryAddressProtect(uint32_t* BaseAddress, uint32_t* Protect)
 
 SIZE_T MmQueryAllocationSize(uint32_t* BaseAddress)
 {
-	return g_userHeap.Size(&BaseAddress);
+	return g_userHeap.Size(BaseAddress);
 }
 
 LONG MmSetAddressProtect(uint32_t* BaseAddress, SIZE_T NumberOfBytes, ULONG NewProtect)
@@ -1066,7 +1071,7 @@ LONG PsCreateSystemThreadEx(
 	IN  boolean_xt         DebuggerThread,
 	IN  uint32_t SystemRoutine OPTIONAL)
 {
-
+	
 	if (KernelStackSize < KERNEL_STACK_SIZE)
 		KernelStackSize = KERNEL_STACK_SIZE;
 

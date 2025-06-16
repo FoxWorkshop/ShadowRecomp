@@ -6,16 +6,6 @@
 #include <iostream>
 #include <filesystem>
 
-
-void PlayMusic(const char* filename)
-{
-	/**VGMSTREAM* vgmstream = init_vgmstream(filename);
-
-	if (!vgmstream) {
-		printf("Failed to load ADX file: %s\n", filename);
-	}*/
-}
-
 void* unknownSoundPtr = nullptr;
 uint8_t* ppDS = nullptr;
 
@@ -41,114 +31,425 @@ uint32_t DSound_CMemoryManager_PoolAlloc(int tag, int NumberOfBytes, int a3)
 	return content;
 }
 
-int sub_3E7516_r(DWORD* this_)
-{
-	return 0;
-}
-
 void FreeAudioPtrs()
 {
 	g_userHeap.Free(unknownSoundPtr);
 }
 
-int sub_3E5881_r(DWORD* a1)
+
+//trick the game to make it think hardware audio is ready
+X86_FUNC_IMPL(__imp__sub_3EAFBA);
+X86_FUNC(sub_3EAFBA)
 {
-	return 0;
+	g_mmio[131088] = 0x20;
+	__imp__sub_3EAFBA(ctx, base);
 }
 
-int sub_3E353C_r(DWORD* this_, DWORD* a2)
+//same as above
+X86_FUNC_IMPL(__imp__sub_3EBC18);
+X86_FUNC(sub_3EBC18)
 {
-	auto ctx = GetX86Context();
-	ctx->esp.u32 += 4;
-	return 0;
+	g_mmio[4194604] |= 2;
+	*(uint32_t*)&g_mmio[4194608] |= 0x100;
+	__imp__sub_3EBC18(ctx, base);
 }
 
-int IDirectSound_DownloadEffectsImage(int a1, DWORD* a2, int a3, int a4, DWORD* a5)
+//same as above
+X86_FUNC_IMPL(__imp__sub_3E8B60);
+X86_FUNC(sub_3E8B60)
 {
-	return 0;
+	*(uint32_t*)&g_mmio[131088] = 0x80;
+	__imp__sub_3E8B60(ctx, base);
 }
 
-HRESULT DirectSoundCreate_r(LPCGUID pcGuidDevice, uint32_t* ppDS_, LPUNKNOWN pUnkOuter)
+uint32_t fakeOffset = 0;
+const uint32_t bufferSize = 0x10000; 
+
+X86_FUNC_IMPL(__imp__sub_3E763F);
+X86_FUNC(sub_3E763F)
 {
-	/**auto base = g_memory.base;
-	ppDS = (uint8_t*)g_userHeap.AllocPhysical(0x24A0, 1);
-	*(uint32_t*)(ppDS + 8) = g_memory.MapVirtual(g_userHeap.Alloc(0x200));
-	*(uint32_t*)(ppDS + 56) = g_memory.MapVirtual(g_userHeap.Alloc(0x200));
-	*(uint32_t*)(ppDS + 8 + 56) = g_memory.MapVirtual(g_userHeap.Alloc(0x200));
-	auto map = g_memory.MapVirtual(ppDS);
+	auto this_ = (uint32_t*)(base + ctx.ecx.u32);
+	auto a2 = X86_LOAD_U32(ctx.esp.u32 + 4);
+
+	/**printf("voiceConfig = 0x%08X\n", (base + this_[28]));
+	printf("formatCode = %d\n", *(WORD*)(base + this_[28] + 12));
+	printf("multiplier = %d\n", *(DWORD*)(base + this_[28] + 20));
+	printf("a2 = %d\n", a2);*/
+
+	std::ofstream  outFile2("ADXB_EvokeDecode.txt", std::ios::app);
+	outFile2 << "===(sub_3E763F==" << '\n';
+	outFile2 << "a2 " << std::hex <<  a2 << '\n';
+	outFile2 << "this + 12 " << X86_LOAD_U32(uint32_t(this_ + 12)) << '\n';
+	outFile2 << "this + 12 << 7 " << X86_LOAD_U32(uint32_t(this_ + 12) << 7) << '\n';
+	outFile2 << "dword_3FF920 + 0x58 " << X86_LOAD_U32(uint32_t(0x3FF920 + 0x58)) << '\n';
+
+	outFile2 << '\n';
+	outFile2.close();
+
+	__imp__sub_3E763F(ctx, base);
 
 
-	//*ppDS_ = map;
-	*ppDS_ = map;
-
-	auto map2 = g_memory.MapVirtual(g_userHeap.AllocPhysical(0x200, 1));
-	X86_STORE_U32(0x550310, map);
-	auto res = X86_LOAD_U32(0x550310);*/
-	return 0;
+	if (!ctx.eax.u32)
+	{
+		//uint32_t increment = 0x4000 + (rand() % 0x1000); 
+		fakeOffset += 0x1000; //(fakeOffset + increment) % bufferSize;
+		ctx.eax.u32 = fakeOffset;
+	}
 }
 
-GUEST_FUNCTION_HOOK(sub_3E5A27, DirectSoundCreate_r);
-
-int sub_3EBA02_r(int a1)
+//this function wait for a xbox hardware signal, we remove the check with this hook.
+X86_FUNC(sub_3E65E6)
 {
-	return 1;
+	uint32_t valUint320 = 0;
+
+	// push ebp
+	X86_PUSH(ctx, base, ctx.ebp.u32);
+	// mov ebp, esp
+	ctx.ebp.u32 = ctx.esp.u32;
+	// sub esp, 0x1C
+	auto temp_3E65E9_U32_OLD = ctx.esp.u32;
+	auto temp_3E65E9_U32_SRC = 28;
+	ctx.esp.u32 = temp_3E65E9_U32_OLD - temp_3E65E9_U32_SRC;
+	ctx.eflags.update_flags_sub_U32(temp_3E65E9_U32_OLD, temp_3E65E9_U32_SRC, ctx.esp.u32);
+	// push ebx
+	X86_PUSH(ctx, base, ctx.ebx.u32);
+	// push esi
+	X86_PUSH(ctx, base, ctx.esi.u32);
+	// push edi
+	X86_PUSH(ctx, base, ctx.edi.u32);
+	// mov edi, ecx
+	ctx.edi.u32 = ctx.ecx.u32;
+	// mov eax, [edi+0x08]
+	ctx.eax.u32 = X86_LOAD_U32(ctx.edi.u32 + 8);
+	// mov eax, [eax+0x10]
+	ctx.eax.u32 = X86_LOAD_U32(ctx.eax.u32 + 16);
+	// mov ebx, [eax]
+	ctx.ebx.u32 = X86_LOAD_U32(ctx.eax.u32);
+	// mov eax, [ebx+0x80C]
+	ctx.eax.u32 = X86_LOAD_U32(ctx.ebx.u32 + 2060);
+	// add eax, [ebx+0x804]
+	auto temp_3E65FF_U32_OLD = ctx.eax.u32;
+	auto temp_3E65FF_U32_SRC = X86_LOAD_U32(ctx.ebx.u32 + 2052);
+	ctx.eax.u32 = temp_3E65FF_U32_OLD + temp_3E65FF_U32_SRC;
+	ctx.eflags.update_flags_add_U32(temp_3E65FF_U32_OLD, temp_3E65FF_U32_SRC, ctx.eax.u32);
+	// mov ecx, [edi+0x20]
+	ctx.ecx.u32 = X86_LOAD_U32(ctx.edi.u32 + 32);
+	// lea esi, [ebx+eax*4+0x818]
+	ctx.esi.u32 = ctx.ebx.u32 + ctx.eax.u32 * 4 + 2072;
+	// mov eax, [esi]
+	ctx.eax.u32 = X86_LOAD_U32(ctx.esi.u32);
+	// dec eax
+	auto temp_3E6611_U32 = ctx.eax.u32;
+	ctx.eax.u32--;
+	ctx.eflags.update_flags_dec_U32(temp_3E6611_U32, ctx.eax.u32);
+	// shl eax, 0x05
+	auto temp_4089362 = ctx.eax.u32;
+	ctx.eax.u32 <<= 5;
+	ctx.eflags.update_flags_shl(temp_4089362, 5, ctx.eax.u32);
+	// add eax, 0x28
+	auto temp_3E6615_U32_OLD = ctx.eax.u32;
+	auto temp_3E6615_U32_SRC = 40;
+	ctx.eax.u32 = temp_3E6615_U32_OLD + temp_3E6615_U32_SRC;
+	ctx.eflags.update_flags_add_U32(temp_3E6615_U32_OLD, temp_3E6615_U32_SRC, ctx.eax.u32);
+	// test ecx, ecx
+	ctx.eflags.update_test_flags(ctx.ecx.u32 & ctx.ecx.u32);
+	// mov [ebp-0x14], edi
+	X86_STORE_U32(ctx.ebp.u32 - 20, ctx.edi.u32);
+	// mov [ebp-0x10], eax
+	X86_STORE_U32(ctx.ebp.u32 - 16, ctx.eax.u32);
+	// jz 0x003E662F
+	if ((ctx.eflags.value & X86EFlags::ZF) != 0) goto loc_3E662F;
+	// push ecx
+	X86_PUSH(ctx, base, ctx.ecx.u32);
+	// call 0x003E5B9C
+	ctx.esp.u32 -= 0x4; //Adjust stack pointer for call instruction
+	sub_3E5B9C(ctx, base);
+	// and dword ptr [edi+0x20], 0x00
+	auto temp_3E6628_U32 = X86_LOAD_U32(ctx.edi.u32 + 32);
+	temp_3E6628_U32 &= 0x0;
+	X86_STORE_U32(ctx.edi.u32 + 32, temp_3E6628_U32);
+	ctx.eflags.update_flags_logic(temp_3E6628_U32);
+	// mov eax, [ebp-0x10]
+	ctx.eax.u32 = X86_LOAD_U32(ctx.ebp.u32 - 16);
+loc_3E662F:
+	// push 0x01
+	X86_PUSH(ctx, base, 0x1);
+	// push eax
+	X86_PUSH(ctx, base, ctx.eax.u32);
+	// push 0x626F5344
+	X86_PUSH(ctx, base, 0x626F5344);
+	// call 0x003E5B34
+	ctx.esp.u32 -= 0x4; //Adjust stack pointer for call instruction
+	sub_3E5B34(ctx, base);
+	// test eax, eax
+	ctx.eflags.update_test_flags(ctx.eax.u32 & ctx.eax.u32);
+	// mov [edi+0x20], eax
+	X86_STORE_U32(ctx.edi.u32 + 32, ctx.eax.u32);
+	// jnz 0x003E664D
+	if ((ctx.eflags.value & X86EFlags::ZF) == 0) goto loc_3E664D;
+	// mov eax, 0x8007000E
+	ctx.eax.u32 = 0x8007000Eu;
+	// jmp 0x003E6754
+	goto loc_3E6754;
+loc_3E664D:
+	// push [esi+0x04]
+	X86_PUSH(ctx, base, X86_LOAD_U32(ctx.esi.u32 + 4));
+	// mov ecx, [edi+0x08]
+	ctx.ecx.u32 = X86_LOAD_U32(ctx.edi.u32 + 8);
+	// call 0x003EAD6D
+	ctx.esp.u32 -= 0x4; //Adjust stack pointer for call instruction
+	sub_3EAD6D(ctx, base);
+	// test eax, eax
+	ctx.eflags.update_test_flags(ctx.eax.u32 & ctx.eax.u32);
+	// jl 0x003E6754
+	if ((((ctx.eflags.value & X86EFlags::SF) != 0) != ((ctx.eflags.value & X86EFlags::OF) != 0))) goto loc_3E6754;
+	// lea eax, [ebx+0x818]
+	ctx.eax.u32 = ctx.ebx.u32 + 2072;
+	// mov [ebp-0x04], eax
+	X86_STORE_U32(ctx.ebp.u32 - 4, ctx.eax.u32);
+	// mov eax, [ebp-0x10]
+	ctx.eax.u32 = X86_LOAD_U32(ctx.ebp.u32 - 16);
+	// add eax, esi
+	auto temp_3E666C_U32_OLD = ctx.eax.u32;
+	auto temp_3E666C_U32_SRC = ctx.esi.u32;
+	ctx.eax.u32 = temp_3E666C_U32_OLD + temp_3E666C_U32_SRC;
+	ctx.eflags.update_flags_add_U32(temp_3E666C_U32_OLD, temp_3E666C_U32_SRC, ctx.eax.u32);
+	// mov [ebp-0x08], eax
+	X86_STORE_U32(ctx.ebp.u32 - 8, ctx.eax.u32);
+	// lea eax, [ebp-0x1C]
+	ctx.eax.u32 = ctx.ebp.u32 - 28;
+	// push eax
+	X86_PUSH(ctx, base, ctx.eax.u32);
+	// call 0x003EAEBE
+	ctx.esp.u32 -= 0x4; //Adjust stack pointer for call instruction
+	sub_3EAEBE(ctx, base);
+	// mov eax, [esi]
+	ctx.eax.u32 = X86_LOAD_U32(ctx.esi.u32);
+	// push 0x00
+	X86_PUSH(ctx, base, 0x0);
+	// push [ebp-0x08]
+	X86_PUSH(ctx, base, X86_LOAD_U32(ctx.ebp.u32 - 8));
+	// shl eax, 0x03
+	auto temp_4089473 = ctx.eax.u32;
+	ctx.eax.u32 <<= 3;
+	ctx.eflags.update_flags_shl(temp_4089473, 3, ctx.eax.u32);
+	// push eax
+	X86_PUSH(ctx, base, ctx.eax.u32);
+	// push [ebp-0x08]
+	X86_PUSH(ctx, base, X86_LOAD_U32(ctx.ebp.u32 - 8));
+	// lea eax, [ebp-0x1C]
+	ctx.eax.u32 = ctx.ebp.u32 - 28;
+	// push eax
+	X86_PUSH(ctx, base, ctx.eax.u32);
+	// call 0x003EAEEB
+	ctx.esp.u32 -= 0x4; //Adjust stack pointer for call instruction
+	sub_3EAEEB(ctx, base);
+	// test eax, eax
+	ctx.eflags.update_test_flags(ctx.eax.u32 & ctx.eax.u32);
+	// jle 0x003E66A1
+	if (((ctx.eflags.value & X86EFlags::ZF) != 0) || (((ctx.eflags.value & X86EFlags::SF) != 0) != ((ctx.eflags.value & X86EFlags::OF) != 0))) goto loc_3E66A1;
+	// and eax, 0xFFFF
+	ctx.eax.u32 &= 0xffff;
+	ctx.eflags.update_flags_logic(ctx.eax.u32);
+	// or eax, 0x80070000
+	ctx.eax.u32 |= 0x80070000;
+	ctx.eflags.update_flags_logic(ctx.eax.u32);
+	// test eax, eax
+	ctx.eflags.update_test_flags(ctx.eax.u32 & ctx.eax.u32);
+loc_3E66A1:
+	// jl 0x003E6754
+	if ((((ctx.eflags.value & X86EFlags::SF) != 0) != ((ctx.eflags.value & X86EFlags::OF) != 0))) goto loc_3E6754;
+	// and dword ptr [ebp-0x0C], 0x00
+	auto temp_3E66A7_U32 = X86_LOAD_U32(ctx.ebp.u32 - 12);
+	temp_3E66A7_U32 &= 0x0;
+	X86_STORE_U32(ctx.ebp.u32 - 12, temp_3E66A7_U32);
+	ctx.eflags.update_flags_logic(temp_3E66A7_U32);
+	// cmp dword ptr [esi], 0x00
+	ctx.eflags.update_compare_flags_U32(X86_LOAD_U32(ctx.esi.u32), static_cast<uint32_t>(0x0u));
+	// jbe 0x003E672F
+	if (((ctx.eflags.value & X86EFlags::CF) != 0) || ((ctx.eflags.value & X86EFlags::ZF) != 0)) goto loc_3E672F;
+	// mov eax, [ebp-0x08]
+	ctx.eax.u32 = X86_LOAD_U32(ctx.ebp.u32 - 8);
+	// mov [ebp-0x08], eax
+	X86_STORE_U32(ctx.ebp.u32 - 8, ctx.eax.u32);
+	// lea edi, [esi+0x08]
+	ctx.edi.u32 = ctx.esi.u32 + 8;
+loc_3E66B9:
+	// push 0x00
+	X86_PUSH(ctx, base, 0x0);
+	// push [ebp-0x04]
+	X86_PUSH(ctx, base, X86_LOAD_U32(ctx.ebp.u32 - 4));
+	// push [edi+0x04]
+	X86_PUSH(ctx, base, X86_LOAD_U32(ctx.edi.u32 + 4));
+	// push [ebp-0x04]
+	X86_PUSH(ctx, base, X86_LOAD_U32(ctx.ebp.u32 - 4));
+	// push [ebp-0x08]
+	X86_PUSH(ctx, base, X86_LOAD_U32(ctx.ebp.u32 - 8));
+	// call 0x003EAEEB
+	ctx.esp.u32 -= 0x4; //Adjust stack pointer for call instruction
+	sub_3EAEEB(ctx, base);
+	// test eax, eax
+	ctx.eflags.update_test_flags(ctx.eax.u32 & ctx.eax.u32);
+	// jle 0x003E66DC
+	if (((ctx.eflags.value & X86EFlags::ZF) != 0) || (((ctx.eflags.value & X86EFlags::SF) != 0) != ((ctx.eflags.value & X86EFlags::OF) != 0))) goto loc_3E66DC;
+	// and eax, 0xFFFF
+	ctx.eax.u32 &= 0xffff;
+	ctx.eflags.update_flags_logic(ctx.eax.u32);
+	// or eax, 0x80070000
+	ctx.eax.u32 |= 0x80070000;
+	ctx.eflags.update_flags_logic(ctx.eax.u32);
+	// test eax, eax
+	ctx.eflags.update_test_flags(ctx.eax.u32 & ctx.eax.u32);
+loc_3E66DC:
+	// jl 0x003E6754
+	if ((((ctx.eflags.value & X86EFlags::SF) != 0) != ((ctx.eflags.value & X86EFlags::OF) != 0))) goto loc_3E6754;
+	// mov eax, [edi+0x04]
+	ctx.eax.u32 = X86_LOAD_U32(ctx.edi.u32 + 4);
+	// add [ebp-0x04], eax
+	auto temp_3E66E1_U32_OLD = X86_LOAD_U32(ctx.ebp.u32 - 4);
+	auto temp_3E66E1_U32_SRC = ctx.eax.u32;
+	auto temp_3E66E1_U32_RES = temp_3E66E1_U32_OLD + temp_3E66E1_U32_SRC;
+	X86_STORE_U32(ctx.ebp.u32 - 4, temp_3E66E1_U32_RES);
+	ctx.eflags.update_flags_add_U32(temp_3E66E1_U32_OLD, temp_3E66E1_U32_SRC, temp_3E66E1_U32_RES);
+	// mov eax, [ebp-0x14]
+	ctx.eax.u32 = X86_LOAD_U32(ctx.ebp.u32 - 20);
+	// mov ecx, [eax+0x0C]
+	ctx.ecx.u32 = X86_LOAD_U32(ctx.eax.u32 + 12);
+	// mov ecx, [ecx+0x04]
+	ctx.ecx.u32 = X86_LOAD_U32(ctx.ecx.u32 + 4);
+	// add dword ptr [edi+0x10], 0xFE836000
+	auto temp_3E66ED_U32_OLD = X86_LOAD_U32(ctx.edi.u32 + 16);
+	auto temp_3E66ED_U32_SRC = 18446744073684606976;
+	auto temp_3E66ED_U32_RES = temp_3E66ED_U32_OLD + temp_3E66ED_U32_SRC;
+	X86_STORE_U32(ctx.edi.u32 + 16, temp_3E66ED_U32_RES);
+	ctx.eflags.update_flags_add_U32(temp_3E66ED_U32_OLD, temp_3E66ED_U32_SRC, temp_3E66ED_U32_RES);
+	// add dword ptr [ebp-0x08], 0x08
+	auto temp_3E66F4_U32_OLD = X86_LOAD_U32(ctx.ebp.u32 - 8);
+	auto temp_3E66F4_U32_SRC = 8;
+	auto temp_3E66F4_U32_RES = temp_3E66F4_U32_OLD + temp_3E66F4_U32_SRC;
+	X86_STORE_U32(ctx.ebp.u32 - 8, temp_3E66F4_U32_RES);
+	ctx.eflags.update_flags_add_U32(temp_3E66F4_U32_OLD, temp_3E66F4_U32_SRC, temp_3E66F4_U32_RES);
+	// sub ecx, 0x17C6818
+	auto temp_3E66F8_U32_OLD = ctx.ecx.u32;
+	auto temp_3E66F8_U32_SRC = 24930328;
+	ctx.ecx.u32 = temp_3E66F8_U32_OLD - temp_3E66F8_U32_SRC;
+	ctx.eflags.update_flags_sub_U32(temp_3E66F8_U32_OLD, temp_3E66F8_U32_SRC, ctx.ecx.u32);
+	// add [edi], ecx
+	auto temp_3E66FE_U32_OLD = X86_LOAD_U32(ctx.edi.u32);
+	auto temp_3E66FE_U32_SRC = ctx.ecx.u32;
+	auto temp_3E66FE_U32_RES = temp_3E66FE_U32_OLD + temp_3E66FE_U32_SRC;
+	X86_STORE_U32(ctx.edi.u32, temp_3E66FE_U32_RES);
+	ctx.eflags.update_flags_add_U32(temp_3E66FE_U32_OLD, temp_3E66FE_U32_SRC, temp_3E66FE_U32_RES);
+	// mov ecx, 0xFFA0BE7A
+	ctx.ecx.u32 = 0xFFA0BE7Au;
+	// sub ecx, [ebx+0x804]
+	auto temp_3E6705_U32_OLD = ctx.ecx.u32;
+	auto temp_3E6705_U32_SRC = X86_LOAD_U32(ctx.ebx.u32 + 2052);
+	ctx.ecx.u32 = temp_3E6705_U32_OLD - temp_3E6705_U32_SRC;
+	ctx.eflags.update_flags_sub_U32(temp_3E6705_U32_OLD, temp_3E6705_U32_SRC, ctx.ecx.u32);
+	// add edi, 0x20
+	auto temp_3E670B_U32_OLD = ctx.edi.u32;
+	auto temp_3E670B_U32_SRC = 32;
+	ctx.edi.u32 = temp_3E670B_U32_OLD + temp_3E670B_U32_SRC;
+	ctx.eflags.update_flags_add_U32(temp_3E670B_U32_OLD, temp_3E670B_U32_SRC, ctx.edi.u32);
+	// shl ecx, 0x02
+	auto temp_4089614 = ctx.ecx.u32;
+	ctx.ecx.u32 <<= 2;
+	ctx.eflags.update_flags_shl(temp_4089614, 2, ctx.ecx.u32);
+	// add [edi-0x18], ecx
+	auto temp_3E6711_U32_OLD = X86_LOAD_U32(ctx.edi.u32 - 24);
+	auto temp_3E6711_U32_SRC = ctx.ecx.u32;
+	auto temp_3E6711_U32_RES = temp_3E6711_U32_OLD + temp_3E6711_U32_SRC;
+	X86_STORE_U32(ctx.edi.u32 - 24, temp_3E6711_U32_RES);
+	ctx.eflags.update_flags_add_U32(temp_3E6711_U32_OLD, temp_3E6711_U32_SRC, temp_3E6711_U32_RES);
+	// mov eax, [eax+0x08]
+	ctx.eax.u32 = X86_LOAD_U32(ctx.eax.u32 + 8);
+	// mov eax, [eax+0x14]
+	ctx.eax.u32 = X86_LOAD_U32(ctx.eax.u32 + 20);
+	// sub eax, 0xC000
+	auto temp_3E671A_U32_OLD = ctx.eax.u32;
+	auto temp_3E671A_U32_SRC = 49152;
+	ctx.eax.u32 = temp_3E671A_U32_OLD - temp_3E671A_U32_SRC;
+	ctx.eflags.update_flags_sub_U32(temp_3E671A_U32_OLD, temp_3E671A_U32_SRC, ctx.eax.u32);
+	// add [edi-0x08], eax
+	auto temp_3E671F_U32_OLD = X86_LOAD_U32(ctx.edi.u32 - 8);
+	auto temp_3E671F_U32_SRC = ctx.eax.u32;
+	auto temp_3E671F_U32_RES = temp_3E671F_U32_OLD + temp_3E671F_U32_SRC;
+	X86_STORE_U32(ctx.edi.u32 - 8, temp_3E671F_U32_RES);
+	ctx.eflags.update_flags_add_U32(temp_3E671F_U32_OLD, temp_3E671F_U32_SRC, temp_3E671F_U32_RES);
+	// inc [ebp-0x0C]
+	auto temp_3E6722_U32_OLD = X86_LOAD_U32(ctx.ebp.u32 - 12);
+	auto temp_3E6722_U32_RES = temp_3E6722_U32_OLD;
+	temp_3E6722_U32_RES++;
+	X86_STORE_U32(ctx.ebp.u32 - 12, temp_3E6722_U32_RES);
+	ctx.eflags.update_flags_inc_U32(temp_3E6722_U32_OLD, temp_3E6722_U32_RES);
+	// mov eax, [ebp-0x0C]
+	ctx.eax.u32 = X86_LOAD_U32(ctx.ebp.u32 - 12);
+	// cmp eax, [esi]
+	ctx.eflags.update_compare_flags_U32(ctx.eax.u32, X86_LOAD_U32(ctx.esi.u32));
+	// jb 0x003E66B9
+	if ((ctx.eflags.value & X86EFlags::CF) != 0) goto loc_3E66B9;
+	// mov edi, [ebp-0x14]
+	ctx.edi.u32 = X86_LOAD_U32(ctx.ebp.u32 - 20);
+loc_3E672F:
+	// mov ecx, [ebp-0x10]
+	ctx.ecx.u32 = X86_LOAD_U32(ctx.ebp.u32 - 16);
+	// mov edi, [edi+0x20]
+	ctx.edi.u32 = X86_LOAD_U32(ctx.edi.u32 + 32);
+	// mov eax, ecx
+	ctx.eax.u32 = ctx.ecx.u32;
+	// shr ecx, 0x02
+	auto temp_4089655 = ctx.ecx.u32;
+	ctx.ecx.u32 >>= 2;
+	ctx.eflags.update_flags_shr(temp_4089655, 2, ctx.ecx.u32);
+	// rep movsd
+	for (; ctx.ecx.u32 > 0; ctx.ecx.u32--, ctx.esi.u32 += 4, ctx.edi.u32 += 4) {
+		X86_STORE_U32(ctx.edi.u32, X86_LOAD_U32(ctx.esi.u32));
+	}
+	// mov ecx, eax
+	ctx.ecx.u32 = ctx.eax.u32;
+	// push 0x03
+	//X86_PUSH(ctx, base, 0x3);
+	X86_PUSH(ctx, base, 0x0); //ADDED: force 0
+	// pop eax
+	ctx.eax.u32 = X86_POP(ctx, base);
+	// and ecx, eax
+	ctx.ecx.u32 &= ctx.eax.u32;
+	ctx.eflags.update_flags_logic(ctx.ecx.u32);
+	// add ebx, 0x810
+	auto temp_3E6743_U32_OLD = ctx.ebx.u32;
+	auto temp_3E6743_U32_SRC = 2064;
+	ctx.ebx.u32 = temp_3E6743_U32_OLD + temp_3E6743_U32_SRC;
+	ctx.eflags.update_flags_add_U32(temp_3E6743_U32_OLD, temp_3E6743_U32_SRC, ctx.ebx.u32);
+	// rep movsb
+	int direction_4089673 = (ctx.eflags.value & X86EFlags::DF) ? -1 : 1;
+	for (; ctx.ecx.u32 > 0; ctx.ecx.u32--) {
+		X86_STORE_U8(ctx.edi.u32, X86_LOAD_U8(ctx.esi.u32));
+		ctx.esi.u32 += direction_4089673;
+		ctx.edi.u32 += direction_4089673;
+	}
+	// mov [ebx], eax
+	X86_STORE_U32(ctx.ebx.u32, ctx.eax.u32);
+loc_3E674D:
+	// cmp dword ptr [ebx], 0x00
+	ctx.eflags.update_compare_flags_U32(X86_LOAD_U32(ctx.ebx.u32), static_cast<uint32_t>(0x0u));
+	// jnz 0x003E674D
+	//if ((ctx.eflags.value & X86EFlags::ZF) == 0) goto loc_3E674D; //ADDED REMOVED JNZ CHECK
+	// xor eax, eax
+	ctx.eax.u32 ^= ctx.eax.u32;
+	ctx.eflags.update_flags_logic(ctx.eax.u32);
+loc_3E6754:
+	// pop edi
+	ctx.edi.u32 = X86_POP(ctx, base);
+	// pop esi
+	ctx.esi.u32 = X86_POP(ctx, base);
+	// pop ebx
+	ctx.ebx.u32 = X86_POP(ctx, base);
+	// leave
+	ctx.esp.u32 = ctx.ebp.u32;
+	ctx.ebp.u32 = X86_POP(ctx, base);
+	// ret 0x04
+	ctx.esp.u32 += 0x4;  //Adjust esp for return value (0xC2 0x4)
+	ctx.esp.u32 += 0x4;  //Adjust esp for return instruction
+	return;
 }
-
-int sub_3EBAFA_r(char* a1)
-{
-	return 1;
-}
-
-int sub_3E8B60_r(int a1)
-{
-	return 0;
-}
-
-
-int CDirectSound_DownloadEffectsImage_r(int a1, DWORD* a2, int a3, int a4, DWORD* a5)
-{
-	return 0;
-}
-
-int CMcpxAPU_ServiceDeferredCommandsLow(int this_)
-{
-	return 0;
-}
-
-
-
-X86_FUNC_IMPL(__imp__sub_3356C0);
-X86_FUNC(sub_3356C0)
-{
-	__imp__sub_3356C0(ctx, base);
-}
-
-X86_FUNC_IMPL(__imp__sub_335090);
-X86_FUNC(sub_335090)
-{
-	__imp__sub_335090(ctx, base);
-}
-
-void* sub_3E5ACD_r(int a1, int a2, int a3, int a4)
-{
-	return 0;
-}
-
-int  sub_3E6D68_r(void** this_)
-{
-	return 0;
-}
-
-GUEST_FUNCTION_HOOK_STDCALL(sub_3EBA02, sub_3EBA02_r);
-GUEST_FUNCTION_HOOK_STDCALL(sub_3EB429, sub_3EBA02_r);
-GUEST_FUNCTION_HOOK_STDCALL(sub_3EB460, sub_3EBA02_r);
-GUEST_FUNCTION_HOOK_STDCALL(sub_3EB4F2, sub_3EBA02_r);
-GUEST_FUNCTION_HOOK_STDCALL(sub_3EB497, sub_3EBA02_r);
-GUEST_FUNCTION_HOOK_THISCALL(sub_3EBAFA, sub_3EBAFA_r);
-GUEST_FUNCTION_HOOK_STDCALL(sub_3E5ACD, sub_3E5ACD_r);
-//GUEST_FUNCTION_HOOK_THISCALL(sub_3E7516, sub_3E7516_r);
-//GUEST_FUNCTION_HOOK_THISCALL(sub_3E8B60, sub_3E8B60_r);
-GUEST_FUNCTION_HOOK_THISCALL(sub_3E6D68, sub_3E6D68_r);
-GUEST_FUNCTION_HOOK_STDCALL(sub_3E35B5, CDirectSound_DownloadEffectsImage_r);
-//GUEST_FUNCTION_HOOK_THISCALL(sub_3E6FA8, CMcpxAPU_ServiceDeferredCommandsLow);
-

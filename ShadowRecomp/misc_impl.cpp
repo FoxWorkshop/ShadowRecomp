@@ -4,47 +4,48 @@
 
 uint32_t GetKeTickCountImpl()
 {
-    return uint32_t(std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now().time_since_epoch()).count());
+	//return GetTickCount();
+	return uint32_t(std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now().time_since_epoch()).count());
 }
 
+//has a huge impact on FPS
 BOOL QueryPerformanceCounterImpl(LARGE_INTEGER* lpPerformanceCount)
 {
-    auto now = std::chrono::high_resolution_clock::now().time_since_epoch();
-    auto res = std::chrono::duration_cast<std::chrono::microseconds>(now).count();
-    lpPerformanceCount->QuadPart = (std::chrono::steady_clock::now().time_since_epoch().count());
-    return TRUE;
+	//QueryPerformanceCounter(lpPerformanceCount);
+	lpPerformanceCount->QuadPart = std::chrono::steady_clock::now().time_since_epoch().count();
+	return TRUE;
 }
 
 BOOL QueryPerformanceFrequencyImpl(LARGE_INTEGER* lpPerformanceCount)
 {
-    lpPerformanceCount->QuadPart = std::chrono::steady_clock::period::den / std::chrono::steady_clock::period::num;
-    //lpPerformanceCount->QuadPart = 733'000'000ull;
-    return TRUE;
+	//QueryPerformanceFrequency(lpPerformanceCount);
+	lpPerformanceCount->QuadPart = std::chrono::steady_clock::period::den / std::chrono::steady_clock::period::num;
+	return TRUE;
 }
 
 
 const char* strstr_(const char* src, const char* subStr)
 {
-    return strstr(src, subStr);
+	return strstr(src, subStr);
 }
 
 int strcmp_(const char* Str1, const char* Str2)
 {
 
-    //printf("strcmp Str1: %s, Str2: %s\n", Str1, Str2);
-    return strcmp(Str1, Str2);
+	//printf("strcmp Str1: %s, Str2: %s\n", Str1, Str2);
+	return strcmp(Str1, Str2);
 }
 
 int __cdecl strncmp_(const char* Str1, const char* Str2, size_t MaxCount)
 {
-    return strncmp(Str1, Str2, MaxCount);
+	return strncmp(Str1, Str2, MaxCount);
 }
 
 int sub_2C0390_r(int Str1)
 {
 
-    const char** t = (const char**)(g_memory.base + Str1);
-    return 0;
+	const char** t = (const char**)(g_memory.base + Str1);
+	return 0;
 }
 
 //example of how to grab usercall args, no need to use X86_LOAD here.
@@ -52,27 +53,27 @@ int sub_2C0390_r(int Str1)
 X86_FUNC_IMPL(__imp__sub_32B4F0);
 X86_FUNC(sub_32B4F0)
 {
-    auto a1 = ctx.eax.u32;
-    char* oldPath = (char*)(base + a1);
+	auto a1 = ctx.eax.u32;
+	char* oldPath = (char*)(base + a1);
 
 	__imp__sub_32B4F0(ctx, base);
-    a1 = 0x560624;
-    oldPath = (char*)(base + a1);
-    oldPath = oldPath;
-    oldPath += 16;
-    oldPath = oldPath;
+	a1 = 0x560624;
+	oldPath = (char*)(base + a1);
+	oldPath = oldPath;
+	oldPath += 16;
+	oldPath = oldPath;
 
 	return;
 }
 
 char* __cdecl _StrChr(char* a1, char a2)
 {
-    return strchr(a1, a2);
+	return strchr(a1, a2);
 }
 
 char* __cdecl _StrrChr(char* a1, char a2)
 {
-    return strrchr(a1, a2);
+	return strrchr(a1, a2);
 }
 
 

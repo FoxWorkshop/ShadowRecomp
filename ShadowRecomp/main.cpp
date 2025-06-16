@@ -100,6 +100,10 @@ void HostStartup()
 
 int main(int argc, char* argv[])
 {
+#ifdef _WIN32
+    timeBeginPeriod(1);
+#endif
+
     InitLogs();
     LOGN("Starting Shadow Recomp...");
     HostStartup();

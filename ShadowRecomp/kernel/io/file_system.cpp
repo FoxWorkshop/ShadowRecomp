@@ -80,6 +80,7 @@ std::filesystem::path FileSystem::ResolvePath(const std::string_view& path, bool
 	return std::u8string_view((const char8_t*)builtPath.c_str());
 }
 
+extern uint32_t fakeOffset;
 void logESP(const char* funcName, X86Context ctx, uint8_t* base);
 bool adxTest = false;
 FileHandle* XCreateFile_r(const char* SourceString, ULONG CreateDisposition, ULONG ShareAccess, int a4, int mode, unsigned int a6, int a7)
@@ -129,8 +130,9 @@ FileHandle* XCreateFile_r(const char* SourceString, ULONG CreateDisposition, ULO
 	}
 	else
 	{
-		if (filePath.string().find("sng_sys01.adx") != std::string::npos)
+		if (filePath.string().find(".adx") != std::string::npos)
 		{
+			fakeOffset = 0;
 			printf("song loaded\n");
 		}
 	}
