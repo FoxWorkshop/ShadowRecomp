@@ -6,36 +6,6 @@
 #include <iostream>
 #include <filesystem>
 
-void* unknownSoundPtr = nullptr;
-uint8_t* ppDS = nullptr;
-
-uint32_t DSound_CMemoryManager_PoolAlloc(int tag, int NumberOfBytes, int a3)
-{
-	auto ctx = GetX86Context();
-	auto base = g_memory.base;
-	uint32_t content = 0;
-	if (!unknownSoundPtr) //I can't figure out where they init this so let's do it manually here once
-	{
-		unknownSoundPtr = g_userHeap.AllocPhysical(0x2000, 1);
-		content = g_memory.MapVirtual(unknownSoundPtr);
-		X86_STORE_U32(0x3FF838, content);
-	}
-
-
-	void* ptr = (g_userHeap.Alloc(NumberOfBytes > 0 ? NumberOfBytes : 1));
-	content = g_memory.MapVirtual(ptr);
-	auto size = g_userHeap.Size(ptr);
-	X86_STORE_U32(0x3FF838, *reinterpret_cast<volatile uint32_t*>(base + 0x3FF838 + size));
-
-
-	return content;
-}
-
-void FreeAudioPtrs()
-{
-	g_userHeap.Free(unknownSoundPtr);
-}
-
 
 //trick the game to make it think hardware audio is ready
 X86_FUNC_IMPL(__imp__sub_3EAFBA);
@@ -65,34 +35,29 @@ X86_FUNC(sub_3E8B60)
 uint32_t fakeOffset = 0;
 const uint32_t bufferSize = 0x10000; 
 
+//IDirectSoundBuffer_SetCurrentPosition
+X86_FUNC_IMPL(__imp__sub_3E4258);
+X86_FUNC(sub_3E4258)
+{
+	auto a2 = X86_LOAD_U32(ctx.esp.u32 + 8);
+	if (!a2)
+	{
+		fakeOffset = 0;
+	}
+	__imp__sub_3E4258(ctx, base);
+}
+
+//the most important hack, in order to progress, DirectSoundGetCurrentPosition expect a hardware value that increase consistently
+//checking the logs on CXBX, the value is different per session, using a dummy value here seems to work but we will probably need a better way at some point.
+//wort to specify that DirectSoundGetCurrentPosition is needed for decoding and playing adx.
 X86_FUNC_IMPL(__imp__sub_3E763F);
 X86_FUNC(sub_3E763F)
 {
-	auto this_ = (uint32_t*)(base + ctx.ecx.u32);
-	auto a2 = X86_LOAD_U32(ctx.esp.u32 + 4);
-
-	/**printf("voiceConfig = 0x%08X\n", (base + this_[28]));
-	printf("formatCode = %d\n", *(WORD*)(base + this_[28] + 12));
-	printf("multiplier = %d\n", *(DWORD*)(base + this_[28] + 20));
-	printf("a2 = %d\n", a2);*/
-
-	std::ofstream  outFile2("ADXB_EvokeDecode.txt", std::ios::app);
-	outFile2 << "===(sub_3E763F==" << '\n';
-	outFile2 << "a2 " << std::hex <<  a2 << '\n';
-	outFile2 << "this + 12 " << X86_LOAD_U32(uint32_t(this_ + 12)) << '\n';
-	outFile2 << "this + 12 << 7 " << X86_LOAD_U32(uint32_t(this_ + 12) << 7) << '\n';
-	outFile2 << "dword_3FF920 + 0x58 " << X86_LOAD_U32(uint32_t(0x3FF920 + 0x58)) << '\n';
-
-	outFile2 << '\n';
-	outFile2.close();
-
 	__imp__sub_3E763F(ctx, base);
-
 
 	if (!ctx.eax.u32)
 	{
-		//uint32_t increment = 0x4000 + (rand() % 0x1000); 
-		fakeOffset += 0x1000; //(fakeOffset + increment) % bufferSize;
+		fakeOffset += 0x1000;
 		ctx.eax.u32 = fakeOffset;
 	}
 }

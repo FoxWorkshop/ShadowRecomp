@@ -95,7 +95,12 @@ void HostStartup()
 
     input::Init();
     g_userHeap.Init();
-    XAudioRegisterClient();
+    initSDL2Driver();
+}
+
+void exiting()
+{
+    AudioQuit();
 }
 
 int main(int argc, char* argv[])
@@ -104,6 +109,7 @@ int main(int argc, char* argv[])
     timeBeginPeriod(1);
 #endif
 
+    std::atexit(exiting);
     InitLogs();
     LOGN("Starting Shadow Recomp...");
     HostStartup();

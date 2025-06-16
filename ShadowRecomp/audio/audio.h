@@ -5,5 +5,5 @@
 #define XAUDIO_NUM_SAMPLES    256        
 
 
-void PlayMusic(const char* filename);
-void XAudioRegisterClient();
+void initSDL2Driver();
+void AudioQuit();

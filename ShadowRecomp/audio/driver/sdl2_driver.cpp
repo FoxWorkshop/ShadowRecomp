@@ -5,29 +5,18 @@
 #include <kernel/function.h>
 #include <dsound.h>
 
+#include <iostream>
+#include <fstream>
+
 static SDL_AudioDeviceID g_audioDevice{};
-static bool g_downMixToStereo;
 
 std::vector<uint8_t> reference_data; //todo delete
-static char* audio;
-static char* audio2;
-static std::vector<uint8_t> a2Val;
-static std::vector<uint32_t> a15Val;
-
-int* sizeAtr = nullptr;
-
 //thread audio can be deleted after
 int adxm_vsyncThread = -1;
 static int adxm_fsThread = -1;
 static int adxm_mwidlThread = -1;
 int countBeforeBreak = 0;
-
-
-static DWORD last_play_pos = 0;
-static const int buffer_size = 0x2000; 
-static BYTE* pcm_buffer = nullptr;
-X86_FUNC_IMPL(__imp__sub_3E4274);
-
+static volatile bool g_audioThreadShouldExit = false;
 
 void ControlAccuracy(std::string funcName)
 {
@@ -37,7 +26,6 @@ void ControlAccuracy(std::string funcName)
 	std::ifstream in("outSHTH.raw", std::ios::binary);
 	std::vector<uint8_t> recompAudio;
 	recompAudio.assign(std::istreambuf_iterator<char>(in), {});
-	audio2 = audio2;
 
 	if (countBeforeBreak == 20)
 	{
@@ -160,6 +148,7 @@ void XAudioInitializeSystem()
 	}
 
 	CreateAudioDevice();
+	g_audioThreadShouldExit = false;
 }
 
 struct adxT
@@ -185,36 +174,19 @@ struct adxT
 
 
 
-#include <iostream>
-#include <fstream>
-
-bool ready = false;
 int audioSize = 0;
 extern bool adxTest;
 static int currentThread = 0;
 
-DWORD* broken = nullptr;
 static int countUntilFail = 0;
 int __cdecl ADXB_GetDecNumSmpl(int a1)
 {
 	auto base = g_memory.base;
 	countUntilFail = countUntilFail;
 	auto res = X86_LOAD_U32(a1 + 144);
-	broken = &*(DWORD*)((a1 + 144));
 	return res;
 }
 
-
-//int ADXSJD_Init()
-/**X86_FUNC_IMPL(__imp__sub_32DA80);
-X86_FUNC(sub_32DA80)
-{
-	audio = (char*)(g_memory.Translate(0x595600));
-	audio2 = (char*)(g_memory.Translate(0x5958BC));
-	__imp__sub_32DA80(ctx, base);
-	audio2 = audio2;
-
-}*/
 
 X86_FUNC_IMPL(__imp__sub_2940D0);
 X86_FUNC(sub_2940D0)
@@ -259,6 +231,9 @@ int __cdecl ADXB_EvokeDecode_r(DWORD* a1)
 
 	return ctx.eax.u32;
 }
+
+GUEST_FUNCTION_HOOK(sub_336430, ADXB_EvokeDecode_r);
+
 
 //adxsjd_get_wr
 X86_FUNC_IMPL(__imp__sub_32DE50);
@@ -342,21 +317,9 @@ X86_FUNC(sub_3391B0)
 }
 
 
-GUEST_FUNCTION_HOOK(sub_336430, ADXB_EvokeDecode_r);
+
 
 X86_FUNC_IMPL(__imp__sub_336330);
-/**int __cdecl ADXB_EntryData_r(int* a1, int a2, int a3)
-{
-	auto ctx = *GetX86Context();
-	auto base = g_memory.base;
-	auto esp = X86_LOAD_U16(ctx.esp.u32 + 4 + (2 * 4));
-	esp = esp;
-
-	__imp__sub_336330(ctx, base);
-	ctx.esp.u32 -= 4;
-	return ctx.eax.u32;
-}*/
-
 X86_FUNC(sub_336330)
 {
 	auto ptr = X86_LOAD_U32(ctx.esp.u32 + 4);
@@ -392,8 +355,8 @@ X86_FUNC(sub_336330)
 	__imp__sub_336330(ctx, base);
 	ctx.eax.u32 = ctx.eax.u32;
 }
-static int countThisBs = 0;
-static int indexFix = 0;
+
+
 X86_FUNC_IMPL(__imp__sub_32CE80);
 X86_FUNC(sub_32CE80)
 {
@@ -408,7 +371,7 @@ X86_FUNC(sub_32CE80)
 
 	if (currentThread == GetCurrentThreadId())
 	{
-		countThisBs++;
+
 
 
 		a4[1] = a4[1];
@@ -416,7 +379,7 @@ X86_FUNC(sub_32CE80)
 
 		if (a3 == 0x40 && countBeforeBreak == 21)
 		{
-			countThisBs = countThisBs;
+			
 		}
 
 
@@ -484,18 +447,9 @@ X86_FUNC(sub_32CE80)
 	}
 }
 
-int __cdecl sub_337310_r(DWORD* a1)
-{
-	a1 = a1;
-	auto a5Res = -a1[5];
-	auto a5Pos = a1[5];
-	auto a4 = a1[4];
-	return 0;
-}
-
-//GUEST_FUNCTION_HOOK(sub_337310, sub_337310_r);
 
 static int countChunk = 0;
+
 static 	uint32_t* whatisThisSHIT = nullptr;
 //_DWORD *__usercall SJRBF_PutChunk@<eax>(_DWORD *result@<eax>, int a2@<ecx>, char **a3@<ebx>)
 X86_FUNC_IMPL(__imp__sub_32C900);
@@ -509,7 +463,7 @@ X86_FUNC(sub_32C900)
 
 		if (countChunk >= 52)
 		{
-			whatisThisSHIT = whatisThisSHIT;
+			
 		}
 
 
@@ -525,6 +479,8 @@ X86_FUNC(sub_32C900)
 
 		auto first = (uint32_t)(base + (uint32_t)a3 + 4);
 		auto second = (uint32_t)(base + (uint32_t)a3);
+	
+		a1[4] = a1[4];
 		whatisThisSHIT = (uint32_t*)(base + (uint32_t)a1 + 4 * 4);
 		a1[4] = a1[4];
 		outFile2 << "a1[4] " << std::hex << (uint32_t)whatisThisSHIT << " - " << a1[4] << '\n';
@@ -722,7 +678,6 @@ X86_FUNC(sub_32E7C0)
 	std::ifstream in("outSHTH.raw", std::ios::binary);
 	std::vector<uint8_t> recompAudio;
 	recompAudio.assign(std::istreambuf_iterator<char>(in), {});
-	audio2 = audio2;
 
 
 	recompAudio.clear();
@@ -745,22 +700,6 @@ X86_FUNC(sub_32E7C0)
 	}
 
 	ctx.esp.u32 += 4;
-}
-
-
-static std::unique_ptr<std::thread> g_audioThread;
-static volatile bool g_audioThreadShouldExit = false;
-
-static void AudioThread()
-{
-
-	
-}
-
-static void CreateAudioThread()
-{
-	SDL_PauseAudioDevice(g_audioDevice, 0);
-	g_audioThreadShouldExit = false;
 }
 
 
@@ -811,42 +750,24 @@ X86_FUNC(sub_2BB140)
 	__imp__sub_2BB140(ctx, base);
 }
 
-X86_FUNC_IMPL(__imp__sub_377360);
-X86_FUNC(sub_377360)
-{
-
-	/**static auto lastTime = std::chrono::high_resolution_clock::now();
-	auto now = std::chrono::high_resolution_clock::now();
-	auto dt = std::chrono::duration<float>(now - lastTime).count();
-	lastTime = now;
-
-	float dword_532A48 = X86_LOAD_F32(0x532A48);
-	float frameTime_HHC = X86_LOAD_F32(0x541FA8);
-	float a1 = X86_LOAD_F32(ctx.esp.u32 + 4);
-	std::ofstream outFile2("framerate.txt", std::ios::app);
-	outFile2 << "===framerate==" << '\n';
-	outFile2 << "a1 " << (float)a1 << '\n';
-	outFile2 << "dword_532A48 " << (float)dword_532A48 << '\n';
-	outFile2 << "frameTime_HHC " << (float)frameTime_HHC << '\n';
-	outFile2 << "Real frame time: " << dt << '\n';
-	outFile2 << '\n';
-	outFile2.close();*/
-
-	//std::this_thread::sleep_for(std::chrono::milliseconds(16));
-	__imp__sub_377360(ctx, base);
-}
-
 
 #include <filesystem>
 namespace fs = std::filesystem;
 
 
+void AudioQuit()
+{
+	if (g_audioDevice)
+	{
+		SDL_CloseAudioDevice(g_audioDevice);
+		SDL_Quit();
+	}
+}
 
-void XAudioRegisterClient()
+
+void initSDL2Driver()
 {
 	XAudioInitializeSystem();
-	CreateAudioThread();
-
 
 	for (const auto& entry : fs::directory_iterator(fs::current_path()))
 	{
