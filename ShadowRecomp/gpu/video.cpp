@@ -1,5 +1,18 @@
+#include "video.h"
+#include <app.h>
 #include <kernel/function.h>
+#include <kernel/heap.h>
+#include <ui/game_window.h>
+#include <user/config.h>
 #include "x86_context.h"
+#include <sdl_listener.h>
+
+
+bool Video::CreateHostDevice(const char* sdlVideoDriver, bool graphicsApiRetry)
+{
+	GameWindow::Init(sdlVideoDriver);
+	return true;
+}
 
 
 //todo

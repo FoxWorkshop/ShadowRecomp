@@ -1,6 +1,12 @@
 ﻿project("ShadowRecomp")
 
+if (WIN32)
+    option(SHADOW_RECOMP_D3D12 "Add D3D12 support for rendering" ON)
+endif()
 
+if (CMAKE_SYSTEM_NAME MATCHES "Linux")
+    option(SHADOW_RECOMP_FLATPAK "Configure the build for Flatpak compatibility." OFF)
+endif()
 
 add_compile_options(
     -fno-strict-aliasing
@@ -61,6 +67,10 @@ set(SHADOW_RECOMP_PATCHES_CXX_SOURCES
     "patches/start_patches.cpp"
 )
 
+set(SHADOW_RECOMP_UI_CXX_SOURCES
+    "ui/game_window.cpp"
+)
+
 set(SHADOW_RECOMP_THIRDPARTY_INCLUDES
     "${SHADOW_RECOMP_THIRDPARTY_ROOT}/stb"
     "${SHADOW_RECOMP_THIRDPARTY_ROOT}/unordered_dense/include"
@@ -72,6 +82,7 @@ set(SHADOW_RECOMP_CXX_SOURCES
     "app.cpp"
     "main.cpp"
     "misc_impl.cpp"
+    "sdl_listener.cpp"
     "stdafx.cpp"
     "logs.cpp"
     
@@ -82,6 +93,7 @@ set(SHADOW_RECOMP_CXX_SOURCES
     ${SHADOW_RECOMP_APU_CXX_SOURCES}
     ${SHADOW_RECOMP_HID_CXX_SOURCES}
     ${SHADOW_RECOMP_PATCHES_CXX_SOURCES}
+    ${SHADOW_RECOMP_UI_CXX_SOURCES}
 )
 
 if (WIN32)

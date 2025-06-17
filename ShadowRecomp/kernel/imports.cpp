@@ -1414,7 +1414,7 @@ int D3DDevice_BlockUntilVerticalBlank()
 	//KeWaitForSingleObject((XDISPATCHER_HEADER*)vblankEvent, 0, 0, 0, 0);  // 0, 0: default priority, do not wait
 
 	// Wait ~16.67ms to simulate 60Hz refresh rate
-	Sleep(15);
+	Sleep(16.67);
 
 
 	return 0;

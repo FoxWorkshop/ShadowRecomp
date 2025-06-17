@@ -2,12 +2,15 @@
 #include <kernel/memory.h>
 #include <kernel/heap.h>
 #include <kernel/function.h>
+#include <gpu/video.h>
 #include <cpu/guest_thread.h>
 #include <input/input.h>
 #include <file.h>
 #include <image.h>
 #include <kernel/io/file_system.h>
 #include <audio/audio.h>
+#include <ui/game_window.h>
+#include <logs.h>
 
 #include <xbe.h>
 #ifdef _WIN32
@@ -98,10 +101,6 @@ void HostStartup()
     initSDL2Driver();
 }
 
-void exiting()
-{
-    AudioQuit();
-}
 
 int main(int argc, char* argv[])
 {
@@ -109,13 +108,44 @@ int main(int argc, char* argv[])
     timeBeginPeriod(1);
 #endif
 
-    std::atexit(exiting);
     InitLogs();
     LOGN("Starting Shadow Recomp...");
     HostStartup();
     std::filesystem::path xbePath;
     xbePath = GameExecutable;
     uint32_t entry = LoadXbeModule(xbePath);
+
+    bool forceInstaller = false;
+    bool forceDLCInstaller = false;
+    bool useDefaultWorkingDirectory = false;
+    bool forceInstallationCheck = false;
+    bool graphicsApiRetry = false;
+    const char* sdlVideoDriver = nullptr;
+
+    for (uint32_t i = 1; i < argc; i++)
+    {
+        forceInstaller = forceInstaller || (strcmp(argv[i], "--install") == 0);
+        forceDLCInstaller = forceDLCInstaller || (strcmp(argv[i], "--install-dlc") == 0);
+        useDefaultWorkingDirectory = useDefaultWorkingDirectory || (strcmp(argv[i], "--use-cwd") == 0);
+        forceInstallationCheck = forceInstallationCheck || (strcmp(argv[i], "--install-check") == 0);
+        graphicsApiRetry = graphicsApiRetry || (strcmp(argv[i], "--graphics-api-retry") == 0);
+
+        if (strcmp(argv[i], "--sdl-video-driver") == 0)
+        {
+            if ((i + 1) < argc)
+                sdlVideoDriver = argv[++i];
+            else
+                LOGN_WARNING("No argument was specified for --sdl-video-driver. Option will be ignored.");
+        }
+    }
+
+    if (!Video::CreateHostDevice(sdlVideoDriver, graphicsApiRetry))
+    {
+        SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_ERROR, GameWindow::GetTitle(), "erreur backend graphics", GameWindow::s_pWindow);
+        std::_Exit(1);
+    }
+
+
     GuestThreadParams params = { entry, 0, 0, 0, 0 };
     GuestThread::Start(params);
 
