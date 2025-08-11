@@ -230,7 +230,11 @@ uint32_t GuestThread::Start(const GuestThreadParams& params)
 	GuestThreadContext ctx(params);
 
 	//ctx.x86Context.esp.u32 = (ctx.x86Context.esp.u32 - 16) & ~0xF;
-		//ctx.x86Context.ecx.u32 = params.value;
+	// 
+	auto base = g_memory.base;
+	if (params.parameter)
+		X86_STORE_U32(ctx.x86Context.esp.u32, params.parameter);
+
 	ctx.x86Context.esp.u32 -= 4; //in x86, the CPU always adjust the stack pointer by 4 bytes before calling a function
 	g_memory.FindFunction(params.function)(ctx.x86Context, g_memory.base); 	//call function, if it crashes there the function was most likely not found in the map array
 	return ctx.x86Context.eax.u32;

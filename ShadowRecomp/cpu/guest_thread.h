@@ -8,6 +8,7 @@
 struct GuestThreadParams
 {
     uint32_t function;
+    uint32_t parameter;
     uint32_t value;
     uint32_t flags;
     uint32_t tlsSize;
