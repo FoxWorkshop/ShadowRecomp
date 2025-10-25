@@ -14,17 +14,28 @@
 #define XINPUT_GAMEPAD_X              0x4000
 #define XINPUT_GAMEPAD_Y              0x8000
 
-
-typedef struct _XINPUT_GAMEPAD
+enum bAnalogBtnE
 {
-    int16_t                               wButtons;
-    int8_t                                bLeftTrigger;
-    int8_t                                bRightTrigger;
-    int32_t                               sThumbLX;
-    int32_t                               sThumbLY;
-    int32_t                               sThumbRX;
-    int32_t                               sThumbRY;
-} XINPUT_GAMEPAD, * PXINPUT_GAMEPAD;
+    Buttons_A,
+    Buttons_B,
+    Buttons_X,
+    Buttons_Y,
+    Buttons_Black,
+    Buttons_White,
+    Buttons_LT,
+    Buttons_RT
+};
+
+
+typedef struct _XINPUT_GAMEPAD_OG
+{
+    uint16_t wButtons;         // DPad + Start/Back + Thumb buttons
+    uint8_t  bAnalogButtons[8]; // A,B,X,Y,Black,White,LTrig,RTrig
+    int16_t  sThumbLX;
+    int16_t  sThumbLY;
+    int16_t  sThumbRX;
+    int16_t  sThumbRY;
+} XINPUT_GAMEPAD_OG;
 
 typedef struct _XINPUT_VIBRATION
 {
@@ -35,7 +46,7 @@ typedef struct _XINPUT_VIBRATION
 struct XINPUT_STATE
 {
     unsigned int dwPacketNumber;
-    _XINPUT_GAMEPAD Gamepad;
+    _XINPUT_GAMEPAD_OG Gamepad;
 };
 
 
