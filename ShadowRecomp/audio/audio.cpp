@@ -33,7 +33,7 @@ X86_FUNC(sub_3E8B60)
 }
 
 uint32_t fakeOffset = 0;
-const uint32_t bufferSize = 0x10000; 
+const uint32_t bufferSize = 0x10000;
 
 //IDirectSoundBuffer_SetCurrentPosition
 X86_FUNC_IMPL(__imp__sub_3E4258);
@@ -49,7 +49,7 @@ X86_FUNC(sub_3E4258)
 
 //the most important hack, in order to progress, DirectSoundGetCurrentPosition expect a hardware value that increase consistently
 //checking the logs on CXBX, the value is different per session, using a dummy value here seems to work but we will probably need a better way at some point.
-//wort to specify that DirectSoundGetCurrentPosition is needed for decoding and playing adx.
+//worth to specify that DirectSoundGetCurrentPosition is needed for decoding and playing adx.
 X86_FUNC_IMPL(__imp__sub_3E763F);
 X86_FUNC(sub_3E763F)
 {
@@ -117,7 +117,7 @@ X86_FUNC(sub_3E65E6)
 	ctx.eax.u32 = temp_3E6615_U32_OLD + temp_3E6615_U32_SRC;
 	ctx.eflags.update_flags_add_U32(temp_3E6615_U32_OLD, temp_3E6615_U32_SRC, ctx.eax.u32);
 	// test ecx, ecx
-	ctx.eflags.update_test_flags(ctx.ecx.u32 & ctx.ecx.u32);
+	ctx.eflags.update_test_flags_U32(ctx.ecx.u32 & ctx.ecx.u32);
 	// mov [ebp-0x14], edi
 	X86_STORE_U32(ctx.ebp.u32 - 20, ctx.edi.u32);
 	// mov [ebp-0x10], eax
@@ -147,7 +147,7 @@ loc_3E662F:
 	ctx.esp.u32 -= 0x4; //Adjust stack pointer for call instruction
 	sub_3E5B34(ctx, base);
 	// test eax, eax
-	ctx.eflags.update_test_flags(ctx.eax.u32 & ctx.eax.u32);
+	ctx.eflags.update_test_flags_U32(ctx.eax.u32 & ctx.eax.u32);
 	// mov [edi+0x20], eax
 	X86_STORE_U32(ctx.edi.u32 + 32, ctx.eax.u32);
 	// jnz 0x003E664D
@@ -165,7 +165,7 @@ loc_3E664D:
 	ctx.esp.u32 -= 0x4; //Adjust stack pointer for call instruction
 	sub_3EAD6D(ctx, base);
 	// test eax, eax
-	ctx.eflags.update_test_flags(ctx.eax.u32 & ctx.eax.u32);
+	ctx.eflags.update_test_flags_U32(ctx.eax.u32 & ctx.eax.u32);
 	// jl 0x003E6754
 	if ((((ctx.eflags.value & X86EFlags::SF) != 0) != ((ctx.eflags.value & X86EFlags::OF) != 0))) goto loc_3E6754;
 	// lea eax, [ebx+0x818]
@@ -210,7 +210,7 @@ loc_3E664D:
 	ctx.esp.u32 -= 0x4; //Adjust stack pointer for call instruction
 	sub_3EAEEB(ctx, base);
 	// test eax, eax
-	ctx.eflags.update_test_flags(ctx.eax.u32 & ctx.eax.u32);
+	ctx.eflags.update_test_flags_U32(ctx.eax.u32 & ctx.eax.u32);
 	// jle 0x003E66A1
 	if (((ctx.eflags.value & X86EFlags::ZF) != 0) || (((ctx.eflags.value & X86EFlags::SF) != 0) != ((ctx.eflags.value & X86EFlags::OF) != 0))) goto loc_3E66A1;
 	// and eax, 0xFFFF
@@ -220,7 +220,7 @@ loc_3E664D:
 	ctx.eax.u32 |= 0x80070000;
 	ctx.eflags.update_flags_logic(ctx.eax.u32);
 	// test eax, eax
-	ctx.eflags.update_test_flags(ctx.eax.u32 & ctx.eax.u32);
+	ctx.eflags.update_test_flags_U32(ctx.eax.u32 & ctx.eax.u32);
 loc_3E66A1:
 	// jl 0x003E6754
 	if ((((ctx.eflags.value & X86EFlags::SF) != 0) != ((ctx.eflags.value & X86EFlags::OF) != 0))) goto loc_3E6754;
@@ -254,7 +254,7 @@ loc_3E66B9:
 	ctx.esp.u32 -= 0x4; //Adjust stack pointer for call instruction
 	sub_3EAEEB(ctx, base);
 	// test eax, eax
-	ctx.eflags.update_test_flags(ctx.eax.u32 & ctx.eax.u32);
+	ctx.eflags.update_test_flags_U32(ctx.eax.u32 & ctx.eax.u32);
 	// jle 0x003E66DC
 	if (((ctx.eflags.value & X86EFlags::ZF) != 0) || (((ctx.eflags.value & X86EFlags::SF) != 0) != ((ctx.eflags.value & X86EFlags::OF) != 0))) goto loc_3E66DC;
 	// and eax, 0xFFFF
@@ -264,7 +264,7 @@ loc_3E66B9:
 	ctx.eax.u32 |= 0x80070000;
 	ctx.eflags.update_flags_logic(ctx.eax.u32);
 	// test eax, eax
-	ctx.eflags.update_test_flags(ctx.eax.u32 & ctx.eax.u32);
+	ctx.eflags.update_test_flags_U32(ctx.eax.u32 & ctx.eax.u32);
 loc_3E66DC:
 	// jl 0x003E6754
 	if ((((ctx.eflags.value & X86EFlags::SF) != 0) != ((ctx.eflags.value & X86EFlags::OF) != 0))) goto loc_3E6754;
@@ -418,3 +418,33 @@ loc_3E6754:
 	ctx.esp.u32 += 0x4;  //Adjust esp for return instruction
 	return;
 }
+
+//todo delete when implement audio properly
+HRESULT IDirectSoundBuffer_GetStatus(int32_t buffer, DWORD* pdwStatus)
+{
+
+	*pdwStatus = 0x00010000;
+
+
+	return S_OK;
+}
+
+
+
+GUEST_FUNCTION_HOOK_STDCALL(sub_3E421C, IDirectSoundBuffer_GetStatus);
+
+
+
+int32_t DirectSoundCreate_r(int32_t* pcGuidDevice, int32_t* ppDS, int32_t* pUnkOuter)
+{
+	return 0;
+}
+
+int32_t IDirectSound_DownloadEffectsImage(int a1, DWORD* a2, int a3, int a4, DWORD* a5)
+{
+	return 0;
+}
+
+
+GUEST_FUNCTION_HOOK_STDCALL(sub_3E5A27, DirectSoundCreate_r);
+GUEST_FUNCTION_HOOK_STDCALL(sub_3E4105, IDirectSound_DownloadEffectsImage);
