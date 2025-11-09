@@ -1,6 +1,34 @@
 #include "stdafx.h"
 #include <kernel/function.h>
 #include <string>
+#include <chrono>
+#include <cstdint>
+
+
+static constexpr uint32_t XBOX_TSC_FREQUENCY = 733333333; // Xbox Time Stamp Counter Frequency
+static constexpr uint32_t XBOX_ACPI_FREQUENCY = 3375000;  // Xbox ACPI frequency (3.375 mhz)
+
+
+static auto g_StartTime = std::chrono::high_resolution_clock::now();
+int64_t Timer_GetScaledPerformanceCounter(int64_t Period)
+{
+	auto currentTime = std::chrono::high_resolution_clock::now();
+	auto elapsed = std::chrono::duration_cast<std::chrono::nanoseconds>(
+		currentTime - g_StartTime
+	).count();
+
+	constexpr int64_t NANOSECONDS_PER_SECOND = 1000000000;
+	const int64_t whole = (elapsed / NANOSECONDS_PER_SECOND) * Period;
+	const int64_t part = (elapsed % NANOSECONDS_PER_SECOND) * Period / NANOSECONDS_PER_SECOND;
+
+	return whole + part;
+}
+
+static ULONGLONG HostGetPerformanceCounter(bool acpi)
+{
+	const int64_t period = acpi ? XBOX_ACPI_FREQUENCY : XBOX_TSC_FREQUENCY;
+	return Timer_GetScaledPerformanceCounter(period);
+}
 
 uint32_t GetKeTickCountImpl()
 {
@@ -8,19 +36,46 @@ uint32_t GetKeTickCountImpl()
 	return uint32_t(std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now().time_since_epoch()).count());
 }
 
+
 //has a huge impact on FPS
 BOOL QueryPerformanceCounterImpl(LARGE_INTEGER* lpPerformanceCount)
 {
-	//QueryPerformanceCounter(lpPerformanceCount);
-	lpPerformanceCount->QuadPart = std::chrono::steady_clock::now().time_since_epoch().count();
+	lpPerformanceCount->QuadPart = HostGetPerformanceCounter(false);
+
+	auto ctx = GetX86Context();
+
+	ctx->eax.u32 = lpPerformanceCount->LowPart;
+	ctx->edx.u32 = lpPerformanceCount->HighPart;
+	auto base = g_memory.base;
+	ctx->ecx.u32 = (uint32_t)lpPerformanceCount;
+
+
+	X86_STORE_U32(ctx->ecx.u32, ctx->eax.u32);
+	X86_STORE_U32(ctx->ecx.u32 + 4, ctx->edx.u32);
+
 	return TRUE;
 }
 
+
 BOOL QueryPerformanceFrequencyImpl(LARGE_INTEGER* lpPerformanceCount)
 {
-	//QueryPerformanceFrequency(lpPerformanceCount);
-	lpPerformanceCount->QuadPart = std::chrono::steady_clock::period::den / std::chrono::steady_clock::period::num;
-	return TRUE;
+    lpPerformanceCount->QuadPart = XBOX_ACPI_FREQUENCY;
+    return TRUE;
+}
+
+unsigned __int64 GetRdtSc()
+{
+	ULARGE_INTEGER PerformanceCount;
+	PerformanceCount.QuadPart = HostGetPerformanceCounter(false);
+
+	auto ctx = GetX86Context();
+
+	ctx->eax.u32 = PerformanceCount.LowPart;
+	ctx->edx.u32 = PerformanceCount.HighPart;
+
+
+
+	return ctx->eax.u32;
 }
 
 
@@ -76,15 +131,17 @@ char* __cdecl _StrrChr(char* a1, char a2)
 	return strrchr(a1, a2);
 }
 
-
+//very important for timing and FPS
 GUEST_FUNCTION_HOOK_STDCALL(sub_2AAF10, QueryPerformanceCounterImpl);
+GUEST_FUNCTION_HOOK(sub_3D7000, GetRdtSc);
+
 GUEST_FUNCTION_HOOK_STDCALL(sub_2AAF21, QueryPerformanceFrequencyImpl);
 GUEST_FUNCTION_HOOK(sub_388458, GetKeTickCountImpl);
 
 GUEST_FUNCTION_HOOK(sub_37FDA0, memcpy);
 GUEST_FUNCTION_HOOK(sub_380F60, memset);
 
-GUEST_FUNCTION_HOOK(sub_37FC10, strcpy); //invalid size because ida share some part of this function with another
+GUEST_FUNCTION_HOOK(sub_37FC10, strcpy); //originally has an invalid size because the original function "share" some part of this function with another one, creating a false positive for when it end
 GUEST_FUNCTION_HOOK(sub_37F1E0, strncpy);
 GUEST_FUNCTION_HOOK(sub_37FC20, strcat); //same as above
 GUEST_FUNCTION_HOOK(sub_380720, strncat);

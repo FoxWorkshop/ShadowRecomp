@@ -33,7 +33,7 @@ X86_FUNC(sub_3E8B60)
 }
 
 uint32_t fakeOffset = 0;
-const uint32_t bufferSize = 0x10000;
+const uint32_t bufferSize = 0x10000; 
 
 //IDirectSoundBuffer_SetCurrentPosition
 X86_FUNC_IMPL(__imp__sub_3E4258);
@@ -423,8 +423,7 @@ loc_3E6754:
 HRESULT IDirectSoundBuffer_GetStatus(int32_t buffer, DWORD* pdwStatus)
 {
 
-	*pdwStatus = 0x00010000;
-
+		*pdwStatus = 0x00010000;
 
 	return S_OK;
 }

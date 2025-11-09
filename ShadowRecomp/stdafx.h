@@ -26,13 +26,19 @@ using Microsoft::WRL::ComPtr;
 #include <cassert>
 #include <chrono>
 #include <span>
+#include <xxhash.h>
 #include "logs.h"
 #include <ankerl/unordered_dense.h>
 #include <x86/x86_recomp_shared.h>
+#include <stb_image.h>
+#include <blockingconcurrentqueue.h>
 #include <SDL.h>
 #include <SDL_mixer.h>
+#include <imgui.h>
+#include <imgui_internal.h>
+#include <implot.h>
+#include <backends/imgui_impl_sdl2.h>
 
-#include <stb_image.h>
 #include <o1heap.h>
 #include <cstddef>
 #include <set>

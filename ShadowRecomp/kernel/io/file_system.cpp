@@ -124,9 +124,7 @@ FileHandle* XCreateFile_r(const char* SourceString, ULONG CreateDisposition, ULO
 	if (filePath.string().find("Op.sfd") != std::string::npos)
 	{
 		adxTest = true;
-		std::ofstream outFile("adxsjd_decode_exec.txt", std::ios::app);
-		outFile << '\n' << "LOADED OP.SFD" << '\n';
-		printf("op file loaded\n");
+
 	}
 	else
 	{

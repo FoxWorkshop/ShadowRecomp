@@ -87,3 +87,4 @@ inline T* QueryKernelObject(XDISPATCHER_HEADER &header)
 }
 
 
+void InitDpcData();

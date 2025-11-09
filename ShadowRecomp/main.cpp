@@ -7,6 +7,7 @@
 #include <input/input.h>
 #include <file.h>
 #include <image.h>
+#include <user/paths.h>
 #include <kernel/io/file_system.h>
 #include <audio/audio.h>
 #include <ui/game_window.h>
@@ -101,7 +102,50 @@ void HostStartup()
     initSDL2Driver();
 }
 
+std::atomic<bool> running{ true };
+extern bool isHostThread;
 
+void __stdcall system_events_launch()
+{
+    GuestThreadParams events = { 0, 0, 0, 0, 0 };
+    GuestThread::Start_Non_Periodic_Events(events);
+}
+
+void __stdcall dpc_launch()
+{
+    GuestThreadParams dpc = { 0, 0, 0, 0, 0 };
+    GuestThread::Start_Dpc_Routine(dpc);
+}
+
+std::vector<float> dataFloat;
+
+std::vector<float>* getDataFloat()
+{
+    return &dataFloat;
+}
+
+std::vector<float> ReadFloatPairs(const std::string& path)
+{
+ 
+    std::ifstream in(path);
+    if (!in.is_open()) 
+        return dataFloat;
+
+    std::string line;
+    while (std::getline(in, line))
+    {
+        std::istringstream iss(line);
+        float a;
+        if (iss >> a)
+            dataFloat.push_back(a);
+    }
+    return dataFloat;
+}
+
+
+
+#include <filesystem>
+namespace fs = std::filesystem;
 int main(int argc, char* argv[])
 {
 #ifdef _WIN32
@@ -139,16 +183,78 @@ int main(int argc, char* argv[])
         }
     }
 
+#if defined(_WIN32) && defined(SHADOW_RECOMP_D3D12)
+    for (auto& dll : g_D3D12RequiredModules)
+    {
+        if (!std::filesystem::exists(g_executableRoot / dll))
+        {
+            char text[512];
+            snprintf(text, sizeof(text), "missing graphics DLL", dll.data());
+            SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_ERROR, GameWindow::GetTitle(), text, GameWindow::s_pWindow);
+            std::_Exit(1);
+        }
+    }
+#endif
+
     if (!Video::CreateHostDevice(sdlVideoDriver, graphicsApiRetry))
     {
-        SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_ERROR, GameWindow::GetTitle(), "erreur backend graphics", GameWindow::s_pWindow);
+        SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_ERROR, GameWindow::GetTitle(), "Backend Graphics error", GameWindow::s_pWindow);
         std::_Exit(1);
     }
 
+    InitDpcData();
 
+
+    for (const auto& entry : fs::directory_iterator(fs::current_path()))
+    {
+        if (entry.path().extension() == ".raw")
+        {
+            auto s = entry.path().string();
+            if (s.find("outSHTH") != std::string::npos)
+            {
+                //outSHTH.raw
+                std::error_code ec; // optional: avoid exceptions
+                if (fs::remove(entry.path(), ec))
+                {
+                    std::cout << "Deleted: " << entry.path() << '\n';
+                    break;
+                }
+            }
+        }
+    }
+
+    for (const auto& entry : fs::directory_iterator(fs::current_path())) {
+        if (entry.path().extension() == ".txt")
+        {
+            if (entry.path().string().find("float_dump.txt") != std::string::npos)
+            {
+                continue;
+            }
+
+            std::error_code ec; // optional: avoid exceptions
+            if (fs::remove(entry.path(), ec))
+                std::cout << "Deleted: " << entry.path() << '\n';
+        }
+    }
+
+
+
+    NV2ADevice_Init();
+
+    //Create "interrupt events" thread, a loop will check and fire guest function stored from KeConnectInterrupt
+    std::thread eventsThread(system_events_launch);
+
+    //Create DPC Routine thread, a loop will check and fire guest function stored from KeInsertQueueDpc
+    std::thread dpcThread(dpc_launch);
+
+
+    //launch the Start function of the game
+    isHostThread = true;
     GuestThreadParams params = { entry, 0, 0, 0, 0 };
     GuestThread::Start(params);
 
+    
+    running = false;
     printf("function Main is returning 0\n");
 	return 0;
 }

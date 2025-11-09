@@ -39,7 +39,7 @@ constexpr size_t TLS_SIZE = 0x2000;//0x1000;
 constexpr size_t STACK_SIZE = 0x10000;
 size_t TOTAL_SIZE = KPCR_SIZE + TLS_SIZE + STACK_SIZE + ETHREAD_R_SIZE;
 
-bool isHostThread = true;
+bool isHostThread = false;
 
 void KiInitializeContextThread(
 	IN KTHREAD_R* Thread,
@@ -226,12 +226,13 @@ uint32_t GuestThread::GetCurrentThreadId()
 uint32_t GuestThread::Start(const GuestThreadParams& params)
 {
 	printf("GuestThread::Start(const GuestThreadParams& params), function: %08X\n", params.function);
-	const auto procMask = (uint8_t)(params.flags >> 24);
+	//const auto procMask = (uint8_t)(params.flags >> 24);
 	GuestThreadContext ctx(params);
 
 	//ctx.x86Context.esp.u32 = (ctx.x86Context.esp.u32 - 16) & ~0xF;
 	// 
 	auto base = g_memory.base;
+
 	if (params.parameter)
 		X86_STORE_U32(ctx.x86Context.esp.u32, params.parameter);
 
@@ -239,6 +240,54 @@ uint32_t GuestThread::Start(const GuestThreadParams& params)
 	g_memory.FindFunction(params.function)(ctx.x86Context, g_memory.base); 	//call function, if it crashes there the function was most likely not found in the map array
 	return ctx.x86Context.eax.u32;
 }
+
+#ifdef _WIN32
+void GuestThread::SetThreadName(uint32_t threadId, const char* name)
+{
+#pragma pack(push,8)
+	const DWORD MS_VC_EXCEPTION = 0x406D1388;
+
+	typedef struct tagTHREADNAME_INFO
+	{
+		DWORD dwType; // Must be 0x1000.
+		LPCSTR szName; // Pointer to name (in user addr space).
+		DWORD dwThreadID; // Thread ID (-1=caller thread).
+		DWORD dwFlags; // Reserved for future use, must be zero.
+	} THREADNAME_INFO;
+#pragma pack(pop)
+
+	THREADNAME_INFO info;
+	info.dwType = 0x1000;
+	info.szName = name;
+	info.dwThreadID = threadId;
+	info.dwFlags = 0;
+
+	__try
+	{
+		RaiseException(MS_VC_EXCEPTION, 0, sizeof(info) / sizeof(ULONG_PTR), (ULONG_PTR*)&info);
+	}
+	__except (EXCEPTION_EXECUTE_HANDLER)
+	{
+	}
+}
+#endif
+
+void GuestThread::Start_Non_Periodic_Events(const GuestThreadParams& params)
+{
+	printf("GuestThread::Start_Non_Periodic_Events\n");
+
+	GuestThreadContext ctx(params);
+	system_events(&ctx.x86Context);
+}
+
+void GuestThread::Start_Dpc_Routine(const GuestThreadParams& params)
+{
+	printf("GuestThread::Start_Dpc_Routine\n");
+
+	GuestThreadContext ctx(params);
+	DPCRoutine(&ctx.x86Context);
+}
+
 
 
 // Function to clean the stack after a function call

@@ -1,6 +1,6 @@
 #pragma once
 
-//#include <gpu/rhi/plume_render_interface_types.h>
+#include <gpu/rhi/plume_render_interface_types.h>
 #include <user/config.h>
 #include <sdl_events.h>
 
@@ -13,7 +13,7 @@ class GameWindow
 {
 public:
     static inline SDL_Window* s_pWindow = nullptr;
-    //static inline plume::RenderWindow s_renderWindow;
+    static inline plume::RenderWindow s_renderWindow;
 
     static inline int s_x;
     static inline int s_y;

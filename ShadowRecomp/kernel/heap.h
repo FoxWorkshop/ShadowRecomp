@@ -40,3 +40,6 @@ struct Heap
 };
 
 extern Heap g_userHeap;
+
+
+uint32_t RtlAllocateHeap(uint32_t heapHandle, uint32_t flags, uint32_t size);

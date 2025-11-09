@@ -1630,8 +1630,8 @@ namespace xbox
 // ******************************************************************
 	typedef struct _KINTERRUPT
 	{
-		/* 0x00= 0 */ PKSERVICE_ROUTINE ServiceRoutine;
-		/* 0x04= 4 */ PVOID ServiceContext;
+		/* 0x00= 0 */ uint32_t  ServiceRoutine;//PKSERVICE_ROUTINE ServiceRoutine;
+		/* 0x04= 4 */ uint32_t ServiceContext; //(PVOID) 
 		/* 0x08= 8 */ ulong_xt BusInterruptLevel;
 		/* 0x0C=12 */ ulong_xt Irql; // Was : unsigned char     KIRQL; unsigned char     PaddingA[0x03];
 		/* 0x10=16 */ boolean_xt Connected;

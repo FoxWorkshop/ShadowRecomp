@@ -1,5 +1,8 @@
 #pragma once
 
+static constexpr int32_t FPS_MIN = 15;
+static constexpr int32_t FPS_MAX = 60;
+
 enum class ELanguage : uint32_t
 {
     English = 1,
@@ -67,10 +70,25 @@ enum class EGraphicsAPI : uint32_t
     Vulkan
 };
 
+enum class EAspectRatio : uint32_t
+{
+    Auto,
+    Wide,
+    Narrow,
+    OriginalNarrow
+};
+
 enum class EWindowState : uint32_t
 {
     Normal,
     Maximised
+};
+
+enum class ETripleBuffering : uint32_t
+{
+    Auto,
+    On,
+    Off
 };
 
 
@@ -96,8 +114,20 @@ public:
     static inline int WindowY = WINDOWPOS_CENTRED;
     static inline int WindowWidth = 1280;
     static inline int WindowHeight = 720;
+    static inline int32_t FPS = 60;
+    static inline bool VSync = true;
+    static inline bool DisableLowResolutionFontOnCustomUI = false;
     static std::filesystem::path GetConfigPath();
 
+    static inline EGraphicsAPI GraphicsAPI = EGraphicsAPI::D3D12; //EGraphicsAPI::Auto;
+    static inline std::string GraphicsDevice = "";
+
+    static inline ETripleBuffering TripleBuffering = ETripleBuffering::Auto;
+    static inline bool ShowFPS = true;//false;
+    static inline uint32_t MaxFrameLatency = 2;
+    static inline float Brightness = 0.5f;
+    static inline bool DisableDWMRoundedCorners = false;
+    static inline EAspectRatio AspectRatio = EAspectRatio::Auto;
 
     static void CreateCallbacks();
     static void Load();

@@ -40,4 +40,8 @@ extern Logger logs;
 #define LOGN_ERROR(str)         LOG_IMPL(Error, "*", str)
 #define LOGN_UTIL(str)       LOG_IMPL(Utility, "*", str)
 
+#define LOGFN(str, ...)         LOGF_IMPL(None, "*", str, __VA_ARGS__)
+#define LOGFN_WARNING(str, ...) LOGF_IMPL(Warning, "*", str, __VA_ARGS__)
+#define LOGFN_ERROR(str, ...)   LOGF_IMPL(Error, "*", str, __VA_ARGS__)
+
 void InitLogs();

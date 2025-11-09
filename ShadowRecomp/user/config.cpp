@@ -300,10 +300,10 @@ CONFIG_DEFINE_ENUM_TEMPLATE(EWindowState)
     { "Maximized", EWindowState::Maximised }
 };
 
-
+//todo
 std::filesystem::path Config::GetConfigPath()
 {
-    return GetUserPath() / "config.toml";
+    return "";//GetUserPath() / "config.toml";
 }
 
 void Config::CreateCallbacks()

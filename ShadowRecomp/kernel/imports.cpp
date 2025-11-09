@@ -2,6 +2,7 @@
 #include <cpu/x86_context.h>
 #include <cpu/guest_thread.h>
 #include "io/file_system.h"
+#include "gpu/video.h"
 #include "function.h"
 
 #include "xbox_types.h"
@@ -17,6 +18,12 @@
 #define MMIO_SIZE  0x00800000 
 uint8_t g_mmio[MMIO_SIZE];  // Global/shared MMIO region
 
+#define NV2A_DEVICE1_BASE 0xFD000000
+#define KiB(x) ((x) *    1024 ) // = 0x00000400
+#define MiB(x) ((x) * KiB(1024)) // = 0x00100000
+#define NV2A_DEVICE1_SIZE (MiB(7)) // = 0x00700000
+uint8_t g_nv2a[NV2A_DEVICE1_SIZE];
+
 static std::atomic<uint32_t> g_keSetEventGeneration;
 constexpr uint32_t GPU_ALIGNMENT = 4096;
 
@@ -28,6 +35,86 @@ constexpr uint32_t GPU_ALIGNMENT = 4096;
 #define IPI_LEVEL 29
 #define POWER_LEVEL 30
 #define HIGH_LEVEL 31
+
+#define MAX_BUS_INTERRUPT_LEVEL 27
+#define IRQ_BASE 0x30 
+#define VECTOR2IRQ(vector)  ((vector)-IRQ_BASE)
+#define IRQ2VECTOR(irq)     ((irq)+IRQ_BASE)
+#define VECTOR2IRQL(vector) (MAX_BUS_INTERRUPT_LEVEL - VECTOR2IRQ(vector))
+
+
+static bool first = false;
+inline std::atomic_bool g_bEnableAllInterrupts = true;
+class HalSystemInterrupt 
+{
+public:
+	void Assert(bool state) 
+	{
+		// If the interrupt was marked as Asserted, and was previously not, set the pending flag too!
+		if (m_Asserted == 0 && state == 1) 
+		{
+			m_Pending = true;
+		}
+
+		m_Asserted = state;
+	};
+
+	void Enable() {
+		m_Enabled = true;
+	}
+
+	void Disable() {
+		m_Enabled = false;
+	}
+
+	bool IsEnabled() {
+		return m_Enabled;
+	}
+
+	bool IsPending() 
+	{
+		return m_Asserted && m_Pending;
+	}
+
+	void SetInterruptMode(xbox::KINTERRUPT_MODE InterruptMode) {
+		m_InterruptMode = InterruptMode;
+	}
+
+	void Trigger(xbox::PKINTERRUPT Interrupt, X86Context* ctx) {
+		// If interrupt was level sensitive, we clear the pending flag, preventing the interrupt from being triggered 
+		// until it is deasserted then asserted again. Latched interrupts are triggered until the line is Deasserted!
+		if (m_InterruptMode == xbox::KINTERRUPT_MODE::LevelSensitive) {
+			m_Pending = false;
+		}
+
+		Sleep(8);
+		uint32_t funcAddr = (uint32_t)Interrupt->ServiceRoutine;
+
+
+		if (funcAddr == 0x4286AD)
+		{
+			return;
+		
+		}
+	
+
+		auto base = g_memory.base;
+
+		uint32_t interrupt = (uint32_t)Interrupt;
+
+		X86_STORE_U32(ctx->esp.u32, interrupt);
+		X86_STORE_U32(ctx->esp.u32 + 4, (uint32_t)Interrupt->ServiceContext);
+
+		ctx->esp.u32 -= 4; //in x86, the CPU always adjust the stack pointer by 4 bytes before calling a function
+		g_memory.FindFunction(funcAddr)(*ctx, g_memory.base);	//call function, if it crashes there the function was most likely not found in the map array
+	}
+private:
+	bool m_Asserted = false;
+	bool m_Enabled = false;
+	xbox::KINTERRUPT_MODE m_InterruptMode;
+	bool m_Pending = false;
+};
+
 
 template<typename TGuest>
 struct HostObject
@@ -281,11 +368,19 @@ LONG FscSetCacheSize(ULONG NumberOfCachePages)
 	return X_STATUS_SUCCESS;
 }
 
+
 uint32_t HalGetInterruptVector(uint32_t BusInterruptLevel, std::uint8_t* Irql)
 {
+	uint32_t dwVector = 0;
 
-	printf("[STUB] HalGetInterruptVector(IRQ %d, Pin %d)\n", BusInterruptLevel, Irql);
-	return 0x20; //Return a dummy vector (typical for ISA IRQs)
+	if ((BusInterruptLevel >= 0) && (BusInterruptLevel <= MAX_BUS_INTERRUPT_LEVEL))
+	{
+		dwVector = IRQ2VECTOR(BusInterruptLevel);
+		if (Irql)
+			*Irql = (uchar_xt)VECTOR2IRQL(dwVector);
+	}
+
+	return dwVector;
 }
 
 //allows drivers or system components to register a callback function to be notified when the console is about to shut down.
@@ -301,12 +396,12 @@ void HalReturnToFirmware(ULONG Action)
 
 void HalReadWritePCISpace
 (
-	IN uint32_t   BusNumber,
-	IN uint32_t   SlotNumber,
-	IN uint32_t   RegisterNumber,
-	IN uint32_t* Buffer,
-	IN uint32_t   Length,
-	IN std::uint8_t WritePCISpace
+	uint32_t   BusNumber,
+	uint32_t   SlotNumber,
+	uint32_t   RegisterNumber,
+	uint32_t* Buffer,
+	uint32_t   Length,
+	std::uint8_t WritePCISpace
 )
 {
 	printf("[STUB] %sPCISpace(Bus %d, Slot %d, Offset %X, Len %d)\n",
@@ -396,28 +491,70 @@ LONG KeQueryBasePriorityThread(GuestThreadHandle* Thread)
 	return 8;
 }
 
-std::uint8_t KeInsertQueueDpc(uint32_t* Dpc_, uint32_t* Argument1, uint32_t* Argument2)
+typedef struct _KINTERRUPT
 {
-	xpointer<KDPC> Dpc = xpointer<KDPC>(*Dpc_);
-	printf("[STUB] KeInsertQueueDpc(%p, %p, %p)\n", Dpc, Argument1, Argument2);
-	return TRUE;
+	/* 0x00= 0 */ uint32_t ServiceRoutine;
+	/* 0x04= 4 */ uint32_t ServiceContext;
+	/* 0x08= 8 */ ulong_xt BusInterruptLevel;
+	/* 0x0C=12 */ ulong_xt Irql; // Was : unsigned char     KIRQL; unsigned char     PaddingA[0x03];
+	/* 0x10=16 */ boolean_xt Connected;
+	/* 0x11=17 */ boolean_xt ShareVector;
+	/* 0x12=18 */ uint32_t Mode;
+	/* 0x14=20 */ ulong_xt ServiceCount;
+	/* 0x18=24 */ ulong_xt DispatchCode[DISPATCH_SIZE]; // Same as old : unsigned char ISR[0x58];
 }
+KINTERRUPT, * PKINTERRUPT;
 
-#define IRQ_BASE 0x30 
-#define VECTOR2IRQ(vector)  ((vector)-IRQ_BASE)
-void KeInitializeInterrupt(uint32_t* Interrupt_, uint32_t* ServiceRoutine_,
-	uint32_t* ServiceContext, ULONG Vector, std::uint8_t Irql,
-	uint32_t InterruptMode_, BOOLEAN ShareVector)
+
+void KeInitializeInterrupt(xbox::PKINTERRUPT Interrupt, uint32_t ServiceRoutine,
+	uint32_t ServiceContext, ULONG Vector, std::uint8_t Irql,
+	xbox::_KINTERRUPT_MODE InterruptMode, BOOLEAN ShareVector)
 {
-	memset(Interrupt_, 0, 0x20);
-
-	printf("[STUB] KeInitializeInterrupt(Vector 0x%X, Irql %d)\n", Vector, Irql);
+	Interrupt->ServiceRoutine = ServiceRoutine;
+	Interrupt->ServiceContext = ServiceContext;
+	Interrupt->BusInterruptLevel = VECTOR2IRQ(Vector);
+	Interrupt->Irql = Irql;
+	Interrupt->Connected = FALSE;
+	Interrupt->Mode = InterruptMode;
 }
 
 void KeDisconnectInterrupt(uint32_t* Interrupt_)
 {
 	xbox::PKINTERRUPT Interrupt = (xbox::PKINTERRUPT)Interrupt;
 	printf("[STUB] KeDisconnectInterrupt(%p)\n", Interrupt);
+}
+
+#define MAX_BUS_INTERRUPT_LEVEL 27
+xbox::KINTERRUPT* EmuInterruptList[MAX_BUS_INTERRUPT_LEVEL + 1] = { 0 };
+HalSystemInterrupt HalSystemInterrupts[MAX_BUS_INTERRUPT_LEVEL + 1];
+
+void HalEnableSystemInterrupt
+(
+	IN ulong_xt BusInterruptLevel,
+	IN uint32_t InterruptMode
+)
+{
+	HalSystemInterrupts[BusInterruptLevel].Enable();
+	HalSystemInterrupts[BusInterruptLevel].SetInterruptMode((xbox::KINTERRUPT_MODE)InterruptMode);
+}
+
+std::uint8_t KeConnectInterrupt(xbox::KINTERRUPT* InterruptObject)
+{
+	BOOLEAN ret = FALSE;
+
+	if (!InterruptObject->Connected)
+	{
+		// One interrupt per IRQ - only set when not set yet :
+		if (EmuInterruptList[InterruptObject->BusInterruptLevel] == NULL)
+		{
+			InterruptObject->Connected = TRUE;
+			EmuInterruptList[InterruptObject->BusInterruptLevel] = InterruptObject;
+			HalEnableSystemInterrupt(InterruptObject->BusInterruptLevel, InterruptObject->Mode);
+			ret = TRUE;
+		}
+	}
+
+	return ret;
 }
 
 uint32_t GuestTimeoutToMilliseconds(int64_t* timeout)
@@ -444,12 +581,7 @@ LONG KeDelayExecutionThread(uint8_t WaitMode, BOOLEAN Alertable, int64_t* Interv
 	return X_STATUS_SUCCESS;
 }
 
-std::uint8_t KeConnectInterrupt(uint32_t* Interrupt_)
-{
-	xbox::PKINTERRUPT Interrupt = (xbox::PKINTERRUPT)Interrupt;
-	printf("[STUB] KeConnectInterrupt(%p)\n", Interrupt);
-	return TRUE;
-}
+
 
 std::uint8_t KeCancelTimer(uint32_t* Timer_)
 {
@@ -459,17 +591,13 @@ std::uint8_t KeCancelTimer(uint32_t* Timer_)
 }
 
 
-VOID KeInitializeDpc(_KDPC* Dpc, uint32_t DeferredRoutine, uint32_t* DeferredContext)
+VOID KeInitializeDpc(_KDPC* Dpc, uint32_t* DeferredRoutine, uint32_t* DeferredContext)
 {
 	Dpc->Type = 19;
 	Dpc->Inserted = FALSE;
-	Dpc->DeferredRoutine = (PKDEFERRED_ROUTINE)DeferredRoutine;
-	Dpc->DeferredContext = (xpointer<void>)DeferredContext;
+	Dpc->DeferredRoutine.set((PKDEFERRED_ROUTINE)DeferredRoutine);
+	Dpc->DeferredContext.ptr = (uint32_t)DeferredContext;
 }
-
-
-
-
 
 typedef struct _XKTIMER
 {
@@ -481,13 +609,15 @@ typedef struct _XKTIMER
 }
 KTIMER, * PKTIMER;
 
-
+void InitializeListHead(PXLIST_ENTRY pListHead);
 VOID KeInitializeTimerEx(_XKTIMER* Timer, uint32_t Type)
 {
 	Timer->Header.Type = Type + 8;
 	Timer->Header.Inserted = FALSE;
 	Timer->Header.Size = sizeof(xbox::_KTIMER) / sizeof(ULONG);
 	Timer->Header.SignalState = 0;
+
+	InitializeListHead((PXLIST_ENTRY)&(Timer->Header.WaitListHead));
 
 	Timer->TimerListEntry.Blink = NULL;
 	Timer->TimerListEntry.Flink = NULL;
@@ -496,27 +626,15 @@ VOID KeInitializeTimerEx(_XKTIMER* Timer, uint32_t Type)
 
 }
 
-std::uint8_t KeRemoveQueueDpc(uint32_t* Dpc_)
-{
-	KDPC Dpc = (KDPC)*Dpc_;
-	printf("[STUB] KeRemoveQueueDpc(%p)\n", Dpc);
-	return TRUE;
-}
 
-uint32_t SaveArea;
-// In a real implementation, would restore FPU/XMM registers
 int32_t KeRestoreFloatingPointState(uint32_t* SaveArea_)
 {
-	SaveArea_ = &SaveArea;
-	//printf("[STUB] KeRestoreFloatingPointState(%p)\n", SaveArea);
 	LONG ret = X_STATUS_SUCCESS;
 	return ret;
 }
 
 LONG KeSaveFloatingPointState(uint32_t* SaveArea_)
 {
-	SaveArea = *SaveArea_;
-	//printf("[STUB] KeSaveFloatingPointState(%p)\n", SaveArea);
 	return X_STATUS_SUCCESS;
 }
 
@@ -535,7 +653,7 @@ int map_xbox_priority(int xbox_priority) {
 		return THREAD_PRIORITY_NORMAL;
 	}
 }
-static bool once = false;
+
 extern int adxm_vsyncThread;
 std::int32_t KeSetBasePriorityThread(GuestThreadHandle* hThread, LONG priority)
 {
@@ -567,7 +685,7 @@ std::int32_t KeSetBasePriorityThread(GuestThreadHandle* hThread, LONG priority)
 
 std::uint8_t KeSetDisableBoostThread(uint32_t* Thread_, BOOLEAN Disable)
 {
-	printf("[STUB] KeSetDisableBoostThread(%p, %d)\n");
+	printf("[STUB] KeSetDisableBoostThread()\n");
 	return 0;
 }
 
@@ -593,6 +711,7 @@ BOOLEAN KeSetTimer(uint32_t* Dpc, uint32_t* DueTime, uint32_t* Timer)
 VOID KeStallExecutionProcessor(ULONG Microseconds)
 {
 	//printf("[STUB] KeStallExecutionProcessor(%u)\n", Microseconds);
+	std::this_thread::sleep_for(std::chrono::microseconds(Microseconds));
 }
 
 BOOLEAN KeSynchronizeExecution(uint32_t* Interrupt_, uint32_t* SynchronizeRoutine_, uint32_t SynchronizeContext)
@@ -815,20 +934,14 @@ LONG NtQueryDirectoryFile(
 )
 {
 	printf("QUERY DIRECTION FILE STUB\n");
-	//xbox::FILE_INFORMATION_CLASS fileInfo = (xbox::FILE_INFORMATION_CLASS)FileInformationClass;
-	//xbox::_FILE_DIRECTORY_INFORMATION FileInformation = (xbox::_FILE_DIRECTORY_INFORMATION)*FileInformation_;
-	//memset(FileInformation, 0, Length);
 	return X_STATUS_SUCCESS;
 }
 
-LONG NtQueryFullAttributesFile(uint32_t* ObjectAttributes_, uint32_t* FileInformation_
-)
+//todo figure out if this is correct
+LONG NtQueryFullAttributesFile(uint32_t* ObjectAttributes_, uint32_t* FileInformation_)
 {
 	printf("NtQueryFullAttributesFile STUB\n");
-	//xbox::POBJECT_ATTRIBUTES ObjectAttributes = (xbox::POBJECT_ATTRIBUTES)ObjectAttributes_;
-	//xbox::PFILE_NETWORK_OPEN_INFORMATION FileInformation = (xbox::PFILE_NETWORK_OPEN_INFORMATION)ObjectAttributes_;
-	//FileInformation->EndOfFile.QuadPart = 0x1000; // Dummy size
-	return X_STATUS_SUCCESS;
+	return X_STATUS_OBJECT_PATH_NOT_FOUND;
 }
 
 LONG NtQueryInformationFile(
@@ -849,7 +962,7 @@ LONG NtQueryInformationFile(
 		info->EndOfFile.QuadPart = 0x1000; // Dummy 4KB file
 	}*/
 
-	return X_STATUS_SUCCESS;
+	return 0;
 }
 
 LONG NtQuerySymbolicLinkObject(HANDLE LinkHandle, void* TargetName_, PULONG ReturnedLength
@@ -1026,6 +1139,9 @@ BOOLEAN RtlEqualString(PCSTR String1, PCSTR String2)
 
 LONG NtSuspendThread(GuestThreadHandle* ThreadHandle, uint32_t* PreviousSuspendCount)
 {
+	if (!ThreadHandle) 
+		return STATUS_INVALID_HANDLE;
+
 	//printf("NtSuspendThread(0x%X) id: (0x%X)\n", ThreadHandle, ThreadHandle->thread.get_id());
 	assert(ThreadHandle != GetKernelObject(CURRENT_THREAD_HANDLE) && ThreadHandle->thread.get_id() == std::this_thread::get_id());
 
@@ -1037,6 +1153,8 @@ LONG NtSuspendThread(GuestThreadHandle* ThreadHandle, uint32_t* PreviousSuspendC
 
 LONG NtResumeThread(GuestThreadHandle* ThreadHandle, uint32_t* PreviousSuspendCount)
 {
+	if (!ThreadHandle)
+		return STATUS_INVALID_HANDLE;
 	//printf("NtResumeThread(0x%X), id: (0x%X)\n", ThreadHandle, ThreadHandle->thread.get_id());
 	assert(ThreadHandle != GetKernelObject(CURRENT_THREAD_HANDLE));
 
@@ -1269,6 +1387,381 @@ uint32_t NtWaitForSingleObjectEx(uint32_t Handle, uint32_t WaitMode, uint32_t Al
 }
 
 
+typedef struct _DpcData {
+	XRTL_CRITICAL_SECTION Lock;
+	std::atomic_flag IsDpcActive;
+	std::atomic_flag IsDpcPending;
+	XLIST_ENTRY DpcQueue; 
+} DpcData;
+
+DpcData g_DpcData = { 0 };
+
+
+// See also :
+// https://github.com/reactos/reactos/blob/40a16a9cf1cdfca399e9154b42d32c30b63480f5/reactos/drivers/filesystems/udfs/Include/env_spec_w32.h
+void InitializeListHead(PXLIST_ENTRY pListHead)
+{
+	pListHead->Flink = pListHead->Blink = (uint32_t)pListHead.get();
+}
+
+bool IsListEmpty(PXLIST_ENTRY pListHead)
+{
+	return (pListHead->Flink == (uint32_t)pListHead.get());
+}
+
+
+void g_KeWaitForDpc()
+{
+	g_DpcData.IsDpcPending.wait(false);
+}
+
+bool RemoveEntryList(PXLIST_ENTRY pEntry)
+{
+	PXLIST_ENTRY _EX_Flink = (PXLIST_ENTRY)pEntry->Flink;
+	PXLIST_ENTRY _EX_Blink = (PXLIST_ENTRY)pEntry->Blink;
+
+	if (_EX_Blink != nullptr) {
+		_EX_Blink->Flink = (uint32_t)_EX_Flink.get();
+	}
+
+	if (_EX_Flink != nullptr) {
+		_EX_Flink->Blink = (uint32_t)_EX_Blink.get();
+	}
+
+	if (_EX_Blink != nullptr && _EX_Flink != nullptr) {
+		return (_EX_Flink == _EX_Blink);
+	}
+	// If we reach here then it means we have erroneously been called on a detached element. In this case,
+	// always report FALSE to avoid possible side effects
+	return FALSE;
+}
+
+
+PXLIST_ENTRY RemoveHeadList(PXLIST_ENTRY pListHead)
+{
+	PXLIST_ENTRY Result = (PXLIST_ENTRY)pListHead->Flink;
+
+	RemoveEntryList((PXLIST_ENTRY)pListHead->Flink);
+	return Result;
+}
+
+void ExecuteDpcQueue(X86Context* ctx)
+{
+
+	PKDPC pkdpc;
+
+	// While we're working with the DpcQueue, we need to be thread-safe :
+	RtlEnterCriticalSection(&(g_DpcData.Lock));
+
+		// Are there entries in the DpqQueue?
+	while (!IsListEmpty((PXLIST_ENTRY)&(g_DpcData.DpcQueue)))
+	{
+		Sleep(8);
+		// Extract the head entry and retrieve the containing KDPC pointer for it:
+		pkdpc = CONTAINING_RECORD(RemoveHeadList((PXLIST_ENTRY)&(g_DpcData.DpcQueue)).get(), KDPC, DpcListEntry);
+		// Mark it as no longer linked into the DpcQueue
+		pkdpc->Inserted = FALSE;
+		// Set DpcRoutineActive to support KeIsExecutingDpc:
+		g_DpcData.IsDpcActive.test_and_set();
+		//KeGetCurrentPrcb()->DpcRoutineActive = TRUE; // Experimental
+		RtlLeaveCriticalSection(&(g_DpcData.Lock));
+
+
+		// Call the Deferred Procedure:
+		auto base = g_memory.base;
+		base = base;
+		//auto func = g_memory.MapVirtual(pkdpc->DeferredRoutine);
+		auto func = (uint32_t)pkdpc->DeferredRoutine.get();
+
+
+		X86_STORE_U32(ctx->esp.u32, (uint32_t)pkdpc);
+		X86_STORE_U32(ctx->esp.u32 + 4, (uint32_t)pkdpc->DeferredContext.get());
+		X86_STORE_U32(ctx->esp.u32 + 8, (uint32_t)pkdpc->SystemArgument1.get());
+		X86_STORE_U32(ctx->esp.u32 + 12, (uint32_t)pkdpc->SystemArgument2.get());
+		ctx->esp.u32 -= 4; //in x86, the CPU always adjust the stack pointer by 4 bytes before calling a function
+		g_memory.FindFunction(func)(*ctx, g_memory.base);
+
+		RtlEnterCriticalSection(&(g_DpcData.Lock));
+		//KeGetCurrentPrcb()->DpcRoutineActive = FALSE; // Experimental
+		g_DpcData.IsDpcActive.clear();
+	}
+
+	g_DpcData.IsDpcPending.clear();
+
+	//    Assert(g_DpcData._dwThreadId == GetCurrentThreadId());
+	//    Assert(g_DpcData._dwDpcThreadId == g_DpcData._dwThreadId);
+	//    g_DpcData._dwDpcThreadId = 0;
+	RtlLeaveCriticalSection(&(g_DpcData.Lock));
+}
+
+void InitDpcData()
+{
+	// Let's initialize the Dpc handling thread too,
+	// here for now (should be called by our caller)
+	RtlInitializeCriticalSection(&(g_DpcData.Lock));
+	InitializeListHead((PXLIST_ENTRY)&(g_DpcData.DpcQueue));
+}
+
+bool IsDpcActive()
+{
+	return g_DpcData.IsDpcActive.test();
+}
+
+void InsertTailList(PXLIST_ENTRY pListHead, PXLIST_ENTRY pEntry)
+{
+	PXLIST_ENTRY _EX_ListHead = pListHead;
+	PXLIST_ENTRY _EX_Blink = (PXLIST_ENTRY)_EX_ListHead->Blink;
+
+	pEntry->Flink = (uint32_t)_EX_ListHead.get();
+	pEntry->Blink = (uint32_t)_EX_Blink.get();
+	_EX_Blink->Flink = (uint32_t)pEntry.get();
+	_EX_ListHead->Blink = (uint32_t)pEntry.get();
+}
+
+std::uint8_t KeInsertQueueDpc(PKDPC Dpc, uint32_t* Argument1, uint32_t* Argument2)
+{
+	// For thread safety, enter the Dpc lock:
+	RtlEnterCriticalSection((XRTL_CRITICAL_SECTION*)&(g_DpcData.Lock));
+	// TODO : Instead, disable interrupts - use KeRaiseIrql(HIGH_LEVEL, &(KIRQL)OldIrql) ?
+
+	BOOLEAN NeedsInsertion = (Dpc->Inserted == FALSE);
+
+	if (NeedsInsertion)
+	{
+		// Remember the arguments and link it into our DpcQueue :
+		Dpc->Inserted = TRUE;
+		Dpc->SystemArgument1.ptr = (uint32_t)Argument1;
+		Dpc->SystemArgument2.ptr = (uint32_t)Argument2;
+		InsertTailList((PXLIST_ENTRY)&(g_DpcData.DpcQueue), (PXLIST_ENTRY)&(Dpc->DpcListEntry));
+		RtlLeaveCriticalSection((XRTL_CRITICAL_SECTION*)&(g_DpcData.Lock));
+		g_DpcData.IsDpcPending.test_and_set();
+		g_DpcData.IsDpcPending.notify_one();
+
+	}
+	else
+	{
+		RtlLeaveCriticalSection((XRTL_CRITICAL_SECTION*)&(g_DpcData.Lock));
+	}
+
+
+	return NeedsInsertion;
+}
+
+std::uint8_t KeRemoveQueueDpc(KDPC* Dpc)
+{
+	RtlEnterCriticalSection(&(g_DpcData.Lock));
+
+	BOOLEAN Inserted = Dpc->Inserted;
+
+	if (Inserted)
+	{
+		RemoveEntryList((PXLIST_ENTRY)&(Dpc->DpcListEntry));
+		Dpc->Inserted = FALSE;
+	}
+
+	RtlLeaveCriticalSection(&(g_DpcData.Lock));
+
+	return Inserted;
+}
+
+void DPCRoutine(X86Context* ctx)
+{
+#ifdef _WIN32
+	GuestThread::SetThreadName(GetCurrentThreadId(), "DPC Routine");
+#endif
+
+	while (true) 
+	{
+		g_KeWaitForDpc();
+		ExecuteDpcQueue(ctx);
+	}
+
+}
+
+static void update_non_periodic_events(X86Context* ctx)
+{
+	// update dsound
+	//dsound_worker();
+
+	// check for hw interrupts
+	for (int i = 0; i < MAX_BUS_INTERRUPT_LEVEL; i++) 
+	{
+		// If the interrupt is pending and connected, process it
+		if (g_bEnableAllInterrupts && EmuInterruptList[i] && EmuInterruptList[i]->Connected) 
+		{
+			HalSystemInterrupts[i].Trigger(EmuInterruptList[i], ctx);
+		}
+	}
+}
+
+
+// Cross-platform replacement for get_now()
+static uint64_t get_now_us()
+{
+	using namespace std::chrono;
+	static auto start = steady_clock::now();
+
+	auto now = steady_clock::now();
+	auto elapsed = duration_cast<microseconds>(now - start);
+
+	return elapsed.count();
+}
+
+typedef struct NV2AState {
+	void(*vblank_cb)(void*, X86Context*);
+	uint64_t vblank_last;
+
+	bool exiting;
+
+	struct {
+		uint32_t pending_interrupts;
+		uint32_t enabled_interrupts;
+		uint32_t regs[0x001000]; 
+	} pmc;
+
+	struct {
+		uint32_t pending_interrupts;
+		uint32_t enabled_interrupts;
+		uint32_t start;
+		uint32_t regs[0x001000];
+	} pcrtc;
+
+} NV2AState;
+
+std::unique_ptr<NV2AState> m_nv2a_state;
+uint8_t* g_nv2aPtr = nullptr;
+
+// D3DK::CMiniport::MapRegisters
+// Because the game stores hardware address directly as a pointer, we have to swap it to our nv2a array that handle basic hardware stuff. 
+// We need to do that because we have to simulate vblank call since these are needed for the game to progress normally
+// Thus, whenever the game will write a vblank signal in our array, we can check that and simulate the wait properly.
+X86_FUNC_IMPL(__imp__sub_3D7B81);
+X86_FUNC(sub_3D7B81)
+{
+	__imp__sub_3D7B81(ctx, base);
+	g_nv2aPtr = (uint8_t*)g_userHeap.AllocPhysical(NV2A_DEVICE1_SIZE, 1);
+
+	X86_STORE_U32(ctx.ecx.u32, g_memory.MapVirtual(g_nv2aPtr)); //this will make the game write hardware value in our array directly.
+}
+
+static bool vblankFlag = false;
+X86_FUNC_IMPL(__imp__sub_3D79C0);
+X86_FUNC(sub_3D79C0)
+{
+	__imp__sub_3D79C0(ctx, base);
+	vblankFlag = g_nv2aPtr[0x140];
+
+}
+
+uint64_t vblank_next(uint64_t now, X86Context* ctx)
+{
+	constexpr uint64_t vblank_period = 16.6666666667 * 1000;
+
+	uint64_t next = m_nv2a_state->vblank_last + vblank_period;
+
+	if (now >= next) 
+	{
+		m_nv2a_state->vblank_cb(m_nv2a_state.get(), ctx);
+		m_nv2a_state->vblank_last = get_now_us();
+		return vblank_period;
+	}
+
+	return m_nv2a_state->vblank_last + vblank_period - now; // time remaining until next vblank
+}
+
+static void update_irq(NV2AState* d)
+{
+	d->pcrtc.enabled_interrupts = vblankFlag;
+
+	if (g_nv2aPtr && d->pcrtc.pending_interrupts & d->pcrtc.enabled_interrupts)
+	{
+		*(uint32_t*)&g_nv2aPtr[0x100] |= NV_PMC_INTR_0_PCRTC;
+		d->pmc.pending_interrupts |= NV_PMC_INTR_0_PCRTC;
+		vblankFlag = false;
+	}
+	else 
+	{
+		if (g_nv2aPtr)
+			*(uint32_t*)&g_nv2aPtr[0x100] &= ~NV_PMC_INTR_0_PCRTC;
+		d->pmc.pending_interrupts &= ~NV_PMC_INTR_0_PCRTC;
+	}
+
+
+	if (d->pmc.pending_interrupts && d->pmc.enabled_interrupts) 
+	{
+		HalSystemInterrupts[3].Assert(true);
+	}
+	else {
+		HalSystemInterrupts[3].Assert(false);
+	}
+}
+
+template<bool should_update_hle>
+void nv2a_vblank_interrupt(void* opaque, X86Context* ctx)
+{
+	NV2AState* d = static_cast<NV2AState*>(opaque);
+
+	if (!d->exiting) [[likely]] 
+	{
+		if (g_nv2aPtr)
+		{
+			*(uint32_t*)&g_nv2aPtr[0x100] |= NV_PCRTC_INTR_0_VBLANK;
+		}
+		d->pcrtc.pending_interrupts |= NV_PCRTC_INTR_0_VBLANK;
+
+		update_irq(d);
+
+		// trigger the gpu interrupt if it was asserted in update_irq
+		if (g_bEnableAllInterrupts && HalSystemInterrupts[3].IsPending() && EmuInterruptList[3] && EmuInterruptList[3]->Connected) 
+		{
+			HalSystemInterrupts[3].Trigger(EmuInterruptList[3], ctx);
+		}
+
+	}
+}
+
+void NV2ADevice_Init()
+{
+	m_nv2a_state = std::make_unique<NV2AState>();
+	m_nv2a_state->vblank_last = get_now_us();
+	m_nv2a_state->vblank_cb = nv2a_vblank_interrupt<true>;
+}
+
+static uint64_t get_next(uint64_t now, X86Context* ctx)
+{
+	return vblank_next(now, ctx);
+}
+
+void system_events(X86Context* ctx)
+{
+	// Testing shows that, if this thread has the same priority of the other xbox threads, it can take tens, even hundreds of ms to complete a single loop.
+	// So we increase its priority to above normal, so that it scheduled more often
+
+#ifdef _WIN32
+	SetThreadPriority(GetCurrentThread(), THREAD_PRIORITY_ABOVE_NORMAL);
+	GuestThread::SetThreadName(GetCurrentThreadId(), "System Events");
+#endif
+
+	while (true) 
+	{
+		const uint64_t last_time = get_now_us();
+		const uint64_t nearest_next = get_next(last_time, ctx);
+
+		while (true) 
+		{
+			update_non_periodic_events(ctx);
+			uint64_t elapsed_us = get_now_us() - last_time;
+			if (elapsed_us >= nearest_next) 
+			{
+				break;
+			}
+			std::this_thread::yield();
+		}
+	}
+}
+
+
+
 GUEST_FUNCTION_HOOK_STDCALL(__imp__RtlInitializeCriticalSection, RtlInitializeCriticalSection);
 GUEST_FUNCTION_HOOK_STDCALL(__imp__RtlEnterCriticalSection, RtlEnterCriticalSection);
 GUEST_FUNCTION_HOOK_STDCALL(__imp__RtlLeaveCriticalSection, RtlLeaveCriticalSection);
@@ -1383,41 +1876,3 @@ GUEST_FUNCTION_HOOK(__imp__DbgPrint, DbgPrintV);
 //XAutoPowerDownResetTimer
 GUEST_FUNCTION_STUB(sub_2B17E8);
 
-extern uint8_t* D3D_g_pDevice;
-//TODO DELETE WHEN RENDERING IS IMPLEMENTED
-int D3DDevice_BlockUntilVerticalBlank()
-{
-	auto ctx = *GetX86Context();
-	auto base = g_memory.base;
-	// mov eax, [0x003E0A18]
-	ctx.eax.u32 = X86_LOAD_U32(4065816);
-	// push 0x00
-	X86_PUSH(ctx, base, 0x0);
-	// push 0x00
-	X86_PUSH(ctx, base, 0x0);
-	// push 0x01
-	X86_PUSH(ctx, base, 0x1);
-	// mov dword ptr [eax+0x1DC0], 0x00
-	X86_STORE_U32(ctx.eax.u32 + 7616, 0x0u);
-	// push 0x06
-	X86_PUSH(ctx, base, 0x6);
-	// add eax, 0x1DBC
-	auto temp_3CFE87_U32_OLD = ctx.eax.u32;
-	auto temp_3CFE87_U32_SRC = 7612;
-	ctx.eax.u32 = temp_3CFE87_U32_OLD + temp_3CFE87_U32_SRC;
-	ctx.eflags.update_flags_add_U32(temp_3CFE87_U32_OLD, temp_3CFE87_U32_SRC, ctx.eax.u32);
-	// push eax
-	X86_PUSH(ctx, base, ctx.eax.u32);
-	ctx.esp.u32 += 0x4;  //Adjust stack pointer
-
-	// Signal the VBlank event to unblock game logic
-	//KeWaitForSingleObject((XDISPATCHER_HEADER*)vblankEvent, 0, 0, 0, 0);  // 0, 0: default priority, do not wait
-
-	// Wait ~16.67ms to simulate 60Hz refresh rate
-	Sleep(16.67);
-
-
-	return 0;
-}
-
-GUEST_FUNCTION_HOOK(sub_3CFE70, D3DDevice_BlockUntilVerticalBlank);

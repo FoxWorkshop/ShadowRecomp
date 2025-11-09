@@ -157,7 +157,7 @@ X86_FUNC(sub_32E7C0)
 
 	__imp__sub_32E7C0(ctx, base);
 
-	ctx.esp.u32 -= 4;
+	/**ctx.esp.u32 -= 4;
 
 	int* a1 = (int*)(base + ctx.esi.u32);
 
@@ -174,7 +174,7 @@ X86_FUNC(sub_32E7C0)
 		//fclose(f);
 	}
 
-	ctx.esp.u32 += 4;
+	ctx.esp.u32 += 4;*/
 }
 
 void CaptureRawAudio(uint32_t data)
@@ -182,7 +182,7 @@ void CaptureRawAudio(uint32_t data)
 	if (data < 0x1000)
 		return;
 
-	FILE* f = fopen("D:\\GitHub\\Downloaded Projects\\ShadowRecomp\\out\\build\\x64-Clang-Debug\\ShadowRecomp\\outSHTH.raw", "ab"); // append
+	FILE* f = fopen("outSHTH.raw", "ab"); // append
 	void* ptr;
 	if (f)
 	{
@@ -207,40 +207,6 @@ void AudioQuit()
 
 void initSDL2Driver()
 {
-	XAudioInitializeSystem();
+	//XAudioInitializeSystem();
 
-	for (const auto& entry : fs::directory_iterator(fs::current_path()))
-	{
-		if (entry.path().extension() == ".raw")
-		{
-			auto s = entry.path().string();
-			if (s.find("outSHTH") != std::string::npos)
-			{
-				//outSHTH.raw
-				std::error_code ec; // optional: avoid exceptions
-				if (fs::remove(entry.path(), ec))
-				{
-					std::cout << "Deleted: " << entry.path() << '\n';
-					break;
-				}
-			}
-		}
-	}
-
-	for (const auto& entry : fs::directory_iterator(fs::current_path())) {
-		if (entry.path().extension() == ".txt")
-		{
-			if (entry.path().string().find("a2.txt") != std::string::npos || (entry.path().string().find("testA15Fix.txt") != std::string::npos))
-			{
-				continue;
-			}
-
-			std::error_code ec; // optional: avoid exceptions
-			if (fs::remove(entry.path(), ec))
-				std::cout << "Deleted: " << entry.path() << '\n';
-		}
-	}
-
-	std::ifstream in("outEmulator.raw", std::ios::binary);
-	reference_data.assign(std::istreambuf_iterator<char>(in), {});
 }

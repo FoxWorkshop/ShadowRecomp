@@ -162,8 +162,8 @@ void GameWindow::Init(const char* sdlVideoDriver)
 
     auto videoDriverName = SDL_GetCurrentVideoDriver();
 
-    //if (videoDriverName)
-      //  LOGN("SDL video driver: \"{}\"", videoDriverName);
+    if (videoDriverName)
+        LOGFN("SDL video driver: \"{}\"", videoDriverName);
 
     SDL_EventState(SDL_SYSWMEVENT, SDL_ENABLE);
     SDL_AddEventWatch(Window_OnSDLEvent, s_pWindow);
@@ -199,13 +199,13 @@ void GameWindow::Init(const char* sdlVideoDriver)
     SDL_GetWindowWMInfo(s_pWindow, &info);
 
 #if defined(_WIN32)
-   // s_renderWindow = info.info.win.window;
+    s_renderWindow = info.info.win.window;
 
-    /**if (Config::DisableDWMRoundedCorners)
+    if (Config::DisableDWMRoundedCorners)
     {
         DWM_WINDOW_CORNER_PREFERENCE wcp = DWMWCP_DONOTROUND;
         DwmSetWindowAttribute(s_renderWindow, DWMWA_WINDOW_CORNER_PREFERENCE, &wcp, sizeof(wcp));
-    }*/
+    }
 #elif defined(SDL_VULKAN_ENABLED)
     s_renderWindow = s_pWindow;
 #elif defined(__linux__)
