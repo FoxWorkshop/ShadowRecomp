@@ -18,27 +18,20 @@ functions = [
 	{ address = 0x2ABFCB, size = 0x424 },  #failed to detect full size of it	
 	{ address = 0x381F6C, size = 0x73 },  #vftable which had no reference
 	{ address = 0x3864B8, size = 0x10 }, 	
-	{ address = 0x3864C8, size = 0x61 }, 	
-	{ address = 0x386694, size = 0x65 }, 	
-	{ address = 0x37d835, size = 0x14 }, 	
-	{ address = 0x37D8C9, size = 0x28 },	
-	{ address = 0x3834DA, size = 0xA9 }, 	
-	{ address = 0x386389, size = 0x28 }, 	
-	{ address = 0x382B8E, size = 0x12 }, 	
-	{ address = 0x382BA0, size = 0xC }, 	
-	{ address = 0x3827f7, size = 0x5A }, 		 	
+	{ address = 0x3864C8, size = 0x61 }, 		 	
+	{ address = 0x37d835, size = 0x14 }, 			
+	{ address = 0x386389, size = 0x28 }, 		 	
+	{ address = 0x382BA0, size = 0xC }, 				 	
 	{ address = 0x2DE4D0, size = 0x298 }, 	
 	{ address = 0x2D9020, size = 0x13 }, 	
 	{ address = 0x2E4250, size = 0xB }, 
 	{ address = 0x2DEC20, size = 0x49 }, 	
 	{ address = 0x2CB920, size = 0x92 }, 	
-	{ address = 0x2CB9B2, size = 0x23 }, 	
-	{ address = 0x2CC030, size = 0x10 }, 	
+	{ address = 0x2CB9B2, size = 0x23 }, 			
 	{ address = 0x423B38, size = 0x20B }, 	
 	{ address = 0x424433, size = 0x6C },	
 	{ address = 0x427F5C, size = 0xE2 }, 	
-	{ address = 0x427945, size = 0x50 }, 	
-	{ address = 0x425fd2, size = 0x12 }, 	
+	{ address = 0x427945, size = 0x50 }, 		 	
 	{ address = 0x2DF870, size = 0x161 }, 
 	{ address = 0x2DD9C0, size = 0x22F }, 
 	{ address = 0x2E05C0, size = 0x1B }, 
@@ -52,8 +45,7 @@ functions = [
 	{ address = 0x25C10, size = 0x3F },
 	{ address = 0x26D30, size = 0xAC },
 	{ address = 0x3FBF0, size = 0x590 },
-	{ address = 0x415E0, size = 0x4E },
-	{ address = 0x49070, size = 0x15 },
+	{ address = 0x415E0, size = 0x4E },	
 	{ address = 0x51830, size = 0x6C },
 	{ address = 0x51910, size = 0x70 },
 	{ address = 0x5FF80, size = 0x3A },	
@@ -95,16 +87,9 @@ functions = [
 	{ address = 0x3E67E7, size = 0x14 },
 	{ address = 0x3E67FB, size = 0x17 },
 	{ address = 0x3E6CCE, size = 0x2C },
-	{ address = 0x3E71BB, size = 0xC },
-	{ address = 0x3E71C7, size = 0x1C },
-	{ address = 0x3E732A, size = 0xC },
-	{ address = 0x3E750A, size = 0xC },
+	{ address = 0x3E71C7, size = 0x1C },	
 	{ address = 0x3E7661, size = 0x89 },
-	{ address = 0x3EBDCF, size = 0xE },
-	{ address = 0x3EC264, size = 0x11 },
-	{ address = 0x3EC275, size = 0xC },
-	{ address = 0x3EC32F, size = 0xF },
-	{ address = 0x32AD70, size = 0x16 },
+	{ address = 0x3EC32F, size = 0xF },	
 	{ address = 0x3E7DB3, size = 0xB }, 
 	{ address = 0x3E7DBE, size = 0xB }, 
 	{ address = 0x415AB5, size = 0xC },
@@ -114,7 +99,6 @@ functions = [
 	{ address = 0x253660, size = 0xDA }, 
 	{ address = 0x255BF0, size = 0x2A2 },
 	{ address = 0x257A70, size = 0x5C }, 
-	{ address = 0x259810, size = 0xD }, 
 	{ address = 0x25A4D0, size = 0x5 }, 
 	{ address = 0x25A4F0, size = 0x15 }, 
 	{ address = 0x25A520, size = 0x3 }, 
@@ -130,26 +114,15 @@ functions = [
 	{ address = 0x27298C, size = 0x16 }, 
 	{ address = 0x273310, size = 0x521 },
 	{ address = 0x287940, size = 0x22 }, 
-	{ address = 0x2D1F90, size = 0x10 }, 
-	{ address = 0x2D1FA0, size = 0x13 }, 
 	{ address = 0x3810B8, size = 0x3E },
 	{ address = 0x2CBDB0, size = 0x22 }, 
-	{ address = 0x4E330, size = 0x1C },
 	{ address = 0x157570, size = 0x46 },	
 	{ address = 0x2DCD60, size = 0x41 },	
 	{ address = 0x347820, size = 0x8 },	
 	{ address = 0x3569B0, size = 0x9D },
-	{ address = 0x3FFE30, size = 0x13 },
-	{ address = 0x3FFE50, size = 0x1C },
 	{ address = 0x3FFA00, size = 0x421 },
 	{ address = 0x402120, size = 0xE5 },
-	{ address = 0x400DB0, size = 0x2A9 },
-	{ address = 0x401060, size = 0x2D6 },
-	{ address = 0x401340, size = 0x3BF },
-	{ address = 0x401700, size = 0x408 },
-	{ address = 0x401B10, size = 0x55 }, 
 	{ address = 0x401B70, size = 0x82 }, 
-	{ address = 0x401C00, size = 0x1D9 },
 	{ address = 0x401DE0, size = 0xC8 }, 
 	{ address = 0x401EB0, size = 0x7D }, 
 	{ address = 0x401F30, size = 0x92 }, 
@@ -162,17 +135,29 @@ functions = [
 	{ address = 0x402510, size = 0x77 },
 	{ address = 0x400030, size = 0x6FC },
 	{ address = 0x400730, size = 0x67D },
-	{ address = 0x3FFE70, size = 0x1B3 },
 	{ address = 0x399098, size = 0xE },
 	{ address = 0x3823FB, size = 0x3F },
 	{ address = 0x38562A, size = 0x147 },	
-	{ address = 0x3E4069, size = 0x4E },	
-	{ address = 0x3E68EC, size = 0xA9 },	
+	{ address = 0x3E4069, size = 0x4E }, #wrong size
+	{ address = 0x3E68EC, size = 0xA9 }, #wrong size	
 	{ address = 0x3E6782, size = 0x65 },	
-	{ address = 0x3E6D68, size = 0xE7 },	
+	{ address = 0x3E6D68, size = 0xE7 }, #wrong size
 	{ address = 0x3358C0, size = 0xCE },	
 	{ address = 0x3E763F, size = 0x22 },	
-	{ address = 0x3E7608, size = 0x1E },
+	{ address = 0x3E7608, size = 0x1E }, #wrong size	
+	{ address = 0x1842F0, size = 0x10 }, #missing	
+	{ address = 0x28F6A0, size = 0x60 }, #missing
+	{ address = 0x3827f7, size = 0x5A }, 
+	{ address = 0x37D8C9, size = 0x28 },
+	{ address = 0x3834DA, size = 0xA9 }, 
+	{ address = 0x386694, size = 0x65 },
+	{ address = 0x382B8E, size = 0x12 },	
+	{ address = 0x1B2CD0, size = 0x14 },	
+	{ address = 0x19dc30, size = 0x10 },	
+	{ address = 0x50090, size = 0x28F }, #wrong size	
+	{ address = 0x9A130, size = 0xCB }, #missing	
+	{ address = 0x3737b0, size = 0x353 }, #missing	
+	{ address = 0x37E70D, size = 0xAE }, #wrong size
 ]
 
 banned_addresses = [
@@ -184,5 +169,18 @@ banned_addresses = [
 	{ start = 0x380086, end = 0x380097 }, # jmp table mid function		
 	{ start = 0x37E96A, end = 0x37E97B }, # jmp table mid function		
 	{ start = 0x37EA99, end = 0x37EABB }, # jmp table mid function	
-	{ start = 0x37EB06, end = 0x37EB17 }, # jmp table mid function	
+	{ start = 0x37EB06, end = 0x37EB17 }, # jmp table mid function		
+	{ start = 0x2DD6D3, end = 0x2DD716 }, # force XBOXDeviceSystemOpen to work due to a weird adapter mode check that fail
 ]
+
+invalid_instructions = [
+    { data = 0x3D5A6A, size = 2 }, # infinite loop in D3D device creation.    
+	{ data = 0x3D47BA, size = 2 }, # infinite loop in D3D device creation.	
+	{ data = 0x2AFB53, size = 24 }, # remove hardware access in entry point function	
+	{ data = 0x2DD6B3, size = 2 }, # force XBOXDeviceSystemOpen to work due to a weird adapter mode check that fail	
+	{ data = 0x2DD6BC, size = 2 }, # same as above
+]
+
+[[midasm_hook]]
+name = "UpdateSDLEventsMidAsmHook"
+address = 0x2AFBBC
