@@ -4026,7 +4026,7 @@ static void SetTextureInRenderThread(uint32_t index, GuestTexture* texture)
 	if (texture)
 	{
 		g_sharedConstants.TextureSampleType[index] = (uint32_t)(viewDimension)-1;
-		UpdateHostTextureScaling(texture, g_pipelineState.isFixedFunctionVS);
+		UpdateHostTextureScaling(texture, g_pipelineState.vertexShaderType == VertexShaderMode::FixedFunction);
 		//	printf("Assigned texture descriptor index: %u\n", texture->descriptorIndex);
 	}
 	else
