@@ -12,5 +12,10 @@
     "directx-dxc",
     "freetype",
     "curl"
-  ]
+  ],
+  "vcpkg-configuration": {
+    "overlay-triplets": [
+      "vcpkg/triplets"
+    ]
+  }
 }

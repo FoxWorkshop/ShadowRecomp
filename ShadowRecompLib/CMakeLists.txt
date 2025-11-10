@@ -33,6 +33,7 @@ add_custom_command(
     DEPENDS 
         "${CMAKE_CURRENT_SOURCE_DIR}/private/default.xbe"
         "${CMAKE_CURRENT_SOURCE_DIR}/config/recompConfig.toml"
+    USES_TERMINAL
 )
 
 

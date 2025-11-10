@@ -8,6 +8,36 @@ if (CMAKE_SYSTEM_NAME MATCHES "Linux")
     option(SHADOW_RECOMP_FLATPAK "Configure the build for Flatpak compatibility." OFF)
 endif()
 
+function(BIN2C)
+    cmake_parse_arguments(BIN2C_ARGS "" "TARGET_OBJ;SOURCE_FILE;DEST_FILE;ARRAY_NAME;COMPRESSION_TYPE" "" ${ARGN})
+
+    if(NOT BIN2C_ARGS_TARGET_OBJ)
+        message(FATAL_ERROR "TARGET_OBJ not specified.")
+    endif()
+
+    if(NOT BIN2C_ARGS_SOURCE_FILE)
+        message(FATAL_ERROR "SOURCE_FILE not specified.")
+    endif()
+
+    if(NOT BIN2C_ARGS_DEST_FILE)
+        set(BIN2C_ARGS_DEST_FILE "${BIN2C_ARGS_SOURCE_FILE}")
+    endif()
+
+    if(NOT BIN2C_ARGS_COMPRESSION_TYPE)
+        set(BIN2C_ARGS_COMPRESSION_TYPE "none")
+    endif()
+
+    add_custom_command(OUTPUT "${BIN2C_ARGS_DEST_FILE}.c"
+        COMMAND $<TARGET_FILE:file_to_c> "${BIN2C_ARGS_SOURCE_FILE}" "${BIN2C_ARGS_ARRAY_NAME}" "${BIN2C_ARGS_COMPRESSION_TYPE}" "${BIN2C_ARGS_DEST_FILE}.c" "${BIN2C_ARGS_DEST_FILE}.h"
+        DEPENDS "${BIN2C_ARGS_SOURCE_FILE}"
+        BYPRODUCTS "${BIN2C_ARGS_DEST_FILE}.h"
+        COMMENT "Generating binary header for ${BIN2C_ARGS_SOURCE_FILE}..."
+    )
+
+    set_source_files_properties(${BIN2C_ARGS_DEST_FILE}.c PROPERTIES SKIP_PRECOMPILE_HEADERS ON)
+    target_sources(${BIN2C_ARGS_TARGET_OBJ} PRIVATE ${BIN2C_ARGS_DEST_FILE}.c)
+endfunction()
+
 add_compile_options(
     -fno-strict-aliasing
     -Wno-switch
@@ -65,17 +95,11 @@ set(SHADOW_RECOMP_GPU_CXX_SOURCES
     "gpu/swizzle.cpp"
     "gpu/FixedFunction.cpp"
     "gpu/renderstate.cpp"
-    "gpu/rhi/plume_vulkan.cpp"
     "gpu/imgui/imgui_common.cpp"
     "gpu/imgui/imgui_font_builder.cpp"
     "gpu/imgui/imgui_snapshot.cpp"
 )
 
-if (SHADOW_RECOMP_D3D12)
-    list(APPEND SHADOW_RECOMP_GPU_CXX_SOURCES
-        "gpu/rhi/plume_d3d12.cpp"
-    )
-endif()
 
 set(SHADOW_RECOMP_APU_CXX_SOURCES
     "audio/audio.cpp"
@@ -119,18 +143,10 @@ set(SHADOW_RECOMP_THIRDPARTY_INCLUDES
     "${SHADOW_RECOMP_THIRDPARTY_ROOT}/implot"
     "${SHADOW_RECOMP_THIRDPARTY_ROOT}/stb"
     "${SHADOW_RECOMP_THIRDPARTY_ROOT}/unordered_dense/include"
-    "${SHADOW_RECOMP_THIRDPARTY_ROOT}/volk"
-    "${SHADOW_RECOMP_THIRDPARTY_ROOT}/Vulkan-Headers/include"
-    "${SHADOW_RECOMP_THIRDPARTY_ROOT}/VulkanMemoryAllocator/include"
     "${SHADOW_RECOMP_THIRDPARTY_ROOT}/DirectXMath/Inc"
 )
 
 set_source_files_properties(${SHADOW_RECOMP_THIRDPARTY_SOURCES} PROPERTIES SKIP_PRECOMPILE_HEADERS ON)
-
-if (SHADOW_RECOMP_D3D12)
-    list(APPEND SHADOW_RECOMP_THIRDPARTY_INCLUDES "${SHADOW_RECOMP_THIRDPARTY_ROOT}/D3D12MemoryAllocator/include")
-    list(APPEND SHADOW_RECOMP_THIRDPARTY_SOURCES "${SHADOW_RECOMP_THIRDPARTY_ROOT}/D3D12MemoryAllocator/src/D3D12MemAlloc.cpp")
-endif()
 
 
 set(SHADOW_RECOMP_CXX_SOURCES
@@ -177,9 +193,6 @@ if (SHADOW_RECOMP_D3D12)
     )
 endif()
 
-if (CMAKE_SYSTEM_NAME MATCHES "Linux")
-    target_compile_definitions(ShadowRecomp PRIVATE SDL_VULKAN_ENABLED)
-endif()
 
 find_package(directx-dxc REQUIRED)
 find_package(CURL REQUIRED)
@@ -189,6 +202,8 @@ if (SHADOW_RECOMP_D3D12)
     add_custom_command(TARGET ShadowRecomp POST_BUILD
         COMMAND ${CMAKE_COMMAND} -E copy $<TARGET_PROPERTY:Microsoft::DirectX12-Core,IMPORTED_LOCATION_RELEASE> ${CMAKE_CURRENT_BINARY_DIR}/D3D12
         COMMAND ${CMAKE_COMMAND} -E copy $<TARGET_PROPERTY:Microsoft::DirectX12-Layers,IMPORTED_LOCATION_DEBUG> ${CMAKE_CURRENT_BINARY_DIR}/D3D12
+        COMMAND ${CMAKE_COMMAND} -E copy $<TARGET_PROPERTY:Microsoft::DirectXShaderCompiler,IMPORTED_LOCATION> $<TARGET_FILE_DIR:ShadowRecomp>
+        COMMAND ${CMAKE_COMMAND} -E copy $<TARGET_PROPERTY:Microsoft::DXIL,IMPORTED_LOCATION> $<TARGET_FILE_DIR:ShadowRecomp>
        COMMAND_EXPAND_LISTS
     )
     
@@ -207,7 +222,6 @@ endif()
 
 file(CHMOD ${DIRECTX_DXC_TOOL} PERMISSIONS OWNER_READ OWNER_WRITE OWNER_EXECUTE)
 
-
 if (WIN32)
     target_link_libraries(ShadowRecomp PRIVATE
         comctl32
@@ -216,6 +230,7 @@ if (WIN32)
         Shcore
         Synchronization
         winmm
+        windowsapp
     )
 endif()
 
@@ -228,6 +243,7 @@ target_link_libraries(ShadowRecomp PRIVATE
     SDL2_mixer
     ShadowRecompLib
     xxHash::xxhash
+    plume
 
 )
 
@@ -235,6 +251,12 @@ target_include_directories(ShadowRecomp PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}
     ${SHADOW_RECOMP_THIRDPARTY_INCLUDES}
 )
+
+if (CMAKE_SYSTEM_NAME MATCHES "Linux")
+    find_package(X11 REQUIRED)
+    target_include_directories(ShadowRecomp PRIVATE ${X11_INCLUDE_DIR})
+    target_link_libraries(ShadowRecomp PRIVATE ${X11_LIBRARIES})
+endif()
 
 target_precompile_headers(ShadowRecomp PUBLIC ${SHADOW_RECOMP_PRECOMPILED_HEADERS})
 
@@ -266,8 +288,10 @@ function(compile_pixel_shader FILE_PATH)
     compile_shader(${FILE_PATH} ps_6_0)
 endfunction()
 
-
+compile_vertex_shader(FixedFunctionVertexShader)
 compile_pixel_shader(FixedFunctionPixelShader)
+compile_vertex_shader(PassthroughVertexShader)
+
 
 compile_vertex_shader(copy_vs)
 compile_pixel_shader(copy_color_ps)
@@ -288,6 +312,6 @@ compile_pixel_shader(resolve_msaa_depth_2x)
 compile_pixel_shader(resolve_msaa_depth_4x)
 compile_pixel_shader(resolve_msaa_depth_8x)
 
-compile_vertex_shader(FixedFunctionVertexShader)
+
 compile_vertex_shader(recomp0)
 compile_vertex_shader(recomp1)

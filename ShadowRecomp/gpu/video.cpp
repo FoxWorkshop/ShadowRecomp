@@ -39,6 +39,7 @@ const UINT ringBufferSize = 4 * 1024 * 1024; // 4 MB ring buffer
 #ifdef SHADOW_RECOMP_D3D12
 #include "shader/FixedFunctionVertexShader.hlsl.dxil.h"
 #include "shader/FixedFunctionPixelShader.hlsl.dxil.h"
+#include "shader/PassthroughVertexShader.hlsl.dxil.h"
 
 #include "shader/copy_vs.hlsl.dxil.h"
 #include "shader/copy_color_ps.hlsl.dxil.h"
@@ -64,6 +65,7 @@ const UINT ringBufferSize = 4 * 1024 * 1024; // 4 MB ring buffer
 #endif
 
 #include "shader/FixedFunctionVertexShader.hlsl.spirv.h"
+#include "shader/PassthroughVertexShader.hlsl.spirv.h"
 #include "shader/FixedFunctionPixelShader.hlsl.spirv.h"
 
 #include "shader/copy_vs.hlsl.spirv.h"
@@ -116,8 +118,9 @@ struct PipelineState
 {
 	GuestShader* vertexShader = nullptr;
 	GuestShader* pixelShader = nullptr;
-	bool isFixedFunctionVS = false;
+	//bool isFixedFunctionVS = false;
 	bool isFixedFunctionPS = false;
+	VertexShaderMode vertexShaderType;
 	GuestVertexDeclaration* vertexDeclaration = nullptr;
 	bool instancing = false;
 	bool zEnable = true;
@@ -466,7 +469,7 @@ struct UploadAllocator
 		auto& buffer = buffers[index];
 		if (buffer.buffer == nullptr)
 		{
-			buffer.buffer = g_device->createBuffer(RenderBufferDesc::UploadBuffer(UploadBuffer::SIZE, RenderBufferFlag::CONSTANT | RenderBufferFlag::VERTEX | RenderBufferFlag::INDEX));
+			buffer.buffer = g_device->createBuffer(RenderBufferDesc::UploadBuffer(UploadBuffer::SIZE, RenderBufferFlag::CONSTANT | RenderBufferFlag::VERTEX | RenderBufferFlag::INDEX | RenderBufferFlag::DEVICE_ADDRESSABLE));
 			buffer.memory = reinterpret_cast<uint8_t*>(buffer.buffer->map());
 			buffer.deviceAddress = buffer.buffer->getDeviceAddress();
 		}
@@ -873,7 +876,7 @@ struct RenderCommand
 		{
 			GuestShader* shader;
 			uint32_t handle;
-			bool isFixed;
+			VertexShaderMode type;
 		} setVertexShader;
 
 		struct
@@ -1459,6 +1462,7 @@ static std::unique_ptr<RenderPipeline> g_resolveMsaaDepthPipelines[3];
 static std::unique_ptr<RenderPipeline> g_renderTest;
 
 static std::unique_ptr<RenderShader> FixedFuncVS = nullptr;
+static std::unique_ptr<RenderShader> PassthroughVS = nullptr; //this is for vertex shader that don't have a program, similar to fixed, but vertex are already transformed.
 static std::unique_ptr<RenderShader> FixedFuncPS = nullptr;
 
 enum
@@ -2004,7 +2008,7 @@ bool Video::CreateHostDevice(const char* sdlVideoDriver, bool graphicsApiRetry)
 	g_queue = g_device->createCommandQueue(RenderCommandListType::DIRECT);
 
 	for (auto& commandList : g_commandLists)
-		commandList = g_device->createCommandList(RenderCommandListType::DIRECT);
+		commandList = g_queue->createCommandList(); // ->createCommandList(RenderCommandListType::DIRECT);
 
 	for (auto& commandFence : g_commandFences)
 		commandFence = g_device->createCommandFence();
@@ -2013,7 +2017,7 @@ bool Video::CreateHostDevice(const char* sdlVideoDriver, bool graphicsApiRetry)
 		queryPool = g_device->createQueryPool(NUM_QUERIES);
 
 	g_copyQueue = g_device->createCommandQueue(RenderCommandListType::COPY);
-	g_copyCommandList = g_device->createCommandList(RenderCommandListType::COPY);
+	g_copyCommandList = g_copyQueue->createCommandList();
 	g_copyCommandFence = g_device->createCommandFence();
 
 	uint32_t bufferCount = 2;
@@ -2173,6 +2177,7 @@ bool Video::CreateHostDevice(const char* sdlVideoDriver, bool graphicsApiRetry)
 
 	FixedFuncVS = CREATE_SHADER(FixedFunctionVertexShader);
 	FixedFuncPS = CREATE_SHADER(FixedFunctionPixelShader);
+	PassthroughVS = CREATE_SHADER(PassthroughVertexShader);
 
 
 	// NOTE: We initially allocate this on host memory to make the installer work, even if the 4 GB memory allocation fails.
@@ -2203,12 +2208,7 @@ void Video::WaitForGPU()
 {
 	g_waitForGPUCount++;
 
-	if (g_vulkan)
-	{
-		g_device->waitIdle();
-	}
-	else
-	{
+	// Wait for all queued frames to finish.
 		for (size_t i = 0; i < NUM_FRAMES; i++)
 		{
 			if (g_commandListStates[i])
@@ -2217,10 +2217,13 @@ void Video::WaitForGPU()
 				g_commandListStates[i] = false;
 			}
 		}
-		g_queue->executeCommandLists(nullptr, g_commandFences[0].get());
+
+	// Execute an empty command list and wait for it to end to guarantee that any remaining presentation has finished.
+	g_commandLists[0]->begin();
+	g_commandLists[0]->end();
+	g_queue->executeCommandLists(g_commandLists[0].get(), g_commandFences[0].get());
 		g_queue->waitForCommandFence(g_commandFences[0].get());
 	}
-}
 
 
 static GuestVertexDeclaration* CreateVertexDeclaration(D3DVERTEXELEMENT9* vertexElements, const bool isFixed)
@@ -2351,7 +2354,7 @@ static GuestShader* CreateShader(const uint32_t* pDeclaration, ResourceType reso
 	else
 	{
 		printf("unknown shader, it's time to implement xshader recomp\n");
-		shader->shader = CREATE_SHADER(recomp0);
+
 	}
 
 	/**if (hash == 0x31173204A896098A)
@@ -2375,7 +2378,7 @@ int32_t CreateVertexShader(uint32_t* pDeclaration, uint32_t* pFunction, GuestSha
 
 	// We can't count on pFunction as it can be null, so we will use the vertex declaration for hash and cache
 
-	auto Shader = CreateShader(pDeclaration, ResourceType::VertexShader);
+	auto Shader = CreateShader(pDeclaration, pFunction == nullptr ? ResourceType::PassthroughVertexShader : ResourceType::VertexShader);
 	auto guest_shaderAddr = (uint32_t)X86_LOAD_U32(ctx->esp.u32 + 12);
 	auto guest_shader = X86_LOAD_U32(guest_shaderAddr);
 	g_VertexShaderMap.insert({ guest_shader, Shader });
@@ -2414,7 +2417,19 @@ static void SetVertexShader(uint32_t Handle)
 
 	cmd.type = RenderCommandType::SetVertexShader;
 	cmd.setVertexShader.handle = Handle;
-	cmd.setVertexShader.isFixed = isFixed;
+
+	if (!isFixed && cmd.setVertexShader.shader)
+	{
+		if (cmd.setVertexShader.shader->type == ResourceType::PassthroughVertexShader)
+			cmd.setVertexShader.type = VertexShaderMode::Passthrough;
+		else
+			cmd.setVertexShader.type = VertexShaderMode::ShaderProgram;
+	}
+	else
+	{
+		cmd.setVertexShader.type = VertexShaderMode::FixedFunction;
+	}
+
 	g_renderQueue.enqueue(cmd);
 
 
@@ -2428,8 +2443,9 @@ static void SetVertexShader(uint32_t Handle)
 
 static void ProcSetVertexShader(const RenderCommand& cmd)
 {
-	SetDirtyValue(g_dirtyStates.pipelineState, g_pipelineState.isFixedFunctionVS, cmd.setVertexShader.isFixed);
-	const bool isFixed = cmd.setVertexShader.isFixed;
+
+	SetDirtyValue(g_dirtyStates.pipelineState, g_pipelineState.vertexShaderType, cmd.setVertexShader.type);
+	const bool isFixed = cmd.setVertexShader.type == VertexShaderMode::FixedFunction;
 
 	size_t host_handle = (size_t)g_memory.Translate(cmd.setVertexShader.handle);
 
@@ -5057,7 +5073,19 @@ static std::unique_ptr<RenderPipeline> CreateGraphicsPipeline(const PipelineStat
 
 	RenderGraphicsPipelineDesc desc;
 	desc.pipelineLayout = g_pipelineLayout.get();
-	desc.vertexShader = pipelineState.isFixedFunctionVS ? FixedFuncVS.get() : GetOrLinkShader(pipelineState.vertexShader, pipelineState.specConstants);
+
+	if (pipelineState.vertexShaderType == VertexShaderMode::Passthrough)
+	{
+		desc.vertexShader = PassthroughVS.get();
+	}
+	else if (pipelineState.vertexShaderType == VertexShaderMode::FixedFunction)
+	{
+		desc.vertexShader = FixedFuncVS.get();
+	}
+	else
+	{
+		desc.vertexShader = GetOrLinkShader(pipelineState.vertexShader, pipelineState.specConstants);
+	}
 
 	desc.pixelShader = FixedFuncPS.get();//pipelineState.pixelShader != nullptr ? GetOrLinkShader(pipelineState.pixelShader, pipelineState.specConstants) : nullptr;
 	desc.depthFunction = pipelineState.zFunc;
@@ -5323,7 +5351,7 @@ void* GetDataFromXboxResource(X_D3DResource* pXboxResource)
 static void FlushRenderStateForMainThread(LocalRenderCommandQueue& queue)
 {
 
-	if (g_pipelineState.isFixedFunctionVS)
+	if (g_pipelineState.vertexShaderType == VertexShaderMode::FixedFunction)
 		UpdateFixedFunctionVertexShaderState((size_t)g_pipelineState.vertexShader, g_pipelineState.isFixedFunctionPS);
 	else
 		UpdateHostViewPortOffsetAndScaleConstants();
@@ -6504,8 +6532,12 @@ void CopyTextureToGPU(GuestTexture* tex)
 				{
 					uint32_t uploadRowPitchInTexels = slice.dstRowPitch / (bCompressed ? (blockSize) : (RenderFormatSize(tex->format)));
 
-					g_copyCommandList->copyTextureRegion(
+					/**g_copyCommandList->copyTextureRegion(
 						RenderTextureCopyLocation::Subresource(tex->texture, subresourceIndex),
+						RenderTextureCopyLocation::PlacedFootprint(uploadBuffer.get(), tex->format, slice.width, slice.height, slice.depth, uploadRowPitchInTexels, slice.dstOffset));*/
+					
+					g_copyCommandList->copyTextureRegion(
+						RenderTextureCopyLocation::Subresource(tex->texture, subresourceIndex % dwMipMapLevels, subresourceIndex% dwMipMapLevels),
 						RenderTextureCopyLocation::PlacedFootprint(uploadBuffer.get(), tex->format, slice.width, slice.height, slice.depth, uploadRowPitchInTexels, slice.dstOffset));
 				};
 

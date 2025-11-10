@@ -12,10 +12,12 @@ include($ENV{VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake)
 if(VCPKG_TARGET_TRIPLET MATCHES "static")
     set(VCPKG_APPLOCAL_DEPS OFF)
 endif()
+
 set(SHADOW_RECOMP_THIRDPARTY_ROOT ${CMAKE_SOURCE_DIR}/thirdparty)
 set(SHADOW_RECOMP_TOOLS_ROOT ${CMAKE_SOURCE_DIR}/tools)
 set(CMAKE_CXX_STANDARD 20)
 set(BUILD_SHARED_LIBS OFF)
+set(VCPKG_APPLOCAL_DEPS OFF)
 
 # Enable Hot Reload for MSVC compilers if supported.
 if (POLICY CMP0141)
@@ -25,14 +27,28 @@ endif()
 
 set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
 
-add_compile_options(
-    -march=sandybridge
-)
+project ("ShadowRecomp-ALL")
+
+if (CMAKE_OSX_ARCHITECTURES)
+    set(SHADOW_RECOMP_ARCHITECTURE ${CMAKE_OSX_ARCHITECTURES})
+elseif(CMAKE_SYSTEM_PROCESSOR)
+    set(SHADOW_RECOMP_ARCHITECTURE ${CMAKE_SYSTEM_PROCESSOR})
+else()
+    set(SHADOW_RECOMP_ARCHITECTURE ${CMAKE_HOST_SYSTEM_PROCESSOR})
+endif()
+string(TOLOWER "${SHADOW_RECOMP_ARCHITECTURE}" SHADOW_RECOMP_ARCHITECTURE)
+message(STATUS "Detected architecture: ${SHADOW_RECOMP_ARCHITECTURE}")
+
+if (SHADOW_RECOMP_ARCHITECTURE STREQUAL "x86_64" OR SHADOW_RECOMP_ARCHITECTURE STREQUAL "amd64")
+    # Target Sandy Bridge for all projects
+    add_compile_options(
+        -march=sandybridge
+    )
+endif()
+
 
 add_subdirectory(${SHADOW_RECOMP_THIRDPARTY_ROOT})
 add_subdirectory(${SHADOW_RECOMP_TOOLS_ROOT})
-
-project ("ShadowRecomp-ALL")
 
 # Include sub-projects.
 add_subdirectory("ShadowRecompLib")
