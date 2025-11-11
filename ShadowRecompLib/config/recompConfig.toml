@@ -157,7 +157,13 @@ functions = [
 	{ address = 0x50090, size = 0x28F }, #wrong size	
 	{ address = 0x9A130, size = 0xCB }, #missing	
 	{ address = 0x3737b0, size = 0x353 }, #missing	
-	{ address = 0x37E70D, size = 0xAE }, #wrong size
+	{ address = 0x37E70D, size = 0xAE }, #wrong size	
+	{ address = 0x2C89D0, size = 0x405 }, #missing	
+	{ address = 0x2C5380, size = 0xA74 },  #wrong size	
+	{ address = 0x35B2E0, size = 0x35A3 },  #wrong size
+	{ address = 0x40E48D, size = 0x21 },  #missing	
+	{ address = 0x410760, size = 0x18 },  #missing	
+	{ address = 0x40e275, size = 0x21 },  #missing
 ]
 
 banned_addresses = [
@@ -170,7 +176,8 @@ banned_addresses = [
 	{ start = 0x37E96A, end = 0x37E97B }, # jmp table mid function		
 	{ start = 0x37EA99, end = 0x37EABB }, # jmp table mid function	
 	{ start = 0x37EB06, end = 0x37EB17 }, # jmp table mid function		
-	{ start = 0x2DD6D3, end = 0x2DD716 }, # force XBOXDeviceSystemOpen to work due to a weird adapter mode check that fail
+	{ start = 0x2DD6D3, end = 0x2DD716 }, # force XBOXDeviceSystemOpen to work due to a weird adapter mode check that fail	
+	{ start = 0x35E884, end = 0x35ED1F }
 ]
 
 invalid_instructions = [
