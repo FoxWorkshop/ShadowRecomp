@@ -114,25 +114,7 @@ X86_FUNC(sub_28AF30)
 	__imp__sub_28AF30(ctx, base);
 }
 
-//DirectSoundCreate
-X86_FUNC_IMPL(__imp__sub_3E5A27);
-X86_FUNC(sub_3E5A27)
-{
 
-	__imp__sub_3E5A27(ctx, base);
-
-	auto Dsound = X86_LOAD_U32(0x550310);
-	if (Dsound)
-	{
-		LOGN_UTIL("Successfully created DirectSound Buffer.");
-	}
-	else
-	{
-		LOGN_ERROR("Failed to create DirectSound Buffer.");
-	}
-
-
-}
 
 void InitLogs()
 {
@@ -141,4 +123,5 @@ void InitLogs()
 
 GUEST_FUNCTION_HOOK(sub_11210, PrintError);
 GUEST_FUNCTION_HOOK(sub_37E7BB, DebugPrint);
+
 

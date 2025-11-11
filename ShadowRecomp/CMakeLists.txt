@@ -315,3 +315,5 @@ compile_pixel_shader(resolve_msaa_depth_8x)
 
 compile_vertex_shader(recomp0)
 compile_vertex_shader(recomp1)
+compile_vertex_shader(recomp2)
+compile_vertex_shader(recomp3)

@@ -1639,7 +1639,7 @@ X86_FUNC_IMPL(__imp__sub_3D7B81);
 X86_FUNC(sub_3D7B81)
 {
 	__imp__sub_3D7B81(ctx, base);
-	g_nv2aPtr = (uint8_t*)g_userHeap.AllocPhysical(NV2A_DEVICE1_SIZE, 1);
+	g_nv2aPtr = (uint8_t*)g_userHeap.AllocPhysical(NV2A_DEVICE1_SIZE / 3, 1);
 
 	X86_STORE_U32(ctx.ecx.u32, g_memory.MapVirtual(g_nv2aPtr)); //this will make the game write hardware value in our array directly.
 }

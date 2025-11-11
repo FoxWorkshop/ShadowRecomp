@@ -28,9 +28,8 @@ const uint32_t AutoDepthStencilFormat = 0x57DD68;
 const uint32_t RwD3D8RasterExtOffsetAddr = 0x57DD20;
 const uint32_t g_DeferredTextureStateAddr = 0x3E0580;
 
-const UINT ringBufferSize = 4 * 1024 * 1024; // 4 MB ring buffer
 
-
+#define DepthStencilFormat RenderFormat::D32_FLOAT_S8_UINT
 
 #if defined(ASYNC_PSO_DEBUG) || defined(PSO_CACHING)
 #include <magic_enum/magic_enum.hpp>
@@ -62,6 +61,8 @@ const UINT ringBufferSize = 4 * 1024 * 1024; // 4 MB ring buffer
 
 #include "shader/recomp0.hlsl.dxil.h"
 #include "shader/recomp1.hlsl.dxil.h"
+#include "shader/recomp2.hlsl.dxil.h"
+#include "shader/recomp3.hlsl.dxil.h"
 #endif
 
 #include "shader/FixedFunctionVertexShader.hlsl.spirv.h"
@@ -89,6 +90,8 @@ const UINT ringBufferSize = 4 * 1024 * 1024; // 4 MB ring buffer
 
 #include "shader/recomp0.hlsl.spirv.h"
 #include "shader/recomp1.hlsl.spirv.h"
+#include "shader/recomp2.hlsl.spirv.h"
+#include "shader/recomp3.hlsl.spirv.h"
 #include <cpu/guest_thread.h>
 
 namespace plume
@@ -131,10 +134,13 @@ struct PipelineState
 	RenderCullMode cullMode = RenderCullMode::NONE;
 	RenderComparisonFunction zFunc = RenderComparisonFunction::LESS;
 	RenderComparisonFunction stencilFunc = RenderComparisonFunction::ALWAYS;
-	/**RenderStencilOp stencilFail = RenderStencilOp::KEEP; //todo
+	RenderStencilOp stencilFail = RenderStencilOp::KEEP; //todo
 	RenderStencilOp stencilZFail = RenderStencilOp::KEEP;
-	RenderStencilOp stencilPass = RenderStencilOp::KEEP;*/
-	//RenderComparisonFunction stencilFuncCCW = RenderComparisonFunction::ALWAYS;
+	RenderStencilOp stencilPass = RenderStencilOp::KEEP;
+	uint32_t stencilMask = 0xFFFFFFFF;
+	uint32_t stencilWriteMask = 0xFFFFFFFF;
+	uint32_t stencilRef = 0;
+	RenderComparisonFunction stencilFuncCCW = RenderComparisonFunction::ALWAYS;
 	bool alphaBlendEnable = false;
 	RenderBlendOperation blendOp = RenderBlendOperation::ADD;
 	float slopeScaledDepthBias = 0.0f;
@@ -231,6 +237,12 @@ struct SharedConstants
 };
 
 
+
+
+//const UINT ringBufferSize = 4 * 1024 * 1024; // 4 MB ring buffer
+const UINT ringBufferSize = 0x10000;
+static GuestBuffer* g_ringBuffer;
+static int currentBufferIndex = 0;
 static GuestSurface* g_renderTarget;
 static GuestSurface* g_depthStencil;
 static RenderFramebuffer* g_framebuffer;
@@ -432,9 +444,9 @@ struct std::unique_ptr<RenderDescriptorSet> g_samplerDescriptorSet;
 
 static xxHashMap<std::pair<uint32_t, std::unique_ptr<RenderSampler>>> g_samplerStates;
 
-static xxHashMap<GuestBuffer*> g_vertexBufferCache;
+//static xxHashMap<GuestBuffer*> g_vertexBufferCache;
 static xxHashMap<GuestBuffer*> g_indexBufferCache;
-
+static std::vector<GuestBuffer*> g_vertexBufferCache;
 
 struct UploadBuffer
 {
@@ -661,15 +673,28 @@ GuestSurface* g_XboxDefaultDepthStencilSurface = nullptr;
 //todo figure out this
 static void DestructTempResources()
 {
-	bool valid = true;
-	/**for (auto resource : g_tempResources[g_frame])
+	bool valid = false;
+	for (auto resource : g_tempResources[g_frame])
 	{
-		switch (resource->type)
+
+		if (resource->type == ResourceType::VertexBuffer)
+		{
+			valid = true;
+			const auto buffer = reinterpret_cast<GuestBuffer*>(resource);
+
+			if (buffer->mappedMemory != nullptr)
+				g_userHeap.Free(buffer->mappedMemory);
+
+			static int count;
+			buffer->~GuestBuffer();
+		}
+
+		/**switch (resource->type)
 		{
 		case ResourceType::Texture:
 		case ResourceType::VolumeTexture:
 		{
-			const auto texture = reinterpret_cast<GuestTexture*>(resource);
+			/**const auto texture = reinterpret_cast<GuestTexture*>(resource);
 
 			if (texture->mappedMemory != nullptr)
 				g_userHeap.Free(texture->mappedMemory);
@@ -698,7 +723,8 @@ static void DestructTempResources()
 		case ResourceType::RenderTarget:
 		case ResourceType::DepthStencil:
 		{
-			const auto surface = reinterpret_cast<GuestSurface*>(resource);
+			valid = false;
+			/**const auto surface = reinterpret_cast<GuestSurface*>(resource);
 
 			if (g_XboxBackBuffer != surface && g_XboxDefaultDepthStencilSurface != surface) //do not destroy main render target (todo check if it's correct)
 			{
@@ -707,10 +733,7 @@ static void DestructTempResources()
 
 				surface->~GuestSurface();
 			}
-			else
-			{
-				valid = false;
-			}
+
 			break;
 		}
 
@@ -724,14 +747,19 @@ static void DestructTempResources()
 			reinterpret_cast<GuestShader*>(resource)->~GuestShader();
 			break;
 		}
-		}
+		}*/
 
 		if (valid)
 			g_userHeap.Free(resource);
-	}*/
 
-	g_tempResources[g_frame].clear();
-	g_tempBuffers[g_frame].clear();
+		valid = false;
+	}
+
+	//if (valid)
+	{
+		g_tempResources[g_frame].clear();
+		g_tempBuffers[g_frame].clear();
+	}
 }
 
 static ankerl::unordered_dense::set<GuestSurface*> g_pendingSurfaceCopies;
@@ -1037,8 +1065,8 @@ static RenderComparisonFunction ConvertD3DCMP(uint32_t value)
 	return comparisonFunc;
 }
 
-//TODO
-/**static RenderStencilOp ConvertStencilOp(uint32_t stencilOp)
+
+static RenderStencilOp ConvertStencilOp(uint32_t stencilOp)
 {
 	switch (stencilOp)
 	{
@@ -1062,7 +1090,7 @@ static RenderComparisonFunction ConvertD3DCMP(uint32_t value)
 		assert(false && "Unknown stencil op");
 		return RenderStencilOp::KEEP;
 	}
-}*/
+}
 
 
 //todo implement AlphaToCoverage once MSAA is a thing, until then it's worthless.
@@ -1210,8 +1238,7 @@ static void ProcSetRenderState(const RenderCommand& cmd)
 	case X_D3DRS_STENCILFAIL:
 	{
 
-		//SetDirtyValue(g_dirtyStates.pipelineState, g_pipelineState.zEnable, value != 0);
-		//g_dirtyStates.renderTargetAndDepthStencil |= g_dirtyStates.pipelineState;
+		SetDirtyValue(g_dirtyStates.pipelineState, g_pipelineState.zEnable, value != 0);
 		break;
 	}
 	case X_D3DRS_CULLMODE:
@@ -1334,17 +1361,17 @@ static void ProcSetRenderState(const RenderCommand& cmd)
 	}
 	case D3DRS_STENCILFAIL:
 	{
-		//SetDirtyValue(g_dirtyStates.pipelineState, g_pipelineState.stencilFail, ConvertStencilOp(value));
+		SetDirtyValue(g_dirtyStates.pipelineState, g_pipelineState.stencilFail, ConvertStencilOp(value));
 		break;
 	}
 	case D3DRS_STENCILZFAIL:
 	{
-		//SetDirtyValue(g_dirtyStates.pipelineState, g_pipelineState.stencilZFail, ConvertStencilOp(value));
+		SetDirtyValue(g_dirtyStates.pipelineState, g_pipelineState.stencilZFail, ConvertStencilOp(value));
 		break;
 	}
 	case D3DRS_STENCILPASS:
 	{
-		//SetDirtyValue(g_dirtyStates.pipelineState, g_pipelineState.stencilPass, ConvertStencilOp(value));
+		SetDirtyValue(g_dirtyStates.pipelineState, g_pipelineState.stencilPass, ConvertStencilOp(value));
 		break;
 	}
 	case X_D3DRS_ZWRITEENABLE:
@@ -1527,7 +1554,7 @@ static void ExecuteCopyCommandList(const T& function)
 	g_copyQueue->waitForCommandFence(g_copyCommandFence.get());
 }
 
-//todo check if this is correct
+
 static constexpr uint32_t PITCH_ALIGNMENT = 0x100;
 static constexpr uint32_t PLACEMENT_ALIGNMENT = 0x200;
 
@@ -1828,7 +1855,7 @@ static void BeginCommandList()
 	g_readyForCommands.notify_one();
 }
 
-
+static GuestBuffer* CreateVertexBuffer(uint32_t length);
 
 bool Video::CreateHostDevice(const char* sdlVideoDriver, bool graphicsApiRetry)
 {
@@ -1991,7 +2018,7 @@ bool Video::CreateHostDevice(const char* sdlVideoDriver, bool graphicsApiRetry)
 	}
 
 	const RenderSampleCounts colourSampleCount = g_device->getSampleCountsSupported(RenderFormat::R16G16B16A16_FLOAT);
-	const RenderSampleCounts depthSampleCount = g_device->getSampleCountsSupported(RenderFormat::D32_FLOAT);
+	const RenderSampleCounts depthSampleCount = g_device->getSampleCountsSupported(DepthStencilFormat);
 	const RenderSampleCounts commonSampleCount = colourSampleCount & depthSampleCount;
 
 	// Disable specific MSAA levels if they are not supported.
@@ -2156,7 +2183,7 @@ bool Video::CreateHostDevice(const char* sdlVideoDriver, bool graphicsApiRetry)
 	desc.depthFunction = RenderComparisonFunction::ALWAYS;
 	desc.depthEnabled = true;
 	desc.depthWriteEnabled = true;
-	desc.depthTargetFormat = RenderFormat::D32_FLOAT;
+	desc.depthTargetFormat = DepthStencilFormat;
 	g_copyDepthPipeline = g_device->createGraphicsPipeline(desc);
 
 
@@ -2209,21 +2236,21 @@ void Video::WaitForGPU()
 	g_waitForGPUCount++;
 
 	// Wait for all queued frames to finish.
-		for (size_t i = 0; i < NUM_FRAMES; i++)
+	for (size_t i = 0; i < NUM_FRAMES; i++)
+	{
+		if (g_commandListStates[i])
 		{
-			if (g_commandListStates[i])
-			{
-				g_queue->waitForCommandFence(g_commandFences[i].get());
-				g_commandListStates[i] = false;
-			}
+			g_queue->waitForCommandFence(g_commandFences[i].get());
+			g_commandListStates[i] = false;
 		}
+	}
 
 	// Execute an empty command list and wait for it to end to guarantee that any remaining presentation has finished.
 	g_commandLists[0]->begin();
 	g_commandLists[0]->end();
 	g_queue->executeCommandLists(g_commandLists[0].get(), g_commandFences[0].get());
-		g_queue->waitForCommandFence(g_commandFences[0].get());
-	}
+	g_queue->waitForCommandFence(g_commandFences[0].get());
+}
 
 
 static GuestVertexDeclaration* CreateVertexDeclaration(D3DVERTEXELEMENT9* vertexElements, const bool isFixed)
@@ -2324,15 +2351,6 @@ static GuestShader* CreateShader(const uint32_t* pDeclaration, ResourceType reso
 		{
 			shader = g_userHeap.AllocPhysical<GuestShader>(resourceType);
 
-			/**if (hash == 0x85ED723035ECF535)
-				shader->shader = CREATE_SHADER(blend_color_alpha_ps);
-			else if (hash == 0xB1086A4947A797DE)
-				shader->shader = CREATE_SHADER(csd_no_tex_vs);
-			else if (hash == 0xB4CAFC034A37C8A8)
-				shader->shader = CREATE_SHADER(csd_vs);*/
-
-
-
 			shader->shaderCacheEntry = findResult;
 			findResult->guestShader = shader;
 		}
@@ -2351,8 +2369,13 @@ static GuestShader* CreateShader(const uint32_t* pDeclaration, ResourceType reso
 		shader->shader = CREATE_SHADER(recomp0);
 	else if (hash == 0x89dd45174e675122)
 		shader->shader = CREATE_SHADER(recomp1);
-	else
+	else if (hash == 0xa660f57bbbc6ff47)
 	{
+		shader->shader = CREATE_SHADER(recomp2);
+	}
+	else if (resourceType != ResourceType::PassthroughVertexShader)
+	{
+		hash = hash;
 		printf("unknown shader, it's time to implement xshader recomp\n");
 
 	}
@@ -2377,8 +2400,11 @@ int32_t CreateVertexShader(uint32_t* pDeclaration, uint32_t* pFunction, GuestSha
 	ctx->esp.u32 -= 20; //4 * 4 + 4 esp
 
 	// We can't count on pFunction as it can be null, so we will use the vertex declaration for hash and cache
+	auto type = pFunction == nullptr ? ResourceType::PassthroughVertexShader : ResourceType::VertexShader;
 
-	auto Shader = CreateShader(pDeclaration, pFunction == nullptr ? ResourceType::PassthroughVertexShader : ResourceType::VertexShader);
+
+	GuestShader* Shader = CreateShader(pDeclaration, type);
+
 	auto guest_shaderAddr = (uint32_t)X86_LOAD_U32(ctx->esp.u32 + 12);
 	auto guest_shader = X86_LOAD_U32(guest_shaderAddr);
 	g_VertexShaderMap.insert({ guest_shader, Shader });
@@ -3264,7 +3290,7 @@ static RenderFormat ConvertFormat(X_D3DFORMAT format)
 
 	case X_D3DFMT_LIN_D24S8: //Linear 24-bit depth + 8-bit stencil
 
-		return RenderFormat::D32_FLOAT;
+		return RenderFormat::D32_FLOAT_S8_UINT;
 	default:
 
 		assert(false && "Unknown format");
@@ -3291,7 +3317,7 @@ static GuestTexture* CreateTexture(uint32_t width, uint32_t height, uint32_t dep
 	desc.format = ConvertFormat(format);
 
 
-	if (desc.format == RenderFormat::D32_FLOAT && FormatIsDepthBuffer(format))
+	if (desc.format == DepthStencilFormat && FormatIsDepthBuffer(format))
 		desc.flags = RenderTextureFlag::DEPTH_TARGET;
 	else if (FormatIsRenderTarget(format) && usage == 1)
 		desc.flags = RenderTextureFlag::RENDER_TARGET;
@@ -3405,9 +3431,9 @@ static GuestSurface* CreateSurface(uint32_t width, uint32_t height, X_D3DFORMAT 
 	desc.arraySize = 1;
 	desc.multisampling.sampleCount = RenderSampleCount::COUNT_1; //todo add as an option(?)
 	desc.format = formatSet ? (plume::RenderFormat)format : ConvertFormat(format);
-	desc.flags = desc.format == RenderFormat::D32_FLOAT ? RenderTextureFlag::DEPTH_TARGET : RenderTextureFlag::RENDER_TARGET;
+	desc.flags = desc.format == DepthStencilFormat ? RenderTextureFlag::DEPTH_TARGET : RenderTextureFlag::RENDER_TARGET;
 
-	auto surface = g_userHeap.AllocPhysical<GuestSurface>(desc.format == RenderFormat::D32_FLOAT ?
+	auto surface = g_userHeap.AllocPhysical<GuestSurface>(desc.format == DepthStencilFormat ?
 		ResourceType::DepthStencil : ResourceType::RenderTarget);
 
 	surface->textureHolder = g_device->createTexture(desc);
@@ -4219,7 +4245,7 @@ static bool PopulateBarriersForCopyRect(GuestSurface* renderTarget, GuestSurface
 				// Hardware depth resolve is only supported on D3D12 when programmable sample positions are available.
 				bool hardwareDepthResolveAvailable = g_hardwareDepthResolve && !g_vulkan && g_capabilities.sampleLocations;
 
-				if (surface->format != RenderFormat::D32_FLOAT || hardwareDepthResolveAvailable)
+				if (surface->format != DepthStencilFormat || hardwareDepthResolveAvailable)
 				{
 					srcLayout = RenderTextureLayout::RESOLVE_SOURCE;
 					dstLayout = RenderTextureLayout::RESOLVE_DEST;
@@ -4230,7 +4256,7 @@ static bool PopulateBarriersForCopyRect(GuestSurface* renderTarget, GuestSurface
 			if (shaderResolve)
 			{
 				srcLayout = RenderTextureLayout::SHADER_READ;
-				dstLayout = (surface->format == RenderFormat::D32_FLOAT ? RenderTextureLayout::DEPTH_WRITE : RenderTextureLayout::COLOR_WRITE);
+				dstLayout = (surface->format == DepthStencilFormat ? RenderTextureLayout::DEPTH_WRITE : RenderTextureLayout::COLOR_WRITE);
 			}
 
 			AddBarrier(surface, srcLayout);
@@ -4263,9 +4289,9 @@ static void ExecutePendingCopyRectsCommands(GuestSurface* renderTarget, GuestSur
 				{
 					bool hardwareDepthResolveAvailable = g_hardwareDepthResolve && !g_vulkan && g_capabilities.sampleLocations;
 
-					if (surface->format != RenderFormat::D32_FLOAT || hardwareDepthResolveAvailable)
+					if (surface->format != DepthStencilFormat || hardwareDepthResolveAvailable)
 					{
-						if (surface->format == RenderFormat::D32_FLOAT)
+						if (surface->format == DepthStencilFormat)
 							commandList->resolveTextureRegion(texture->texture, 0, 0, surface->texture, nullptr, RenderResolveMode::MIN);
 						else
 							commandList->resolveTexture(texture->texture, surface->texture);
@@ -4300,7 +4326,7 @@ static void ExecutePendingCopyRectsCommands(GuestSurface* renderTarget, GuestSur
 
 						//TODO CHECK IF THIS IS NEEDED
 
-						if (texture->format == RenderFormat::D32_FLOAT)
+						if (texture->format == DepthStencilFormat)
 						{
 							pipeline = g_resolveMsaaDepthPipelines[pipelineIndex].get();
 						}
@@ -4324,7 +4350,7 @@ static void ExecutePendingCopyRectsCommands(GuestSurface* renderTarget, GuestSur
 					}
 					else
 					{
-						if (texture->format == RenderFormat::D32_FLOAT)
+						if (texture->format == DepthStencilFormat)
 						{
 							pipeline = g_copyDepthPipeline.get();
 						}
@@ -4349,7 +4375,7 @@ static void ExecutePendingCopyRectsCommands(GuestSurface* renderTarget, GuestSur
 
 					if (texture->framebuffer == nullptr)
 					{
-						if (texture->format == RenderFormat::D32_FLOAT)
+						if (texture->format == DepthStencilFormat)
 						{
 							RenderFramebufferDesc desc;
 							desc.depthAttachment = texture->texture;
@@ -4410,7 +4436,7 @@ static void ProcExecutePendingCopyRectsCommands(const RenderCommand& cmd)
 	for (const auto surface : g_pendingSurfaceCopies)
 	{
 		//todo check if this is correct, are Depth stencil textures in this game guaranteed to be transient?
-		if (surface->format != RenderFormat::D32_FLOAT)
+		if (surface->format != DepthStencilFormat)
 			foundAny |= PopulateBarriersForCopyRect(surface, nullptr);
 	}
 
@@ -4420,7 +4446,7 @@ static void ProcExecutePendingCopyRectsCommands(const RenderCommand& cmd)
 
 		for (const auto surface : g_pendingSurfaceCopies)
 		{
-			if (surface->format != RenderFormat::D32_FLOAT)
+			if (surface->format != DepthStencilFormat)
 				ExecutePendingCopyRectsCommands(surface, nullptr);
 
 			for (const auto texture : surface->destinationTextures)
@@ -5019,15 +5045,14 @@ static void SanitizePipelineState(PipelineState& pipelineState)
 		pipelineState.depthStencilFormat = RenderFormat::UNKNOWN;
 	}
 
-	if (!pipelineState.stencilEnable) //TODO
+	if (!pipelineState.stencilEnable)
 	{
-
-		/**pipelineState.stencilFail = RenderStencilOp::KEEP;
+		pipelineState.stencilFail = RenderStencilOp::KEEP;
 		pipelineState.stencilZFail = RenderStencilOp::KEEP;
 		pipelineState.stencilPass = RenderStencilOp::KEEP;
 		pipelineState.stencilMask = 0xFFFFFFFF;
 		pipelineState.stencilWriteMask = 0xFFFFFFFF;
-		pipelineState.stencilRef = 0;*/
+		pipelineState.stencilRef = 0;
 	}
 
 	if (pipelineState.slopeScaledDepthBias == 0.0f)
@@ -5309,6 +5334,7 @@ static RenderBorderColor ConvertBorderColor(uint32_t value)
 	return RenderBorderColor::UNKNOWN;
 }
 
+
 bool isTextureStageStateDirty()
 {
 	for (uint32_t i = 0; i < 4; i++)
@@ -5452,7 +5478,7 @@ static void FlushRenderStateForRenderThread()
 
 	for (const auto surface : g_pendingMsaaResolves)
 	{
-		bool isDepthStencil = (surface->format == RenderFormat::D32_FLOAT);
+		bool isDepthStencil = (surface->format == DepthStencilFormat);
 		foundAny |= PopulateBarriersForCopyRect(isDepthStencil ? nullptr : surface, isDepthStencil ? surface : nullptr);
 	}
 
@@ -5463,7 +5489,7 @@ static void FlushRenderStateForRenderThread()
 
 		for (const auto surface : g_pendingMsaaResolves)
 		{
-			bool isDepthStencil = (surface->format == RenderFormat::D32_FLOAT);
+			bool isDepthStencil = (surface->format == DepthStencilFormat);
 			ExecutePendingCopyRectsCommands(isDepthStencil ? nullptr : surface, isDepthStencil ? surface : nullptr);
 		}
 	}
@@ -5872,6 +5898,7 @@ void DrawPrimitive(X_D3DPRIMITIVETYPE PrimitiveType, uint32_t StartVertex, uint3
 			{
 				bufferCache->mappedMemory = g_userHeap.AllocPhysical(bufferCache->dataSize, 0x10);
 
+				g_vertexBufferCache.push_back(bufferCache);
 				//bufferCache->hash = hash;
 			}
 
@@ -5914,6 +5941,7 @@ static void ProcDrawPrimitive(const RenderCommand& cmd)
 }
 
 //D3DDevice_DrawIndexedVertices (seems to be used to display message)
+
 void DrawIndexedPrimitive(X_D3DPRIMITIVETYPE PrimitiveType, uint32_t VertexCount, int16_t* pIndexData)
 {
 
@@ -5923,18 +5951,33 @@ void DrawIndexedPrimitive(X_D3DPRIMITIVETYPE PrimitiveType, uint32_t VertexCount
 	{
 		if (g_Xbox_SetStreamSource[i].VertexBuffer)
 		{
+
 			unsigned long dataAddr = (unsigned long)GetDataFromXboxResource((X_D3DResource*)(&g_Xbox_SetStreamSource[i].VertexBuffer->guestResource));
 			uint8_t* pXboxVertexData = reinterpret_cast<uint8_t*>(g_memory.Translate(dataAddr));
-			//XXH64_hash_t hash = XXH3_64bits(g_Xbox_SetStreamSource[i].VertexBuffer, VertexCount * g_Xbox_SetStreamSource[i].Stride);
+			int size = VertexCount * g_Xbox_SetStreamSource[i].Stride;
+
+
+			if (currentBufferIndex + size >= ringBufferSize)
+			{
+				for (int i = 0; i < g_vertexBufferCache.size(); i++)
+				{
+					DestructResource(g_vertexBufferCache[i]);
+				}
+
+				g_vertexBufferCache.clear();
+				currentBufferIndex = 0;
+			}
+
+			//XXH64_hash_t hash = XXH3_64bits(g_Xbox_SetStreamSource[i].VertexBuffer, size);
 			//auto& bufferCache = g_vertexBufferCache[hash];
 
-			//if (bufferCache == nullptr)
+//			if (bufferCache == nullptr)
 
 			auto bufferCache = CreateVertexBuffer(VertexCount * g_Xbox_SetStreamSource[i].Stride);
 			if (bufferCache)
 			{
 				bufferCache->mappedMemory = g_userHeap.AllocPhysical(bufferCache->dataSize, 0x10);
-
+				g_vertexBufferCache.push_back(bufferCache);
 				//bufferCache->hash = hash;
 			}
 
@@ -5948,6 +5991,7 @@ void DrawIndexedPrimitive(X_D3DPRIMITIVETYPE PrimitiveType, uint32_t VertexCount
 			cmd.setStreamSource.vertexBuffer = bufferCache;
 			cmd.setStreamSource.stride = g_Xbox_SetStreamSource[i].Stride;
 			g_renderQueue.enqueue(cmd);
+			currentBufferIndex += size;
 		}
 	}
 
@@ -6535,9 +6579,9 @@ void CopyTextureToGPU(GuestTexture* tex)
 					/**g_copyCommandList->copyTextureRegion(
 						RenderTextureCopyLocation::Subresource(tex->texture, subresourceIndex),
 						RenderTextureCopyLocation::PlacedFootprint(uploadBuffer.get(), tex->format, slice.width, slice.height, slice.depth, uploadRowPitchInTexels, slice.dstOffset));*/
-					
+
 					g_copyCommandList->copyTextureRegion(
-						RenderTextureCopyLocation::Subresource(tex->texture, subresourceIndex % dwMipMapLevels, subresourceIndex% dwMipMapLevels),
+						RenderTextureCopyLocation::Subresource(tex->texture, subresourceIndex % dwMipMapLevels, subresourceIndex % dwMipMapLevels),
 						RenderTextureCopyLocation::PlacedFootprint(uploadBuffer.get(), tex->format, slice.width, slice.height, slice.depth, uploadRowPitchInTexels, slice.dstOffset));
 				};
 

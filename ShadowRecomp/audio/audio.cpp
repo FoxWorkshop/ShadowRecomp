@@ -434,10 +434,30 @@ GUEST_FUNCTION_HOOK_STDCALL(sub_3E421C, IDirectSoundBuffer_GetStatus);
 
 
 
-int32_t DirectSoundCreate_r(int32_t* pcGuidDevice, int32_t* ppDS, int32_t* pUnkOuter)
+int DirectSoundCreate_r(int* pcGuidDevice, int* ppDS, int* pUnkOuter)
 {
 	return 0;
 }
+
+GUEST_FUNCTION_HOOK_STDCALL(sub_3E5A27, DirectSoundCreate_r)
+
+//DirectSoundCreate
+/**X86_FUNC_IMPL(__imp__sub_3E5A27);
+X86_FUNC(sub_3E5A27)
+{
+	//TODO RE IMPLEMENT
+	__imp__sub_3E5A27(ctx, base);
+
+	auto Dsound = X86_LOAD_U32(0x550310);
+	if (Dsound)
+	{
+		LOGN_UTIL("Successfully created DirectSound Buffer.");
+	}
+	else
+	{
+		LOGN_ERROR("Failed to create DirectSound Buffer.");
+	}
+}*/
 
 int32_t IDirectSound_DownloadEffectsImage(int a1, DWORD* a2, int a3, int a4, DWORD* a5)
 {
@@ -445,5 +465,4 @@ int32_t IDirectSound_DownloadEffectsImage(int a1, DWORD* a2, int a3, int a4, DWO
 }
 
 
-GUEST_FUNCTION_HOOK_STDCALL(sub_3E5A27, DirectSoundCreate_r);
 GUEST_FUNCTION_HOOK_STDCALL(sub_3E4105, IDirectSound_DownloadEffectsImage);
