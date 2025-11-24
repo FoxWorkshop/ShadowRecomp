@@ -95,7 +95,9 @@ public:
 		auto& pad = state;
 
 		pad.sThumbLX = SDL_GameControllerGetAxis(controller, SDL_CONTROLLER_AXIS_LEFTX);
-		pad.sThumbLY = -SDL_GameControllerGetAxis(controller, SDL_CONTROLLER_AXIS_LEFTY);
+		pad.sThumbLY = (int16_t)std::clamp(-(int32_t)SDL_GameControllerGetAxis(controller, SDL_CONTROLLER_AXIS_LEFTY),
+			(int32_t)-32768, (int32_t)32767); //clamp here fix the int16 overflow with negative angle, this fix press up not working
+
 
 		pad.sThumbRX = SDL_GameControllerGetAxis(controller, SDL_CONTROLLER_AXIS_RIGHTX);
 		pad.sThumbRY = -SDL_GameControllerGetAxis(controller, SDL_CONTROLLER_AXIS_RIGHTY);
@@ -126,13 +128,12 @@ public:
 		pad.wButtons |= TRANSLATE_INPUT(SDL_CONTROLLER_BUTTON_LEFTSTICK, XINPUT_GAMEPAD_LEFT_THUMB);
 		pad.wButtons |= TRANSLATE_INPUT(SDL_CONTROLLER_BUTTON_RIGHTSTICK, XINPUT_GAMEPAD_RIGHT_THUMB);
 
-		pad.bAnalogButtons[Buttons_White] |= TRANSLATE_INPUT(SDL_CONTROLLER_BUTTON_LEFTSHOULDER, XINPUT_GAMEPAD_LEFT_SHOULDER);
-		pad.bAnalogButtons[Buttons_Black] |= TRANSLATE_INPUT(SDL_CONTROLLER_BUTTON_RIGHTSHOULDER, XINPUT_GAMEPAD_RIGHT_SHOULDER);
-
+		pad.bAnalogButtons[Buttons_White] = TRANSLATE_INPUT(SDL_CONTROLLER_BUTTON_LEFTSHOULDER, XINPUT_GAMEPAD_LEFT_SHOULDER);
+		pad.bAnalogButtons[Buttons_Black] = TRANSLATE_INPUT(SDL_CONTROLLER_BUTTON_RIGHTSHOULDER, XINPUT_GAMEPAD_RIGHT_SHOULDER);
 		pad.bAnalogButtons[Buttons_A] = SDL_GameControllerGetButton(controller, SDL_CONTROLLER_BUTTON_A) ? 0xFF : 0;
-		pad.bAnalogButtons[Buttons_B] |= SDL_GameControllerGetButton(controller, SDL_CONTROLLER_BUTTON_B) ? 0xFF : 0;
-		pad.bAnalogButtons[Buttons_X] |= SDL_GameControllerGetButton(controller, SDL_CONTROLLER_BUTTON_X) ? 0xFF : 0;
-		pad.bAnalogButtons[Buttons_Y] |= SDL_GameControllerGetButton(controller, SDL_CONTROLLER_BUTTON_Y) ? 0xFF : 0;
+		pad.bAnalogButtons[Buttons_B] = SDL_GameControllerGetButton(controller, SDL_CONTROLLER_BUTTON_B) ? 0xFF : 0;
+		pad.bAnalogButtons[Buttons_X] = SDL_GameControllerGetButton(controller, SDL_CONTROLLER_BUTTON_X) ? 0xFF : 0;
+		pad.bAnalogButtons[Buttons_Y] = SDL_GameControllerGetButton(controller, SDL_CONTROLLER_BUTTON_Y) ? 0xFF : 0;
 
 	}
 
