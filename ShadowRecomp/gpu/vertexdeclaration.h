@@ -1,13 +1,5 @@
 
 
-enum class VertexShaderMode {
-	FixedFunction,
-	// When titles use Xbox fixed function with pre-transformed vertices
-	// it actually uses a special "passthrough" shader program
-	Passthrough,
-	ShaderProgram
-};
-
 
 typedef uint64_t VertexDeclarationKey;
 
@@ -43,7 +35,15 @@ typedef struct _HostVertexDeclaration
 }
 HostVertexDeclaration;
 
-HostVertexDeclaration* HostGetVertexDeclaration(size_t handle, bool isFixedFunction);
+// ******************************************************************
+struct X_VERTEXATTRIBUTEFORMAT
+{
+	// Note : Alignment looks okay even without #pragma pack(1) / #include "AlignPrefix1.h" (and it's closure)
+	GuestVertexElement Slots[X_VSH_MAX_ATTRIBUTES];
+};
+
+HostVertexDeclaration* HostGetVertexDeclaration(size_t handle, const bool isFixedFunction);
+GuestVertexDeclaration* CreateVertexDeclarationWithoutAddRef(D3DVERTEXELEMENT9* vertexElements, const bool isFixed);
 void SetFixedFunctionDefaultVertexAttributes(size_t Handle);
 X_VERTEXATTRIBUTEFORMAT* GetXboxVertexAttributeFormat(size_t handle);
-GuestVertexDeclaration* CreateVertexDeclarationWithoutAddRef(D3DVERTEXELEMENT9* vertexElements, const bool isFixed);
+

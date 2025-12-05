@@ -87,7 +87,7 @@ public:
 			m_Pending = false;
 		}
 
-		Sleep(8);
+		Sleep(16);
 		uint32_t funcAddr = (uint32_t)Interrupt->ServiceRoutine;
 
 
@@ -1456,7 +1456,7 @@ void ExecuteDpcQueue(X86Context* ctx)
 		// Are there entries in the DpqQueue?
 	while (!IsListEmpty((PXLIST_ENTRY)&(g_DpcData.DpcQueue)))
 	{
-		Sleep(8);
+		Sleep(16);
 		// Extract the head entry and retrieve the containing KDPC pointer for it:
 		pkdpc = CONTAINING_RECORD(RemoveHeadList((PXLIST_ENTRY)&(g_DpcData.DpcQueue)).get(), KDPC, DpcListEntry);
 		// Mark it as no longer linked into the DpcQueue
@@ -1639,7 +1639,8 @@ X86_FUNC_IMPL(__imp__sub_3D7B81);
 X86_FUNC(sub_3D7B81)
 {
 	__imp__sub_3D7B81(ctx, base);
-	g_nv2aPtr = (uint8_t*)g_userHeap.AllocPhysical(NV2A_DEVICE1_SIZE / 3, 1);
+
+	g_nv2aPtr = (uint8_t*)g_userHeap.AllocPhysical(0x1000, 1);
 
 	X86_STORE_U32(ctx.ecx.u32, g_memory.MapVirtual(g_nv2aPtr)); //this will make the game write hardware value in our array directly.
 }

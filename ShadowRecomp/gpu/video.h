@@ -11,6 +11,8 @@ constexpr DWORD X_D3DTS_STAGECOUNT = 4; // Dxbx addition
 #define X_VSH_MAX_ATTRIBUTES          16
 #define X_VSH_MAX_STREAMS             16
 #define X_VSH_MAX_INSTRUCTION_COUNT   136  // The maximum Xbox shader instruction count
+#define X_VSH_INSTRUCTION_SIZE        4
+#define X_VSH_INSTRUCTION_SIZE_BYTES  (X_VSH_INSTRUCTION_SIZE * sizeof(DWORD))
 #define TexSlotMax 16u
 
 // pixel container "format" masks
@@ -22,17 +24,12 @@ constexpr DWORD X_D3DTS_STAGECOUNT = 4; // Dxbx addition
 
 #define PHYSICAL_MAP_BASE                   0x80000000
 
-// NV2A Push buffer command masks
-#define PUSH_METHOD_MASK       0x00001FFC // 12 bits
-#define PUSH_METHOD_SHIFT      0 // Dxbx note : Not 2, because methods are actually DWORD offsets (and thus defined with increments of 4)
-#define PUSH_METHOD(dwPushCommand) ((dwPushCommand & PUSH_METHOD_MASK) >> PUSH_METHOD_SHIFT)
-
-#define X_D3DVSD_END() 0xFFFFFFFF // to detect when vertex declaration ends with CreateShader function
-
 #define NV_PCRTC_INTR_0                                  0x00000100
 #define NV_PCRTC_INTR_0_VBLANK                               (1 << 0)
 #define NV_PMC_INTR_0_PCRTC                                (1 << 24)
 #define NV_PCRTC_INTR_EN_0                               0x00000140
+
+
 
 void CopyVertexShaderConstant(int32_t Register, DWORD* pConstantData, const uint32_t count);
 float GetRenderTargetHeight();
@@ -477,7 +474,7 @@ struct X_D3DResource
 struct GuestResource
 {
 	XD3DResource guestResource;
-	//uint8_t Guard[56];
+	uint32_t padding;
 	uint32_t refCount = 1;
 	ResourceType type;
 
@@ -554,6 +551,8 @@ struct GuestLockedRect
 // VertexBuffer/IndexBuffer
 struct GuestBuffer : GuestResource
 {
+
+
 	std::unique_ptr<RenderBuffer> buffer;
 	XXH64_hash_t hash = 0;
 	void* mappedMemory = nullptr;
@@ -562,6 +561,8 @@ struct GuestBuffer : GuestResource
 	uint32_t guestFormat = 0;
 	bool lockedReadOnly = false;
 	bool isVertexBuffer = false;
+	bool isDirty = false;
+
 	int32_t stride = 0;
 };
 
@@ -598,26 +599,6 @@ struct GuestVertexElement
 //
 #define D3DDECL_END() {0xFF,0,D3DDECLTYPE_UNUSED,0,0,0}
 
-// ******************************************************************
-struct X_VERTEXATTRIBUTEFORMAT
-{
-	// Note : Alignment looks okay even without #pragma pack(1) / #include "AlignPrefix1.h" (and it's closure)
-	GuestVertexElement Slots[X_VSH_MAX_ATTRIBUTES];
-};
-
-struct X_D3DVertexShader
-{
-#if 0 
-	DWORD Signature; // Note : Debug XBE's have a 'Vshd' DWORD signature prefix
-#endif
-	DWORD RefCount; // Based on the observation this member is set to 1 in D3DDevice_CreateVertexShader and decreased in D3DDevice_DeleteVertexShader
-	DWORD Flags; // Contains X_VERTEXSHADER_FLAG_* bits
-	DWORD ProgramSize;
-	DWORD ProgramAndConstantsDwords; // Sum of ProgramSize + constant count, expressed in instruction slots, taking 4 DWORD's per slot (see X_VSH_INSTRUCTION_SIZE)
-	BYTE Dimensionality[4]; // Guesswork, since all 4 bytes (for all 4 textures) are most often set to 0 (or 2 when a texture isn't used) and 1, 3 and 4 also occur (and nothing else)
-	X_VERTEXATTRIBUTEFORMAT VertexAttribute;
-	DWORD ProgramAndConstants[X_VSH_MAX_INSTRUCTION_COUNT]; // The binary function data and constants (contents continues futher outside this struct, up to ProgramAndConstantsDwords * 4 (=X_VSH_INSTRUCTION_SIZE) DWORD's)
-};
 
 typedef struct _D3DVERTEXELEMENT9
 {
@@ -712,6 +693,17 @@ struct X_D3DPixelContainer : public X_D3DResource
 	DWORD		Format; // Format information about the texture.
 	DWORD       Size; // Size of a non power-of-2 texture, must be zero otherwise
 };
+
+struct X_D3DBaseTexture : X_D3DPixelContainer
+{
+};
+
+
+struct X_D3DSurface : X_D3DPixelContainer
+{
+	uint32_t Parent;
+};
+
 
 typedef enum _X_D3DRESOURCETYPE
 {
@@ -1132,6 +1124,33 @@ struct RwD3D8Vertex
 	uint32_t emissiveColor;
 	RwReal u;
 	RwReal v;
+};
+
+
+struct IndexedVertex
+{
+	float x;
+	float y;
+	float z;
+	float R;
+	float G;
+	float B;
+	float u;
+	float v;
+};
+
+struct UpVertex
+{
+	float x;
+	float y;
+	float z;
+	float w;
+	uint8_t R;
+	uint8_t G;
+	uint8_t B;
+	uint8_t A;
+	float u;
+	float v;
 };
 
 // Xbox vertex shader constant modes

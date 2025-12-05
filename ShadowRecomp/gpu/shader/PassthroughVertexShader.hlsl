@@ -68,6 +68,6 @@ VS_OUTPUT main(const VS_INPUT xIn)
     xOut.oT1 = oT1 / xboxTextureScale[1];
     xOut.oT2 = oT2 / xboxTextureScale[2];
     xOut.oT3 = oT3 / xboxTextureScale[3];
-
+    
     return xOut;
 }

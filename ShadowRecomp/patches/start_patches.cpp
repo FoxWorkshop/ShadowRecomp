@@ -1,5 +1,8 @@
 #include <kernel/function.h>
 
+
+bool QuickBoot = true;
+
 //stub unnecessary startup functions to force the game to boot
 //to do find a workdaround this is needed for savefile.
 
@@ -35,7 +38,6 @@ int sub_2B0164_r(int a1)
 }
 
 
-bool QuickBoot = true;
 //skip FMV
 X86_FUNC_IMPL(__imp__sub_24F80);
 X86_FUNC(sub_24F80)
@@ -71,6 +73,15 @@ X86_FUNC(sub_29EA60)
 	}
 
 	__imp__sub_29EA60(ctx, base);
+}
+
+//force level 5
+//todo DELETE
+X86_FUNC_IMPL(__imp__sub_258550);
+X86_FUNC(sub_258550)
+{
+	X86_STORE_U32(ctx.esp.u32 + 4, 0x5); //force level 5
+	__imp__sub_258550(ctx, base);
 }
 
 

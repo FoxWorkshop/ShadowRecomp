@@ -5,6 +5,8 @@
 #include "imgui/imgui_font_builder.h"
 
 #include "vertexdeclaration.h"
+#include "vertexshader.h"
+#include "nv2a.h"
 #include "swizzle.h"
 #include "FixedFunction.h"
 #include "renderstate.h"
@@ -19,6 +21,7 @@
 #include <shader/shader_cache.h>
 #include <ui/imgui_utils.h>
 #include <xxHashMap.h>
+#include <cpu/guest_thread.h>
 
 
 const uint32_t GuestDevicePtrAddr = 0x3E0A18;
@@ -28,6 +31,7 @@ const uint32_t AutoDepthStencilFormat = 0x57DD68;
 const uint32_t RwD3D8RasterExtOffsetAddr = 0x57DD20;
 const uint32_t g_DeferredTextureStateAddr = 0x3E0580;
 
+bool LogVSConstants = false;
 
 #define DepthStencilFormat RenderFormat::D32_FLOAT_S8_UINT
 
@@ -92,7 +96,7 @@ const uint32_t g_DeferredTextureStateAddr = 0x3E0580;
 #include "shader/recomp1.hlsl.spirv.h"
 #include "shader/recomp2.hlsl.spirv.h"
 #include "shader/recomp3.hlsl.spirv.h"
-#include <cpu/guest_thread.h>
+
 
 namespace plume
 {
@@ -125,7 +129,6 @@ struct PipelineState
 	bool isFixedFunctionPS = false;
 	VertexShaderMode vertexShaderType;
 	GuestVertexDeclaration* vertexDeclaration = nullptr;
-	bool instancing = false;
 	bool zEnable = true;
 	bool zWriteEnable = true;
 	bool stencilEnable = false;
@@ -242,7 +245,6 @@ struct SharedConstants
 //const UINT ringBufferSize = 4 * 1024 * 1024; // 4 MB ring buffer
 const UINT ringBufferSize = 0x10000;
 static GuestBuffer* g_ringBuffer;
-static int currentBufferIndex = 0;
 static GuestSurface* g_renderTarget;
 static GuestSurface* g_depthStencil;
 static RenderFramebuffer* g_framebuffer;
@@ -251,6 +253,11 @@ static PipelineState g_pipelineState;
 static int32_t g_depthBias;
 static float g_slopeScaledDepthBias;
 int32_t g_RenderUpscaleFactor = 1;
+
+GuestSurface* GetRenderTarget()
+{
+	return g_renderTarget;
+}
 
 //constants are variable send to the GPU
 static uint32_t g_vertexShaderConstants[HOST_D3DVS_CONSTREG_FULL * 4];
@@ -262,6 +269,15 @@ std::array<D3DMATRIX, X_D3DTS_MAX> g_Transforms;
 
 uint32_t g_renderState[255];
 
+struct VBData
+{
+	XD3DResource* guestVBData;
+	GuestBuffer* buffer;
+	int size;
+
+};
+
+std::vector<VBData> g_VBList;
 
 
 uint32_t vsh_constants[HOST_D3DVS_CONSTREG_FULL][4]; //xbox registers (192) + host registers (slot of 4 because one register = 4 bytes)
@@ -282,7 +298,17 @@ typedef struct _X_STREAMINPUT
 {
 	GuestBuffer* VertexBuffer;
 	UINT                Stride;
+
 } X_STREAMINPUT;
+
+struct VBS
+{
+	GuestBuffer* bufferPtr;
+	int32_t size;
+
+};
+
+std::vector<VBS> VBlist; //todo delete
 
 X_STREAMINPUT g_Xbox_SetStreamSource[X_VSH_MAX_STREAMS];
 
@@ -444,9 +470,8 @@ struct std::unique_ptr<RenderDescriptorSet> g_samplerDescriptorSet;
 
 static xxHashMap<std::pair<uint32_t, std::unique_ptr<RenderSampler>>> g_samplerStates;
 
-//static xxHashMap<GuestBuffer*> g_vertexBufferCache;
+static xxHashMap<GuestBuffer*> g_vertexBufferCache;
 static xxHashMap<GuestBuffer*> g_indexBufferCache;
-static std::vector<GuestBuffer*> g_vertexBufferCache;
 
 struct UploadBuffer
 {
@@ -2307,6 +2332,7 @@ void UpdateHostVertexDeclaration(HostVertexDeclaration* pHostVertexDeclaration)
 		vsh_constants_dirty[HOST_D3DVS_CONSTREG_VREGDEFAULTS_FLAG_BASE + i] = true;
 	}
 
+
 	//192 + 16 = 208 vRegisterDefaultFlagsPacked
 	CopyVertexShaderConstant(HOST_D3DVS_CONSTREG_VREGDEFAULTS_FLAG_BASE, (DWORD*)vertexDefaultFlags, HOST_D3DVS_CONSTREG_VREGDEFAULTS_FLAG_SIZE);
 	vsh_constants[HOST_D3DVS_CONSTREG_VREGDEFAULTS_FLAG_BASE][0] = vsh_constants[HOST_D3DVS_CONSTREG_VREGDEFAULTS_FLAG_BASE][0];
@@ -2326,13 +2352,16 @@ static ShaderCacheEntry* FindShaderCacheEntry(XXH64_hash_t hash)
 }
 
 std::unordered_map<uint32_t, GuestShader*> g_VertexShaderMap;
-static GuestShader* CreateShader(const uint32_t* pDeclaration, ResourceType resourceType)
+/**static GuestShader* CreateShader(const uint32_t* pDeclaration, ResourceType resourceType)
 {
 	size_t size = 0;
 	auto curDeclaration = pDeclaration;
 
+	std::ofstream  outFile2("HashShader.txt", std::ios::app);
+
 	while (*curDeclaration != X_D3DVSD_END())
 	{
+		outFile2 << std::hex << *curDeclaration << '\n';
 		size += sizeof(uint32_t);
 		curDeclaration++;
 	}
@@ -2341,6 +2370,14 @@ static GuestShader* CreateShader(const uint32_t* pDeclaration, ResourceType reso
 	size += sizeof(uint32_t);
 
 	XXH64_hash_t hash = XXH3_64bits(pDeclaration, size);
+
+	printf("hash shader %llx\n", hash);
+
+	outFile2 << '\n';
+	outFile2 << "hash 0x" << std::hex << hash << '\n';
+
+	outFile2 << '\n';
+	outFile2.close();
 
 	auto findResult = FindShaderCacheEntry(hash);
 	GuestShader* shader = nullptr;
@@ -2369,11 +2406,15 @@ static GuestShader* CreateShader(const uint32_t* pDeclaration, ResourceType reso
 		shader->shader = CREATE_SHADER(recomp0);
 	else if (hash == 0x89dd45174e675122)
 		shader->shader = CREATE_SHADER(recomp1);
-	else if (hash == 0xa660f57bbbc6ff47)
+	else if (hash == 0xa660f57bbbc6ff47) //(hash == 0x7351ba28d201371d)
 	{
 		shader->shader = CREATE_SHADER(recomp2);
 	}
-	else if (resourceType != ResourceType::PassthroughVertexShader)
+	else if (hash == 0xa90eacbcad6cc71c)
+	{
+		shader->shader = CREATE_SHADER(recomp3);
+	}
+	else
 	{
 		hash = hash;
 		printf("unknown shader, it's time to implement xshader recomp\n");
@@ -2381,7 +2422,50 @@ static GuestShader* CreateShader(const uint32_t* pDeclaration, ResourceType reso
 	}
 
 	/**if (hash == 0x31173204A896098A)
-		g_csdShader = shader;*/
+		g_csdShader = shader;
+
+	return shader;
+}*/
+
+
+GuestShader* CreateShader(ResourceType resourceType)
+{
+	GuestShader* shader = FindShaderCacheEntryNew();
+
+	if (shader)
+	{
+		shader->AddRef();
+	}
+	else
+	{
+		uint64_t hash = GetVertexShaderKey();
+
+		shader = g_userHeap.AllocPhysical<GuestShader>(resourceType);
+
+		//if (hash == 0xe555c89eab6e17ed)
+		if (hash == 0xb2b7a0a5e7d5805f)
+		{
+			shader->shader = CREATE_SHADER(recomp0);
+		}
+		else if (hash == 0xcefa8ae484bff7a2) //(hash == 0x89dd45174e675122)
+		{
+			shader->shader = CREATE_SHADER(recomp1);
+		}
+		else if (hash == 0xcee36c8c99adc694)  //(hash == 0x7351ba28d201371d)
+		{
+			shader->shader = CREATE_SHADER(recomp2);
+		}
+		else if (hash == 0xdfae999de3ea6283) //(hash == 0xa90eacbcad6cc71c)
+		{
+			shader->shader = CREATE_SHADER(recomp3);
+		}
+		else
+		{
+			printf("unknown shader, it's time to implement xshader recomp\n");
+		}
+
+		UpdateShaderCacheEntryNew(shader, hash);
+	}
 
 	return shader;
 }
@@ -2391,7 +2475,7 @@ static GuestShader* CreateShader(const uint32_t* pDeclaration, ResourceType reso
 //the vertex elements from it later.
 
 X86_FUNC_IMPL(__imp__sub_3D1BA0);
-int32_t CreateVertexShader(uint32_t* pDeclaration, uint32_t* pFunction, GuestShader* pHandle, int32_t Usage)
+/**int32_t CreateVertexShader(uint32_t* pDeclaration, uint32_t* pFunction, GuestShader* pHandle, int32_t Usage)
 {
 	//let original code run first
 	auto ctx = GetX86Context();
@@ -2400,8 +2484,7 @@ int32_t CreateVertexShader(uint32_t* pDeclaration, uint32_t* pFunction, GuestSha
 	ctx->esp.u32 -= 20; //4 * 4 + 4 esp
 
 	// We can't count on pFunction as it can be null, so we will use the vertex declaration for hash and cache
-	auto type = pFunction == nullptr ? ResourceType::PassthroughVertexShader : ResourceType::VertexShader;
-
+	auto type = ResourceType::VertexShader;
 
 	GuestShader* Shader = CreateShader(pDeclaration, type);
 
@@ -2410,25 +2493,38 @@ int32_t CreateVertexShader(uint32_t* pDeclaration, uint32_t* pFunction, GuestSha
 	g_VertexShaderMap.insert({ guest_shader, Shader });
 
 	return 0;
-}
+}*/
 
-
+bool lastCallOk = false;
+bool logVB = false;
 void UpdateHostViewPortOffsetAndScaleConstants();
 X86_FUNC_IMPL(__imp__sub_3D2280);
-// DX8 has a fixed pipeline, meaning we won't always have a shader from this function, sometimes it can be FVF too
-// Since DX12 only support Shader, we will dynamically build a shader to emulate FVF.
-static void SetVertexShader(uint32_t Handle)
+uint32_t lastHandleAddr = 0;
+
+void UpdateVertexDeclaration(uint32_t Handle)
 {
-
-	//let original code run first
-	/**auto ctx = GetX86Context();
-	auto base = g_memory.base;
-	__imp__sub_3D2280(*ctx, base);
-	ctx->esp.u32 -= 8; //1 arg + ret value*/
-
-
 	size_t host_handle = (size_t)g_memory.Translate(Handle);
 
+	bool isFixed = false;
+	if ((host_handle & 1) == 0 && Handle < 0xFFFF) //FVF stuff
+	{
+		isFixed = true;
+	}
+	//as mentioned above, there is no separate function that create vertex declaration, so we have to manually extract and handle them.
+	//we handle vertex declaration immediately to avoid a race issue.
+	if (isFixed)
+		SetFixedFunctionDefaultVertexAttributes(host_handle);
+	auto vertexElement = HostGetVertexDeclaration(host_handle, isFixed);
+	UpdateHostVertexDeclaration(vertexElement);
+	auto vertexDeclaration = CreateVertexDeclaration(vertexElement->pHostVertexElements, isFixed);
+	SetVertexDeclaration(vertexDeclaration);
+
+}
+
+void UpdateVertexShader(uint32_t Handle)
+{
+	size_t host_handle = (size_t)g_memory.Translate(Handle);
+	DWORD vshFlags = GetXboxVertexShaderForHandle(host_handle)->Flags;
 	RenderCommand cmd;
 	bool isFixed = false;
 	if ((host_handle & 1) == 0 && Handle < 0xFFFF) //FVF stuff
@@ -2437,8 +2533,15 @@ static void SetVertexShader(uint32_t Handle)
 	}
 	else
 	{
-		auto shader = g_VertexShaderMap[Handle];
-		cmd.setVertexShader.shader = shader;
+		auto shader = CreateShader(ResourceType::VertexShader); //g_VertexShaderMap[Handle];
+		if (shader == nullptr)
+		{
+			return;
+		}
+		else
+		{
+			cmd.setVertexShader.shader = shader;
+		}
 	}
 
 	cmd.type = RenderCommandType::SetVertexShader;
@@ -2446,25 +2549,32 @@ static void SetVertexShader(uint32_t Handle)
 
 	if (!isFixed && cmd.setVertexShader.shader)
 	{
-		if (cmd.setVertexShader.shader->type == ResourceType::PassthroughVertexShader)
-			cmd.setVertexShader.type = VertexShaderMode::Passthrough;
-		else
-			cmd.setVertexShader.type = VertexShaderMode::ShaderProgram;
+		cmd.setVertexShader.type = VertexShaderMode::ShaderProgram;
 	}
 	else
 	{
 		cmd.setVertexShader.type = VertexShaderMode::FixedFunction;
 	}
 
+	UpdateVertexDeclaration(Handle);
+
 	g_renderQueue.enqueue(cmd);
+}
 
+// DX8 has a fixed pipeline, meaning we won't always have a shader from this function, sometimes it can be FVF too
+// Since DX12 only support Shader, we will use a uber shader to emulate FVF stuff, see FixedFunctionVertexShader.hlsl
+static void SetVertexShader(uint32_t Handle)
+{
+	lastHandleAddr = Handle;
 
-	//as mentioned above, there is no separate function that create vertex declaration, so we have to manually extract and handle them.
-	//we handle vertex declaration immediately to avoid a race issue.
-	auto vertexElement = HostGetVertexDeclaration(host_handle, isFixed);
-	UpdateHostVertexDeclaration(vertexElement);
-	auto vertexDeclaration = CreateVertexDeclaration(vertexElement->pHostVertexElements, isFixed);
-	SetVertexDeclaration(vertexDeclaration);
+	//let original code run first so it will call SelectVertexShader function
+	auto ctx = GetX86Context();
+	auto base = g_memory.base;
+	__imp__sub_3D2280(*ctx, base);
+	ctx->esp.u32 -= 8; //1 arg + ret value*/
+
+	UpdateVertexShader(Handle);
+
 }
 
 static void ProcSetVertexShader(const RenderCommand& cmd)
@@ -2477,7 +2587,6 @@ static void ProcSetVertexShader(const RenderCommand& cmd)
 
 	if (isFixed)
 	{
-		SetFixedFunctionDefaultVertexAttributes(host_handle);
 		SetDirtyValue(g_dirtyStates.pipelineState, g_pipelineState.vertexShader, (GuestShader*)host_handle);
 	}
 	else
@@ -2485,6 +2594,83 @@ static void ProcSetVertexShader(const RenderCommand& cmd)
 		SetDirtyValue(g_dirtyStates.pipelineState, g_pipelineState.vertexShader, cmd.setVertexShader.shader);
 	}
 
+}
+
+void SelectVertexShader(DWORD Handle, DWORD Address)
+{
+	g_Xbox_VertexShader_FunctionSlots_StartAddress = Address;
+	UpdateVertexShader(Handle);
+}
+
+void LoadVertexShaderProgram(DWORD* pFunction, DWORD Address)
+{
+	auto tokens = (DWORD*)&pFunction[1];
+	auto shaderHeader = *((X_VSH_SHADER_HEADER*)pFunction);
+	SetVertexShaderSlots(tokens, Address, shaderHeader.NumInst);
+}
+
+void LoadVertexShader(DWORD Handle, DWORD Address)
+{
+	// Handle is always address of an X_D3DVertexShader struct, thus always or-ed with 1 (X_D3DFVF_RESERVED0)
+// Address is the slot (offset) from which the program must be written onwards (as whole DWORDS)
+// D3DDevice_LoadVertexShader pushes the program contained in the Xbox VertexShader struct to the NV2A
+
+	X_D3DVertexShader* pXboxVertexShader = VshHandleToXboxVertexShader((size_t)g_memory.Translate(Handle));
+
+	DWORD NrTokens;
+	DWORD* pNV2ATokens = GetVertexShaderTokens(pXboxVertexShader, &NrTokens);
+
+#if 1 // TODO : Remove dirty hack (?once CreateVertexShader trampolines to Xbox code that sets ProgramAndConstantsDwords correctly?) :
+	if (NrTokens == 0)
+		NrTokens = 10000;
+#endif
+
+	static unsigned ConstantAddress = 0;
+	DWORD* pEnd = pNV2ATokens + NrTokens;
+	while (pNV2ATokens < pEnd)
+	{
+		DWORD dwMethod, dwSubChannel, nrDWORDS;
+		D3DPUSH_DECODE(*pNV2ATokens++, dwMethod, dwSubChannel, nrDWORDS);
+		if (nrDWORDS == 0)
+		{
+			printf("Zero-length NV2A method detected!\n");
+			break;
+		}
+
+		switch (dwMethod) {
+		case NV2A_VP_UPLOAD_INST(0): { // = 0x00000B00
+			if ((nrDWORDS & 3) != 0)
+				printf("NV2A_VP_UPLOAD_INST arguments should be a multiple of 4!\n");
+
+			unsigned nrSlots = nrDWORDS / X_VSH_INSTRUCTION_SIZE;
+			SetVertexShaderSlots(pNV2ATokens, Address, nrSlots);
+			Address += nrSlots;
+			break;
+		}
+		case NV2A_VP_UPLOAD_CONST_ID: // = 0x00001EA4
+			if (nrDWORDS != 1)
+				printf("NV2A_VP_UPLOAD_CONST_ID should have one argument!\n");
+
+			ConstantAddress = *pNV2ATokens;
+			break;
+		case NV2A_VP_UPLOAD_CONST(0): { // = 0x00000B80
+			if ((nrDWORDS & 3) != 0)
+				printf("NV2A_VP_UPLOAD_CONST arguments should be a multiple of 4!\n");
+
+			unsigned nrConstants = nrDWORDS / X_VSH_INSTRUCTION_SIZE;
+			// TODO : FIXME : Implement and call SetVertexShaderConstants(pNV2ATokens, ConstantAddress, nrConstants);
+			ConstantAddress += nrConstants;
+			break;
+		}
+		default:
+			// TODO : Remove this break-out hack once NrTokens is reliable and instead have: DEFAULT_UNREACHABLE;
+			printf("Stopping at unexpected NV2A method\n");
+			pEnd = pNV2ATokens;
+			break;
+		}
+
+		pNV2ATokens += nrDWORDS;
+	}
 }
 
 int32_t CreatePixelShader(const uint32_t pPSDef, DWORD* pHandle)
@@ -2495,6 +2681,10 @@ int32_t CreatePixelShader(const uint32_t pPSDef, DWORD* pHandle)
 //todo check if we can pass a GuestShader or if we will have to do it differently
 static void SetPixelShader(uint32_t handle)
 {
+	if (handle != 0)
+	{
+		printf("WAIT\n");
+	}
 	RenderCommand cmd;
 	cmd.type = RenderCommandType::SetPixelShader;
 	cmd.setPixelShader.handle = handle;
@@ -2510,6 +2700,7 @@ static void ProcSetPixelShader(const RenderCommand& cmd)
 }
 
 
+bool logIndexed = false;
 static void FlushVertexBufferForRendering();
 X86_FUNC_IMPL(__imp__sub_3D1E10);
 static void SetStreamSource(uint32_t StreamNumber, GuestBuffer* buffer, uint32_t stride)
@@ -2520,9 +2711,9 @@ static void SetStreamSource(uint32_t StreamNumber, GuestBuffer* buffer, uint32_t
 	g_Xbox_SetStreamSource[StreamNumber].VertexBuffer = buffer;
 	g_Xbox_SetStreamSource[StreamNumber].Stride = stride;
 
-	/**FlushVertexBufferForRendering();
 
-	RenderCommand cmd;
+
+	/**RenderCommand cmd;
 	cmd.type = RenderCommandType::SetStreamSource;
 	cmd.setStreamSource.StreamNumber = StreamNumber;
 	cmd.setStreamSource.vertexBuffer = buffer;
@@ -2531,6 +2722,7 @@ static void SetStreamSource(uint32_t StreamNumber, GuestBuffer* buffer, uint32_t
 
 	//we need to let the original code run otherwise this preven't other vertex buffer to be used
 
+	//printf("set VB %x, stream number %d, stride %d\n", buffer, StreamNumber, stride);
 	auto ctx = GetX86Context();
 	__imp__sub_3D1E10(*ctx, base);
 	ctx->esp.u32 -= (4 + 12);
@@ -2541,6 +2733,14 @@ static void ProcSetStreamSource(const RenderCommand& cmd)
 {
 	const auto& args = cmd.setStreamSource;
 
+	auto vb = args.vertexBuffer;
+	void* gpuRef = vb ? (void*)vb->buffer->at(0).ref : nullptr;
+	/**printf("[BIND-SETSTREAM] stream=%u guestVB=%p gpuRef=%p stride=%u size=%u\n",
+		args.StreamNumber, vb, gpuRef, args.stride,
+		vb ? vb->dataSize : 0u);*/
+
+
+
 	SetDirtyValue(g_dirtyStates.pipelineState, g_pipelineState.vertexStrides[args.StreamNumber], uint8_t(args.vertexBuffer != nullptr ? args.stride : 0));
 
 	bool dirty = false;
@@ -2549,13 +2749,11 @@ static void ProcSetStreamSource(const RenderCommand& cmd)
 	SetDirtyValue(dirty, g_vertexBufferViews[args.StreamNumber].size, args.vertexBuffer != nullptr ? (args.vertexBuffer->dataSize - 0) : 0u);
 	SetDirtyValue(dirty, g_inputSlots[args.StreamNumber].stride, args.vertexBuffer != nullptr ? args.stride : 0u);
 
-
 	if (dirty)
 	{
 		g_dirtyStates.vertexStreamFirst = std::min<uint8_t>(g_dirtyStates.vertexStreamFirst, args.StreamNumber);
 		g_dirtyStates.vertexStreamLast = std::max<uint8_t>(g_dirtyStates.vertexStreamLast, args.StreamNumber);
 	}
-
 }
 
 static const char* DeviceTypeName(RenderDeviceType type)
@@ -3029,10 +3227,8 @@ void SleepPrecise(std::chrono::steady_clock::time_point targetTime)
 		;
 	}
 }
-
 void Video::Present()
 {
-
 
 	g_readyForCommands = false;
 
@@ -3097,11 +3293,11 @@ void Video::Present()
 	cmd.type = RenderCommandType::BeginCommandList;
 	g_renderQueue.enqueue(cmd);
 
-	auto targetRefreshRate = 60.0f;
+	/**auto targetRefreshRate = 60.0f;
 	auto frameMs = (1000.0 / targetRefreshRate) * 1.0f;
 	auto targetDuration = std::chrono::duration_cast<std::chrono::steady_clock::duration>(std::chrono::duration<double, std::milli>(frameMs));
 	auto targetTimestamp = frameStartTime + targetDuration;
-	SleepPrecise(targetTimestamp);
+	SleepPrecise(targetTimestamp);*/
 
 	frameStartTime = std::chrono::steady_clock::now();
 
@@ -3301,10 +3497,6 @@ static RenderFormat ConvertFormat(X_D3DFORMAT format)
 //todo check if this is all correct
 static GuestTexture* CreateTexture(uint32_t width, uint32_t height, uint32_t depth, uint32_t levels, uint32_t usage, X_D3DFORMAT format, X_D3DRESOURCETYPE type)
 {
-	if (width == 512 && height == 512)
-	{
-		//printf("you\n");
-	}
 	auto texture = g_userHeap.AllocPhysical<GuestTexture>(type == X_D3DRTYPE_VOLUMETEXTURE ? ResourceType::VolumeTexture : ResourceType::Texture);
 
 	RenderTextureDesc desc;
@@ -3375,21 +3567,27 @@ X86_FUNC_IMPL(__imp__sub_2E6750);
 static GuestBuffer* CreateVertexBuffer(uint32_t length)
 {
 	auto base = g_memory.base;
-	/**auto ctx = GetX86Context();
+	auto ctx = GetX86Context();
 
 	//call original function
-	//__imp__sub_2E6750(*ctx, base);
-	ctx->esp.u32 -= 4;
+	/**__imp__sub_2E6750(*ctx, base);
+	ctx->esp.u32 -= 4;*/
 
-	if (ctx->eax.u32 != 0)*/
+	int ogSize = length;
+
+	int newSize = length;//(ogSize + 31) & 0xFFFFFFE0;
+
+
+	//if (ctx->eax.u32 != 0)
 	{
 		//auto guestBufferData = (X_D3DResource*)g_memory.Translate(ctx->eax.u32);
 
 		auto buffer = g_userHeap.AllocPhysical<GuestBuffer>(ResourceType::VertexBuffer);
-		buffer->buffer = g_device->createBuffer(RenderBufferDesc::VertexBuffer(length, GetBufferHeapType(), RenderBufferFlag::INDEX));
-		buffer->dataSize = length;
+		buffer->buffer = g_device->createBuffer(RenderBufferDesc::VertexBuffer(newSize, GetBufferHeapType(), RenderBufferFlag::INDEX));
+		buffer->dataSize = newSize;
+		buffer->guestResource.Common = 1;
+
 		//memcpy(&buffer->guestResource, guestBufferData, sizeof(X_D3DResource));
-		//buffer->guestResource = buffer->guestResource;
 #ifdef _DEBUG 
 		buffer->buffer->setName(fmt::format("Vertex Buffer {:X}", g_memory.MapVirtual(buffer)));
 		buffer->isVertexBuffer = true;
@@ -3406,6 +3604,7 @@ static GuestBuffer* CreateVertexBuffer(uint32_t length)
 static GuestBuffer* CreateIndexBuffer(uint32_t IndexCount, X_D3DFORMAT format)
 {
 	uint32_t length = IndexCount * sizeof(int16_t);
+
 	auto buffer = g_userHeap.AllocPhysical<GuestBuffer>(ResourceType::IndexBuffer);
 	buffer->buffer = g_device->createBuffer(RenderBufferDesc::IndexBuffer(length, GetBufferHeapType()));
 	buffer->dataSize = length;
@@ -3460,69 +3659,83 @@ static GuestSurface* CreateSurface(uint32_t width, uint32_t height, X_D3DFORMAT 
 	return surface;
 }
 
-static GuestSurface* GetSurfaceLevel(GuestTexture* texture, int32_t pvData, X_D3DFORMAT Format)
+static xxHashMap<GuestSurface*> g_surfaceLevel;
+static GuestSurface* GetSurfaceLevel(GuestTexture* texture, int32_t level, X_D3DFORMAT Format)
 {
+
 	//return CreateSurface(texture->width, texture->height, (X_D3DFORMAT)texture->format, true);
-	return (GuestSurface*)texture;
-	GuestSurface* surface = nullptr;
+	//return (GuestSurface*)texture;
 
-	for (auto& entry : g_surfaceCache)
+
+	XXH64_hash_t hash = XXH3_64bits(texture, sizeof(GuestTexture) * level + 1);
+	auto& surface = g_surfaceLevel[hash];
+	if (surface != nullptr)
 	{
-		GuestSurface* cachedSurface = entry;
-
-		if (cachedSurface &&
-			cachedSurface->width == texture->width &&
-			cachedSurface->height == texture->height &&
-			cachedSurface->guestFormat == texture->guestResource.Format)
-		{
-			surface = cachedSurface;
-			break;
-		}
+		return surface;
 	}
 
 
-	if (!surface)
-	{
-		surface = g_userHeap.AllocPhysical<GuestSurface>(ResourceType::RenderTarget);
+	// Calculate dimensions for this mip level
+	uint32_t mipWidth = std::max(1u, texture->width >> level);
+	uint32_t mipHeight = std::max(1u, texture->height >> level);
 
-		surface->texture = texture->texture;
-		surface->width = texture->width;
-		surface->height = texture->height;
-		surface->format = texture->format;
-		surface->guestFormat = texture->guestResource.Format;
-		surface->sampleCount = RenderSampleCount::COUNT_1;
+	// Allocate a surface object
+	surface = g_userHeap.AllocPhysical<GuestSurface>(
+		texture->format == DepthStencilFormat ?
+		ResourceType::DepthStencil : ResourceType::RenderTarget
+	);
 
-		RenderTextureViewDesc viewDesc;
-		viewDesc.dimension = RenderTextureViewDimension::TEXTURE_2D;
-		viewDesc.format = texture->format;
-		viewDesc.mipLevels = 1;  // Only this level
 
-		surface->textureView = texture->texture->createTextureView(viewDesc);
-		surface->descriptorIndex = g_textureDescriptorAllocator.allocate();
-		g_textureDescriptorSet->setTexture(
-			surface->descriptorIndex,
-			texture->texture,
-			RenderTextureLayout::SHADER_READ,
-			surface->textureView.get()
-		);
+	surface->texture = texture->texture;
 
-		surface->guestResource.Data = pvData & 0xFFFFFFF;
-		surface->guestResource.Common = 0x1050001;
-		surface->guestResource.Format = texture->guestResource.Format;
-		surface->guestResource.Size = texture->guestResource.Size;
+	surface->width = mipWidth;
+	surface->height = mipHeight;
+	surface->format = texture->format;
+	surface->guestFormat = texture->guestResource.Format;
+	surface->sampleCount = RenderSampleCount::COUNT_1;
 
-		surface->AddRef();
-		g_surfaceCache.emplace_back(surface);
-	}
+	// Create a view specifically for this mip level
+	RenderTextureViewDesc viewDesc;
+	viewDesc.dimension = RenderTextureViewDimension::TEXTURE_2D;
+	viewDesc.format = texture->format;
 
+	viewDesc.mipLevels = 1;             // Only this one level
+
+
+	surface->textureView = texture->texture->createTextureView(viewDesc);
+
+	// Allocate descriptor for this specific mip level view
+	surface->descriptorIndex = g_textureDescriptorAllocator.allocate();
+	g_textureDescriptorSet->setTexture(
+		surface->descriptorIndex,
+		texture->texture,  // Same texture
+		RenderTextureLayout::SHADER_READ,
+		surface->textureView.get()
+	);
+
+
+	surface->guestResource.Format = texture->guestResource.Format;
+	texture->sourceSurface = surface;
 	return surface;
 }
 
+
+X86_FUNC_IMPL(__imp__sub_3DA010);
 //CreateSurfaceLevel = "view" or "interface" to access ONE specific level/slice of a texture resource.
 //todo figure out this
 GuestSurface* CreateSurfaceOfTexture(X_D3DFORMAT Format, uint32_t size, GuestBaseTexture* pParent, int32_t pvData)
 {
-	return GetSurfaceLevel((GuestTexture*)pParent, pvData, Format);
+
+	auto ctx = GetX86Context();
+	auto base = g_memory.base;
+	__imp__sub_3DA010(*ctx, base);
+	ctx->esp.u32 -= 20;
+
+	auto gSurface = (X_D3DSurface*)g_memory.Translate(ctx->eax.u32);
+	auto newSurface = GetSurfaceLevel((GuestTexture*)pParent, 0, Format);
+	memcpy(&newSurface->guestResource, gSurface, sizeof(X_D3DSurface));
+	ctx->eax.u32 = g_memory.MapVirtual(newSurface);
+	return newSurface;
 	//return CreateSurface(pParent->width, pParent->height, (X_D3DFORMAT)pParent->format, true);
 }
 
@@ -3701,8 +3914,10 @@ int32_t Direct3D_CreateDevice_r(int32_t Adapter, int32_t DeviceType, int32_t hFo
 static int desCount = 0;
 static void DestructResource(GuestResource* resource)
 {
+
 	RenderCommand cmd;
 	cmd.type = RenderCommandType::DestructResource;
+
 	cmd.destructResource.resource = resource;
 	g_renderQueue.enqueue(cmd);
 	desCount++;
@@ -3744,12 +3959,6 @@ static void LockTextureRect(GuestTexture* texture, int32_t level, GuestLockedRec
 
 static void UnlockTextureRect(GuestTexture* texture)
 {
-	if (texture->isRenderTarget)
-	{
-		//no need to copy this to the GPU as it won't work anyway
-		return;
-	}
-
 	RenderCommand cmd;
 	cmd.type = RenderCommandType::UnlockTextureRect;
 	cmd.unlockTextureRect.texture = texture;
@@ -4027,14 +4236,24 @@ void UpdateHostTextureScaling(GuestTexture* tex, const bool isFixedFunc)
 
 bool aboutToDrawFlame = false;
 const intptr_t flameTexAddr = 0x00000001a0d455b0;
+const intptr_t RTTexAddr = 0x00000001a0bb72f0;
+const intptr_t RTBuggy = 0x00000001a0ebefb0;
+intptr_t lastTex = 0;
+
 //D3DDevice_SetTexture
+GuestTexture* hudTexCopy = nullptr;
 void SetTexture(uint32_t stage, GuestTexture* texture)
 {
-	if ((intptr_t)texture == flameTexAddr)
+	/**if (lastTex == RTTexAddr && texture != nullptr)
 	{
-		//printf("assign tex flame Id\n");
-		//aboutToDrawFlame = true;
-	}
+		SetTexture(0, nullptr);
+
+	}*/
+
+	//lastTex = (intptr_t)texture;
+
+
+
 	RenderCommand cmd;
 	cmd.type = RenderCommandType::SetTexture;
 	cmd.setTexture.index = stage;
@@ -4095,14 +4314,488 @@ static void SetDefaultViewport(GuestDevice* device, GuestSurface* surface)
 	}
 }
 
+
+void sub_3D0040_r(X86Context& ctx, uint8_t* base)
+{
+	// sub esp, 0x0C
+	auto temp_3D0040_U32_OLD = ctx.esp.u32;
+	auto temp_3D0040_U32_SRC = 12;
+	ctx.esp.u32 = temp_3D0040_U32_OLD - temp_3D0040_U32_SRC;
+	ctx.eflags.update_flags_sub_U32(temp_3D0040_U32_OLD, temp_3D0040_U32_SRC, ctx.esp.u32);
+	// push ebx
+	X86_PUSH(ctx, base, ctx.ebx.u32);
+	// push ebp
+	X86_PUSH(ctx, base, ctx.ebp.u32);
+	// mov ebp, [esp+0x18]
+	ctx.ebp.u32 = X86_LOAD_U32(ctx.esp.u32 + 24);
+	// push esi
+	X86_PUSH(ctx, base, ctx.esi.u32);
+	// xor esi, esi
+	ctx.esi.u32 ^= ctx.esi.u32;
+	ctx.eflags.update_flags_logic(ctx.esi.u32);
+	// cmp ebp, esi
+	ctx.eflags.update_compare_flags_U32(ctx.ebp.u32, ctx.esi.u32);
+	// push edi
+	X86_PUSH(ctx, base, ctx.edi.u32);
+	// mov edi, [0x003E0A18]
+	ctx.edi.u32 = X86_LOAD_U32(4065816);
+	// jnz 0x003D0063
+	if ((ctx.eflags.value & X86EFlags::ZF) == 0) goto loc_3D0063;
+	// mov eax, [edi+0x1A04]
+	ctx.eax.u32 = X86_LOAD_U32(ctx.edi.u32 + 6660);
+	// mov [esp+0x20], eax
+	X86_STORE_U32(ctx.esp.u32 + 32, ctx.eax.u32);
+	// mov ebp, eax
+	ctx.ebp.u32 = ctx.eax.u32;
+loc_3D0063:
+	// push ebp
+	X86_PUSH(ctx, base, ctx.ebp.u32);
+	// call 0x003D5E90
+	ctx.esp.u32 -= 0x4; //Adjust stack pointer for call instruction
+	sub_3D5E90(ctx, base);
+	// mov eax, [edi+0x1A04]
+	ctx.eax.u32 = X86_LOAD_U32(ctx.edi.u32 + 6660);
+	// cmp eax, esi
+	ctx.eflags.update_compare_flags_U32(ctx.eax.u32, ctx.esi.u32);
+	// jz 0x003D008E
+	if ((ctx.eflags.value & X86EFlags::ZF) != 0) goto loc_3D008E;
+	// mov ecx, [eax+0x14]
+	ctx.ecx.u32 = X86_LOAD_U32(ctx.eax.u32 + 20);
+	// cmp ecx, esi
+	ctx.eflags.update_compare_flags_U32(ctx.ecx.u32, ctx.esi.u32);
+	// jz 0x003D007C
+	if ((ctx.eflags.value & X86EFlags::ZF) != 0) goto loc_3D007C;
+	// mov eax, ecx
+	ctx.eax.u32 = ctx.ecx.u32;
+loc_3D007C:
+	// mov ecx, [edi+0x2C]
+	ctx.ecx.u32 = X86_LOAD_U32(ctx.edi.u32 + 44);
+	// mov [eax+0x08], ecx
+	X86_STORE_U32(ctx.eax.u32 + 8, ctx.ecx.u32);
+	// mov edx, [edi+0x1A04]
+	ctx.edx.u32 = X86_LOAD_U32(ctx.edi.u32 + 6660);
+	// push edx
+	X86_PUSH(ctx, base, ctx.edx.u32);
+	// call 0x003D5F70
+	ctx.esp.u32 -= 0x4; //Adjust stack pointer for call instruction
+	sub_3D5F70(ctx, base);
+loc_3D008E:
+	// mov eax, [edi+0x1A08]
+	ctx.eax.u32 = X86_LOAD_U32(ctx.edi.u32 + 6664);
+	// cmp eax, esi
+	ctx.eflags.update_compare_flags_U32(ctx.eax.u32, ctx.esi.u32);
+	// mov [edi+0x1A04], ebp
+	X86_STORE_U32(ctx.edi.u32 + 6660, ctx.ebp.u32);
+	// jz 0x003D00B9
+	if ((ctx.eflags.value & X86EFlags::ZF) != 0) goto loc_3D00B9;
+	// mov ecx, [eax+0x14]
+	ctx.ecx.u32 = X86_LOAD_U32(ctx.eax.u32 + 20);
+	// cmp ecx, esi
+	ctx.eflags.update_compare_flags_U32(ctx.ecx.u32, ctx.esi.u32);
+	// jz 0x003D00A7
+	if ((ctx.eflags.value & X86EFlags::ZF) != 0) goto loc_3D00A7;
+	// mov eax, ecx
+	ctx.eax.u32 = ctx.ecx.u32;
+loc_3D00A7:
+	// mov ecx, [edi+0x2C]
+	ctx.ecx.u32 = X86_LOAD_U32(ctx.edi.u32 + 44);
+	// mov [eax+0x08], ecx
+	X86_STORE_U32(ctx.eax.u32 + 8, ctx.ecx.u32);
+	// mov edx, [edi+0x1A08]
+	ctx.edx.u32 = X86_LOAD_U32(ctx.edi.u32 + 6664);
+	// push edx
+	X86_PUSH(ctx, base, ctx.edx.u32);
+	// call 0x003D5F70
+	ctx.esp.u32 -= 0x4; //Adjust stack pointer for call instruction
+	sub_3D5F70(ctx, base);
+loc_3D00B9:
+	// mov ebx, [esp+0x24]
+	ctx.ebx.u32 = X86_LOAD_U32(ctx.esp.u32 + 36);
+	// cmp ebx, esi
+	ctx.eflags.update_compare_flags_U32(ctx.ebx.u32, ctx.esi.u32);
+	// mov [edi+0x1A08], ebx
+	X86_STORE_U32(ctx.edi.u32 + 6664, ctx.ebx.u32);
+	// jz 0x003D00E6
+	if ((ctx.eflags.value & X86EFlags::ZF) != 0) goto loc_3D00E6;
+	// push ebx
+	X86_PUSH(ctx, base, ctx.ebx.u32);
+	// call 0x003D5E90
+	ctx.esp.u32 -= 0x4; //Adjust stack pointer for call instruction
+	sub_3D5E90(ctx, base);
+	// lea eax, [edi+0x948]
+	ctx.eax.u32 = ctx.edi.u32 + 2376;
+	// push eax
+	X86_PUSH(ctx, base, ctx.eax.u32);
+	// push ebx
+	X86_PUSH(ctx, base, ctx.ebx.u32);
+	// call 0x003D6370
+	ctx.esp.u32 -= 0x4; //Adjust stack pointer for call instruction
+	sub_3D6370(ctx, base);
+	// push ebx
+	X86_PUSH(ctx, base, ctx.ebx.u32);
+	// call 0x003CFF50
+	ctx.esp.u32 -= 0x4; //Adjust stack pointer for call instruction
+	sub_3CFF50(ctx, base);
+	// mov [edi+0x94C], eax
+	X86_STORE_U32(ctx.edi.u32 + 2380, ctx.eax.u32);
+loc_3D00E6:
+	// mov eax, [edi]
+	ctx.eax.u32 = X86_LOAD_U32(ctx.edi.u32);
+	// cmp eax, [edi+0x04]
+	ctx.eflags.update_compare_flags_U32(ctx.eax.u32, X86_LOAD_U32(ctx.edi.u32 + 4));
+	// jb 0x003D00F2
+	if ((ctx.eflags.value & X86EFlags::CF) != 0) goto loc_3D00F2;
+	// call 0x003D4C00
+	ctx.esp.u32 -= 0x4; //Adjust stack pointer for call instruction
+	sub_3D4C00(ctx, base);
+loc_3D00F2:
+	// cmp ebx, esi
+	ctx.eflags.update_compare_flags_U32(ctx.ebx.u32, ctx.esi.u32);
+	// mov ecx, [ebp+0x04]
+	ctx.ecx.u32 = X86_LOAD_U32(ctx.ebp.u32 + 4);
+	// mov edx, eax
+	ctx.edx.u32 = ctx.eax.u32;
+	// mov [esp+0x18], ecx
+	X86_STORE_U32(ctx.esp.u32 + 24, ctx.ecx.u32);
+	// jz 0x003D0108
+	if ((ctx.eflags.value & X86EFlags::ZF) != 0) goto loc_3D0108;
+	// mov eax, [ebx+0x04]
+	ctx.eax.u32 = X86_LOAD_U32(ctx.ebx.u32 + 4);
+	// mov [esp+0x10], eax
+	X86_STORE_U32(ctx.esp.u32 + 16, ctx.eax.u32);
+	// jmp 0x003D010C
+	goto loc_3D010C;
+loc_3D0108:
+	// mov [esp+0x10], esi
+	X86_STORE_U32(ctx.esp.u32 + 16, ctx.esi.u32);
+loc_3D010C:
+	// mov dword ptr [esp+0x14], 0x02
+	X86_STORE_U32(ctx.esp.u32 + 20, 0x2u);
+	// mov ebp, 0x40100
+	ctx.ebp.u32 = 0x40100u;
+	// mov ebx, 0x40110
+	ctx.ebx.u32 = 0x40110u;
+	// mov edi, edi
+	ctx.edi.u32 = ctx.edi.u32;
+loc_3D0120:
+	// mov eax, [esp+0x20]
+	ctx.eax.u32 = X86_LOAD_U32(ctx.esp.u32 + 32);
+	// mov [edx], ebp
+	X86_STORE_U32(ctx.edx.u32, ctx.ebp.u32);
+	// mov [edx+0x04], esi
+	X86_STORE_U32(ctx.edx.u32 + 4, ctx.esi.u32);
+	// cmp [eax+0x10], esi
+	ctx.eflags.update_compare_flags_U32(X86_LOAD_U32(ctx.eax.u32 + 16), ctx.esi.u32);
+	// jnz 0x003D017D
+	if ((ctx.eflags.value & X86EFlags::ZF) == 0) goto loc_3D017D;
+	// mov ecx, [eax+0x0C]
+	ctx.ecx.u32 = X86_LOAD_U32(ctx.eax.u32 + 12);
+	// shr ecx, 0x14
+	auto temp_3998001 = ctx.ecx.u32;
+	ctx.ecx.u32 >>= 20;
+	ctx.eflags.update_flags_shr(temp_3998001, 20, ctx.ecx.u32);
+	// and ecx, 0x0F
+	ctx.ecx.u32 &= 0xf;
+	ctx.eflags.update_flags_logic(ctx.ecx.u32);
+	// mov eax, 0x01
+	ctx.eax.u32 = 0x1u;
+	// shl eax, cl
+	auto temp_3998012 = ctx.eax.u32;
+	ctx.eax.u32 <<= ctx.ecx.u8_lo;
+	ctx.eflags.update_flags_shl(temp_3998012, ctx.ecx.u8_lo, ctx.eax.u32);
+	// mov ecx, [esp+0x20]
+	ctx.ecx.u32 = X86_LOAD_U32(ctx.esp.u32 + 32);
+	// movzx ecx, byte ptr [ecx+0x0D]
+	ctx.ecx.u32 = (uint32_t)X86_LOAD_U8(ctx.ecx.u32 + 13);
+	// cmp ecx, 0x0C
+	ctx.eflags.update_compare_flags_U32(ctx.ecx.u32, 0xCu);
+	// jz 0x003D0178
+	if ((ctx.eflags.value & X86EFlags::ZF) != 0) goto loc_3D0178;
+	// cmp ecx, 0x0D
+	ctx.eflags.update_compare_flags_U32(ctx.ecx.u32, 0xDu);
+	// jle 0x003D015E
+	if (((ctx.eflags.value & X86EFlags::ZF) != 0) || (((ctx.eflags.value & X86EFlags::SF) != 0) != ((ctx.eflags.value & X86EFlags::OF) != 0))) goto loc_3D015E;
+	// cmp ecx, 0x0F
+	ctx.eflags.update_compare_flags_U32(ctx.ecx.u32, 0xFu);
+	// jnle 0x003D015E
+	if (((ctx.eflags.value & X86EFlags::ZF) == 0) && (((ctx.eflags.value & X86EFlags::SF) != 0) == ((ctx.eflags.value & X86EFlags::OF) != 0))) goto loc_3D015E;
+	// lea ecx, [eax*4]
+	ctx.ecx.u32 = ctx.eax.u32 * 4;
+	// jmp 0x003D0185
+	goto loc_3D0185;
+loc_3D015E:
+	// mov ecx, [esp+0x20]
+	ctx.ecx.u32 = X86_LOAD_U32(ctx.esp.u32 + 32);
+	// movzx ecx, byte ptr [ecx+0x0D]
+	ctx.ecx.u32 = (uint32_t)X86_LOAD_U8(ctx.ecx.u32 + 13);
+	// movzx ecx, byte ptr [ecx+0x3DE5E0]
+	ctx.ecx.u32 = (uint32_t)X86_LOAD_U8(ctx.ecx.u32 + 4056544);
+	// and ecx, 0x3C
+	ctx.ecx.u32 &= 0x3c;
+	ctx.eflags.update_flags_logic(ctx.ecx.u32);
+	// imul ecx, eax
+	int64_t imul_result_3D0170 = static_cast<int64_t>(static_cast<int32_t>(ctx.ecx.u32)) * static_cast<int64_t>(static_cast<int32_t>(ctx.eax.u32));
+	ctx.ecx.u32 = static_cast<uint32_t>(imul_result_3D0170);
+	ctx.eflags.value = (ctx.eflags.value & ~(X86EFlags::CF | X86EFlags::OF)) | ((imul_result_3D0170 < INT32_MIN || imul_result_3D0170 > INT32_MAX) ? (X86EFlags::CF | X86EFlags::OF) : 0);
+	// shr ecx, 0x03
+	auto temp_3998067 = ctx.ecx.u32;
+	ctx.ecx.u32 >>= 3;
+	ctx.eflags.update_flags_shr(temp_3998067, 3, ctx.ecx.u32);
+	// jmp 0x003D0185
+	goto loc_3D0185;
+loc_3D0178:
+	// lea ecx, [eax+eax*1]
+	ctx.ecx.u32 = ctx.eax.u32 + ctx.eax.u32;
+	// jmp 0x003D0185
+	goto loc_3D0185;
+loc_3D017D:
+	// movzx ecx, byte ptr [eax+0x13]
+	ctx.ecx.u32 = (uint32_t)X86_LOAD_U8(ctx.eax.u32 + 19);
+	// inc ecx
+	auto temp_3D0181_U32 = ctx.ecx.u32;
+	ctx.ecx.u32++;
+	ctx.eflags.update_flags_inc_U32(temp_3D0181_U32, ctx.ecx.u32);
+	// shl ecx, 0x06
+	auto temp_3998082 = ctx.ecx.u32;
+	ctx.ecx.u32 <<= 6;
+	ctx.eflags.update_flags_shl(temp_3998082, 6, ctx.ecx.u32);
+loc_3D0185:
+	// mov eax, [edi+0x94C]
+	ctx.eax.u32 = X86_LOAD_U32(ctx.edi.u32 + 2380);
+	// mov dword ptr [edx+0x08], 0x4020C
+	X86_STORE_U32(ctx.edx.u32 + 8, 0x4020Cu);
+	// shl eax, 0x10
+	auto temp_3998098 = ctx.eax.u32;
+	ctx.eax.u32 <<= 16;
+	ctx.eflags.update_flags_shl(temp_3998098, 16, ctx.eax.u32);
+	// and ecx, 0xFFFF
+	ctx.ecx.u32 &= 0xffff;
+	ctx.eflags.update_flags_logic(ctx.ecx.u32);
+	// or eax, ecx
+	ctx.eax.u32 |= ctx.ecx.u32;
+	ctx.eflags.update_flags_logic(ctx.eax.u32);
+	// mov [edx+0x0C], eax
+	X86_STORE_U32(ctx.edx.u32 + 12, ctx.eax.u32);
+	// mov eax, [esp+0x18]
+	ctx.eax.u32 = X86_LOAD_U32(ctx.esp.u32 + 24);
+	// mov [edx+0x10], ebp
+	X86_STORE_U32(ctx.edx.u32 + 16, ctx.ebp.u32);
+	// mov [edx+0x14], esi
+	X86_STORE_U32(ctx.edx.u32 + 20, ctx.esi.u32);
+	// mov [edx+0x18], ebx
+	X86_STORE_U32(ctx.edx.u32 + 24, ctx.ebx.u32);
+	// mov [edx+0x1C], esi
+	X86_STORE_U32(ctx.edx.u32 + 28, ctx.esi.u32);
+	// mov ecx, [esp+0x10]
+	ctx.ecx.u32 = X86_LOAD_U32(ctx.esp.u32 + 16);
+	// mov [edx+0x20], ebp
+	X86_STORE_U32(ctx.edx.u32 + 32, ctx.ebp.u32);
+	// mov [edx+0x24], esi
+	X86_STORE_U32(ctx.edx.u32 + 36, ctx.esi.u32);
+	// add edx, 0x20
+	auto temp_3D01BA_U32_OLD = ctx.edx.u32;
+	auto temp_3D01BA_U32_SRC = 32;
+	ctx.edx.u32 = temp_3D01BA_U32_OLD + temp_3D01BA_U32_SRC;
+	ctx.eflags.update_flags_add_U32(temp_3D01BA_U32_OLD, temp_3D01BA_U32_SRC, ctx.edx.u32);
+	// mov dword ptr [edx+0x08], 0x40210
+	X86_STORE_U32(ctx.edx.u32 + 8, 0x40210u);
+	// mov [edx+0x0C], eax
+	X86_STORE_U32(ctx.edx.u32 + 12, ctx.eax.u32);
+	// mov eax, [esp+0x14]
+	ctx.eax.u32 = X86_LOAD_U32(ctx.esp.u32 + 20);
+	// mov [edx+0x10], ebp
+	X86_STORE_U32(ctx.edx.u32 + 16, ctx.ebp.u32);
+	// mov [edx+0x14], esi
+	X86_STORE_U32(ctx.edx.u32 + 20, ctx.esi.u32);
+	// mov [edx+0x18], ebx
+	X86_STORE_U32(ctx.edx.u32 + 24, ctx.ebx.u32);
+	// mov [edx+0x1C], esi
+	X86_STORE_U32(ctx.edx.u32 + 28, ctx.esi.u32);
+	// add edx, 0x20
+	auto temp_3D01D7_U32_OLD = ctx.edx.u32;
+	auto temp_3D01D7_U32_SRC = 32;
+	ctx.edx.u32 = temp_3D01D7_U32_OLD + temp_3D01D7_U32_SRC;
+	ctx.eflags.update_flags_add_U32(temp_3D01D7_U32_OLD, temp_3D01D7_U32_SRC, ctx.edx.u32);
+	// mov [edx], ebp
+	X86_STORE_U32(ctx.edx.u32, ctx.ebp.u32);
+	// mov [edx+0x04], esi
+	X86_STORE_U32(ctx.edx.u32 + 4, ctx.esi.u32);
+	// mov dword ptr [edx+0x08], 0x40214
+	X86_STORE_U32(ctx.edx.u32 + 8, 0x40214u);
+	// mov [edx+0x0C], ecx
+	X86_STORE_U32(ctx.edx.u32 + 12, ctx.ecx.u32);
+	// mov [edx+0x10], ebp
+	X86_STORE_U32(ctx.edx.u32 + 16, ctx.ebp.u32);
+	// mov [edx+0x14], esi
+	X86_STORE_U32(ctx.edx.u32 + 20, ctx.esi.u32);
+	// mov [edx+0x18], ebx
+	X86_STORE_U32(ctx.edx.u32 + 24, ctx.ebx.u32);
+	// mov [edx+0x1C], esi
+	X86_STORE_U32(ctx.edx.u32 + 28, ctx.esi.u32);
+	// add edx, 0x20
+	auto temp_3D01F5_U32_OLD = ctx.edx.u32;
+	auto temp_3D01F5_U32_SRC = 32;
+	ctx.edx.u32 = temp_3D01F5_U32_OLD + temp_3D01F5_U32_SRC;
+	ctx.eflags.update_flags_add_U32(temp_3D01F5_U32_OLD, temp_3D01F5_U32_SRC, ctx.edx.u32);
+	// dec eax
+	auto temp_3D01F8_U32 = ctx.eax.u32;
+	ctx.eax.u32--;
+	ctx.eflags.update_flags_dec_U32(temp_3D01F8_U32, ctx.eax.u32);
+	// mov [esp+0x14], eax
+	X86_STORE_U32(ctx.esp.u32 + 20, ctx.eax.u32);
+	// jnz 0x003D0120
+	if ((ctx.eflags.value & X86EFlags::ZF) == 0) goto loc_3D0120;
+	// mov ecx, edi
+	ctx.ecx.u32 = ctx.edi.u32;
+	// call 0x003D31E0
+	ctx.esp.u32 -= 0x4; //Adjust stack pointer for call instruction
+	sub_3D31E0(ctx, base);
+	// cmp [0x003E09BC], esi
+	ctx.eflags.update_compare_flags_U32(X86_LOAD_U32(4065724), ctx.esi.u32);
+	// jz 0x003D0221
+	if ((ctx.eflags.value & X86EFlags::ZF) != 0) goto loc_3D0221;
+	// cmp [edi+0x1A08], esi
+	ctx.eflags.update_compare_flags_U32(X86_LOAD_U32(ctx.edi.u32 + 6664), ctx.esi.u32);
+	// jz 0x003D0221
+	if ((ctx.eflags.value & X86EFlags::ZF) != 0) goto loc_3D0221;
+	// mov ecx, 0x01
+	ctx.ecx.u32 = 0x1u;
+	// jmp 0x003D0223
+	goto loc_3D0223;
+loc_3D0221:
+	// xor ecx, ecx
+	ctx.ecx.u32 ^= ctx.ecx.u32;
+	ctx.eflags.update_flags_logic(ctx.ecx.u32);
+loc_3D0223:
+	// mov dword ptr [eax], 0x4030C
+	X86_STORE_U32(ctx.eax.u32, 0x4030Cu);
+	// mov [eax+0x04], ecx
+	X86_STORE_U32(ctx.eax.u32 + 4, ctx.ecx.u32);
+	// cmp [0x003E09C0], esi
+	ctx.eflags.update_compare_flags_U32(X86_LOAD_U32(4065728), ctx.esi.u32);
+	// jz 0x003D0243
+	if ((ctx.eflags.value & X86EFlags::ZF) != 0) goto loc_3D0243;
+	// cmp [edi+0x1A08], esi
+	ctx.eflags.update_compare_flags_U32(X86_LOAD_U32(ctx.edi.u32 + 6664), ctx.esi.u32);
+	// jz 0x003D0243
+	if ((ctx.eflags.value & X86EFlags::ZF) != 0) goto loc_3D0243;
+	// mov ecx, 0x01
+	ctx.ecx.u32 = 0x1u;
+	// jmp 0x003D0245
+	goto loc_3D0245;
+loc_3D0243:
+	// xor ecx, ecx
+	ctx.ecx.u32 ^= ctx.ecx.u32;
+	ctx.eflags.update_flags_logic(ctx.ecx.u32);
+loc_3D0245:
+	// mov dword ptr [eax+0x08], 0x4032C
+	X86_STORE_U32(ctx.eax.u32 + 8, 0x4032Cu);
+	// mov [eax+0x0C], ecx
+	X86_STORE_U32(ctx.eax.u32 + 12, ctx.ecx.u32);
+	// mov ecx, [edi+0x08]
+	ctx.ecx.u32 = X86_LOAD_U32(ctx.edi.u32 + 8);
+	// add eax, 0x10
+	auto temp_3D0252_U32_OLD = ctx.eax.u32;
+	auto temp_3D0252_U32_SRC = 16;
+	ctx.eax.u32 = temp_3D0252_U32_OLD + temp_3D0252_U32_SRC;
+	ctx.eflags.update_flags_add_U32(temp_3D0252_U32_OLD, temp_3D0252_U32_SRC, ctx.eax.u32);
+	// test ch, 0x01
+	ctx.eflags.update_test_flags_U8(ctx.ecx.u8_hi & 0x1u);
+	// jz 0x003D027B
+	if ((ctx.eflags.value & X86EFlags::ZF) != 0) goto loc_3D027B;
+	// mov edx, [esp+0x20]
+	ctx.edx.u32 = X86_LOAD_U32(ctx.esp.u32 + 32);
+	// cmp edx, [edi+0x1A14]
+	ctx.eflags.update_compare_flags_U32(ctx.edx.u32, X86_LOAD_U32(ctx.edi.u32 + 6676));
+	// jnz 0x003D027B
+	if ((ctx.eflags.value & X86EFlags::ZF) == 0) goto loc_3D027B;
+	// and ecx, 0xFFFFFEFF
+	ctx.ecx.u32 &= 0xfffffeff;
+	ctx.eflags.update_flags_logic(ctx.ecx.u32);
+	// mov [edi+0x08], ecx
+	X86_STORE_U32(ctx.edi.u32 + 8, ctx.ecx.u32);
+	// mov dword ptr [eax], 0x40130
+	X86_STORE_U32(ctx.eax.u32, 0x40130u);
+	// mov [eax+0x04], esi
+	X86_STORE_U32(ctx.eax.u32 + 4, ctx.esi.u32);
+	// add eax, 0x08
+	auto temp_3D0278_U32_OLD = ctx.eax.u32;
+	auto temp_3D0278_U32_SRC = 8;
+	ctx.eax.u32 = temp_3D0278_U32_OLD + temp_3D0278_U32_SRC;
+	ctx.eflags.update_flags_add_U32(temp_3D0278_U32_OLD, temp_3D0278_U32_SRC, ctx.eax.u32);
+loc_3D027B:
+	// mov ecx, [esp+0x20]
+	ctx.ecx.u32 = X86_LOAD_U32(ctx.esp.u32 + 32);
+	// mov [edi], eax
+	X86_STORE_U32(ctx.edi.u32, ctx.eax.u32);
+	// mov eax, [esp+0x24]
+	ctx.eax.u32 = X86_LOAD_U32(ctx.esp.u32 + 36);
+	// push eax
+	X86_PUSH(ctx, base, ctx.eax.u32);
+	// push ecx
+	X86_PUSH(ctx, base, ctx.ecx.u32);
+	// call 0x003D6250
+	ctx.esp.u32 -= 0x4; //Adjust stack pointer for call instruction
+	sub_3D6250(ctx, base);
+	// mov edx, 0x3DE548
+	ctx.edx.u32 = 0x3DE548u;
+	// mov ecx, edi
+	ctx.ecx.u32 = ctx.edi.u32;
+	// mov [edi+0x1A0C], eax
+	X86_STORE_U32(ctx.edi.u32 + 6668, ctx.eax.u32);
+	// call 0x003D3310
+	ctx.esp.u32 -= 0x4; //Adjust stack pointer for call instruction
+	sub_3D3310(ctx, base);
+	// mov edx, [0x003E09FC]
+	ctx.edx.u32 = X86_LOAD_U32(4065788);
+	// push edx
+	X86_PUSH(ctx, base, ctx.edx.u32);
+	// call 0x003D29B0
+	ctx.esp.u32 -= 0x4; //Adjust stack pointer for call instruction
+	sub_3D29B0(ctx, base);
+	// pop edi
+	ctx.edi.u32 = X86_POP(ctx, base);
+	// pop esi
+	ctx.esi.u32 = X86_POP(ctx, base);
+	// pop ebp
+	ctx.ebp.u32 = X86_POP(ctx, base);
+	// pop ebx
+	ctx.ebx.u32 = X86_POP(ctx, base);
+	// add esp, 0x0C
+	auto temp_3D02AE_U32_OLD = ctx.esp.u32;
+	auto temp_3D02AE_U32_SRC = 12;
+	ctx.esp.u32 = temp_3D02AE_U32_OLD + temp_3D02AE_U32_SRC;
+	ctx.eflags.update_flags_add_U32(temp_3D02AE_U32_OLD, temp_3D02AE_U32_SRC, ctx.esp.u32);
+	// ret 0x08
+	ctx.esp.u32 += 0x8;  //Adjust esp for return value (0xC2 0x8)
+	ctx.esp.u32 += 0x4;  //Adjust esp for return instruction
+	return;
+}
+
+
+X86_FUNC_IMPL(__imp__sub_3D0040);
+X86_FUNC_IMPL(__imp__sub_3D6250);
+
 //Specify where it should draws (Either framebuffer surface or texture surface)
 //on DX8 Xbox, SetDepthStencilSurface is merged with SetRenderTarget.
 uint32_t D3DDevice_SetRenderTarget(GuestSurface* surface, GuestSurface* pNewZStencil)
 {
+
+
+
+	auto ctx = GetX86Context();
+	auto base = g_memory.base;
+
+	auto device = X86_LOAD_U32(GuestDevicePtrAddr);
+
+
 	if (!g_XboxBackBuffer)
 	{
+		g_renderTarget->guestResource = surface->guestResource;
 		surface = g_renderTarget; //the game doesn't get the back buffer on its first SetRenderTarget call so we assign ours there instead.
 		g_XboxBackBuffer = surface;
+		X86_STORE_U32(ctx->esp.u32 + 4, g_memory.MapVirtual(surface));
+		//X86_STORE_U32(device + 0x1A14, g_memory.MapVirtual(surface));
 	}
 
 	if (!g_XboxDefaultDepthStencilSurface)
@@ -4111,82 +4804,50 @@ uint32_t D3DDevice_SetRenderTarget(GuestSurface* surface, GuestSurface* pNewZSte
 		depthStencil->guestResource = pNewZStencil->guestResource;
 		pNewZStencil = depthStencil;
 		g_XboxDefaultDepthStencilSurface = pNewZStencil;
+		X86_STORE_U32(ctx->esp.u32 + 8, g_memory.MapVirtual(pNewZStencil));
 	}
 
 
-	/**std::ofstream  outFile2("SetRenderTarget.txt", std::ios::app);
 
-	outFile2 << "SetRenderTarget" << '\n';
-	outFile2 << "surface " << surface << '\n';
-	outFile2 << "pNewZStencil " << pNewZStencil << '\n';
-	outFile2 << "surface->width " << surface->width << '\n';
-	outFile2 << "surface->height " << surface->height << '\n';
-	outFile2 << '\n';
-	outFile2 << '\n';
-	outFile2.close();*/
+	__imp__sub_3D0040(*ctx, base);
+	ctx->esp.u32 -= 12;
 
+	//if ((intptr_t)surface != RTBuggy)
+	{
 
-	int* ptrSurfaceCOunt = (int*)&surface->sampleCount;
-	ptrSurfaceCOunt = ptrSurfaceCOunt;
+		RenderCommand cmd;
+		cmd.type = RenderCommandType::SetRenderTarget;
+		cmd.setRenderTarget.renderTarget = surface;
+		g_renderQueue.enqueue(cmd);
 
-	RenderCommand cmd;
-	cmd.type = RenderCommandType::SetRenderTarget;
-	cmd.setRenderTarget.renderTarget = surface;
-	g_renderQueue.enqueue(cmd);
-
-	auto base = g_memory.base;
-	auto device = X86_LOAD_U32(GuestDevicePtrAddr);
-
-	X86_STORE_U32(device + 6660, g_memory.MapVirtual(&surface->guestResource)); //rendertarget
-	SetDefaultViewport((GuestDevice*)g_memory.Translate(device), surface);
-
+		SetDefaultViewport((GuestDevice*)g_memory.Translate(device), surface);
+	}
 
 	RenderCommand cmd2;
 	cmd2.type = RenderCommandType::SetDepthStencilSurface;
 	cmd2.setDepthStencilSurface.depthStencil = pNewZStencil;
 	g_renderQueue.enqueue(cmd2);
 
-	if (pNewZStencil && &pNewZStencil->guestResource)
-	{
-		X86_STORE_U32(device + 6664, g_memory.MapVirtual(&pNewZStencil->guestResource)); //DepthStencilSurface
-
-		float Zscl = GetZScaleForPixelContainer((X_D3DPixelContainer*)&pNewZStencil->guestResource);
-		uint32_t bits;
-		std::memcpy(&bits, &Zscl, sizeof(Zscl)); //convert float to hex
-		X86_STORE_U32(device + 0x948, bits); //store z scale in the device, vertex shader will use it.
-		auto widthAddr = (base + device + 0xEE8);
-		auto heightAddr = (base + device + 0xEEC);
-		auto maxZAddr = (base + device + 0xEF4);
-		auto minZAddr = (base + device + 0xEF0);
-		minZAddr = minZAddr;
-	}
-
 	SetDefaultViewport((GuestDevice*)g_memory.Translate(device), pNewZStencil);
 
 
-	//D3D_CommonSetMultiSampleModeAndScale
-	auto ctx = GetX86Context();
-	ctx->edi.u32 = device;
-	// mov edx, 0x3DE548
-	ctx->edx.u32 = 0x3DE548u; //viewport
-	// mov ecx, edi
-	ctx->ecx.u32 = ctx->edi.u32;
-	// mov [edi+0x1A0C], eax
-	X86_STORE_U32(ctx->edi.u32 + 6668, ctx->eax.u32);
-	// call 0x003D3310
-	ctx->esp.u32 -= 0x4; //Adjust stack pointer for call instruction
-	sub_3D3310(*ctx, base); //D3D_CommonSetMultiSampleModeAndScale this is needed to set up scaling and offset that are used in vertex shaders
+	X86_STORE_U32(device + 0x954, surface->width);
+	X86_STORE_U32(device + 0x958, surface->height);
 
 	return 1;
 }
+
 
 static void ProcSetRenderTarget(const RenderCommand& cmd)
 {
 	const auto& args = cmd.setRenderTarget;
 
+
 	SetDirtyValue(g_dirtyStates.renderTargetAndDepthStencil, g_renderTarget, args.renderTarget);
 	SetDirtyValue(g_dirtyStates.pipelineState, g_pipelineState.renderTargetFormat, args.renderTarget != nullptr ? args.renderTarget->format : RenderFormat::UNKNOWN);
 	SetDirtyValue(g_dirtyStates.pipelineState, g_pipelineState.sampleCount, args.renderTarget != nullptr ? args.renderTarget->sampleCount : RenderSampleCount::COUNT_1);
+
+
 
 	// When alpha to coverage is enabled, update the alpha test mode as it's dependent on sample count.
 	SetAlphaTestMode((g_pipelineState.specConstants & (SPEC_CONSTANT_ALPHA_TEST | SPEC_CONSTANT_ALPHA_TO_COVERAGE)) != 0);
@@ -4200,8 +4861,21 @@ static void ProcSetDepthStencilSurface(const RenderCommand& cmd)
 	SetDirtyValue(g_dirtyStates.pipelineState, g_pipelineState.depthStencilFormat, args.depthStencil != nullptr ? args.depthStencil->format : RenderFormat::UNKNOWN);
 }
 
+X86_FUNC_IMPL(__imp__sub_3D0680);
+static int countBS = 0;
 unsigned int D3DDevice_SetViewport(GuestViewport* viewport)
 {
+
+	//call original func first
+	auto ctx = GetX86Context();
+	auto base = g_memory.base;
+	__imp__sub_3D0680(*ctx, base);
+	ctx->esp.u32 -= 8;
+
+
+	auto device = X86_LOAD_U32(GuestDevicePtrAddr);
+
+
 	RenderCommand cmd;
 	cmd.type = RenderCommandType::SetViewport;
 
@@ -4219,6 +4893,49 @@ unsigned int D3DDevice_SetViewport(GuestViewport* viewport)
 	cmd.setViewport.minDepth = viewport->MinZ;
 	cmd.setViewport.maxDepth = viewport->MaxZ;
 	g_renderQueue.enqueue(cmd);
+
+	//set viewport data in the device
+	uint32_t resX = X86_LOAD_U32(device + 0xEE8);
+	resX = resX;
+
+	auto padding616 = X86_LOAD_F32(device + 0x95C);
+	auto valB = X86_LOAD_F32(device + 0x960);
+	auto padding636 = X86_LOAD_F32(device + 0x970);
+	auto padding68 = X86_LOAD_U32(device + 0x954);
+	auto padding7 = X86_LOAD_U32(device + 0xEF8);
+	valB = valB;
+
+	auto widthG = X86_LOAD_U32(device + 0xEE8);
+
+	/**if (LogVSConstants)
+	{
+		printf("SetViewPort\n");
+
+		printf("viewport Width %d\n", width);
+		printf("viewport Height %d\n", X86_LOAD_U32(device + 0xEEC));
+		printf("D3D_g_pDevice->padding7 %f\n", padding7);
+		printf("D3D_g_pDevice->padding6[8] %d\n", padding68);
+		printf("D3D_g_pDevice->padding6[16] %f\n", padding616);
+		printf("D3D_g_pDevice->padding6[20] %f\n", valB);
+		printf("D3D_g_pDevice->padding6[36] %f\n", padding636);
+
+
+
+		float v2 = (float)X86_LOAD_U32(device + 0xEE0) * (float)padding616 * (float)padding7;
+		float scaleX = (float)X86_LOAD_U32(device + 0xEE8) * (float)padding616 * 0.5f;
+
+		printf("v2 %f\n", v2);
+		printf("scaleX %f\n", scaleX);
+		printf("*offset res %f\n", scaleX + v2);
+
+		printf("\n");
+	}
+	X86_STORE_U32(device + 0xEE0, (uint32_t)viewport->X);
+	X86_STORE_U32(device + 0xEE4, (uint32_t)viewport->Y);
+	X86_STORE_U32(device + 0xEE8, (uint32_t)width);
+	X86_STORE_U32(device + 0xEEC, (uint32_t)height);
+	X86_STORE_F32(device + 0xEF0, viewport->MinZ);
+	X86_STORE_F32(device + 0xEF4, viewport->MaxZ);*/
 
 	return 1;
 }
@@ -4568,9 +5285,11 @@ static void ProcClear(const RenderCommand& cmd)
 	}
 }
 
+
 //Clears one or more surfaces such as a render target, multiple render targets, a stencil buffer, and a depth buffer.
 unsigned int D3DDevice_Clear(uint32_t count, _D3DRECT* pRects, uint32_t flags, uint32_t Color, float Z, uint32_t Stencil)
 {
+
 	RenderCommand cmd;
 	cmd.type = RenderCommandType::Clear;
 	cmd.clear.flags = flags;
@@ -4615,43 +5334,36 @@ X86_FUNC(sub_3CFCD0)
 	{
 		bWorldViewDirty[State - X_D3DTS_WORLD] = true;
 	}
-
-
-
-	//now we can retrieve matrix and state
-	/**RenderCommand cmd;
-	cmd.type = RenderCommandType::SetTransform;
-	cmd.setTransform.state = State;
-	cmd.setTransform.matrix = *pMatrix;
-	g_renderQueue.enqueue(cmd);*/
 }
 
-/**void D3DDevice_SetTransform(X_D3DTRANSFORMSTATETYPE State, D3DMATRIX* pMatrix)
+//D3DDevice_SetScreenSpaceOffset
+//Direct3D before version 10 had this pecularity called “half pixel offset”, where viewport coordinates are shifted by half a pixel 
+//compared to anything else (OpenGL, D3D10+, Metal etc.). 
+//we don't need that here as we use DX12 / Vulkan.
+X86_FUNC_IMPL(__imp__sub_3D1320);
+X86_FUNC(sub_3D1320)
 {
-	RenderCommand cmd;
-	cmd.type = RenderCommandType::SetTransform;
-	cmd.setTransform.state = State;
-	cmd.setTransform.matrix = *pMatrix;
-	g_renderQueue.enqueue(cmd);
-}*/
+	__imp__sub_3D1320(ctx, base);
+	/**auto device = X86_LOAD_U32(GuestDevicePtrAddr);
+	float offsetA = X86_LOAD_F32(device + 0xEF8);
+	float offsetB = X86_LOAD_F32(device + 0xEFC);
+
+	//remove the half pixel offset
+	offsetA -= 0.53125;
+	offsetB -= 0.53125;
+	X86_STORE_U32(device + 0xEF8, offsetA);
+	X86_STORE_U32(device + 0xEFC, offsetB);*/
+}
 
 
+DWORD g_Xbox_VertexShaderConstantMode = 1;
 
-static void ProcSetTransform(const RenderCommand& cmd)
+//SetShaderConstantMode
+X86_FUNC_IMPL(__imp__sub_3D2010);
+X86_FUNC(sub_3D2010)
 {
-	const auto& args = cmd.setTransform;
-	g_Transforms[args.state] = args.matrix;
-
-	if (args.state == X_D3DTS_VIEW)
-	{
-		bWorldViewDirty.fill(true);
-	}
-	if ((X_D3DTS_WORLD <= args.state) && (args.state <= X_D3DTS_WORLD3))
-	{
-		bWorldViewDirty[args.state - X_D3DTS_WORLD] = true;
-	}
-
-	//g_dirtyStates.vertexShaderConstants = true;
+	g_Xbox_VertexShaderConstantMode = X86_LOAD_U32(ctx.esp.u32 + 4);
+	__imp__sub_3D2010(ctx, base);
 }
 
 void SetVertexAttribute(int32_t Register, FLOAT a, FLOAT b, FLOAT c, FLOAT d)
@@ -4745,9 +5457,9 @@ void UpdateHostViewPortOffsetAndScaleConstants()
 	// 59 (c-37) used for screen space transformation.
 	// We only do this if X_D3DSCM_NORESERVEDCONSTANTS is not set,
 	// since enabling this flag frees up these registers for shader use
-	/**if (!(g_Xbox_VertexShaderConstantMode & X_D3DSCM_NORESERVEDCONSTANTS)) {
-		g_pD3DDevice->SetVertexShaderConstantF(X_D3DSCM_RESERVED_CONSTANT_SCALE_CORRECTED, reinterpret_cast<float*>(vScaleOffset), 2);
-	}*/
+	if (!(g_Xbox_VertexShaderConstantMode & X_D3DSCM_NORESERVEDCONSTANTS)) {
+		CopyVertexShaderConstant(X_D3DSCM_RESERVED_CONSTANT_SCALE_CORRECTED, reinterpret_cast<DWORD*>(vScaleOffset), 2);
+	}
 }
 
 
@@ -4852,19 +5564,24 @@ static void ProcSetTexture(const RenderCommand& cmd)
 
 	// If a pending copy operation is detected, set the source surface. The indices will be fixed later if flushing is necessary.
 	bool shouldSetTexture = true;
-	if (args.texture != nullptr && args.texture->sourceSurface != nullptr)
+	if (args.texture != nullptr)
 	{
-		// MSAA surfaces need to be resolved and cannot be used directly.
-		if (args.texture->sourceSurface->sampleCount != RenderSampleCount::COUNT_1)
+		if (args.texture->sourceSurface != nullptr)
 		{
-			g_pendingMsaaResolves.emplace(args.texture->sourceSurface);
+			// MSAA surfaces need to be resolved and cannot be used directly.
+			if (args.texture->sourceSurface->sampleCount != RenderSampleCount::COUNT_1)
+			{
+				g_pendingMsaaResolves.emplace(args.texture->sourceSurface);
+			}
+			else
+			{
+				SetSurface(args.index, args.texture->sourceSurface);
+				shouldSetTexture = false;
+			}
 		}
-		else
-		{
-			SetSurface(args.index, args.texture->sourceSurface);
-			shouldSetTexture = false;
-		}
+
 	}
+
 
 	if (shouldSetTexture)
 		SetTextureInRenderThread(args.index, args.texture);
@@ -5163,11 +5880,7 @@ static std::unique_ptr<RenderPipeline> CreateGraphicsPipeline(const PipelineStat
 		auto& inputSlot = inputSlots[inputSlotIndex - 1];
 		inputSlot.index = inputElement.slotIndex;
 		inputSlot.stride = pipelineState.vertexStrides[inputElement.slotIndex];
-
-		if (pipelineState.instancing && inputElement.slotIndex != 0 && inputElement.slotIndex != 15)
-			inputSlot.classification = RenderInputSlotClassification::PER_INSTANCE_DATA;
-		else
-			inputSlot.classification = RenderInputSlotClassification::PER_VERTEX_DATA;
+		inputSlot.classification = RenderInputSlotClassification::PER_VERTEX_DATA;
 	}
 
 	desc.inputSlots = inputSlots;
@@ -5467,12 +6180,11 @@ static void FlushRenderStateForMainThread(LocalRenderCommandQueue& queue)
 
 static constexpr int32_t COMMON_DEPTH_BIAS_VALUE = int32_t((1 << 24) * 0.002f);
 static constexpr float COMMON_SLOPE_SCALED_DEPTH_BIAS_VALUE = 1.0f;
-static bool StartDebug = false;
 static void FlushRenderStateForRenderThread()
 {
 
 	auto renderTarget = g_pipelineState.colorWriteEnable ? g_renderTarget : nullptr;
-	auto depthStencil = g_pipelineState.zEnable ? g_depthStencil : nullptr;
+	auto depthStencil = g_pipelineState.zEnable || g_pipelineState.stencilEnable ? g_depthStencil : nullptr;
 
 	bool foundAny = PopulateBarriersForCopyRect(renderTarget, depthStencil);
 
@@ -5523,6 +6235,8 @@ static void FlushRenderStateForRenderThread()
 
 	if (g_dirtyStates.pipelineState)
 	{
+
+
 		commandList->setPipeline(CreateGraphicsPipelineInRenderThread(g_pipelineState));
 
 
@@ -5530,6 +6244,7 @@ static void FlushRenderStateForRenderThread()
 		if (g_capabilities.dynamicDepthBias && !g_vulkan)
 			g_dirtyStates.depthBias = (g_depthBias != g_pipelineState.depthBias) || (g_slopeScaledDepthBias != g_pipelineState.slopeScaledDepthBias);
 	}
+
 
 	if (g_dirtyStates.depthBias && g_capabilities.dynamicDepthBias)
 		commandList->setDepthBias(g_depthBias, 0.0f, g_slopeScaledDepthBias);
@@ -5656,36 +6371,6 @@ static void SetPrimitiveType(uint32_t primitiveType)
 	SetDirtyValue(g_dirtyStates.pipelineState, g_pipelineState.primitiveTopology, ConvertPrimitiveType(primitiveType));
 }
 
-static uint32_t CheckInstancing()
-{
-	uint32_t indexCount = 0;
-
-	SetDirtyValue(g_dirtyStates.pipelineState, g_pipelineState.instancing, g_pipelineState.vertexDeclaration->indexVertexStream != 0);
-	if (g_pipelineState.instancing)
-	{
-		// Index buffer is passed as a vertex stream
-		indexCount = g_vertexBufferViews[g_pipelineState.vertexDeclaration->indexVertexStream].size / 4;
-	}
-
-	return indexCount;
-}
-
-static void UnsetInstancingStream()
-{
-	bool dirty = false;
-	uint32_t index = g_pipelineState.vertexDeclaration->indexVertexStream;
-
-	SetDirtyValue(dirty, g_vertexBufferViews[index].buffer, RenderBufferReference{});
-	SetDirtyValue(dirty, g_vertexBufferViews[index].size, 0u);
-	SetDirtyValue(dirty, g_inputSlots[index].stride, 0u);
-
-	if (dirty)
-	{
-		g_dirtyStates.vertexStreamFirst = std::min<uint8_t>(g_dirtyStates.vertexStreamFirst, index);
-		g_dirtyStates.vertexStreamLast = std::max<uint8_t>(g_dirtyStates.vertexStreamLast, index);
-	}
-}
-
 
 static void UnlockIndexBuffer(GuestBuffer* buffer);
 static void* LockIndexBuffer(GuestBuffer* buffer, uint32_t flags);
@@ -5714,9 +6399,11 @@ static void* LockBuffer(GuestBuffer* buffer, uint32_t flags)
 		buffer->mappedMemory = g_userHeap.AllocPhysical(buffer->dataSize, 0x10);
 
 
+	buffer->isDirty = true;
+
 	if (buffer->isVertexBuffer)
 	{
-		buffer->guestResource.Data | 0x80000000;
+		buffer->guestResource.Data |= 0x80000000;
 	}
 
 	return buffer->mappedMemory;
@@ -5733,6 +6420,7 @@ void* LockVertexBuffer(GuestBuffer* buffer, uint32_t flags2)
 template<typename T>
 static void UnlockBuffer(GuestBuffer* buffer, bool useCopyQueue)
 {
+
 	auto copyBuffer = [&](T* dest)
 		{
 
@@ -5764,6 +6452,11 @@ static void UnlockBuffer(GuestBuffer* buffer, bool useCopyQueue)
 				{
 					g_copyCommandList->copyBufferRegion(buffer->buffer->at(0), uploadBuffer->at(0), buffer->dataSize);
 				});
+
+			if (buffer->isVertexBuffer)
+			{
+				//printf("[UPLOAD] guestVB=%p -> gpuResource=%p size=%u\n", buffer, (void*)buffer->buffer->at(0).ref, buffer->dataSize);
+			}
 		}
 		else
 		{
@@ -5780,22 +6473,70 @@ static void UnlockBuffer(GuestBuffer* buffer, bool useCopyQueue)
 	g_bufferUploadCount++;
 }
 
+
+template<typename T>
+static void UnlockBufferToGPU(GuestBuffer* buffer, bool useCopyQueue)
+{
+	auto uniqueGPUBuffer = CreateVertexBuffer(buffer->dataSize);// g_userHeap.AllocPhysical<GuestBuffer>(ResourceType::VertexBuffer);
+	//uniqueGPUBuffer->buffer = g_device->createBuffer(RenderBufferDesc::VertexBuffer(buffer->dataSize, GetBufferHeapType(), RenderBufferFlag::INDEX));
+	uniqueGPUBuffer->mappedMemory = g_userHeap.AllocPhysical(buffer->dataSize, 0x10);
+	memcpy(uniqueGPUBuffer->mappedMemory, buffer->mappedMemory, buffer->dataSize);
+
+	auto copyBuffer = [&](T* dest)
+		{
+
+			auto src = reinterpret_cast<const T*>(buffer->mappedMemory);
+
+			for (size_t i = 0; i < buffer->dataSize; i += sizeof(T))
+			{
+				*dest = *src;
+				++dest;
+				++src;
+			}
+
+		};
+
+	if (useCopyQueue && g_capabilities.gpuUploadHeap)
+	{
+		copyBuffer(reinterpret_cast<T*>(uniqueGPUBuffer->buffer->map()));
+		uniqueGPUBuffer->buffer->unmap();
+	}
+	else
+	{
+		auto uploadBuffer = g_device->createBuffer(RenderBufferDesc::UploadBuffer(buffer->dataSize));
+
+		copyBuffer(reinterpret_cast<T*>(uploadBuffer->map()));
+
+		uploadBuffer->unmap();
+
+		if (useCopyQueue)
+		{
+			ExecuteCopyCommandList([&]
+				{
+					g_copyCommandList->copyBufferRegion(uniqueGPUBuffer->buffer->at(0), uploadBuffer->at(0), buffer->dataSize);
+				});
+		}
+		else
+		{
+			auto& commandList = g_commandLists[g_frame];
+
+			commandList->barriers(RenderBarrierStage::COPY, RenderBufferBarrier(uniqueGPUBuffer->buffer.get(), RenderBufferAccess::WRITE));
+			commandList->copyBufferRegion(uniqueGPUBuffer->buffer->at(0), uploadBuffer->at(0), buffer->dataSize);
+			commandList->barriers(RenderBarrierStage::GRAPHICS, RenderBufferBarrier(uniqueGPUBuffer->buffer.get(), RenderBufferAccess::READ));
+
+			g_tempBuffers[g_frame].emplace_back(std::move(uploadBuffer));
+		}
+	}
+
+	g_bufferUploadCount++;
+}
+
 template<typename T>
 static void UnlockBuffer(GuestBuffer* buffer)
 {
 	if (!buffer->lockedReadOnly)
 	{
-		if (std::this_thread::get_id() == g_presentThreadId)
-		{
-			RenderCommand cmd;
-			cmd.type = (sizeof(T) == 2) ? RenderCommandType::UnlockBuffer16 : RenderCommandType::UnlockBuffer32;
-			cmd.unlockBuffer.indexBuffer = buffer;
-			g_renderQueue.enqueue(cmd);
-		}
-		else
-		{
-			UnlockBuffer<T>(buffer, true);
-		}
+		UnlockBuffer<T>(buffer, true);
 	}
 }
 
@@ -5811,6 +6552,7 @@ static void ProcUnlockBuffer32(const RenderCommand& cmd)
 
 static void UnlockVertexBuffer(GuestBuffer* buffer)
 {
+	//UnlockBufferToGPU<uint32_t>(buffer, true);
 	UnlockBuffer<uint32_t>(buffer);
 }
 
@@ -5824,87 +6566,66 @@ static void UnlockIndexBuffer(GuestBuffer* buffer)
 	UnlockBuffer<uint16_t>(buffer);
 }
 
+//D3D12 requires vertex buffer strides to be aligned to 4 bytes unlike Xbox, so we need to fix that
+uint32_t AlignStride(uint32_t stride, uint32_t alignment = 4) {
+	return (stride + alignment - 1) & ~(alignment - 1);
+}
 
-static void UnlockVertexBuffer(GuestBuffer* buffer);
-//since Xbox originally doesn't have an Unlock function, we will unlock right before rendering.
-static void FlushVertexBufferForRendering()
+GuestBuffer* GetGuestVertexBuffer(XD3DResource* buffer, int32_t VertexCount, int i)
 {
+	unsigned long dataAddr = (unsigned long)GetDataFromXboxResource((X_D3DResource*)(g_Xbox_SetStreamSource[i].VertexBuffer));
+	uint8_t* pXboxVertexData = reinterpret_cast<uint8_t*>(g_memory.Translate(dataAddr));
+	const uint32_t originalStride = g_Xbox_SetStreamSource[i].Stride;
+	//size_t size = buffer->dataSize;
+	auto AlignedStrige = AlignStride(originalStride);
+	const bool requirePadding = (AlignedStrige != originalStride);
+	const size_t size = VertexCount * AlignedStrige;
 
-
-	static int count;
-	struct RwD3D8Vertex
+	XXH64_hash_t hash = XXH3_64bits(pXboxVertexData, size);
+	auto& bufferCache = g_vertexBufferCache[hash];
+	if (bufferCache == nullptr)
 	{
-		float x;
-		float y;
-		float z;
-		uint8_t R;
-		uint8_t G;
-		uint8_t B;
-		uint8_t A;
-		float u;
-		float v;
-	};
-
-	/**RwD3D8Vertex* vertexData = (RwD3D8Vertex*)g_vertexBuffers[0]->mappedMemory;
-
-	if (count++ < 10)
-	{
-		/**printf("FlushVertexBufferForRendering\n");
-		for (uint8_t i = 0; i < 6; i++)
+		bufferCache = CreateVertexBuffer(size);
+		bufferCache->hash = hash;
+		bufferCache->mappedMemory = g_userHeap.AllocPhysical(bufferCache->dataSize, 0x10);
+		if (requirePadding == false)
 		{
-			printf("texcoord[%d] %f, %f\n", i, vertexData[i].u, vertexData[i].v);
+			memcpy(bufferCache->mappedMemory, pXboxVertexData, bufferCache->dataSize);
 		}
-		printf("\n");
-
-
-		std::ofstream  outFile2("UVDebug.txt", std::ios::app);
-		outFile2 << "Copy To Gpu" << '\n';
-		outFile2 << "call Count " << count << '\n';
-		outFile2 << "CurrentBuffer " << std::hex << g_vertexBuffers[0]->mappedMemory << '\n';
-
-		for (int i = 0; i < 6; i++)
+		else
 		{
-			float u = vertexData[i].u;
-			float v = vertexData[i].v;
+			// Need padding - copy vertex by vertex
+			const uint8_t* srcPtr = static_cast<const uint8_t*>(pXboxVertexData);
+			uint8_t* destPtr = static_cast<uint8_t*>(bufferCache->mappedMemory);
 
-			outFile2 << "texcoord[" << i << "] " << std::dec << u << ", " << v << '\n';
+			for (uint32_t j = 0; j < VertexCount; j++)
+			{
+				memcpy(destPtr, srcPtr, originalStride);
+				memset(destPtr + originalStride, 0, AlignedStrige - originalStride);
+				srcPtr += originalStride;
+				destPtr += AlignedStrige;
+			}
 		}
 
-		outFile2 << '\n';
-		outFile2.close();
+		UnlockVertexBuffer(bufferCache);
 	}
 
-
-	//todo implement multi stream
-	UnlockVertexBuffer(g_vertexBuffers[0]);*/
+	return bufferCache;
 }
 
 //D3D_DrawVertices originally
 void DrawPrimitive(X_D3DPRIMITIVETYPE PrimitiveType, uint32_t StartVertex, uint32_t VertexCount)
 {
+
 	for (int i = 0; i < 16; i++)
 	{
 		if (g_Xbox_SetStreamSource[i].VertexBuffer)
 		{
-			unsigned long dataAddr = (unsigned long)GetDataFromXboxResource((X_D3DResource*)(&g_Xbox_SetStreamSource[i].VertexBuffer->guestResource));
-			uint8_t* pXboxVertexData = reinterpret_cast<uint8_t*>(g_memory.Translate(dataAddr));
-			//XXH64_hash_t hash = XXH3_64bits(g_Xbox_SetStreamSource[i].VertexBuffer, VertexCount * g_Xbox_SetStreamSource[i].Stride);
-			//auto& bufferCache = g_vertexBufferCache[hash];
+			auto buffer = (XD3DResource*)g_Xbox_SetStreamSource[i].VertexBuffer;
+			//auto buffer = g_Xbox_SetStreamSource[i].VertexBuffer;
+			//uint8_t* pXboxVertexData = reinterpret_cast<uint8_t*>(buffer->mappedMemory);
 
-			//if (bufferCache == nullptr)
-
-			auto bufferCache = CreateVertexBuffer(VertexCount * g_Xbox_SetStreamSource[i].Stride);
-			if (bufferCache)
-			{
-				bufferCache->mappedMemory = g_userHeap.AllocPhysical(bufferCache->dataSize, 0x10);
-
-				g_vertexBufferCache.push_back(bufferCache);
-				//bufferCache->hash = hash;
-			}
-
-
-			memcpy(bufferCache->mappedMemory, pXboxVertexData, bufferCache->dataSize);
-			UnlockVertexBuffer(bufferCache);
+			auto bufferCache = GetGuestVertexBuffer(buffer, VertexCount, i);
 
 			RenderCommand cmd;
 			cmd.type = RenderCommandType::SetStreamSource;
@@ -5934,156 +6655,247 @@ static void ProcDrawPrimitive(const RenderCommand& cmd)
 
 	//convert primitive
 	SetPrimitiveType(args.primitiveType);
-	//FlushVertexBufferForRendering();
 	FlushRenderStateForRenderThread();
 	auto& commandList = g_commandLists[g_frame];
 	commandList->drawInstanced(args.primitiveCount, 1, args.startVertex, 0);
 }
 
-//D3DDevice_DrawIndexedVertices (seems to be used to display message)
-
-void DrawIndexedPrimitive(X_D3DPRIMITIVETYPE PrimitiveType, uint32_t VertexCount, int16_t* pIndexData)
+static void ComputeIndexRange(const int16_t* indices, uint32_t startIndex, uint32_t indexCount, uint32_t& outMin, uint32_t& outMax)
 {
 
-	//logIndexedPrimitive = true;
+	const int16_t* startPtr = indices + startIndex;
+	uint32_t minIdx = UINT32_MAX;
+	uint32_t maxIdx = 0;
+	for (uint32_t i = 0; i < indexCount; ++i)
+	{
+		uint32_t idx = (uint16_t)startPtr[i];
+		if (idx < minIdx)
+			minIdx = idx;
+
+		if (idx > maxIdx)
+			maxIdx = idx;
+	}
+
+	if (minIdx == UINT32_MAX)
+	{
+		minIdx = 0;
+		maxIdx = 0;
+	}
+
+	outMin = minIdx;
+	outMax = maxIdx;
+}
+
+GuestBuffer* GetGuestVertexBufferIndexed(XD3DResource* buffer, int32_t VertexCount, int i, uint32_t minIdx, uint32_t maxIdx)
+{
+	uint32_t usedVertices = maxIdx - minIdx + 1;
+	const uint32_t originalStride = g_Xbox_SetStreamSource[i].Stride;
+
+
+	unsigned long dataAddr = (unsigned long)GetDataFromXboxResource((X_D3DResource*)(g_Xbox_SetStreamSource[i].VertexBuffer));
+	uint8_t* pXboxVertexData = reinterpret_cast<uint8_t*>(g_memory.Translate(dataAddr));
+
+	auto alignedStride = AlignStride(originalStride);
+	const bool requirePadding = (alignedStride != originalStride);
+	size_t size = usedVertices * alignedStride;
+
+	const size_t originalSize = usedVertices * originalStride;
+	XXH64_hash_t hash = XXH3_64bits(pXboxVertexData + minIdx * originalStride, originalSize);
+	auto& bufferCache = g_vertexBufferCache[hash];
+
+	if (bufferCache == nullptr)
+	{
+		bufferCache = CreateVertexBuffer(size);
+		bufferCache->mappedMemory = g_userHeap.AllocPhysical(bufferCache->dataSize, 0x10);
+		bufferCache->hash = hash;
+		if (requirePadding == false)
+		{
+			memcpy(bufferCache->mappedMemory, pXboxVertexData + minIdx * originalStride, originalSize);
+		}
+		else
+		{
+			const uint8_t* srcPtr = pXboxVertexData + (minIdx * originalStride);
+			uint8_t* destPtr = static_cast<uint8_t*>(bufferCache->mappedMemory);
+
+			for (uint32_t j = 0; j < usedVertices; j++)
+			{
+				memcpy(destPtr, srcPtr, originalStride);
+				memset(destPtr + originalStride, 0, alignedStride - originalStride);
+				srcPtr += originalStride;
+				destPtr += alignedStride;
+			}
+		}
+
+		UnlockVertexBuffer(bufferCache);
+	}
+
+	return bufferCache;
+}
+
+void RunDebuggingShader(uint8_t* vertexData);
+//D3DDevice_DrawIndexedVertices (seems to be used to display message)
+//On Xbox, VertexCount = IndexCount, both are the same
+void DrawIndexedPrimitive(X_D3DPRIMITIVETYPE PrimitiveType, uint32_t VertexCount, int16_t* pIndexData)
+{
+	//shadow = 2192 vertex = stride 24
+	//object = 91 vertex =  stride 24
+
+	uint32_t minIdx = 0, maxIdx = 0;
+	ComputeIndexRange(pIndexData, 0, VertexCount, minIdx, maxIdx);
+
+	XXH64_hash_t hash = XXH3_64bits(pIndexData, VertexCount * sizeof(int16_t));
+	auto& bufferIndexCache = g_indexBufferCache[hash];
+
+	GuestBuffer* bufferIndex;
+	if (bufferIndexCache == nullptr)
+	{
+		bufferIndex = CreateIndexBuffer(VertexCount, X_D3DFMT_INDEX16);
+
+		bufferIndexCache = bufferIndex;
+		bufferIndex->hash = hash;
+
+		auto memory = LockIndexBuffer(bufferIndex, 0);
+
+		memcpy(memory, pIndexData, sizeof(int16_t) * VertexCount);
+		UnlockIndexBuffer(bufferIndex);
+	}
+	else
+	{
+		bufferIndex = bufferIndexCache;
+	}
+
 
 	for (int i = 0; i < 16; i++)
 	{
 		if (g_Xbox_SetStreamSource[i].VertexBuffer)
 		{
+			auto buffer = (XD3DResource*)g_Xbox_SetStreamSource[i].VertexBuffer;
+			//auto buffer = g_Xbox_SetStreamSource[i].VertexBuffer;
+			//uint8_t* pXboxVertexData = reinterpret_cast<uint8_t*>(buffer->mappedMemory);
+			auto Stride = AlignStride(g_Xbox_SetStreamSource[i].Stride);
+			const uint32_t originalStride = g_Xbox_SetStreamSource[i].Stride;
+			auto bufferCache = GetGuestVertexBufferIndexed(buffer, VertexCount, i, minIdx, maxIdx);
 
-			unsigned long dataAddr = (unsigned long)GetDataFromXboxResource((X_D3DResource*)(&g_Xbox_SetStreamSource[i].VertexBuffer->guestResource));
-			uint8_t* pXboxVertexData = reinterpret_cast<uint8_t*>(g_memory.Translate(dataAddr));
-			int size = VertexCount * g_Xbox_SetStreamSource[i].Stride;
-
-
-			if (currentBufferIndex + size >= ringBufferSize)
+			if (originalStride == 24)
 			{
-				for (int i = 0; i < g_vertexBufferCache.size(); i++)
+
+				unsigned long dataAddr = (unsigned long)GetDataFromXboxResource((X_D3DResource*)(g_Xbox_SetStreamSource[i].VertexBuffer));
+				uint8_t* pXboxVertexData = reinterpret_cast<uint8_t*>(g_memory.Translate(dataAddr));
+				//IndexedVertex* vertex = (IndexedVertex*)bufferCache->mappedMemory;
+
+				IndexedVertex* vertex = (IndexedVertex*)pXboxVertexData;
+				if (VertexCount == 171)
 				{
-					DestructResource(g_vertexBufferCache[i]);
+					//printf("Vertex Log, Count %d\n", VertexCount);
+					lastHandleAddr = lastHandleAddr;
+
+					uint8_t* vertexData = (uint8_t*)vertex + (0 * originalStride);
+					RunDebuggingShader(vertexData);
+					for (int j = 0; j < 171; j++)
+					{
+
+						uint8_t* vertexData = (uint8_t*)vertex + (j * originalStride);
+						float* pos = (float*)vertexData;
+						float* color = (float*)vertexData + 12;
+						float* uv = (float*)(vertexData + 24);
+
+						/**printf("Vertex[%d] - pos %f, %f, %f\n", j, pos[0], pos[1], pos[2]);
+						printf("Vertex[%d] - normal %f, %f, %f\n", j, color[0], color[1], color[2]);
+						printf("Vertex[%d] - uv %f, %f\n", j, uv[0], uv[1]);*/
+
+						if (color[1] == 0.0f || color[2] == 0.0f)
+						{
+							int debug = 1;
+							debug = debug;
+						}
+
+						if (isinf(uv[0]) || isnan(uv[0])
+							|| isinf(uv[1]) || isnan(uv[1]))
+						{
+							minIdx = minIdx;
+							printf("WARNING NAN UV\n");
+							printf("buffer Xbox %p - with %d vertex count, pass %d vertex uv %f, %f \n", buffer, VertexCount, j, uv[0], uv[1]);
+						}
+
+					}
+					//printf("done\n");
+					//printf("\n");
 				}
-
-				g_vertexBufferCache.clear();
-				currentBufferIndex = 0;
 			}
-
-			//XXH64_hash_t hash = XXH3_64bits(g_Xbox_SetStreamSource[i].VertexBuffer, size);
-			//auto& bufferCache = g_vertexBufferCache[hash];
-
-//			if (bufferCache == nullptr)
-
-			auto bufferCache = CreateVertexBuffer(VertexCount * g_Xbox_SetStreamSource[i].Stride);
-			if (bufferCache)
-			{
-				bufferCache->mappedMemory = g_userHeap.AllocPhysical(bufferCache->dataSize, 0x10);
-				g_vertexBufferCache.push_back(bufferCache);
-				//bufferCache->hash = hash;
-			}
-
-
-			memcpy(bufferCache->mappedMemory, pXboxVertexData, bufferCache->dataSize);
-			UnlockVertexBuffer(bufferCache);
 
 			RenderCommand cmd;
 			cmd.type = RenderCommandType::SetStreamSource;
 			cmd.setStreamSource.StreamNumber = i;
 			cmd.setStreamSource.vertexBuffer = bufferCache;
-			cmd.setStreamSource.stride = g_Xbox_SetStreamSource[i].Stride;
+			cmd.setStreamSource.stride = Stride;
 			g_renderQueue.enqueue(cmd);
-			currentBufferIndex += size;
 		}
 	}
 
 
+
+	SetIndices(bufferIndex);
+
+
 	LocalRenderCommandQueue queue;
 
-	XXH64_hash_t hash = XXH3_64bits(pIndexData, VertexCount * sizeof(int16_t));
-	auto& bufferCache = g_indexBufferCache[hash];
-
-	if (bufferCache == nullptr)
-	{
-		bufferCache = CreateIndexBuffer(VertexCount, X_D3DFMT_INDEX16);
-		bufferCache->hash = hash;
-		SetIndices(bufferCache);
-	}
 
 	FlushRenderStateForMainThread(queue);
-	//FlushVertexBufferForRendering();
-
-
 
 	auto& cmd = queue.enqueue();
 	cmd.type = RenderCommandType::DrawIndexedVertices;
 	cmd.drawIndexedPrimitive.primitiveType = PrimitiveType;
-	cmd.drawIndexedPrimitive.baseVertexIndex = 0; //Shadow doesn't seem to use an offset.
+	cmd.drawIndexedPrimitive.baseVertexIndex = -(int32_t)minIdx;
 	cmd.drawIndexedPrimitive.startIndex = 0;
 	cmd.drawIndexedPrimitive.primCount = VertexCount;
-	cmd.drawIndexedPrimitive.pIndexData = pIndexData;
-	cmd.drawIndexedPrimitive.indexBuffer = bufferCache;
-
 
 	queue.submit();
 }
 
 static void ProcDrawIndexedPrimitive(const RenderCommand& cmd)
 {
-
 	const auto& args = cmd.drawIndexedPrimitive;
-
-
-	auto memory = LockIndexBuffer(args.indexBuffer, 0);
-	memcpy(memory, args.pIndexData, sizeof(int16_t) * args.primCount);
-	UnlockIndexBuffer(args.indexBuffer);
-
-
-	uint32_t indexCount = CheckInstancing();
-	if (indexCount > 0)
-		UnsetInstancingStream();
-
 	SetPrimitiveType(args.primitiveType);
 	FlushRenderStateForRenderThread();
 
 	g_commandLists[g_frame]->drawIndexedInstanced(args.primCount, 1, args.startIndex, args.baseVertexIndex, 0);
 }
 
+
+
 extern int countUntilFlameDraw;
 //D3DDevice_DrawVerticesUP - used for 2D Stuff, does not require a vertex buffer (originally)
 void DrawPrimitiveUP(X_D3DPRIMITIVETYPE PrimitiveType, uint32_t VertexCount, void* pVertexStreamZeroData, uint32_t VertexStreamZeroStride)
 {
 
+
 	LocalRenderCommandQueue queue;
 	FlushRenderStateForMainThread(queue);
+
+	if (logVB)
+	{
+		//pVertexStreamZeroData = testVertices;
+		//VertexCount = 3;
+
+
+	}
 
 	// For some reason, some vertex have their position w set to Inf
 	// while Xbox may not care about this, modern shaders definitely do, so we have to fix this
 	// this isn't a recomp instruction bug, I checked on CXBX Reloaded and logged the values, pos.w is meant to be inf.
 	// so far I only saw this issue with the message box on the title screen.
 
-	RwD3D8Vertex* vertexData = (RwD3D8Vertex*)(pVertexStreamZeroData);
+	UpVertex* vertexData = (UpVertex*)(pVertexStreamZeroData);
 	for (int32_t i = 0; i < VertexCount; i++)
 	{
-		if (isinf(vertexData[i].rhw) || isnan(vertexData[i].rhw))
+		if (isinf(vertexData[i].w) || isnan(vertexData[i].w))
 		{
-			vertexData[i].rhw = 1.0f;
+			vertexData[i].w = 1.0f;
 		}
 	}
-	/**if (aboutToDrawFlame)
-	{
-		std::ofstream  outFile2("sub_389EB0.txt", std::ios::app);
-		outFile2 << "DrawPrimitiveUP" << '\n';
 
-		for (int32_t i = 0; i < VertexCount; i++)
-		{
-			vertexData = vertexData;
-			//printf("vertexData[%d].uv %f %f\n", i, vertexData[i].u, vertexData[i].v);
-			outFile2 << "vertexData[" << i << "].uv " << vertexData[i].u << " " << vertexData[i].v << '\n';
-		}
 
-		outFile2 << '\n';
-		outFile2.close();
-		countUntilFlameDraw = 0;
-	}*/
+
 
 	auto& cmd = queue.enqueue();
 	cmd.type = RenderCommandType::DrawVerticesUP;
@@ -6103,10 +6915,6 @@ static void ProcDrawPrimitiveUP(const RenderCommand& cmd)
 
 	const auto& args = cmd.drawPrimitiveUP;
 	X_D3DPRIMITIVETYPE XboxPrimitive = (X_D3DPRIMITIVETYPE)args.primitiveType;
-	uint32_t indexCount = CheckInstancing();
-
-	if (indexCount > 0)
-		UnsetInstancingStream();
 
 	SetPrimitiveType(args.primitiveType);
 	SetDirtyValue(g_dirtyStates.pipelineState, g_pipelineState.vertexStrides[0], uint8_t(args.vertexStreamZeroStride));
@@ -6119,7 +6927,7 @@ static void ProcDrawPrimitiveUP(const RenderCommand& cmd)
 	g_inputSlots[0].stride = args.vertexStreamZeroStride;
 	g_dirtyStates.vertexStreamFirst = 0;
 
-	indexCount = 0;
+	uint32_t indexCount = 0;
 
 	/**if (args.primitiveType == X_D3DPT_QUADLIST)
 		indexCount = g_quadIndexData.prepare(args.primitiveCount);
@@ -6316,16 +7124,78 @@ void CopyVertexShaderConstant(int32_t Register, DWORD* pConstantData, const uint
 }
 
 
+
+X86_FUNC_IMPL(__imp__sub_2C89D0);
+X86_FUNC(sub_2C89D0)
+{
+	LogVSConstants = false;
+	__imp__sub_2C89D0(ctx, base);
+}
+
 void D3DDevice_SetVertexShaderConstant1Fast(int32_t Register, DWORD* pConstantData)
 {
-	float* data = (float*)pConstantData;
+	float* constants = (float*)pConstantData;
+	if (LogVSConstants)
+	{
+		std::ofstream  outFile2("VSLogs.txt", std::ios::app);
+		outFile2 << "D3DDevice_SetVertexShaderConstant1Fast" << '\n';
 
+
+		float x = constants[0];
+		float y = constants[1];
+		float z = constants[2];
+		float w = constants[3];
+
+		//printf("Constant[%d]: (%f, %f, %f, %f)\n", Register, x, y, z, w);
+
+		outFile2 << "Constant[" << Register << " * 4 + 0] " << x << '\n';
+		outFile2 << "Constant[" << Register << " * 4 + 1] " << y << '\n';
+		outFile2 << "Constant[" << Register << " * 4 + 2] " << z << '\n';
+		outFile2 << "Constant[" << Register << " * 4 + 3] " << w << '\n';
+		outFile2 << '\n';
+		outFile2.close();
+	}
 	CopyVertexShaderConstant(Register, pConstantData, 1);
 }
 
-//added recently, todo test if it works
+
 void D3DDevice_SetVertexShaderConstantNotInlineFast(int32_t Register, DWORD* pConstantData, uint32_t ConstantCount)
 {
+	float* constants = (float*)pConstantData;
+
+	if (LogVSConstants)
+	{
+		std::ofstream  outFile2("VSLogs.txt", std::ios::app);
+		outFile2 << "D3DDevice_SetVertexShaderConstantNotInlineFast" << '\n';
+
+		int actualCount = ConstantCount / 4;
+		for (int i = 0; i < actualCount; i++) {
+
+			intptr_t addr = pConstantData[i * 4 + 0];
+			addr = addr;
+			float x = constants[i * 4 + 0];
+			float y = constants[i * 4 + 1];
+			float z = constants[i * 4 + 2];
+			float w = constants[i * 4 + 3];
+
+			outFile2 << "Constant[" << i << " * 4 + 0] " << x << '\n';
+			outFile2 << "Constant[" << i << " * 4 + 1] " << y << '\n';
+			outFile2 << "Constant[" << i << " * 4 + 2] " << z << '\n';
+			outFile2 << "Constant[" << i << " * 4 + 3] " << w << '\n';
+
+
+			//printf("Constant[%d]: (%f, %f, %f, %f)\n", i, x, y, z, w);
+			//printf("\n");
+			outFile2 << '\n';
+		}
+		//printf("\n");
+
+		outFile2 << '\n';
+		outFile2.close();
+	}
+
+
+
 	CopyVertexShaderConstant(Register, pConstantData, ConstantCount / 4);
 }
 
@@ -6409,6 +7279,7 @@ void GetPixelContainerMeasures
 }
 
 
+//we need to copy the palette data so we can convert properly when copy texture in the GPU
 static uint32_t* currentPaletteData;
 //rwD3D8RasterLockPalette
 X86_FUNC_IMPL(__imp__sub_2DF9F0);
@@ -6423,10 +7294,12 @@ X86_FUNC(sub_2DF9F0)
 
 }
 
-
-
 void CopyTextureToGPU(GuestTexture* tex)
 {
+	if ((intptr_t)tex == 0x00000001a0ebf8b0)
+	{
+		printf("");
+	}
 	auto base = g_memory.base;
 	auto format = GetXboxPixelContainerFormat((X_D3DFORMAT)tex->guestResource.Format);
 	bool isSwizzled = FormatIsSwizzled(format);
@@ -6515,6 +7388,7 @@ void CopyTextureToGPU(GuestTexture* tex)
 			curDstOffset += alignedSliceSize;
 		}
 	}
+
 
 	// allocate upload buffer with curDstOffset
 	auto uploadBuffer = g_device->createBuffer(RenderBufferDesc::UploadBuffer(curDstOffset));
@@ -6657,9 +7531,19 @@ X86_FUNC(sub_2DFE20)
 	ctx.esp.u32 -= 4;
 
 
+
+
 	int usage = LOBYTE(info->cType) == rwRASTERTYPECAMERATEXTURE ? 1 : 0;
+	if (usage)
+	{
+		printf("");
+	}
 	auto newTex = CreateTexture(info->width, info->height, 1, level, usage, format, X_D3DRTYPE_TEXTURE);
 
+	if ((intptr_t)newTex == 0x00000001a0ebf8b0)
+	{
+		printf("");
+	}
 	newTex->guestResource.Common = texture->Common;
 	newTex->guestResource.Data = texture->Data;
 	newTex->guestResource.Format = texture->Format;
@@ -6667,9 +7551,244 @@ X86_FUNC(sub_2DFE20)
 	newTex->guestResource.Size = texture->Size;
 	ctx.eax.u32 = g_memory.MapVirtual(newTex);
 
+
+
 	ctx.esp.u32 += 4;
 }
 
+//CreateStandAloneSurface
+X86_FUNC_IMPL(__imp__sub_3DA0A0);
+X86_FUNC(sub_3DA0A0)
+{
+
+	uint32_t Width = X86_LOAD_U32(ctx.esp.u32 + 4);
+	uint32_t Height = X86_LOAD_U32(ctx.esp.u32 + 8);
+	X_D3DFORMAT Format = (X_D3DFORMAT)X86_LOAD_U32(ctx.esp.u32 + 16);
+	__imp__sub_3DA0A0(ctx, base);
+
+
+	ctx.esp.u32 -= 4;
+
+	X_D3DSurface* surface = (X_D3DSurface*)(g_memory.Translate(ctx.eax.u32));
+
+	auto newSurface = CreateSurface(Width, Height, Format);
+
+	newSurface->guestResource.Common = surface->Common;
+	newSurface->guestResource.Data = surface->Data;
+	newSurface->guestResource.Format = surface->Format;
+	newSurface->guestResource.Lock = surface->Lock;
+	newSurface->guestResource.Size = surface->Size;
+	ctx.eax.u32 = g_memory.MapVirtual(newSurface);
+
+	ctx.esp.u32 += 4;
+}
+
+//CreateVertexBuffer 
+X86_FUNC_IMPL(__imp__sub_2E6750);
+X86_FUNC(sub_2E6750)
+{
+	int size = X86_LOAD_U32(ctx.esp.u32 + 4);
+	size = (size + 31) & 0xFFFFFFE0;
+	__imp__sub_2E6750(ctx, base);
+	auto addr = ctx.eax.u32;
+	XD3DResource* buffer = (XD3DResource*)g_memory.Translate(addr);
+	printf("Create VB %x - size: %d\n", (intptr_t)buffer, size);
+
+	if (size == 2656)
+	{
+		printf("check that\n");
+	}
+	g_VBList.push_back({ buffer, nullptr, size });
+}
+
+//LockVertexBuffer
+X86_FUNC_IMPL(__imp__sub_3D5FE0);
+X86_FUNC(sub_3D5FE0)
+{
+
+	__imp__sub_3D5FE0(ctx, base);
+
+	auto addr = ctx.eax.u32;
+	addr = addr;
+}
+
+
+//GetViewportOFfsetAndScale
+X86_FUNC_IMPL(__imp__sub_3D24B0);
+X86_FUNC(sub_3D24B0)
+{
+
+	__imp__sub_3D24B0(ctx, base);
+
+	if (LogVSConstants)
+	{
+		auto device = X86_LOAD_U32(GuestDevicePtrAddr);
+		auto valA = X86_LOAD_F32(device + 0x95C);
+		auto valB = X86_LOAD_F32(device + 0x960);
+		auto padding636 = X86_LOAD_F32(device + 0x970);
+		auto padding68 = X86_LOAD_U32(device + 0x954);
+		auto padding7 = X86_LOAD_U32(device + 0xEF8);
+
+		valB = valB;
+		/**printf("GetViewportOffsetAndScale\n");
+		printf("viewport Width %d\n", X86_LOAD_U32(device + 0xEE8));
+		printf("viewport Height %d\n", X86_LOAD_U32(device + 0xEEC));
+		printf("D3D_g_pDevice->padding6[8] %d\n", padding68);
+		printf("D3D_g_pDevice->padding6[16] %f\n", valA);
+		printf("D3D_g_pDevice->padding6[20] %f\n", valB);
+		printf("D3D_g_pDevice->padding6[36] %f\n", padding636);
+		printf("D3D_g_pDevice->padding7 %d\n", padding7)
+
+		float v2 = (float)X86_LOAD_U32(device + 0xEE0) * (float)valA * (float)padding7;
+		float scaleX = (float)X86_LOAD_U32(device + 0xEE8) * (float)valA * 0.5f;
+
+		printf("v2 %f\n", v2);
+		printf("scaleX %f\n", scaleX);
+		printf("*offset res %f\n", scaleX + v2);
+
+
+		float offset[4] = { X86_LOAD_F32(0x55B410), X86_LOAD_F32(0x55B410 + 4), X86_LOAD_F32(0x55B410 + 8), X86_LOAD_F32(0x55B410 + 12) };
+		float scale[4] = { X86_LOAD_F32(ctx.eax.u32), X86_LOAD_F32(ctx.eax.u32 + 4), X86_LOAD_F32(ctx.eax.u32 + 8), X86_LOAD_F32(ctx.eax.u32 + 12) };
+		//printf("D3D_g_pDevice->padding7[4] %f\n", *(float*)&g_pDevice->padding7[4]);
+		printf("offset: %f, %f, %f, %f\n", offset[0], offset[1], offset[2], offset[3]);
+		printf("scale: %f, %f, %f, %f\n", scale[0], scale[1], scale[2], scale[3]);
+
+		printf("\n");;*/
+	}
+
+}
+
+struct RwV3d
+{
+	RwReal x;
+	RwReal y;
+	RwReal z;
+};
+
+enum RwMatrixFlag
+{
+	rwMATRIXINTERNALIDENTITY = 0x20000,
+};
+#define RwUInt32 uint32_t
+struct RwMatrixTag
+{
+	RwV3d right;
+	RwMatrixFlag flags;
+	RwV3d up;
+	RwUInt32 pad1;
+	RwV3d at;
+	RwUInt32 pad2;
+	RwV3d pos;
+	RwUInt32 pad3;
+};
+
+
+typedef RwMatrixTag RwMatrix;
+
+void logRwMatrix(uint32_t addr, const char* name)
+{
+
+	RwMatrix* src = (RwMatrix*)g_memory.Translate(addr);
+	printf("%s->right %f %f %f\n", name, src->right.x, src->right.y, src->right.z);
+	printf("%s->up %f %f %f\n", name, src->up.x, src->up.y, src->up.z);
+	printf("%s->at %f %f %f\n", name, src->at.x, src->at.y, src->at.z);
+	printf("%s->pos %f %f %f\n", name, src->pos.x, src->pos.y, src->pos.z);
+	printf("%s->flag %d\n", name, src->flags);
+	printf("\n");
+
+}
+
+void logMatrix(uint32_t addr)
+{
+	auto base = g_memory.base;
+	auto add = X86_LOAD_U32(addr);
+
+
+	printf("RwMatrixInvert\n");
+	logRwMatrix(addr, "src");
+	printf("");
+
+}
+
+
+extern bool logMatrixStart;
+/**X86_FUNC_IMPL(__imp__sub_4025A0);
+X86_FUNC(sub_4025A0)
+{
+	auto a1Addr = X86_LOAD_U32(ctx.esp.u32 + 4);
+	float* a1 = (float*)g_memory.Translate(a1Addr);
+	auto a2Addr = X86_LOAD_U32(ctx.esp.u32 + 8);
+	float* a2 = (float*)g_memory.Translate(a2Addr);
+	auto a3Addr = X86_LOAD_U32(ctx.esp.u32 + 12);
+	float* a3 = (float*)g_memory.Translate(a3Addr);
+
+
+	printf("D3DXMatrixMultiply\n");
+
+	for (int i = 0; i < 16; i++)
+	{
+		printf("a2[%d] %f,\n", i, a2[i]);
+
+	}
+
+	for (int i = 0; i < 16; i++)
+	{
+		printf("a3[%d] %f,\n", i, a3[i]);
+
+	}
+
+	//logRwMatrix(a1Addr, "a1");
+	//logRwMatrix(a2Addr, "a2");
+
+
+	__imp__sub_4025A0(ctx, base);
+
+
+	printf("res\n");
+	for (int i = 0; i < 16; i++)
+	{
+		printf("constantData[%d] %f\n", i, a1[i]);
+	}
+
+	printf("\n");
+
+
+}
+
+//rwmatrixTransform
+X86_FUNC_IMPL(__imp__sub_2E3520);
+X86_FUNC(sub_2E3520)
+{
+
+	auto a1Addr = X86_LOAD_U32(ctx.esp.u32 + 4);
+	auto a2Addr = X86_LOAD_U32(ctx.esp.u32 + 8);
+	auto mode = X86_LOAD_U32(ctx.esp.u32 + 12);
+
+	if (logMatrixStart)
+	{
+		printf("RwMatrixTransform\n");
+		printf("Mode %d\n", mode);
+
+		logRwMatrix(a1Addr, "a1");
+		logRwMatrix(a2Addr, "a2");
+	}
+
+
+	__imp__sub_2E3520(ctx, base);
+
+	if (logMatrixStart)
+	{
+		printf("res\n\n");
+
+
+		logRwMatrix(a1Addr, "a1");
+		logRwMatrix(a2Addr, "a2");
+		printf("\n");
+	}
+
+}*/
+
+//todo
 static DWORD* g_beginPush = nullptr;
 uint32_t D3DDevice_BeginPush(DWORD Count)
 {
@@ -6687,10 +7806,7 @@ void D3DDevice_EndPush(DWORD* pPush)
 	}
 }
 
-void SelectVertexShader(DWORD Handle, DWORD Address)
-{
-	//g_fixed = false;
-}
+
 
 BOOL D3DDevice_IsFencePending(int a1)
 {
@@ -6754,7 +7870,6 @@ static std::thread g_renderThread([]
 				case RenderCommandType::SetStreamSource:                   ProcSetStreamSource(cmd); break;
 				case RenderCommandType::SetIndices:                        ProcSetIndices(cmd); break;
 				case RenderCommandType::SetPixelShader:                    ProcSetPixelShader(cmd); break;
-				case RenderCommandType::SetTransform:					ProcSetTransform(cmd); break;
 				default:
 					assert(false && "Unrecognized render command type.");
 					break;
@@ -6771,8 +7886,11 @@ GUEST_FUNCTION_HOOK_STDCALL(sub_3DDAB0, Direct3D_CreateDevice_r);
 GUEST_FUNCTION_HOOK_STDCALL(sub_3D1E10, SetStreamSource);
 
 //vertex shader
-GUEST_FUNCTION_HOOK_STDCALL(sub_3D1BA0, CreateVertexShader);
+//GUEST_FUNCTION_HOOK_STDCALL(sub_3D1BA0, CreateVertexShader);
 GUEST_FUNCTION_HOOK_STDCALL(sub_3D2280, SetVertexShader);
+GUEST_FUNCTION_HOOK_STDCALL(sub_3D1F70, SelectVertexShader);
+GUEST_FUNCTION_HOOK_STDCALL(sub_3D1F00, LoadVertexShaderProgram);
+GUEST_FUNCTION_HOOK_STDCALL(sub_3D1EA0, LoadVertexShader);
 GUEST_FUNCTION_HOOK_FASTCALL(sub_3D1CE0, D3DDevice_SetVertexShaderConstant1Fast);
 GUEST_FUNCTION_HOOK_FASTCALL(sub_3D1D30, D3DDevice_SetVertexShaderConstantNotInlineFast);
 
@@ -6797,7 +7915,7 @@ GUEST_FUNCTION_HOOK_STDCALL(sub_3D2450, D3DDevice_SetRenderStateNotInline);
 //Resource
 GUEST_FUNCTION_HOOK_STDCALL(sub_3DD710, CreateTexture_); //not used for 2D stuff at least.
 //GUEST_FUNCTION_HOOK_STDCALL(sub_3DD7C0, GetSurfaceLevel);
-GUEST_FUNCTION_HOOK_STDCALL(sub_3DA0A0, CreateStandAloneSurface); //DepthStencilSurface
+//GUEST_FUNCTION_HOOK_STDCALL(sub_3DA0A0, CreateStandAloneSurface); //DepthStencilSurface
 GUEST_FUNCTION_HOOK_STDCALL(sub_3DA010, CreateSurfaceOfTexture);
 GUEST_FUNCTION_HOOK_STDCALL(sub_3D0CD0, SetTexture);
 GUEST_FUNCTION_HOOK_STDCALL(sub_3D0040, D3DDevice_SetRenderTarget);
@@ -6810,14 +7928,11 @@ GUEST_FUNCTION_HOOK_STDCALL(sub_3DC150, DrawPrimitive);
 GUEST_FUNCTION_HOOK_STDCALL(sub_3DBFE0, DrawPrimitiveUP);
 GUEST_FUNCTION_HOOK_STDCALL(sub_3DD560, D3DDevice_Swap); //Present
 
-//the begin and end push are essentially command system like DX12, however we don't need that here
-//the game expect a pointer to store data from begin push, so we will create one and delete it in the end function.
+//TODO: the begin and end push are essentially command system like DX12, this can be used to draw so we will have to handle this 
 GUEST_FUNCTION_HOOK_STDCALL(sub_3D4740, D3DDevice_BeginPush);
 GUEST_FUNCTION_HOOK_STDCALL(sub_3D4760, D3DDevice_EndPush);
 
 
-//	========== TODO =======
-GUEST_FUNCTION_STUB(sub_37DF88); //Ton of missing float instruction seem that the game can work without this, todo reimplement.
 
 
 //texture stuff
@@ -6854,4 +7969,3 @@ GUEST_FUNCTION_HOOK_STDCALL(sub_3D4950, D3D_BlockOnTime);
 //GUEST_FUNCTION_HOOK_THISCALL(sub_3D7B4D, D3DKCMiniportBindToChannel);
 //GUEST_FUNCTION_HOOK_THISCALL(sub_3D7E31, D3DKCMiniportCreateGrObject);
 //GUEST_FUNCTION_HOOK_THISCALL(sub_3D4770, CDevice_KickOff);
-

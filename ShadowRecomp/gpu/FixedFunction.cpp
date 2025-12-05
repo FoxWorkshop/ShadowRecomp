@@ -27,7 +27,7 @@ static std::array<D3DMATRIX, 4> g_WorldViewInverseTranspose;
 
 std::array<bool, 4> bWorldViewDirty;
 
-struct Matrix4x4 
+struct Matrix4x4
 {
 	float m[4][4];
 
@@ -68,16 +68,16 @@ typedef enum _D3DFOGMODE {
 } D3DFOGMODE;
 
 typedef struct _D3DVECTOR {
-    float x;
-    float y;
-    float z;
+	float x;
+	float y;
+	float z;
 } D3DVECTOR;
 
 typedef struct _D3DVECTOR4 {
-    float x;
-    float y;
-    float z;
-    float w;
+	float x;
+	float y;
+	float z;
+	float w;
 } D3DVECTOR4;
 
 
@@ -92,19 +92,19 @@ struct Transforms
 
 struct Light {
 
-     alignas(16) D3DCOLORVALUE Diffuse;
-     alignas(16) D3DCOLORVALUE Specular;
+	alignas(16) D3DCOLORVALUE Diffuse;
+	alignas(16) D3DCOLORVALUE Specular;
 
-    // Viewspace light position Range in posW
-    alignas(16) D3DVECTOR4 PositionV;
-   // alignas(16) float Range;
+	// Viewspace light position Range in posW
+	alignas(16) D3DVECTOR4 PositionV;
+	// alignas(16) float Range;
 
-    // Viewspace light direction (normalized) - type in directionW
-    alignas(16) D3DVECTOR4 DirectionVN;
-   // alignas(16) float Type; // 1=Point, 2=Spot, 3=Directional
+	 // Viewspace light direction (normalized) - type in directionW
+	alignas(16) D3DVECTOR4 DirectionVN;
+	// alignas(16) float Type; // 1=Point, 2=Spot, 3=Directional
 
-    alignas(16) D3DVECTOR4 Attenuation; //fall off in W
-    //alignas(16) float Falloff;
+	alignas(16) D3DVECTOR4 Attenuation; //fall off in W
+	//alignas(16) float Falloff;
 
 	alignas(16) D3DVECTOR4 SpotParams; // cN+5: x=CosHalfPhi, y=SpotIntensityDivisor, zw unused
 };
@@ -115,82 +115,82 @@ struct Light {
 // Both frontface and backface lighting can be calculated
 struct TwoSidedColor
 {
-    alignas(16) D3DVECTOR4 Front; // c104.xyz
-    alignas(16) D3DVECTOR4 Back; // c105.xyz
+	alignas(16) D3DVECTOR4 Front; // c104.xyz
+	alignas(16) D3DVECTOR4 Back; // c105.xyz
 };
 
 struct Material
 {
-   alignas(16) D3DCOLORVALUE Diffuse; // base for Materials[0], these will be array-offsetted
-   alignas(16) D3DCOLORVALUE Ambient;
-   alignas(16) D3DCOLORVALUE Specular;
-   alignas(16) D3DCOLORVALUE Emissive;
-   alignas(16) D3DCOLORVALUE Power; // c110.w/y/z free
+	alignas(16) D3DCOLORVALUE Diffuse; // base for Materials[0], these will be array-offsetted
+	alignas(16) D3DCOLORVALUE Ambient;
+	alignas(16) D3DCOLORVALUE Specular;
+	alignas(16) D3DCOLORVALUE Emissive;
+	alignas(16) D3DCOLORVALUE Power; // c110.w/y/z free
 };
 
 struct Modes
 {
-    // c116
-    float AmbientMaterialSource;
-    float DiffuseMaterialSource;
-    float SpecularMaterialSource;
-    float EmissiveMaterialSource;
+	// c116
+	float AmbientMaterialSource;
+	float DiffuseMaterialSource;
+	float SpecularMaterialSource;
+	float EmissiveMaterialSource;
 
-    // c117
-    float BackAmbientMaterialSource;
-    float BackDiffuseMaterialSource;
-    float BackSpecularMaterialSource;
-    float BackEmissiveMaterialSource;
+	// c117
+	float BackAmbientMaterialSource;
+	float BackDiffuseMaterialSource;
+	float BackSpecularMaterialSource;
+	float BackEmissiveMaterialSource;
 
-    // c118
-    float Lighting;
-    float TwoSidedLighting;
-    // float SpecularEnable; 
-    float LocalViewer;
-    // c118.w unused
+	// c118
+	float Lighting;
+	float TwoSidedLighting;
+	// float SpecularEnable; 
+	float LocalViewer;
+	// c118.w unused
 
-    // c119
-    // float ColorVertex;
-    float VertexBlend_NrOfMatrices;
-    float VertexBlend_CalcLastWeight;
-    float NormalizeNormals;
-    // c119.w unused
+	// c119
+	// float ColorVertex;
+	float VertexBlend_NrOfMatrices;
+	float VertexBlend_CalcLastWeight;
+	float NormalizeNormals;
+	// c119.w unused
 };
 
 struct Fog
 {
-    // c120
-    float Enable;
-    float DepthMode;
-    float TableMode;
-    float Density; // EXP density
-    // c121
-    float Start; // LINEAR start
-    float End; // LINEAR end
+	// c120
+	float Enable;
+	float DepthMode;
+	float TableMode;
+	float Density; // EXP density
+	// c121
+	float Start; // LINEAR start
+	float End; // LINEAR end
 };
 
 struct TextureState
 {
-    float TextureTransformFlagsCount;
-    float TextureTransformFlagsProjected;
-    float TexCoordIndex;
-    float TexCoordIndexGen;
+	float TextureTransformFlagsCount;
+	float TextureTransformFlagsProjected;
+	float TexCoordIndex;
+	float TexCoordIndexGen;
 };
 
 struct PointSprite
 {
-    // c126
-     float PointSize;
-     float PointSize_Min;
-     float PointSize_Max;
-    //  float PointScaleEnable;
-    float XboxRenderTargetHeight;
-    // c127
-     D3DVECTOR4 PointScaleABC; //xyz PointScaleABC + RenderUpscaleFactor in .w
-     //alignas(16) float RenderUpscaleFactor;
+	// c126
+	float PointSize;
+	float PointSize_Min;
+	float PointSize_Max;
+	//  float PointScaleEnable;
+	float XboxRenderTargetHeight;
+	// c127
+	D3DVECTOR4 PointScaleABC; //xyz PointScaleABC + RenderUpscaleFactor in .w
+	//alignas(16) float RenderUpscaleFactor;
 };
 
-struct FixedFunctionVertexShaderState 
+struct FixedFunctionVertexShaderState
 {
 	alignas(16) Transforms Transforms;
 	alignas(16) Light Lights[8];
@@ -279,7 +279,7 @@ D3DMATRIX* GetWorldView(unsigned i)
 {
 	assert(i < 4);
 
-	if (bWorldViewDirty[i]) 
+	if (bWorldViewDirty[i])
 	{
 		RecalculateDependentMatrices(i);
 		bWorldViewDirty[i] = false;
@@ -293,7 +293,7 @@ D3DMATRIX* GetWorldViewInverseTranspose(unsigned i)
 {
 	assert(i < 4);
 
-	if (bWorldViewDirty[i]) 
+	if (bWorldViewDirty[i])
 	{
 		RecalculateDependentMatrices(i);
 		bWorldViewDirty[i] = false;
@@ -303,7 +303,7 @@ D3DMATRIX* GetWorldViewInverseTranspose(unsigned i)
 }
 
 
-int GetXboxVertexDataComponentCount(int32_t d3dvsdt) 
+int GetXboxVertexDataComponentCount(int32_t d3dvsdt)
 {
 
 	switch (d3dvsdt) {
@@ -340,7 +340,7 @@ void UpdateFixedFunctionVertexShaderState(size_t Handle, bool isFixed)
 	//   X_D3DVBF_3WEIGHTS3MATRICES = 4 : 3 matrices, 3 weights
 	//   X_D3DVBF_4WEIGHTS4MATRICES = 6 : 4 matrices, 4 weights
 	//
-	if (VertexBlend > X_D3DVBF_4WEIGHTS4MATRICES) 
+	if (VertexBlend > X_D3DVBF_4WEIGHTS4MATRICES)
 		printf("X_D3DRS_VERTEXBLEND out of range\n");
 
 	// Calculate the number of matrices, by adding the LSB to turn (0,1,3,5) and (0,2,4,6) into (0,2,4,6); Then divide by 2 to get (0,1,2,3), and add 1 to get 1, 2, 3 or 4 matrices :
@@ -361,7 +361,7 @@ void UpdateFixedFunctionVertexShaderState(size_t Handle, bool isFixed)
 	XMMATRIX viewT = XMMatrixTranspose(view);
 	XMStoreFloat4x4((XMFLOAT4X4*)&ffShaderState.Transforms.View, viewT);
 
-	for (unsigned i = 0; i < 4; i++) 
+	for (unsigned i = 0; i < 4; i++)
 	{ // TODO : Would it help to limit this to just the active texture channels?
 
 		XMMATRIX transfoTexture = XMLoadFloat4x4((XMFLOAT4X4*)&g_Transforms[X_D3DTS_TEXTURE0 + i]);
@@ -369,7 +369,7 @@ void UpdateFixedFunctionVertexShaderState(size_t Handle, bool isFixed)
 		XMStoreFloat4x4((XMFLOAT4X4*)&ffShaderState.Transforms.Texture[i], transfoTextureT);
 	}
 
-	for (unsigned i = 0; i < ffShaderState.Modes.VertexBlend_NrOfMatrices; i++) 
+	for (unsigned i = 0; i < ffShaderState.Modes.VertexBlend_NrOfMatrices; i++)
 	{
 
 		XMMATRIX transfoWorldView = XMLoadFloat4x4((XMFLOAT4X4*)GetWorldView(i));
@@ -434,7 +434,7 @@ void UpdateFixedFunctionVertexShaderState(size_t Handle, bool isFixed)
 	ffShaderState.Fog.TableMode = !isFixed ? D3DFOG_NONE : fogTableMode;
 
 	// Determine how fog depth is calculated
-	if (fogEnable && fogTableMode != D3DFOG_NONE) 
+	if (fogEnable && fogTableMode != D3DFOG_NONE)
 	{
 		auto proj = &ffShaderState.Transforms.Projection;
 
@@ -488,16 +488,16 @@ void UpdateFixedFunctionVertexShaderState(size_t Handle, bool isFixed)
 	// Note : There seem to be other ways to access this, but we can use only this one;
 	// This, because HostGetVertexDeclaration() can't be used, since it doesn't track VertexAttributes
 	// (plus, it contains the overhead of shader lookup).
-	for (int i = 0; i < X_D3DTS_STAGECOUNT; i++) 
+	for (int i = 0; i < X_D3DTS_STAGECOUNT; i++)
 	{
 		auto vertexDataFormat = pXboxVertexAttributeFormat->Slots[X_D3DVSDE_TEXCOORD0 + i].Format;
 		ffShaderState.TexCoordComponentCount[i] = (float)GetXboxVertexDataComponentCount(vertexDataFormat);
 
 	}
-	
+
 	// Update lights (TODO)
 	/**auto LightAmbient = D3DXVECTOR4(0.f, 0.f, 0.f, 0.f);
-	for (size_t i = 0; i < 8; i++) 
+	for (size_t i = 0; i < 8; i++)
 	{
 		UpdateFixedFunctionShaderLight(d3d8LightState.EnabledLights[i], &ffShaderState.Lights[i], &LightAmbient);
 	}
@@ -516,5 +516,355 @@ void UpdateFixedFunctionVertexShaderState(size_t Handle, bool isFixed)
 	const int slotSize = 16;
 	const int fixedFunctionStateSize = (sizeof(FixedFunctionVertexShaderState) + slotSize - 1) / slotSize;
 	CopyVertexShaderConstant(0, (DWORD*)&ffShaderState, fixedFunctionStateSize);
-	
+
+}
+
+
+//shader debug
+
+#include <iostream>
+struct float4 {
+	float x, y, z, w;
+
+	float4() : x(0), y(0), z(0), w(0) {}
+	float4(float x_, float y_, float z_, float w_) : x(x_), y(y_), z(z_), w(w_) {}
+	float4(float val) : x(val), y(val), z(val), w(val) {}
+
+	float& operator[](int index) {
+		switch (index) {
+		case 0: return x;
+		case 1: return y;
+		case 2: return z;
+		case 3: return w;
+		default: assert(false); return x;
+		}
+	}
+};
+
+
+struct int1 {
+	int x;
+	int1(int val = 0) : x(val) {}
+};
+
+// Helper functions matching the shader macros
+float4 _tof4(float src) { return float4(src, src, src, src); }
+float4 _tof4(const float4& src) { return src; }
+float4 _ssss(float s) { return float4(s, s, s, s); }
+float _scalar(const float4& src) { return src.x; }
+
+float4 x_floor(const float4& src) {
+	return float4(std::floor(src.x), std::floor(src.y), std::floor(src.z), std::floor(src.w));
+}
+
+// Shader instruction implementations
+void x_arl(int1& dest, char mask, const float4& src0) {
+	float4 floored = x_floor(_tof4(src0));
+	if (strchr(&mask, 'x')) dest.x = (int)floored.x;
+	// Add other mask components if needed
+}
+
+void x_mov(float4& dest, const char* mask, const float4& src0) {
+	float4 src = _tof4(src0);
+	for (int i = 0; i < strlen(mask); i++) {
+		switch (mask[i]) {
+		case 'x': dest.x = src.x; break;
+		case 'y': dest.y = src.y; break;
+		case 'z': dest.z = src.z; break;
+		case 'w': dest.w = src.w; break;
+		}
+	}
+}
+
+void x_mul(float4& dest, const char* mask, const float4& src0, const float4& src1) {
+	float4 result;
+	float4 s0 = _tof4(src0);
+	float4 s1 = _tof4(src1);
+	result.x = s0.x * s1.x;
+	result.y = s0.y * s1.y;
+	result.z = s0.z * s1.z;
+	result.w = s0.w * s1.w;
+
+	for (int i = 0; i < strlen(mask); i++) {
+		switch (mask[i]) {
+		case 'x': dest.x = result.x; break;
+		case 'y': dest.y = result.y; break;
+		case 'z': dest.z = result.z; break;
+		case 'w': dest.w = result.w; break;
+		}
+	}
+}
+
+void x_mad(float4& dest, const char* mask, const float4& src0, const float4& src1, const float4& src2) {
+	float4 result;
+	float4 s0 = _tof4(src0);
+	float4 s1 = _tof4(src1);
+	float4 s2 = _tof4(src2);
+	result.x = s0.x * s1.x + s2.x;
+	result.y = s0.y * s1.y + s2.y;
+	result.z = s0.z * s1.z + s2.z;
+	result.w = s0.w * s1.w + s2.w;
+
+	for (int i = 0; i < strlen(mask); i++) {
+		switch (mask[i]) {
+		case 'x': dest.x = result.x; break;
+		case 'y': dest.y = result.y; break;
+		case 'z': dest.z = result.z; break;
+		case 'w': dest.w = result.w; break;
+		}
+	}
+}
+
+void x_dp3(float4& dest, const char* mask, const float4& src0, const float4& src1) {
+	float4 s0 = _tof4(src0);
+	float4 s1 = _tof4(src1);
+	float dot_result = s0.x * s1.x + s0.y * s1.y + s0.z * s1.z;
+	float4 result = _ssss(dot_result);
+
+	for (int i = 0; i < strlen(mask); i++) {
+		switch (mask[i]) {
+		case 'x': 
+			dest.x = result.x; 
+			break;
+		case 'y': 
+			dest.y = result.y;
+			break;
+		case 'z': 
+			dest.z = result.z; 
+			break;
+		case 'w': 
+			dest.w = result.w; 
+			break;
+		}
+	}
+}
+
+void x_dp4(float4& dest, const char* mask, const float4& src0, const float4& src1) {
+	float4 s0 = _tof4(src0);
+	float4 s1 = _tof4(src1);
+	float dot_result = s0.x * s1.x + s0.y * s1.y + s0.z * s1.z + s0.w * s1.w;
+	float4 result = _ssss(dot_result);
+
+	for (int i = 0; i < strlen(mask); i++) {
+		switch (mask[i]) {
+		case 'x': dest.x = result.x; break;
+		case 'y': dest.y = result.y; break;
+		case 'z': dest.z = result.z; break;
+		case 'w': dest.w = result.w; break;
+		}
+	}
+}
+
+float _rsq(float src) {
+	float a = std::abs(src);
+	std::cout << "[RSQ] Input: " << src << ", abs: " << a << std::endl;
+
+	// TODO: Enable special cases if needed
+	// if (a == 1.0f) return 1.0f;
+	// if (a == 0.0f) return std::numeric_limits<float>::infinity();
+
+	float result = 1.0f / std::sqrt(a);
+	std::cout << "[RSQ] Result: " << result << std::endl;
+	return result;
+}
+
+void x_rsq(float4& dest, const char* mask, const float4& src0) {
+	float scalar_src = _scalar(src0);
+	float4 result = _ssss(_rsq(scalar_src));
+
+	for (int i = 0; i < strlen(mask); i++) {
+		switch (mask[i]) {
+		case 'x': dest.x = result.x; break;
+		case 'y': dest.y = result.y; break;
+		case 'z': dest.z = result.z; break;
+		case 'w': dest.w = result.w; break;
+		}
+	}
+}
+
+
+// Linear interpolation function (matches HLSL lerp)
+float4 lerp(const float4& a, const float4& b, float t) {
+	return float4(
+		a.x * (1 - t) + b.x * t,
+		a.y * (1 - t) + b.y * t,
+		a.z * (1 - t) + b.z * t,
+		a.w * (1 - t) + b.w * t
+	);
+}
+
+// Debug function to print float4
+void print_float4(const char* name, const float4& vec) {
+	std::cout << name << ": (" << vec.x << ", " << vec.y << ", " << vec.z << ", " << vec.w << ")" << std::endl;
+}
+
+void debug_dp3(const std::string& name, const float4& src0, const float4& src1, const float4& result) {
+	std::cout << "[DP3] " << name << ": dot(("
+		<< src0.x << "," << src0.y << "," << src0.z << "), ("
+		<< src1.x << "," << src1.y << "," << src1.z << ")) = "
+		<< result.x << std::endl;
+}
+
+extern uint32_t vsh_constants[HOST_D3DVS_CONSTREG_FULL][4];
+void RunDebuggingShader(uint8_t* vertexData)
+{
+	return;
+
+	float4 rawVertexData[16];
+	memset(rawVertexData, 0, sizeof(float4) * 16);
+	float* pos = (float*)vertexData;
+	uint8_t* color = vertexData + 12;
+	float* uv = (float*)(vertexData + 24);
+
+	rawVertexData[0] = { pos[0], pos[1], pos[2], 1.0f };
+	rawVertexData[1] = { 1.0f, 0.0f, 0.0f, 0.0f }; //{ *reinterpret_cast<const float*>(&color[0]),  *reinterpret_cast<const float*>(&color[1]), *reinterpret_cast<const float*>(&color[2]), 1 };
+	rawVertexData[2] = { uv[0], uv[1], 0.0f, 1.0f };
+
+	// Simulate vertex shader execution
+	std::vector<float4> vs_consts;
+	vs_consts.reserve(192);
+	std::vector<float4> vRegisterDefaultValues;
+	vRegisterDefaultValues.reserve(16);
+	std::vector<float> vRegisterDefaultFlags(16, 0.0f); // Assume all 0 for now
+
+	for (int i = 0; i < 192; i++)
+	{
+		float4 val = {
+	*reinterpret_cast<const float*>(&vsh_constants[i][0]),
+	*reinterpret_cast<const float*>(&vsh_constants[i][1]),
+	*reinterpret_cast<const float*>(&vsh_constants[i][2]),
+	*reinterpret_cast<const float*>(&vsh_constants[i][3])
+		};
+
+		vs_consts.push_back(val);
+	}
+
+	for (int i = 192; i < 208; i++)
+	{
+		int index = i;
+		float4 val = {
+	*reinterpret_cast<const float*>(&vsh_constants[index][0]),
+	*reinterpret_cast<const float*>(&vsh_constants[index][1]),
+	*reinterpret_cast<const float*>(&vsh_constants[index][2]),
+	*reinterpret_cast<const float*>(&vsh_constants[index][3])
+		};
+
+		vRegisterDefaultValues.push_back(val);
+	}
+
+	for (int i = 208; i < 208 + 4; i++)
+	{
+		int index = i;
+		float4 val = {
+	*reinterpret_cast<const float*>(&vsh_constants[index][0]),
+	*reinterpret_cast<const float*>(&vsh_constants[index][1]),
+	*reinterpret_cast<const float*>(&vsh_constants[index][2]),
+	*reinterpret_cast<const float*>(&vsh_constants[index][3])
+		};
+
+		vRegisterDefaultFlags.push_back(val[0]);
+		vRegisterDefaultFlags.push_back(val[1]);
+		vRegisterDefaultFlags.push_back(val[2]);
+		vRegisterDefaultFlags.push_back(val[3]);
+	}
+
+	// Initialize vertex registers using lerp (conditional based on flags)
+	std::vector<float4> v(16);
+	std::cout << "\n=== Initializing vertex registers ===" << std::endl;
+	for (int i = 0; i < 16; i++)
+	{
+		v[i] = lerp(rawVertexData[i], vRegisterDefaultValues[i], vRegisterDefaultFlags[i]);
+		std::cout << "v" << i << " flag: " << vRegisterDefaultFlags[i]
+			<< " = lerp(vertex[" << i << "], default[" << i << "], flag)" << std::endl;
+		print_float4("  Raw vertex", rawVertexData[i]);
+		print_float4("  Default", vRegisterDefaultValues[i]);
+		print_float4("  Result", v[i]);
+	}
+
+	// Shader registers
+	float4 oPos, oD0, oD1, oB0, oB1, oT0, oT1, oT2, oT3;
+	float4 oFog, oPts;
+	int1 a0 = 0;
+	float4 r0, r1, r2, r3, r4, r5, r6, r7, r8, r9, r10, r11;
+
+	// Initialize all to zero
+	oPos = oD0 = oD1 = oB0 = oB1 = oT0 = oT1 = oT2 = oT3 = float4(0, 0, 0, 1);
+	r0 = r1 = r2 = r3 = r4 = r5 = r6 = r7 = r8 = r9 = r10 = r11 = float4(0, 0, 0, 0);
+	oFog = float4(1, 0, 0, 0);
+	oPts = float4(0, 0, 0, 0);
+
+	std::cout << "=== Starting shader execution ===" << std::endl;
+
+	// Execute shader instructions with debugging
+	try {
+		std::cout << "\n--- Instruction 1: x_arl(a0,x, v2.x) ---" << std::endl;
+		print_float4("v2", v[2]);
+		x_arl(a0, 'x', v[2].x);
+		std::cout << "a0.x = " << a0.x << std::endl;
+
+		std::cout << "\n--- Instruction 2: x_mov(r11, \"xyzw\", c(-91)) ---" << std::endl;
+		int const_index = -91 + 96; // Apply X_D3DSCM_CORRECTION
+		std::cout << "Constant index: " << const_index << std::endl;
+		x_mov(r11, "xyzw", vs_consts[const_index]);
+		print_float4("r11", r11);
+
+		std::cout << "\n--- Instruction 3: x_mov(oT0, \"xyzw\", v5) ---" << std::endl;
+		x_mov(oT0, "xyzw", v[5]);
+		print_float4("oT0", oT0);
+
+		// Continue with the rest of the instructions...
+		std::cout << "\n--- Instruction 4: x_mul(r8, \"xyzw\", v1.x, c(a0.x-88)) ---" << std::endl;
+		const_index = (a0.x - 88) + 96;
+		std::cout << "Constant index: " << const_index << std::endl;
+		print_float4("v1", v[1]);
+		print_float4("constant", vs_consts[const_index]);
+		x_mul(r8, "xyzw", _tof4(v[1].x), vs_consts[const_index]);
+		print_float4("r8", r8);
+
+		// Add the remaining instructions following the same pattern...
+		// Focus on getting to the RSQ instruction
+
+		std::cout << "\n--- Continuing to RSQ instruction ---" << std::endl;
+
+		// Execute all instructions up to the RSQ
+		const_index = (a0.x - 87) + 96;
+		x_mul(r9, "xyzw", _tof4(v[1].x), vs_consts[const_index]);
+
+		const_index = (a0.x - 86) + 96;
+		x_mul(r10, "xyzw", _tof4(v[1].x), vs_consts[const_index]);
+
+		x_arl(a0, 'x', v[2].y);
+		std::cout << "a0.x after second ARL: " << a0.x << std::endl;
+
+		const_index = (a0.x - 88) + 96;
+		x_mad(r8, "xyzw", _tof4(v[1].y), vs_consts[const_index], r8);
+
+		const_index = (a0.x - 87) + 96;
+		x_mad(r9, "xyzw", _tof4(v[1].y), vs_consts[const_index], r9);
+
+		const_index = (a0.x - 86) + 96;
+		x_mad(r10, "xyzw", _tof4(v[1].y), vs_consts[const_index], r10);
+
+		x_dp3(r5, "x", v[3], r8);
+		x_dp3(r5, "y", v[3], r9);
+		x_dp3(r5, "z", v[3], r10);
+		x_dp4(r3, "x", v[0], r8);
+		x_dp3(r5, "w", r5, r5);
+		x_dp4(r3, "y", v[0], r9);
+		x_dp4(r3, "z", v[0], r10);
+
+		std::cout << "\n--- Critical RSQ instruction ---" << std::endl;
+		print_float4("r5 before RSQ", r5);
+		std::cout << "r5.w value that will be used for RSQ: " << r5.w << std::endl;
+
+		x_rsq(r1, "w", r5.w);
+		print_float4("r1 after RSQ", r1);
+
+	}
+	catch (const std::exception& e) {
+		std::cout << "Exception: " << e.what() << std::endl;
+	}
+
+	std::cout << "\n=== Shader execution complete ===" << std::endl;
+
 }

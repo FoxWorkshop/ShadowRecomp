@@ -126,9 +126,9 @@ VS_OUTPUT main(VS_INPUT xIn)
 
 	// Copy variables to output struct
     VS_OUTPUT xOut;
-    
-    
-    
+
+
+
     xOut.oPos = reverseScreenspaceTransform(oPos);
     xOut.oD0 = saturate(oD0);
     xOut.oD1 = saturate(oD1);
@@ -141,6 +141,6 @@ VS_OUTPUT main(VS_INPUT xIn)
     xOut.oT1 = oT1 / xboxTextureScale[1];
     xOut.oT2 = oT2 / xboxTextureScale[2];
     xOut.oT3 = oT3 / xboxTextureScale[3];
-
+    
     return xOut;
 }

@@ -81,8 +81,9 @@ std::filesystem::path FileSystem::ResolvePath(const std::string_view& path, bool
 }
 
 extern uint32_t fakeOffset;
-void logESP(const char* funcName, X86Context ctx, uint8_t* base);
-bool adxTest = false;
+
+extern bool logIndexed;
+bool logMatrixStart = false;
 FileHandle* XCreateFile_r(const char* SourceString, ULONG CreateDisposition, ULONG ShareAccess, int a4, int mode, unsigned int a6, int a7)
 {
 	ULONG CreateDisposition_ = FILE_OPEN;
@@ -123,7 +124,6 @@ FileHandle* XCreateFile_r(const char* SourceString, ULONG CreateDisposition, ULO
 
 	if (filePath.string().find("Op.sfd") != std::string::npos)
 	{
-		adxTest = true;
 
 	}
 	else
@@ -132,6 +132,18 @@ FileHandle* XCreateFile_r(const char* SourceString, ULONG CreateDisposition, ULO
 		{
 			fakeOffset = 0;
 			printf("song loaded\n");
+		}
+
+		if (filePath.string().find("stage") != std::string::npos)
+		{
+			logIndexed = true;
+
+		}
+
+		if (filePath.string().find("stg0100_02.one") != std::string::npos)
+		{
+			logMatrixStart = true;
+
 		}
 	}
 

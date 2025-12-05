@@ -289,7 +289,6 @@ int DebugStageInner; // -1 = disabled, stage index to dump internal args inside 
 float4 main(PS_INPUT input) : SV_Target
 {
 
-
     // Calculate the fog factor
     float fogFactor;
 
@@ -406,6 +405,6 @@ float4 main(PS_INPUT input) : SV_Target
         if (!passTest)
             discard;
     }
-
-    return ctx.CURRENT;
+  
+   return ctx.CURRENT;
 }

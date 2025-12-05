@@ -1,5 +1,6 @@
 #include "video.h"
 #include "vertexdeclaration.h"
+#include "vertexshader.h"
 #include <xxHashMap.h>
 #include <kernel/heap.h>
 #include <algorithm>
@@ -445,10 +446,10 @@ private:
 	}
 
 public:
-	D3DVERTEXELEMENT9* Convert(X_VERTEXATTRIBUTEFORMAT* pXboxDeclaration, bool bIsFixedFunction, HostVertexDeclaration* pCxbxVertexDeclaration)
+	D3DVERTEXELEMENT9* Convert(X_VERTEXATTRIBUTEFORMAT* pXboxDeclaration, bool bIsFixedFunction, HostVertexDeclaration* pVertexDeclaration)
 	{
 		// Get a preprocessed copy of the original Xbox Vertex Declaration
-		pCurrentVertexDeclaration = pCxbxVertexDeclaration;
+		pCurrentVertexDeclaration = pVertexDeclaration;
 
 		IsFixedFunction = bIsFixedFunction;
 
@@ -525,185 +526,14 @@ public:
 
 		// Record which registers are in the vertex declaration
 		for (size_t i = 0; i < RegVIsPresentInDeclaration.size(); i++) {
-			pCxbxVertexDeclaration->vRegisterInDeclaration[i] = RegVIsPresentInDeclaration[i];
+			pVertexDeclaration->vRegisterInDeclaration[i] = RegVIsPresentInDeclaration[i];
 		}
+
+		D3DVERTEXELEMENT9* copyVertex = HostVertexElements;
 
 		return HostVertexElements;
 	}
 };
-
-static X_D3DVertexShader* XboxVertexShaderFromFVF(DWORD xboxFvf) 
-{
-	// Note : FVFs don't tessellate, all slots read from stream zero, therefore
-	// the following zero-initialization of StreamIndex (like all other fields)
-	// is never updated below.
-	X_D3DVertexShader* g_Xbox_VertexShader_ForFVF = (X_D3DVertexShader*)g_userHeap.AllocPhysical<X_D3DVertexShader>();
-
-	// Shorthand, glueing earlier implementation below to global g_Xbox_VertexShader_ForFVF variable :
-	X_VERTEXATTRIBUTEFORMAT& declaration = g_Xbox_VertexShader_ForFVF->VertexAttribute;
-
-	static DWORD X_D3DVSDT_FLOAT[] = { 0, X_D3DVSDT_FLOAT1, X_D3DVSDT_FLOAT2, X_D3DVSDT_FLOAT3, X_D3DVSDT_FLOAT4 };
-
-	static const DWORD InvalidXboxFVFBits = X_D3DFVF_RESERVED0 | X_D3DFVF_RESERVED1 /* probably D3DFVF_PSIZE if detected */
-		| 0x0000F000 // Bits between texture count and the texture formats
-		| 0xFF000000; // All bits above the four alllowed texture formats
-
-
-	// Position & Blendweights
-	int nrPositionFloats = 3;
-	int nrBlendWeights = 0;
-	unsigned offset = 0;
-	DWORD position = (xboxFvf & X_D3DFVF_POSITION_MASK);
-	if (xboxFvf == 0)
-	{
-		std::string pos = std::to_string(position);
-		printf("xboxFvF is null, position is equal %s\n", pos.c_str());
-	}
-
-	switch (position) {
-	case 0: nrPositionFloats = 0; break; 
-	case X_D3DFVF_XYZ: /*nrPositionFloats is set to 3 by default*/ break;
-	case X_D3DFVF_XYZRHW: nrPositionFloats = 4; g_Xbox_VertexShader_ForFVF->Flags |= X_VERTEXSHADER_FLAG_PASSTHROUGH; break;
-	case X_D3DFVF_XYZB1: 
-		nrBlendWeights = 1; 
-		break;
-	case X_D3DFVF_XYZB2: 
-		nrBlendWeights = 2; 
-		break;
-	case X_D3DFVF_XYZB3: 
-		nrBlendWeights = 3;
-		break;
-	case X_D3DFVF_XYZB4: 
-		nrBlendWeights = 4; 
-		break;
-	case X_D3DFVF_POSITION_MASK: /*Keep nrPositionFloats set to 3*/  break;
-		DEFAULT_UNREACHABLE;
-	}
-
-	// Assign vertex element (attribute) slots
-	GuestVertexElement* pSlot;
-
-	// Write Position
-	if (nrPositionFloats > 0) 
-	{
-		pSlot = &declaration.Slots[X_D3DVSDE_POSITION];
-		pSlot->Format = X_D3DVSDT_FLOAT[nrPositionFloats];
-		pSlot->Offset = offset;
-		offset += sizeof(float) * nrPositionFloats;
-		// Write Blend Weights
-		if (nrBlendWeights > 0) 
-		{
-			pSlot = &declaration.Slots[X_D3DVSDE_BLENDWEIGHT];
-			pSlot->Format = X_D3DVSDT_FLOAT[nrBlendWeights];
-			pSlot->Offset = offset;
-			offset += sizeof(float) * nrBlendWeights;
-		}
-	}
-
-	// Write Normal, Diffuse, and Specular
-	if (xboxFvf & X_D3DFVF_NORMAL) 
-	{
-		pSlot = &declaration.Slots[X_D3DVSDE_NORMAL];
-		pSlot->Format = X_D3DVSDT_FLOAT[3];
-		pSlot->Offset = offset;
-		offset += sizeof(float) * 3;
-	}
-
-	if (xboxFvf & X_D3DFVF_DIFFUSE) 
-	{
-		g_Xbox_VertexShader_ForFVF->Flags |= X_VERTEXSHADER_FLAG_HASDIFFUSE;
-		pSlot = &declaration.Slots[X_D3DVSDE_DIFFUSE];
-		pSlot->Format = X_D3DVSDT_D3DCOLOR;
-		pSlot->Offset = offset;
-		offset += sizeof(DWORD) * 1;
-	}
-
-	if (xboxFvf & X_D3DFVF_SPECULAR) 
-	{
-		g_Xbox_VertexShader_ForFVF->Flags |= X_VERTEXSHADER_FLAG_HASSPECULAR;
-		pSlot = &declaration.Slots[X_D3DVSDE_SPECULAR];
-		pSlot->Format = X_D3DVSDT_D3DCOLOR;
-		pSlot->Offset = offset;
-		offset += sizeof(DWORD) * 1;
-	}
-
-	// Write Texture Coordinates
-	int textureCount = (xboxFvf & X_D3DFVF_TEXCOUNT_MASK) >> X_D3DFVF_TEXCOUNT_SHIFT;
-
-	if (textureCount > 4) 
-		textureCount = 4; // Safeguard, since the X_D3DFVF_TEXCOUNT bitfield could contain invalid values (5 up to 15)
-
-	for (int i = 0; i < textureCount; i++) 
-	{
-		auto FVFTextureFormat = (xboxFvf >> X_D3DFVF_TEXCOORDSIZE_SHIFT(i)) & 0x003;
-
-		int numberOfCoordinates = ((FVFTextureFormat + 1) & 3) + 1; // ((input   +1 ) &3 ) +1 ) = output
-
-		assert(numberOfCoordinates > 0);
-
-		pSlot = &declaration.Slots[X_D3DVSDE_TEXCOORD0 + i];
-		pSlot->Format = X_D3DVSDT_FLOAT[numberOfCoordinates];
-		pSlot->Offset = offset;
-		offset += sizeof(float) * numberOfCoordinates;
-		// Update the VertexShader texture Dimensionality field here as well
-		g_Xbox_VertexShader_ForFVF->Dimensionality[i] = numberOfCoordinates;
-	}
-
-	// Make sure all unused slots have a X_D3DVSDT_NONE format
-	for (unsigned i = 0; i < X_VSH_MAX_ATTRIBUTES; i++) 
-	{
-		pSlot = &declaration.Slots[i];
-		if (pSlot->Format == 0) 
-			pSlot->Format = X_D3DVSDT_NONE;
-		
-	}
-
-	// Return the global g_Xbox_VertexShader_ForFVF variable 
-	return g_Xbox_VertexShader_ForFVF;
-}
-
-
-inline boolean VshHandleIsVertexShader(size_t Handle) { return (Handle > 0xFFFF && Handle & X_D3DFVF_RESERVED0) ? TRUE : FALSE; }
-inline boolean VshHandleIsFVF(DWORD Handle) { return !VshHandleIsVertexShader(Handle); }
-inline boolean VshHandleIsPassthrough(DWORD Handle) {
-	return VshHandleIsFVF(Handle) && ((Handle & X_D3DFVF_POSITION_MASK) == X_D3DFVF_XYZRHW);
-}
-inline X_D3DVertexShader* VshHandleToXboxVertexShader(size_t Handle) { return (X_D3DVertexShader*)(Handle & ~X_D3DFVF_RESERVED0); }
-X_D3DVertexShader* GetXboxVertexShaderForHandle(size_t Handle)
-{
-	if (VshHandleIsVertexShader(Handle)) 
-	{
-		return VshHandleToXboxVertexShader(Handle);
-	}
-	else 
-	{
-		return XboxVertexShaderFromFVF(Handle);
-	}
-}
-
-X_D3DVertexShader* GetXboxVertexShader(size_t handle)
-{
-	X_D3DVertexShader* pXboxVertexShader = GetXboxVertexShaderForHandle(handle);
-	return pXboxVertexShader;
-}
-
-static X_VERTEXATTRIBUTEFORMAT* GetVertexShaderAttributes(X_D3DVertexShader* pXboxVertexShader)
-{
-	return &(pXboxVertexShader->VertexAttribute);
-}
-
-X_VERTEXATTRIBUTEFORMAT* GetXboxVertexAttributeFormat(size_t handle)
-{
-
-	X_D3DVertexShader* pXboxVertexShader = GetXboxVertexShader(handle);
-	if (pXboxVertexShader == 0) 
-	{
-		printf("Error getting vertex shader\n");
-		return nullptr;
-	}
-
-	return GetVertexShaderAttributes(pXboxVertexShader);
-}
 
 
 VertexDeclarationKey GetXboxVertexAttributesKey(X_VERTEXATTRIBUTEFORMAT* pXboxVertexAttributeFormat, bool isFixedFunction)
@@ -715,7 +545,9 @@ VertexDeclarationKey GetXboxVertexAttributesKey(X_VERTEXATTRIBUTEFORMAT* pXboxVe
 	return isFixedFunction ? attributeHash : attributeHash ^ 1;
 }
 
-std::unordered_map<VertexDeclarationKey, HostVertexDeclaration*> g_HostVertexDeclarations;
+//std::unordered_map<VertexDeclarationKey, HostVertexDeclaration*> g_HostVertexDeclarations;
+
+static xxHashMap<HostVertexDeclaration*> g_HostVertexDeclarations;
 
 static bool FreeHostVertexDeclaration(HostVertexDeclaration* pHostVertexDeclaration)
 {
@@ -755,17 +587,17 @@ D3DVERTEXELEMENT9* EmuRecompileVshDeclaration
 (
 	X_VERTEXATTRIBUTEFORMAT* pXboxDeclaration,
 	bool                  bIsFixedFunction,
-	HostVertexDeclaration* pCxbxVertexDeclaration
+	HostVertexDeclaration* pVertexDeclaration
 )
 {
 	XboxVertexDeclarationConverter Converter;
 
-	D3DVERTEXELEMENT9* pHostVertexElements = Converter.Convert(pXboxDeclaration, bIsFixedFunction, pCxbxVertexDeclaration);
+	D3DVERTEXELEMENT9* pHostVertexElements = Converter.Convert(pXboxDeclaration, bIsFixedFunction, pVertexDeclaration);
 
 	return pHostVertexElements;
 }
 
-HostVertexDeclaration* HostGetVertexDeclaration(size_t handle, bool isFixedFunction)
+HostVertexDeclaration* HostGetVertexDeclaration(size_t handle, const bool isFixedFunction)
 {
 	if (isFixedFunction)
 		handle = g_memory.MapVirtual((const void*)handle);
@@ -775,7 +607,7 @@ HostVertexDeclaration* HostGetVertexDeclaration(size_t handle, bool isFixedFunct
 	auto XboxVertexAttributesKey = GetXboxVertexAttributesKey(pXboxVertexAttributeFormat, isFixedFunction);
 	HostVertexDeclaration* pHostVertexDeclaration = FetchCachedHostVertexDeclaration(XboxVertexAttributesKey);
 	if (pHostVertexDeclaration == nullptr) 
-	{
+	{	
 		pHostVertexDeclaration = (HostVertexDeclaration*)g_userHeap.AllocPhysical<HostVertexDeclaration>();
 
 		// Convert Xbox vertex attributes towards host Direct3D 9 vertex element
@@ -789,6 +621,21 @@ HostVertexDeclaration* HostGetVertexDeclaration(size_t handle, bool isFixedFunct
 		pHostVertexDeclaration->pHostVertexElements = pRecompiledVertexElements;
 
 		//g_userHeap.Free(pRecompiledVertexElements);
+
+		auto vertexElement_ = pRecompiledVertexElements;
+		printf("Guest Vertex elements logs\n");
+		int index = 0;
+		while (vertexElement_->Stream != 0xFF && vertexElement_->Type != D3DDECLTYPE_UNUSED)
+		{
+			printf("Stream[%d], %d\n", index, vertexElement_->Stream);
+			printf("type[%d], %d\n", index, vertexElement_->Type);
+			printf("Offset[%d], %d\n", index, vertexElement_->Offset);
+			printf("Method[%d], %d\n", index, vertexElement_->Method);
+			printf("Usage[%d], %d\n", index, vertexElement_->Usage);
+			printf("Index[%d], %d\n", index, vertexElement_->UsageIndex);
+			++vertexElement_;
+			++index;
+		}
 
 		// Cache resulting declarations from given inputs
 		pHostVertexDeclaration->Key = XboxVertexAttributesKey;
@@ -853,6 +700,26 @@ GuestVertexDeclaration* CreateVertexDeclarationWithoutAddRef(D3DVERTEXELEMENT9* 
 
 	if (vertexDeclaration == nullptr)
 	{
+		/**auto vertexElement_ = vertexElements;
+		printf("Guest Vertex elements logs\n");
+		int index = 0;
+		while (vertexElement_->Stream != 0xFF && vertexElement_->Type != D3DDECLTYPE_UNUSED)
+		{
+			if (vertexElement_->Stream == 1)
+			{
+				printf("WAIT\n");
+			}
+
+			printf("Stream[%d], %d\n", index, vertexElement_->Stream);
+			printf("type[%d], %d\n", index, vertexElement_->Type);
+			printf("Offset[%d], %d\n", index, vertexElement_->Offset);
+			printf("Method[%d], %d\n", index, vertexElement_->Method);
+			printf("Usage[%d], %d\n", index, vertexElement_->Usage);
+			printf("Index[%d], %d\n", index, vertexElement_->UsageIndex);
+			++vertexElement_;
+			++index;
+		}*/
+
 
 		vertexDeclaration = g_userHeap.AllocPhysical<GuestVertexDeclaration>(ResourceType::VertexDeclaration);
 		vertexDeclaration->hash = hash;

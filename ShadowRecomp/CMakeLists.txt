@@ -91,6 +91,7 @@ set(SHADOW_RECOMP_CPU_CXX_SOURCES
 
 set(SHADOW_RECOMP_GPU_CXX_SOURCES
     "gpu/video.cpp"
+    "gpu/vertexshader.cpp"
     "gpu/vertexdeclaration.cpp"
     "gpu/swizzle.cpp"
     "gpu/FixedFunction.cpp"
@@ -208,7 +209,7 @@ if (SHADOW_RECOMP_D3D12)
     )
     
     find_file(DIRECTX_DXIL_LIBRARY "dxil.dll")
-    file(COPY ${DIRECTX_DXIL_LIBRARY} DESTINATION ${CMAKE_CURRENT_BINARY_DIR})
+#    file(COPY ${DIRECTX_DXIL_LIBRARY} DESTINATION ${CMAKE_CURRENT_BINARY_DIR})
 
     target_link_libraries(ShadowRecomp PRIVATE
         Microsoft::DirectX-Headers 
