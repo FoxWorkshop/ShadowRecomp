@@ -2,8 +2,9 @@
 #include <cpu/x86_context.h>
 #include <cpu/guest_thread.h>
 #include "io/file_system.h"
-#include "gpu/video.h"
+#include <gpu/video.h>
 #include "function.h"
+#include <gpu/nv2a.h>
 
 #include "xbox_types.h"
 #include "xbox.h"
@@ -1607,26 +1608,7 @@ static uint64_t get_now_us()
 	return elapsed.count();
 }
 
-typedef struct NV2AState {
-	void(*vblank_cb)(void*, X86Context*);
-	uint64_t vblank_last;
 
-	bool exiting;
-
-	struct {
-		uint32_t pending_interrupts;
-		uint32_t enabled_interrupts;
-		uint32_t regs[0x001000]; 
-	} pmc;
-
-	struct {
-		uint32_t pending_interrupts;
-		uint32_t enabled_interrupts;
-		uint32_t start;
-		uint32_t regs[0x001000];
-	} pcrtc;
-
-} NV2AState;
 
 std::unique_ptr<NV2AState> m_nv2a_state;
 uint8_t* g_nv2aPtr = nullptr;

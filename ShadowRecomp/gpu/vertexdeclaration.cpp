@@ -599,9 +599,6 @@ D3DVERTEXELEMENT9* EmuRecompileVshDeclaration
 
 HostVertexDeclaration* HostGetVertexDeclaration(size_t handle, const bool isFixedFunction)
 {
-	if (isFixedFunction)
-		handle = g_memory.MapVirtual((const void*)handle);
-
 	X_VERTEXATTRIBUTEFORMAT* pXboxVertexAttributeFormat = GetXboxVertexAttributeFormat(handle);
 
 	auto XboxVertexAttributesKey = GetXboxVertexAttributesKey(pXboxVertexAttributeFormat, isFixedFunction);
@@ -622,7 +619,7 @@ HostVertexDeclaration* HostGetVertexDeclaration(size_t handle, const bool isFixe
 
 		//g_userHeap.Free(pRecompiledVertexElements);
 
-		auto vertexElement_ = pRecompiledVertexElements;
+	/*	auto vertexElement_ = pRecompiledVertexElements;
 		printf("Guest Vertex elements logs\n");
 		int index = 0;
 		while (vertexElement_->Stream != 0xFF && vertexElement_->Type != D3DDECLTYPE_UNUSED)
@@ -635,7 +632,7 @@ HostVertexDeclaration* HostGetVertexDeclaration(size_t handle, const bool isFixe
 			printf("Index[%d], %d\n", index, vertexElement_->UsageIndex);
 			++vertexElement_;
 			++index;
-		}
+		}*/
 
 		// Cache resulting declarations from given inputs
 		pHostVertexDeclaration->Key = XboxVertexAttributesKey;
@@ -700,27 +697,6 @@ GuestVertexDeclaration* CreateVertexDeclarationWithoutAddRef(D3DVERTEXELEMENT9* 
 
 	if (vertexDeclaration == nullptr)
 	{
-		/**auto vertexElement_ = vertexElements;
-		printf("Guest Vertex elements logs\n");
-		int index = 0;
-		while (vertexElement_->Stream != 0xFF && vertexElement_->Type != D3DDECLTYPE_UNUSED)
-		{
-			if (vertexElement_->Stream == 1)
-			{
-				printf("WAIT\n");
-			}
-
-			printf("Stream[%d], %d\n", index, vertexElement_->Stream);
-			printf("type[%d], %d\n", index, vertexElement_->Type);
-			printf("Offset[%d], %d\n", index, vertexElement_->Offset);
-			printf("Method[%d], %d\n", index, vertexElement_->Method);
-			printf("Usage[%d], %d\n", index, vertexElement_->Usage);
-			printf("Index[%d], %d\n", index, vertexElement_->UsageIndex);
-			++vertexElement_;
-			++index;
-		}*/
-
-
 		vertexDeclaration = g_userHeap.AllocPhysical<GuestVertexDeclaration>(ResourceType::VertexDeclaration);
 		vertexDeclaration->hash = hash;
 

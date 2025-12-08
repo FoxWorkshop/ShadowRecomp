@@ -39,7 +39,7 @@ void SetVertexShaderSlots(DWORD* pTokens, DWORD Address, DWORD NrInstructions)
 
 static X_D3DVertexShader g_Xbox_VertexShader_ForFVF = {};
 
-static X_D3DVertexShader* XboxVertexShaderFromFVF(DWORD xboxFvf)
+static X_D3DVertexShader* XboxVertexShaderFromFVF(size_t xboxFvf)
 {
 	// Note : FVFs don't tessellate, all slots read from stream zero, therefore
 	// the following zero-initialization of StreamIndex (like all other fields)
@@ -170,9 +170,9 @@ static X_D3DVertexShader* XboxVertexShaderFromFVF(DWORD xboxFvf)
 }
 
 
-inline boolean VshHandleIsVertexShader(size_t Handle) { return (Handle > 0xFFFF && Handle & X_D3DFVF_RESERVED0) ? TRUE : FALSE; }
-inline boolean VshHandleIsFVF(DWORD Handle) { return !VshHandleIsVertexShader(Handle); }
-inline boolean VshHandleIsPassthrough(DWORD Handle) {
+inline boolean VshHandleIsVertexShader(size_t Handle) { return (Handle & X_D3DFVF_RESERVED0) ? TRUE : FALSE; }
+inline boolean VshHandleIsFVF(size_t Handle) { return !VshHandleIsVertexShader(Handle); }
+inline boolean VshHandleIsPassthrough(size_t Handle) {
 	return VshHandleIsFVF(Handle) && ((Handle & X_D3DFVF_POSITION_MASK) == X_D3DFVF_XYZRHW);
 }
 
@@ -389,6 +389,35 @@ namespace XboxVertexShaderDecoder
 	}
 
 };
+
+void SetVertexShaderPassthroughProgram()
+{
+	static DWORD XboxShaderBinaryPassthrough[] = {
+		0, 0x0020001B, 0x0836106C, 0x2F100FF8,
+		0, 0x0420061B, 0x083613FC, 0x5011F818,
+		0, 0x002008FF, 0x0836106C, 0x2070F828,
+		0, 0x0240081B, 0x1436186C, 0x2F20F824,
+		0, 0x0060201B, 0x2436106C, 0x3070F800,
+		0, 0x00200200, 0x0836106C, 0x2070F830,
+		0, 0x00200E1B, 0x0836106C, 0x2070F838,
+		0, 0x0020101B, 0x0836106C, 0x2070F840,
+		0, 0x0020121B, 0x0836106C, 0x2070F848,
+		0, 0x0020141B, 0x0836106C, 0x2070F850,
+		0, 0x0020161B, 0x0836106C, 0x2070F858,
+		0, 0x0020181B, 0x0836106C, 0x2070F861 // FLD_FINAL is set here!
+	};
+
+
+	SetVertexShaderSlots(&XboxShaderBinaryPassthrough[0], 0, sizeof(XboxShaderBinaryPassthrough) / X_VSH_INSTRUCTION_SIZE_BYTES);
+
+	// Passthrough programs require scale and offset to be set in constants zero and one (both minus 96)
+	// (Note, these are different from GetMultiSampleOffsetAndScale / GetViewPortOffsetAndScale)
+	float scale[4] = { 1.0f, 1.0f, 1.0f, 1.0f };
+	float offset[4] = { 0.0f, 0.0f, 0.0f, 0.0f };
+
+	CopyVertexShaderConstant(0, (DWORD*)scale, 1);
+	CopyVertexShaderConstant(1, (DWORD*)offset, 1);
+}
 
 size_t GetVshFunctionSize(const uint32_t* pXboxFunction) 
 {

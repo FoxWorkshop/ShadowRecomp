@@ -6,6 +6,7 @@
 #define D3DCLEAR_ZBUFFER 0x10
 
 constexpr DWORD X_D3DTS_STAGECOUNT = 4; // Dxbx addition
+extern uint32_t g_VertexShader_Handle;
 
 // Xbox vertex shader counts
 #define X_VSH_MAX_ATTRIBUTES          16
@@ -1047,6 +1048,8 @@ typedef enum _D3DDECLMETHOD
 #define X_VERTEXSHADER_FLAG_HASBACKDIFFUSE  (1 << 12) // = 0x1000 Corresponds to X_D3DUSAGE_PERSISTENTBACKDIFFUSE
 #define X_VERTEXSHADER_FLAG_HASBACKSPECULAR (1 << 13) // = 0x2000 Corresponds to X_D3DUSAGE_PERSISTENTBACKSPECULAR
 
+static uint32_t  g_X_VERTEXSHADER_FLAG_PROGRAM = X_VERTEXSHADER_FLAG_PROGRAM;
+
 #define X_D3DFVF_TEXCOORDSIZE_SHIFT(Index) ((Index) * 2 + 16)
 
 
@@ -1183,3 +1186,6 @@ const uint16_t HOST_D3DVS_CONSTREG_VREGDEFAULTS_SIZE = 16u;
 
 #define X_D3DSCM_RESERVED_CONSTANT_SCALE_CORRECTED (X_D3DSCM_RESERVED_CONSTANT_SCALE + X_D3DSCM_CORRECTION)
 #define X_D3DSCM_RESERVED_CONSTANT_OFFSET_CORRECTED (X_D3DSCM_RESERVED_CONSTANT_OFFSET + X_D3DSCM_CORRECTION)
+
+void DrawPrimitiveUP(X_D3DPRIMITIVETYPE PrimitiveType, uint32_t VertexCount, void* pVertexStreamZeroData, uint32_t VertexStreamZeroStride);
+void DrawIndexedPrimitive(X_D3DPRIMITIVETYPE PrimitiveType, uint32_t VertexCount, int16_t* pIndexData);

@@ -54,3 +54,7 @@ void UpdateShaderCacheEntryNew(GuestShader* shader, const uint64_t key);
 void SetVertexShaderSlots(DWORD* pTokens, DWORD Address, DWORD NrInstructions);
 inline X_D3DVertexShader* VshHandleToXboxVertexShader(size_t Handle) { return (X_D3DVertexShader*)(Handle & ~X_D3DFVF_RESERVED0); }
 DWORD* GetVertexShaderTokens(X_D3DVertexShader* pXboxVertexShader, DWORD* pNrTokens);
+void SetVertexShaderPassthroughProgram();
+
+extern VertexShaderMode g_Xbox_VertexShaderMode;
+extern uint32_t g_VertexShader_Handle;

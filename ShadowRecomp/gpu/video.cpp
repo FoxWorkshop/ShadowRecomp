@@ -7,6 +7,7 @@
 #include "vertexdeclaration.h"
 #include "vertexshader.h"
 #include "nv2a.h"
+#include "pushbuffer.h"
 #include "swizzle.h"
 #include "FixedFunction.h"
 #include "renderstate.h"
@@ -258,6 +259,9 @@ GuestSurface* GetRenderTarget()
 {
 	return g_renderTarget;
 }
+
+uint32_t g_VertexShader_Handle = 0;
+VertexShaderMode g_Xbox_VertexShaderMode = VertexShaderMode::FixedFunction;
 
 //constants are variable send to the GPU
 static uint32_t g_vertexShaderConstants[HOST_D3DVS_CONSTREG_FULL * 4];
@@ -2495,20 +2499,22 @@ X86_FUNC_IMPL(__imp__sub_3D1BA0);
 	return 0;
 }*/
 
-bool lastCallOk = false;
-bool logVB = false;
+
+
 void UpdateHostViewPortOffsetAndScaleConstants();
 X86_FUNC_IMPL(__imp__sub_3D2280);
-uint32_t lastHandleAddr = 0;
 
 void UpdateVertexDeclaration(uint32_t Handle)
 {
 	size_t host_handle = (size_t)g_memory.Translate(Handle);
 
-	bool isFixed = false;
-	if ((host_handle & 1) == 0 && Handle < 0xFFFF) //FVF stuff
+	DWORD vshFlags = GetXboxVertexShaderForHandle(host_handle)->Flags;
+	RenderCommand cmd;
+	bool isFixed = true;
+
+	if (vshFlags & g_X_VERTEXSHADER_FLAG_PROGRAM)
 	{
-		isFixed = true;
+		isFixed = false;
 	}
 	//as mentioned above, there is no separate function that create vertex declaration, so we have to manually extract and handle them.
 	//we handle vertex declaration immediately to avoid a race issue.
@@ -2527,11 +2533,8 @@ void UpdateVertexShader(uint32_t Handle)
 	DWORD vshFlags = GetXboxVertexShaderForHandle(host_handle)->Flags;
 	RenderCommand cmd;
 	bool isFixed = false;
-	if ((host_handle & 1) == 0 && Handle < 0xFFFF) //FVF stuff
-	{
-		isFixed = true;
-	}
-	else
+
+	if (vshFlags & g_X_VERTEXSHADER_FLAG_PROGRAM)
 	{
 		auto shader = CreateShader(ResourceType::VertexShader); //g_VertexShaderMap[Handle];
 		if (shader == nullptr)
@@ -2543,7 +2546,28 @@ void UpdateVertexShader(uint32_t Handle)
 			cmd.setVertexShader.shader = shader;
 		}
 	}
+	else
+	{
+		if (Handle > 4)
+		{
+			printf("");
+		}
+		g_VertexShader_Handle = Handle;
+		// Switch to passthrough program, if so required
+		if (vshFlags & X_VERTEXSHADER_FLAG_PASSTHROUGH) 
+		{
+			SetVertexShaderPassthroughProgram(); //todo
+			g_Xbox_VertexShaderMode = VertexShaderMode::Passthrough;
+		}
+		else {
 
+			g_Xbox_VertexShaderMode = VertexShaderMode::FixedFunction;
+
+		}
+	}
+	
+
+	isFixed = g_Xbox_VertexShaderMode == VertexShaderMode::FixedFunction;
 	cmd.type = RenderCommandType::SetVertexShader;
 	cmd.setVertexShader.handle = Handle;
 
@@ -2565,7 +2589,6 @@ void UpdateVertexShader(uint32_t Handle)
 // Since DX12 only support Shader, we will use a uber shader to emulate FVF stuff, see FixedFunctionVertexShader.hlsl
 static void SetVertexShader(uint32_t Handle)
 {
-	lastHandleAddr = Handle;
 
 	//let original code run first so it will call SelectVertexShader function
 	auto ctx = GetX86Context();
@@ -2599,6 +2622,8 @@ static void ProcSetVertexShader(const RenderCommand& cmd)
 void SelectVertexShader(DWORD Handle, DWORD Address)
 {
 	g_Xbox_VertexShader_FunctionSlots_StartAddress = Address;
+	g_Xbox_VertexShaderMode = VertexShaderMode::ShaderProgram;
+	g_VertexShader_Handle = Handle;
 	UpdateVertexShader(Handle);
 }
 
@@ -4315,464 +4340,6 @@ static void SetDefaultViewport(GuestDevice* device, GuestSurface* surface)
 }
 
 
-void sub_3D0040_r(X86Context& ctx, uint8_t* base)
-{
-	// sub esp, 0x0C
-	auto temp_3D0040_U32_OLD = ctx.esp.u32;
-	auto temp_3D0040_U32_SRC = 12;
-	ctx.esp.u32 = temp_3D0040_U32_OLD - temp_3D0040_U32_SRC;
-	ctx.eflags.update_flags_sub_U32(temp_3D0040_U32_OLD, temp_3D0040_U32_SRC, ctx.esp.u32);
-	// push ebx
-	X86_PUSH(ctx, base, ctx.ebx.u32);
-	// push ebp
-	X86_PUSH(ctx, base, ctx.ebp.u32);
-	// mov ebp, [esp+0x18]
-	ctx.ebp.u32 = X86_LOAD_U32(ctx.esp.u32 + 24);
-	// push esi
-	X86_PUSH(ctx, base, ctx.esi.u32);
-	// xor esi, esi
-	ctx.esi.u32 ^= ctx.esi.u32;
-	ctx.eflags.update_flags_logic(ctx.esi.u32);
-	// cmp ebp, esi
-	ctx.eflags.update_compare_flags_U32(ctx.ebp.u32, ctx.esi.u32);
-	// push edi
-	X86_PUSH(ctx, base, ctx.edi.u32);
-	// mov edi, [0x003E0A18]
-	ctx.edi.u32 = X86_LOAD_U32(4065816);
-	// jnz 0x003D0063
-	if ((ctx.eflags.value & X86EFlags::ZF) == 0) goto loc_3D0063;
-	// mov eax, [edi+0x1A04]
-	ctx.eax.u32 = X86_LOAD_U32(ctx.edi.u32 + 6660);
-	// mov [esp+0x20], eax
-	X86_STORE_U32(ctx.esp.u32 + 32, ctx.eax.u32);
-	// mov ebp, eax
-	ctx.ebp.u32 = ctx.eax.u32;
-loc_3D0063:
-	// push ebp
-	X86_PUSH(ctx, base, ctx.ebp.u32);
-	// call 0x003D5E90
-	ctx.esp.u32 -= 0x4; //Adjust stack pointer for call instruction
-	sub_3D5E90(ctx, base);
-	// mov eax, [edi+0x1A04]
-	ctx.eax.u32 = X86_LOAD_U32(ctx.edi.u32 + 6660);
-	// cmp eax, esi
-	ctx.eflags.update_compare_flags_U32(ctx.eax.u32, ctx.esi.u32);
-	// jz 0x003D008E
-	if ((ctx.eflags.value & X86EFlags::ZF) != 0) goto loc_3D008E;
-	// mov ecx, [eax+0x14]
-	ctx.ecx.u32 = X86_LOAD_U32(ctx.eax.u32 + 20);
-	// cmp ecx, esi
-	ctx.eflags.update_compare_flags_U32(ctx.ecx.u32, ctx.esi.u32);
-	// jz 0x003D007C
-	if ((ctx.eflags.value & X86EFlags::ZF) != 0) goto loc_3D007C;
-	// mov eax, ecx
-	ctx.eax.u32 = ctx.ecx.u32;
-loc_3D007C:
-	// mov ecx, [edi+0x2C]
-	ctx.ecx.u32 = X86_LOAD_U32(ctx.edi.u32 + 44);
-	// mov [eax+0x08], ecx
-	X86_STORE_U32(ctx.eax.u32 + 8, ctx.ecx.u32);
-	// mov edx, [edi+0x1A04]
-	ctx.edx.u32 = X86_LOAD_U32(ctx.edi.u32 + 6660);
-	// push edx
-	X86_PUSH(ctx, base, ctx.edx.u32);
-	// call 0x003D5F70
-	ctx.esp.u32 -= 0x4; //Adjust stack pointer for call instruction
-	sub_3D5F70(ctx, base);
-loc_3D008E:
-	// mov eax, [edi+0x1A08]
-	ctx.eax.u32 = X86_LOAD_U32(ctx.edi.u32 + 6664);
-	// cmp eax, esi
-	ctx.eflags.update_compare_flags_U32(ctx.eax.u32, ctx.esi.u32);
-	// mov [edi+0x1A04], ebp
-	X86_STORE_U32(ctx.edi.u32 + 6660, ctx.ebp.u32);
-	// jz 0x003D00B9
-	if ((ctx.eflags.value & X86EFlags::ZF) != 0) goto loc_3D00B9;
-	// mov ecx, [eax+0x14]
-	ctx.ecx.u32 = X86_LOAD_U32(ctx.eax.u32 + 20);
-	// cmp ecx, esi
-	ctx.eflags.update_compare_flags_U32(ctx.ecx.u32, ctx.esi.u32);
-	// jz 0x003D00A7
-	if ((ctx.eflags.value & X86EFlags::ZF) != 0) goto loc_3D00A7;
-	// mov eax, ecx
-	ctx.eax.u32 = ctx.ecx.u32;
-loc_3D00A7:
-	// mov ecx, [edi+0x2C]
-	ctx.ecx.u32 = X86_LOAD_U32(ctx.edi.u32 + 44);
-	// mov [eax+0x08], ecx
-	X86_STORE_U32(ctx.eax.u32 + 8, ctx.ecx.u32);
-	// mov edx, [edi+0x1A08]
-	ctx.edx.u32 = X86_LOAD_U32(ctx.edi.u32 + 6664);
-	// push edx
-	X86_PUSH(ctx, base, ctx.edx.u32);
-	// call 0x003D5F70
-	ctx.esp.u32 -= 0x4; //Adjust stack pointer for call instruction
-	sub_3D5F70(ctx, base);
-loc_3D00B9:
-	// mov ebx, [esp+0x24]
-	ctx.ebx.u32 = X86_LOAD_U32(ctx.esp.u32 + 36);
-	// cmp ebx, esi
-	ctx.eflags.update_compare_flags_U32(ctx.ebx.u32, ctx.esi.u32);
-	// mov [edi+0x1A08], ebx
-	X86_STORE_U32(ctx.edi.u32 + 6664, ctx.ebx.u32);
-	// jz 0x003D00E6
-	if ((ctx.eflags.value & X86EFlags::ZF) != 0) goto loc_3D00E6;
-	// push ebx
-	X86_PUSH(ctx, base, ctx.ebx.u32);
-	// call 0x003D5E90
-	ctx.esp.u32 -= 0x4; //Adjust stack pointer for call instruction
-	sub_3D5E90(ctx, base);
-	// lea eax, [edi+0x948]
-	ctx.eax.u32 = ctx.edi.u32 + 2376;
-	// push eax
-	X86_PUSH(ctx, base, ctx.eax.u32);
-	// push ebx
-	X86_PUSH(ctx, base, ctx.ebx.u32);
-	// call 0x003D6370
-	ctx.esp.u32 -= 0x4; //Adjust stack pointer for call instruction
-	sub_3D6370(ctx, base);
-	// push ebx
-	X86_PUSH(ctx, base, ctx.ebx.u32);
-	// call 0x003CFF50
-	ctx.esp.u32 -= 0x4; //Adjust stack pointer for call instruction
-	sub_3CFF50(ctx, base);
-	// mov [edi+0x94C], eax
-	X86_STORE_U32(ctx.edi.u32 + 2380, ctx.eax.u32);
-loc_3D00E6:
-	// mov eax, [edi]
-	ctx.eax.u32 = X86_LOAD_U32(ctx.edi.u32);
-	// cmp eax, [edi+0x04]
-	ctx.eflags.update_compare_flags_U32(ctx.eax.u32, X86_LOAD_U32(ctx.edi.u32 + 4));
-	// jb 0x003D00F2
-	if ((ctx.eflags.value & X86EFlags::CF) != 0) goto loc_3D00F2;
-	// call 0x003D4C00
-	ctx.esp.u32 -= 0x4; //Adjust stack pointer for call instruction
-	sub_3D4C00(ctx, base);
-loc_3D00F2:
-	// cmp ebx, esi
-	ctx.eflags.update_compare_flags_U32(ctx.ebx.u32, ctx.esi.u32);
-	// mov ecx, [ebp+0x04]
-	ctx.ecx.u32 = X86_LOAD_U32(ctx.ebp.u32 + 4);
-	// mov edx, eax
-	ctx.edx.u32 = ctx.eax.u32;
-	// mov [esp+0x18], ecx
-	X86_STORE_U32(ctx.esp.u32 + 24, ctx.ecx.u32);
-	// jz 0x003D0108
-	if ((ctx.eflags.value & X86EFlags::ZF) != 0) goto loc_3D0108;
-	// mov eax, [ebx+0x04]
-	ctx.eax.u32 = X86_LOAD_U32(ctx.ebx.u32 + 4);
-	// mov [esp+0x10], eax
-	X86_STORE_U32(ctx.esp.u32 + 16, ctx.eax.u32);
-	// jmp 0x003D010C
-	goto loc_3D010C;
-loc_3D0108:
-	// mov [esp+0x10], esi
-	X86_STORE_U32(ctx.esp.u32 + 16, ctx.esi.u32);
-loc_3D010C:
-	// mov dword ptr [esp+0x14], 0x02
-	X86_STORE_U32(ctx.esp.u32 + 20, 0x2u);
-	// mov ebp, 0x40100
-	ctx.ebp.u32 = 0x40100u;
-	// mov ebx, 0x40110
-	ctx.ebx.u32 = 0x40110u;
-	// mov edi, edi
-	ctx.edi.u32 = ctx.edi.u32;
-loc_3D0120:
-	// mov eax, [esp+0x20]
-	ctx.eax.u32 = X86_LOAD_U32(ctx.esp.u32 + 32);
-	// mov [edx], ebp
-	X86_STORE_U32(ctx.edx.u32, ctx.ebp.u32);
-	// mov [edx+0x04], esi
-	X86_STORE_U32(ctx.edx.u32 + 4, ctx.esi.u32);
-	// cmp [eax+0x10], esi
-	ctx.eflags.update_compare_flags_U32(X86_LOAD_U32(ctx.eax.u32 + 16), ctx.esi.u32);
-	// jnz 0x003D017D
-	if ((ctx.eflags.value & X86EFlags::ZF) == 0) goto loc_3D017D;
-	// mov ecx, [eax+0x0C]
-	ctx.ecx.u32 = X86_LOAD_U32(ctx.eax.u32 + 12);
-	// shr ecx, 0x14
-	auto temp_3998001 = ctx.ecx.u32;
-	ctx.ecx.u32 >>= 20;
-	ctx.eflags.update_flags_shr(temp_3998001, 20, ctx.ecx.u32);
-	// and ecx, 0x0F
-	ctx.ecx.u32 &= 0xf;
-	ctx.eflags.update_flags_logic(ctx.ecx.u32);
-	// mov eax, 0x01
-	ctx.eax.u32 = 0x1u;
-	// shl eax, cl
-	auto temp_3998012 = ctx.eax.u32;
-	ctx.eax.u32 <<= ctx.ecx.u8_lo;
-	ctx.eflags.update_flags_shl(temp_3998012, ctx.ecx.u8_lo, ctx.eax.u32);
-	// mov ecx, [esp+0x20]
-	ctx.ecx.u32 = X86_LOAD_U32(ctx.esp.u32 + 32);
-	// movzx ecx, byte ptr [ecx+0x0D]
-	ctx.ecx.u32 = (uint32_t)X86_LOAD_U8(ctx.ecx.u32 + 13);
-	// cmp ecx, 0x0C
-	ctx.eflags.update_compare_flags_U32(ctx.ecx.u32, 0xCu);
-	// jz 0x003D0178
-	if ((ctx.eflags.value & X86EFlags::ZF) != 0) goto loc_3D0178;
-	// cmp ecx, 0x0D
-	ctx.eflags.update_compare_flags_U32(ctx.ecx.u32, 0xDu);
-	// jle 0x003D015E
-	if (((ctx.eflags.value & X86EFlags::ZF) != 0) || (((ctx.eflags.value & X86EFlags::SF) != 0) != ((ctx.eflags.value & X86EFlags::OF) != 0))) goto loc_3D015E;
-	// cmp ecx, 0x0F
-	ctx.eflags.update_compare_flags_U32(ctx.ecx.u32, 0xFu);
-	// jnle 0x003D015E
-	if (((ctx.eflags.value & X86EFlags::ZF) == 0) && (((ctx.eflags.value & X86EFlags::SF) != 0) == ((ctx.eflags.value & X86EFlags::OF) != 0))) goto loc_3D015E;
-	// lea ecx, [eax*4]
-	ctx.ecx.u32 = ctx.eax.u32 * 4;
-	// jmp 0x003D0185
-	goto loc_3D0185;
-loc_3D015E:
-	// mov ecx, [esp+0x20]
-	ctx.ecx.u32 = X86_LOAD_U32(ctx.esp.u32 + 32);
-	// movzx ecx, byte ptr [ecx+0x0D]
-	ctx.ecx.u32 = (uint32_t)X86_LOAD_U8(ctx.ecx.u32 + 13);
-	// movzx ecx, byte ptr [ecx+0x3DE5E0]
-	ctx.ecx.u32 = (uint32_t)X86_LOAD_U8(ctx.ecx.u32 + 4056544);
-	// and ecx, 0x3C
-	ctx.ecx.u32 &= 0x3c;
-	ctx.eflags.update_flags_logic(ctx.ecx.u32);
-	// imul ecx, eax
-	int64_t imul_result_3D0170 = static_cast<int64_t>(static_cast<int32_t>(ctx.ecx.u32)) * static_cast<int64_t>(static_cast<int32_t>(ctx.eax.u32));
-	ctx.ecx.u32 = static_cast<uint32_t>(imul_result_3D0170);
-	ctx.eflags.value = (ctx.eflags.value & ~(X86EFlags::CF | X86EFlags::OF)) | ((imul_result_3D0170 < INT32_MIN || imul_result_3D0170 > INT32_MAX) ? (X86EFlags::CF | X86EFlags::OF) : 0);
-	// shr ecx, 0x03
-	auto temp_3998067 = ctx.ecx.u32;
-	ctx.ecx.u32 >>= 3;
-	ctx.eflags.update_flags_shr(temp_3998067, 3, ctx.ecx.u32);
-	// jmp 0x003D0185
-	goto loc_3D0185;
-loc_3D0178:
-	// lea ecx, [eax+eax*1]
-	ctx.ecx.u32 = ctx.eax.u32 + ctx.eax.u32;
-	// jmp 0x003D0185
-	goto loc_3D0185;
-loc_3D017D:
-	// movzx ecx, byte ptr [eax+0x13]
-	ctx.ecx.u32 = (uint32_t)X86_LOAD_U8(ctx.eax.u32 + 19);
-	// inc ecx
-	auto temp_3D0181_U32 = ctx.ecx.u32;
-	ctx.ecx.u32++;
-	ctx.eflags.update_flags_inc_U32(temp_3D0181_U32, ctx.ecx.u32);
-	// shl ecx, 0x06
-	auto temp_3998082 = ctx.ecx.u32;
-	ctx.ecx.u32 <<= 6;
-	ctx.eflags.update_flags_shl(temp_3998082, 6, ctx.ecx.u32);
-loc_3D0185:
-	// mov eax, [edi+0x94C]
-	ctx.eax.u32 = X86_LOAD_U32(ctx.edi.u32 + 2380);
-	// mov dword ptr [edx+0x08], 0x4020C
-	X86_STORE_U32(ctx.edx.u32 + 8, 0x4020Cu);
-	// shl eax, 0x10
-	auto temp_3998098 = ctx.eax.u32;
-	ctx.eax.u32 <<= 16;
-	ctx.eflags.update_flags_shl(temp_3998098, 16, ctx.eax.u32);
-	// and ecx, 0xFFFF
-	ctx.ecx.u32 &= 0xffff;
-	ctx.eflags.update_flags_logic(ctx.ecx.u32);
-	// or eax, ecx
-	ctx.eax.u32 |= ctx.ecx.u32;
-	ctx.eflags.update_flags_logic(ctx.eax.u32);
-	// mov [edx+0x0C], eax
-	X86_STORE_U32(ctx.edx.u32 + 12, ctx.eax.u32);
-	// mov eax, [esp+0x18]
-	ctx.eax.u32 = X86_LOAD_U32(ctx.esp.u32 + 24);
-	// mov [edx+0x10], ebp
-	X86_STORE_U32(ctx.edx.u32 + 16, ctx.ebp.u32);
-	// mov [edx+0x14], esi
-	X86_STORE_U32(ctx.edx.u32 + 20, ctx.esi.u32);
-	// mov [edx+0x18], ebx
-	X86_STORE_U32(ctx.edx.u32 + 24, ctx.ebx.u32);
-	// mov [edx+0x1C], esi
-	X86_STORE_U32(ctx.edx.u32 + 28, ctx.esi.u32);
-	// mov ecx, [esp+0x10]
-	ctx.ecx.u32 = X86_LOAD_U32(ctx.esp.u32 + 16);
-	// mov [edx+0x20], ebp
-	X86_STORE_U32(ctx.edx.u32 + 32, ctx.ebp.u32);
-	// mov [edx+0x24], esi
-	X86_STORE_U32(ctx.edx.u32 + 36, ctx.esi.u32);
-	// add edx, 0x20
-	auto temp_3D01BA_U32_OLD = ctx.edx.u32;
-	auto temp_3D01BA_U32_SRC = 32;
-	ctx.edx.u32 = temp_3D01BA_U32_OLD + temp_3D01BA_U32_SRC;
-	ctx.eflags.update_flags_add_U32(temp_3D01BA_U32_OLD, temp_3D01BA_U32_SRC, ctx.edx.u32);
-	// mov dword ptr [edx+0x08], 0x40210
-	X86_STORE_U32(ctx.edx.u32 + 8, 0x40210u);
-	// mov [edx+0x0C], eax
-	X86_STORE_U32(ctx.edx.u32 + 12, ctx.eax.u32);
-	// mov eax, [esp+0x14]
-	ctx.eax.u32 = X86_LOAD_U32(ctx.esp.u32 + 20);
-	// mov [edx+0x10], ebp
-	X86_STORE_U32(ctx.edx.u32 + 16, ctx.ebp.u32);
-	// mov [edx+0x14], esi
-	X86_STORE_U32(ctx.edx.u32 + 20, ctx.esi.u32);
-	// mov [edx+0x18], ebx
-	X86_STORE_U32(ctx.edx.u32 + 24, ctx.ebx.u32);
-	// mov [edx+0x1C], esi
-	X86_STORE_U32(ctx.edx.u32 + 28, ctx.esi.u32);
-	// add edx, 0x20
-	auto temp_3D01D7_U32_OLD = ctx.edx.u32;
-	auto temp_3D01D7_U32_SRC = 32;
-	ctx.edx.u32 = temp_3D01D7_U32_OLD + temp_3D01D7_U32_SRC;
-	ctx.eflags.update_flags_add_U32(temp_3D01D7_U32_OLD, temp_3D01D7_U32_SRC, ctx.edx.u32);
-	// mov [edx], ebp
-	X86_STORE_U32(ctx.edx.u32, ctx.ebp.u32);
-	// mov [edx+0x04], esi
-	X86_STORE_U32(ctx.edx.u32 + 4, ctx.esi.u32);
-	// mov dword ptr [edx+0x08], 0x40214
-	X86_STORE_U32(ctx.edx.u32 + 8, 0x40214u);
-	// mov [edx+0x0C], ecx
-	X86_STORE_U32(ctx.edx.u32 + 12, ctx.ecx.u32);
-	// mov [edx+0x10], ebp
-	X86_STORE_U32(ctx.edx.u32 + 16, ctx.ebp.u32);
-	// mov [edx+0x14], esi
-	X86_STORE_U32(ctx.edx.u32 + 20, ctx.esi.u32);
-	// mov [edx+0x18], ebx
-	X86_STORE_U32(ctx.edx.u32 + 24, ctx.ebx.u32);
-	// mov [edx+0x1C], esi
-	X86_STORE_U32(ctx.edx.u32 + 28, ctx.esi.u32);
-	// add edx, 0x20
-	auto temp_3D01F5_U32_OLD = ctx.edx.u32;
-	auto temp_3D01F5_U32_SRC = 32;
-	ctx.edx.u32 = temp_3D01F5_U32_OLD + temp_3D01F5_U32_SRC;
-	ctx.eflags.update_flags_add_U32(temp_3D01F5_U32_OLD, temp_3D01F5_U32_SRC, ctx.edx.u32);
-	// dec eax
-	auto temp_3D01F8_U32 = ctx.eax.u32;
-	ctx.eax.u32--;
-	ctx.eflags.update_flags_dec_U32(temp_3D01F8_U32, ctx.eax.u32);
-	// mov [esp+0x14], eax
-	X86_STORE_U32(ctx.esp.u32 + 20, ctx.eax.u32);
-	// jnz 0x003D0120
-	if ((ctx.eflags.value & X86EFlags::ZF) == 0) goto loc_3D0120;
-	// mov ecx, edi
-	ctx.ecx.u32 = ctx.edi.u32;
-	// call 0x003D31E0
-	ctx.esp.u32 -= 0x4; //Adjust stack pointer for call instruction
-	sub_3D31E0(ctx, base);
-	// cmp [0x003E09BC], esi
-	ctx.eflags.update_compare_flags_U32(X86_LOAD_U32(4065724), ctx.esi.u32);
-	// jz 0x003D0221
-	if ((ctx.eflags.value & X86EFlags::ZF) != 0) goto loc_3D0221;
-	// cmp [edi+0x1A08], esi
-	ctx.eflags.update_compare_flags_U32(X86_LOAD_U32(ctx.edi.u32 + 6664), ctx.esi.u32);
-	// jz 0x003D0221
-	if ((ctx.eflags.value & X86EFlags::ZF) != 0) goto loc_3D0221;
-	// mov ecx, 0x01
-	ctx.ecx.u32 = 0x1u;
-	// jmp 0x003D0223
-	goto loc_3D0223;
-loc_3D0221:
-	// xor ecx, ecx
-	ctx.ecx.u32 ^= ctx.ecx.u32;
-	ctx.eflags.update_flags_logic(ctx.ecx.u32);
-loc_3D0223:
-	// mov dword ptr [eax], 0x4030C
-	X86_STORE_U32(ctx.eax.u32, 0x4030Cu);
-	// mov [eax+0x04], ecx
-	X86_STORE_U32(ctx.eax.u32 + 4, ctx.ecx.u32);
-	// cmp [0x003E09C0], esi
-	ctx.eflags.update_compare_flags_U32(X86_LOAD_U32(4065728), ctx.esi.u32);
-	// jz 0x003D0243
-	if ((ctx.eflags.value & X86EFlags::ZF) != 0) goto loc_3D0243;
-	// cmp [edi+0x1A08], esi
-	ctx.eflags.update_compare_flags_U32(X86_LOAD_U32(ctx.edi.u32 + 6664), ctx.esi.u32);
-	// jz 0x003D0243
-	if ((ctx.eflags.value & X86EFlags::ZF) != 0) goto loc_3D0243;
-	// mov ecx, 0x01
-	ctx.ecx.u32 = 0x1u;
-	// jmp 0x003D0245
-	goto loc_3D0245;
-loc_3D0243:
-	// xor ecx, ecx
-	ctx.ecx.u32 ^= ctx.ecx.u32;
-	ctx.eflags.update_flags_logic(ctx.ecx.u32);
-loc_3D0245:
-	// mov dword ptr [eax+0x08], 0x4032C
-	X86_STORE_U32(ctx.eax.u32 + 8, 0x4032Cu);
-	// mov [eax+0x0C], ecx
-	X86_STORE_U32(ctx.eax.u32 + 12, ctx.ecx.u32);
-	// mov ecx, [edi+0x08]
-	ctx.ecx.u32 = X86_LOAD_U32(ctx.edi.u32 + 8);
-	// add eax, 0x10
-	auto temp_3D0252_U32_OLD = ctx.eax.u32;
-	auto temp_3D0252_U32_SRC = 16;
-	ctx.eax.u32 = temp_3D0252_U32_OLD + temp_3D0252_U32_SRC;
-	ctx.eflags.update_flags_add_U32(temp_3D0252_U32_OLD, temp_3D0252_U32_SRC, ctx.eax.u32);
-	// test ch, 0x01
-	ctx.eflags.update_test_flags_U8(ctx.ecx.u8_hi & 0x1u);
-	// jz 0x003D027B
-	if ((ctx.eflags.value & X86EFlags::ZF) != 0) goto loc_3D027B;
-	// mov edx, [esp+0x20]
-	ctx.edx.u32 = X86_LOAD_U32(ctx.esp.u32 + 32);
-	// cmp edx, [edi+0x1A14]
-	ctx.eflags.update_compare_flags_U32(ctx.edx.u32, X86_LOAD_U32(ctx.edi.u32 + 6676));
-	// jnz 0x003D027B
-	if ((ctx.eflags.value & X86EFlags::ZF) == 0) goto loc_3D027B;
-	// and ecx, 0xFFFFFEFF
-	ctx.ecx.u32 &= 0xfffffeff;
-	ctx.eflags.update_flags_logic(ctx.ecx.u32);
-	// mov [edi+0x08], ecx
-	X86_STORE_U32(ctx.edi.u32 + 8, ctx.ecx.u32);
-	// mov dword ptr [eax], 0x40130
-	X86_STORE_U32(ctx.eax.u32, 0x40130u);
-	// mov [eax+0x04], esi
-	X86_STORE_U32(ctx.eax.u32 + 4, ctx.esi.u32);
-	// add eax, 0x08
-	auto temp_3D0278_U32_OLD = ctx.eax.u32;
-	auto temp_3D0278_U32_SRC = 8;
-	ctx.eax.u32 = temp_3D0278_U32_OLD + temp_3D0278_U32_SRC;
-	ctx.eflags.update_flags_add_U32(temp_3D0278_U32_OLD, temp_3D0278_U32_SRC, ctx.eax.u32);
-loc_3D027B:
-	// mov ecx, [esp+0x20]
-	ctx.ecx.u32 = X86_LOAD_U32(ctx.esp.u32 + 32);
-	// mov [edi], eax
-	X86_STORE_U32(ctx.edi.u32, ctx.eax.u32);
-	// mov eax, [esp+0x24]
-	ctx.eax.u32 = X86_LOAD_U32(ctx.esp.u32 + 36);
-	// push eax
-	X86_PUSH(ctx, base, ctx.eax.u32);
-	// push ecx
-	X86_PUSH(ctx, base, ctx.ecx.u32);
-	// call 0x003D6250
-	ctx.esp.u32 -= 0x4; //Adjust stack pointer for call instruction
-	sub_3D6250(ctx, base);
-	// mov edx, 0x3DE548
-	ctx.edx.u32 = 0x3DE548u;
-	// mov ecx, edi
-	ctx.ecx.u32 = ctx.edi.u32;
-	// mov [edi+0x1A0C], eax
-	X86_STORE_U32(ctx.edi.u32 + 6668, ctx.eax.u32);
-	// call 0x003D3310
-	ctx.esp.u32 -= 0x4; //Adjust stack pointer for call instruction
-	sub_3D3310(ctx, base);
-	// mov edx, [0x003E09FC]
-	ctx.edx.u32 = X86_LOAD_U32(4065788);
-	// push edx
-	X86_PUSH(ctx, base, ctx.edx.u32);
-	// call 0x003D29B0
-	ctx.esp.u32 -= 0x4; //Adjust stack pointer for call instruction
-	sub_3D29B0(ctx, base);
-	// pop edi
-	ctx.edi.u32 = X86_POP(ctx, base);
-	// pop esi
-	ctx.esi.u32 = X86_POP(ctx, base);
-	// pop ebp
-	ctx.ebp.u32 = X86_POP(ctx, base);
-	// pop ebx
-	ctx.ebx.u32 = X86_POP(ctx, base);
-	// add esp, 0x0C
-	auto temp_3D02AE_U32_OLD = ctx.esp.u32;
-	auto temp_3D02AE_U32_SRC = 12;
-	ctx.esp.u32 = temp_3D02AE_U32_OLD + temp_3D02AE_U32_SRC;
-	ctx.eflags.update_flags_add_U32(temp_3D02AE_U32_OLD, temp_3D02AE_U32_SRC, ctx.esp.u32);
-	// ret 0x08
-	ctx.esp.u32 += 0x8;  //Adjust esp for return value (0xC2 0x8)
-	ctx.esp.u32 += 0x4;  //Adjust esp for return instruction
-	return;
-}
-
-
 X86_FUNC_IMPL(__imp__sub_3D0040);
 X86_FUNC_IMPL(__imp__sub_3D6250);
 
@@ -5446,7 +5013,7 @@ void UpdateHostViewPortOffsetAndScaleConstants()
 	float xboxScreenspaceHeight = xboxRenderTargetHeight * screenScaleY;
 
 	// Passthrough should range 0 to 1, instead of 0 to zbuffer depth
-	float zOutputScale = 1.0f; //g_Xbox_VertexShaderMode == VertexShaderMode::Passthrough ? 1 : g_ZScale;
+	float zOutputScale = g_Xbox_VertexShaderMode == VertexShaderMode::Passthrough ? 1 : g_ZScale;
 
 	float screenspaceScale[4] = { xboxScreenspaceWidth / 2,  -xboxScreenspaceHeight / 2, zOutputScale, 1 };
 	float screenspaceOffset[4] = { xboxScreenspaceWidth / 2 + aaOffsetX, xboxScreenspaceHeight / 2 + aaOffsetY, 0, 0 };
@@ -6235,10 +5802,7 @@ static void FlushRenderStateForRenderThread()
 
 	if (g_dirtyStates.pipelineState)
 	{
-
-
 		commandList->setPipeline(CreateGraphicsPipelineInRenderThread(g_pipelineState));
-
 
 		// D3D12 resets the depth bias values. Check if they need to be set again.
 		if (g_capabilities.dynamicDepthBias && !g_vulkan)
@@ -6740,6 +6304,7 @@ void DrawIndexedPrimitive(X_D3DPRIMITIVETYPE PrimitiveType, uint32_t VertexCount
 	//shadow = 2192 vertex = stride 24
 	//object = 91 vertex =  stride 24
 
+
 	uint32_t minIdx = 0, maxIdx = 0;
 	ComputeIndexRange(pIndexData, 0, VertexCount, minIdx, maxIdx);
 
@@ -6787,7 +6352,7 @@ void DrawIndexedPrimitive(X_D3DPRIMITIVETYPE PrimitiveType, uint32_t VertexCount
 				if (VertexCount == 171)
 				{
 					//printf("Vertex Log, Count %d\n", VertexCount);
-					lastHandleAddr = lastHandleAddr;
+	
 
 					uint8_t* vertexData = (uint8_t*)vertex + (0 * originalStride);
 					RunDebuggingShader(vertexData);
@@ -6872,13 +6437,6 @@ void DrawPrimitiveUP(X_D3DPRIMITIVETYPE PrimitiveType, uint32_t VertexCount, voi
 	LocalRenderCommandQueue queue;
 	FlushRenderStateForMainThread(queue);
 
-	if (logVB)
-	{
-		//pVertexStreamZeroData = testVertices;
-		//VertexCount = 3;
-
-
-	}
 
 	// For some reason, some vertex have their position w set to Inf
 	// while Xbox may not care about this, modern shaders definitely do, so we have to fix this
@@ -7123,12 +6681,31 @@ void CopyVertexShaderConstant(int32_t Register, DWORD* pConstantData, const uint
 	g_vertexConstantsDirtyFlags = true;
 }
 
+void LogFloat4(const char* name, const float* values, int count = 1) {
+	for (int i = 0; i < count; i++) {
+		printf("%s[%d]: (%f, %f, %f, %f)\n",
+			name, i,
+			values[i * 4 + 0], values[i * 4 + 1],
+			values[i * 4 + 2], values[i * 4 + 3]);
+	}
+}
 
+// Function to log packed flags (treating as uint32 for bit inspection)
+void LogPackedFlags(const char* name, const float* values, int count = 4) {
+	printf("%s (as float):\n", name);
+	LogFloat4(name, values, count);
+
+	printf("%s (as uint32 bits):\n", name);
+	for (int i = 0; i < count * 4; i++) {
+		DWORD intValue = *(DWORD*)&values[i];
+		printf("  [%d]: 0x%08X\n", i, intValue);
+	}
+}
 
 X86_FUNC_IMPL(__imp__sub_2C89D0);
 X86_FUNC(sub_2C89D0)
 {
-	LogVSConstants = false;
+	//LogVSConstants = true;
 	__imp__sub_2C89D0(ctx, base);
 }
 
@@ -7592,13 +7169,9 @@ X86_FUNC(sub_2E6750)
 	__imp__sub_2E6750(ctx, base);
 	auto addr = ctx.eax.u32;
 	XD3DResource* buffer = (XD3DResource*)g_memory.Translate(addr);
-	printf("Create VB %x - size: %d\n", (intptr_t)buffer, size);
+	//printf("Create VB %x - size: %d\n", (intptr_t)buffer, size);
 
-	if (size == 2656)
-	{
-		printf("check that\n");
-	}
-	g_VBList.push_back({ buffer, nullptr, size });
+	//g_VBList.push_back({ buffer, nullptr, size });
 }
 
 //LockVertexBuffer
@@ -7801,6 +7374,10 @@ void D3DDevice_EndPush(DWORD* pPush)
 {
 	if (pPush)
 	{
+		// Note: We don't use the count from BeginPush because that specifies the *maximum* count
+		// rather than the count actually in the pushbuffer. 
+		//EmuExecutePushBufferRaw(g_beginPush, (uintptr_t)pPush - (uintptr_t)g_beginPush);
+
 		g_userHeap.Free(g_beginPush);
 		g_beginPush = nullptr;
 	}

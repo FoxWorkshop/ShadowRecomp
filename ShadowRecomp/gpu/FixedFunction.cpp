@@ -451,7 +451,6 @@ void UpdateFixedFunctionVertexShaderState(size_t Handle, bool isFixed)
 			ffShaderState.Fog.DepthMode = FixedFunctionVertexShader::FOG_DEPTH_Z;
 		}
 		else {
-			// Test case:
 			// Fog sample
 
 			ffShaderState.Fog.DepthMode = FixedFunctionVertexShader::FOG_DEPTH_W;
