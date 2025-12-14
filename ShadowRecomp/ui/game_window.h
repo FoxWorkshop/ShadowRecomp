@@ -4,8 +4,8 @@
 #include <user/config.h>
 #include <sdl_events.h>
 
-#define DEFAULT_WIDTH 1280
-#define DEFAULT_HEIGHT 720
+#define DEFAULT_WIDTH 640 //todo update
+#define DEFAULT_HEIGHT 480
 #define MIN_WIDTH 640
 #define MIN_HEIGHT 480
 

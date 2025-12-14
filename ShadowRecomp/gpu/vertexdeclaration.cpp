@@ -601,7 +601,7 @@ HostVertexDeclaration* HostGetVertexDeclaration(size_t handle, const bool isFixe
 {
 	X_VERTEXATTRIBUTEFORMAT* pXboxVertexAttributeFormat = GetXboxVertexAttributeFormat(handle);
 
-	auto XboxVertexAttributesKey = GetXboxVertexAttributesKey(pXboxVertexAttributeFormat, isFixedFunction);
+	auto XboxVertexAttributesKey = GetXboxVertexAttributesKey(pXboxVertexAttributeFormat, g_Xbox_VertexShaderMode == VertexShaderMode::FixedFunction);
 	HostVertexDeclaration* pHostVertexDeclaration = FetchCachedHostVertexDeclaration(XboxVertexAttributesKey);
 	if (pHostVertexDeclaration == nullptr) 
 	{	
@@ -676,7 +676,7 @@ void SetFixedFunctionDefaultVertexAttributes(size_t Handle)
 
 }
 
-GuestVertexDeclaration* CreateVertexDeclarationWithoutAddRef(D3DVERTEXELEMENT9* vertexElements, const bool isFixed)
+GuestVertexDeclaration* CreateVertexDeclarationWithoutAddRef(D3DVERTEXELEMENT9* vertexElements, VertexShaderMode shaderMode)
 {
 	size_t vertexElementCount = 0;
 	auto vertexElement = vertexElements;
@@ -757,7 +757,6 @@ GuestVertexDeclaration* CreateVertexDeclarationWithoutAddRef(D3DVERTEXELEMENT9* 
 
 		};
 
-
 		vertexElement = vertexElements;
 		while (vertexElement->Stream != 0xFF && vertexElement->Type != D3DDECLTYPE_UNUSED)
 		{
@@ -773,7 +772,7 @@ GuestVertexDeclaration* CreateVertexDeclarationWithoutAddRef(D3DVERTEXELEMENT9* 
 			inputElement.semanticIndex = vertexElement->UsageIndex;
 			inputElement.location = ~0;
 
-			if (isFixed)
+			if (shaderMode == VertexShaderMode::FixedFunction)
 			{
 				for (auto& location : locationsFixedFunc)
 				{
@@ -813,10 +812,10 @@ GuestVertexDeclaration* CreateVertexDeclarationWithoutAddRef(D3DVERTEXELEMENT9* 
 			case D3DDECLUSAGE_NORMAL:
 			case D3DDECLUSAGE_TANGENT:
 			case D3DDECLUSAGE_BINORMAL:
-				if (vertexElement->Type == D3DDECLTYPE_FLOAT3)
+				/**if (vertexElement->Type == D3DDECLTYPE_FLOAT3)
 					inputElement.format = RenderFormat::R32G32B32_UINT;
 				else
-					vertexDeclaration->hasR11G11B10Normal = true;
+					vertexDeclaration->hasR11G11B10Normal = true;*/
 				break;
 
 			case D3DDECLUSAGE_TEXCOORD:
@@ -846,7 +845,7 @@ GuestVertexDeclaration* CreateVertexDeclarationWithoutAddRef(D3DVERTEXELEMENT9* 
 			{
 				uint32_t location = ~0;
 
-				if (isFixed)
+				if (shaderMode == VertexShaderMode::FixedFunction)
 				{
 					for (auto& alsoLocation : locationsFixedFunc)
 					{
@@ -884,7 +883,7 @@ GuestVertexDeclaration* CreateVertexDeclarationWithoutAddRef(D3DVERTEXELEMENT9* 
 				case D3DDECLUSAGE_TANGENT:
 				case D3DDECLUSAGE_BINORMAL:
 				case D3DDECLUSAGE_BLENDINDICES:
-					format = RenderFormat::R32_UINT;
+					format = RenderFormat::R32G32B32_FLOAT;
 					break;
 				}
 
@@ -892,7 +891,7 @@ GuestVertexDeclaration* CreateVertexDeclarationWithoutAddRef(D3DVERTEXELEMENT9* 
 			};
 
 		// Assign any unbound usages to null buffer slot.
-		if (isFixed)
+		if (shaderMode == VertexShaderMode::FixedFunction)
 		{
 			for (auto& location : locationsFixedFunc)
 			{

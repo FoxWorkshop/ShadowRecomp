@@ -1,11 +1,5 @@
 
-enum class VertexShaderMode {
-	FixedFunction,
-	// When titles use Xbox fixed function with pre-transformed vertices
-	// it actually uses a special "passthrough" shader program
-	Passthrough,
-	ShaderProgram
-};
+
 
 enum VSH_SWIZZLE {
 	SWIZZLE_X = 0,

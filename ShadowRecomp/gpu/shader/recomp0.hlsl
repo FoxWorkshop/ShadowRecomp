@@ -75,6 +75,11 @@ VS_OUTPUT main(VS_INPUT xIn)
     
     
     xOut.oPos = reverseScreenspaceTransform(oPos);
+
+    //ensure depth is clamped to [0, 1] this fix a bug that prevent geometry to show up in the game due to RT composite shenanigans.
+    if (xOut.oPos.z > 1.0f)
+        xOut.oPos.z = 1.0f;
+
     xOut.oD0 = saturate(oD0);
     xOut.oD1 = saturate(oD1);
     xOut.oFog = oFog.x; // Note : Xbox clamps fog in pixel shader -> *NEEDS TESTING* /was oFog.x 

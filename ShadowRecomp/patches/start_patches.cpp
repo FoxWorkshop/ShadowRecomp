@@ -80,7 +80,7 @@ X86_FUNC(sub_29EA60)
 X86_FUNC_IMPL(__imp__sub_258550);
 X86_FUNC(sub_258550)
 {
-//	X86_STORE_U32(ctx.esp.u32 + 4, 0x5); //force level 5
+	//X86_STORE_U32(ctx.esp.u32 + 4, 0x5); //force level 5
 	__imp__sub_258550(ctx, base);
 }
 

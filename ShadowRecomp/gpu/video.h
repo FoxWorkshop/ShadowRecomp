@@ -539,6 +539,7 @@ struct GuestTexture : GuestBaseTexture
 	std::unique_ptr<GuestTexture> patchedTexture;
 	std::unique_ptr<GuestTexture> recreatedCubeMapTexture;
 	struct GuestSurface* sourceSurface = nullptr;
+	struct GuestSurface* surfaceRT = nullptr;
 	bool isRenderTarget = false;
 };
 
@@ -563,8 +564,7 @@ struct GuestBuffer : GuestResource
 	bool lockedReadOnly = false;
 	bool isVertexBuffer = false;
 	bool isDirty = false;
-
-	int32_t stride = 0;
+	bool wasUploaded = false;
 };
 
 // RenderTarget/DepthStencil
@@ -796,6 +796,78 @@ typedef struct _D3DMATRIX {
 typedef D3DMATRIX D3DXMATRIX;
 #define D3DMATRIX_DEFINED
 #endif
+
+typedef enum _D3DLIGHTTYPE {
+	D3DLIGHT_POINT = 1,
+	D3DLIGHT_SPOT = 2,
+	D3DLIGHT_DIRECTIONAL = 3,
+	D3DLIGHT_FORCE_DWORD = 0x7fffffff, /* force 32-bit size enum */
+} D3DLIGHTTYPE;
+
+#ifndef D3DCOLORVALUE_DEFINED
+typedef struct _D3DCOLORVALUE {
+	float r;
+	float g;
+	float b;
+	float a;
+} D3DCOLORVALUE;
+#define D3DCOLORVALUE_DEFINED
+#endif
+
+typedef enum _D3DFOGMODE {
+	D3DFOG_NONE = 0,
+	D3DFOG_EXP = 1,
+	D3DFOG_EXP2 = 2,
+	D3DFOG_LINEAR = 3,
+	D3DFOG_FORCE_DWORD = 0x7fffffff, /* force 32-bit size enum */
+} D3DFOGMODE;
+
+typedef struct _D3DVECTOR {
+	float x;
+	float y;
+	float z;
+} D3DVECTOR;
+
+typedef struct _D3DVECTOR4 {
+	float x;
+	float y;
+	float z;
+	float w;
+} D3DVECTOR4;
+
+typedef struct _X_D3DLIGHT8 {
+	D3DLIGHTTYPE    Type;            /* Type of light source */
+	D3DCOLORVALUE   Diffuse;         /* Diffuse color of light */
+	D3DCOLORVALUE   Specular;        /* Specular color of light */
+	D3DCOLORVALUE   Ambient;         /* Ambient color of light */
+	D3DVECTOR       Position;         /* Position in world space */
+	D3DVECTOR       Direction;        /* Direction in world space */
+	float           Range;            /* Cutoff range */
+	float           Falloff;          /* Falloff */
+	float           Attenuation0;     /* Constant attenuation */
+	float           Attenuation1;     /* Linear attenuation */
+	float           Attenuation2;     /* Quadratic attenuation */
+	float           Theta;            /* Inner angle of spotlight cone */
+	float           Phi;              /* Outer angle of spotlight cone */
+} X_D3DLIGHT8;
+
+struct D3D8LightState {
+	std::array<X_D3DLIGHT8, 4096> Lights;
+
+	// The indices of last 8 enabled lights
+	// From least recently to most recently enabled
+	// -1 represents empty light slots
+	// which always appear after enabled lights
+	std::array<int, 8> EnabledLights;
+
+	// The number of enabled lights
+	uint32_t EnabledLightCount = 0;
+
+	D3D8LightState();
+
+	// Enable a light
+	void EnableLight(uint32_t index, bool enable);
+};
 
 typedef enum _D3DVERTEXBLENDFLAGS
 {
@@ -1156,6 +1228,14 @@ struct UpVertex
 	float v;
 };
 
+enum class VertexShaderMode {
+	FixedFunction,
+	// When titles use Xbox fixed function with pre-transformed vertices
+	// it actually uses a special "passthrough" shader program
+	Passthrough,
+	ShaderProgram
+};
+
 // Xbox vertex shader constant modes
 #define X_D3DSCM_96CONSTANTS                  0x00 // Enables constants 0..95
 #define X_D3DSCM_192CONSTANTS                 0x01 // Enables constants -96..-1 on top of 0..95
@@ -1189,3 +1269,4 @@ const uint16_t HOST_D3DVS_CONSTREG_VREGDEFAULTS_SIZE = 16u;
 
 void DrawPrimitiveUP(X_D3DPRIMITIVETYPE PrimitiveType, uint32_t VertexCount, void* pVertexStreamZeroData, uint32_t VertexStreamZeroStride);
 void DrawIndexedPrimitive(X_D3DPRIMITIVETYPE PrimitiveType, uint32_t VertexCount, int16_t* pIndexData);
+void UpdateVertexShader(uint32_t Handle);

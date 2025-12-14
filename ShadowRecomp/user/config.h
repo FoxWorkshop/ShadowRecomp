@@ -112,8 +112,8 @@ public:
     static inline int WindowSize = -1;
     static inline int WindowX = WINDOWPOS_CENTRED;
     static inline int WindowY = WINDOWPOS_CENTRED;
-    static inline int WindowWidth = 1280;
-    static inline int WindowHeight = 720;
+    static inline int WindowWidth = 640;
+    static inline int WindowHeight = 480;
     static inline int32_t FPS = 60;
     static inline bool VSync = true;
     static inline bool DisableLowResolutionFontOnCustomUI = false;

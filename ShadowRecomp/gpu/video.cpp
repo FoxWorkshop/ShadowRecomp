@@ -1,4 +1,4 @@
-#include "video.h"
+ï»¿#include "video.h"
 
 #include "imgui/imgui_common.h"
 #include "imgui/imgui_snapshot.h"
@@ -241,15 +241,10 @@ struct SharedConstants
 };
 
 
-
-
-//const UINT ringBufferSize = 4 * 1024 * 1024; // 4 MB ring buffer
-const UINT ringBufferSize = 0x10000;
-static GuestBuffer* g_ringBuffer;
 static GuestSurface* g_renderTarget;
 static GuestSurface* g_depthStencil;
 static RenderFramebuffer* g_framebuffer;
-static RenderViewport g_viewport(0.0f, 0.0f, 1280.0f, 720.0f);
+static RenderViewport g_viewport(0.0f, 0.0f, 640.0f, 480.0f);
 static PipelineState g_pipelineState;
 static int32_t g_depthBias;
 static float g_slopeScaledDepthBias;
@@ -265,10 +260,19 @@ VertexShaderMode g_Xbox_VertexShaderMode = VertexShaderMode::FixedFunction;
 
 //constants are variable send to the GPU
 static uint32_t g_vertexShaderConstants[HOST_D3DVS_CONSTREG_FULL * 4];
+static uint32_t g_vertexShaderConstantsFixed[HOST_D3DVS_CONSTREG_FULL * 4];
 static uint32_t g_pixelShaderConstants[0x380];
 static SharedConstants g_sharedConstants; //TextureStage operation data, indice etc. Used with texture descriptor
-//static uint64_t g_vertexConstantsDirtyFlags = 0;
-bool g_vertexConstantsDirtyFlags = false;
+
+uint32_t vsh_constants[HOST_D3DVS_CONSTREG_FULL][4]; //xbox registers (192) + host registers (slot of 4 because one register = 4 bytes)
+bool vsh_constants_dirty[HOST_D3DVS_CONSTREG_FULL];
+
+static uint64_t g_lastVertexShaderConstants; //used to check for update so we don't upload every frame
+static uint64_t g_lastPixelShaderConstants;
+
+uint32_t psh_constants[30][4]; //xbox registers (192) + host registers (slot of 4 because one register = 4 bytes)
+bool psh_constants_dirty[30];
+
 std::array<D3DMATRIX, X_D3DTS_MAX> g_Transforms;
 
 uint32_t g_renderState[255];
@@ -283,12 +287,6 @@ struct VBData
 
 std::vector<VBData> g_VBList;
 
-
-uint32_t vsh_constants[HOST_D3DVS_CONSTREG_FULL][4]; //xbox registers (192) + host registers (slot of 4 because one register = 4 bytes)
-bool vsh_constants_dirty[HOST_D3DVS_CONSTREG_FULL];
-constexpr uint32_t kRegsPerBlock = 4;
-constexpr uint32_t kFloatsPerReg = 4;
-constexpr uint32_t kBytesPerReg = 16;
 
 
 static GuestTexture* g_textures[TexSlotMax];
@@ -369,8 +367,6 @@ static void SetDirtyValue(bool& dirtyState, T& dest, const T& src)
 	}
 }
 
-
-
 static constexpr size_t PROFILER_VALUE_COUNT = 256;
 static size_t g_profilerValueIndex;
 
@@ -438,7 +434,7 @@ static RenderDeviceCapabilities g_capabilities;
 static constexpr size_t NUM_FRAMES = 2;
 static constexpr size_t NUM_QUERIES = 2;
 
-static uint32_t g_frame = 0;
+uint32_t g_frame = 0;
 static uint32_t g_nextFrame = 1;
 
 static std::unique_ptr<RenderCommandQueue> g_queue;
@@ -512,8 +508,10 @@ struct UploadAllocator
 		{
 			buffer.buffer = g_device->createBuffer(RenderBufferDesc::UploadBuffer(UploadBuffer::SIZE, RenderBufferFlag::CONSTANT | RenderBufferFlag::VERTEX | RenderBufferFlag::INDEX | RenderBufferFlag::DEVICE_ADDRESSABLE));
 			buffer.memory = reinterpret_cast<uint8_t*>(buffer.buffer->map());
+
 			buffer.deviceAddress = buffer.buffer->getDeviceAddress();
 		}
+
 
 		auto ref = buffer.buffer->at(offset);
 		offset += size;
@@ -521,27 +519,11 @@ struct UploadAllocator
 		return { ref.ref, ref.offset, buffer.memory + ref.offset, buffer.deviceAddress + ref.offset };
 	}
 
-	template<bool TByteSwap, typename T>
+	template<typename T>
 	UploadAllocation allocate(const T* memory, uint32_t size, uint32_t alignment)
 	{
 		auto result = allocate(size, alignment);
-
-		if constexpr (TByteSwap)
-		{
-			auto destination = reinterpret_cast<T*>(result.memory);
-
-			for (size_t i = 0; i < size; i += sizeof(T))
-			{
-				*destination = *memory;
-				++destination;
-				++memory;
-			}
-		}
-		else
-		{
-			memcpy(result.memory, memory, size);
-		}
-
+		memcpy(result.memory, memory, size);
 		return result;
 	}
 
@@ -699,6 +681,93 @@ static xxHashMap<std::unique_ptr<RenderPipeline>> g_pipelines;
 
 GuestSurface* g_XboxBackBuffer = nullptr;
 GuestSurface* g_XboxDefaultDepthStencilSurface = nullptr;
+
+template<X_D3DPRIMITIVETYPE PrimitiveType>
+struct PrimitiveIndexData
+{
+	std::vector<uint16_t> indexData;
+	RenderBufferReference indexBuffer;
+	uint32_t currentIndexCount = 0;
+
+	uint32_t prepare(uint32_t guestPrimCount)
+	{
+		uint32_t primCount;
+		uint32_t indexCountPerPrimitive;
+
+		switch (PrimitiveType)
+		{
+		case X_D3DPT_TRIANGLEFAN:
+			primCount = guestPrimCount - 2;
+			indexCountPerPrimitive = 3;
+			break;
+		case X_D3DPT_QUADLIST:
+			primCount = guestPrimCount / 4;
+			indexCountPerPrimitive = 6;
+			break;
+		default:
+			assert(false && "Unknown primitive type.");
+			break;
+		}
+
+		uint32_t indexCount = primCount * indexCountPerPrimitive;
+
+		if (indexData.size() < indexCount)
+		{
+			const size_t oldPrimCount = indexData.size() / indexCountPerPrimitive;
+			indexData.resize(indexCount);
+
+			for (size_t i = oldPrimCount; i < primCount; i++)
+			{
+				switch (PrimitiveType)
+				{
+				case X_D3DPT_TRIANGLEFAN:
+				{
+					indexData[i * 3 + 0] = 0;
+					indexData[i * 3 + 1] = static_cast<uint16_t>(i + 1);
+					indexData[i * 3 + 2] = static_cast<uint16_t>(i + 2);
+					break;
+				}
+				case X_D3DPT_QUADLIST:
+				{
+					indexData[i * 6 + 0] = static_cast<uint16_t>(i * 4 + 0);
+					indexData[i * 6 + 1] = static_cast<uint16_t>(i * 4 + 1);
+					indexData[i * 6 + 2] = static_cast<uint16_t>(i * 4 + 2);
+
+					indexData[i * 6 + 3] = static_cast<uint16_t>(i * 4 + 0);
+					indexData[i * 6 + 4] = static_cast<uint16_t>(i * 4 + 2);
+					indexData[i * 6 + 5] = static_cast<uint16_t>(i * 4 + 3);
+					break;
+				}
+				default:
+					assert(false && "Unknown primitive type.");
+					break;
+				}
+			}
+		}
+
+		if (indexBuffer == NULL || currentIndexCount < indexCount)
+		{
+			auto allocation = g_uploadAllocators[g_frame].allocate(indexData.data(), indexCount * 2, 2);
+			indexBuffer = allocation.buffer->at(allocation.offset);
+			currentIndexCount = indexCount;
+		}
+
+		SetDirtyValue(g_dirtyStates.indices, g_indexBufferView.buffer, indexBuffer);
+		SetDirtyValue(g_dirtyStates.indices, g_indexBufferView.size, indexCount * 2);
+		SetDirtyValue(g_dirtyStates.indices, g_indexBufferView.format, RenderFormat::R16_UINT);
+
+		return indexCount;
+	}
+
+	void reset()
+	{
+		indexBuffer = {};
+		currentIndexCount = 0;
+	}
+};
+
+static PrimitiveIndexData<X_D3DPT_QUADLIST> g_quadIndexData;
+
 //todo figure out this
 static void DestructTempResources()
 {
@@ -706,19 +775,7 @@ static void DestructTempResources()
 	for (auto resource : g_tempResources[g_frame])
 	{
 
-		if (resource->type == ResourceType::VertexBuffer)
-		{
-			valid = true;
-			const auto buffer = reinterpret_cast<GuestBuffer*>(resource);
-
-			if (buffer->mappedMemory != nullptr)
-				g_userHeap.Free(buffer->mappedMemory);
-
-			static int count;
-			buffer->~GuestBuffer();
-		}
-
-		/**switch (resource->type)
+		switch (resource->type)
 		{
 		case ResourceType::Texture:
 		case ResourceType::VolumeTexture:
@@ -730,10 +787,10 @@ static void DestructTempResources()
 
 			g_textureDescriptorAllocator.free(texture->descriptorIndex);
 
-			//if (texture->patchedTexture != nullptr)
-				//g_textureDescriptorAllocator.free(texture->patchedTexture->descriptorIndex);
+			if (texture->patchedTexture != nullptr)
+				g_textureDescriptorAllocator.free(texture->patchedTexture->descriptorIndex);
 
-			texture->~GuestTexture();
+			texture->~GuestTexture();*/
 			break;
 		}
 
@@ -752,43 +809,36 @@ static void DestructTempResources()
 		case ResourceType::RenderTarget:
 		case ResourceType::DepthStencil:
 		{
-			valid = false;
-			/**const auto surface = reinterpret_cast<GuestSurface*>(resource);
 
-			if (g_XboxBackBuffer != surface && g_XboxDefaultDepthStencilSurface != surface) //do not destroy main render target (todo check if it's correct)
+			const auto surface = reinterpret_cast<GuestSurface*>(resource);
+
+			if (surface->descriptorIndex != NULL)
 			{
-				if (surface->descriptorIndex != NULL)
-					g_textureDescriptorAllocator.free(surface->descriptorIndex);
-
-				surface->~GuestSurface();
+				g_textureDescriptorSet->setTexture(surface->descriptorIndex, nullptr, {});
+				g_textureDescriptorAllocator.free(surface->descriptorIndex);
 			}
-
+			surface->~GuestSurface();
+			valid = true;
 			break;
 		}
 
 		case ResourceType::VertexDeclaration:
 			reinterpret_cast<GuestVertexDeclaration*>(resource)->~GuestVertexDeclaration();
 			break;
-
 		case ResourceType::VertexShader:
 		case ResourceType::PixelShader:
 		{
 			reinterpret_cast<GuestShader*>(resource)->~GuestShader();
 			break;
 		}
-		}*/
+		}
 
 		if (valid)
 			g_userHeap.Free(resource);
-
-		valid = false;
 	}
 
-	//if (valid)
-	{
-		g_tempResources[g_frame].clear();
-		g_tempBuffers[g_frame].clear();
-	}
+	g_tempResources[g_frame].clear();
+	g_tempBuffers[g_frame].clear();
 }
 
 static ankerl::unordered_dense::set<GuestSurface*> g_pendingSurfaceCopies;
@@ -818,14 +868,13 @@ enum class RenderCommandType
 	SetPixelShaderConstants,
 	AddPipeline,
 	DrawPrimitive,
-	DrawIndexedVertices,
-	DrawVerticesUP,
+	DrawIndexedPrimitive,
+	DrawPrimitiveUP,
 	SetVertexDeclaration,
 	SetVertexShader,
 	SetStreamSource,
 	SetIndices,
 	SetPixelShader,
-	SetTransform,
 
 };
 
@@ -901,6 +950,7 @@ struct RenderCommand
 			uint32_t primitiveType;
 			uint32_t startVertex;
 			uint32_t primitiveCount;
+			bool isFixed;
 		} drawPrimitive;
 
 		struct
@@ -911,6 +961,7 @@ struct RenderCommand
 			uint32_t primCount;
 			int16_t* pIndexData;
 			GuestBuffer* indexBuffer;
+			bool isFixed;
 			//GuestBuffer* vertexBuffer;
 		} drawIndexedPrimitive;
 
@@ -921,6 +972,7 @@ struct RenderCommand
 			uint8_t* vertexStreamZeroData;
 			uint32_t vertexStreamZeroSize;
 			uint32_t vertexStreamZeroStride;
+			bool isFixed;
 		} drawPrimitiveUP;
 
 
@@ -992,6 +1044,7 @@ struct RenderCommand
 			uint8_t* memory;
 			uint32_t index;
 			uint32_t size;
+			bool isFixedFunc;
 		} setVertexShaderConstants;
 
 		struct
@@ -1267,7 +1320,7 @@ static void ProcSetRenderState(const RenderCommand& cmd)
 	case X_D3DRS_STENCILFAIL:
 	{
 
-		SetDirtyValue(g_dirtyStates.pipelineState, g_pipelineState.zEnable, value != 0);
+		SetDirtyValue(g_dirtyStates.pipelineState, g_pipelineState.stencilFail, ConvertStencilOp(value));
 		break;
 	}
 	case X_D3DRS_CULLMODE:
@@ -2282,9 +2335,9 @@ void Video::WaitForGPU()
 }
 
 
-static GuestVertexDeclaration* CreateVertexDeclaration(D3DVERTEXELEMENT9* vertexElements, const bool isFixed)
+static GuestVertexDeclaration* CreateVertexDeclaration(D3DVERTEXELEMENT9* vertexElements, VertexShaderMode shaderMode)
 {
-	auto vertexDeclaration = CreateVertexDeclarationWithoutAddRef(vertexElements, isFixed);
+	auto vertexDeclaration = CreateVertexDeclarationWithoutAddRef(vertexElements, shaderMode);
 	//vertexDeclaration->AddRef();
 	return vertexDeclaration;
 }
@@ -2340,7 +2393,6 @@ void UpdateHostVertexDeclaration(HostVertexDeclaration* pHostVertexDeclaration)
 	//192 + 16 = 208 vRegisterDefaultFlagsPacked
 	CopyVertexShaderConstant(HOST_D3DVS_CONSTREG_VREGDEFAULTS_FLAG_BASE, (DWORD*)vertexDefaultFlags, HOST_D3DVS_CONSTREG_VREGDEFAULTS_FLAG_SIZE);
 	vsh_constants[HOST_D3DVS_CONSTREG_VREGDEFAULTS_FLAG_BASE][0] = vsh_constants[HOST_D3DVS_CONSTREG_VREGDEFAULTS_FLAG_BASE][0];
-	g_vertexConstantsDirtyFlags = true;
 }
 
 //TODO
@@ -2356,81 +2408,6 @@ static ShaderCacheEntry* FindShaderCacheEntry(XXH64_hash_t hash)
 }
 
 std::unordered_map<uint32_t, GuestShader*> g_VertexShaderMap;
-/**static GuestShader* CreateShader(const uint32_t* pDeclaration, ResourceType resourceType)
-{
-	size_t size = 0;
-	auto curDeclaration = pDeclaration;
-
-	std::ofstream  outFile2("HashShader.txt", std::ios::app);
-
-	while (*curDeclaration != X_D3DVSD_END())
-	{
-		outFile2 << std::hex << *curDeclaration << '\n';
-		size += sizeof(uint32_t);
-		curDeclaration++;
-	}
-
-	// include the END token
-	size += sizeof(uint32_t);
-
-	XXH64_hash_t hash = XXH3_64bits(pDeclaration, size);
-
-	printf("hash shader %llx\n", hash);
-
-	outFile2 << '\n';
-	outFile2 << "hash 0x" << std::hex << hash << '\n';
-
-	outFile2 << '\n';
-	outFile2.close();
-
-	auto findResult = FindShaderCacheEntry(hash);
-	GuestShader* shader = nullptr;
-	hash = hash;
-	if (findResult != nullptr)
-	{
-		if (findResult->guestShader == nullptr)
-		{
-			shader = g_userHeap.AllocPhysical<GuestShader>(resourceType);
-
-			shader->shaderCacheEntry = findResult;
-			findResult->guestShader = shader;
-		}
-		else
-		{
-			shader = findResult->guestShader;
-		}
-	}
-
-	if (shader == nullptr)
-		shader = g_userHeap.AllocPhysical<GuestShader>(resourceType);
-	else
-		shader->AddRef();
-
-	if (hash == 0xe555c89eab6e17ed)
-		shader->shader = CREATE_SHADER(recomp0);
-	else if (hash == 0x89dd45174e675122)
-		shader->shader = CREATE_SHADER(recomp1);
-	else if (hash == 0xa660f57bbbc6ff47) //(hash == 0x7351ba28d201371d)
-	{
-		shader->shader = CREATE_SHADER(recomp2);
-	}
-	else if (hash == 0xa90eacbcad6cc71c)
-	{
-		shader->shader = CREATE_SHADER(recomp3);
-	}
-	else
-	{
-		hash = hash;
-		printf("unknown shader, it's time to implement xshader recomp\n");
-
-	}
-
-	/**if (hash == 0x31173204A896098A)
-		g_csdShader = shader;
-
-	return shader;
-}*/
-
 
 GuestShader* CreateShader(ResourceType resourceType)
 {
@@ -2455,7 +2432,7 @@ GuestShader* CreateShader(ResourceType resourceType)
 		{
 			shader->shader = CREATE_SHADER(recomp1);
 		}
-		else if (hash == 0xcee36c8c99adc694)  //(hash == 0x7351ba28d201371d)
+		else if (hash == 0xcee36c8c99adc694)  //Shadow uses this shader
 		{
 			shader->shader = CREATE_SHADER(recomp2);
 		}
@@ -2510,19 +2487,15 @@ void UpdateVertexDeclaration(uint32_t Handle)
 
 	DWORD vshFlags = GetXboxVertexShaderForHandle(host_handle)->Flags;
 	RenderCommand cmd;
-	bool isFixed = true;
+	VertexShaderMode shaderMode = g_Xbox_VertexShaderMode;
 
-	if (vshFlags & g_X_VERTEXSHADER_FLAG_PROGRAM)
-	{
-		isFixed = false;
-	}
 	//as mentioned above, there is no separate function that create vertex declaration, so we have to manually extract and handle them.
 	//we handle vertex declaration immediately to avoid a race issue.
-	if (isFixed)
+	if (shaderMode == VertexShaderMode::FixedFunction)
 		SetFixedFunctionDefaultVertexAttributes(host_handle);
-	auto vertexElement = HostGetVertexDeclaration(host_handle, isFixed);
+	auto vertexElement = HostGetVertexDeclaration(host_handle, shaderMode == VertexShaderMode::FixedFunction);
 	UpdateHostVertexDeclaration(vertexElement);
-	auto vertexDeclaration = CreateVertexDeclaration(vertexElement->pHostVertexElements, isFixed);
+	auto vertexDeclaration = CreateVertexDeclaration(vertexElement->pHostVertexElements, shaderMode);
 	SetVertexDeclaration(vertexDeclaration);
 
 }
@@ -2548,13 +2521,9 @@ void UpdateVertexShader(uint32_t Handle)
 	}
 	else
 	{
-		if (Handle > 4)
-		{
-			printf("");
-		}
 		g_VertexShader_Handle = Handle;
 		// Switch to passthrough program, if so required
-		if (vshFlags & X_VERTEXSHADER_FLAG_PASSTHROUGH) 
+		if (vshFlags & X_VERTEXSHADER_FLAG_PASSTHROUGH)
 		{
 			SetVertexShaderPassthroughProgram(); //todo
 			g_Xbox_VertexShaderMode = VertexShaderMode::Passthrough;
@@ -2565,20 +2534,12 @@ void UpdateVertexShader(uint32_t Handle)
 
 		}
 	}
-	
 
-	isFixed = g_Xbox_VertexShaderMode == VertexShaderMode::FixedFunction;
+
+
 	cmd.type = RenderCommandType::SetVertexShader;
 	cmd.setVertexShader.handle = Handle;
-
-	if (!isFixed && cmd.setVertexShader.shader)
-	{
-		cmd.setVertexShader.type = VertexShaderMode::ShaderProgram;
-	}
-	else
-	{
-		cmd.setVertexShader.type = VertexShaderMode::FixedFunction;
-	}
+	cmd.setVertexShader.type = g_Xbox_VertexShaderMode;
 
 	UpdateVertexDeclaration(Handle);
 
@@ -2706,10 +2667,7 @@ int32_t CreatePixelShader(const uint32_t pPSDef, DWORD* pHandle)
 //todo check if we can pass a GuestShader or if we will have to do it differently
 static void SetPixelShader(uint32_t handle)
 {
-	if (handle != 0)
-	{
-		printf("WAIT\n");
-	}
+
 	RenderCommand cmd;
 	cmd.type = RenderCommandType::SetPixelShader;
 	cmd.setPixelShader.handle = handle;
@@ -2737,7 +2695,6 @@ static void SetStreamSource(uint32_t StreamNumber, GuestBuffer* buffer, uint32_t
 	g_Xbox_SetStreamSource[StreamNumber].Stride = stride;
 
 
-
 	/**RenderCommand cmd;
 	cmd.type = RenderCommandType::SetStreamSource;
 	cmd.setStreamSource.StreamNumber = StreamNumber;
@@ -2756,14 +2713,8 @@ static void SetStreamSource(uint32_t StreamNumber, GuestBuffer* buffer, uint32_t
 //offset might be 0 but I'm not sure, to do check
 static void ProcSetStreamSource(const RenderCommand& cmd)
 {
+
 	const auto& args = cmd.setStreamSource;
-
-	auto vb = args.vertexBuffer;
-	void* gpuRef = vb ? (void*)vb->buffer->at(0).ref : nullptr;
-	/**printf("[BIND-SETSTREAM] stream=%u guestVB=%p gpuRef=%p stride=%u size=%u\n",
-		args.StreamNumber, vb, gpuRef, args.stride,
-		vb ? vb->dataSize : 0u);*/
-
 
 
 	SetDirtyValue(g_dirtyStates.pipelineState, g_pipelineState.vertexStrides[args.StreamNumber], uint8_t(args.vertexBuffer != nullptr ? args.stride : 0));
@@ -2774,11 +2725,13 @@ static void ProcSetStreamSource(const RenderCommand& cmd)
 	SetDirtyValue(dirty, g_vertexBufferViews[args.StreamNumber].size, args.vertexBuffer != nullptr ? (args.vertexBuffer->dataSize - 0) : 0u);
 	SetDirtyValue(dirty, g_inputSlots[args.StreamNumber].stride, args.vertexBuffer != nullptr ? args.stride : 0u);
 
+
 	if (dirty)
 	{
 		g_dirtyStates.vertexStreamFirst = std::min<uint8_t>(g_dirtyStates.vertexStreamFirst, args.StreamNumber);
 		g_dirtyStates.vertexStreamLast = std::max<uint8_t>(g_dirtyStates.vertexStreamLast, args.StreamNumber);
 	}
+
 }
 
 static const char* DeviceTypeName(RenderDeviceType type)
@@ -3102,8 +3055,8 @@ static void ProcDrawImGui(const RenderCommand& cmd)
 	{
 		auto& drawList = drawData.CmdLists[i];
 
-		auto vertexBufferAllocation = g_uploadAllocators[g_frame].allocate<false>(drawList->VtxBuffer.Data, drawList->VtxBuffer.Size * sizeof(ImDrawVert), alignof(ImDrawVert));
-		auto indexBufferAllocation = g_uploadAllocators[g_frame].allocate<false>(drawList->IdxBuffer.Data, drawList->IdxBuffer.Size * sizeof(uint16_t), alignof(uint16_t));
+		auto vertexBufferAllocation = g_uploadAllocators[g_frame].allocate(drawList->VtxBuffer.Data, drawList->VtxBuffer.Size * sizeof(ImDrawVert), alignof(ImDrawVert));
+		auto indexBufferAllocation = g_uploadAllocators[g_frame].allocate(drawList->IdxBuffer.Data, drawList->IdxBuffer.Size * sizeof(uint16_t), alignof(uint16_t));
 
 		const RenderVertexBufferView vertexBufferView(vertexBufferAllocation.buffer->at(vertexBufferAllocation.offset), drawList->VtxBuffer.Size * sizeof(ImDrawVert));
 		const RenderInputSlot inputSlot(0, sizeof(ImDrawVert));
@@ -3252,9 +3205,12 @@ void SleepPrecise(std::chrono::steady_clock::time_point targetTime)
 		;
 	}
 }
+static bool startBS = false;
+uint64_t g_frameFenceValues[NUM_FRAMES] = { 0, 0 };
 void Video::Present()
-{
 
+{
+	//printf("[GAME THREAD] Present START - g_frame=%u\n", g_frame);
 	g_readyForCommands = false;
 
 	RenderCommand cmd;
@@ -3273,8 +3229,10 @@ void Video::Present()
 		g_shouldPrecompilePipelines = false;
 	}
 
+	//printf("[GAME THREAD] Enqueued ExecuteCommandList, waiting...\n");
 	g_executedCommandList.wait(false);
 	g_executedCommandList = false;
+	//printf("[GAME THREAD] ExecuteCommandList completed\n");
 
 	if (g_swapChainValid)
 	{
@@ -3291,8 +3249,12 @@ void Video::Present()
 
 	g_pendingWaitOnSwapChain = true;
 
+	uint32_t oldFrame = g_frame;
 	g_frame = g_nextFrame;
 	g_nextFrame = (g_frame + 1) % NUM_FRAMES;
+
+	//printf("[GAME THREAD] SWITCHED FRAME: %u -> %u\n", oldFrame, g_frame);
+
 
 	if (g_commandListStates[g_frame])
 	{
@@ -3308,10 +3270,13 @@ void Video::Present()
 	}
 
 	g_dirtyStates = DirtyStates(true);
+
+
+
 	g_uploadAllocators[g_frame].reset();
 	g_intermediaryUploadAllocator.reset();
-	/**g_triangleFanIndexData.reset();
-	g_quadIndexData.reset();*/
+	/**g_triangleFanIndexData.reset();*/
+	g_quadIndexData.reset();
 
 	CheckSwapChain();
 
@@ -3350,6 +3315,11 @@ void Video::Present()
 	}
 
 	g_presentProfiler.Reset();
+	//printf("[GAME THREAD] Present END - g_frame=%u\n", g_frame);
+	if (startBS)
+	{
+		printf("");
+	}
 }
 
 void Video::StartPipelinePrecompilation()
@@ -3374,7 +3344,6 @@ static void ProcExecuteCommandList(const RenderCommand& cmd)
 		auto swapChainTexture = g_swapChain->getTexture(g_backBufferIndex);
 		if (g_backBuffer->texture == g_intermediaryBackBufferTexture.get())
 		{
-			g_backBuffer->texture = g_backBuffer->texture;
 			struct
 			{
 				float gammaR;
@@ -3424,7 +3393,8 @@ static void ProcExecuteCommandList(const RenderCommand& cmd)
 			commandList->setGraphicsPipelineLayout(g_pipelineLayout.get());
 			commandList->setPipeline(g_gammaCorrectionPipeline.get());
 			commandList->setGraphicsDescriptorSet(g_textureDescriptorSet.get(), 0);
-			SetRootDescriptor(g_uploadAllocators[g_frame].allocate<false>(&constants, sizeof(constants), 0x100), 2);
+
+			SetRootDescriptor(g_uploadAllocators[g_frame].allocate(&constants, sizeof(constants), 0x100), 2);
 			commandList->setFramebuffer(framebuffer.get());
 			commandList->setViewports(RenderViewport(0.0f, 0.0f, g_swapChain->getWidth(), g_swapChain->getHeight()));
 			commandList->setScissors(RenderRect(0, 0, g_swapChain->getWidth(), g_swapChain->getHeight()));
@@ -3461,7 +3431,6 @@ static void ProcExecuteCommandList(const RenderCommand& cmd)
 	}
 
 	g_commandListStates[g_frame] = true;
-
 	g_executedCommandList = true;
 	g_executedCommandList.notify_one();
 }
@@ -3641,8 +3610,6 @@ static GuestBuffer* CreateIndexBuffer(uint32_t IndexCount, X_D3DFORMAT format)
 	return buffer;
 }
 
-static std::vector<GuestSurface*> g_surfaceCache;
-
 
 static GuestSurface* CreateSurface(uint32_t width, uint32_t height, X_D3DFORMAT format, bool formatSet = false)
 {
@@ -3684,66 +3651,40 @@ static GuestSurface* CreateSurface(uint32_t width, uint32_t height, X_D3DFORMAT 
 	return surface;
 }
 
-static xxHashMap<GuestSurface*> g_surfaceLevel;
+static std::vector<GuestSurface*> g_surfaceCache;
+GuestTexture* currentSufaceTex = nullptr;
+GuestSurface* currentSuface = nullptr;
 static GuestSurface* GetSurfaceLevel(GuestTexture* texture, int32_t level, X_D3DFORMAT Format)
 {
 
-	//return CreateSurface(texture->width, texture->height, (X_D3DFORMAT)texture->format, true);
-	//return (GuestSurface*)texture;
+	GuestSurface* surface = nullptr;
+	currentSufaceTex = texture;
 
-
-	XXH64_hash_t hash = XXH3_64bits(texture, sizeof(GuestTexture) * level + 1);
-	auto& surface = g_surfaceLevel[hash];
-	if (surface != nullptr)
-	{
-		return surface;
-	}
-
-
-	// Calculate dimensions for this mip level
 	uint32_t mipWidth = std::max(1u, texture->width >> level);
 	uint32_t mipHeight = std::max(1u, texture->height >> level);
 
-	// Allocate a surface object
+
+
 	surface = g_userHeap.AllocPhysical<GuestSurface>(
 		texture->format == DepthStencilFormat ?
 		ResourceType::DepthStencil : ResourceType::RenderTarget
 	);
 
 
-	surface->texture = texture->texture;
 
+	surface->texture = texture->texture;
 	surface->width = mipWidth;
 	surface->height = mipHeight;
 	surface->format = texture->format;
-	surface->guestFormat = texture->guestResource.Format;
+	surface->guestFormat = Format;
 	surface->sampleCount = RenderSampleCount::COUNT_1;
 
-	// Create a view specifically for this mip level
-	RenderTextureViewDesc viewDesc;
-	viewDesc.dimension = RenderTextureViewDimension::TEXTURE_2D;
-	viewDesc.format = texture->format;
+	surface->guestResource.Format = Format;
+	g_surfaceCache.emplace_back(surface);
 
-	viewDesc.mipLevels = 1;             // Only this one level
-
-
-	surface->textureView = texture->texture->createTextureView(viewDesc);
-
-	// Allocate descriptor for this specific mip level view
-	surface->descriptorIndex = g_textureDescriptorAllocator.allocate();
-	g_textureDescriptorSet->setTexture(
-		surface->descriptorIndex,
-		texture->texture,  // Same texture
-		RenderTextureLayout::SHADER_READ,
-		surface->textureView.get()
-	);
-
-
-	surface->guestResource.Format = texture->guestResource.Format;
-	texture->sourceSurface = surface;
+	currentSuface = surface;
 	return surface;
 }
-
 
 X86_FUNC_IMPL(__imp__sub_3DA010);
 //CreateSurfaceLevel = "view" or "interface" to access ONE specific level/slice of a texture resource.
@@ -4269,15 +4210,6 @@ intptr_t lastTex = 0;
 GuestTexture* hudTexCopy = nullptr;
 void SetTexture(uint32_t stage, GuestTexture* texture)
 {
-	/**if (lastTex == RTTexAddr && texture != nullptr)
-	{
-		SetTexture(0, nullptr);
-
-	}*/
-
-	//lastTex = (intptr_t)texture;
-
-
 
 	RenderCommand cmd;
 	cmd.type = RenderCommandType::SetTexture;
@@ -4286,9 +4218,11 @@ void SetTexture(uint32_t stage, GuestTexture* texture)
 
 	g_renderQueue.enqueue(cmd);
 }
-
+bool texFucked = false;
 static void SetTextureInRenderThread(uint32_t index, GuestTexture* texture)
 {
+	texFucked = texture == currentSufaceTex;
+
 	AddBarrier(texture, RenderTextureLayout::SHADER_READ);
 
 	auto viewDimension = texture != nullptr ? texture->viewDimension : RenderTextureViewDimension::UNKNOWN;
@@ -4339,21 +4273,19 @@ static void SetDefaultViewport(GuestDevice* device, GuestSurface* surface)
 	}
 }
 
+static float g_ZScale = 1.0f; //todo check if it needs to be updated
 
 X86_FUNC_IMPL(__imp__sub_3D0040);
 X86_FUNC_IMPL(__imp__sub_3D6250);
-
 //Specify where it should draws (Either framebuffer surface or texture surface)
 //on DX8 Xbox, SetDepthStencilSurface is merged with SetRenderTarget.
-uint32_t D3DDevice_SetRenderTarget(GuestSurface* surface, GuestSurface* pNewZStencil)
+void D3DDevice_SetRenderTarget(GuestSurface* surface, GuestSurface* pNewZStencil)
 {
-
-
 
 	auto ctx = GetX86Context();
 	auto base = g_memory.base;
-
 	auto device = X86_LOAD_U32(GuestDevicePtrAddr);
+
 
 
 	if (!g_XboxBackBuffer)
@@ -4367,33 +4299,35 @@ uint32_t D3DDevice_SetRenderTarget(GuestSurface* surface, GuestSurface* pNewZSte
 
 	if (!g_XboxDefaultDepthStencilSurface)
 	{
-		auto depthStencil = CreateSurface(640, 480, X_D3DFMT_LIN_D24S8);
+		auto depthStencil = CreateSurface(512, 512, X_D3DFMT_LIN_D24S8);
 		depthStencil->guestResource = pNewZStencil->guestResource;
 		pNewZStencil = depthStencil;
 		g_XboxDefaultDepthStencilSurface = pNewZStencil;
 		X86_STORE_U32(ctx->esp.u32 + 8, g_memory.MapVirtual(pNewZStencil));
 	}
-
+	else if (pNewZStencil && g_XboxDefaultDepthStencilSurface != pNewZStencil)
+	{
+		g_ZScale = GetZScaleForPixelContainer((X_D3DPixelContainer*)&pNewZStencil->guestResource);
+	}
 
 
 	__imp__sub_3D0040(*ctx, base);
 	ctx->esp.u32 -= 12;
 
-	//if ((intptr_t)surface != RTBuggy)
-	{
 
-		RenderCommand cmd;
-		cmd.type = RenderCommandType::SetRenderTarget;
-		cmd.setRenderTarget.renderTarget = surface;
-		g_renderQueue.enqueue(cmd);
+	RenderCommand cmd;
+	cmd.type = RenderCommandType::SetRenderTarget;
+	cmd.setRenderTarget.renderTarget = surface;
+	g_renderQueue.enqueue(cmd);
 
-		SetDefaultViewport((GuestDevice*)g_memory.Translate(device), surface);
-	}
+	SetDefaultViewport((GuestDevice*)g_memory.Translate(device), surface);
+
 
 	RenderCommand cmd2;
 	cmd2.type = RenderCommandType::SetDepthStencilSurface;
 	cmd2.setDepthStencilSurface.depthStencil = pNewZStencil;
 	g_renderQueue.enqueue(cmd2);
+
 
 	SetDefaultViewport((GuestDevice*)g_memory.Translate(device), pNewZStencil);
 
@@ -4401,7 +4335,9 @@ uint32_t D3DDevice_SetRenderTarget(GuestSurface* surface, GuestSurface* pNewZSte
 	X86_STORE_U32(device + 0x954, surface->width);
 	X86_STORE_U32(device + 0x958, surface->height);
 
-	return 1;
+
+
+
 }
 
 
@@ -4781,6 +4717,7 @@ static void SetFramebuffer(GuestSurface* renderTarget, GuestSurface* depthStenci
 
 				if (renderTarget != nullptr)
 				{
+
 					desc.colorAttachments = const_cast<const RenderTexture**>(&renderTarget->texture);
 					desc.colorAttachmentsCount = 1;
 				}
@@ -4902,24 +4839,17 @@ X86_FUNC(sub_3CFCD0)
 		bWorldViewDirty[State - X_D3DTS_WORLD] = true;
 	}
 }
-
-//D3DDevice_SetScreenSpaceOffset
-//Direct3D before version 10 had this pecularity called “half pixel offset”, where viewport coordinates are shifted by half a pixel 
-//compared to anything else (OpenGL, D3D10+, Metal etc.). 
-//we don't need that here as we use DX12 / Vulkan.
-X86_FUNC_IMPL(__imp__sub_3D1320);
-X86_FUNC(sub_3D1320)
+static int countBeforeWeGood = false;
+X86_FUNC_IMPL(__imp__sub_2D39E0);
+X86_FUNC(sub_2D39E0)
 {
-	__imp__sub_3D1320(ctx, base);
-	/**auto device = X86_LOAD_U32(GuestDevicePtrAddr);
-	float offsetA = X86_LOAD_F32(device + 0xEF8);
-	float offsetB = X86_LOAD_F32(device + 0xEFC);
+	++countBeforeWeGood;
 
-	//remove the half pixel offset
-	offsetA -= 0.53125;
-	offsetB -= 0.53125;
-	X86_STORE_U32(device + 0xEF8, offsetA);
-	X86_STORE_U32(device + 0xEFC, offsetB);*/
+	if (countBeforeWeGood == 5)
+	{
+		printf("");
+	}
+	__imp__sub_2D39E0(ctx, base);
 }
 
 
@@ -4937,7 +4867,6 @@ void SetVertexAttribute(int32_t Register, FLOAT a, FLOAT b, FLOAT c, FLOAT d)
 {
 
 	vsh_constants_dirty[HOST_D3DVS_CONSTREG_VREGDEFAULTS_BASE + Register] = true; 	//vRegisterDefaultValues aka 192 + i
-	g_vertexConstantsDirtyFlags = true;
 
 	float attribute_floats[4];
 	attribute_floats[0] = a;
@@ -4952,7 +4881,7 @@ void SetVertexAttribute(int32_t Register, FLOAT a, FLOAT b, FLOAT c, FLOAT d)
 	CopyVertexShaderConstant(HOST_D3DVS_CONSTREG_VREGDEFAULTS_BASE + Register, (DWORD*)attribute_floats, 1);
 }
 
-static float g_ZScale = 1.0f; //todo check if it needs to be updated
+
 
 // Get viewport offset and scale values intended to match the XDK calculations
 void GetXboxViewportOffsetAndScale(float(&vOffset)[4], float(&vScale)[4])
@@ -5036,24 +4965,6 @@ DWORD* D3D_CommonSetDebugRegisters()
 }
 
 
-DWORD* D3DDevice_SetRenderState_ZEnable(int a1)
-{
-	return 0;
-}
-
-DWORD* D3DDevice_SetRenderState_CullMode(void* this_, int a2)
-{
-	auto ctx = GetX86Context();
-	ctx->esp.u32 += 4;
-	return 0;
-}
-
-
-
-unsigned int D3D_LazySetPointParams(int a1)
-{
-	return 0;
-}
 
 int RW_SetTextureStageStates(int a1, int a2)
 {
@@ -5088,15 +4999,6 @@ unsigned int D3D_SetFence(char a2)
 	return 0;
 }
 
-
-//potentially corrupt the stack to do check
-/**X86_FUNC_IMPL(__imp__sub_1575C0);
-X86_FUNC(sub_1575C0)
-{
-	ctx.esp.u32 += 8;
-	return;
-	//__imp__sub_1575C0(ctx, base);
-}*/
 
 struct LocalRenderCommandQueue
 {
@@ -5142,13 +5044,13 @@ static void ProcSetTexture(const RenderCommand& cmd)
 			}
 			else
 			{
+				//UpdateHostTextureScaling(args.texture, g_pipelineState.vertexShaderType == VertexShaderMode::FixedFunction);
 				SetSurface(args.index, args.texture->sourceSurface);
+
 				shouldSetTexture = false;
 			}
 		}
-
 	}
-
 
 	if (shouldSetTexture)
 		SetTextureInRenderThread(args.index, args.texture);
@@ -5398,9 +5300,18 @@ static std::unique_ptr<RenderPipeline> CreateGraphicsPipeline(const PipelineStat
 
 	desc.pixelShader = FixedFuncPS.get();//pipelineState.pixelShader != nullptr ? GetOrLinkShader(pipelineState.pixelShader, pipelineState.specConstants) : nullptr;
 	desc.depthFunction = pipelineState.zFunc;
-	desc.depthEnabled = pipelineState.zEnable;
+	desc.depthEnabled = pipelineState.zEnable && g_depthStencil != nullptr; //Xbox likes to enable ZEnable without a depth stencil
 	desc.depthWriteEnabled = pipelineState.zWriteEnable;
 	desc.depthBias = pipelineState.depthBias;
+	desc.stencilEnabled = pipelineState.stencilEnable;
+	desc.stencilReadMask = pipelineState.stencilMask;
+	desc.stencilWriteMask = pipelineState.stencilWriteMask;
+	desc.stencilReference = pipelineState.stencilRef;
+	desc.stencilFrontFace.compareFunction = pipelineState.stencilFunc;
+	desc.stencilFrontFace.failOp = pipelineState.stencilFail;
+	desc.stencilFrontFace.depthFailOp = pipelineState.stencilZFail;
+	desc.stencilFrontFace.passOp = pipelineState.stencilPass;
+	desc.stencilBackFace = desc.stencilFrontFace;
 	desc.slopeScaledDepthBias = pipelineState.slopeScaledDepthBias;
 	desc.dynamicDepthBiasEnabled = g_capabilities.dynamicDepthBias;
 	desc.depthClipEnabled = true;
@@ -5653,11 +5564,11 @@ void* GetDataFromXboxResource(X_D3DResource* pXboxResource)
 	pData |= PHYSICAL_MAP_BASE;
 	return (uint8_t*)pData;
 }
-
+static bool ConstantCopy = false;
 static void FlushRenderStateForMainThread(LocalRenderCommandQueue& queue)
 {
 
-	if (g_pipelineState.vertexShaderType == VertexShaderMode::FixedFunction)
+	if (g_Xbox_VertexShaderMode == VertexShaderMode::FixedFunction)
 		UpdateFixedFunctionVertexShaderState((size_t)g_pipelineState.vertexShader, g_pipelineState.isFixedFunctionPS);
 	else
 		UpdateHostViewPortOffsetAndScaleConstants();
@@ -5696,7 +5607,11 @@ static void FlushRenderStateForMainThread(LocalRenderCommandQueue& queue)
 	}
 
 	//todo check if this is correct
-	if (g_vertexConstantsDirtyFlags != 0)
+
+	XXH64_hash_t hash = XXH3_64bits(&vsh_constants[0][0], sizeof(vsh_constants));
+	bool isDirty = g_lastVertexShaderConstants != hash;
+
+	if (isDirty)
 	{
 		int batchStartIndex = -1; // -1 means we aren't in a batch
 
@@ -5718,8 +5633,10 @@ static void FlushRenderStateForMainThread(LocalRenderCommandQueue& queue)
 					g_intermediaryUploadAllocator.allocate(&vsh_constants[batchStartIndex][0], count * sizeof(float) * 4);
 				cmd.setVertexShaderConstants.index = batchStartIndex;
 				cmd.setVertexShaderConstants.size = count;
+				cmd.setVertexShaderConstants.isFixedFunc = g_Xbox_VertexShaderMode == VertexShaderMode::FixedFunction;
 
 				batchStartIndex = -1;
+
 			}
 
 			// Constant is no longer dirty
@@ -5733,23 +5650,33 @@ static void FlushRenderStateForMainThread(LocalRenderCommandQueue& queue)
 
 			auto& cmd = queue.enqueue();
 			cmd.type = RenderCommandType::SetVertexShaderConstants;
-			cmd.setVertexShaderConstants.memory =
-				g_intermediaryUploadAllocator.allocate(&vsh_constants[batchStartIndex][0],
-					count * sizeof(float) * 4);
+			cmd.setVertexShaderConstants.memory = 
+				g_intermediaryUploadAllocator.allocate(&vsh_constants[batchStartIndex][0], count * sizeof(float) * 4);
 			cmd.setVertexShaderConstants.index = batchStartIndex;
 			cmd.setVertexShaderConstants.size = count;
+			cmd.setVertexShaderConstants.isFixedFunc = g_Xbox_VertexShaderMode == VertexShaderMode::FixedFunction;
 		}
 
-		g_vertexConstantsDirtyFlags = false;
+		g_lastVertexShaderConstants = hash;
+	}
+
+	//SetPixelShaderConstants
+	hash = XXH3_64bits(&psh_constants[0][0], sizeof(psh_constants));
+	isDirty = g_lastPixelShaderConstants != hash;
+
+	if (isDirty) //TODO
+	{
+
+		g_lastPixelShaderConstants = hash;
 	}
 }
 
-
+static bool isFixedForRenderThread = false;
 static constexpr int32_t COMMON_DEPTH_BIAS_VALUE = int32_t((1 << 24) * 0.002f);
 static constexpr float COMMON_SLOPE_SCALED_DEPTH_BIAS_VALUE = 1.0f;
 static void FlushRenderStateForRenderThread()
 {
-
+	const bool isFixed = isFixedForRenderThread;
 	auto renderTarget = g_pipelineState.colorWriteEnable ? g_renderTarget : nullptr;
 	auto depthStencil = g_pipelineState.zEnable || g_pipelineState.stencilEnable ? g_depthStencil : nullptr;
 
@@ -5779,10 +5706,12 @@ static void FlushRenderStateForRenderThread()
 	AddBarrier(renderTarget, RenderTextureLayout::COLOR_WRITE);
 	AddBarrier(depthStencil, RenderTextureLayout::DEPTH_WRITE);
 
+
 	FlushBarriers();
 
 	SetFramebuffer(renderTarget, depthStencil, false);
 	FlushViewport();
+
 
 	auto& commandList = g_commandLists[g_frame];
 
@@ -5814,31 +5743,37 @@ static void FlushRenderStateForRenderThread()
 		commandList->setDepthBias(g_depthBias, 0.0f, g_slopeScaledDepthBias);
 
 
-
 	if (g_dirtyStates.vertexShaderConstants)
 	{
-
-		auto vertexShaderConstants = g_uploadAllocators[g_frame].allocate<true>(g_vertexShaderConstants, sizeof(g_vertexShaderConstants), 0x100);
-
-		SetRootDescriptor(vertexShaderConstants, 0);
+		if (isFixed)
+		{
+			auto vertexShaderConstants = g_uploadAllocators[g_frame].allocate(g_vertexShaderConstantsFixed, sizeof(g_vertexShaderConstantsFixed), 0x100);
+			SetRootDescriptor(vertexShaderConstants, 0);
+		}
+		else
+		{
+			auto vertexShaderConstants = g_uploadAllocators[g_frame].allocate(g_vertexShaderConstants, sizeof(g_vertexShaderConstants), 0x100);
+			SetRootDescriptor(vertexShaderConstants, 0);
+		}
 	}
 
 	if (g_dirtyStates.pixelShaderConstants)
 	{
-		auto pixelShaderConstants = g_uploadAllocators[g_frame].allocate<true>(g_pixelShaderConstants, sizeof(g_pixelShaderConstants), 0x100);
+		auto pixelShaderConstants = g_uploadAllocators[g_frame].allocate(g_pixelShaderConstants, sizeof(g_pixelShaderConstants), 0x100);
 		SetRootDescriptor(pixelShaderConstants, 1);
 	}
 
+
 	if (g_dirtyStates.sharedConstants)
 	{
-		auto sharedConstants = g_uploadAllocators[g_frame].allocate<false>(&g_sharedConstants, sizeof(g_sharedConstants), 0x100);
+		auto sharedConstants = g_uploadAllocators[g_frame].allocate(&g_sharedConstants, sizeof(g_sharedConstants), 0x100);
 		SetRootDescriptor(sharedConstants, 2);
 	}
 
 
-
 	if (g_dirtyStates.vertexStreamFirst <= g_dirtyStates.vertexStreamLast)
 	{
+
 		commandList->setVertexBuffers(
 			g_dirtyStates.vertexStreamFirst,
 			g_vertexBufferViews + g_dirtyStates.vertexStreamFirst,
@@ -5852,53 +5787,6 @@ static void FlushRenderStateForRenderThread()
 	g_dirtyStates = DirtyStates(false);
 }
 
-// lookup table for converting vertex count to primitive count
-const unsigned g_XboxPrimitiveTypeInfo[11][2] =
-{
-	// First number is the starting number of vertices the draw requires
-	// Second number the number of vertices per primitive
-	// Example : Triangle list, has no starting vertices, and uses 3 vertices for each triangle
-	// Example : Triangle strip, starts with 2 vertices, and adds 1 for each triangle
-	{0, 0}, // NULL
-	{0, 1}, // X_D3DPT_POINTLIST
-	{0, 2}, // X_D3DPT_LINELIST
-	{1, 1}, // X_D3DPT_LINELOOP
-	{1, 1}, // X_D3DPT_LINESTRIP
-	{0, 3}, // X_D3DPT_TRIANGLELIST
-	{2, 1}, // X_D3DPT_TRIANGLESTRIP
-	{2, 1}, // X_D3DPT_TRIANGLEFAN
-	{0, 4}, // X_D3DPT_QUADLIST
-	{2, 2}, // X_D3DPT_QUADSTRIP
-	{0, 1}, // X_D3DPT_POLYGON
-};
-
-// convert from vertex count to primitive count (Xbox)
-inline uint32_t ConvertXboxVertexCountToPrimitiveCount(X_D3DPRIMITIVETYPE XboxPrimitiveType, uint32_t VertexCount)
-{
-	assert(XboxPrimitiveType < X_D3DPT_MAX);
-	auto res = (VertexCount - g_XboxPrimitiveTypeInfo[XboxPrimitiveType][0]) / g_XboxPrimitiveTypeInfo[XboxPrimitiveType][1];
-	return res;
-}
-
-//primive count is different on PC compared to Xbox so we need to convert it
-uint32_t GetNewPrimitiveCount(X_D3DPRIMITIVETYPE XboxPrimitiveType, uint32_t OriginalVertexCount)
-{
-	if (XboxPrimitiveType == X_D3DPT_QUADSTRIP)
-	{
-		// Quad strip is just like a triangle strip, but requires two vertices per primitive.
-		// A quadstrip starts with 4 vertices and adds 2 vertices per additional quad.
-		// This is much like a trianglestrip, which starts with 3 vertices and adds
-		// 1 vertex per additional triangle, so we use that instead. The planar nature
-		// of the quads 'survives' through this change. There's a catch though :
-		// In a trianglestrip, every 2nd triangle has an opposing winding order,
-		// which would cause backface culling - but this seems to be intelligently
-		// handled by d3d
-		return ConvertXboxVertexCountToPrimitiveCount(X_D3DPT_TRIANGLESTRIP, OriginalVertexCount);
-	}
-	else {
-		return ConvertXboxVertexCountToPrimitiveCount(XboxPrimitiveType, OriginalVertexCount);
-	}
-}
 
 static RenderPrimitiveTopology ConvertPrimitiveType(uint32_t primitiveType)
 {
@@ -6130,48 +6018,201 @@ static void UnlockIndexBuffer(GuestBuffer* buffer)
 	UnlockBuffer<uint16_t>(buffer);
 }
 
-//D3D12 requires vertex buffer strides to be aligned to 4 bytes unlike Xbox, so we need to fix that
+//D3D12 requires vertex buffer strides to be aligned to 4 bytes unlike Xbox, so we need to fix that when needed
 uint32_t AlignStride(uint32_t stride, uint32_t alignment = 4) {
 	return (stride + alignment - 1) & ~(alignment - 1);
 }
 
-GuestBuffer* GetGuestVertexBuffer(XD3DResource* buffer, int32_t VertexCount, int i)
+
+static inline FLOAT PackedIntToFloat(const int32_t value, const FLOAT PosFactor, const FLOAT NegFactor)
+{
+	if (value >= 0) {
+		return ((FLOAT)value) / PosFactor;
+	}
+	else {
+		return ((FLOAT)value) / NegFactor;
+	}
+}
+
+//handle vertex format difference such as normalized short format
+uint8_t* ApplyVertexPatch(uint8_t* vertexData, const uint8_t indexStream, const uint32_t VertexCount, const uint32_t originalStride, uint32_t alignedStride)
+{
+	size_t host_handle = (size_t)g_memory.Translate(g_VertexShader_Handle);
+	auto vertexElement = HostGetVertexDeclaration(host_handle, g_Xbox_VertexShaderMode == VertexShaderMode::FixedFunction);
+
+	auto pVertexShaderStreamInfo = &(vertexElement->VertexStreams[indexStream]);
+	UINT XboxStreamNumber = pVertexShaderStreamInfo->XboxStreamIndex;
+	bool bNeedVertexPatching = (pVertexShaderStreamInfo != nullptr && pVertexShaderStreamInfo->NeedPatch);
+
+	if (!bNeedVertexPatching)
+		return nullptr;
+
+	uint8_t* pHostVertexData = (uint8_t*)g_userHeap.AllocPhysical(VertexCount * alignedStride, 0x10);
+
+	for (uint32_t uiVertex = 0; uiVertex < VertexCount; uiVertex++)
+	{
+		uint8_t* pXboxVertexAsByte = &vertexData[uiVertex * originalStride];
+		uint8_t* pHostVertexAsByte = &pHostVertexData[uiVertex * alignedStride];
+
+		for (UINT uiElement = 0; uiElement < pVertexShaderStreamInfo->NumberOfVertexElements; uiElement++)
+		{
+			FLOAT* pXboxVertexAsFloat = (FLOAT*)pXboxVertexAsByte;
+			SHORT* pXboxVertexAsShort = (SHORT*)pXboxVertexAsByte;
+			const int32_t XboxElementByteSize = pVertexShaderStreamInfo->VertexElements[uiElement].XboxByteSize;
+			FLOAT* pHostVertexAsFloat = (FLOAT*)pHostVertexAsByte;
+			SHORT* pHostVertexAsShort = (SHORT*)pHostVertexAsByte;
+			// Dxbx note : The following code handles only the D3DVSDT enums that need conversion;
+			// All other cases are catched by the memcpy in the default-block.
+
+			switch (pVertexShaderStreamInfo->VertexElements[uiElement].XboxType)
+			{
+			case X_D3DVSDT_NORMSHORT1: { // 0x11:
+				pHostVertexAsShort[0] = pXboxVertexAsShort[0];
+				pHostVertexAsShort[1] = 0;
+				break;
+			}
+			case X_D3DVSDT_NORMSHORT2: { // 0x21:
+				pHostVertexAsShort[0] = pXboxVertexAsShort[0];
+				pHostVertexAsShort[1] = pXboxVertexAsShort[1];
+				break;
+			}
+			case X_D3DVSDT_NORMSHORT3: { // 0x31:
+				pHostVertexAsShort[0] = pXboxVertexAsShort[0];
+				pHostVertexAsShort[1] = pXboxVertexAsShort[1];
+				pHostVertexAsShort[2] = pXboxVertexAsShort[2];
+				pHostVertexAsShort[3] = 32767; // TODO : verify
+				break;
+			}
+			case X_D3DVSDT_NORMSHORT4: { // 0x41:
+				pHostVertexAsShort[0] = pXboxVertexAsShort[0];
+				pHostVertexAsShort[1] = pXboxVertexAsShort[1];
+				pHostVertexAsShort[2] = pXboxVertexAsShort[2];
+				pHostVertexAsShort[3] = pXboxVertexAsShort[3];
+				break;
+			}
+			case X_D3DVSDT_NORMPACKED3: { // 0x16:
+				// Make it FLOAT3
+				union {
+					int32_t value;
+					struct {
+						int x : 11;
+						int y : 11;
+						int z : 10;
+					};
+				} NormPacked3;
+
+				NormPacked3.value = ((int32_t*)pXboxVertexAsByte)[0];
+
+				pHostVertexAsFloat[0] = PackedIntToFloat(NormPacked3.x, 1023.0f, 1024.f);
+				pHostVertexAsFloat[1] = PackedIntToFloat(NormPacked3.y, 1023.0f, 1024.f);
+				pHostVertexAsFloat[2] = PackedIntToFloat(NormPacked3.z, 511.0f, 512.f);
+				break;
+			}
+			case X_D3DVSDT_SHORT1: { // 0x15:
+				// Make it SHORT2 and set the second short to 0
+				pHostVertexAsShort[0] = pXboxVertexAsShort[0];
+				pHostVertexAsShort[1] = 0;
+				break;
+			}
+			case X_D3DVSDT_SHORT3: { // 0x35:
+				// Make it a SHORT4 and set the fourth short to 1
+				pHostVertexAsShort[0] = pXboxVertexAsShort[0];
+				pHostVertexAsShort[1] = pXboxVertexAsShort[1];
+				pHostVertexAsShort[2] = pXboxVertexAsShort[2];
+				pHostVertexAsShort[3] = 1; // Turok verified (character disappears when this is 32767)
+				break;
+			}
+			case X_D3DVSDT_PBYTE1: { // 0x14:
+				// Make it UBYTE4N
+				pHostVertexAsByte[0] = pXboxVertexAsByte[0];
+				pHostVertexAsByte[1] = 0;
+				pHostVertexAsByte[2] = 0;
+				pHostVertexAsByte[3] = 255; // TODO : Verify
+				break;
+			}
+			case X_D3DVSDT_PBYTE2: { // 0x24:
+				pHostVertexAsByte[0] = pXboxVertexAsByte[0];
+				pHostVertexAsByte[1] = pXboxVertexAsByte[1];
+				pHostVertexAsByte[2] = 0;
+				pHostVertexAsByte[3] = 255; // TODO : Verify
+				break;
+			}
+			case X_D3DVSDT_PBYTE3: { // 0x34:
+				// Make it UBYTE4N
+				pHostVertexAsByte[0] = pXboxVertexAsByte[0];
+				pHostVertexAsByte[1] = pXboxVertexAsByte[1];
+				pHostVertexAsByte[2] = pXboxVertexAsByte[2];
+				pHostVertexAsByte[3] = 255; // TODO : Verify
+				break;
+			}
+			case X_D3DVSDT_PBYTE4: { // 0x44:
+				pHostVertexAsByte[0] = pXboxVertexAsByte[0];
+				pHostVertexAsByte[1] = pXboxVertexAsByte[1];
+				pHostVertexAsByte[2] = pXboxVertexAsByte[2];
+				pHostVertexAsByte[3] = pXboxVertexAsByte[3];
+				break;
+			}
+			case X_D3DVSDT_FLOAT2H: { // 0x72:
+				// Make it FLOAT4 and set the third float to 0.0
+				pHostVertexAsFloat[0] = pXboxVertexAsFloat[0];
+				pHostVertexAsFloat[1] = pXboxVertexAsFloat[1];
+				pHostVertexAsFloat[2] = 0.0f;
+				pHostVertexAsFloat[3] = pXboxVertexAsFloat[2];
+				break;
+			}
+			case X_D3DVSDT_NONE: { // 0x02:
+
+				printf("X_D3DVSDT_NONE");
+				// No host element data (but Xbox size can be above zero, when used for X_D3DVSD_MASK_SKIP*
+				break;
+			}
+			default: {
+				// Generic 'conversion' - just make a copy :
+				memcpy(pHostVertexAsByte, pXboxVertexAsByte, XboxElementByteSize);
+				break;
+			}
+			} // switch
+
+			// Increment the Xbox pointer :
+			pXboxVertexAsByte += XboxElementByteSize;
+			// Increment the host pointer :
+			pHostVertexAsByte += pVertexShaderStreamInfo->VertexElements[uiElement].HostByteSize;
+		} // for NumberOfVertexElements
+	} // for uiVertexCount
+
+	return pHostVertexData;
+}
+
+GuestBuffer* GetGuestVertexBuffer(int32_t VertexCount, int i, uint32_t alignedStride)
 {
 	unsigned long dataAddr = (unsigned long)GetDataFromXboxResource((X_D3DResource*)(g_Xbox_SetStreamSource[i].VertexBuffer));
 	uint8_t* pXboxVertexData = reinterpret_cast<uint8_t*>(g_memory.Translate(dataAddr));
 	const uint32_t originalStride = g_Xbox_SetStreamSource[i].Stride;
-	//size_t size = buffer->dataSize;
 	auto AlignedStrige = AlignStride(originalStride);
 	const bool requirePadding = (AlignedStrige != originalStride);
-	const size_t size = VertexCount * AlignedStrige;
+	const size_t originalSize = VertexCount * AlignedStrige;
 
-	XXH64_hash_t hash = XXH3_64bits(pXboxVertexData, size);
+	XXH64_hash_t hash = XXH3_64bits(pXboxVertexData, originalSize);
 	auto& bufferCache = g_vertexBufferCache[hash];
 	if (bufferCache == nullptr)
 	{
-		bufferCache = CreateVertexBuffer(size);
+		uint8_t* HostVertexData = ApplyVertexPatch(pXboxVertexData, i, VertexCount, originalStride, alignedStride);
+		const size_t newSize = VertexCount * alignedStride;
+		bufferCache = CreateVertexBuffer(newSize);
+
 		bufferCache->hash = hash;
-		bufferCache->mappedMemory = g_userHeap.AllocPhysical(bufferCache->dataSize, 0x10);
-		if (requirePadding == false)
+		if (HostVertexData == nullptr) //if patch didn't happen simply copy the vertex as they are
 		{
-			memcpy(bufferCache->mappedMemory, pXboxVertexData, bufferCache->dataSize);
+			bufferCache->mappedMemory = g_userHeap.AllocPhysical(bufferCache->dataSize, 0x10);
+			memcpy(bufferCache->mappedMemory, pXboxVertexData, originalSize);
 		}
 		else
 		{
-			// Need padding - copy vertex by vertex
-			const uint8_t* srcPtr = static_cast<const uint8_t*>(pXboxVertexData);
-			uint8_t* destPtr = static_cast<uint8_t*>(bufferCache->mappedMemory);
-
-			for (uint32_t j = 0; j < VertexCount; j++)
-			{
-				memcpy(destPtr, srcPtr, originalStride);
-				memset(destPtr + originalStride, 0, AlignedStrige - originalStride);
-				srcPtr += originalStride;
-				destPtr += AlignedStrige;
-			}
+			bufferCache->mappedMemory = HostVertexData; //we already have the vertex copied from the patch earlier so just assign them
 		}
+		//printf("Uploaded to the gpu (not cached)\n");
 
-		UnlockVertexBuffer(bufferCache);
+		UnlockVertexBuffer(bufferCache); //send our VB to the GPU
 	}
 
 	return bufferCache;
@@ -6185,17 +6226,26 @@ void DrawPrimitive(X_D3DPRIMITIVETYPE PrimitiveType, uint32_t StartVertex, uint3
 	{
 		if (g_Xbox_SetStreamSource[i].VertexBuffer)
 		{
-			auto buffer = (XD3DResource*)g_Xbox_SetStreamSource[i].VertexBuffer;
-			//auto buffer = g_Xbox_SetStreamSource[i].VertexBuffer;
-			//uint8_t* pXboxVertexData = reinterpret_cast<uint8_t*>(buffer->mappedMemory);
+			auto alignedStride = AlignStride(g_Xbox_SetStreamSource[i].Stride);
+			size_t host_handle = (size_t)g_memory.Translate(g_VertexShader_Handle);
+			auto vertexElement = HostGetVertexDeclaration(host_handle, g_Xbox_VertexShaderMode == VertexShaderMode::FixedFunction);
 
-			auto bufferCache = GetGuestVertexBuffer(buffer, VertexCount, i);
+			auto pVertexShaderStreamInfo = &(vertexElement->VertexStreams[i]);
+			bool bNeedVertexPatching = (pVertexShaderStreamInfo != nullptr && pVertexShaderStreamInfo->NeedPatch);
+
+			//if patching is needed the stride may be bigger so update it from the Vertex Declaration that we got earlier
+			if (bNeedVertexPatching)
+				alignedStride = pVertexShaderStreamInfo->HostVertexStride;
+
+
+			auto bufferCache = GetGuestVertexBuffer(VertexCount, i, alignedStride);
+
 
 			RenderCommand cmd;
 			cmd.type = RenderCommandType::SetStreamSource;
 			cmd.setStreamSource.StreamNumber = i;
 			cmd.setStreamSource.vertexBuffer = bufferCache;
-			cmd.setStreamSource.stride = g_Xbox_SetStreamSource[i].Stride;
+			cmd.setStreamSource.stride = alignedStride;
 			g_renderQueue.enqueue(cmd);
 		}
 	}
@@ -6209,6 +6259,7 @@ void DrawPrimitive(X_D3DPRIMITIVETYPE PrimitiveType, uint32_t StartVertex, uint3
 	cmd.drawPrimitive.primitiveType = PrimitiveType;
 	cmd.drawPrimitive.startVertex = StartVertex;
 	cmd.drawPrimitive.primitiveCount = VertexCount;
+	cmd.drawPrimitive.isFixed = g_Xbox_VertexShaderMode == VertexShaderMode::FixedFunction;
 
 	queue.submit();
 }
@@ -6219,6 +6270,7 @@ static void ProcDrawPrimitive(const RenderCommand& cmd)
 
 	//convert primitive
 	SetPrimitiveType(args.primitiveType);
+	isFixedForRenderThread = args.isFixed;
 	FlushRenderStateForRenderThread();
 	auto& commandList = g_commandLists[g_frame];
 	commandList->drawInstanced(args.primitiveCount, 1, args.startVertex, 0);
@@ -6250,64 +6302,62 @@ static void ComputeIndexRange(const int16_t* indices, uint32_t startIndex, uint3
 	outMax = maxIdx;
 }
 
-GuestBuffer* GetGuestVertexBufferIndexed(XD3DResource* buffer, int32_t VertexCount, int i, uint32_t minIdx, uint32_t maxIdx)
+
+
+GuestBuffer* GetGuestVertexBufferIndexed(int i, uint32_t minIdx, uint32_t maxIdx, uint32_t alignedStride)
 {
 	uint32_t usedVertices = maxIdx - minIdx + 1;
 	const uint32_t originalStride = g_Xbox_SetStreamSource[i].Stride;
 
-
 	unsigned long dataAddr = (unsigned long)GetDataFromXboxResource((X_D3DResource*)(g_Xbox_SetStreamSource[i].VertexBuffer));
 	uint8_t* pXboxVertexData = reinterpret_cast<uint8_t*>(g_memory.Translate(dataAddr));
 
-	auto alignedStride = AlignStride(originalStride);
-	const bool requirePadding = (alignedStride != originalStride);
-	size_t size = usedVertices * alignedStride;
+	pXboxVertexData += (minIdx * originalStride); //we only want to hash and copy the used vertices, the unused can be skipped.
 
 	const size_t originalSize = usedVertices * originalStride;
 	XXH64_hash_t hash = XXH3_64bits(pXboxVertexData + minIdx * originalStride, originalSize);
-	auto& bufferCache = g_vertexBufferCache[hash];
 
+
+	auto& bufferCache = g_vertexBufferCache[hash];
 	if (bufferCache == nullptr)
 	{
+		uint8_t* HostVertexData = ApplyVertexPatch(pXboxVertexData, i, usedVertices, originalStride, alignedStride);
+		const size_t size = usedVertices * alignedStride;
 		bufferCache = CreateVertexBuffer(size);
-		bufferCache->mappedMemory = g_userHeap.AllocPhysical(bufferCache->dataSize, 0x10);
+
 		bufferCache->hash = hash;
-		if (requirePadding == false)
+		if (HostVertexData == nullptr) //if patch didn't happen simply copy the vertex as they are
 		{
-			memcpy(bufferCache->mappedMemory, pXboxVertexData + minIdx * originalStride, originalSize);
+			bufferCache->mappedMemory = g_userHeap.AllocPhysical(bufferCache->dataSize, 0x10);
+			memcpy(bufferCache->mappedMemory, pXboxVertexData, originalSize);
 		}
 		else
 		{
-			const uint8_t* srcPtr = pXboxVertexData + (minIdx * originalStride);
-			uint8_t* destPtr = static_cast<uint8_t*>(bufferCache->mappedMemory);
-
-			for (uint32_t j = 0; j < usedVertices; j++)
-			{
-				memcpy(destPtr, srcPtr, originalStride);
-				memset(destPtr + originalStride, 0, alignedStride - originalStride);
-				srcPtr += originalStride;
-				destPtr += alignedStride;
-			}
+			bufferCache->mappedMemory = HostVertexData; //we already have the vertex copied from the patch earlier so just assign them
 		}
+		//printf("Uploaded to the gpu (not cached)\n");
 
-		UnlockVertexBuffer(bufferCache);
+		UnlockVertexBuffer(bufferCache); //send our VB to the GPU
 	}
 
 	return bufferCache;
 }
 
-void RunDebuggingShader(uint8_t* vertexData);
+void RunDebuggingShader(uint8_t* vertexData, uint8_t* vertexData2);
+
+
+bool indexed = false;
 //D3DDevice_DrawIndexedVertices (seems to be used to display message)
 //On Xbox, VertexCount = IndexCount, both are the same
 void DrawIndexedPrimitive(X_D3DPRIMITIVETYPE PrimitiveType, uint32_t VertexCount, int16_t* pIndexData)
 {
-	//shadow = 2192 vertex = stride 24
-	//object = 91 vertex =  stride 24
+	//printf("[GAME THREAD] Enqueue Draw - g_frame=%u\n", g_frame);
 
+	//shadow = 2192 vertex = stride 24 (32 with conversion)
+	//object (shadow eyes) = 91 vertex =  stride 24 (32 with conversion)
 
-	uint32_t minIdx = 0, maxIdx = 0;
-	ComputeIndexRange(pIndexData, 0, VertexCount, minIdx, maxIdx);
-
+	indexed = true;
+	startBS = true;
 	XXH64_hash_t hash = XXH3_64bits(pIndexData, VertexCount * sizeof(int16_t));
 	auto& bufferIndexCache = g_indexBufferCache[hash];
 
@@ -6330,110 +6380,91 @@ void DrawIndexedPrimitive(X_D3DPRIMITIVETYPE PrimitiveType, uint32_t VertexCount
 	}
 
 
+	SetIndices(bufferIndex);
+
+	uint32_t minIdx = 0, maxIdx = 0;
+	ComputeIndexRange(pIndexData, 0, VertexCount, minIdx, maxIdx);
+
+
+	GuestBuffer* v1;
+	GuestBuffer* v2;
+
 	for (int i = 0; i < 16; i++)
 	{
-		if (g_Xbox_SetStreamSource[i].VertexBuffer)
+		if (g_Xbox_SetStreamSource[i].VertexBuffer == nullptr)
+			continue;
+
+		auto alignedStride = AlignStride(g_Xbox_SetStreamSource[i].Stride);
+		size_t host_handle = (size_t)g_memory.Translate(g_VertexShader_Handle);
+		auto vertexElement = HostGetVertexDeclaration(host_handle, g_Xbox_VertexShaderMode == VertexShaderMode::FixedFunction);
+
+		auto pVertexShaderStreamInfo = &(vertexElement->VertexStreams[i]);
+		bool bNeedVertexPatching = (pVertexShaderStreamInfo != nullptr && pVertexShaderStreamInfo->NeedPatch);
+
+		//if patching is needed the stride may be bigger so update it from the Vertex Declaration that we got earlier
+		if (bNeedVertexPatching)
+			alignedStride = pVertexShaderStreamInfo->HostVertexStride;
+
+		auto bufferCache = GetGuestVertexBufferIndexed(i, minIdx, maxIdx, alignedStride);
+
+		if (!bufferCache)
+			return;
+
+		if (VertexCount == 2192)
 		{
-			auto buffer = (XD3DResource*)g_Xbox_SetStreamSource[i].VertexBuffer;
-			//auto buffer = g_Xbox_SetStreamSource[i].VertexBuffer;
-			//uint8_t* pXboxVertexData = reinterpret_cast<uint8_t*>(buffer->mappedMemory);
-			auto Stride = AlignStride(g_Xbox_SetStreamSource[i].Stride);
-			const uint32_t originalStride = g_Xbox_SetStreamSource[i].Stride;
-			auto bufferCache = GetGuestVertexBufferIndexed(buffer, VertexCount, i, minIdx, maxIdx);
+			if (!i)
+				v1 = bufferCache;
+			else if (i == 1)
+				v2 = bufferCache;
 
-			if (originalStride == 24)
-			{
-
-				unsigned long dataAddr = (unsigned long)GetDataFromXboxResource((X_D3DResource*)(g_Xbox_SetStreamSource[i].VertexBuffer));
-				uint8_t* pXboxVertexData = reinterpret_cast<uint8_t*>(g_memory.Translate(dataAddr));
-				//IndexedVertex* vertex = (IndexedVertex*)bufferCache->mappedMemory;
-
-				IndexedVertex* vertex = (IndexedVertex*)pXboxVertexData;
-				if (VertexCount == 171)
-				{
-					//printf("Vertex Log, Count %d\n", VertexCount);
-	
-
-					uint8_t* vertexData = (uint8_t*)vertex + (0 * originalStride);
-					RunDebuggingShader(vertexData);
-					for (int j = 0; j < 171; j++)
-					{
-
-						uint8_t* vertexData = (uint8_t*)vertex + (j * originalStride);
-						float* pos = (float*)vertexData;
-						float* color = (float*)vertexData + 12;
-						float* uv = (float*)(vertexData + 24);
-
-						/**printf("Vertex[%d] - pos %f, %f, %f\n", j, pos[0], pos[1], pos[2]);
-						printf("Vertex[%d] - normal %f, %f, %f\n", j, color[0], color[1], color[2]);
-						printf("Vertex[%d] - uv %f, %f\n", j, uv[0], uv[1]);*/
-
-						if (color[1] == 0.0f || color[2] == 0.0f)
-						{
-							int debug = 1;
-							debug = debug;
-						}
-
-						if (isinf(uv[0]) || isnan(uv[0])
-							|| isinf(uv[1]) || isnan(uv[1]))
-						{
-							minIdx = minIdx;
-							printf("WARNING NAN UV\n");
-							printf("buffer Xbox %p - with %d vertex count, pass %d vertex uv %f, %f \n", buffer, VertexCount, j, uv[0], uv[1]);
-						}
-
-					}
-					//printf("done\n");
-					//printf("\n");
-				}
-			}
-
-			RenderCommand cmd;
-			cmd.type = RenderCommandType::SetStreamSource;
-			cmd.setStreamSource.StreamNumber = i;
-			cmd.setStreamSource.vertexBuffer = bufferCache;
-			cmd.setStreamSource.stride = Stride;
-			g_renderQueue.enqueue(cmd);
 		}
+
+		RenderCommand cmd;
+		cmd.type = RenderCommandType::SetStreamSource;
+		cmd.setStreamSource.StreamNumber = i;
+		cmd.setStreamSource.vertexBuffer = bufferCache;
+		cmd.setStreamSource.stride = alignedStride;
+
+		g_renderQueue.enqueue(cmd);
 	}
 
 
+	if (VertexCount == 2192)
+	{
 
-	SetIndices(bufferIndex);
+		printf("");*/
+	}
 
 
 	LocalRenderCommandQueue queue;
-
-
 	FlushRenderStateForMainThread(queue);
 
 	auto& cmd = queue.enqueue();
-	cmd.type = RenderCommandType::DrawIndexedVertices;
+	cmd.type = RenderCommandType::DrawIndexedPrimitive;
 	cmd.drawIndexedPrimitive.primitiveType = PrimitiveType;
 	cmd.drawIndexedPrimitive.baseVertexIndex = -(int32_t)minIdx;
 	cmd.drawIndexedPrimitive.startIndex = 0;
 	cmd.drawIndexedPrimitive.primCount = VertexCount;
+	cmd.drawIndexedPrimitive.isFixed = g_Xbox_VertexShaderMode == VertexShaderMode::FixedFunction;
 
 	queue.submit();
 }
 
 static void ProcDrawIndexedPrimitive(const RenderCommand& cmd)
 {
+	//printf("[RENDER THREAD] Process Draw - recording to commandList[%u]\n", g_frame);
 	const auto& args = cmd.drawIndexedPrimitive;
 	SetPrimitiveType(args.primitiveType);
+	isFixedForRenderThread = args.isFixed;
 	FlushRenderStateForRenderThread();
 
 	g_commandLists[g_frame]->drawIndexedInstanced(args.primCount, 1, args.startIndex, args.baseVertexIndex, 0);
 }
 
-
-
 extern int countUntilFlameDraw;
 //D3DDevice_DrawVerticesUP - used for 2D Stuff, does not require a vertex buffer (originally)
 void DrawPrimitiveUP(X_D3DPRIMITIVETYPE PrimitiveType, uint32_t VertexCount, void* pVertexStreamZeroData, uint32_t VertexStreamZeroStride)
 {
-
-
 	LocalRenderCommandQueue queue;
 	FlushRenderStateForMainThread(queue);
 
@@ -6454,30 +6485,29 @@ void DrawPrimitiveUP(X_D3DPRIMITIVETYPE PrimitiveType, uint32_t VertexCount, voi
 
 
 
-
 	auto& cmd = queue.enqueue();
-	cmd.type = RenderCommandType::DrawVerticesUP;
+	cmd.type = RenderCommandType::DrawPrimitiveUP;
 	cmd.drawPrimitiveUP.primitiveType = PrimitiveType;
 	cmd.drawPrimitiveUP.primitiveCount = VertexCount;
 	cmd.drawPrimitiveUP.vertexStreamZeroData = g_intermediaryUploadAllocator.allocate(vertexData, VertexCount * VertexStreamZeroStride);
 	cmd.drawPrimitiveUP.vertexStreamZeroSize = VertexCount * VertexStreamZeroStride;
 	cmd.drawPrimitiveUP.vertexStreamZeroStride = VertexStreamZeroStride;
+	cmd.drawPrimitiveUP.isFixed = g_Xbox_VertexShaderMode == VertexShaderMode::FixedFunction;
 
 	queue.submit();
-	aboutToDrawFlame = false;
 }
 
 static void ProcDrawPrimitiveUP(const RenderCommand& cmd)
 {
 
-
 	const auto& args = cmd.drawPrimitiveUP;
+
 	X_D3DPRIMITIVETYPE XboxPrimitive = (X_D3DPRIMITIVETYPE)args.primitiveType;
 
 	SetPrimitiveType(args.primitiveType);
 	SetDirtyValue(g_dirtyStates.pipelineState, g_pipelineState.vertexStrides[0], uint8_t(args.vertexStreamZeroStride));
 
-	auto allocation = g_uploadAllocators[g_frame].allocate<true>(reinterpret_cast<const uint32_t*>(args.vertexStreamZeroData), args.vertexStreamZeroSize, 0x4);
+	auto allocation = g_uploadAllocators[g_frame].allocate(reinterpret_cast<const uint32_t*>(args.vertexStreamZeroData), args.vertexStreamZeroSize, 0x4);
 
 	auto& vertexBufferView = g_vertexBufferViews[0];
 	vertexBufferView.size = args.primitiveCount * args.vertexStreamZeroStride;
@@ -6485,21 +6515,19 @@ static void ProcDrawPrimitiveUP(const RenderCommand& cmd)
 	g_inputSlots[0].stride = args.vertexStreamZeroStride;
 	g_dirtyStates.vertexStreamFirst = 0;
 
+
 	uint32_t indexCount = 0;
 
-	/**if (args.primitiveType == X_D3DPT_QUADLIST)
+	if (args.primitiveType == X_D3DPT_QUADLIST)
+	{
 		indexCount = g_quadIndexData.prepare(args.primitiveCount);
-	else if (!g_capabilities.triangleFan && args.primitiveType == X_D3DPT_TRIANGLEFAN)
+	}
+	/**else if (!g_capabilities.triangleFan && args.primitiveType == X_D3DPT_TRIANGLEFAN)
 		indexCount = g_triangleFanIndexData.prepare(args.primitiveCount);*/
 
-		/**if (args.csdFilterState != CsdFilterState::Unknown &&
-			(g_pipelineState.pixelShader == g_csdShader || g_pipelineState.pixelShader == g_csdFilterShader.get()))
-		{
-			SetDirtyValue(g_dirtyStates.pipelineState, g_pipelineState.pixelShader,
-				args.csdFilterState == CsdFilterState::On ? g_csdFilterShader.get() : g_csdShader);
-		}*/
-
+	isFixedForRenderThread = args.isFixed;
 	FlushRenderStateForRenderThread();
+
 
 	uint32_t primitiveCount = args.primitiveCount;
 
@@ -6508,8 +6536,6 @@ static void ProcDrawPrimitiveUP(const RenderCommand& cmd)
 	else
 		g_commandLists[g_frame]->drawInstanced(primitiveCount, 1, 0, 0);
 }
-
-
 
 
 static void ProcSetTextureStageState(const RenderCommand& cmd)
@@ -6593,10 +6619,15 @@ static void ProcSetTextureStageState(const RenderCommand& cmd)
 
 static void ProcSetVertexShaderConstants(const RenderCommand& cmd)
 {
+
 	auto& args = cmd.setVertexShaderConstants;
+
 	//assert((args.index * sizeof(uint32_t) + args.size) <= sizeof(g_vertexShaderConstants));
 	assert((args.index + args.size) * 4 <= HOST_D3DVS_CONSTREG_FULL * 4);
-	memcpy(&g_vertexShaderConstants[args.index * 4], args.memory, args.size * 4 * sizeof(float));
+	if (args.isFixedFunc)
+		memcpy(&g_vertexShaderConstantsFixed[args.index * 4], args.memory, args.size * 4 * sizeof(float));
+	else
+		memcpy(&g_vertexShaderConstants[args.index * 4], args.memory, args.size * 4 * sizeof(float));
 	g_dirtyStates.vertexShaderConstants = true;
 }
 
@@ -6671,14 +6702,11 @@ X86_FUNC(sub_3D5F10)
 
 void CopyVertexShaderConstant(int32_t Register, DWORD* pConstantData, const uint32_t count)
 {
-
 	float* float_vsh_constants = (float*)&(vsh_constants[Register][0]);
 	memcpy(float_vsh_constants, pConstantData, count * sizeof(float) * 4);
 
 	for (DWORD i = 0; i < count; i++)
 		vsh_constants_dirty[Register + i] = true;
-
-	g_vertexConstantsDirtyFlags = true;
 }
 
 void LogFloat4(const char* name, const float* values, int count = 1) {
@@ -6712,26 +6740,8 @@ X86_FUNC(sub_2C89D0)
 void D3DDevice_SetVertexShaderConstant1Fast(int32_t Register, DWORD* pConstantData)
 {
 	float* constants = (float*)pConstantData;
-	if (LogVSConstants)
-	{
-		std::ofstream  outFile2("VSLogs.txt", std::ios::app);
-		outFile2 << "D3DDevice_SetVertexShaderConstant1Fast" << '\n';
 
 
-		float x = constants[0];
-		float y = constants[1];
-		float z = constants[2];
-		float w = constants[3];
-
-		//printf("Constant[%d]: (%f, %f, %f, %f)\n", Register, x, y, z, w);
-
-		outFile2 << "Constant[" << Register << " * 4 + 0] " << x << '\n';
-		outFile2 << "Constant[" << Register << " * 4 + 1] " << y << '\n';
-		outFile2 << "Constant[" << Register << " * 4 + 2] " << z << '\n';
-		outFile2 << "Constant[" << Register << " * 4 + 3] " << w << '\n';
-		outFile2 << '\n';
-		outFile2.close();
-	}
 	CopyVertexShaderConstant(Register, pConstantData, 1);
 }
 
@@ -6739,39 +6749,6 @@ void D3DDevice_SetVertexShaderConstant1Fast(int32_t Register, DWORD* pConstantDa
 void D3DDevice_SetVertexShaderConstantNotInlineFast(int32_t Register, DWORD* pConstantData, uint32_t ConstantCount)
 {
 	float* constants = (float*)pConstantData;
-
-	if (LogVSConstants)
-	{
-		std::ofstream  outFile2("VSLogs.txt", std::ios::app);
-		outFile2 << "D3DDevice_SetVertexShaderConstantNotInlineFast" << '\n';
-
-		int actualCount = ConstantCount / 4;
-		for (int i = 0; i < actualCount; i++) {
-
-			intptr_t addr = pConstantData[i * 4 + 0];
-			addr = addr;
-			float x = constants[i * 4 + 0];
-			float y = constants[i * 4 + 1];
-			float z = constants[i * 4 + 2];
-			float w = constants[i * 4 + 3];
-
-			outFile2 << "Constant[" << i << " * 4 + 0] " << x << '\n';
-			outFile2 << "Constant[" << i << " * 4 + 1] " << y << '\n';
-			outFile2 << "Constant[" << i << " * 4 + 2] " << z << '\n';
-			outFile2 << "Constant[" << i << " * 4 + 3] " << w << '\n';
-
-
-			//printf("Constant[%d]: (%f, %f, %f, %f)\n", i, x, y, z, w);
-			//printf("\n");
-			outFile2 << '\n';
-		}
-		//printf("\n");
-
-		outFile2 << '\n';
-		outFile2.close();
-	}
-
-
 
 	CopyVertexShaderConstant(Register, pConstantData, ConstantCount / 4);
 }
@@ -6950,7 +6927,7 @@ void CopyTextureToGPU(GuestTexture* tex)
 			uint32_t mip2dSize = slice.srcRowPitch * slice.rowCount;
 			uint32_t mipSlicePitch = mip2dSize * slice.depth;
 
-			// src offset (Xbox memory layout packs mips/faces tightly) — use curSrcOffset
+			// src offset (Xbox memory layout packs mips/faces tightly) â€” use curSrcOffset
 			slice.srcOffset = curSrcOffset;
 
 			// destination: align each slice placement to PLACEMENT_ALIGN
@@ -7108,19 +7085,10 @@ X86_FUNC(sub_2DFE20)
 	ctx.esp.u32 -= 4;
 
 
-
-
 	int usage = LOBYTE(info->cType) == rwRASTERTYPECAMERATEXTURE ? 1 : 0;
-	if (usage)
-	{
-		printf("");
-	}
+
 	auto newTex = CreateTexture(info->width, info->height, 1, level, usage, format, X_D3DRTYPE_TEXTURE);
 
-	if ((intptr_t)newTex == 0x00000001a0ebf8b0)
-	{
-		printf("");
-	}
 	newTex->guestResource.Common = texture->Common;
 	newTex->guestResource.Data = texture->Data;
 	newTex->guestResource.Format = texture->Format;
@@ -7169,7 +7137,7 @@ X86_FUNC(sub_2E6750)
 	__imp__sub_2E6750(ctx, base);
 	auto addr = ctx.eax.u32;
 	XD3DResource* buffer = (XD3DResource*)g_memory.Translate(addr);
-	//printf("Create VB %x - size: %d\n", (intptr_t)buffer, size);
+	printf("Create VB %x - size: %d\n", (intptr_t)buffer, size);
 
 	//g_VBList.push_back({ buffer, nullptr, size });
 }
@@ -7374,10 +7342,6 @@ void D3DDevice_EndPush(DWORD* pPush)
 {
 	if (pPush)
 	{
-		// Note: We don't use the count from BeginPush because that specifies the *maximum* count
-		// rather than the count actually in the pushbuffer. 
-		//EmuExecutePushBufferRaw(g_beginPush, (uintptr_t)pPush - (uintptr_t)g_beginPush);
-
 		g_userHeap.Free(g_beginPush);
 		g_beginPush = nullptr;
 	}
@@ -7407,7 +7371,7 @@ static std::thread g_renderThread([]
 		GuestThread::SetThreadName(GetCurrentThreadId(), "Render Thread");
 #endif
 
-		RenderCommand commands[32];
+		RenderCommand commands[25]; //update when adding missing stuff
 
 		while (true)
 		{
@@ -7438,10 +7402,9 @@ static std::thread g_renderThread([]
 					//case RenderCommandType::SetBooleans:                       ProcSetBooleans(cmd); break;
 				case RenderCommandType::SetVertexShaderConstants:          ProcSetVertexShaderConstants(cmd); break;
 					//case RenderCommandType::SetPixelShaderConstants:           ProcSetPixelShaderConstants(cmd); break;
-					//case RenderCommandType::AddPipeline:                       ProcAddPipeline(cmd); break;
 				case RenderCommandType::DrawPrimitive:                     ProcDrawPrimitive(cmd); break;
-				case RenderCommandType::DrawIndexedVertices:              ProcDrawIndexedPrimitive(cmd); break;
-				case RenderCommandType::DrawVerticesUP:                   ProcDrawPrimitiveUP(cmd); break;
+				case RenderCommandType::DrawIndexedPrimitive:              ProcDrawIndexedPrimitive(cmd); break;
+				case RenderCommandType::DrawPrimitiveUP:                   ProcDrawPrimitiveUP(cmd); break;
 				case RenderCommandType::SetVertexDeclaration:              ProcSetVertexDeclaration(cmd); break;
 				case RenderCommandType::SetVertexShader:                   ProcSetVertexShader(cmd); break;
 				case RenderCommandType::SetStreamSource:                   ProcSetStreamSource(cmd); break;

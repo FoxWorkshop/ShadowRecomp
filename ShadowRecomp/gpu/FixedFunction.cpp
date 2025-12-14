@@ -5,19 +5,14 @@
 #include <algorithm>
 #include <DirectXMath.h>
 
-#ifndef D3DCOLORVALUE_DEFINED
-typedef struct _D3DCOLORVALUE {
-	float r;
-	float g;
-	float b;
-	float a;
-} D3DCOLORVALUE;
-#define D3DCOLORVALUE_DEFINED
-#endif
 
-//original code (mostly) re used from CXBX Reloaded
+// original code (mostly) re used from CXBX Reloaded
+// Since modern API don't have a fixed function pipeline, we have to emulate it ourselves using shaders.
+// This page handle many features of the fixed function pipeline such as lighting, world/view/projection matrices, etc
+// Those will be used as constants for our uber vertex shader which is emulating the fixed function pipeline
+// for more information, see FixedFunctionVertexShader.hlsl and FixedFunctionPixelShader.hlsl
 
-
+using namespace DirectX;
 extern uint32_t g_renderState[255];
 
 // Combines world/view matrices
@@ -25,7 +20,116 @@ static std::array<D3DMATRIX, 4> g_WorldView;
 // World/view inverse transpose for lighting calculations
 static std::array<D3DMATRIX, 4> g_WorldViewInverseTranspose;
 
+D3DCOLORVALUE colorValue(float r, float g, float b, float a) {
+	auto value = D3DCOLORVALUE();
+	value.r = r;
+	value.g = g;
+	value.b = b;
+	value.a = a;
+	return value;
+}
+
+DirectX::XMFLOAT4 toVector(DWORD color) {
+	DirectX::XMFLOAT4  v;
+	// ARGB to XYZW
+	v.w = (color >> 24 & 0xFF) / 255.f;
+	v.x = (color >> 16 & 0xFF) / 255.f;
+	v.y = (color >> 8 & 0xFF) / 255.f;
+	v.z = (color >> 0 & 0xFF) / 255.f;
+	return v;
+}
+
+D3DVECTOR toVector(float x, float y, float z) {
+	auto value = D3DVECTOR();
+	value.x = x;
+	value.y = y;
+	value.z = z;
+	return value;
+}
+
+DirectX::XMFLOAT4 toVector(D3DCOLORVALUE val) {
+	return DirectX::XMFLOAT4(val.r, val.g, val.b, val.a);
+}
+
+D3D8LightState::D3D8LightState() {
+	// Define the default light
+	// When unset lights are enabled, they're set to the default light
+	auto defaultLight = X_D3DLIGHT8();
+	defaultLight.Type = D3DLIGHT_DIRECTIONAL;
+	defaultLight.Diffuse = colorValue(1, 1, 1, 0);
+	defaultLight.Specular = colorValue(0, 0, 0, 0);
+	defaultLight.Ambient = colorValue(0, 0, 0, 0);
+	defaultLight.Position = toVector(0, 0, 0);
+	defaultLight.Direction = toVector(0, 0, 1);
+	defaultLight.Range = 0;
+	defaultLight.Falloff = 0;
+	defaultLight.Attenuation0 = 0;
+	defaultLight.Attenuation1 = 0;
+	defaultLight.Attenuation2 = 0;
+	defaultLight.Theta = 0;
+	defaultLight.Phi = 0;
+
+	// We'll just preset every light to the default light
+	Lights.fill(defaultLight);
+	EnabledLights.fill(-1);
+}
+
+void D3D8LightState::EnableLight(uint32_t index, bool enable) {
+	// Since Xbox only supports 8 lights, we keep track of the 8 most recently enabled lights
+	// Lights are ordered oldest to newest, with disabled lights at the end
+
+	// Check to see if the light is already enabled
+	for (size_t i = 0; i < EnabledLightCount; i++) {
+
+		// If the light is already in the enabled lights
+		if (EnabledLights[i] == index) {
+			// Either way we move this light to the end
+			std::rotate(std::begin(EnabledLights) + i, std::begin(EnabledLights) + i + 1, std::begin(EnabledLights) + EnabledLightCount);
+
+			if (!enable)
+			{
+				// Disable the light
+				EnabledLights[EnabledLightCount - 1] = -1;
+				EnabledLightCount--;
+			}
+			return;
+		}
+	}
+
+	if (enable) {
+		// The light was not in the enabled lights. Let's add it
+		if (EnabledLightCount < EnabledLights.size()) {
+			EnabledLights[EnabledLightCount] = index; // add it to the end
+			EnabledLightCount++;
+		}
+		else {
+			// Replace the oldest element and move to end
+
+			EnabledLights[0] = index;
+			std::rotate(std::begin(EnabledLights), std::begin(EnabledLights) + 1, std::end(EnabledLights));
+		}
+	}
+
+}
+
+
+
+D3D8LightState g_LightState = D3D8LightState();
+
 std::array<bool, 4> bWorldViewDirty;
+
+
+static uint32_t GetRenderState(uint32_t State)
+{
+	return g_renderState[State];
+}
+
+static float GetXboxRenderStateAsFloat(uint32_t State)
+{
+
+	return *reinterpret_cast<float*>(&(g_renderState[State]));
+}
+
 
 struct Matrix4x4
 {
@@ -59,41 +163,20 @@ namespace FixedFunctionVertexShader {
 	const float FOG_TABLE_LINEAR = 3;
 }
 
-typedef enum _D3DFOGMODE {
-	D3DFOG_NONE = 0,
-	D3DFOG_EXP = 1,
-	D3DFOG_EXP2 = 2,
-	D3DFOG_LINEAR = 3,
-	D3DFOG_FORCE_DWORD = 0x7fffffff, /* force 32-bit size enum */
-} D3DFOGMODE;
-
-typedef struct _D3DVECTOR {
-	float x;
-	float y;
-	float z;
-} D3DVECTOR;
-
-typedef struct _D3DVECTOR4 {
-	float x;
-	float y;
-	float z;
-	float w;
-} D3DVECTOR4;
-
 
 struct Transforms
 {
-	alignas(16) D3DMATRIX View;
-	alignas(16) D3DMATRIX Projection;
-	alignas(16) D3DMATRIX Texture[4]; // c8-c23 (4 matrices × 4 regs each)
-	alignas(16) D3DMATRIX WorldView[4];
-	alignas(16) D3DMATRIX WorldViewInverseTranspose[4];
+	alignas(16) XMFLOAT4X4 View;
+	alignas(16) XMFLOAT4X4 Projection;
+	alignas(16) XMFLOAT4X4 Texture[4]; // c8-c23 (4 matrices × 4 regs each)
+	alignas(16) XMFLOAT4X4 WorldView[4];
+	alignas(16) XMFLOAT4X4 WorldViewInverseTranspose[4];
 };
 
 struct Light {
 
-	alignas(16) D3DCOLORVALUE Diffuse;
-	alignas(16) D3DCOLORVALUE Specular;
+	alignas(16) XMFLOAT4 Diffuse;
+	alignas(16) XMFLOAT4 Specular;
 
 	// Viewspace light position Range in posW
 	alignas(16) D3DVECTOR4 PositionV;
@@ -203,54 +286,60 @@ struct FixedFunctionVertexShaderState
 	alignas(16) float TexCoordComponentCount[4]; // c129
 };
 
-FixedFunctionVertexShaderState ffShaderState = { 0 };
+FixedFunctionVertexShaderState ffShaderState = {};
 extern int32_t* g_texture_stage_states;
 extern int32_t g_RenderUpscaleFactor;
 extern std::array<D3DMATRIX, X_D3DTS_MAX> g_Transforms;
 
 
+void UpdateFixedFunctionShaderLight(int d3dLightIndex, Light* pShaderLight, DirectX::XMFLOAT4* pLightAmbient) {
+	if (d3dLightIndex == -1) {
+		pShaderLight->DirectionVN.w = 0; // Disable the light
+		return;
+	}
 
-D3DCOLORVALUE colorValue(float r, float g, float b, float a) {
-	auto value = D3DCOLORVALUE();
-	value.r = r;
-	value.g = g;
-	value.b = b;
-	value.a = a;
-	return value;
-}
-
-DirectX::XMFLOAT4 toVector(DWORD color) {
-	DirectX::XMFLOAT4  v;
-	// ARGB to XYZW
-	v.w = (color >> 24 & 0xFF) / 255.f;
-	v.x = (color >> 16 & 0xFF) / 255.f;
-	v.y = (color >> 8 & 0xFF) / 255.f;
-	v.z = (color >> 0 & 0xFF) / 255.f;
-	return v;
-}
-
-D3DVECTOR toVector(float x, float y, float z) {
-	auto value = D3DVECTOR();
-	value.x = x;
-	value.y = y;
-	value.z = z;
-	return value;
-}
-
-DirectX::XMFLOAT4 toVector(D3DCOLORVALUE val) {
-	return DirectX::XMFLOAT4(val.r, val.g, val.b, val.a);
-}
-
-static uint32_t GetRenderState(uint32_t State)
-{
-	return g_renderState[State];
-}
-
-static float GetXboxRenderStateAsFloat(uint32_t State)
-{
+	auto d3dLight = &g_LightState.Lights[d3dLightIndex];
+	auto viewTransform = XMLoadFloat4x4((XMFLOAT4X4*)&g_Transforms[X_D3DTS_VIEW]);
 
 
-	return *reinterpret_cast<float*>(&(g_renderState[State]));
+	// TODO remove D3DX usage
+	// Pre-transform light position to viewspace
+	// Transform light position into view space
+	XMVECTOR pos = XMLoadFloat3((XMFLOAT3*)&d3dLight->Position);
+	XMMATRIX view = XMLoadFloat4x4((XMFLOAT4X4*)&viewTransform);
+
+	XMVECTOR positionV = XMVector3Transform(pos, view);
+	XMStoreFloat3((XMFLOAT3*)&pShaderLight->PositionV, positionV);
+
+	// Transform light direction into view space (ignore translation)
+	XMVECTOR dir = XMLoadFloat3((XMFLOAT3*)&d3dLight->Direction);
+	XMVECTOR directionV = XMVector3TransformNormal(dir, view);
+
+	// Normalize direction
+	directionV = XMVector3Normalize(directionV);
+
+	XMStoreFloat3((XMFLOAT3*)&pShaderLight->DirectionVN, directionV);
+
+
+	bool SpecularEnable = GetRenderState(X_D3DRS_SPECULARENABLE) != FALSE;
+
+	// Map D3D light to state struct
+	pShaderLight->DirectionVN.w = (float)((int)d3dLight->Type); //DirectionVN.w = type
+	pShaderLight->Diffuse = toVector(d3dLight->Diffuse);
+	pShaderLight->Specular = SpecularEnable ? toVector(d3dLight->Specular) : toVector(0);
+	pShaderLight->PositionV.w = d3dLight->Range; //PositionV = range
+	pShaderLight->Attenuation.w = d3dLight->Falloff; //Attenuation.w = falloff
+	pShaderLight->Attenuation.x = d3dLight->Attenuation0;
+	pShaderLight->Attenuation.y = d3dLight->Attenuation1;
+	pShaderLight->Attenuation.z = d3dLight->Attenuation2;
+
+	pLightAmbient->x += d3dLight->Ambient.r;
+	pLightAmbient->y += d3dLight->Ambient.g;
+	pLightAmbient->z += d3dLight->Ambient.b;
+
+	auto cosHalfPhi = cos(d3dLight->Phi / 2);
+	pShaderLight->SpotParams.x = cosHalfPhi; //SpotParams.x = CosHalfPhi
+	pShaderLight->SpotParams.y = cos(d3dLight->Theta / 2) - cos(d3dLight->Phi / 2); //SpotParams.y = SpotIntensityDivisor
 }
 
 
@@ -258,7 +347,6 @@ void RecalculateDependentMatrices(uint32_t i)
 {
 	auto worldState = X_D3DTS_WORLD + i;
 
-	using namespace DirectX;
 	// Load world and view matrices
 	XMMATRIX world = XMLoadFloat4x4((XMFLOAT4X4*)&g_Transforms[worldState]);
 	XMMATRIX view = XMLoadFloat4x4((XMFLOAT4X4*)&g_Transforms[X_D3DTS_VIEW]);
@@ -326,7 +414,6 @@ bool logIndexedPrimitive = false;
 void UpdateFixedFunctionVertexShaderState(size_t Handle, bool isFixed)
 {
 
-	using namespace DirectX;
 	// Vertex blending
 	// Prepare vertex blending mode variables used in transforms, below
 	auto VertexBlend = g_renderState[X_D3DRS_VERTEXBLEND];
@@ -494,19 +581,27 @@ void UpdateFixedFunctionVertexShaderState(size_t Handle, bool isFixed)
 
 	}
 
-	// Update lights (TODO)
-	/**auto LightAmbient = D3DXVECTOR4(0.f, 0.f, 0.f, 0.f);
+	// Update lights
+	auto LightAmbient = XMFLOAT4(0.f, 0.f, 0.f, 0.f);
 	for (size_t i = 0; i < 8; i++)
 	{
-		UpdateFixedFunctionShaderLight(d3d8LightState.EnabledLights[i], &ffShaderState.Lights[i], &LightAmbient);
+		UpdateFixedFunctionShaderLight(g_LightState.EnabledLights[i], &ffShaderState.Lights[i], &LightAmbient);
 	}
 
-	D3DXVECTOR4 Ambient = toVector(GetRenderState(X_D3DRS_AMBIENT));
-	D3DXVECTOR4 BackAmbient = toVector(GetRenderState(X_D3DRS_BACKAMBIENT));
+	XMFLOAT4 Ambient = toVector(GetRenderState(X_D3DRS_AMBIENT));
+	XMFLOAT4 BackAmbient = toVector(GetRenderState(X_D3DRS_BACKAMBIENT));
 
-	ffShaderState.TotalLightsAmbient.Front = (D3DXVECTOR3)(LightAmbient + Ambient);
-	ffShaderState.TotalLightsAmbient.Back = (D3DXVECTOR3)(LightAmbient + BackAmbient);*/
+	XMVECTOR vLightAmbient = XMLoadFloat4(&LightAmbient);
+	XMVECTOR vAmbient = XMLoadFloat4(&Ambient);
 
+	XMVECTOR vFront = XMVectorAdd(vLightAmbient, vAmbient);
+
+	XMStoreFloat4((XMFLOAT4*)&ffShaderState.TotalLightsAmbient.Front, vFront);
+
+	XMVECTOR vBackAmbient = XMLoadFloat4(&BackAmbient);
+	XMVECTOR vBack = XMVectorAdd(vLightAmbient, vBackAmbient);
+
+	XMStoreFloat4((XMFLOAT4*)&ffShaderState.TotalLightsAmbient.Back, vBack);
 
 	// Misc flags
 	ffShaderState.Modes.NormalizeNormals = (float)GetRenderState(X_D3DRS_NORMALIZENORMALS);
@@ -517,7 +612,6 @@ void UpdateFixedFunctionVertexShaderState(size_t Handle, bool isFixed)
 	CopyVertexShaderConstant(0, (DWORD*)&ffShaderState, fixedFunctionStateSize);
 
 }
-
 
 //shader debug
 
@@ -538,7 +632,23 @@ struct float4 {
 		default: assert(false); return x;
 		}
 	}
+
+	static inline float4 mul(const float4& a, const float4& b)
+	{
+		return float4{ a.x * b.x, a.y * b.y, a.z * b.z, a.w * b.w };
+	}
+
+	static inline float4 add(const float4& a, const float4& b)
+	{
+		return float4{ a.x + b.x, a.y + b.y, a.z + b.z, a.w + b.w };
+	}
+
+	static inline float4 scale(float s, const float4& v)
+	{
+		return float4{ s * v.x, s * v.y, s * v.z, s * v.w };
+	}
 };
+
 
 
 struct int1 {
@@ -622,17 +732,17 @@ void x_dp3(float4& dest, const char* mask, const float4& src0, const float4& src
 
 	for (int i = 0; i < strlen(mask); i++) {
 		switch (mask[i]) {
-		case 'x': 
-			dest.x = result.x; 
+		case 'x':
+			dest.x = result.x;
 			break;
-		case 'y': 
+		case 'y':
 			dest.y = result.y;
 			break;
-		case 'z': 
-			dest.z = result.z; 
+		case 'z':
+			dest.z = result.z;
 			break;
-		case 'w': 
-			dest.w = result.w; 
+		case 'w':
+			dest.w = result.w;
 			break;
 		}
 	}
@@ -704,20 +814,94 @@ void debug_dp3(const std::string& name, const float4& src0, const float4& src1, 
 		<< result.x << std::endl;
 }
 
-extern uint32_t vsh_constants[HOST_D3DVS_CONSTREG_FULL][4];
-void RunDebuggingShader(uint8_t* vertexData)
-{
-	return;
+float dot4(const float4& a, const float4& b) {
+	return a.x * b.x + a.y * b.y + a.z * b.z + a.w * b.w;
+}
 
-	float4 rawVertexData[16];
-	memset(rawVertexData, 0, sizeof(float4) * 16);
+extern uint32_t vsh_constants[HOST_D3DVS_CONSTREG_FULL][4];
+static float4 c(int register_number)
+{
+	// Map Xbox [-96, 95] to Host [0, 191]
+	// Account for Xbox's negative constant indexes
+	//register_number += X_D3DSCM_CORRECTION;
+
+	// If the index is too large, set it to -1 so 0 is returned
+	// Note: returning 0 directly requires many more instructions
+	if (register_number >= X_D3DVS_CONSTREG_COUNT) // X_D3DVS_CONSTREG_COUNT
+		register_number = -1;
+
+	printf("Get vhs constant with Register %d\n", register_number);
+	return vsh_constants[register_number][0];
+}
+
+float4 reverseScreenspaceTransform(float4 oPos)
+{
+	// On Xbox, oPos should contain the vertex position in screenspace
+	// We need to reverse this transformation
+	// Conventionally, each Xbox Vertex Shader includes instructions like this
+	// mul oPos.xyz, r12, c-38
+	// +rcc r1.x, r12.w
+	// mad oPos.xyz, r12, r1.x, c-37
+	// where c-37 and c-38 are reserved transform values
+
+	// oPos.w and xboxViewportScale.z might be VERY big when a D24 depth buffer is used
+	// and multiplying oPos.xyz by oPos.w may cause precision issues.
+
+	float4 xboxScreenspaceOffset = { 256.5, 256.5, 0, 0 };
+	float4 xboxScreenspaceScale = { 256, -256, 1, 1 };
+	// Reverse screenspace offset
+	oPos.x -= xboxScreenspaceOffset.x;
+	oPos.y -= xboxScreenspaceOffset.y;
+	oPos.z -= xboxScreenspaceOffset.z;
+	oPos.w -= xboxScreenspaceOffset.w;
+	// Reverse screenspace scale
+	oPos.x /= xboxScreenspaceScale.x;
+	oPos.y /= xboxScreenspaceScale.y;
+	oPos.z /= xboxScreenspaceScale.z;
+	oPos.w /= xboxScreenspaceScale.w;
+
+
+	// Ensure w is nonzero
+	if (oPos.w == 0)
+		oPos.w = 1;
+	// Reverse perspective divide
+	oPos.x *= oPos.w;
+	oPos.y *= oPos.w;
+	oPos.z *= oPos.w;
+
+	return oPos;
+}
+
+void reverseScreenspaceTransformZ(float oPos)
+{
+
+	float4 xboxScreenspaceOffset = { 256.5, 256.5, 0, 0 };
+	float4 xboxScreenspaceScale = { 256, -256, 1, 1 };
+	oPos -= xboxScreenspaceOffset.z;
+	oPos /= xboxScreenspaceScale.z;
+	oPos = oPos;
+}
+void RunDebuggingShader(uint8_t* vertexData, uint8_t* vertexData2)
+{
+
+
+	float4 rawVertexData[3];
+	float4 rawVertexData2[2];
+
 	float* pos = (float*)vertexData;
-	uint8_t* color = vertexData + 12;
+	float* normals = (float*)(vertexData + 12);
 	float* uv = (float*)(vertexData + 24);
 
+	printf("vertex pos x y z %f, %f, %f\n", pos[0], pos[1], pos[2]);
+
 	rawVertexData[0] = { pos[0], pos[1], pos[2], 1.0f };
-	rawVertexData[1] = { 1.0f, 0.0f, 0.0f, 0.0f }; //{ *reinterpret_cast<const float*>(&color[0]),  *reinterpret_cast<const float*>(&color[1]), *reinterpret_cast<const float*>(&color[2]), 1 };
+	rawVertexData[1] = { normals[0], normals[1],normals[2], 0.0f}; //{ *reinterpret_cast<const float*>(&color[0]),  *reinterpret_cast<const float*>(&color[1]), *reinterpret_cast<const float*>(&color[2]), 1 };
 	rawVertexData[2] = { uv[0], uv[1], 0.0f, 1.0f };
+
+	uint8_t* weights = (uint8_t*)vertexData2;
+	uint8_t weight_data[4] = { weights[0], weights[1], weights[2], weights[3] };
+	int16_t* indices = (int16_t*)(vertexData2 + 4);
+	int16_t blendIndices[2] = { indices[0], indices[1] };
 
 	// Simulate vertex shader execution
 	std::vector<float4> vs_consts;
@@ -770,100 +954,53 @@ void RunDebuggingShader(uint8_t* vertexData)
 	// Initialize vertex registers using lerp (conditional based on flags)
 	std::vector<float4> v(16);
 	std::cout << "\n=== Initializing vertex registers ===" << std::endl;
-	for (int i = 0; i < 16; i++)
-	{
-		v[i] = lerp(rawVertexData[i], vRegisterDefaultValues[i], vRegisterDefaultFlags[i]);
-		std::cout << "v" << i << " flag: " << vRegisterDefaultFlags[i]
-			<< " = lerp(vertex[" << i << "], default[" << i << "], flag)" << std::endl;
-		print_float4("  Raw vertex", rawVertexData[i]);
-		print_float4("  Default", vRegisterDefaultValues[i]);
-		print_float4("  Result", v[i]);
-	}
 
-	// Shader registers
-	float4 oPos, oD0, oD1, oB0, oB1, oT0, oT1, oT2, oT3;
-	float4 oFog, oPts;
-	int1 a0 = 0;
-	float4 r0, r1, r2, r3, r4, r5, r6, r7, r8, r9, r10, r11;
+	int bone1_idx = (int)floor(blendIndices[0]) + 96; // Apply correction
+	int bone2_idx = (int)floor(blendIndices[1]) + 96;
 
-	// Initialize all to zero
-	oPos = oD0 = oD1 = oB0 = oB1 = oT0 = oT1 = oT2 = oT3 = float4(0, 0, 0, 1);
-	r0 = r1 = r2 = r3 = r4 = r5 = r6 = r7 = r8 = r9 = r10 = r11 = float4(0, 0, 0, 0);
-	oFog = float4(1, 0, 0, 0);
-	oPts = float4(0, 0, 0, 0);
+	float blendWeights[2] = {
+	weight_data[0] / 255.0f,  // v1.x
+	weight_data[1] / 255.0f   // v1.y
+	};
 
-	std::cout << "=== Starting shader execution ===" << std::endl;
 
-	// Execute shader instructions with debugging
-	try {
-		std::cout << "\n--- Instruction 1: x_arl(a0,x, v2.x) ---" << std::endl;
-		print_float4("v2", v[2]);
-		x_arl(a0, 'x', v[2].x);
-		std::cout << "a0.x = " << a0.x << std::endl;
+	// Build blended transform matrix rows (only need 3 rows for position)
+	float4 r8 = float4::add(
+		float4::scale(blendWeights[0], vs_consts.at(bone1_idx - 88)),
+		float4::scale(blendWeights[1], vs_consts.at(bone2_idx - 88))
+	);
 
-		std::cout << "\n--- Instruction 2: x_mov(r11, \"xyzw\", c(-91)) ---" << std::endl;
-		int const_index = -91 + 96; // Apply X_D3DSCM_CORRECTION
-		std::cout << "Constant index: " << const_index << std::endl;
-		x_mov(r11, "xyzw", vs_consts[const_index]);
-		print_float4("r11", r11);
+	float4 r9 = float4::add(
+		float4::scale(blendWeights[0], vs_consts.at(bone1_idx - 87)),
+		float4::scale(blendWeights[1], vs_consts.at(bone2_idx - 87))
+	);
 
-		std::cout << "\n--- Instruction 3: x_mov(oT0, \"xyzw\", v5) ---" << std::endl;
-		x_mov(oT0, "xyzw", v[5]);
-		print_float4("oT0", oT0);
+	float4 r10 = float4::add(
+		float4::scale(blendWeights[0], vs_consts.at(bone1_idx - 86)),
+		float4::scale(blendWeights[1], vs_consts.at(bone2_idx - 86))
+	);
 
-		// Continue with the rest of the instructions...
-		std::cout << "\n--- Instruction 4: x_mul(r8, \"xyzw\", v1.x, c(a0.x-88)) ---" << std::endl;
-		const_index = (a0.x - 88) + 96;
-		std::cout << "Constant index: " << const_index << std::endl;
-		print_float4("v1", v[1]);
-		print_float4("constant", vs_consts[const_index]);
-		x_mul(r8, "xyzw", _tof4(v[1].x), vs_consts[const_index]);
-		print_float4("r8", r8);
+	printf("r8 x y z w %f, %f, %f, %f\n", r8.x, r8.y, r8.z, r8.w);
+	printf("r9 x y z w %f, %f, %f, %f\n", r9.x, r9.y, r9.z, r9.w);
+	printf("r10 x y z w %f, %f, %f, %f\n", r10.x, r10.y, r10.z, r10.w);
 
-		// Add the remaining instructions following the same pattern...
-		// Focus on getting to the RSQ instruction
+	float r3_x = dot4(rawVertexData[0], r8);
+	float r3_y = dot4(rawVertexData[0], r9);
+	float r3_z = dot4(rawVertexData[0], r10);
 
-		std::cout << "\n--- Continuing to RSQ instruction ---" << std::endl;
+	printf("r3_x %f\n", r3_x);
+	printf("r3_y %f\n", r3_y);
+	printf("r3_z %f\n", r3_z);
 
-		// Execute all instructions up to the RSQ
-		const_index = (a0.x - 87) + 96;
-		x_mul(r9, "xyzw", _tof4(v[1].x), vs_consts[const_index]);
+	float4 proj_z_row = vs_consts.at(-93 + 96); // c[3]
 
-		const_index = (a0.x - 86) + 96;
-		x_mul(r10, "xyzw", _tof4(v[1].x), vs_consts[const_index]);
+	printf("proj_z_row x y z w %f %f %f %f\n", proj_z_row.x, proj_z_row.y, proj_z_row.z, proj_z_row.w);
+	float oPos_z = r3_x * proj_z_row.x +
+		r3_y * proj_z_row.y +
+		r3_z * proj_z_row.z +
+		proj_z_row.w;
 
-		x_arl(a0, 'x', v[2].y);
-		std::cout << "a0.x after second ARL: " << a0.x << std::endl;
-
-		const_index = (a0.x - 88) + 96;
-		x_mad(r8, "xyzw", _tof4(v[1].y), vs_consts[const_index], r8);
-
-		const_index = (a0.x - 87) + 96;
-		x_mad(r9, "xyzw", _tof4(v[1].y), vs_consts[const_index], r9);
-
-		const_index = (a0.x - 86) + 96;
-		x_mad(r10, "xyzw", _tof4(v[1].y), vs_consts[const_index], r10);
-
-		x_dp3(r5, "x", v[3], r8);
-		x_dp3(r5, "y", v[3], r9);
-		x_dp3(r5, "z", v[3], r10);
-		x_dp4(r3, "x", v[0], r8);
-		x_dp3(r5, "w", r5, r5);
-		x_dp4(r3, "y", v[0], r9);
-		x_dp4(r3, "z", v[0], r10);
-
-		std::cout << "\n--- Critical RSQ instruction ---" << std::endl;
-		print_float4("r5 before RSQ", r5);
-		std::cout << "r5.w value that will be used for RSQ: " << r5.w << std::endl;
-
-		x_rsq(r1, "w", r5.w);
-		print_float4("r1 after RSQ", r1);
-
-	}
-	catch (const std::exception& e) {
-		std::cout << "Exception: " << e.what() << std::endl;
-	}
-
-	std::cout << "\n=== Shader execution complete ===" << std::endl;
+	printf("oPos_z %f\n", oPos_z);
+	reverseScreenspaceTransformZ(oPos_z);
 
 }
