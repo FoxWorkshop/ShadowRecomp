@@ -3663,14 +3663,10 @@ static GuestSurface* GetSurfaceLevel(GuestTexture* texture, int32_t level, X_D3D
 	uint32_t mipWidth = std::max(1u, texture->width >> level);
 	uint32_t mipHeight = std::max(1u, texture->height >> level);
 
-
-
 	surface = g_userHeap.AllocPhysical<GuestSurface>(
 		texture->format == DepthStencilFormat ?
 		ResourceType::DepthStencil : ResourceType::RenderTarget
 	);
-
-
 
 	surface->texture = texture->texture;
 	surface->width = mipWidth;
@@ -3680,6 +3676,7 @@ static GuestSurface* GetSurfaceLevel(GuestTexture* texture, int32_t level, X_D3D
 	surface->sampleCount = RenderSampleCount::COUNT_1;
 
 	surface->guestResource.Format = Format;
+	surface->layout = texture->layout;
 	g_surfaceCache.emplace_back(surface);
 
 	currentSuface = surface;
@@ -4218,11 +4215,9 @@ void SetTexture(uint32_t stage, GuestTexture* texture)
 
 	g_renderQueue.enqueue(cmd);
 }
-bool texFucked = false;
+
 static void SetTextureInRenderThread(uint32_t index, GuestTexture* texture)
 {
-	texFucked = texture == currentSufaceTex;
-
 	AddBarrier(texture, RenderTextureLayout::SHADER_READ);
 
 	auto viewDimension = texture != nullptr ? texture->viewDimension : RenderTextureViewDimension::UNKNOWN;
@@ -4287,33 +4282,25 @@ void D3DDevice_SetRenderTarget(GuestSurface* surface, GuestSurface* pNewZStencil
 	auto device = X86_LOAD_U32(GuestDevicePtrAddr);
 
 
-
 	if (!g_XboxBackBuffer)
 	{
 		g_renderTarget->guestResource = surface->guestResource;
 		surface = g_renderTarget; //the game doesn't get the back buffer on its first SetRenderTarget call so we assign ours there instead.
 		g_XboxBackBuffer = surface;
 		X86_STORE_U32(ctx->esp.u32 + 4, g_memory.MapVirtual(surface));
-		//X86_STORE_U32(device + 0x1A14, g_memory.MapVirtual(surface));
-	}
 
-	if (!g_XboxDefaultDepthStencilSurface)
-	{
-		auto depthStencil = CreateSurface(512, 512, X_D3DFMT_LIN_D24S8);
-		depthStencil->guestResource = pNewZStencil->guestResource;
-		pNewZStencil = depthStencil;
+		pNewZStencil = g_depthStencil;
 		g_XboxDefaultDepthStencilSurface = pNewZStencil;
 		X86_STORE_U32(ctx->esp.u32 + 8, g_memory.MapVirtual(pNewZStencil));
 	}
-	else if (pNewZStencil && g_XboxDefaultDepthStencilSurface != pNewZStencil)
+
+	if (pNewZStencil && g_XboxDefaultDepthStencilSurface != pNewZStencil)
 	{
 		g_ZScale = GetZScaleForPixelContainer((X_D3DPixelContainer*)&pNewZStencil->guestResource);
 	}
 
-
 	__imp__sub_3D0040(*ctx, base);
 	ctx->esp.u32 -= 12;
-
 
 	RenderCommand cmd;
 	cmd.type = RenderCommandType::SetRenderTarget;
@@ -4322,22 +4309,15 @@ void D3DDevice_SetRenderTarget(GuestSurface* surface, GuestSurface* pNewZStencil
 
 	SetDefaultViewport((GuestDevice*)g_memory.Translate(device), surface);
 
-
 	RenderCommand cmd2;
 	cmd2.type = RenderCommandType::SetDepthStencilSurface;
 	cmd2.setDepthStencilSurface.depthStencil = pNewZStencil;
 	g_renderQueue.enqueue(cmd2);
 
-
 	SetDefaultViewport((GuestDevice*)g_memory.Translate(device), pNewZStencil);
-
 
 	X86_STORE_U32(device + 0x954, surface->width);
 	X86_STORE_U32(device + 0x958, surface->height);
-
-
-
-
 }
 
 
