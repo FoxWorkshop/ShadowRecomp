@@ -163,7 +163,115 @@ functions = [
 	{ address = 0x35B2E0, size = 0x35A3 },  #wrong size
 	{ address = 0x40E48D, size = 0x21 },  #missing	
 	{ address = 0x410760, size = 0x18 },  #missing	
-	{ address = 0x40e275, size = 0x21 },  #missing
+	{ address = 0x40e275, size = 0x21 },  #missing	
+	{ address = 0x40D1EB, size = 0x24 },  #missing	
+	{ address = 0x40E43D, size = 0x21 },  #missing	
+	{ address = 0x41208E, size = 0x24 },  #missing	
+	{ address = 0x4108cc, size = 0x18 },  #missing	
+	{ address = 0x40EAF2, size = 0x26 },  #missing	
+	{ address = 0x40e3f4, size = 0x26 },  #missing		
+	{ address = 0x1D7740, size = 0x82 },  #missing	
+	{ address = 0x38259D, size = 0xA3 },  #wrong size	
+	{ address = 0x1a3ea0, size = 0x27 },  #missing		
+	{ address = 0x2f4bd0, size = 0x51 },  #missing		
+	{ address = 0x87e50, size = 0x3C },  #missing		
+	{ address = 0x99d40, size = 0x184 },  #missing		
+	{ address = 0xBF600, size = 0x197 },  #wrong size		
+	{ address = 0x76b20, size = 0x2B4 },  #missing		
+	{ address = 0x533e0, size = 0xB8 },  #missing		
+	{ address = 0x001d8800, size = 0x82 },  #missing	
+	
+	{ address = 0x142ED0, size = 0x10F },  #missing		
+	{ address = 0x24FD90, size = 0x32 },  #missing		
+	{ address = 0x236700, size = 0x52 },  #missing			
+	{ address = 0x767B0, size = 0x93 },  #missing			
+	{ address = 0x75f50, size = 0x59 },  #missing			
+	{ address = 0x75f50, size = 0x59 },  #missing		
+	
+	{ address = 0x400708, size = 0x24 }, #added from ida
+	{ address = 0x407f17, size = 0x49 },
+	{ address = 0x40d30c, size = 0x21 },
+	{ address = 0x40d460, size = 0x21 },
+	{ address = 0x40e191, size = 0x21 },
+	{ address = 0x40e1ef, size = 0x21 },
+	{ address = 0x40e2be, size = 0x21 },
+	{ address = 0x40e9ea, size = 0x26 },
+	{ address = 0x40ea10, size = 0x26 },
+	{ address = 0x40ea36, size = 0x26 },
+	{ address = 0x40ea5c, size = 0x26 },
+	{ address = 0x40ea82, size = 0x24 },
+	{ address = 0x40eaa6, size = 0x26 },
+	{ address = 0x40eacc, size = 0x26 },
+	{ address = 0x40eaf2, size = 0x26 },
+	{ address = 0x40f4ca, size = 0x24 },
+	{ address = 0x40f54a, size = 0x28 },
+	{ address = 0x41081e, size = 0x18 },
+	{ address = 0x410869, size = 0x1c },
+	{ address = 0x4108cc, size = 0x18 },
+	{ address = 0x41090e, size = 0x2c },
+	{ address = 0x4116d3, size = 0x42 },
+	{ address = 0x4117de, size = 0x24 },
+	{ address = 0x411dd6, size = 0x24 },
+	{ address = 0x411ec4, size = 0x24 },
+	{ address = 0x411fc6, size = 0x24 },
+	{ address = 0x415a9a, size = 0x1b },
+	{ address = 0x415ad9, size = 0x24 },
+	{ address = 0x415afd, size = 0x24 },
+	{ address = 0x415b21, size = 0x24 },
+	{ address = 0x415b71, size = 0x9b },
+	{ address = 0x415c0c, size = 0xc0 },
+	{ address = 0x415d4f, size = 0xc6 },
+	{ address = 0x415e15, size = 0xc6 },
+	{ address = 0x415edb, size = 0xe4 },
+	{ address = 0x4161b6, size = 0x10c },
+	{ address = 0x4162c2, size = 0x116 },
+	{ address = 0x4163d8, size = 0x113 },
+	{ address = 0x4164eb, size = 0x122 },
+	{ address = 0x41660d, size = 0xa8 },
+	{ address = 0x4178ea, size = 0xa6 },
+	{ address = 0x417990, size = 0xd6 },
+	{ address = 0x417a66, size = 0x83 },
+	{ address = 0x417ae9, size = 0xdc },
+	{ address = 0x417bc5, size = 0xdc },
+	{ address = 0x417ca1, size = 0x117 },
+	{ address = 0x41f6af, size = 0x225 },
+	{ address = 0x41fa98, size = 0x3 },
+	{ address = 0x41faa2, size = 0x8c },
+	{ address = 0x41fc84, size = 0x21 },
+	{ address = 0x41fca5, size = 0x24 },
+	{ address = 0x424c17, size = 0xbc },
+	{ address = 0x424cd3, size = 0x8a },
+	{ address = 0x424d5d, size = 0x52 },
+	{ address = 0x424daf, size = 0x24 },
+	{ address = 0x424e00, size = 0x66 },
+	{ address = 0x424e66, size = 0x11 },
+	{ address = 0x424ec4, size = 0x8a },
+	{ address = 0x424f4e, size = 0x9d },
+	{ address = 0x425009, size = 0x84 },
+	{ address = 0x42508d, size = 0x8b },
+	{ address = 0x4251a3, size = 0x3b },
+	{ address = 0x42547e, size = 0xf4 },
+	{ address = 0x4257c2, size = 0x154 },
+	{ address = 0x42614d, size = 0x2b },
+	{ address = 0x4267f3, size = 0xdb },
+	{ address = 0x4268ce, size = 0x147 },
+	{ address = 0x426b15, size = 0xb9 },
+	{ address = 0x426d19, size = 0x54 },
+	{ address = 0x427097, size = 0x3b },
+	{ address = 0x42735b, size = 0x2c },
+	{ address = 0x427387, size = 0x24 },
+	{ address = 0x427660, size = 0x63 },
+	{ address = 0x4277fe, size = 0x91 },
+	{ address = 0x42788f, size = 0x5b },
+	{ address = 0x4278ea, size = 0x5b },
+	{ address = 0x427995, size = 0xcc },
+	{ address = 0x427a61, size = 0xc0 },
+	{ address = 0x427b21, size = 0x6b },
+	{ address = 0x427c8f, size = 0x80 },
+	{ address = 0x427d0f, size = 0xab },
+	{ address = 0x427dba, size = 0x7c },
+	{ address = 0x427e36, size = 0x126 },
+	{ address = 0xc10e0, size = 0x1d },
 ]
 
 banned_addresses = [
@@ -177,7 +285,8 @@ banned_addresses = [
 	{ start = 0x37EA99, end = 0x37EABB }, # jmp table mid function	
 	{ start = 0x37EB06, end = 0x37EB17 }, # jmp table mid function		
 	{ start = 0x2DD6D3, end = 0x2DD716 }, # force XBOXDeviceSystemOpen to work due to a weird adapter mode check that fail	
-	{ start = 0x35E884, end = 0x35ED1F }
+	{ start = 0x35E884, end = 0x35ED1F },	
+	{ start = 0x365DE0, end = 0x36629F }, # jmp table mid function
 ]
 
 invalid_instructions = [
@@ -191,3 +300,8 @@ invalid_instructions = [
 [[midasm_hook]]
 name = "UpdateSDLEventsMidAsmHook"
 address = 0x2AFBBC
+
+[[midasm_hook]]
+name = "ClearWithQuadsMidAsmHook"
+address = 0x2DE00B
+registers = ["r0"]
