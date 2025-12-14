@@ -6432,7 +6432,7 @@ void DrawIndexedPrimitive(X_D3DPRIMITIVETYPE PrimitiveType, uint32_t VertexCount
 	if (VertexCount == 2192)
 	{
 
-		printf("");*/
+		printf("");
 	}
 
 
