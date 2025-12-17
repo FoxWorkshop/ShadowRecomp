@@ -733,9 +733,9 @@ struct PrimitiveIndexData
 					indexData[i * 6 + 1] = static_cast<uint16_t>(i * 4 + 1);
 					indexData[i * 6 + 2] = static_cast<uint16_t>(i * 4 + 2);
 
-					indexData[i * 6 + 3] = static_cast<uint16_t>(i * 4 + 0);
-					indexData[i * 6 + 4] = static_cast<uint16_t>(i * 4 + 2);
-					indexData[i * 6 + 5] = static_cast<uint16_t>(i * 4 + 3);
+					indexData[i * 6 + 3] = static_cast<uint16_t>(i * 4 + 2); //was i + 4 +  0 //maintains consistent clockwise winding for both triangle
+					indexData[i * 6 + 4] = static_cast<uint16_t>(i * 4 + 3); //was was i + 4 + 2
+					indexData[i * 6 + 5] = static_cast<uint16_t>(i * 4 + 0); //was was i + 4 +  3
 					break;
 				}
 				default:
