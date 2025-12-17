@@ -596,8 +596,8 @@ VOID KeInitializeDpc(_KDPC* Dpc, uint32_t* DeferredRoutine, uint32_t* DeferredCo
 {
 	Dpc->Type = 19;
 	Dpc->Inserted = FALSE;
-	Dpc->DeferredRoutine.set((PKDEFERRED_ROUTINE)DeferredRoutine);
-	Dpc->DeferredContext.ptr = (uint32_t)DeferredContext;
+	Dpc->DeferredRoutine.v = (uint32_t)DeferredRoutine;
+	Dpc->DeferredContext.v = (uint32_t)DeferredContext;
 }
 
 typedef struct _XKTIMER
@@ -1418,8 +1418,8 @@ void g_KeWaitForDpc()
 
 bool RemoveEntryList(PXLIST_ENTRY pEntry)
 {
-	PXLIST_ENTRY _EX_Flink = (PXLIST_ENTRY)pEntry->Flink;
-	PXLIST_ENTRY _EX_Blink = (PXLIST_ENTRY)pEntry->Blink;
+	xpointer<XLIST_ENTRY> _EX_Flink{ pEntry->Flink };
+	xpointer<XLIST_ENTRY> _EX_Blink{ pEntry->Blink };
 
 	if (_EX_Blink != nullptr) {
 		_EX_Blink->Flink = (uint32_t)_EX_Flink.get();
@@ -1472,13 +1472,13 @@ void ExecuteDpcQueue(X86Context* ctx)
 		auto base = g_memory.base;
 		base = base;
 		//auto func = g_memory.MapVirtual(pkdpc->DeferredRoutine);
-		auto func = (uint32_t)pkdpc->DeferredRoutine.get();
+		auto func = (uint32_t)pkdpc->DeferredRoutine.v;
 
 
 		X86_STORE_U32(ctx->esp.u32, (uint32_t)pkdpc);
-		X86_STORE_U32(ctx->esp.u32 + 4, (uint32_t)pkdpc->DeferredContext.get());
-		X86_STORE_U32(ctx->esp.u32 + 8, (uint32_t)pkdpc->SystemArgument1.get());
-		X86_STORE_U32(ctx->esp.u32 + 12, (uint32_t)pkdpc->SystemArgument2.get());
+		X86_STORE_U32(ctx->esp.u32 + 4, (uint32_t)pkdpc->DeferredContext.v);
+		X86_STORE_U32(ctx->esp.u32 + 8, (uint32_t)pkdpc->SystemArgument1.v);
+		X86_STORE_U32(ctx->esp.u32 + 12, (uint32_t)pkdpc->SystemArgument2.v);
 		ctx->esp.u32 -= 4; //in x86, the CPU always adjust the stack pointer by 4 bytes before calling a function
 		g_memory.FindFunction(func)(*ctx, g_memory.base);
 
@@ -1508,15 +1508,15 @@ bool IsDpcActive()
 	return g_DpcData.IsDpcActive.test();
 }
 
-void InsertTailList(PXLIST_ENTRY pListHead, PXLIST_ENTRY pEntry)
+void InsertTailList(PXLIST_ENTRY ListHead, PXLIST_ENTRY Entry)
 {
-	PXLIST_ENTRY _EX_ListHead = pListHead;
-	PXLIST_ENTRY _EX_Blink = (PXLIST_ENTRY)_EX_ListHead->Blink;
+	auto Blink = xpointer<XLIST_ENTRY>(ListHead->Blink);
 
-	pEntry->Flink = (uint32_t)_EX_ListHead.get();
-	pEntry->Blink = (uint32_t)_EX_Blink.get();
-	_EX_Blink->Flink = (uint32_t)pEntry.get();
-	_EX_ListHead->Blink = (uint32_t)pEntry.get();
+	Entry->Flink = ListHead.ptr;
+	Entry->Blink = Blink.ptr;
+
+	Blink->Flink = Entry.ptr;
+	ListHead->Blink = Entry.ptr;
 }
 
 std::uint8_t KeInsertQueueDpc(PKDPC Dpc, uint32_t* Argument1, uint32_t* Argument2)
@@ -1531,9 +1531,12 @@ std::uint8_t KeInsertQueueDpc(PKDPC Dpc, uint32_t* Argument1, uint32_t* Argument
 	{
 		// Remember the arguments and link it into our DpcQueue :
 		Dpc->Inserted = TRUE;
-		Dpc->SystemArgument1.ptr = (uint32_t)Argument1;
-		Dpc->SystemArgument2.ptr = (uint32_t)Argument2;
-		InsertTailList((PXLIST_ENTRY)&(g_DpcData.DpcQueue), (PXLIST_ENTRY)&(Dpc->DpcListEntry));
+		Dpc->SystemArgument1.v = (uint32_t)Argument1;
+		Dpc->SystemArgument2.v = (uint32_t)Argument2;
+		InsertTailList(
+			xpointer<XLIST_ENTRY>(&g_DpcData.DpcQueue),
+			xpointer<XLIST_ENTRY>(&Dpc->DpcListEntry)
+		);
 		RtlLeaveCriticalSection((XRTL_CRITICAL_SECTION*)&(g_DpcData.Lock));
 		g_DpcData.IsDpcPending.test_and_set();
 		g_DpcData.IsDpcPending.notify_one();
@@ -1556,7 +1559,7 @@ std::uint8_t KeRemoveQueueDpc(KDPC* Dpc)
 
 	if (Inserted)
 	{
-		RemoveEntryList((PXLIST_ENTRY)&(Dpc->DpcListEntry));
+		RemoveEntryList(xpointer<XLIST_ENTRY>(&Dpc->DpcListEntry));
 		Dpc->Inserted = FALSE;
 	}
 
