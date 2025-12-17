@@ -1441,17 +1441,12 @@ static void ProcSetRenderState(const RenderCommand& cmd)
 		SetDirtyValue(g_dirtyStates.pipelineState, g_pipelineState.stencilFunc, ConvertD3DCMP(value));
 		break;
 	}
-	case D3DRS_STENCILFAIL:
-	{
-		SetDirtyValue(g_dirtyStates.pipelineState, g_pipelineState.stencilFail, ConvertStencilOp(value));
-		break;
-	}
-	case D3DRS_STENCILZFAIL:
+	case X_D3DRS_STENCILZFAIL:
 	{
 		SetDirtyValue(g_dirtyStates.pipelineState, g_pipelineState.stencilZFail, ConvertStencilOp(value));
 		break;
 	}
-	case D3DRS_STENCILPASS:
+	case X_D3DRS_STENCILPASS:
 	{
 		SetDirtyValue(g_dirtyStates.pipelineState, g_pipelineState.stencilPass, ConvertStencilOp(value));
 		break;
@@ -3205,7 +3200,7 @@ void SleepPrecise(std::chrono::steady_clock::time_point targetTime)
 		;
 	}
 }
-static bool startBS = false;
+
 uint64_t g_frameFenceValues[NUM_FRAMES] = { 0, 0 };
 void Video::Present()
 
@@ -3316,10 +3311,7 @@ void Video::Present()
 
 	g_presentProfiler.Reset();
 	//printf("[GAME THREAD] Present END - g_frame=%u\n", g_frame);
-	if (startBS)
-	{
-		printf("");
-	}
+
 }
 
 void Video::StartPipelinePrecompilation()
@@ -3677,9 +3669,10 @@ static GuestSurface* GetSurfaceLevel(GuestTexture* texture, int32_t level, X_D3D
 
 	surface->guestResource.Format = Format;
 	surface->layout = texture->layout;
-	g_surfaceCache.emplace_back(surface);
+	//g_surfaceCache.emplace_back(surface);
 
-	currentSuface = surface;
+	//currentSuface = surface;
+	//printf("GetSurfaceLevel - Surface %x, Texture %x, texture->texture %x, Width %d, Height %d\n", surface, texture, texture->texture, mipWidth, mipHeight);
 	return surface;
 }
 
@@ -3906,8 +3899,6 @@ static uint32_t ComputeTexturePitch(GuestTexture* texture)
 
 static void LockTextureRect(GuestTexture* texture, int32_t level, GuestLockedRect* lockedRect, RECT* pRect, uint32_t flags)
 {
-
-	auto format = GetXboxPixelContainerFormat(texture->guestResource.Format);
 
 	uint32_t pitch = ComputeTexturePitch(texture);
 	uint32_t slicePitch = pitch * texture->height;
@@ -4284,10 +4275,12 @@ void D3DDevice_SetRenderTarget(GuestSurface* surface, GuestSurface* pNewZStencil
 
 	if (!g_XboxBackBuffer)
 	{
-		g_renderTarget->guestResource = surface->guestResource;
-		surface = g_renderTarget; //the game doesn't get the back buffer on its first SetRenderTarget call so we assign ours there instead.
+
+		g_backBuffer->guestResource = surface->guestResource;
+		surface = g_backBuffer; //the game doesn't get the back buffer on its first SetRenderTarget call so we assign ours there instead.
 		g_XboxBackBuffer = surface;
 		X86_STORE_U32(ctx->esp.u32 + 4, g_memory.MapVirtual(surface));
+		X86_STORE_U32(device + 0x1A14, g_memory.MapVirtual(surface));
 
 		pNewZStencil = g_depthStencil;
 		g_XboxDefaultDepthStencilSurface = pNewZStencil;
@@ -6336,8 +6329,7 @@ void DrawIndexedPrimitive(X_D3DPRIMITIVETYPE PrimitiveType, uint32_t VertexCount
 	//shadow = 2192 vertex = stride 24 (32 with conversion)
 	//object (shadow eyes) = 91 vertex =  stride 24 (32 with conversion)
 
-	indexed = true;
-	startBS = true;
+
 	XXH64_hash_t hash = XXH3_64bits(pIndexData, VertexCount * sizeof(int16_t));
 	auto& bufferIndexCache = g_indexBufferCache[hash];
 
@@ -6412,7 +6404,6 @@ void DrawIndexedPrimitive(X_D3DPRIMITIVETYPE PrimitiveType, uint32_t VertexCount
 	if (VertexCount == 2192)
 	{
 
-		printf("");
 	}
 
 
@@ -6653,10 +6644,6 @@ BOOL D3Device_IsBusy()
 	return FALSE;
 }
 
-int CDevice_KickOff(int* this_)
-{
-	return 0;
-}
 
 int D3D_SetTileNoWait(int a1, int* a2)
 {
@@ -6677,7 +6664,6 @@ X86_FUNC(sub_3D5F10)
 		ctx.esp.u32 += 0x8;  //Adjust esp for return value (0xC2 + 0x4)
 	}
 }
-
 
 
 void CopyVertexShaderConstant(int32_t Register, DWORD* pConstantData, const uint32_t count)
@@ -6710,6 +6696,7 @@ void LogPackedFlags(const char* name, const float* values, int count = 4) {
 	}
 }
 
+//XBoxSkinAtomicAllInOneNode
 X86_FUNC_IMPL(__imp__sub_2C89D0);
 X86_FUNC(sub_2C89D0)
 {
@@ -6814,7 +6801,7 @@ void GetPixelContainerMeasures
 
 
 //we need to copy the palette data so we can convert properly when copy texture in the GPU
-static uint32_t* currentPaletteData;
+static uint32_t* g_currentPaletteData;
 //rwD3D8RasterLockPalette
 X86_FUNC_IMPL(__imp__sub_2DF9F0);
 X86_FUNC(sub_2DF9F0)
@@ -6823,17 +6810,14 @@ X86_FUNC(sub_2DF9F0)
 	if (ctx.eax.u32 == 1)
 	{
 		auto paletteData = X86_LOAD_U32(ctx.ecx.u32);
-		currentPaletteData = (uint32_t*)(base + paletteData);
+		g_currentPaletteData = (uint32_t*)(base + paletteData);
 	}
 
 }
 
 void CopyTextureToGPU(GuestTexture* tex)
 {
-	if ((intptr_t)tex == 0x00000001a0ebf8b0)
-	{
-		printf("");
-	}
+
 	auto base = g_memory.base;
 	auto format = GetXboxPixelContainerFormat((X_D3DFORMAT)tex->guestResource.Format);
 	bool isSwizzled = FormatIsSwizzled(format);
@@ -6939,7 +6923,7 @@ void CopyTextureToGPU(GuestTexture* tex)
 		if (bConvertARGB)
 		{
 			ConvertD3DTextureToARGBBuffer(format, (uint8_t*)srcData, slice.width, slice.height, slice.srcRowPitch, slice.srcRowPitch * slice.rowCount,
-				dstData, slice.dstRowPitch, slice.dstRowPitch * slice.rowCount, slice.depth, (void*)currentPaletteData);
+				dstData, slice.dstRowPitch, slice.dstRowPitch * slice.rowCount, slice.depth, (void*)g_currentPaletteData);
 		}
 		else if (isSwizzled)
 		{
@@ -7453,13 +7437,11 @@ GUEST_FUNCTION_HOOK_STDCALL(sub_3D4740, D3DDevice_BeginPush);
 GUEST_FUNCTION_HOOK_STDCALL(sub_3D4760, D3DDevice_EndPush);
 
 
-
-
 //texture stuff
 //GUEST_FUNCTION_HOOK_STDCALL(sub_3D2E90, D3DDevice_SetTextureStageStateNotInline);
 
 //GUEST_FUNCTION_HOOK_STDCALL(sub_3CFCD0, D3DDevice_SetTransform);
-GUEST_FUNCTION_HOOK_STDCALL(sub_3D0E80, D3DDevice_SetPalette);
+//GUEST_FUNCTION_HOOK_STDCALL(sub_3D0E80, D3DDevice_SetPalette);
 
 
 
@@ -7469,10 +7451,6 @@ GUEST_FUNCTION_HOOK_STDCALL(sub_3DD950, D3D_EnumAdapterModes);
 //GUEST_FUNCTION_HOOK_STDCALL(sub_3D4890, D3D_SetFence);
 //GUEST_FUNCTION_HOOK_STDCALL(sub_3D86F0, D3D_LazySetPointParams);
 //GUEST_FUNCTION_HOOK_STDCALL(sub_3DB990, RW_SetTextureStageStates);
-
-
-//GUEST_FUNCTION_HOOK_THISCALL(sub_3D2190, D3DDevice_SetRenderStateSTUB); // D3DK::CommonSetPassthroughProgram
-//GUEST_FUNCTION_HOOK_FASTCALL(sub_3D2FF0, sub_3D2FF0_r); //Called in many functions that will be replaced so may not be needed.
 
 //GUEST_FUNCTION_HOOK(sub_3D4C00, D3D_MakeRequestedSpace_);
 
