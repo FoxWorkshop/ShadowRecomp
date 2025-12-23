@@ -2,6 +2,7 @@
 #include "vertexdeclaration.h"
 #include <xxHashMap.h>
 #include <kernel/heap.h>
+#include "renderstate.h"
 #include <algorithm>
 #include <DirectXMath.h>
 
@@ -13,7 +14,6 @@
 // for more information, see FixedFunctionVertexShader.hlsl and FixedFunctionPixelShader.hlsl
 
 using namespace DirectX;
-extern uint32_t g_renderState[255];
 
 // Combines world/view matrices
 static std::array<D3DMATRIX, 4> g_WorldView;
@@ -117,18 +117,6 @@ void D3D8LightState::EnableLight(uint32_t index, bool enable) {
 D3D8LightState g_LightState = D3D8LightState();
 
 std::array<bool, 4> bWorldViewDirty;
-
-
-static uint32_t GetRenderState(uint32_t State)
-{
-	return g_renderState[State];
-}
-
-static float GetXboxRenderStateAsFloat(uint32_t State)
-{
-
-	return *reinterpret_cast<float*>(&(g_renderState[State]));
-}
 
 
 struct Matrix4x4
@@ -321,7 +309,7 @@ void UpdateFixedFunctionShaderLight(int d3dLightIndex, Light* pShaderLight, Dire
 	XMStoreFloat3((XMFLOAT3*)&pShaderLight->DirectionVN, directionV);
 
 
-	bool SpecularEnable = GetRenderState(X_D3DRS_SPECULARENABLE) != FALSE;
+	bool SpecularEnable = GetGuestRenderState(X_D3DRS_SPECULARENABLE) != FALSE;
 
 	// Map D3D light to state struct
 	pShaderLight->DirectionVN.w = (float)((int)d3dLight->Type); //DirectionVN.w = type
@@ -416,7 +404,7 @@ void UpdateFixedFunctionVertexShaderState(size_t Handle, bool isFixed)
 
 	// Vertex blending
 	// Prepare vertex blending mode variables used in transforms, below
-	auto VertexBlend = g_renderState[X_D3DRS_VERTEXBLEND];
+	auto VertexBlend = GetGuestRenderState(X_D3DRS_VERTEXBLEND);
 	// Xbox and host D3DVERTEXBLENDFLAGS :
 	//     D3DVBF_DISABLE           = 0 : 1 matrix,   0 weights => final weight 1
 	//     D3DVBF_1WEIGHTS          = 1 : 2 matrices, 1 weights => final weight calculated
@@ -471,32 +459,32 @@ void UpdateFixedFunctionVertexShaderState(size_t Handle, bool isFixed)
 	// Lighting
 	// Point sprites aren't lit - 'each point is always rendered with constant colors.'
 	// https://docs.microsoft.com/en-us/windows/win32/direct3d9/point-sprites
-	bool PointSpriteEnable = g_renderState[X_D3DRS_POINTSPRITEENABLE];
-	bool LightingEnable = g_renderState[X_D3DRS_LIGHTING];
+	bool PointSpriteEnable = GetGuestRenderState(X_D3DRS_POINTSPRITEENABLE);
+	bool LightingEnable = GetGuestRenderState(X_D3DRS_LIGHTING);
 	ffShaderState.Modes.Lighting = LightingEnable && !PointSpriteEnable;
 
-	ffShaderState.Modes.TwoSidedLighting = (float)GetRenderState(X_D3DRS_TWOSIDEDLIGHTING);
-	ffShaderState.Modes.LocalViewer = (float)GetRenderState(X_D3DRS_LOCALVIEWER);
+	ffShaderState.Modes.TwoSidedLighting = (float)GetGuestRenderState(X_D3DRS_TWOSIDEDLIGHTING);
+	ffShaderState.Modes.LocalViewer = (float)GetGuestRenderState(X_D3DRS_LOCALVIEWER);
 
 	// Material sources
-	bool ColorVertex = GetRenderState(X_D3DRS_COLORVERTEX) != FALSE;
-	ffShaderState.Modes.AmbientMaterialSource = (float)(ColorVertex ? GetRenderState(X_D3DRS_AMBIENTMATERIALSOURCE) : D3DMCS_MATERIAL);
-	ffShaderState.Modes.DiffuseMaterialSource = (float)(ColorVertex ? GetRenderState(X_D3DRS_DIFFUSEMATERIALSOURCE) : D3DMCS_MATERIAL);
-	ffShaderState.Modes.SpecularMaterialSource = (float)(ColorVertex ? GetRenderState(X_D3DRS_SPECULARMATERIALSOURCE) : D3DMCS_MATERIAL);
-	ffShaderState.Modes.EmissiveMaterialSource = (float)(ColorVertex ? GetRenderState(X_D3DRS_EMISSIVEMATERIALSOURCE) : D3DMCS_MATERIAL);
-	ffShaderState.Modes.BackAmbientMaterialSource = (float)(ColorVertex ? GetRenderState(X_D3DRS_BACKAMBIENTMATERIALSOURCE) : D3DMCS_MATERIAL);
-	ffShaderState.Modes.BackDiffuseMaterialSource = (float)(ColorVertex ? GetRenderState(X_D3DRS_BACKDIFFUSEMATERIALSOURCE) : D3DMCS_MATERIAL);
-	ffShaderState.Modes.BackSpecularMaterialSource = (float)(ColorVertex ? GetRenderState(X_D3DRS_BACKSPECULARMATERIALSOURCE) : D3DMCS_MATERIAL);
-	ffShaderState.Modes.BackEmissiveMaterialSource = (float)(ColorVertex ? GetRenderState(X_D3DRS_BACKEMISSIVEMATERIALSOURCE) : D3DMCS_MATERIAL);
+	bool ColorVertex = GetGuestRenderState(X_D3DRS_COLORVERTEX) != FALSE;
+	ffShaderState.Modes.AmbientMaterialSource = (float)(ColorVertex ? GetGuestRenderState(X_D3DRS_AMBIENTMATERIALSOURCE) : D3DMCS_MATERIAL);
+	ffShaderState.Modes.DiffuseMaterialSource = (float)(ColorVertex ? GetGuestRenderState(X_D3DRS_DIFFUSEMATERIALSOURCE) : D3DMCS_MATERIAL);
+	ffShaderState.Modes.SpecularMaterialSource = (float)(ColorVertex ? GetGuestRenderState(X_D3DRS_SPECULARMATERIALSOURCE) : D3DMCS_MATERIAL);
+	ffShaderState.Modes.EmissiveMaterialSource = (float)(ColorVertex ? GetGuestRenderState(X_D3DRS_EMISSIVEMATERIALSOURCE) : D3DMCS_MATERIAL);
+	ffShaderState.Modes.BackAmbientMaterialSource = (float)(ColorVertex ? GetGuestRenderState(X_D3DRS_BACKAMBIENTMATERIALSOURCE) : D3DMCS_MATERIAL);
+	ffShaderState.Modes.BackDiffuseMaterialSource = (float)(ColorVertex ? GetGuestRenderState(X_D3DRS_BACKDIFFUSEMATERIALSOURCE) : D3DMCS_MATERIAL);
+	ffShaderState.Modes.BackSpecularMaterialSource = (float)(ColorVertex ? GetGuestRenderState(X_D3DRS_BACKSPECULARMATERIALSOURCE) : D3DMCS_MATERIAL);
+	ffShaderState.Modes.BackEmissiveMaterialSource = (float)(ColorVertex ? GetGuestRenderState(X_D3DRS_BACKEMISSIVEMATERIALSOURCE) : D3DMCS_MATERIAL);
 
 	// Point sprites; Fetch required variables
-	float pointSize = GetXboxRenderStateAsFloat(X_D3DRS_POINTSIZE);
-	float pointSize_Min = GetXboxRenderStateAsFloat(X_D3DRS_POINTSIZE_MIN);
-	float pointSize_Max = GetXboxRenderStateAsFloat(X_D3DRS_POINTSIZE_MAX);
-	bool PointScaleEnable = GetRenderState(X_D3DRS_POINTSCALEENABLE);
-	float pointScale_A = GetXboxRenderStateAsFloat(X_D3DRS_POINTSCALE_A);
-	float pointScale_B = GetXboxRenderStateAsFloat(X_D3DRS_POINTSCALE_B);
-	float pointScale_C = GetXboxRenderStateAsFloat(X_D3DRS_POINTSCALE_C);
+	float pointSize = GetGuestRenderStateAsFloat(X_D3DRS_POINTSIZE);
+	float pointSize_Min = GetGuestRenderStateAsFloat(X_D3DRS_POINTSIZE_MIN);
+	float pointSize_Max = GetGuestRenderStateAsFloat(X_D3DRS_POINTSIZE_MAX);
+	bool PointScaleEnable = GetGuestRenderState(X_D3DRS_POINTSCALEENABLE);
+	float pointScale_A = GetGuestRenderStateAsFloat(X_D3DRS_POINTSCALE_A);
+	float pointScale_B = GetGuestRenderStateAsFloat(X_D3DRS_POINTSCALE_B);
+	float pointScale_C = GetGuestRenderStateAsFloat(X_D3DRS_POINTSCALE_C);
 	float renderTargetHeight = GetRenderTargetHeight();
 	// Make sure to disable point scaling when point sprites are not enabled
 	PointScaleEnable &= PointSpriteEnable;
@@ -512,8 +500,8 @@ void UpdateFixedFunctionVertexShaderState(size_t Handle, bool isFixed)
 
 	// Fog
 	// Determine how the fog depth is transformed into the fog factor
-	auto fogEnable = GetRenderState(X_D3DRS_FOGENABLE);
-	auto fogTableMode = GetRenderState(X_D3DRS_FOGTABLEMODE);
+	auto fogEnable = GetGuestRenderState(X_D3DRS_FOGENABLE);
+	auto fogTableMode = GetGuestRenderState(X_D3DRS_FOGTABLEMODE);
 	ffShaderState.Fog.Enable = fogEnable;
 	// FIXME remove when fixed function PS is implemented
 	// Note if we are using the fixed function pixel shader
@@ -525,7 +513,7 @@ void UpdateFixedFunctionVertexShaderState(size_t Handle, bool isFixed)
 	{
 		auto proj = &ffShaderState.Transforms.Projection;
 
-		if (GetRenderState(X_D3DRS_RANGEFOGENABLE))
+		if (GetGuestRenderState(X_D3DRS_RANGEFOGENABLE))
 		{
 			printf("Using RANGE fog\n");
 			ffShaderState.Fog.DepthMode = FixedFunctionVertexShader::FOG_DEPTH_RANGE;
@@ -543,9 +531,9 @@ void UpdateFixedFunctionVertexShaderState(size_t Handle, bool isFixed)
 			ffShaderState.Fog.DepthMode = FixedFunctionVertexShader::FOG_DEPTH_W;
 		}
 
-		auto density = GetRenderState(X_D3DRS_FOGDENSITY);
-		auto fogStart = GetRenderState(X_D3DRS_FOGSTART);
-		auto fogEnd = GetRenderState(X_D3DRS_FOGEND);
+		auto density = GetGuestRenderState(X_D3DRS_FOGDENSITY);
+		auto fogStart = GetGuestRenderState(X_D3DRS_FOGSTART);
+		auto fogEnd = GetGuestRenderState(X_D3DRS_FOGEND);
 		ffShaderState.Fog.Density = *reinterpret_cast<float*>(&density);
 		ffShaderState.Fog.Start = *reinterpret_cast<float*>(&fogStart);
 		ffShaderState.Fog.End = *reinterpret_cast<float*>(&fogEnd);
@@ -588,8 +576,8 @@ void UpdateFixedFunctionVertexShaderState(size_t Handle, bool isFixed)
 		UpdateFixedFunctionShaderLight(g_LightState.EnabledLights[i], &ffShaderState.Lights[i], &LightAmbient);
 	}
 
-	XMFLOAT4 Ambient = toVector(GetRenderState(X_D3DRS_AMBIENT));
-	XMFLOAT4 BackAmbient = toVector(GetRenderState(X_D3DRS_BACKAMBIENT));
+	XMFLOAT4 Ambient = toVector(GetGuestRenderState(X_D3DRS_AMBIENT));
+	XMFLOAT4 BackAmbient = toVector(GetGuestRenderState(X_D3DRS_BACKAMBIENT));
 
 	XMVECTOR vLightAmbient = XMLoadFloat4(&LightAmbient);
 	XMVECTOR vAmbient = XMLoadFloat4(&Ambient);
@@ -604,7 +592,7 @@ void UpdateFixedFunctionVertexShaderState(size_t Handle, bool isFixed)
 	XMStoreFloat4((XMFLOAT4*)&ffShaderState.TotalLightsAmbient.Back, vBack);
 
 	// Misc flags
-	ffShaderState.Modes.NormalizeNormals = (float)GetRenderState(X_D3DRS_NORMALIZENORMALS);
+	ffShaderState.Modes.NormalizeNormals = (float)GetGuestRenderState(X_D3DRS_NORMALIZENORMALS);
 
 	// Write fixed function state to shader constants
 	const int slotSize = 16;

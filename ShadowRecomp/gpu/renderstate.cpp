@@ -1,8 +1,15 @@
 #include "video.h"
 #include "renderstate.h"
 
+//Since Xbox has a lot of arbitrary rules with RenderState, we can't just pass the state as they are for the host
+//Different methods exist to set a render state and some require conversion, this page will handle that
+//heavy inspired by CXBXR code
 
-const RenderStateInfo DxbxRenderStateInfo[2 + X_D3DRS_DONOTCULLUNCOMPRESSED] = {
+uint32_t* g_renderState = nullptr; 
+std::array<uint64_t, X_D3DRS_LAST + 1> g_dirty_render_states;
+std::array<int32_t, X_D3DRS_LAST + 1>  g_RenderStateOffsets;
+
+const RenderStateInfo DxbxRenderStateInfo[1 + X_D3DRS_DONOTCULLUNCOMPRESSED] = {
 
 	// String                                 Ord  Version Type                   Method              Native
 	{ "D3DRS_PSALPHAINPUTS0"              /*=   0*/, 3424, xtDWORD,               NV2A_RC_IN_ALPHA(0) },
@@ -180,7 +187,102 @@ const RenderStateInfo DxbxRenderStateInfo[2 + X_D3DRS_DONOTCULLUNCOMPRESSED] = {
 	{ "D3DRS_DONOTCULLUNCOMPRESSED"       /*= 166*/, 3911, xtBOOL,                0 } // Verified present in 3944
 };
 
+bool IsRenderStateAvailableInCurrentXboxD3D8Lib(RenderStateInfo& aRenderStateInfo)
+{
+	bool bIsRenderStateAvailable = (aRenderStateInfo.V <= X86_CODE_D3D8V);
+	if (aRenderStateInfo.R > 0) { // Applies to xbox::X_D3DRS_MULTISAMPLETYPE
+		// Note : X_D3DRS_MULTISAMPLETYPE seems the only render state that got
+		// removed (from 4039 onwards), so we check that limitation here as well
+		bIsRenderStateAvailable &= (X86_CODE_D3D8V < aRenderStateInfo.R);
+	}
+
+
+	return bIsRenderStateAvailable;
+}
+
 const RenderStateInfo& GetDxbxRenderStateInfo(int32_t State)
 {
 	return DxbxRenderStateInfo[State];
+}
+
+
+
+
+void BuildRenderStateMappingTable()
+{
+	g_RenderStateOffsets.fill(-1);
+
+	int32_t XboxIndex = 0;
+	for (uint32_t RenderState = X_D3DRS_FIRST; RenderState <= X_D3DRS_LAST; RenderState++)
+	{
+		auto RenderStateInfo = GetDxbxRenderStateInfo(RenderState);
+
+		if (IsRenderStateAvailableInCurrentXboxD3D8Lib(RenderStateInfo))
+		{
+			g_RenderStateOffsets[RenderState] = XboxIndex;
+			XboxIndex++;
+		}
+	}
+}
+
+bool GuestRenderStateExists(uint32_t State)
+{
+	if (g_RenderStateOffsets[State] >= 0) {
+		return true;
+	}
+
+	return false;
+}
+
+float GetGuestRenderStateAsFloat(uint32_t State)
+{
+	return *reinterpret_cast<float*>(&(g_renderState[g_RenderStateOffsets[State]]));
+}
+
+void SetGuestRenderState(uint32_t State, uint32_t Value)
+{
+	if (!GuestRenderStateExists(State)) 
+	{
+		return;
+	}
+
+
+	g_renderState[g_RenderStateOffsets[State]] = Value;
+}
+
+uint32_t GetGuestRenderState(uint32_t State)
+{
+	if (GuestRenderStateExists(State) == false)
+	{
+		//printf("Attempt to read wrong Renderstate %d\n", State);
+		return 0;
+	}
+
+	return g_renderState[g_RenderStateOffsets[State]];
+}
+
+
+void UpdateAllRenderState()
+{
+	// Iterate through each RenderState and set the associated host render state
+	// We start counting at X_D3DRS_SIMPLE_FIRST, to skip the pixel shader renderstates handled elsewhere
+
+	for (uint32_t RenderState = X_D3DRS_SIMPLE_FIRST; RenderState <= X_D3DRS_LAST; RenderState++)
+	{
+		auto Value = GetGuestRenderState(RenderState);
+
+		if (GuestRenderStateExists(RenderState) == false || Value == g_dirty_render_states[RenderState] || RenderState == X_D3DRS_PSTEXTUREMODES)
+		{
+			continue;
+		}
+
+		//Set the host render state
+		SetRenderState((X_D3DRENDERSTATETYPE)RenderState, Value);
+		g_dirty_render_states[RenderState] = Value;
+	}
+}
+
+void InitGuestRenderStatePointer(uint32_t* ptr)
+{
+	g_renderState = (uint32_t*)ptr;
 }

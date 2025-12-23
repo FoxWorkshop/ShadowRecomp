@@ -294,7 +294,6 @@ compile_vertex_shader(FixedFunctionVertexShader)
 compile_pixel_shader(FixedFunctionPixelShader)
 compile_vertex_shader(PassthroughVertexShader)
 
-
 compile_vertex_shader(copy_vs)
 compile_pixel_shader(copy_color_ps)
 compile_pixel_shader(copy_depth_ps)

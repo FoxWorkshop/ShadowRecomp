@@ -31,6 +31,7 @@ const uint32_t PresentMemAddr = 0x55F718;
 const uint32_t AutoDepthStencilFormat = 0x57DD68;
 const uint32_t RwD3D8RasterExtOffsetAddr = 0x57DD20;
 const uint32_t g_DeferredTextureStateAddr = 0x3E0580;
+const uint32_t g_RenderStateAddr = 0x3E0780;
 
 bool LogVSConstants = false;
 
@@ -44,6 +45,11 @@ bool LogVSConstants = false;
 #include "shader/FixedFunctionVertexShader.hlsl.dxil.h"
 #include "shader/FixedFunctionPixelShader.hlsl.dxil.h"
 #include "shader/PassthroughVertexShader.hlsl.dxil.h"
+
+#include "shader/VS_ColoredTriangle.hlsl.dxil.h"
+#include "shader/VS_FullscreenQuad.hlsl.dxil.h"
+#include "shader/PS_ColoredTriangle.hlsl.dxil.h"
+#include "shader/PS_TexturedQuad.hlsl.dxil.h"
 
 #include "shader/copy_vs.hlsl.dxil.h"
 #include "shader/copy_color_ps.hlsl.dxil.h"
@@ -73,6 +79,11 @@ bool LogVSConstants = false;
 #include "shader/FixedFunctionVertexShader.hlsl.spirv.h"
 #include "shader/PassthroughVertexShader.hlsl.spirv.h"
 #include "shader/FixedFunctionPixelShader.hlsl.spirv.h"
+
+#include "shader/VS_ColoredTriangle.hlsl.spirv.h"
+#include "shader/VS_FullscreenQuad.hlsl.spirv.h"
+#include "shader/PS_ColoredTriangle.hlsl.spirv.h"
+#include "shader/PS_TexturedQuad.hlsl.spirv.h"
 
 #include "shader/copy_vs.hlsl.spirv.h"
 #include "shader/copy_color_ps.hlsl.spirv.h"
@@ -118,7 +129,6 @@ namespace plume
 #endif
 	}
 }
-
 
 
 #pragma pack(push, 1)
@@ -275,8 +285,6 @@ bool psh_constants_dirty[30];
 
 std::array<D3DMATRIX, X_D3DTS_MAX> g_Transforms;
 
-uint32_t g_renderState[255];
-
 struct VBData
 {
 	XD3DResource* guestVBData;
@@ -318,9 +326,10 @@ static RenderVertexBufferView g_vertexBufferViews[16];
 static RenderInputSlot g_inputSlots[16];
 static RenderIndexBufferView g_indexBufferView({}, 0, RenderFormat::R16_UINT);
 
-
 int32_t* g_texture_stage_states = nullptr;
 int32_t g_dirty_texture_stage_states[4 * X_D3DTSS_MAX]; //128 because 4 stages * 32 texture stage state possible
+
+
 
 struct DirtyStates
 {
@@ -926,6 +935,7 @@ struct RenderCommand
 			uint32_t flags;
 			float color[4];
 			float z;
+			uint32_t stencil;
 		} clear;
 
 
@@ -1206,46 +1216,46 @@ static moodycamel::BlockingConcurrentQueue<RenderCommand> g_renderQueue;
 
 //template<GuestRenderState TType>
 //specify the "config" of the rendering, essentially prepare the GPU to how it should render. (alpha, blending, culling etc.)
-static void SetRenderState(X_D3DRENDERSTATETYPE state, uint32_t value)
+void SetRenderState(X_D3DRENDERSTATETYPE state, uint32_t value)
 {
-
 	RenderCommand cmd;
 	cmd.type = RenderCommandType::SetRenderState;
 	cmd.setRenderState.type = state;
 	cmd.setRenderState.value = value;
-	g_renderQueue.enqueue(cmd);
+	g_renderQueue.enqueue(cmd);	
 }
 
 
 static void D3DDevice_SetRenderState_Simple(int32_t Method, int32_t Value)
 {
 	//Fetch the RenderState conversion info for the given input
-	int32_t XboxRenderStateIndex = -1;
-	int32_t PCValue = -1;
+	int32_t GuestRenderStateIndex = -1;
+
 	for (int32_t i = X_D3DRS_PS_FIRST; i <= X_D3DRS_LAST; i++)
 	{
 		if (GetDxbxRenderStateInfo(i).M == PUSH_METHOD(Method))
 		{
-			XboxRenderStateIndex = i;
+			GuestRenderStateIndex = i;
 			break;
 		}
 	}
 
-	if (XboxRenderStateIndex == -1) {
+	if (GuestRenderStateIndex == -1) {
 		printf("RenderState_Simple could not be found in RenderState table Method %x, Value %x\n", Method, Value);
 		return;
 	}
 
-	SetRenderState((X_D3DRENDERSTATETYPE)XboxRenderStateIndex, Value);
+	SetGuestRenderState(GuestRenderStateIndex, Value);
+	//SetRenderState((X_D3DRENDERSTATETYPE)XboxRenderStateIndex, Value);
 }
 
 
 X86_FUNC_IMPL(__imp__sub_3D2450);
 int32_t D3DDevice_SetRenderStateNotInline(X_D3DRENDERSTATETYPE State, int32_t Value)
 {
-	if (State >= X_D3DRS_FOGENABLE)
+	if (State >= X_D3DRS_FOGENABLE && State < X_D3DRS_LINEWIDTH)
 	{
-		SetRenderState(State, Value);
+		//g_renderState[State] = Value;
 	}
 	else //let original code run, this will call the Simple version which is handled as well.
 	{
@@ -1270,11 +1280,6 @@ static void ProcSetRenderState(const RenderCommand& cmd)
 
 	switch (cmd.setRenderState.type)
 	{
-	case X_D3DRS_PSTEXTUREMODES:
-	{
-
-		break;
-	}
 	case X_D3DRS_VERTEXBLEND:
 	{
 
@@ -1514,10 +1519,26 @@ static void ProcSetRenderState(const RenderCommand& cmd)
 		SetDirtyValue(g_dirtyStates.sharedConstants, g_sharedConstants.FogDensity, value);
 		break;
 	case X_D3DRS_FOGSTART:
+	{
+		float fogValue = *(float*)&value;
+		if (fogValue < 0.0f) {
+			fogValue = std::abs(fogValue);
+			value = *(DWORD*)&fogValue;
+		}
+
 		SetDirtyValue(g_dirtyStates.sharedConstants, g_sharedConstants.FogStart, value);
+	}
 		break;
 	case X_D3DRS_FOGEND:
+	{
+		float fogValue = *(float*)&value;
+		if (fogValue < 0.0f) {
+			fogValue = std::abs(fogValue);
+			value = *(DWORD*)&fogValue;
+		}
+
 		SetDirtyValue(g_dirtyStates.sharedConstants, g_sharedConstants.FogEnd, value);
+	}
 		break;
 	case X_D3DRS_FOGENABLE:
 		SetDirtyValue(g_dirtyStates.sharedConstants, g_sharedConstants.FogEnable, value);
@@ -1550,7 +1571,7 @@ static void ProcSetRenderState(const RenderCommand& cmd)
 		break;
 	}*/
 
-	g_renderState[cmd.setRenderState.type] = value;
+	//g_renderState[cmd.setRenderState.type] = value;
 }
 
 static std::unique_ptr<RenderShader> g_copyShader;
@@ -3660,6 +3681,7 @@ static GuestSurface* GetSurfaceLevel(GuestTexture* texture, int32_t level, X_D3D
 		ResourceType::DepthStencil : ResourceType::RenderTarget
 	);
 
+
 	surface->texture = texture->texture;
 	surface->width = mipWidth;
 	surface->height = mipHeight;
@@ -3676,11 +3698,26 @@ static GuestSurface* GetSurfaceLevel(GuestTexture* texture, int32_t level, X_D3D
 	return surface;
 }
 
+std::vector<GuestTexture*> XboxTexList;
+bool isTexInVec(GuestTexture* tex)
+{
+	for (auto& sur : XboxTexList)
+	{
+		if (sur == tex)
+			return true;
+	}
+
+	return false;
+}
 X86_FUNC_IMPL(__imp__sub_3DA010);
 //CreateSurfaceLevel = "view" or "interface" to access ONE specific level/slice of a texture resource.
 //todo figure out this
 GuestSurface* CreateSurfaceOfTexture(X_D3DFORMAT Format, uint32_t size, GuestBaseTexture* pParent, int32_t pvData)
 {
+	if (!isTexInVec((GuestTexture*)pParent))
+	{
+		XboxTexList.push_back((GuestTexture*)pParent);
+	}
 
 	auto ctx = GetX86Context();
 	auto base = g_memory.base;
@@ -3836,7 +3873,7 @@ X86_FUNC_IMPL(__imp__sub_3D4420);
 X86_FUNC_IMPL(__imp__sub_3D4E30);
 
 
-unsigned int D3DDevice_Clear(uint32_t count, _D3DRECT* pRects, uint32_t flags, uint32_t Color, float Z, uint32_t Stencil);
+
 int32_t Direct3D_CreateDevice_r(int32_t Adapter, int32_t DeviceType, int32_t hFocusWindow, char Flags, X_D3DPRESENT_PARAMETERS* pPresentationParameters, uint32_t* device)
 {
 	printf("\nCREATE GUEST D3D DEVICE!\n");
@@ -3861,6 +3898,10 @@ int32_t Direct3D_CreateDevice_r(int32_t Adapter, int32_t DeviceType, int32_t hFo
 
 	//assign the guest array of texture render state to a pointer so we can get each texture state in real time
 	g_texture_stage_states = (int32_t*)(base + g_DeferredTextureStateAddr);
+
+	//assign the guest array of render state to a pointer so we can get each render state in real time, this reduces number of hooks needed and bypass the inlined functions.
+	InitGuestRenderStatePointer((uint32_t*)(base + g_RenderStateAddr));
+	BuildRenderStateMappingTable();
 
 	__imp__sub_3DDAB0(*ctx, base);
 	ctx->esp.u32 -= 28; //readjust esp because of calling original function
@@ -3913,6 +3954,12 @@ static void LockTextureRect(GuestTexture* texture, int32_t level, GuestLockedRec
 
 static void UnlockTextureRect(GuestTexture* texture)
 {
+	if (texture->isRenderTarget == true)
+	{
+		return;
+	}
+
+
 	RenderCommand cmd;
 	cmd.type = RenderCommandType::UnlockTextureRect;
 	cmd.unlockTextureRect.texture = texture;
@@ -3982,50 +4029,6 @@ static void ProcUnlockTextureRect(const RenderCommand& cmd)
 }
 
 
-//should be stubbed
-uint32_t D3D_MakeRequestedSpace_()
-{
-	auto base = g_memory.base;
-	auto device = (GuestDevice*)g_memory.Translate(GuestDevicePtrAddr);
-
-	return device->m_Pusher.m_pPut;
-}
-
-uint32_t D3DDevice_SetRenderState_VertexBlend(int a1)
-{
-	return 0;
-}
-
-uint32_t D3DDevice_SetRenderState_FogColor(int a1)
-{
-	return 0;
-}
-
-uint32_t D3DDevice_SetRenderStateSTUB(int a1)
-{
-	return 0;
-}
-
-uint32_t D3DDevice_SetRenderStateSTUBEsp(int a1)
-{
-	auto ctx = GetX86Context();
-	ctx->esp.u32 += 4;
-	return 0;
-}
-
-uint32_t D3DDevice_SetRenderState_FillMode(void* this_, int a1)
-{
-	auto ctx = GetX86Context();
-	ctx->esp.u32 += 4;
-	return 0;
-}
-
-uint32_t sub_3D2FF0_r(int a1, int a2)
-{
-
-	return 0;
-}
-
 
 //todo finish
 static void ProcSetViewport(const RenderCommand& cmd)
@@ -4092,6 +4095,7 @@ float GetZScaleForPixelContainer(X_D3DPixelContainer* pSurface)
 
 void UpdateHostTextureScaling(GuestTexture* tex, const bool isFixedFunc)
 {
+
 	// Xbox works with "Linear" and "Swizzled" texture formats
 	// Linear formats are not addressed with normalized coordinates
 	// We want to use normalized coordinates in our shaders, so need to be able to scale the coordinates back
@@ -4194,10 +4198,40 @@ const intptr_t RTTexAddr = 0x00000001a0bb72f0;
 const intptr_t RTBuggy = 0x00000001a0ebefb0;
 intptr_t lastTex = 0;
 
+bool aboutToDrawQuad = false;
+X86_FUNC_IMPL(__imp__sub_2DDC50);
+X86_FUNC(sub_2DDC50)
+{
+	aboutToDrawQuad = true;
+	__imp__sub_2DDC50(ctx, base);
+
+}
+bool isTexInVec(GuestTexture* tex);
 //D3DDevice_SetTexture
-GuestTexture* hudTexCopy = nullptr;
+GuestSurface* CurrentRt = nullptr;
+GuestTexture* LastOkTex = nullptr;
+GuestTexture* TheBs = nullptr;
 void SetTexture(uint32_t stage, GuestTexture* texture)
 {
+	if (texture && texture->isRenderTarget)
+	{
+		//if (CurrentRt->width == 640)
+		{
+			//printf("Now binding RT Texture %x width %d height %d\n", texture->texture, texture->width, texture->height);
+
+			//TheBs = texture;
+
+	
+		}
+	
+	}
+
+	if (texture && texture->isRenderTarget == false && texture->descriptorIndex == 64)
+	{
+		//texture = TheBs;
+	}
+
+
 
 	RenderCommand cmd;
 	cmd.type = RenderCommandType::SetTexture;
@@ -4209,7 +4243,11 @@ void SetTexture(uint32_t stage, GuestTexture* texture)
 
 static void SetTextureInRenderThread(uint32_t index, GuestTexture* texture)
 {
+	/**if (texture)
+		printf("SetTextureInRenderThread - Add barrier SHADER_READ to Texture %x\n", texture);*/
+
 	AddBarrier(texture, RenderTextureLayout::SHADER_READ);
+
 
 	auto viewDimension = texture != nullptr ? texture->viewDimension : RenderTextureViewDimension::UNKNOWN;
 
@@ -4263,15 +4301,19 @@ static float g_ZScale = 1.0f; //todo check if it needs to be updated
 
 X86_FUNC_IMPL(__imp__sub_3D0040);
 X86_FUNC_IMPL(__imp__sub_3D6250);
+
 //Specify where it should draws (Either framebuffer surface or texture surface)
 //on DX8 Xbox, SetDepthStencilSurface is merged with SetRenderTarget.
 void D3DDevice_SetRenderTarget(GuestSurface* surface, GuestSurface* pNewZStencil)
 {
-
+	CurrentRt = surface;
+	//printf("Now set RenderTarget %x width %d height %d texture %x\n", surface, surface->width, surface->height, surface->texture);
 	auto ctx = GetX86Context();
 	auto base = g_memory.base;
 	auto device = X86_LOAD_U32(GuestDevicePtrAddr);
 
+
+	//printf("SetRenderTarget surface %x, Surface->Texture->Texture %x, Width %d, Height %d\n", surface, (intptr_t)surface->texture, surface->width, surface->height);
 
 	if (!g_XboxBackBuffer)
 	{
@@ -4324,7 +4366,6 @@ static void ProcSetRenderTarget(const RenderCommand& cmd)
 	SetDirtyValue(g_dirtyStates.pipelineState, g_pipelineState.sampleCount, args.renderTarget != nullptr ? args.renderTarget->sampleCount : RenderSampleCount::COUNT_1);
 
 
-
 	// When alpha to coverage is enabled, update the alpha test mode as it's dependent on sample count.
 	SetAlphaTestMode((g_pipelineState.specConstants & (SPEC_CONSTANT_ALPHA_TEST | SPEC_CONSTANT_ALPHA_TO_COVERAGE)) != 0);
 }
@@ -4339,8 +4380,10 @@ static void ProcSetDepthStencilSurface(const RenderCommand& cmd)
 
 X86_FUNC_IMPL(__imp__sub_3D0680);
 static int countBS = 0;
-unsigned int D3DDevice_SetViewport(GuestViewport* viewport)
+void D3DDevice_SetViewport(GuestViewport* viewport)
 {
+
+
 
 	//call original func first
 	auto ctx = GetX86Context();
@@ -4348,6 +4391,10 @@ unsigned int D3DDevice_SetViewport(GuestViewport* viewport)
 	__imp__sub_3D0680(*ctx, base);
 	ctx->esp.u32 -= 8;
 
+	if (viewport == nullptr) //they can call this with a null viewport for some reason
+	{
+		return;
+	}
 
 	auto device = X86_LOAD_U32(GuestDevicePtrAddr);
 
@@ -4412,8 +4459,6 @@ unsigned int D3DDevice_SetViewport(GuestViewport* viewport)
 	X86_STORE_U32(device + 0xEEC, (uint32_t)height);
 	X86_STORE_F32(device + 0xEF0, viewport->MinZ);
 	X86_STORE_F32(device + 0xEF4, viewport->MaxZ);*/
-
-	return 1;
 }
 
 static bool PopulateBarriersForCopyRect(GuestSurface* renderTarget, GuestSurface* depthStencil)
@@ -4655,10 +4700,9 @@ static void ProcExecutePendingCopyRectsCommands(const RenderCommand& cmd)
 
 static void SetFramebuffer(GuestSurface* renderTarget, GuestSurface* depthStencil, bool settingForClear)
 {
-
-
 	if (settingForClear || g_dirtyStates.renderTargetAndDepthStencil)
 	{
+		//printf("SetFramebuffer %x %x\n", renderTarget, depthStencil);
 		GuestSurface* framebufferContainer = nullptr;
 		RenderTexture* framebufferKey = nullptr;
 
@@ -4690,7 +4734,6 @@ static void SetFramebuffer(GuestSurface* renderTarget, GuestSurface* depthStenci
 
 				if (renderTarget != nullptr)
 				{
-
 					desc.colorAttachments = const_cast<const RenderTexture**>(&renderTarget->texture);
 					desc.colorAttachmentsCount = 1;
 				}
@@ -4741,30 +4784,36 @@ static void ProcClear(const RenderCommand& cmd)
 		(g_renderTarget->width == g_depthStencil->width && g_renderTarget->height == g_depthStencil->height);
 
 	if (canClearInOnePass)
+	{
 		SetFramebuffer(g_renderTarget, g_depthStencil, true);
+	}
 
 	auto& commandList = g_commandLists[g_frame];
 
 	if (g_renderTarget != nullptr && (args.flags & X_D3DCLEAR_TARGET) != 0)
 	{
-		if (!canClearInOnePass)
+		if (!canClearInOnePass) {
 			SetFramebuffer(g_renderTarget, nullptr, true);
+		}
 
 		commandList->clearColor(0, RenderColor(args.color[0], args.color[1], args.color[2], args.color[3]));
 	}
 
-	if (g_depthStencil != nullptr && (args.flags & X_D3DCLEAR_ZBUFFER) != 0)
+	const bool clearDepth = (args.flags & X_D3DCLEAR_ZBUFFER) != 0;
+	const bool clearStencil = (args.flags & X_D3DCLEAR_STENCIL) != 0;
+	if (g_depthStencil != nullptr && (clearDepth || clearStencil))
 	{
-		if (!canClearInOnePass)
+		if (!canClearInOnePass) {
 			SetFramebuffer(nullptr, g_depthStencil, true);
+		}
 
-		commandList->clearDepth(true, args.z);
+		commandList->clearDepthStencil(clearDepth, clearStencil, args.z, args.stencil);
 	}
 }
 
 
 //Clears one or more surfaces such as a render target, multiple render targets, a stencil buffer, and a depth buffer.
-unsigned int D3DDevice_Clear(uint32_t count, _D3DRECT* pRects, uint32_t flags, uint32_t Color, float Z, uint32_t Stencil)
+void D3DDevice_Clear(uint32_t count, _D3DRECT* pRects, uint32_t flags, uint32_t Color, float Z, uint32_t Stencil)
 {
 
 	RenderCommand cmd;
@@ -4784,9 +4833,9 @@ unsigned int D3DDevice_Clear(uint32_t count, _D3DRECT* pRects, uint32_t flags, u
 
 
 	cmd.clear.z = float(Z);
-	g_renderQueue.enqueue(cmd);
+	cmd.clear.stencil = Stencil;
 
-	return 1;
+	g_renderQueue.enqueue(cmd);
 }
 
 //D3DDevice_SetTransform
@@ -5289,6 +5338,7 @@ static std::unique_ptr<RenderPipeline> CreateGraphicsPipeline(const PipelineStat
 	desc.dynamicDepthBiasEnabled = g_capabilities.dynamicDepthBias;
 	desc.depthClipEnabled = true;
 	desc.primitiveTopology = pipelineState.primitiveTopology;
+
 	desc.cullMode = pipelineState.cullMode;
 	desc.renderTargetFormat[0] = pipelineState.renderTargetFormat;
 	desc.renderTargetBlend[0].blendEnabled = pipelineState.alphaBlendEnable;
@@ -5540,6 +5590,7 @@ void* GetDataFromXboxResource(X_D3DResource* pXboxResource)
 static bool ConstantCopy = false;
 static void FlushRenderStateForMainThread(LocalRenderCommandQueue& queue)
 {
+	UpdateAllRenderState();
 
 	if (g_Xbox_VertexShaderMode == VertexShaderMode::FixedFunction)
 		UpdateFixedFunctionVertexShaderState((size_t)g_pipelineState.vertexShader, g_pipelineState.isFixedFunctionPS);
@@ -5623,7 +5674,7 @@ static void FlushRenderStateForMainThread(LocalRenderCommandQueue& queue)
 
 			auto& cmd = queue.enqueue();
 			cmd.type = RenderCommandType::SetVertexShaderConstants;
-			cmd.setVertexShaderConstants.memory = 
+			cmd.setVertexShaderConstants.memory =
 				g_intermediaryUploadAllocator.allocate(&vsh_constants[batchStartIndex][0], count * sizeof(float) * 4);
 			cmd.setVertexShaderConstants.index = batchStartIndex;
 			cmd.setVertexShaderConstants.size = count;
@@ -5676,6 +5727,7 @@ static void FlushRenderStateForRenderThread()
 	if (!g_pendingMsaaResolves.empty())
 		g_pendingMsaaResolves.clear();
 
+	//printf("Add barrier COLOR_WRITE to RenderTarget %x\n", renderTarget);
 	AddBarrier(renderTarget, RenderTextureLayout::COLOR_WRITE);
 	AddBarrier(depthStencil, RenderTextureLayout::DEPTH_WRITE);
 
@@ -6195,6 +6247,8 @@ GuestBuffer* GetGuestVertexBuffer(int32_t VertexCount, int i, uint32_t alignedSt
 void DrawPrimitive(X_D3DPRIMITIVETYPE PrimitiveType, uint32_t StartVertex, uint32_t VertexCount)
 {
 
+
+
 	for (int i = 0; i < 16; i++)
 	{
 		if (g_Xbox_SetStreamSource[i].VertexBuffer)
@@ -6432,7 +6486,9 @@ static void ProcDrawIndexedPrimitive(const RenderCommand& cmd)
 	g_commandLists[g_frame]->drawIndexedInstanced(args.primCount, 1, args.startIndex, args.baseVertexIndex, 0);
 }
 
-extern int countUntilFlameDraw;
+static bool TestRTSwapDebug = false;
+static bool isBrokenMesh = false;
+
 //D3DDevice_DrawVerticesUP - used for 2D Stuff, does not require a vertex buffer (originally)
 void DrawPrimitiveUP(X_D3DPRIMITIVETYPE PrimitiveType, uint32_t VertexCount, void* pVertexStreamZeroData, uint32_t VertexStreamZeroStride)
 {
@@ -6452,8 +6508,23 @@ void DrawPrimitiveUP(X_D3DPRIMITIVETYPE PrimitiveType, uint32_t VertexCount, voi
 		{
 			vertexData[i].w = 1.0f;
 		}
-	}
 
+	}
+	if (vertexData[0].x == 0.0f)
+	{
+		if (vertexData[1].x == 640.0f)
+		{
+			if (vertexData[2].x == 0.0f)
+			{
+				if (vertexData[3].x == 640.0f)
+				{
+					auto cullMode = GetGuestRenderState(X_D3DRS_CULLMODE);
+					cullMode = cullMode;
+					isBrokenMesh = true;
+				}
+			}
+		}
+	}
 
 
 	auto& cmd = queue.enqueue();
@@ -7411,10 +7482,9 @@ GUEST_FUNCTION_HOOK_STDCALL(sub_3D5DB0, DestructResource);
 
 //GUEST_FUNCTION_HOOK_STDCALL(sub_82BE7780, UnlockTextureRect);
 
-
-GUEST_FUNCTION_HOOK(sub_321040, SetRenderState);
 GUEST_FUNCTION_HOOK_FASTCALL(sub_3D2420, D3DDevice_SetRenderState_Simple);
-GUEST_FUNCTION_HOOK_STDCALL(sub_3D2450, D3DDevice_SetRenderStateNotInline);
+//GUEST_FUNCTION_HOOK(sub_321040, SetRenderState);
+//GUEST_FUNCTION_HOOK_STDCALL(sub_3D2450, D3DDevice_SetRenderStateNotInline);
 
 //Resource
 GUEST_FUNCTION_HOOK_STDCALL(sub_3DD710, CreateTexture_); //not used for 2D stuff at least.
@@ -7422,7 +7492,7 @@ GUEST_FUNCTION_HOOK_STDCALL(sub_3DD710, CreateTexture_); //not used for 2D stuff
 //GUEST_FUNCTION_HOOK_STDCALL(sub_3DA0A0, CreateStandAloneSurface); //DepthStencilSurface
 GUEST_FUNCTION_HOOK_STDCALL(sub_3DA010, CreateSurfaceOfTexture);
 GUEST_FUNCTION_HOOK_STDCALL(sub_3D0CD0, SetTexture);
-GUEST_FUNCTION_HOOK_STDCALL(sub_3D0040, D3DDevice_SetRenderTarget);
+GUEST_FUNCTION_HOOK_STDCALL(sub_3D0040, D3DDevice_SetRenderTarget); //TO DO RESTORE
 GUEST_FUNCTION_HOOK_STDCALL(sub_3DD810, LockTextureRect); //todo cube version?
 
 
@@ -7444,7 +7514,6 @@ GUEST_FUNCTION_HOOK_STDCALL(sub_3D4760, D3DDevice_EndPush);
 //GUEST_FUNCTION_HOOK_STDCALL(sub_3D0E80, D3DDevice_SetPalette);
 
 
-
 //		 === UNCONFIRMED STUB == TODO CHECK IF THEY ARE ALL CORRECT
 GUEST_FUNCTION_HOOK_STDCALL(sub_3DD8B0, D3D_GetAdapterModeCount);
 GUEST_FUNCTION_HOOK_STDCALL(sub_3DD950, D3D_EnumAdapterModes);
@@ -7463,7 +7532,4 @@ GUEST_FUNCTION_HOOK_STDCALL(sub_3D0F40, D3D_SetTileNoWait);
 GUEST_FUNCTION_HOOK_STDCALL(sub_3D4720, D3DDevice_IsFencePending);
 GUEST_FUNCTION_HOOK_STDCALL(sub_3D5F60, D3DResource_BlockUntilNotBusy);
 GUEST_FUNCTION_HOOK_STDCALL(sub_3D4950, D3D_BlockOnTime);
-//GUEST_FUNCTION_HOOK_THISCALL(sub_3D7AEA, D3DKCMiniportInitDMAChannel);
-//GUEST_FUNCTION_HOOK_THISCALL(sub_3D7B4D, D3DKCMiniportBindToChannel);
-//GUEST_FUNCTION_HOOK_THISCALL(sub_3D7E31, D3DKCMiniportCreateGrObject);
-//GUEST_FUNCTION_HOOK_THISCALL(sub_3D4770, CDevice_KickOff);
+

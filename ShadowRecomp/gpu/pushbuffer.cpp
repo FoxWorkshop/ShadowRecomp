@@ -247,7 +247,8 @@ void pgraph_handle_method(NV2AState* d,
 	}
 
 }
-
+extern GuestTexture* RTTexRef;
+void QuickDumpTexture(GuestTexture* texture, const char* name);
 void HLE_draw_inline_array(X_D3DPRIMITIVETYPE primitiveMode, int32_t VertexCount, void* VertexData)
 {
 
@@ -261,20 +262,18 @@ void HLE_draw_inline_array(X_D3DPRIMITIVETYPE primitiveMode, int32_t VertexCount
 	DWORD dwVertexStride = GetStrideFromVertexDeclaration(HostGetVertexDeclaration((size_t)g_memory.Translate(g_VertexShader_Handle), g_Xbox_VertexShaderMode == VertexShaderMode::FixedFunction));
 	if (dwVertexStride > 0)
 	{
+	//	printf("now drawing fullscreen quad.\n");
 		DrawPrimitiveUP(primitiveMode, VertexCount, VertexData, dwVertexStride);
 	}
-
 }
-
 
 void ClearWithQuadsMidAsmHook(X86Register& eax)
 {
+
 	auto base = g_memory.base;
 
 	//since the pointer of push buffer moved until its end, we have to go back to the beginning to extract vertex data
 	intptr_t addr = eax.u32 - (16 * sizeof(DWORD)) - 4; //16 (size of the stride) * number of vertex - offset
-
-	memset(ClearQuadVertex, 0, sizeof(ClearQuadVertex));
 
 	X_D3DPRIMITIVETYPE primitiveMode = (X_D3DPRIMITIVETYPE)X86_LOAD_U32(addr - 8);
 	for (int i = 0; i < 16; i++)
