@@ -179,7 +179,7 @@ functions = [
 	{ address = 0xBF600, size = 0x197 },  #wrong size		
 	{ address = 0x76b20, size = 0x2B4 },  #missing		
 	{ address = 0x533e0, size = 0xB8 },  #missing		
-	{ address = 0x001d8800, size = 0x82 },  #missing	
+	{ address = 0x1d8800, size = 0x82 },  #missing	
 	
 	{ address = 0x142ED0, size = 0x10F },  #missing		
 	{ address = 0x24FD90, size = 0x32 },  #missing		
@@ -188,7 +188,12 @@ functions = [
 	{ address = 0x75f50, size = 0x59 },  #missing			
 	{ address = 0x75f50, size = 0x59 },  #missing		
 	
-	{ address = 0x400708, size = 0x24 }, #added from ida
+	{ address = 0x000962c0, size = 0x40 }, #missing	
+	{ address = 0x00183900, size = 0x10 }, #missing	
+	{ address = 0x001d88e0, size = 0x10 },	#missing	
+	{ address = 0x86720, size = 0x12A }, #missing	
+	
+	{ address = 0x400708, size = 0x24 }, #added automatically from ida
 	{ address = 0x407f17, size = 0x49 },
 	{ address = 0x40d30c, size = 0x21 },
 	{ address = 0x40d460, size = 0x21 },
@@ -271,7 +276,9 @@ functions = [
 	{ address = 0x427d0f, size = 0xab },
 	{ address = 0x427dba, size = 0x7c },
 	{ address = 0x427e36, size = 0x126 },
-	{ address = 0xc10e0, size = 0x1d },
+	{ address = 0xc10e0, size = 0x1d },	
+	
+
 ]
 
 banned_addresses = [
@@ -294,7 +301,9 @@ invalid_instructions = [
 	{ data = 0x3D47BA, size = 2 }, # infinite loop in D3D device creation.	
 	{ data = 0x2AFB53, size = 24 }, # remove hardware access in entry point function	
 	{ data = 0x2DD6B3, size = 2 }, # force XBOXDeviceSystemOpen to work due to a weird adapter mode check that fail	
-	{ data = 0x2DD6BC, size = 2 }, # same as above
+	{ data = 0x2DD6BC, size = 2 }, # same as above	
+	{ data = 0x32107F, size = 13 }, # Remove XboxSignature flag thing on RenderState	
+	{ data = 0x3D2481, size = 13 }, # same as above	
 ]
 
 [[midasm_hook]]
