@@ -8,7 +8,6 @@
 // D3DDevice_EndPush API call. Similar to the other Xbox D3D APIs, these APIs "push" commands and data towards the Xbox GPU 
 // (called NV2A) to perform drawing. More Info: https://github.com/Cxbx-Reloaded/Cxbx-Reloaded/wiki/Xbox-D3D-drawing-via-NV2A-Kelvin
 
-// This leads to inlined draw code so we need to handle that
 // In the case of ShadowRecomp, rather than trying to emulate the entire push system command, we're going to take shortcuts and manually patch the few draw calls that we need.
 
 
@@ -271,7 +270,6 @@ void ClearWithQuadsMidAsmHook(X86Register& eax)
 {
 
 	auto base = g_memory.base;
-
 	//since the pointer of push buffer moved until its end, we have to go back to the beginning to extract vertex data
 	intptr_t addr = eax.u32 - (16 * sizeof(DWORD)) - 4; //16 (size of the stride) * number of vertex - offset
 
@@ -281,5 +279,6 @@ void ClearWithQuadsMidAsmHook(X86Register& eax)
 		ClearQuadVertex[i] = X86_LOAD_F32(addr + i * 4);
 	}
 
+	//printf("draw quad clear for 640x480 RT composite.\n");
 	HLE_draw_inline_array(primitiveMode, 4, ClearQuadVertex);
 }

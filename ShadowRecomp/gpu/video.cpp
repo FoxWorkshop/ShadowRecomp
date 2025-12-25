@@ -35,7 +35,7 @@ const uint32_t g_RenderStateAddr = 0x3E0780;
 
 bool LogVSConstants = false;
 
-#define DepthStencilFormat RenderFormat::D32_FLOAT_S8_UINT
+#define DepthStencilFormat RenderFormat::D32_FLOAT
 
 #if defined(ASYNC_PSO_DEBUG) || defined(PSO_CACHING)
 #include <magic_enum/magic_enum.hpp>
@@ -468,6 +468,7 @@ static std::unique_ptr<RenderCommandSemaphore> g_renderSemaphores[NUM_FRAMES];
 static uint32_t g_backBufferIndex;
 static std::unique_ptr<GuestSurface> g_backBufferHolder;
 static GuestSurface* g_backBuffer;
+static GuestSurface* g_defaultStencil;
 
 static std::unique_ptr<RenderTexture> g_intermediaryBackBufferTexture;
 static uint32_t g_intermediaryBackBufferTextureWidth;
@@ -1222,7 +1223,7 @@ void SetRenderState(X_D3DRENDERSTATETYPE state, uint32_t value)
 	cmd.type = RenderCommandType::SetRenderState;
 	cmd.setRenderState.type = state;
 	cmd.setRenderState.value = value;
-	g_renderQueue.enqueue(cmd);	
+	g_renderQueue.enqueue(cmd);
 }
 
 
@@ -1246,28 +1247,8 @@ static void D3DDevice_SetRenderState_Simple(int32_t Method, int32_t Value)
 	}
 
 	SetGuestRenderState(GuestRenderStateIndex, Value);
-	//SetRenderState((X_D3DRENDERSTATETYPE)XboxRenderStateIndex, Value);
 }
 
-
-X86_FUNC_IMPL(__imp__sub_3D2450);
-int32_t D3DDevice_SetRenderStateNotInline(X_D3DRENDERSTATETYPE State, int32_t Value)
-{
-	if (State >= X_D3DRS_FOGENABLE && State < X_D3DRS_LINEWIDTH)
-	{
-		//g_renderState[State] = Value;
-	}
-	else //let original code run, this will call the Simple version which is handled as well.
-	{
-		auto ctx = GetX86Context();
-		auto base = g_memory.base;
-		__imp__sub_3D2450(*ctx, base);
-		ctx->esp.u32 -= 12; //readjust esp since the hook will re apply it.
-
-	}
-
-	return 0;
-}
 
 static void SetRenderStateUnimplemented(GuestDevice* device, uint32_t value)
 {
@@ -1324,7 +1305,6 @@ static void ProcSetRenderState(const RenderCommand& cmd)
 	}
 	case X_D3DRS_STENCILFAIL:
 	{
-
 		SetDirtyValue(g_dirtyStates.pipelineState, g_pipelineState.stencilFail, ConvertStencilOp(value));
 		break;
 	}
@@ -1358,11 +1338,19 @@ static void ProcSetRenderState(const RenderCommand& cmd)
 	}
 	case X_D3DRS_TEXTUREFACTOR:
 	{
-		//SetDirtyValue(g_dirtyStates.sharedConstants, g_sharedConstants.TextureFactor, cullMode);
+
 		break;
 	}
 	case X_D3DRS_ZBIAS:
 	{
+		FLOAT Biased = static_cast<FLOAT>(value) * -0.000005f;
+		value = *reinterpret_cast<const DWORD*>(&Biased);
+
+		if (g_capabilities.dynamicDepthBias)
+			SetDirtyValue(g_dirtyStates.depthBias, g_depthBias, int32_t(*reinterpret_cast<float*>(&value)));
+		else
+			SetDirtyValue(g_dirtyStates.pipelineState, g_pipelineState.depthBias, int32_t(*reinterpret_cast<float*>(&value)));
+
 		break;
 	}
 	case X_D3DRS_LOGICOP:
@@ -1528,7 +1516,7 @@ static void ProcSetRenderState(const RenderCommand& cmd)
 
 		SetDirtyValue(g_dirtyStates.sharedConstants, g_sharedConstants.FogStart, value);
 	}
-		break;
+	break;
 	case X_D3DRS_FOGEND:
 	{
 		float fogValue = *(float*)&value;
@@ -1539,7 +1527,7 @@ static void ProcSetRenderState(const RenderCommand& cmd)
 
 		SetDirtyValue(g_dirtyStates.sharedConstants, g_sharedConstants.FogEnd, value);
 	}
-		break;
+	break;
 	case X_D3DRS_FOGENABLE:
 		SetDirtyValue(g_dirtyStates.sharedConstants, g_sharedConstants.FogEnable, value);
 		break;
@@ -1547,6 +1535,7 @@ static void ProcSetRenderState(const RenderCommand& cmd)
 		SetDirtyValue(g_dirtyStates.sharedConstants, g_sharedConstants.SpecularEnable, value);
 		break;
 	}
+
 	/**case D3DRS_SCISSORTESTENABLE:
 	{
 		SetDirtyValue(g_dirtyStates.scissorRect, g_scissorTestEnable, value != 0);
@@ -1561,14 +1550,7 @@ static void ProcSetRenderState(const RenderCommand& cmd)
 
 		break;
 	}
-	case X_D3DRS_DEPTHBIAS:
-	{
-		if (g_capabilities.dynamicDepthBias)
-			SetDirtyValue(g_dirtyStates.depthBias, g_depthBias, int32_t(*reinterpret_cast<float*>(&value) * (1 << 24)));
-		else
-			SetDirtyValue(g_dirtyStates.pipelineState, g_pipelineState.depthBias, int32_t(*reinterpret_cast<float*>(&value) * (1 << 24)));
 
-		break;
 	}*/
 
 	//g_renderState[cmd.setRenderState.type] = value;
@@ -3493,7 +3475,7 @@ static RenderFormat ConvertFormat(X_D3DFORMAT format)
 
 	case X_D3DFMT_LIN_D24S8: //Linear 24-bit depth + 8-bit stencil
 
-		return RenderFormat::D32_FLOAT_S8_UINT;
+		return RenderFormat::D32_FLOAT;
 	default:
 
 		assert(false && "Unknown format");
@@ -3508,8 +3490,17 @@ static GuestTexture* CreateTexture(uint32_t width, uint32_t height, uint32_t dep
 
 	RenderTextureDesc desc;
 	desc.dimension = RenderTextureDimension::TEXTURE_2D; //check if it's accurate
-	desc.width = width;
-	desc.height = height;
+
+	if (usage == 1) //will be RenderTarget
+	{
+		desc.width = width;
+		desc.height = height;
+	}
+	else
+	{
+		desc.width = width;
+		desc.height = height;
+	}
 	desc.depth = depth;
 	desc.mipLevels = levels;
 	desc.arraySize = 1;
@@ -3652,6 +3643,7 @@ static GuestSurface* CreateSurface(uint32_t width, uint32_t height, X_D3DFORMAT 
 	viewDesc.dimension = RenderTextureViewDimension::TEXTURE_2D;
 	viewDesc.format = desc.format;
 	viewDesc.mipLevels = 1;
+
 	surface->textureView = surface->textureHolder->createTextureView(viewDesc);
 	surface->descriptorIndex = g_textureDescriptorAllocator.allocate();
 	g_textureDescriptorSet->setTexture(surface->descriptorIndex, surface->textureHolder.get(), RenderTextureLayout::SHADER_READ, surface->textureView.get());
@@ -3738,9 +3730,11 @@ GuestSurface* CreateStandAloneSurface(int32_t Width, int32_t Height, int32_t a3,
 	return CreateSurface(Width, Height, Format);
 }
 
-static void FlushViewport()
+static void FlushViewport(const bool isFixed)
 {
 	auto& commandList = g_commandLists[g_frame];
+	auto hostWidth = g_renderTarget->width;
+	auto hostHeight = g_renderTarget->height;
 
 	if (g_dirtyStates.viewport)
 	{
@@ -3749,18 +3743,43 @@ static void FlushViewport()
 		if (viewport.minDepth > viewport.maxDepth)
 			std::swap(viewport.minDepth, viewport.maxDepth);
 
-		commandList->setViewports(viewport);
+		if (isFixed == false)
+		{
+			// Set default viewport over the whole screen
+			// And let the vertex shader take care of vertex placement
+			// So we can handle shaders that don't use the Xbox viewport constants and don't align
+			// with the currently set viewport
+			viewport.x = 0;
+			viewport.y = 0;
+			viewport.width = (float)hostWidth;
+			viewport.height = (float)hostHeight;
+			viewport.minDepth = 0.0f;
+			viewport.maxDepth = 1.0f;
+		}
 
+		commandList->setViewports(viewport);
 		g_dirtyStates.viewport = false;
 	}
 
 	if (g_dirtyStates.scissorRect)
 	{
-		auto scissorRect = g_scissorTestEnable ? g_scissorRect : RenderRect(
-			g_viewport.x,
-			g_viewport.y,
-			g_viewport.x + g_viewport.width,
-			g_viewport.y + g_viewport.height);
+		RenderRect scissorRect;
+
+		if (isFixed)
+		{
+			scissorRect.left = 0;
+			scissorRect.top = 0;
+			scissorRect.right = hostWidth;
+			scissorRect.bottom = hostHeight;
+		}
+		else
+		{
+			scissorRect = g_scissorTestEnable ? g_scissorRect : RenderRect(
+				g_viewport.x,
+				g_viewport.y,
+				g_viewport.x + g_viewport.width,
+				g_viewport.y + g_viewport.height);
+		}
 
 		commandList->setScissors(scissorRect);
 
@@ -3909,8 +3928,12 @@ int32_t Direct3D_CreateDevice_r(int32_t Adapter, int32_t DeviceType, int32_t hFo
 	return 0; //success
 }
 static int desCount = 0;
+X86_FUNC_IMPL(__imp__sub_3D5DB0);
 static void DestructResource(GuestResource* resource)
 {
+	auto ctx = GetX86Context();
+	auto base = g_memory.base;
+
 
 	RenderCommand cmd;
 	cmd.type = RenderCommandType::DestructResource;
@@ -4057,7 +4080,7 @@ static void ProcSetViewport(const RenderCommand& cmd)
 float GetZScaleForPixelContainer(X_D3DPixelContainer* pSurface)
 {
 	// If no surface was present, fallback to 1
-	if (pSurface == xbox::zeroptr)
+	if (pSurface == nullptr)
 		return 1.0f;
 
 	auto format = pSurface->Format;
@@ -4209,29 +4232,15 @@ X86_FUNC(sub_2DDC50)
 bool isTexInVec(GuestTexture* tex);
 //D3DDevice_SetTexture
 GuestSurface* CurrentRt = nullptr;
-GuestTexture* LastOkTex = nullptr;
-GuestTexture* TheBs = nullptr;
+
+static bool aboutToDrawRT = false;
+
 void SetTexture(uint32_t stage, GuestTexture* texture)
 {
 	if (texture && texture->isRenderTarget)
 	{
-		//if (CurrentRt->width == 640)
-		{
-			//printf("Now binding RT Texture %x width %d height %d\n", texture->texture, texture->width, texture->height);
 
-			//TheBs = texture;
-
-	
-		}
-	
 	}
-
-	if (texture && texture->isRenderTarget == false && texture->descriptorIndex == 64)
-	{
-		//texture = TheBs;
-	}
-
-
 
 	RenderCommand cmd;
 	cmd.type = RenderCommandType::SetTexture;
@@ -4297,7 +4306,7 @@ static void SetDefaultViewport(GuestDevice* device, GuestSurface* surface)
 	}
 }
 
-static float g_ZScale = 1.0f; //todo check if it needs to be updated
+static float g_ZScale = 1.0f;
 
 X86_FUNC_IMPL(__imp__sub_3D0040);
 X86_FUNC_IMPL(__imp__sub_3D6250);
@@ -4306,53 +4315,81 @@ X86_FUNC_IMPL(__imp__sub_3D6250);
 //on DX8 Xbox, SetDepthStencilSurface is merged with SetRenderTarget.
 void D3DDevice_SetRenderTarget(GuestSurface* surface, GuestSurface* pNewZStencil)
 {
-	CurrentRt = surface;
 	//printf("Now set RenderTarget %x width %d height %d texture %x\n", surface, surface->width, surface->height, surface->texture);
 	auto ctx = GetX86Context();
 	auto base = g_memory.base;
 	auto device = X86_LOAD_U32(GuestDevicePtrAddr);
 
 
-	//printf("SetRenderTarget surface %x, Surface->Texture->Texture %x, Width %d, Height %d\n", surface, (intptr_t)surface->texture, surface->width, surface->height);
+	/**printf("SetRenderTarget surface %x, Surface->Texture->Texture %x, Width %d, Height %d\n", surface, (intptr_t)surface->texture, surface->width, surface->height);
+	if (pNewZStencil == nullptr)
+		printf("SetDepthStencil null (DISABLED)\n");
+	else
+		printf("SetDepthStencil surface %x, Surface->Texture->Texture %x, Width %d, Height %d\n", pNewZStencil, (intptr_t)pNewZStencil->texture, pNewZStencil->width, pNewZStencil->height);*/
+
+	GuestSurface* newSurface = nullptr;
+	GuestSurface* newDepthStencil = nullptr;
 
 	if (!g_XboxBackBuffer)
 	{
 
-		g_backBuffer->guestResource = surface->guestResource;
-		surface = g_backBuffer; //the game doesn't get the back buffer on its first SetRenderTarget call so we assign ours there instead.
 		g_XboxBackBuffer = surface;
-		X86_STORE_U32(ctx->esp.u32 + 4, g_memory.MapVirtual(surface));
-		X86_STORE_U32(device + 0x1A14, g_memory.MapVirtual(surface));
-
-		pNewZStencil = g_depthStencil;
 		g_XboxDefaultDepthStencilSurface = pNewZStencil;
-		X86_STORE_U32(ctx->esp.u32 + 8, g_memory.MapVirtual(pNewZStencil));
+		
+		g_defaultStencil = CreateSurface(512, 512, X_D3DFMT_LIN_D24S8);
+		newSurface = g_backBuffer;
+		newDepthStencil = g_defaultStencil;
+		//depth->guestResource = pNewZStencil->guestResource;
+		//depth->padding = pNewZStencil->padding;
+		//pNewZStencil = depth;
+		//X86_STORE_U32(ctx->esp.u32 + 8, g_memory.MapVirtual(pNewZStencil));
+		//X86_STORE_U32(device + 0x1A20, g_memory.MapVirtual(pNewZStencil));
+	}
+	else
+	{
+		if (g_XboxBackBuffer && g_XboxBackBuffer == surface)
+		{
+			newSurface = g_backBuffer;
+		}
+		else
+		{
+			newSurface = surface;
+		}
+
+		if (g_XboxDefaultDepthStencilSurface && g_XboxDefaultDepthStencilSurface == pNewZStencil)
+		{
+			newDepthStencil = g_defaultStencil;
+		}
+		else
+		{
+			newDepthStencil = pNewZStencil;
+		}
 	}
 
-	if (pNewZStencil && g_XboxDefaultDepthStencilSurface != pNewZStencil)
-	{
-		g_ZScale = GetZScaleForPixelContainer((X_D3DPixelContainer*)&pNewZStencil->guestResource);
-	}
+
+
+	// The currenct depth stencil is always replaced by whats passed in here (even a null)
+	g_ZScale = GetZScaleForPixelContainer(pNewZStencil != nullptr ? (X_D3DPixelContainer*)&pNewZStencil->guestResource : nullptr);
 
 	__imp__sub_3D0040(*ctx, base);
 	ctx->esp.u32 -= 12;
 
 	RenderCommand cmd;
 	cmd.type = RenderCommandType::SetRenderTarget;
-	cmd.setRenderTarget.renderTarget = surface;
+	cmd.setRenderTarget.renderTarget = newSurface;
 	g_renderQueue.enqueue(cmd);
 
-	SetDefaultViewport((GuestDevice*)g_memory.Translate(device), surface);
+	SetDefaultViewport((GuestDevice*)g_memory.Translate(device), newSurface);
 
 	RenderCommand cmd2;
 	cmd2.type = RenderCommandType::SetDepthStencilSurface;
-	cmd2.setDepthStencilSurface.depthStencil = pNewZStencil;
+	cmd2.setDepthStencilSurface.depthStencil = newDepthStencil;
 	g_renderQueue.enqueue(cmd2);
 
-	SetDefaultViewport((GuestDevice*)g_memory.Translate(device), pNewZStencil);
+	SetDefaultViewport((GuestDevice*)g_memory.Translate(device), newDepthStencil);
 
-	X86_STORE_U32(device + 0x954, surface->width);
-	X86_STORE_U32(device + 0x958, surface->height);
+	//X86_STORE_U32(device + 0x954, surface->width);
+	//X86_STORE_U32(device + 0x958, surface->height);
 }
 
 
@@ -4417,7 +4454,6 @@ void D3DDevice_SetViewport(GuestViewport* viewport)
 	cmd.setViewport.maxDepth = viewport->MaxZ;
 	g_renderQueue.enqueue(cmd);
 
-	//set viewport data in the device
 	uint32_t resX = X86_LOAD_U32(device + 0xEE8);
 	resX = resX;
 
@@ -4796,6 +4832,7 @@ static void ProcClear(const RenderCommand& cmd)
 			SetFramebuffer(g_renderTarget, nullptr, true);
 		}
 
+		//commandList->clearColor(0, RenderColor(1.0f, 0.0f, 1.0f, 1.0f));
 		commandList->clearColor(0, RenderColor(args.color[0], args.color[1], args.color[2], args.color[3]));
 	}
 
@@ -4815,6 +4852,17 @@ static void ProcClear(const RenderCommand& cmd)
 //Clears one or more surfaces such as a render target, multiple render targets, a stencil buffer, and a depth buffer.
 void D3DDevice_Clear(uint32_t count, _D3DRECT* pRects, uint32_t flags, uint32_t Color, float Z, uint32_t Stencil)
 {
+	/**GuestViewport port;
+
+	port.X = 0;
+	port.Y = 0;
+	port.Width = CurrentRt->width;
+	port.Height = CurrentRt->height;
+	port.MinZ = g_viewport.minDepth;
+	port.MaxZ = g_viewport.maxDepth;
+	D3DDevice_SetViewport(&port);*/
+
+
 
 	RenderCommand cmd;
 	cmd.type = RenderCommandType::Clear;
@@ -4834,6 +4882,15 @@ void D3DDevice_Clear(uint32_t count, _D3DRECT* pRects, uint32_t flags, uint32_t 
 
 	cmd.clear.z = float(Z);
 	cmd.clear.stencil = Stencil;
+
+	if (g_renderTarget != nullptr && (flags & X_D3DCLEAR_TARGET) != 0)
+	{
+		//printf("clear rendertarget requested\n");
+	}
+
+	const bool clearDepth = (flags & X_D3DCLEAR_ZBUFFER) != 0;
+	const bool clearStencil = (flags & X_D3DCLEAR_STENCIL) != 0;
+
 
 	g_renderQueue.enqueue(cmd);
 }
@@ -5322,7 +5379,7 @@ static std::unique_ptr<RenderPipeline> CreateGraphicsPipeline(const PipelineStat
 
 	desc.pixelShader = FixedFuncPS.get();//pipelineState.pixelShader != nullptr ? GetOrLinkShader(pipelineState.pixelShader, pipelineState.specConstants) : nullptr;
 	desc.depthFunction = pipelineState.zFunc;
-	desc.depthEnabled = pipelineState.zEnable && g_depthStencil != nullptr; //Xbox likes to enable ZEnable without a depth stencil
+	desc.depthEnabled = pipelineState.zEnable; //Xbox likes to enable ZEnable without a depth stencil
 	desc.depthWriteEnabled = pipelineState.zWriteEnable;
 	desc.depthBias = pipelineState.depthBias;
 	desc.stencilEnabled = pipelineState.stencilEnable;
@@ -5735,7 +5792,7 @@ static void FlushRenderStateForRenderThread()
 	FlushBarriers();
 
 	SetFramebuffer(renderTarget, depthStencil, false);
-	FlushViewport();
+	FlushViewport(isFixed);
 
 
 	auto& commandList = g_commandLists[g_frame];
@@ -6247,7 +6304,7 @@ GuestBuffer* GetGuestVertexBuffer(int32_t VertexCount, int i, uint32_t alignedSt
 void DrawPrimitive(X_D3DPRIMITIVETYPE PrimitiveType, uint32_t StartVertex, uint32_t VertexCount)
 {
 
-
+	return;
 
 	for (int i = 0; i < 16; i++)
 	{
@@ -6411,7 +6468,7 @@ void DrawIndexedPrimitive(X_D3DPRIMITIVETYPE PrimitiveType, uint32_t VertexCount
 	uint32_t minIdx = 0, maxIdx = 0;
 	ComputeIndexRange(pIndexData, 0, VertexCount, minIdx, maxIdx);
 
-
+	bool patched = false;
 	GuestBuffer* v1;
 	GuestBuffer* v2;
 
@@ -6426,7 +6483,7 @@ void DrawIndexedPrimitive(X_D3DPRIMITIVETYPE PrimitiveType, uint32_t VertexCount
 
 		auto pVertexShaderStreamInfo = &(vertexElement->VertexStreams[i]);
 		bool bNeedVertexPatching = (pVertexShaderStreamInfo != nullptr && pVertexShaderStreamInfo->NeedPatch);
-
+		patched = bNeedVertexPatching;
 		//if patching is needed the stride may be bigger so update it from the Vertex Declaration that we got earlier
 		if (bNeedVertexPatching)
 			alignedStride = pVertexShaderStreamInfo->HostVertexStride;
@@ -6455,7 +6512,7 @@ void DrawIndexedPrimitive(X_D3DPRIMITIVETYPE PrimitiveType, uint32_t VertexCount
 	}
 
 
-	if (VertexCount == 2192)
+	if (VertexCount == 171 && patched)
 	{
 
 	}
@@ -6492,6 +6549,14 @@ static bool isBrokenMesh = false;
 //D3DDevice_DrawVerticesUP - used for 2D Stuff, does not require a vertex buffer (originally)
 void DrawPrimitiveUP(X_D3DPRIMITIVETYPE PrimitiveType, uint32_t VertexCount, void* pVertexStreamZeroData, uint32_t VertexStreamZeroStride)
 {
+
+	if (aboutToDrawRT)
+	{
+
+		aboutToDrawRT = false;
+
+	}
+
 	LocalRenderCommandQueue queue;
 	FlushRenderStateForMainThread(queue);
 
@@ -6508,23 +6573,9 @@ void DrawPrimitiveUP(X_D3DPRIMITIVETYPE PrimitiveType, uint32_t VertexCount, voi
 		{
 			vertexData[i].w = 1.0f;
 		}
+	}
 
-	}
-	if (vertexData[0].x == 0.0f)
-	{
-		if (vertexData[1].x == 640.0f)
-		{
-			if (vertexData[2].x == 0.0f)
-			{
-				if (vertexData[3].x == 640.0f)
-				{
-					auto cullMode = GetGuestRenderState(X_D3DRS_CULLMODE);
-					cullMode = cullMode;
-					isBrokenMesh = true;
-				}
-			}
-		}
-	}
+
 
 
 	auto& cmd = queue.enqueue();
@@ -7158,6 +7209,7 @@ X86_FUNC(sub_3DA0A0)
 	newSurface->guestResource.Format = surface->Format;
 	newSurface->guestResource.Lock = surface->Lock;
 	newSurface->guestResource.Size = surface->Size;
+	newSurface->padding = surface->Parent;
 	ctx.eax.u32 = g_memory.MapVirtual(newSurface);
 
 	ctx.esp.u32 += 4;
@@ -7483,8 +7535,6 @@ GUEST_FUNCTION_HOOK_STDCALL(sub_3D5DB0, DestructResource);
 //GUEST_FUNCTION_HOOK_STDCALL(sub_82BE7780, UnlockTextureRect);
 
 GUEST_FUNCTION_HOOK_FASTCALL(sub_3D2420, D3DDevice_SetRenderState_Simple);
-//GUEST_FUNCTION_HOOK(sub_321040, SetRenderState);
-//GUEST_FUNCTION_HOOK_STDCALL(sub_3D2450, D3DDevice_SetRenderStateNotInline);
 
 //Resource
 GUEST_FUNCTION_HOOK_STDCALL(sub_3DD710, CreateTexture_); //not used for 2D stuff at least.
@@ -7492,7 +7542,7 @@ GUEST_FUNCTION_HOOK_STDCALL(sub_3DD710, CreateTexture_); //not used for 2D stuff
 //GUEST_FUNCTION_HOOK_STDCALL(sub_3DA0A0, CreateStandAloneSurface); //DepthStencilSurface
 GUEST_FUNCTION_HOOK_STDCALL(sub_3DA010, CreateSurfaceOfTexture);
 GUEST_FUNCTION_HOOK_STDCALL(sub_3D0CD0, SetTexture);
-GUEST_FUNCTION_HOOK_STDCALL(sub_3D0040, D3DDevice_SetRenderTarget); //TO DO RESTORE
+GUEST_FUNCTION_HOOK_STDCALL(sub_3D0040, D3DDevice_SetRenderTarget);
 GUEST_FUNCTION_HOOK_STDCALL(sub_3DD810, LockTextureRect); //todo cube version?
 
 
