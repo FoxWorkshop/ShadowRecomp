@@ -82,8 +82,7 @@ std::filesystem::path FileSystem::ResolvePath(const std::string_view& path, bool
 
 extern uint32_t fakeOffset;
 
-extern bool logIndexed;
-bool logMatrixStart = false;
+
 FileHandle* XCreateFile_r(const char* SourceString, ULONG CreateDisposition, ULONG ShareAccess, int a4, int mode, unsigned int a6, int a7)
 {
 	ULONG CreateDisposition_ = FILE_OPEN;
@@ -134,17 +133,7 @@ FileHandle* XCreateFile_r(const char* SourceString, ULONG CreateDisposition, ULO
 			printf("song loaded\n");
 		}
 
-		if (filePath.string().find("stage") != std::string::npos)
-		{
-			logIndexed = true;
 
-		}
-
-		if (filePath.string().find("stg0100_02.one") != std::string::npos)
-		{
-			logMatrixStart = true;
-
-		}
 	}
 
 	std::error_code ec;

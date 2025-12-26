@@ -954,6 +954,7 @@ struct RenderCommand
 		{
 			uint32_t index;
 			GuestTexture* texture;
+			bool isFixed;
 		} setTexture;
 
 		struct
@@ -2405,8 +2406,6 @@ static ShaderCacheEntry* FindShaderCacheEntry(XXH64_hash_t hash)
 	return nullptr; //findResult != end && findResult->hash == hash ? findResult : nullptr;
 }
 
-std::unordered_map<uint32_t, GuestShader*> g_VertexShaderMap;
-
 GuestShader* CreateShader(ResourceType resourceType)
 {
 	GuestShader* shader = FindShaderCacheEntryNew();
@@ -2507,7 +2506,7 @@ void UpdateVertexShader(uint32_t Handle)
 
 	if (vshFlags & g_X_VERTEXSHADER_FLAG_PROGRAM)
 	{
-		auto shader = CreateShader(ResourceType::VertexShader); //g_VertexShaderMap[Handle];
+		auto shader = CreateShader(ResourceType::VertexShader);
 		if (shader == nullptr)
 		{
 			return;
@@ -2596,8 +2595,8 @@ void LoadVertexShaderProgram(DWORD* pFunction, DWORD Address)
 void LoadVertexShader(DWORD Handle, DWORD Address)
 {
 	// Handle is always address of an X_D3DVertexShader struct, thus always or-ed with 1 (X_D3DFVF_RESERVED0)
-// Address is the slot (offset) from which the program must be written onwards (as whole DWORDS)
-// D3DDevice_LoadVertexShader pushes the program contained in the Xbox VertexShader struct to the NV2A
+	// Address is the slot (offset) from which the program must be written onwards (as whole DWORDS)
+	// D3DDevice_LoadVertexShader pushes the program contained in the Xbox VertexShader struct to the NV2A
 
 	X_D3DVertexShader* pXboxVertexShader = VshHandleToXboxVertexShader((size_t)g_memory.Translate(Handle));
 
@@ -2681,8 +2680,6 @@ static void ProcSetPixelShader(const RenderCommand& cmd)
 }
 
 
-bool logIndexed = false;
-static void FlushVertexBufferForRendering();
 X86_FUNC_IMPL(__imp__sub_3D1E10);
 static void SetStreamSource(uint32_t StreamNumber, GuestBuffer* buffer, uint32_t stride)
 {
@@ -4239,21 +4236,27 @@ void SetTexture(uint32_t stage, GuestTexture* texture)
 {
 	if (texture && texture->isRenderTarget)
 	{
-
+		
 	}
 
 	RenderCommand cmd;
 	cmd.type = RenderCommandType::SetTexture;
 	cmd.setTexture.index = stage;
 	cmd.setTexture.texture = texture;
+	cmd.setTexture.isFixed = g_Xbox_VertexShaderMode == VertexShaderMode::FixedFunction;
 
 	g_renderQueue.enqueue(cmd);
 }
 
-static void SetTextureInRenderThread(uint32_t index, GuestTexture* texture)
+static void SetTextureInRenderThread(uint32_t index, GuestTexture* texture, const bool isFixed = false)
 {
 	/**if (texture)
 		printf("SetTextureInRenderThread - Add barrier SHADER_READ to Texture %x\n", texture);*/
+
+	if (texture && texture->isRenderTarget)
+	{
+
+	}
 
 	AddBarrier(texture, RenderTextureLayout::SHADER_READ);
 
@@ -4263,7 +4266,7 @@ static void SetTextureInRenderThread(uint32_t index, GuestTexture* texture)
 	if (texture)
 	{
 		g_sharedConstants.TextureSampleType[index] = (uint32_t)(viewDimension)-1;
-		UpdateHostTextureScaling(texture, g_pipelineState.vertexShaderType == VertexShaderMode::FixedFunction);
+		UpdateHostTextureScaling(texture, isFixed);
 		//	printf("Assigned texture descriptor index: %u\n", texture->descriptorIndex);
 	}
 	else
@@ -5045,17 +5048,6 @@ DWORD* D3D_CommonSetDebugRegisters()
 
 
 
-int RW_SetTextureStageStates(int a1, int a2)
-{
-	return 0;
-}
-
-int* D3DDevice_SetPalette(int a1, DWORD* a2)
-{
-	return 0;
-}
-
-
 //rwD3D8RasterShowRaster (call Device_Swap which replaces Present)
 /*/X86_FUNC_IMPL(__imp__sub_2DDC00);
 X86_FUNC(sub_2DDC00)
@@ -5132,7 +5124,7 @@ static void ProcSetTexture(const RenderCommand& cmd)
 	}
 
 	if (shouldSetTexture)
-		SetTextureInRenderThread(args.index, args.texture);
+		SetTextureInRenderThread(args.index, args.texture, args.isFixed);
 
 	g_textures[args.index] = args.texture;
 }
@@ -6733,33 +6725,6 @@ static void ProcSetPixelShaderConstants(const RenderCommand& cmd)
 	g_dirtyStates.pixelShaderConstants = true;*/
 }
 
-int sub_2F0CF0_r()
-{
-	return 0;
-}
-
-
-int D3DKCMiniportInitDMAChannel(DWORD* this_, int a2, int a3, int a4, int a5, DWORD* a6)
-{
-	auto ctx = GetX86Context();
-	ctx->esp.u32 += 20;
-	return 1;
-}
-
-
-int D3DKCMiniportBindToChannel(DWORD* this_, int a2)
-{
-	auto ctx = GetX86Context();
-	ctx->esp.u32 += 4;
-	return 1;
-}
-
-int D3DKCMiniportCreateGrObject(DWORD* this_, int a2, unsigned int a3, int a4)
-{
-	auto ctx = GetX86Context();
-	ctx->esp.u32 += 12;
-	return 1;
-}
 
 BOOL D3Device_IsBusy()
 {
@@ -7561,23 +7526,20 @@ GUEST_FUNCTION_HOOK_STDCALL(sub_3D4760, D3DDevice_EndPush);
 //GUEST_FUNCTION_HOOK_STDCALL(sub_3D2E90, D3DDevice_SetTextureStageStateNotInline);
 
 //GUEST_FUNCTION_HOOK_STDCALL(sub_3CFCD0, D3DDevice_SetTransform);
-//GUEST_FUNCTION_HOOK_STDCALL(sub_3D0E80, D3DDevice_SetPalette);
+
 
 
 //		 === UNCONFIRMED STUB == TODO CHECK IF THEY ARE ALL CORRECT
 GUEST_FUNCTION_HOOK_STDCALL(sub_3DD8B0, D3D_GetAdapterModeCount);
 GUEST_FUNCTION_HOOK_STDCALL(sub_3DD950, D3D_EnumAdapterModes);
-//GUEST_FUNCTION_HOOK_STDCALL(sub_3D4890, D3D_SetFence);
-//GUEST_FUNCTION_HOOK_STDCALL(sub_3D86F0, D3D_LazySetPointParams);
-//GUEST_FUNCTION_HOOK_STDCALL(sub_3DB990, RW_SetTextureStageStates);
+GUEST_FUNCTION_HOOK_STDCALL(sub_3D0F40, D3D_SetTileNoWait); 
 
-//GUEST_FUNCTION_HOOK(sub_3D4C00, D3D_MakeRequestedSpace_);
 
 
 //				==== STUB CONFIRMED ====
 GUEST_FUNCTION_HOOK(sub_3D3240, D3D_CommonSetDebugRegisters);
 GUEST_FUNCTION_HOOK(sub_3D0F10, D3Device_IsBusy);
-GUEST_FUNCTION_HOOK_STDCALL(sub_3D0F40, D3D_SetTileNoWait);
+
 
 GUEST_FUNCTION_HOOK_STDCALL(sub_3D4720, D3DDevice_IsFencePending);
 GUEST_FUNCTION_HOOK_STDCALL(sub_3D5F60, D3DResource_BlockUntilNotBusy);
