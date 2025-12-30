@@ -148,7 +148,7 @@ struct PipelineState
 	RenderCullMode cullMode = RenderCullMode::NONE;
 	RenderComparisonFunction zFunc = RenderComparisonFunction::LESS;
 	RenderComparisonFunction stencilFunc = RenderComparisonFunction::ALWAYS;
-	RenderStencilOp stencilFail = RenderStencilOp::KEEP; //todo
+	RenderStencilOp stencilFail = RenderStencilOp::KEEP;
 	RenderStencilOp stencilZFail = RenderStencilOp::KEEP;
 	RenderStencilOp stencilPass = RenderStencilOp::KEEP;
 	uint32_t stencilMask = 0xFFFFFFFF;
@@ -937,6 +937,7 @@ struct RenderCommand
 			float color[4];
 			float z;
 			uint32_t stencil;
+			bool isFixed;
 		} clear;
 
 
@@ -4835,8 +4836,9 @@ static void ProcClear(const RenderCommand& cmd)
 			SetFramebuffer(g_renderTarget, nullptr, true);
 		}
 
-		//commandList->clearColor(0, RenderColor(1.0f, 0.0f, 1.0f, 1.0f));
+
 		commandList->clearColor(0, RenderColor(args.color[0], args.color[1], args.color[2], args.color[3]));
+		//commandList->clearColor(0, debugColor);
 	}
 
 	const bool clearDepth = (args.flags & X_D3DCLEAR_ZBUFFER) != 0;
@@ -4870,7 +4872,7 @@ void D3DDevice_Clear(uint32_t count, _D3DRECT* pRects, uint32_t flags, uint32_t 
 	RenderCommand cmd;
 	cmd.type = RenderCommandType::Clear;
 	cmd.clear.flags = flags;
-
+	cmd.clear.isFixed = g_Xbox_VertexShaderMode == VertexShaderMode::FixedFunction;
 
 	//extract the RGBA components to convert the color to float
 	float color[4] = { ((Color >> 16) & 0xFF) / 255.f,
