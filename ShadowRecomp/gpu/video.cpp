@@ -1101,6 +1101,32 @@ static RenderBlend ConvertBlendMode(uint32_t blendMode)
 	}
 }
 
+static RenderBlend ConvertAlphaBlendMode(uint32_t blendMode)
+{
+	switch (blendMode)
+	{
+	case D3DBLEND_ZERO:
+		return RenderBlend::ZERO;
+	case D3DBLEND_ONE:
+		return RenderBlend::ONE;
+	case D3DBLEND_SRCALPHA: 
+	case D3DBLEND_SRCCOLOR:
+		return RenderBlend::SRC_ALPHA;
+	case D3DBLEND_INVSRCALPHA:
+	case D3DBLEND_INVSRCCOLOR:
+		return RenderBlend::INV_SRC_ALPHA;
+	case D3DBLEND_DESTALPHA:
+	case D3DBLEND_DESTCOLOR:
+		return RenderBlend::DEST_ALPHA;
+	case D3DBLEND_INVDESTALPHA:
+	case D3DBLEND_INVDESTCOLOR:
+		return RenderBlend::INV_DEST_ALPHA;
+	default:
+		assert(false && "Invalid blend mode");
+		return RenderBlend::ZERO;
+	}
+}
+
 static RenderBlendOperation ConvertBlendOp(uint32_t blendOp)
 {
 	switch (blendOp)
@@ -1419,11 +1445,13 @@ static void ProcSetRenderState(const RenderCommand& cmd)
 	case X_D3DRS_SRCBLEND:
 	{
 		SetDirtyValue(g_dirtyStates.pipelineState, g_pipelineState.srcBlend, ConvertBlendMode(value));
+		SetDirtyValue(g_dirtyStates.pipelineState, g_pipelineState.srcBlendAlpha, ConvertAlphaBlendMode(value)); //DX8 originally does not have src blend alpha so we mirror "regular" blend.
 		break;
 	}
 	case X_D3DRS_DESTBLEND:
 	{
 		SetDirtyValue(g_dirtyStates.pipelineState, g_pipelineState.destBlend, ConvertBlendMode(value));
+		SetDirtyValue(g_dirtyStates.pipelineState, g_pipelineState.destBlendAlpha, ConvertAlphaBlendMode(value)); //DX8 originally does not have dst blend alpha so we mirror "regular" blend.
 		break;
 	}
 	case X_D3DRS_ZFUNC:
