@@ -2400,7 +2400,7 @@ static void ProcSetVertexDeclaration(const RenderCommand& cmd)
 
 
 extern bool logIndexedPrimitive;
-static void CopyVertexShaderConstant(int32_t Register, DWORD* pConstantData, const uint32_t count);
+
 void UpdateHostVertexDeclaration(HostVertexDeclaration* pHostVertexDeclaration)
 {
 	// Titles can specify default values for registers via calls like SetVertexData4f
@@ -2551,7 +2551,7 @@ void UpdateVertexShader(uint32_t Handle)
 		// Switch to passthrough program, if so required
 		if (vshFlags & X_VERTEXSHADER_FLAG_PASSTHROUGH)
 		{
-			SetVertexShaderPassthroughProgram(); //todo
+			SetVertexShaderPassthroughProgram(); 
 			g_Xbox_VertexShaderMode = VertexShaderMode::Passthrough;
 		}
 		else {
