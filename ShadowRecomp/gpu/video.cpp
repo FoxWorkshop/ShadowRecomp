@@ -6849,6 +6849,11 @@ int32_t D3DDevice_LightEnable(uint32_t Index, int32_t bEnable)
 	return ctx->eax.u32;
 }
 
+void SetMaterial(Material* pMaterial)
+{
+	UpdateMaterial(pMaterial);
+}
+
 enum RwRasterType : uint8_t
 {
 	rwRASTERTYPENORMAL = 0x0,
@@ -7551,6 +7556,8 @@ GUEST_FUNCTION_HOOK_STDCALL(sub_3DA010, CreateSurfaceOfTexture);
 GUEST_FUNCTION_HOOK_STDCALL(sub_3D0CD0, SetTexture);
 GUEST_FUNCTION_HOOK_STDCALL(sub_3D0040, D3DDevice_SetRenderTarget);
 GUEST_FUNCTION_HOOK_STDCALL(sub_3DD810, LockTextureRect); //todo cube version?
+
+GUEST_FUNCTION_HOOK_STDCALL(sub_3CFDF0, SetMaterial);
 GUEST_FUNCTION_HOOK_STDCALL(sub_3D0B70, D3DDevice_LightEnable);
 
 

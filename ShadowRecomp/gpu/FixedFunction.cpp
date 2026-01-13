@@ -5,6 +5,7 @@
 #include "renderstate.h"
 #include <algorithm>
 #include <DirectXMath.h>
+#include "FixedFunction.h"
 
 
 // original code (mostly) re used from CXBX Reloaded
@@ -195,15 +196,6 @@ struct TwoSidedColor
 	alignas(16) D3DVECTOR4 Back; // c105.xyz
 };
 
-struct Material
-{
-	alignas(16) D3DCOLORVALUE Diffuse; // base for Materials[0], these will be array-offsetted
-	alignas(16) D3DCOLORVALUE Ambient;
-	alignas(16) D3DCOLORVALUE Specular;
-	alignas(16) D3DCOLORVALUE Emissive;
-	alignas(16) D3DCOLORVALUE Power; // c110.w/y/z free
-};
-
 struct Modes
 {
 	// c116
@@ -283,6 +275,15 @@ FixedFunctionVertexShaderState ffShaderState = {};
 extern int32_t* g_texture_stage_states;
 extern int32_t g_RenderUpscaleFactor;
 extern std::array<D3DMATRIX, X_D3DTS_MAX> g_Transforms;
+
+void UpdateMaterial(Material* pMaterial)
+{
+	ffShaderState.Materials[0].Ambient = pMaterial->Ambient;
+	ffShaderState.Materials[0].Diffuse = pMaterial->Diffuse;
+	ffShaderState.Materials[0].Specular = pMaterial->Specular;
+	ffShaderState.Materials[0].Emissive = pMaterial->Emissive;
+	ffShaderState.Materials[0].Power = pMaterial->Power;
+}
 
 
 void UpdateFixedFunctionShaderLight(int d3dLightIndex, Light* pShaderLight, DirectX::XMFLOAT4* pLightAmbient) {
