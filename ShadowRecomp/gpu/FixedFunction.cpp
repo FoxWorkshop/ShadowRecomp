@@ -116,6 +116,11 @@ void D3D8LightState::EnableLight(uint32_t index, bool enable) {
 
 D3D8LightState g_LightState = D3D8LightState();
 
+void LightEnable(uint32_t Index, int32_t bEnable)
+{
+	g_LightState.EnableLight(Index, bEnable);
+}
+
 std::array<bool, 4> bWorldViewDirty;
 
 
@@ -281,7 +286,8 @@ extern std::array<D3DMATRIX, X_D3DTS_MAX> g_Transforms;
 
 
 void UpdateFixedFunctionShaderLight(int d3dLightIndex, Light* pShaderLight, DirectX::XMFLOAT4* pLightAmbient) {
-	if (d3dLightIndex == -1) {
+	if (d3dLightIndex == -1) 
+	{
 		pShaderLight->DirectionVN.w = 0; // Disable the light
 		return;
 	}

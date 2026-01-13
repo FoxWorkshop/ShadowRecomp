@@ -30,7 +30,34 @@ extern uint32_t g_VertexShader_Handle;
 #define NV_PMC_INTR_0_PCRTC                                (1 << 24)
 #define NV_PCRTC_INTR_EN_0                               0x00000140
 
+typedef float RwReal;
 
+struct RwV3d
+{
+	RwReal x;
+	RwReal y;
+	RwReal z;
+};
+
+enum RwMatrixFlag
+{
+	rwMATRIXINTERNALIDENTITY = 0x20000,
+};
+#define RwUInt32 uint32_t
+struct RwMatrixTag
+{
+	RwV3d right;
+	RwMatrixFlag flags;
+	RwV3d up;
+	RwUInt32 pad1;
+	RwV3d at;
+	RwUInt32 pad2;
+	RwV3d pos;
+	RwUInt32 pad3;
+};
+
+
+typedef RwMatrixTag RwMatrix;
 
 void CopyVertexShaderConstant(int32_t Register, DWORD* pConstantData, const uint32_t count);
 float GetRenderTargetHeight();
@@ -688,6 +715,8 @@ struct D3D8LightState {
 	void EnableLight(uint32_t index, bool enable);
 };
 
+void LightEnable(uint32_t Index, int32_t bEnable);
+
 typedef enum _D3DVERTEXBLENDFLAGS
 {
 	X_D3DVBF_DISABLE = 0,              // 1 matrix,   0 weights => final weight effectively 1 (Disable vertex blending)
@@ -1008,7 +1037,7 @@ typedef enum _D3DTEXTURETRANSFORMFLAGS {
 	D3DTTFF_FORCE_DWORD = 0x7fffffff,
 } D3DTEXTURETRANSFORMFLAGS;
 
-typedef float RwReal;
+
 struct RwD3D8Vertex
 {
 	RwReal x;

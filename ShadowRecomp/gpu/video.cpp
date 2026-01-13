@@ -6833,8 +6833,20 @@ void D3DDevice_SetVertexShaderConstant1Fast(int32_t Register, DWORD* pConstantDa
 void D3DDevice_SetVertexShaderConstantNotInlineFast(int32_t Register, DWORD* pConstantData, uint32_t ConstantCount)
 {
 	float* constants = (float*)pConstantData;
-
 	CopyVertexShaderConstant(Register, pConstantData, ConstantCount / 4);
+}
+
+X86_FUNC_IMPL(__imp__sub_3D0B70);
+int32_t D3DDevice_LightEnable(uint32_t Index, int32_t bEnable)
+{
+	auto ctx = GetX86Context();
+	auto base = g_memory.base;
+
+	__imp__sub_3D0B70(*ctx, base);
+	ctx->esp.u32 -= 12;
+	LightEnable(Index, bEnable);
+
+	return ctx->eax.u32;
 }
 
 enum RwRasterType : uint8_t
@@ -7539,6 +7551,7 @@ GUEST_FUNCTION_HOOK_STDCALL(sub_3DA010, CreateSurfaceOfTexture);
 GUEST_FUNCTION_HOOK_STDCALL(sub_3D0CD0, SetTexture);
 GUEST_FUNCTION_HOOK_STDCALL(sub_3D0040, D3DDevice_SetRenderTarget);
 GUEST_FUNCTION_HOOK_STDCALL(sub_3DD810, LockTextureRect); //todo cube version?
+GUEST_FUNCTION_HOOK_STDCALL(sub_3D0B70, D3DDevice_LightEnable);
 
 
 //Rendering
