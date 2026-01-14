@@ -77,6 +77,16 @@ float x_floor(float src)
     return floor(src + BIAS);
 }
 
+float x_floor_scalar(float src)
+{
+    return floor(src + BIAS);
+}
+
+float4 x_floor(float4 src)
+{
+    return floor(src + BIAS);
+}
+
 // https://xboxdevwiki.net/NV2A/Vertex_Shader
 // https://www.khronos.org/registry/OpenGL/extensions/NV/NV_vertex_program.txt
 // https://www.khronos.org/registry/OpenGL/extensions/NV/NV_vertex_program1_1.txt
@@ -85,7 +95,8 @@ float x_floor(float src)
 
 // 2.14.1.10.1  ARL: Address Register Load
 // The address register should be floored
-#define x_arl(dest, mask, src0) dest.mask = x_floor(_tof4(src0).x).mask
+//#define x_arl(dest, mask, src0) dest.mask = x_floor(_tof4(src0).x).mask
+#define x_arl(dest, mask, src0) dest.mask = (int)x_floor_scalar(_tof4(src0).x)
 
 // 2.14.1.10.2  MOV: Move
 #define x_mov(dest, mask, src0) dest.mask = (_tof4(src0)).mask

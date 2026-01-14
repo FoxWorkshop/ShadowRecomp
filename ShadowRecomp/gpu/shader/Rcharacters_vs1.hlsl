@@ -2,8 +2,12 @@
 
 struct VS_INPUT
 {
-    float4 v[16] : TEXCOORD;
+    float4 iPos : TEXCOORD;
+    float4 weights : TEXCOORD1;
+    uint2 bones : TEXCOORD2;
+    float4 v[13] : TEXCOORD3;
 };
+
 
 struct VS_OUTPUT // Declared identical to pixel shader input (see PS_INPUT)
 {
@@ -50,12 +54,28 @@ VS_OUTPUT main(VS_INPUT xIn)
 
 	// Initialize input registers from the vertex buffer data
 	// Or use the register's default value (which can be changed by the title)
-#define init_v(i) v##i = lerp(xIn.v[i], vRegisterDefaultValues[i], vRegisterDefaultFlags[i]);
+#define init_v(j, i) v##j = lerp(xIn.v[i], vRegisterDefaultValues[i], vRegisterDefaultFlags[i]);
+
 	// Note : unroll manually instead of for-loop, because of the ## concatenation
-	init_v(0);init_v(1);init_v(2);init_v(3);
-	init_v(4);init_v(5);init_v(6);init_v(7);
-	init_v(8);init_v(9);init_v(10);init_v(11);
-	init_v(12);init_v(13);init_v(14);init_v(15);
+	//init_v(0);init_v(1);init_v(2);
+    
+    init_v(3, 0);
+	init_v(4, 1);
+    init_v(5, 2);
+    init_v(6, 3);
+    init_v(7, 4);
+	init_v(8, 5);
+    init_v(9, 6);
+    init_v(10, 7);
+    init_v(11, 8);
+	init_v(12, 9);
+	init_v(13, 10);
+	init_v(14, 11);
+	init_v(15, 12);
+    
+    v0 = lerp(xIn.iPos, vRegisterDefaultValues[0], vRegisterDefaultFlags[0]);
+    v1 = lerp(xIn.weights, vRegisterDefaultValues[1], vRegisterDefaultFlags[1]);
+    v2 = lerp(_tof4(xIn.bones), vRegisterDefaultValues[2], vRegisterDefaultFlags[2]);
 
 	// Temp variable for paired VS instruction
     float4 temp;

@@ -70,10 +70,10 @@ bool LogVSConstants = false;
 #include "shader/resolve_msaa_depth_4x.hlsl.dxil.h"
 #include "shader/resolve_msaa_depth_8x.hlsl.dxil.h"
 
-#include "shader/recomp0.hlsl.dxil.h"
-#include "shader/recomp1.hlsl.dxil.h"
-#include "shader/recomp2.hlsl.dxil.h"
-#include "shader/recomp3.hlsl.dxil.h"
+#include "shader/R2D_vs0.hlsl.dxil.h"
+#include "shader/R2D_vs1.hlsl.dxil.h"
+#include "shader/Rcharacters_vs0.hlsl.dxil.h"
+#include "shader/Rcharacters_vs1.hlsl.dxil.h"
 #endif
 
 #include "shader/FixedFunctionVertexShader.hlsl.spirv.h"
@@ -104,10 +104,10 @@ bool LogVSConstants = false;
 #include "shader/resolve_msaa_depth_4x.hlsl.spirv.h"
 #include "shader/resolve_msaa_depth_8x.hlsl.spirv.h"
 
-#include "shader/recomp0.hlsl.spirv.h"
-#include "shader/recomp1.hlsl.spirv.h"
-#include "shader/recomp2.hlsl.spirv.h"
-#include "shader/recomp3.hlsl.spirv.h"
+#include "shader/R2D_vs0.hlsl.spirv.h"
+#include "shader/R2D_vs1.hlsl.spirv.h"
+#include "shader/Rcharacters_vs0.hlsl.spirv.h"
+#include "shader/Rcharacters_vs1.hlsl.spirv.h"
 
 
 namespace plume
@@ -1529,6 +1529,7 @@ static void ProcSetRenderState(const RenderCommand& cmd)
 		g_dirtyStates.renderTargetAndDepthStencil |= g_dirtyStates.pipelineState;
 		break;
 	}
+	break;
 	//fog is handled in shader constant directly
 	case X_D3DRS_FOGTABLEMODE:
 		SetDirtyValue(g_dirtyStates.sharedConstants, g_sharedConstants.FogTableMode, value);
@@ -2452,19 +2453,19 @@ GuestShader* CreateShader(ResourceType resourceType)
 		//if (hash == 0xe555c89eab6e17ed)
 		if (hash == 0xb2b7a0a5e7d5805f)
 		{
-			shader->shader = CREATE_SHADER(recomp0);
+			shader->shader = CREATE_SHADER(R2D_vs0);
 		}
 		else if (hash == 0xcefa8ae484bff7a2) //(hash == 0x89dd45174e675122)
 		{
-			shader->shader = CREATE_SHADER(recomp1);
+			shader->shader = CREATE_SHADER(R2D_vs1);
 		}
 		else if (hash == 0xcee36c8c99adc694)  //Shadow uses this shader
 		{
-			shader->shader = CREATE_SHADER(recomp2);
+			shader->shader = CREATE_SHADER(Rcharacters_vs0);
 		}
 		else if (hash == 0xdfae999de3ea6283) //(hash == 0xa90eacbcad6cc71c)
 		{
-			shader->shader = CREATE_SHADER(recomp3);
+			shader->shader = CREATE_SHADER(Rcharacters_vs1);
 		}
 		else
 		{
@@ -2511,14 +2512,13 @@ void UpdateVertexDeclaration(uint32_t Handle)
 {
 	size_t host_handle = (size_t)g_memory.Translate(Handle);
 
-	DWORD vshFlags = GetXboxVertexShaderForHandle(host_handle)->Flags;
+	//DWORD vshFlags = GetXboxVertexShaderForHandle(host_handle)->Flags;
 	RenderCommand cmd;
 	VertexShaderMode shaderMode = g_Xbox_VertexShaderMode;
 
 	//as mentioned above, there is no separate function that create vertex declaration, so we have to manually extract and handle them.
 	//we handle vertex declaration immediately to avoid a race issue.
-	if (shaderMode == VertexShaderMode::FixedFunction)
-		SetFixedFunctionDefaultVertexAttributes(host_handle);
+
 	auto vertexElement = HostGetVertexDeclaration(host_handle, shaderMode == VertexShaderMode::FixedFunction);
 	UpdateHostVertexDeclaration(vertexElement);
 	auto vertexDeclaration = CreateVertexDeclaration(vertexElement->pHostVertexElements, shaderMode);
@@ -2548,6 +2548,9 @@ void UpdateVertexShader(uint32_t Handle)
 	else
 	{
 		g_VertexShader_Handle = Handle;
+
+		SetFixedFunctionDefaultVertexAttributes(host_handle);
+
 		// Switch to passthrough program, if so required
 		if (vshFlags & X_VERTEXSHADER_FLAG_PASSTHROUGH)
 		{
@@ -3808,7 +3811,6 @@ static void FlushViewport(const bool isFixed)
 		}
 
 		commandList->setScissors(scissorRect);
-
 		g_dirtyStates.scissorRect = false;
 	}
 }
@@ -3862,7 +3864,6 @@ int D3D_GetAdapterModeCount(int a1)
 	printf("STUB D3D_GetAdapterModeCount\n");
 	return 4 * 1;
 }
-
 
 //is this broken? (hardware remove thing)
 X86_FUNC_IMPL(__imp__sub_203A20);
@@ -4353,12 +4354,6 @@ void D3DDevice_SetRenderTarget(GuestSurface* surface, GuestSurface* pNewZStencil
 	auto device = X86_LOAD_U32(GuestDevicePtrAddr);
 
 
-	/**printf("SetRenderTarget surface %x, Surface->Texture->Texture %x, Width %d, Height %d\n", surface, (intptr_t)surface->texture, surface->width, surface->height);
-	if (pNewZStencil == nullptr)
-		printf("SetDepthStencil null (DISABLED)\n");
-	else
-		printf("SetDepthStencil surface %x, Surface->Texture->Texture %x, Width %d, Height %d\n", pNewZStencil, (intptr_t)pNewZStencil->texture, pNewZStencil->width, pNewZStencil->height);*/
-
 	GuestSurface* newSurface = nullptr;
 	GuestSurface* newDepthStencil = nullptr;
 
@@ -4399,7 +4394,7 @@ void D3DDevice_SetRenderTarget(GuestSurface* surface, GuestSurface* pNewZStencil
 	}
 
 
-
+	//printf("SetRenderTarget surface %x texture %x, width %d, height %d\n", newSurface, newSurface->texture, newSurface->width, newSurface->height);
 	// The currenct depth stencil is always replaced by whats passed in here (even a null)
 	g_ZScale = GetZScaleForPixelContainer(pNewZStencil != nullptr ? (X_D3DPixelContainer*)&pNewZStencil->guestResource : nullptr);
 
@@ -4448,12 +4443,8 @@ static void ProcSetDepthStencilSurface(const RenderCommand& cmd)
 }
 
 X86_FUNC_IMPL(__imp__sub_3D0680);
-static int countBS = 0;
 void D3DDevice_SetViewport(GuestViewport* viewport)
 {
-
-
-
 	//call original func first
 	auto ctx = GetX86Context();
 	auto base = g_memory.base;
@@ -4475,8 +4466,8 @@ void D3DDevice_SetViewport(GuestViewport* viewport)
 	uint32_t rtHeight = g_renderTarget->height;
 
 	//for some reason, og xbox can send int_max for width and height, likely to trigger a reset(?)
-	float width = (viewport->Width == INT_MAX) ? rtWidth : viewport->Width;
-	float height = (viewport->Height == INT_MAX) ? rtHeight : viewport->Height;
+	float width = (float)std::min(viewport->Width, (DWORD)rtWidth - viewport->X);
+	float height = (float)std::min(viewport->Height, (DWORD)rtHeight - viewport->Y);
 
 	cmd.setViewport.x = viewport->X;
 	cmd.setViewport.y = viewport->Y;
@@ -4498,36 +4489,8 @@ void D3DDevice_SetViewport(GuestViewport* viewport)
 
 	auto widthG = X86_LOAD_U32(device + 0xEE8);
 
-	/**if (LogVSConstants)
-	{
-		printf("SetViewPort\n");
 
-		printf("viewport Width %d\n", width);
-		printf("viewport Height %d\n", X86_LOAD_U32(device + 0xEEC));
-		printf("D3D_g_pDevice->padding7 %f\n", padding7);
-		printf("D3D_g_pDevice->padding6[8] %d\n", padding68);
-		printf("D3D_g_pDevice->padding6[16] %f\n", padding616);
-		printf("D3D_g_pDevice->padding6[20] %f\n", valB);
-		printf("D3D_g_pDevice->padding6[36] %f\n", padding636);
-
-
-
-		float v2 = (float)X86_LOAD_U32(device + 0xEE0) * (float)padding616 * (float)padding7;
-		float scaleX = (float)X86_LOAD_U32(device + 0xEE8) * (float)padding616 * 0.5f;
-
-		printf("v2 %f\n", v2);
-		printf("scaleX %f\n", scaleX);
-		printf("*offset res %f\n", scaleX + v2);
-
-		printf("\n");
 	}
-	X86_STORE_U32(device + 0xEE0, (uint32_t)viewport->X);
-	X86_STORE_U32(device + 0xEE4, (uint32_t)viewport->Y);
-	X86_STORE_U32(device + 0xEE8, (uint32_t)width);
-	X86_STORE_U32(device + 0xEEC, (uint32_t)height);
-	X86_STORE_F32(device + 0xEF0, viewport->MinZ);
-	X86_STORE_F32(device + 0xEF4, viewport->MaxZ);*/
-}
 
 static bool PopulateBarriersForCopyRect(GuestSurface* renderTarget, GuestSurface* depthStencil)
 {
@@ -4838,6 +4801,10 @@ static void ProcClear(const RenderCommand& cmd)
 {
 	const auto& args = cmd.clear;
 
+	g_dirtyStates.viewport = true;
+	g_dirtyStates.scissorRect = true;
+	FlushViewport(args.isFixed);
+
 	if (PopulateBarriersForCopyRect(g_renderTarget, g_depthStencil))
 	{
 		FlushBarriers();
@@ -4928,6 +4895,7 @@ void D3DDevice_Clear(uint32_t count, _D3DRECT* pRects, uint32_t flags, uint32_t 
 	g_renderQueue.enqueue(cmd);
 }
 
+bool DrawShadowNext = false;
 //D3DDevice_SetTransform
 X86_FUNC_IMPL(__imp__sub_3CFCD0);
 X86_FUNC(sub_3CFCD0)
@@ -5025,6 +4993,48 @@ void GetXboxViewportOffsetAndScale(float(&vOffset)[4], float(&vScale)[4])
 	vOffset[3] = 0;
 }
 
+void DirectCopyVertexShaderConstant(int32_t Register, DWORD* pConstantData, const uint32_t count)
+{
+	float* float_vsh_constants = (float*)&(g_vertexShaderConstants[Register * 4]);
+	memcpy(float_vsh_constants, pConstantData, count * sizeof(float) * 4);
+}
+
+void DirectUpdateHostViewPortOffsetAndScaleConstants()
+{
+	float vScaleOffset[2][4]; // 0 - scale 1 - offset
+	GetXboxViewportOffsetAndScale(vScaleOffset[1], vScaleOffset[0]);
+
+	float xboxRenderTargetWidth = g_renderTarget->width;
+	float xboxRenderTargetHeight = g_renderTarget->height;
+	//GetRenderTargetBaseDimensions(xboxRenderTargetWidth, xboxRenderTargetHeight);
+
+	float screenScaleX = 1.0f;
+	float screenScaleY = 1.0f;
+	float aaOffsetX = 0.5f;
+	float aaOffsetY = 0.5f;
+
+
+	float xboxScreenspaceWidth = xboxRenderTargetWidth * screenScaleX;
+	float xboxScreenspaceHeight = xboxRenderTargetHeight * screenScaleY;
+
+	// Passthrough should range 0 to 1, instead of 0 to zbuffer depth
+	float zOutputScale = g_Xbox_VertexShaderMode == VertexShaderMode::Passthrough ? 1 : g_ZScale;
+
+	float screenspaceScale[4] = { xboxScreenspaceWidth / 2,  -xboxScreenspaceHeight / 2, zOutputScale, 1 };
+	float screenspaceOffset[4] = { xboxScreenspaceWidth / 2 + aaOffsetX, xboxScreenspaceHeight / 2 + aaOffsetY, 0, 0 };
+
+	DirectCopyVertexShaderConstant(HOST_D3DVS_SCREENSPACE_SCALE_BASE, (DWORD*)screenspaceScale, HOST_D3DVS_NORMALIZE_SCALE_SIZE);
+	DirectCopyVertexShaderConstant(HOST_D3DVS_SCREENSPACE_OFFSET_BASE, (DWORD*)screenspaceOffset, HOST_D3DVS_NORMALIZE_OFFSET_SIZE);
+	// Store viewport offset and scale in constant registers 58 (c-38) and
+	// 59 (c-37) used for screen space transformation.
+	// We only do this if X_D3DSCM_NORESERVEDCONSTANTS is not set,
+	// since enabling this flag frees up these registers for shader use
+	if (!(g_Xbox_VertexShaderConstantMode & X_D3DSCM_NORESERVEDCONSTANTS)) {
+
+		DirectCopyVertexShaderConstant(X_D3DSCM_RESERVED_CONSTANT_SCALE_CORRECTED, reinterpret_cast<DWORD*>(vScaleOffset), 2);
+	}
+}
+
 void UpdateHostViewPortOffsetAndScaleConstants()
 {
 	float vScaleOffset[2][4]; // 0 - scale 1 - offset
@@ -5065,7 +5075,8 @@ void UpdateHostViewPortOffsetAndScaleConstants()
 	// 59 (c-37) used for screen space transformation.
 	// We only do this if X_D3DSCM_NORESERVEDCONSTANTS is not set,
 	// since enabling this flag frees up these registers for shader use
-	if (!(g_Xbox_VertexShaderConstantMode & X_D3DSCM_NORESERVEDCONSTANTS)) {
+	if (!(g_Xbox_VertexShaderConstantMode & X_D3DSCM_NORESERVEDCONSTANTS)) 
+	{
 		CopyVertexShaderConstant(X_D3DSCM_RESERVED_CONSTANT_SCALE_CORRECTED, reinterpret_cast<DWORD*>(vScaleOffset), 2);
 	}
 }
@@ -5076,8 +5087,6 @@ DWORD* D3D_CommonSetDebugRegisters()
 	return 0;
 }
 
-
-
 //rwD3D8RasterShowRaster (call Device_Swap which replaces Present)
 /*/X86_FUNC_IMPL(__imp__sub_2DDC00);
 X86_FUNC(sub_2DDC00)
@@ -5087,16 +5096,9 @@ X86_FUNC(sub_2DDC00)
 }*/
 
 
-
 int D3DDevice_Swap(int32_t a1)
 {
 	Video::Present();
-	return 0;
-}
-
-
-unsigned int D3D_SetFence(char a2)
-{
 	return 0;
 }
 
@@ -5666,7 +5668,7 @@ void* GetDataFromXboxResource(X_D3DResource* pXboxResource)
 	pData |= PHYSICAL_MAP_BASE;
 	return (uint8_t*)pData;
 }
-static bool ConstantCopy = false;
+
 static void FlushRenderStateForMainThread(LocalRenderCommandQueue& queue)
 {
 	UpdateAllRenderState();
@@ -5774,6 +5776,7 @@ static void FlushRenderStateForMainThread(LocalRenderCommandQueue& queue)
 	}
 }
 
+bool aboutToDrawShadow = false;
 static bool isFixedForRenderThread = false;
 static constexpr int32_t COMMON_DEPTH_BIAS_VALUE = int32_t((1 << 24) * 0.002f);
 static constexpr float COMMON_SLOPE_SCALED_DEPTH_BIAS_VALUE = 1.0f;
@@ -5856,9 +5859,14 @@ static void FlushRenderStateForRenderThread()
 		}
 		else
 		{
+			//Temp for testing race issue fix
+			DirectUpdateHostViewPortOffsetAndScaleConstants();
+			
 			auto vertexShaderConstants = g_uploadAllocators[g_frame].allocate(g_vertexShaderConstants, sizeof(g_vertexShaderConstants), 0x100);
 			SetRootDescriptor(vertexShaderConstants, 0);
 		}
+
+
 	}
 
 	if (g_dirtyStates.pixelShaderConstants)
@@ -6462,6 +6470,14 @@ void DrawIndexedPrimitive(X_D3DPRIMITIVETYPE PrimitiveType, uint32_t VertexCount
 	//shadow = 2192 vertex = stride 24 (32 with conversion)
 	//object (shadow eyes) = 91 vertex =  stride 24 (32 with conversion)
 
+	if (VertexCount == 91)
+	{
+		DrawShadowNext = true;
+	}
+	else if (VertexCount == 2192)
+	{
+		DrawShadowNext = false;
+	}
 
 	XXH64_hash_t hash = XXH3_64bits(pIndexData, VertexCount * sizeof(int16_t));
 	auto& bufferIndexCache = g_indexBufferCache[hash];
@@ -6493,6 +6509,7 @@ void DrawIndexedPrimitive(X_D3DPRIMITIVETYPE PrimitiveType, uint32_t VertexCount
 	bool patched = false;
 	GuestBuffer* v1;
 	GuestBuffer* v2;
+	bool drawShadow = false;
 
 	for (int i = 0; i < 16; i++)
 	{
@@ -6522,6 +6539,8 @@ void DrawIndexedPrimitive(X_D3DPRIMITIVETYPE PrimitiveType, uint32_t VertexCount
 			else if (i == 1)
 				v2 = bufferCache;
 
+			drawShadow = true;
+
 		}
 
 		RenderCommand cmd;
@@ -6533,11 +6552,6 @@ void DrawIndexedPrimitive(X_D3DPRIMITIVETYPE PrimitiveType, uint32_t VertexCount
 		g_renderQueue.enqueue(cmd);
 	}
 
-
-	if (VertexCount == 171 && patched)
-	{
-
-	}
 
 
 	LocalRenderCommandQueue queue;
@@ -6561,7 +6575,6 @@ static void ProcDrawIndexedPrimitive(const RenderCommand& cmd)
 	SetPrimitiveType(args.primitiveType);
 	isFixedForRenderThread = args.isFixed;
 	FlushRenderStateForRenderThread();
-
 	g_commandLists[g_frame]->drawIndexedInstanced(args.primCount, 1, args.startIndex, args.baseVertexIndex, 0);
 }
 
@@ -6571,17 +6584,8 @@ static bool isBrokenMesh = false;
 //D3DDevice_DrawVerticesUP - used for 2D Stuff, does not require a vertex buffer (originally)
 void DrawPrimitiveUP(X_D3DPRIMITIVETYPE PrimitiveType, uint32_t VertexCount, void* pVertexStreamZeroData, uint32_t VertexStreamZeroStride)
 {
-
-	if (aboutToDrawRT)
-	{
-
-		aboutToDrawRT = false;
-
-	}
-
 	LocalRenderCommandQueue queue;
 	FlushRenderStateForMainThread(queue);
-
 
 	// For some reason, some vertex have their position w set to Inf
 	// while Xbox may not care about this, modern shaders definitely do, so we have to fix this
@@ -6596,8 +6600,6 @@ void DrawPrimitiveUP(X_D3DPRIMITIVETYPE PrimitiveType, uint32_t VertexCount, voi
 			vertexData[i].w = 1.0f;
 		}
 	}
-
-
 
 
 	auto& cmd = queue.enqueue();
@@ -6824,8 +6826,6 @@ X86_FUNC(sub_2C89D0)
 void D3DDevice_SetVertexShaderConstant1Fast(int32_t Register, DWORD* pConstantData)
 {
 	float* constants = (float*)pConstantData;
-
-
 	CopyVertexShaderConstant(Register, pConstantData, 1);
 }
 
@@ -7298,32 +7298,6 @@ X86_FUNC(sub_3D24B0)
 
 }
 
-struct RwV3d
-{
-	RwReal x;
-	RwReal y;
-	RwReal z;
-};
-
-enum RwMatrixFlag
-{
-	rwMATRIXINTERNALIDENTITY = 0x20000,
-};
-#define RwUInt32 uint32_t
-struct RwMatrixTag
-{
-	RwV3d right;
-	RwMatrixFlag flags;
-	RwV3d up;
-	RwUInt32 pad1;
-	RwV3d at;
-	RwUInt32 pad2;
-	RwV3d pos;
-	RwUInt32 pad3;
-};
-
-
-typedef RwMatrixTag RwMatrix;
 
 void logRwMatrix(uint32_t addr, const char* name)
 {
@@ -7406,29 +7380,47 @@ X86_FUNC(sub_2E3520)
 
 	if (logMatrixStart)
 	{
-		printf("RwMatrixTransform\n");
-		printf("Mode %d\n", mode);
-
-		logRwMatrix(a1Addr, "a1");
-		logRwMatrix(a2Addr, "a2");
-	}
+	int32_t pCurrentAnim; //RtAnimAnimation*
+	RwReal currentTime;
+	void* pNextFrame;
+	int32_t pAnimCallBack; //RtAnimCallBack
+	void* pAnimCallBackData;
+	RwReal animCallBackTime;
+	int32_t pAnimLoopCallBack; //RtAnimCallBack
+	void* pAnimLoopCallBackData;
+	int32_t maxInterpKeyFrameSize;
+	int32_t currentInterpKeyFrameSize;
+	int32_t currentAnimKeyFrameSize;
+	int32_t numNodes;
+	bool isSubInterpolator;
+	int32_t offsetInParent;
+	int32_t parentAnimation; //RtAnimCallBack
+	int32_t keyFrameApplyCB;
+	int32_t keyFrameBlendCB;
+	int32_t keyFrameInterpolateCB;
+	int32_t keyFrameAddCB;
+};
 
 
 	__imp__sub_2E3520(ctx, base);
 
-	if (logMatrixStart)
+struct RpHAnimHierarchy
 	{
-		printf("res\n\n");
+	int32_t flags;
+	int32_t numNodes;
+	int32_t pMatrixArray;
+	int32_t pMatrixArrayUnaligned;
+	int32_t pNodeInfo;
+	int32_t parentFrame;
+	int32_t parentHierarchy;
+	int32_t rootParentOffset;
+	int32_t currentAnim; //RtAnimInterpolator ptr
+};
 
 
-		logRwMatrix(a1Addr, "a1");
-		logRwMatrix(a2Addr, "a2");
-		printf("\n");
-	}
 
-}*/
 
-//todo
+
 static DWORD* g_beginPush = nullptr;
 uint32_t D3DDevice_BeginPush(DWORD Count)
 {

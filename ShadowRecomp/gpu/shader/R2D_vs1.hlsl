@@ -1,5 +1,7 @@
 #include "common_vs.hlsli"
 
+//2D Vertex Shaders handle menu, hud, full screen quad for render target swap etc.
+
 struct VS_INPUT
 {
     float4 v[16] : TEXCOORD;
@@ -62,74 +64,27 @@ VS_OUTPUT main(VS_INPUT xIn)
 
 	// Xbox shader program starts here
 	
-  x_arl(a0,x, v2.x);
+  x_mov(r0, xyz, c(1));
+  x_rcp(oPos, w, v0.w);
 
-  x_mov(r11,xyzw, c(-91));
-  x_mov(oT0,xyzw, v5);
+  x_mov(oD0, xyzw, v1);
 
-  x_mul(r8,xyzw, v1.x, c(a0.x-88));
-
-  x_mul(r9,xyzw, v1.x, c(a0.x-87));
-
-  x_mul(r10,xyzw, v1.x, c(a0.x-86));
-
-  x_arl(a0,x, v2.y);
-
-  x_mad(r8,xyzw, v1.y, c(a0.x-88), r8);
-
-  x_mad(r9,xyzw, v1.y, c(a0.x-87), r9);
-
-  x_mad(r10,xyzw, v1.y, c(a0.x-86), r10);
-
-  x_dp3(r5,x, v3.xyzz, r8.xyzz);
-
-  x_dp3(r5,y, v3.xyzz, r9.xyzz);
-
-  x_dp3(r5,z, v3.xyzz, r10.xyzz);
-
-  x_dp4(r3,x, v0, r8);
-
-  x_dp3(r5,w, r5.xyzz, r5.xyzz);
-
-  x_dp4(r3,y, v0, r9);
-
-  x_dp4(r3,z, v0, r10);
-  x_rsq(r1,w, r5.w);
-
-  x_mul(r1,xyz, r5.xyzz, r1.w);
-
-  x_dph(oPos,w, r3, c(-92));
-
-  x_dph(oPos,x, r3, c(-95));
-
-  x_dp3(r6,x, c(-90).xyzz, r1.xyzz);
-  x_mov(oFog,x, r12.w);
-
-  x_dph(oPos,y, r3, c(-94));
-
-  x_max(r6,x, c(-90).w, -r6.x);
-
-  x_mad(r11,xyz, c(-89).xyzz, r6.x, r11.xyzz);
-
-  x_dph(oPos,z, r3, c(-93));
-
-  x_rcc(r10,x, r12.w);
-
-  x_dph(oT1,x, r1, c(93));
-
-  x_dph(oT1,y, r1, c(94));
-
-  x_mul(oD0,xyzw, c(95), r11);
-
-  x_mad(oPos,xyz, r12.xyzz, r10.x, c(-96).xyzz);
+  x_mad(oPos, xyz, v0.xyzz, c(0).xyzz, r0.xyzz);
 	// End Xbox shader program
 
 	// Copy variables to output struct
     VS_OUTPUT xOut;
-
-
-
+    
+    
     xOut.oPos = reverseScreenspaceTransform(oPos);
+    
+
+
+    
+    //ensure depth is clamped to [0, 1] this fix a bug that prevent geometry to show up in the game due to RT composite shenanigans.
+    if (xOut.oPos.z > 1.0f)
+        xOut.oPos.z = 1.0f;
+        
     xOut.oD0 = saturate(oD0);
     xOut.oD1 = saturate(oD1);
     xOut.oFog = oFog.x; // Note : Xbox clamps fog in pixel shader -> *NEEDS TESTING* /was oFog.x 
@@ -141,6 +96,6 @@ VS_OUTPUT main(VS_INPUT xIn)
     xOut.oT1 = oT1 / xboxTextureScale[1];
     xOut.oT2 = oT2 / xboxTextureScale[2];
     xOut.oT3 = oT3 / xboxTextureScale[3];
-    
+
     return xOut;
 }

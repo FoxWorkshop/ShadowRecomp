@@ -314,7 +314,7 @@ compile_pixel_shader(resolve_msaa_depth_4x)
 compile_pixel_shader(resolve_msaa_depth_8x)
 
 
-compile_vertex_shader(recomp0)
-compile_vertex_shader(recomp1)
-compile_vertex_shader(recomp2)
-compile_vertex_shader(recomp3)
+compile_vertex_shader(R2D_vs0)
+compile_vertex_shader(R2D_vs1)
+compile_vertex_shader(Rcharacters_vs0)
+compile_vertex_shader(Rcharacters_vs1)
