@@ -5674,7 +5674,7 @@ static void FlushRenderStateForMainThread(LocalRenderCommandQueue& queue)
 	UpdateAllRenderState();
 
 	if (g_Xbox_VertexShaderMode == VertexShaderMode::FixedFunction)
-		UpdateFixedFunctionVertexShaderState((size_t)g_pipelineState.vertexShader, g_pipelineState.isFixedFunctionPS);
+		UpdateFixedFunctionVertexShaderState((size_t)g_memory.Translate(g_VertexShader_Handle), g_pipelineState.isFixedFunctionPS);
 	else
 		UpdateHostViewPortOffsetAndScaleConstants();
 

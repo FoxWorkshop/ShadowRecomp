@@ -406,7 +406,7 @@ int GetXboxVertexDataComponentCount(int32_t d3dvsdt)
 
 
 bool logIndexedPrimitive = false;
-void UpdateFixedFunctionVertexShaderState(size_t Handle, bool isFixed)
+void UpdateFixedFunctionVertexShaderState(size_t Handle, bool isPSFixed)
 {
 
 	// Vertex blending
@@ -513,7 +513,7 @@ void UpdateFixedFunctionVertexShaderState(size_t Handle, bool isFixed)
 	// FIXME remove when fixed function PS is implemented
 	// Note if we are using the fixed function pixel shader
 	// We only want to produce the fog depth value in the VS, not the fog factor
-	ffShaderState.Fog.TableMode = !isFixed ? D3DFOG_NONE : fogTableMode;
+	ffShaderState.Fog.TableMode = !isPSFixed ? D3DFOG_NONE : fogTableMode;
 
 	// Determine how fog depth is calculated
 	if (fogEnable && fogTableMode != D3DFOG_NONE)

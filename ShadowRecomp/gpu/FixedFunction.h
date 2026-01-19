@@ -1,4 +1,4 @@
-void UpdateFixedFunctionVertexShaderState(size_t Handle, bool isFixed);
+void UpdateFixedFunctionVertexShaderState(size_t Handle, bool isPSFixed);
 
 extern std::array<bool, 4> bWorldViewDirty;
 
