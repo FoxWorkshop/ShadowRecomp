@@ -179,7 +179,7 @@ functions = [
 	{ address = 0xBF600, size = 0x197 },  #wrong size		
 	{ address = 0x76b20, size = 0x2B4 },  #missing		
 	{ address = 0x533e0, size = 0xB8 },  #missing		
-	{ address = 0x1d8800, size = 0x82 },  #missing	
+	{ address = 0x1d8800, size = 0x82 },  #missing
 	
 	{ address = 0x142ED0, size = 0x10F },  #missing		
 	{ address = 0x24FD90, size = 0x32 },  #missing		
@@ -191,7 +191,50 @@ functions = [
 	{ address = 0x000962c0, size = 0x40 }, #missing	
 	{ address = 0x00183900, size = 0x10 }, #missing	
 	{ address = 0x001d88e0, size = 0x10 },	#missing	
-	{ address = 0x86720, size = 0x12A }, #missing	
+	{ address = 0x86720, size = 0x12A }, #missing		
+	
+	{ address = 0x14C120, size = 0xE7 }, #missing	
+	{ address = 0x183F40, size = 0x74 }, #missing	
+	{ address = 0x6dae0, size = 0x51 }, #missing	
+	
+	{ address = 0x3FBF0, size = 0x5C4 }, #wrong size	
+	
+	{ address = 0x761f0, size = 0x1A9 }, #missing	
+	{ address = 0x8FD90, size = 0x130 }, #chunk 	
+	
+	{ address = 0x9FF40, size = 0x214 }, #missing 	
+	{ address = 0x79930, size = 0x58 }, #missing 	
+	
+	{ address = 0x29ed80, size = 0x30 }, #missing 
+	{ address = 0x1e64c0, size = 0x10 }, #missing 	
+	{ address = 0x1E71D0, size = 0x28 }, #missing 	
+	{ address = 0x29ED50, size = 0x30 }, #missing 	
+	{ address = 0x1B58C0, size = 0x6C }, #missing 	
+	{ address = 0x18B250, size = 0x5C }, #missing 
+	{ address = 0x214670, size = 0x10 }, #missing 	
+	{ address = 0x131a20, size = 0x29 }, #missing 	
+	{ address = 0x12e3e0, size = 0x29 }, #missing 	
+	{ address = 0x285B40, size = 0x155 }, #missing 	
+	{ address = 0x1E9AC0, size = 0x10 }, #missing 	
+	{ address = 0x12EC80, size = 0x29 }, #missing 	
+	{ address = 0x140bd0, size = 0x7 }, #missing 
+	{ address = 0x99b00, size = 0x96 }, #missing 	
+	{ address = 0x1476e0, size = 0x301 }, #missing 	
+	{ address = 0x96300, size = 0x40 }, #missing 	
+	{ address = 0x214680, size = 0x160 }, #missing 	
+	{ address = 0xab680, size = 0xFF }, #missing 	
+	{ address = 0x219e20, size = 0x43 }, #missing 	
+	{ address = 0xb38f0, size = 0xC1 }, #missing 	
+	{ address = 0x188d20, size = 0x6C }, #missing 	
+	{ address = 0xcf310, size = 0x4 }, #missing 	
+	{ address = 0x81f70, size = 0x18C }, #missing 	
+	{ address = 0x795D0, size = 0x46 }, #missing 	
+	{ address = 0xC6590, size = 0x78 }, #missing 	
+	{ address = 0xA63b0, size = 0x58 }, #missing 	
+	{ address = 0x1887E0, size = 0x3B }, #missing 	
+	{ address = 0x1B3B10, size = 0x48 }, #missing 
+	{ address = 0x1825E0, size = 0x10 }, #missing 	
+	{ address = 0x236A00, size = 0x36 }, #missing 
 	
 	{ address = 0x400708, size = 0x24 }, #added automatically from ida
 	{ address = 0x407f17, size = 0x49 },
