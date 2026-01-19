@@ -64,26 +64,38 @@ X86_FUNC(sub_29EA60)
 		auto ptr = X86_LOAD_U32(ctx.ecx.u32 + 4);
 		auto mode = X86_LOAD_U32(ptr + 0x64);
 
-
 		if (mode < 2)
 		{
 			X86_STORE_U8(ptr + 0x64, 0x2);
 		}
-
 	}
 
 	__imp__sub_29EA60(ctx, base);
 }
 
 
-//todo DELETE
+//test spawn level
 X86_FUNC_IMPL(__imp__sub_258550);
 X86_FUNC(sub_258550)
 {
-	X86_STORE_U32(ctx.esp.u32 + 4, 201); //5; //force level 2 normal mode
+	//X86_STORE_U32(ctx.esp.u32 + 4, 5); //Debug Mode level 5
+
+	//X86_STORE_U32(ctx.esp.u32 + 4, 402); //Sky Troops	
+	X86_STORE_U32(ctx.esp.u32 + 4, 301); //prison island
+	
+	//X86_STORE_U32(ctx.esp.u32 + 4, 302); //circus park (almost playable)
+	//X86_STORE_U32(ctx.esp.u32 + 4, 300); //cryptic castle (almost playable)
+	 
+	
+	//X86_STORE_U32(ctx.esp.u32 + 4, 400); //Central City
+
+	//X86_STORE_U32(ctx.esp.u32 + 4, 501); //air fleet
+
+
+	// 	X86_STORE_U32(ctx.esp.u32 + 4, 201); //Glyphic Canyon (GPU based validation = crash due to constants out of bound access??)
+	//X86_STORE_U32(ctx.esp.u32 + 4, 210); //black bull (GPU based validation = crash due to constants out of bound access??)
 	__imp__sub_258550(ctx, base);
 }
-
 
 
 

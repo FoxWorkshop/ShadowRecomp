@@ -800,7 +800,6 @@ void KfLowerIrql(std::uint8_t NewIrql)
 
 LONG NtClose(uint32_t Handle)
 {
-	printf("NtClose(%p) called\n", Handle);
 
 	if (Handle == 0)
 	{

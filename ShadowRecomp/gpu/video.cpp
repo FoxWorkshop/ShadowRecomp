@@ -1531,7 +1531,6 @@ static void ProcSetRenderState(const RenderCommand& cmd)
 
 		SetDirtyValue(g_dirtyStates.pipelineState, g_pipelineState.colorWriteEnable, value);
 		g_dirtyStates.renderTargetAndDepthStencil |= g_dirtyStates.pipelineState;
-		break;
 	}
 	break;
 	//fog is handled in shader constant directly
@@ -2589,6 +2588,7 @@ void UpdateVertexShader(uint32_t Handle)
 
 // DX8 has a fixed pipeline, meaning we won't always have a shader from this function, sometimes it can be FVF too
 // Since DX12 only support Shader, we will use a uber shader to emulate FVF stuff, see FixedFunctionVertexShader.hlsl
+X86_FUNC_IMPL(__imp__sub_3D2280);
 static void SetVertexShader(uint32_t Handle)
 {
 
@@ -3698,18 +3698,13 @@ static GuestSurface* CreateSurface(uint32_t width, uint32_t height, X_D3DFORMAT 
 }
 
 static std::vector<GuestSurface*> g_surfaceCache;
-GuestTexture* currentSufaceTex = nullptr;
-GuestSurface* currentSuface = nullptr;
 static GuestSurface* GetSurfaceLevel(GuestTexture* texture, int32_t level, X_D3DFORMAT Format)
 {
-
-	GuestSurface* surface = nullptr;
-	currentSufaceTex = texture;
 
 	uint32_t mipWidth = std::max(1u, texture->width >> level);
 	uint32_t mipHeight = std::max(1u, texture->height >> level);
 
-	surface = g_userHeap.AllocPhysical<GuestSurface>(
+	GuestSurface* surface = g_userHeap.AllocPhysical<GuestSurface>(
 		texture->format == DepthStencilFormat ?
 		ResourceType::DepthStencil : ResourceType::RenderTarget
 	);
@@ -3731,27 +3726,11 @@ static GuestSurface* GetSurfaceLevel(GuestTexture* texture, int32_t level, X_D3D
 	return surface;
 }
 
-std::vector<GuestTexture*> XboxTexList;
-bool isTexInVec(GuestTexture* tex)
-{
-	for (auto& sur : XboxTexList)
-	{
-		if (sur == tex)
-			return true;
-	}
-
-	return false;
-}
 X86_FUNC_IMPL(__imp__sub_3DA010);
 //CreateSurfaceLevel = "view" or "interface" to access ONE specific level/slice of a texture resource.
 //todo figure out this
 GuestSurface* CreateSurfaceOfTexture(X_D3DFORMAT Format, uint32_t size, GuestBaseTexture* pParent, int32_t pvData)
 {
-	if (!isTexInVec((GuestTexture*)pParent))
-	{
-		XboxTexList.push_back((GuestTexture*)pParent);
-	}
-
 	auto ctx = GetX86Context();
 	auto base = g_memory.base;
 	__imp__sub_3DA010(*ctx, base);
@@ -4270,17 +4249,9 @@ X86_FUNC(sub_2DDC50)
 }
 bool isTexInVec(GuestTexture* tex);
 //D3DDevice_SetTexture
-GuestSurface* CurrentRt = nullptr;
-
-static bool aboutToDrawRT = false;
 
 void SetTexture(uint32_t stage, GuestTexture* texture)
 {
-	if (texture && texture->isRenderTarget)
-	{
-		
-	}
-
 	RenderCommand cmd;
 	cmd.type = RenderCommandType::SetTexture;
 	cmd.setTexture.index = stage;
@@ -4378,11 +4349,6 @@ void D3DDevice_SetRenderTarget(GuestSurface* surface, GuestSurface* pNewZStencil
 		g_defaultStencil = CreateSurface(512, 512, X_D3DFMT_LIN_D24S8);
 		newSurface = g_backBuffer;
 		newDepthStencil = g_defaultStencil;
-		//depth->guestResource = pNewZStencil->guestResource;
-		//depth->padding = pNewZStencil->padding;
-		//pNewZStencil = depth;
-		//X86_STORE_U32(ctx->esp.u32 + 8, g_memory.MapVirtual(pNewZStencil));
-		//X86_STORE_U32(device + 0x1A20, g_memory.MapVirtual(pNewZStencil));
 	}
 	else
 	{
@@ -4813,9 +4779,9 @@ static void ProcClear(const RenderCommand& cmd)
 {
 	const auto& args = cmd.clear;
 
-	g_dirtyStates.viewport = true;
+	/**g_dirtyStates.viewport = true;
 	g_dirtyStates.scissorRect = true;
-	FlushViewport(args.isFixed);
+	FlushViewport(args.isFixed);*/
 
 	if (PopulateBarriersForCopyRect(g_renderTarget, g_depthStencil))
 	{
@@ -4907,7 +4873,6 @@ void D3DDevice_Clear(uint32_t count, _D3DRECT* pRects, uint32_t flags, uint32_t 
 	g_renderQueue.enqueue(cmd);
 }
 
-bool DrawShadowNext = false;
 //D3DDevice_SetTransform
 X86_FUNC_IMPL(__imp__sub_3CFCD0);
 X86_FUNC(sub_3CFCD0)
@@ -4931,21 +4896,8 @@ X86_FUNC(sub_3CFCD0)
 		bWorldViewDirty[State - X_D3DTS_WORLD] = true;
 	}
 }
-static int countBeforeWeGood = false;
-X86_FUNC_IMPL(__imp__sub_2D39E0);
-X86_FUNC(sub_2D39E0)
-{
-	++countBeforeWeGood;
-
-	if (countBeforeWeGood == 5)
-	{
-		printf("");
-	}
-	__imp__sub_2D39E0(ctx, base);
-}
 
 
-DWORD g_Xbox_VertexShaderConstantMode = 1;
 
 //SetShaderConstantMode
 X86_FUNC_IMPL(__imp__sub_3D2010);
@@ -5098,14 +5050,6 @@ DWORD* D3D_CommonSetDebugRegisters()
 {
 	return 0;
 }
-
-//rwD3D8RasterShowRaster (call Device_Swap which replaces Present)
-/*/X86_FUNC_IMPL(__imp__sub_2DDC00);
-X86_FUNC(sub_2DDC00)
-{
-
-	ctx.esp.u32 += 4;
-}*/
 
 
 int D3DDevice_Swap(int32_t a1)
@@ -6469,10 +6413,7 @@ GuestBuffer* GetGuestVertexBufferIndexed(int i, uint32_t minIdx, uint32_t maxIdx
 	return bufferCache;
 }
 
-void RunDebuggingShader(uint8_t* vertexData, uint8_t* vertexData2);
 
-
-bool indexed = false;
 //D3DDevice_DrawIndexedVertices (seems to be used to display message)
 //On Xbox, VertexCount = IndexCount, both are the same
 void DrawIndexedPrimitive(X_D3DPRIMITIVETYPE PrimitiveType, uint32_t VertexCount, int16_t* pIndexData)
@@ -6481,7 +6422,6 @@ void DrawIndexedPrimitive(X_D3DPRIMITIVETYPE PrimitiveType, uint32_t VertexCount
 
 	//shadow = 2192 vertex = stride 24 (32 with conversion)
 	//object (shadow eyes) = 91 vertex =  stride 24 (32 with conversion)
-
 	if (VertexCount == 91)
 	{
 		DrawShadowNext = true;
@@ -6565,7 +6505,6 @@ void DrawIndexedPrimitive(X_D3DPRIMITIVETYPE PrimitiveType, uint32_t VertexCount
 	}
 
 
-
 	LocalRenderCommandQueue queue;
 	FlushRenderStateForMainThread(queue);
 
@@ -6589,9 +6528,6 @@ static void ProcDrawIndexedPrimitive(const RenderCommand& cmd)
 	FlushRenderStateForRenderThread();
 	g_commandLists[g_frame]->drawIndexedInstanced(args.primCount, 1, args.startIndex, args.baseVertexIndex, 0);
 }
-
-static bool TestRTSwapDebug = false;
-static bool isBrokenMesh = false;
 
 //D3DDevice_DrawVerticesUP - used for 2D Stuff, does not require a vertex buffer (originally)
 void DrawPrimitiveUP(X_D3DPRIMITIVETYPE PrimitiveType, uint32_t VertexCount, void* pVertexStreamZeroData, uint32_t VertexStreamZeroStride)
@@ -6748,7 +6684,6 @@ static void ProcSetTextureStageState(const RenderCommand& cmd)
 
 static void ProcSetVertexShaderConstants(const RenderCommand& cmd)
 {
-
 	auto& args = cmd.setVertexShaderConstants;
 
 	//assert((args.index * sizeof(uint32_t) + args.size) <= sizeof(g_vertexShaderConstants));
@@ -6760,6 +6695,7 @@ static void ProcSetVertexShaderConstants(const RenderCommand& cmd)
 	g_dirtyStates.vertexShaderConstants = true;
 }
 
+//TODO
 static void ProcSetPixelShaderConstants(const RenderCommand& cmd)
 {
 	/**auto& args = cmd.setPixelShaderConstants;
@@ -6827,13 +6763,6 @@ void LogPackedFlags(const char* name, const float* values, int count = 4) {
 	}
 }
 
-//XBoxSkinAtomicAllInOneNode
-X86_FUNC_IMPL(__imp__sub_2C89D0);
-X86_FUNC(sub_2C89D0)
-{
-	//LogVSConstants = true;
-	__imp__sub_2C89D0(ctx, base);
-}
 
 void D3DDevice_SetVertexShaderConstant1Fast(int32_t Register, DWORD* pConstantData)
 {
@@ -6876,7 +6805,6 @@ enum RwRasterType : uint8_t
 	rwRASTERTYPEMASK = 0x7,
 	rwRASTERDONTALLOCATE = 0x80,
 };
-
 
 struct RwRaster
 {
@@ -6958,12 +6886,10 @@ X86_FUNC(sub_2DF9F0)
 		auto paletteData = X86_LOAD_U32(ctx.ecx.u32);
 		g_currentPaletteData = (uint32_t*)(base + paletteData);
 	}
-
 }
 
 void CopyTextureToGPU(GuestTexture* tex)
 {
-
 	auto base = g_memory.base;
 	auto format = GetXboxPixelContainerFormat((X_D3DFORMAT)tex->guestResource.Format);
 	bool isSwizzled = FormatIsSwizzled(format);
@@ -7178,7 +7104,6 @@ X86_FUNC(sub_2DF870)
 	__imp__sub_2DF870(ctx, base);
 }
 
-
 //CreateTexture
 X86_FUNC_IMPL(__imp__sub_2DFE20);
 X86_FUNC(sub_2DFE20)
@@ -7205,9 +7130,6 @@ X86_FUNC(sub_2DFE20)
 	newTex->guestResource.Lock = texture->Lock;
 	newTex->guestResource.Size = texture->Size;
 	ctx.eax.u32 = g_memory.MapVirtual(newTex);
-
-
-
 	ctx.esp.u32 += 4;
 }
 
@@ -7248,24 +7170,20 @@ X86_FUNC(sub_2E6750)
 	__imp__sub_2E6750(ctx, base);
 	auto addr = ctx.eax.u32;
 	XD3DResource* buffer = (XD3DResource*)g_memory.Translate(addr);
-	printf("Create VB %x - size: %d\n", (intptr_t)buffer, size);
+	//	printf("Create VB %x - size: %d\n", (intptr_t)buffer, size);
 
 	//g_VBList.push_back({ buffer, nullptr, size });
 }
+
 
 //LockVertexBuffer
 X86_FUNC_IMPL(__imp__sub_3D5FE0);
 X86_FUNC(sub_3D5FE0)
 {
-
 	__imp__sub_3D5FE0(ctx, base);
-
-	auto addr = ctx.eax.u32;
-	addr = addr;
 }
 
-
-//GetViewportOFfsetAndScale
+//GetViewportOffsetAndScale
 X86_FUNC_IMPL(__imp__sub_3D24B0);
 X86_FUNC(sub_3D24B0)
 {
@@ -7307,78 +7225,6 @@ X86_FUNC(sub_3D24B0)
 
 		printf("\n");;*/
 	}
-
-}
-
-
-void logRwMatrix(uint32_t addr, const char* name)
-{
-
-	RwMatrix* src = (RwMatrix*)g_memory.Translate(addr);
-	printf("%s->right %f %f %f\n", name, src->right.x, src->right.y, src->right.z);
-	printf("%s->up %f %f %f\n", name, src->up.x, src->up.y, src->up.z);
-	printf("%s->at %f %f %f\n", name, src->at.x, src->at.y, src->at.z);
-	printf("%s->pos %f %f %f\n", name, src->pos.x, src->pos.y, src->pos.z);
-	printf("%s->flag %d\n", name, src->flags);
-	printf("\n");
-
-}
-
-void logMatrix(uint32_t addr)
-{
-	auto base = g_memory.base;
-	auto add = X86_LOAD_U32(addr);
-
-
-	printf("RwMatrixInvert\n");
-	logRwMatrix(addr, "src");
-	printf("");
-
-}
-
-
-extern bool logMatrixStart;
-/**X86_FUNC_IMPL(__imp__sub_4025A0);
-X86_FUNC(sub_4025A0)
-{
-	auto a1Addr = X86_LOAD_U32(ctx.esp.u32 + 4);
-	float* a1 = (float*)g_memory.Translate(a1Addr);
-	auto a2Addr = X86_LOAD_U32(ctx.esp.u32 + 8);
-	float* a2 = (float*)g_memory.Translate(a2Addr);
-	auto a3Addr = X86_LOAD_U32(ctx.esp.u32 + 12);
-	float* a3 = (float*)g_memory.Translate(a3Addr);
-
-
-	printf("D3DXMatrixMultiply\n");
-
-	for (int i = 0; i < 16; i++)
-	{
-		printf("a2[%d] %f,\n", i, a2[i]);
-
-	}
-
-	for (int i = 0; i < 16; i++)
-	{
-		printf("a3[%d] %f,\n", i, a3[i]);
-
-	}
-
-	//logRwMatrix(a1Addr, "a1");
-	//logRwMatrix(a2Addr, "a2");
-
-
-	__imp__sub_4025A0(ctx, base);
-
-
-	printf("res\n");
-	for (int i = 0; i < 16; i++)
-	{
-		printf("constantData[%d] %f\n", i, a1[i]);
-	}
-
-	printf("\n");
-
-
 }
 
 //rwmatrixTransform
@@ -7449,8 +7295,6 @@ void D3DDevice_EndPush(DWORD* pPush)
 		g_beginPush = nullptr;
 	}
 }
-
-
 
 BOOL D3DDevice_IsFencePending(int a1)
 {

@@ -114,7 +114,7 @@ uint32_t RtlFreeHeap(uint32_t heapHandle, uint32_t flags, uint32_t memoryPointer
 	if (memoryPointer != NULL)
 		g_userHeap.Free(g_memory.Translate(memoryPointer));
 
-	return true;
+	return TRUE;
 }
 
 uint32_t RtlSizeHeap(uint32_t heapHandle, uint32_t flags, uint32_t memoryPointer)
@@ -181,7 +181,7 @@ GUEST_FUNCTION_HOOK_STDCALL(sub_2AC3EF, RtlAllocateHeap);
 GUEST_FUNCTION_HOOK_STDCALL(sub_2ACD5E, RtlReAllocateHeap); //will get called by realloc too
 GUEST_FUNCTION_HOOK_STDCALL(sub_2ADA9A, XAPILIB_VirtualAlloc_r);
 
-GUEST_FUNCTION_HOOK(sub_37E229, free_r);
+//GUEST_FUNCTION_HOOK(sub_37E229, free_r);
 GUEST_FUNCTION_HOOK_STDCALL(sub_2B0494, XAPILIB_XMemFree_r);
 GUEST_FUNCTION_HOOK_STDCALL(sub_2ACB6A, FreeBlock);
 GUEST_FUNCTION_HOOK_STDCALL(sub_2ADAC8, XAPILIB_VirtualFree_r);
