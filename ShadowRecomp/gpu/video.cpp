@@ -254,11 +254,19 @@ struct SharedConstants
 	float alphaThreshold;
 };
 
+struct RenderViewport_r
+{
+	RenderViewport vp;
+	bool isFixed = true;
+	bool flushed = false;
+};
 
 static GuestSurface* g_renderTarget;
 static GuestSurface* g_depthStencil;
+static GuestSurface* g_next_RenderTarget; //because of how heavy and fast the game swap the render target, our queue system sometimes faces a race issue, this second pointer copy the current RT earlier as a workaround for now
 static RenderFramebuffer* g_framebuffer;
-static RenderViewport g_viewport(0.0f, 0.0f, 640.0f, 480.0f);
+static RenderViewport_r g_renderviewport = { { 0.0f, 0.0f, 640.0f, 480.0f }, true, false };
+
 static PipelineState g_pipelineState;
 static int32_t g_depthBias;
 static float g_slopeScaledDepthBias;
@@ -271,6 +279,8 @@ GuestSurface* GetRenderTarget()
 
 uint32_t g_VertexShader_Handle = 0;
 VertexShaderMode g_Xbox_VertexShaderMode = VertexShaderMode::FixedFunction;
+static float g_ZScale = 1.0f;
+DWORD g_Xbox_VertexShaderConstantMode = 1;
 
 //constants are variable send to the GPU
 static uint32_t g_vertexShaderConstants[HOST_D3DVS_CONSTREG_FULL * 4];
@@ -615,10 +625,31 @@ static std::atomic<bool> g_readyForCommands;
 
 static ankerl::unordered_dense::map<RenderTexture*, RenderTextureLayout> g_barrierMap;
 
+const char* GetLayoutName(RenderTextureLayout layout)
+{
+	switch (layout)
+	{
+	default:
+	case RenderTextureLayout::UNKNOWN:
+		return "Unknown";
+	case RenderTextureLayout::GENERAL:
+		return "General";
+	case RenderTextureLayout::SHADER_READ:
+		return "Shader Read";
+	case RenderTextureLayout::COLOR_WRITE:
+		return "Color Write";
+	case RenderTextureLayout::DEPTH_WRITE:
+		return "Depth Write";
+	case RenderTextureLayout::PRESENT:
+		return "Present";
+	}
+}
+
 static void AddBarrier(GuestBaseTexture* texture, RenderTextureLayout layout)
 {
 	if (texture != nullptr && texture->layout != layout)
 	{
+		//printf("AddBarrier called, texture %x, current layout %d (%s) new layout requeted %d (%s) \n", texture->texture, texture->layout, GetLayoutName(texture->layout), layout, GetLayoutName(layout));
 		g_barrierMap[texture->texture] = layout;
 		texture->layout = layout;
 	}
@@ -631,7 +662,10 @@ static void FlushBarriers()
 	if (!g_barrierMap.empty())
 	{
 		for (auto& [texture, layout] : g_barrierMap)
+		{
+			//printf("FlushBarriers: Texture %x to layout %d (%s), count: %d\n", texture, layout, GetLayoutName(layout), ++countFail);
 			g_barriers.emplace_back(texture, layout);
+		}
 
 		g_commandLists[g_frame]->barriers(RenderBarrierStage::GRAPHICS | RenderBarrierStage::COPY, g_barriers);
 
@@ -953,6 +987,7 @@ struct RenderCommand
 			float height;
 			float minDepth;
 			float maxDepth;
+			bool isFixed;
 		} setViewport;
 
 		struct
@@ -979,7 +1014,7 @@ struct RenderCommand
 			int16_t* pIndexData;
 			GuestBuffer* indexBuffer;
 			bool isFixed;
-			//GuestBuffer* vertexBuffer;
+			bool drawShadow;
 		} drawIndexedPrimitive;
 
 		struct
@@ -1113,7 +1148,7 @@ static RenderBlend ConvertAlphaBlendMode(uint32_t blendMode)
 		return RenderBlend::ZERO;
 	case D3DBLEND_ONE:
 		return RenderBlend::ONE;
-	case D3DBLEND_SRCALPHA: 
+	case D3DBLEND_SRCALPHA:
 	case D3DBLEND_SRCCOLOR:
 		return RenderBlend::SRC_ALPHA;
 	case D3DBLEND_INVSRCALPHA:
@@ -2516,8 +2551,83 @@ X86_FUNC_IMPL(__imp__sub_3D1BA0);
 
 
 
-void UpdateHostViewPortOffsetAndScaleConstants();
-X86_FUNC_IMPL(__imp__sub_3D2280);
+
+// Get viewport offset and scale values intended to match the XDK calculations
+void GetXboxViewportOffsetAndScale(float(&vOffset)[4], float(&vScale)[4])
+{
+	// Antialiasing mode affects the viewport offset and scale
+	float aaScaleX = 1.0f;
+	float aaScaleY = 1.0f;
+	float aaOffsetX = 0.5f;
+	float aaOffsetY = 0.5f;
+	//GetScreenScaleFactors(aaScaleX, aaScaleY); //todo check if this is needed
+
+	auto g_viewport = g_renderviewport.vp;
+
+	float scaledX = g_viewport.x * aaScaleX;
+	float scaledY = g_viewport.y * aaScaleY;
+	float scaledWidth = g_viewport.width * aaScaleX;
+	float scaledHeight = g_viewport.height * aaScaleY;
+
+	// D3D9 viewport info
+	// https://docs.microsoft.com/en-us/windows/win32/direct3d9/viewports-and-clipping
+	// Unlike D3D9, Xbox should scale by the z buffer scale
+
+	auto zRange = g_viewport.maxDepth - g_viewport.minDepth;
+	vScale[0] = scaledWidth / 2;
+	vScale[1] = -scaledHeight / 2;
+	vScale[2] = zRange * g_ZScale;
+	vScale[3] = 1;
+	vOffset[0] = scaledWidth / 2 + scaledX;
+	vOffset[1] = scaledHeight / 2 + scaledY;
+	vOffset[2] = g_viewport.minDepth * g_ZScale;
+	vOffset[3] = 0;
+}
+
+void UpdateHostViewPortOffsetAndScaleConstants()
+{
+	float vScaleOffset[2][4]; // 0 - scale 1 - offset
+	GetXboxViewportOffsetAndScale(vScaleOffset[1], vScaleOffset[0]);
+
+	// Xbox outputs vertex positions in rendertarget pixel coordinate space, with non-normalized Z
+	// e.g. 0 < x < 640 and 0 < y < 480
+	// We want to scale it back to normalized device coordinates i.e. XY are (-1, +1) and Z is (0, 1)
+
+	// The screenspace is a combination of the rendertarget
+	// and various scale factors
+	// Get the rendertarget width and height
+	float xboxRenderTargetWidth = g_next_RenderTarget->width;
+	float xboxRenderTargetHeight = g_next_RenderTarget->height;
+	//GetRenderTargetBaseDimensions(xboxRenderTargetWidth, xboxRenderTargetHeight);
+
+	float screenScaleX = 1.0f;
+	float screenScaleY = 1.0f;
+	float aaOffsetX = 0.5f;
+	float aaOffsetY = 0.5f;
+	//GetScreenScaleFactors(screenScaleX, screenScaleY);
+	//GetMultiSampleOffset(aaOffsetX, aaOffsetY);
+
+
+	float xboxScreenspaceWidth = xboxRenderTargetWidth * screenScaleX;
+	float xboxScreenspaceHeight = xboxRenderTargetHeight * screenScaleY;
+
+	// Passthrough should range 0 to 1, instead of 0 to zbuffer depth
+	float zOutputScale = g_Xbox_VertexShaderMode == VertexShaderMode::Passthrough ? 1 : g_ZScale;
+
+	float screenspaceScale[4] = { xboxScreenspaceWidth / 2,  -xboxScreenspaceHeight / 2, zOutputScale, 1 };
+	float screenspaceOffset[4] = { xboxScreenspaceWidth / 2 + aaOffsetX, xboxScreenspaceHeight / 2 + aaOffsetY, 0, 0 };
+
+	CopyVertexShaderConstant(HOST_D3DVS_SCREENSPACE_SCALE_BASE, (DWORD*)screenspaceScale, HOST_D3DVS_NORMALIZE_SCALE_SIZE);
+	CopyVertexShaderConstant(HOST_D3DVS_SCREENSPACE_OFFSET_BASE, (DWORD*)screenspaceOffset, HOST_D3DVS_NORMALIZE_OFFSET_SIZE);
+	// Store viewport offset and scale in constant registers 58 (c-38) and
+	// 59 (c-37) used for screen space transformation.
+	// We only do this if X_D3DSCM_NORESERVEDCONSTANTS is not set,
+	// since enabling this flag frees up these registers for shader use
+	if (!(g_Xbox_VertexShaderConstantMode & X_D3DSCM_NORESERVEDCONSTANTS))
+	{
+		CopyVertexShaderConstant(X_D3DSCM_RESERVED_CONSTANT_SCALE_CORRECTED, reinterpret_cast<DWORD*>(vScaleOffset), 2);
+	}
+}
 
 void UpdateVertexDeclaration(uint32_t Handle)
 {
@@ -2565,7 +2675,7 @@ void UpdateVertexShader(uint32_t Handle)
 		// Switch to passthrough program, if so required
 		if (vshFlags & X_VERTEXSHADER_FLAG_PASSTHROUGH)
 		{
-			SetVertexShaderPassthroughProgram(); 
+			SetVertexShaderPassthroughProgram();
 			g_Xbox_VertexShaderMode = VertexShaderMode::Passthrough;
 		}
 		else {
@@ -3750,55 +3860,93 @@ GuestSurface* CreateStandAloneSurface(int32_t Width, int32_t Height, int32_t a3,
 	return CreateSurface(Width, Height, Format);
 }
 
-static void FlushViewport(const bool isFixed)
+bool DrawShadowNext = false;
+bool DrawShadow = false;
+bool wasFixed = false;
+static void FlushViewport(const bool isFixed, const bool drawShadow)
 {
 	auto& commandList = g_commandLists[g_frame];
 	auto hostWidth = g_renderTarget->width;
 	auto hostHeight = g_renderTarget->height;
+	const bool DrawShadow_ = drawShadow;
+	auto viewport = g_renderviewport.vp;
+
+
+	if (isFixed != wasFixed)
+	{
+		g_dirtyStates.viewport = true;
+		g_dirtyStates.scissorRect = true;
+	}
 
 	if (g_dirtyStates.viewport)
 	{
-		auto viewport = g_viewport;
+		//awful dirty hack that almost fix viewport not being updated properly
+		if (g_renderTarget->width != viewport.width)
+		{
+			viewport.width = g_renderTarget->width;
+			viewport.height = g_renderTarget->height;
+		}
+	}
 
+
+	wasFixed = isFixed;
+
+	auto backupVP = viewport;
+	float width = (float)std::min(viewport.width, (DWORD)hostWidth - viewport.x);
+	float height = (float)std::min(viewport.height, (DWORD)hostHeight - viewport.y);
+
+	if (!isFixed)
+	{
+		width = (float)hostWidth;
+		height = (float)hostHeight;
+		viewport.minDepth = 0.0f;
+		viewport.maxDepth = 1.0f;
+	}
+
+
+	if (g_dirtyStates.viewport)
+	{
 		if (viewport.minDepth > viewport.maxDepth)
 			std::swap(viewport.minDepth, viewport.maxDepth);
 
-		if (isFixed == false)
+
+		viewport.width = width;
+		viewport.height = height;
+
+		if (width == 128 && g_renderTarget->width == 640)
 		{
-			// Set default viewport over the whole screen
-			// And let the vertex shader take care of vertex placement
-			// So we can handle shaders that don't use the Xbox viewport constants and don't align
-			// with the currently set viewport
-			viewport.x = 0;
-			viewport.y = 0;
-			viewport.width = (float)hostWidth;
-			viewport.height = (float)hostHeight;
-			viewport.minDepth = 0.0f;
-			viewport.maxDepth = 1.0f;
+			//g_next_viewport = g_next_viewport;
+			printf("!!!\n");
 		}
+
 
 		commandList->setViewports(viewport);
 		g_dirtyStates.viewport = false;
+
 	}
 
 	if (g_dirtyStates.scissorRect)
 	{
 		RenderRect scissorRect;
+		int32_t right = (int32_t)backupVP.width;
+		int32_t bottom = (int32_t)backupVP.height;
 
 		if (isFixed)
 		{
-			scissorRect.left = 0;
-			scissorRect.top = 0;
-			scissorRect.right = hostWidth;
-			scissorRect.bottom = hostHeight;
+			right = (int32_t)hostWidth;
+			bottom = (int32_t)hostHeight;
 		}
-		else
+
+
+		scissorRect = g_scissorTestEnable ? g_scissorRect : RenderRect(
+			viewport.x,
+			viewport.y,
+			right,
+			bottom);
+
+		if (DrawShadow_)
 		{
-			scissorRect = g_scissorTestEnable ? g_scissorRect : RenderRect(
-				g_viewport.x,
-				g_viewport.y,
-				g_viewport.x + g_viewport.width,
-				g_viewport.y + g_viewport.height);
+			bottom = bottom;
 		}
 
 		commandList->setScissors(scissorRect);
@@ -4076,12 +4224,16 @@ static void ProcSetViewport(const RenderCommand& cmd)
 {
 	const auto& args = cmd.setViewport;
 
-	SetDirtyValue<float>(g_dirtyStates.viewport, g_viewport.x, args.x);
-	SetDirtyValue<float>(g_dirtyStates.viewport, g_viewport.y, args.y);
-	SetDirtyValue<float>(g_dirtyStates.viewport, g_viewport.width, args.width);
-	SetDirtyValue<float>(g_dirtyStates.viewport, g_viewport.height, args.height);
-	SetDirtyValue<float>(g_dirtyStates.viewport, g_viewport.minDepth, args.minDepth);
-	SetDirtyValue<float>(g_dirtyStates.viewport, g_viewport.maxDepth, args.maxDepth);
+	RenderViewport* VP = &g_renderviewport.vp;
+	RenderViewport_r* VPR = &g_renderviewport;
+	SetDirtyValue<float>(g_dirtyStates.viewport, VP->x, args.x);
+	SetDirtyValue<float>(g_dirtyStates.viewport, VP->y, args.y);
+	SetDirtyValue<float>(g_dirtyStates.viewport, VP->width, args.width);
+	SetDirtyValue<float>(g_dirtyStates.viewport, VP->height, args.height);
+	SetDirtyValue<float>(g_dirtyStates.viewport, VP->minDepth, args.minDepth);
+	SetDirtyValue<float>(g_dirtyStates.viewport, VP->maxDepth, args.maxDepth);
+	SetDirtyValue<bool>(g_dirtyStates.viewport, VPR->isFixed, args.isFixed);
+
 
 	uint32_t specConstants = g_pipelineState.specConstants;
 	/**if (args.minDepth > args.maxDepth)
@@ -4266,12 +4418,14 @@ static void SetTextureInRenderThread(uint32_t index, GuestTexture* texture, cons
 	/**if (texture)
 		printf("SetTextureInRenderThread - Add barrier SHADER_READ to Texture %x\n", texture);*/
 
+	AddBarrier(texture, RenderTextureLayout::SHADER_READ);
+
 	if (texture && texture->isRenderTarget)
 	{
-
+		//currentRTTex = texture;
+		//AddBarrier(lastSurface, RenderTextureLayout::SHADER_READ);
+		//printf("SetTexture now bind a RenderTarget texture. %x, width %d, height %d\n", texture->texture, texture->width, texture->height);
 	}
-
-	AddBarrier(texture, RenderTextureLayout::SHADER_READ);
 
 
 	auto viewDimension = texture != nullptr ? texture->viewDimension : RenderTextureViewDimension::UNKNOWN;
@@ -4298,31 +4452,33 @@ static void SetTextureInRenderThread(uint32_t index, GuestTexture* texture, cons
 }
 
 
-
-static void SetDefaultViewport(GuestDevice* device, GuestSurface* surface)
+static void SetViewport(GuestViewport* viewport, GuestSurface* surface)
 {
-	if (surface != nullptr)
+	if (surface != nullptr && viewport != nullptr)
 	{
+		const bool isFixed = g_Xbox_VertexShaderMode == VertexShaderMode::FixedFunction;
+
+		uint32_t rtWidth = surface->width;
+		uint32_t rtHeight = surface->height;
+
+		//for some reason, og xbox can send int_max for width and height, likely to trigger a reset(?)
+		float width = (float)std::min(viewport->Width, (DWORD)rtWidth - viewport->X);
+		float height = (float)std::min(viewport->Height, (DWORD)rtHeight - viewport->Y);
+
+
 		RenderCommand cmd;
 		cmd.type = RenderCommandType::SetViewport;
 		cmd.setViewport.x = 0.0f;
 		cmd.setViewport.y = 0.0f;
-		cmd.setViewport.width = float(surface->width);
-		cmd.setViewport.height = float(surface->height);
+		cmd.setViewport.width = width;
+		cmd.setViewport.height = height;
 		cmd.setViewport.minDepth = 0.0f;
 		cmd.setViewport.maxDepth = 1.0f;
+		cmd.setViewport.isFixed = isFixed;
 		g_renderQueue.enqueue(cmd);
-
-		device->viewport.X = 0.0f;
-		device->viewport.Y = 0.0f;
-		device->viewport.Width = float(surface->width);
-		device->viewport.Height = float(surface->height);
-		device->viewport.MinZ = 0.0f;
-		device->viewport.MaxZ = 1.0f;
 	}
 }
 
-static float g_ZScale = 1.0f;
 
 X86_FUNC_IMPL(__imp__sub_3D0040);
 X86_FUNC_IMPL(__imp__sub_3D6250);
@@ -4342,10 +4498,9 @@ void D3DDevice_SetRenderTarget(GuestSurface* surface, GuestSurface* pNewZStencil
 
 	if (!g_XboxBackBuffer)
 	{
-
 		g_XboxBackBuffer = surface;
 		g_XboxDefaultDepthStencilSurface = pNewZStencil;
-		
+
 		g_defaultStencil = CreateSurface(512, 512, X_D3DFMT_LIN_D24S8);
 		newSurface = g_backBuffer;
 		newDepthStencil = g_defaultStencil;
@@ -4384,14 +4539,23 @@ void D3DDevice_SetRenderTarget(GuestSurface* surface, GuestSurface* pNewZStencil
 	cmd.setRenderTarget.renderTarget = newSurface;
 	g_renderQueue.enqueue(cmd);
 
-	SetDefaultViewport((GuestDevice*)g_memory.Translate(device), newSurface);
+	static GuestViewport defaultViewport;
+	defaultViewport.X = 0;
+	defaultViewport.Y = 0;
+	defaultViewport.Width = INT_MAX;
+	defaultViewport.Height = INT_MAX;
+	defaultViewport.MinZ = 0;
+	defaultViewport.MaxZ = 1;
+
+	SetViewport(&defaultViewport, newSurface);
 
 	RenderCommand cmd2;
 	cmd2.type = RenderCommandType::SetDepthStencilSurface;
 	cmd2.setDepthStencilSurface.depthStencil = newDepthStencil;
 	g_renderQueue.enqueue(cmd2);
 
-	SetDefaultViewport((GuestDevice*)g_memory.Translate(device), newDepthStencil);
+	//SetDefaultViewport((GuestDevice*)g_memory.Translate(device), newDepthStencil);
+	g_next_RenderTarget = newSurface;
 
 	//X86_STORE_U32(device + 0x954, surface->width);
 	//X86_STORE_U32(device + 0x958, surface->height);
@@ -4402,6 +4566,13 @@ static void ProcSetRenderTarget(const RenderCommand& cmd)
 {
 	const auto& args = cmd.setRenderTarget;
 
+	if (g_renderTarget != args.renderTarget) //due to extensive ping pong with re use of previous RTs, we need to force shader_read to avoid race issues.
+	{
+		if (g_renderTarget->layout == RenderTextureLayout::COLOR_WRITE)
+		{
+			AddBarrier(g_renderTarget, RenderTextureLayout::SHADER_READ);
+		}
+	}
 
 	SetDirtyValue(g_dirtyStates.renderTargetAndDepthStencil, g_renderTarget, args.renderTarget);
 	SetDirtyValue(g_dirtyStates.pipelineState, g_pipelineState.renderTargetFormat, args.renderTarget != nullptr ? args.renderTarget->format : RenderFormat::UNKNOWN);
@@ -4410,6 +4581,8 @@ static void ProcSetRenderTarget(const RenderCommand& cmd)
 
 	// When alpha to coverage is enabled, update the alpha test mode as it's dependent on sample count.
 	SetAlphaTestMode((g_pipelineState.specConstants & (SPEC_CONSTANT_ALPHA_TEST | SPEC_CONSTANT_ALPHA_TO_COVERAGE)) != 0);
+
+	//AddBarrier(g_renderTarget, RenderTextureLayout::COLOR_WRITE);
 }
 
 static void ProcSetDepthStencilSurface(const RenderCommand& cmd)
@@ -4423,6 +4596,8 @@ static void ProcSetDepthStencilSurface(const RenderCommand& cmd)
 X86_FUNC_IMPL(__imp__sub_3D0680);
 void D3DDevice_SetViewport(GuestViewport* viewport)
 {
+	const bool isFixed = g_Xbox_VertexShaderMode == VertexShaderMode::FixedFunction;
+
 	//call original func first
 	auto ctx = GetX86Context();
 	auto base = g_memory.base;
@@ -4434,41 +4609,8 @@ void D3DDevice_SetViewport(GuestViewport* viewport)
 		return;
 	}
 
-	auto device = X86_LOAD_U32(GuestDevicePtrAddr);
-
-
-	RenderCommand cmd;
-	cmd.type = RenderCommandType::SetViewport;
-
-	uint32_t rtWidth = g_renderTarget->width;
-	uint32_t rtHeight = g_renderTarget->height;
-
-	//for some reason, og xbox can send int_max for width and height, likely to trigger a reset(?)
-	float width = (float)std::min(viewport->Width, (DWORD)rtWidth - viewport->X);
-	float height = (float)std::min(viewport->Height, (DWORD)rtHeight - viewport->Y);
-
-	cmd.setViewport.x = viewport->X;
-	cmd.setViewport.y = viewport->Y;
-	cmd.setViewport.width = width;
-	cmd.setViewport.height = height;
-	cmd.setViewport.minDepth = viewport->MinZ;
-	cmd.setViewport.maxDepth = viewport->MaxZ;
-	g_renderQueue.enqueue(cmd);
-
-	uint32_t resX = X86_LOAD_U32(device + 0xEE8);
-	resX = resX;
-
-	auto padding616 = X86_LOAD_F32(device + 0x95C);
-	auto valB = X86_LOAD_F32(device + 0x960);
-	auto padding636 = X86_LOAD_F32(device + 0x970);
-	auto padding68 = X86_LOAD_U32(device + 0x954);
-	auto padding7 = X86_LOAD_U32(device + 0xEF8);
-	valB = valB;
-
-	auto widthG = X86_LOAD_U32(device + 0xEE8);
-
-
-	}
+	SetViewport(viewport, g_renderTarget);
+}
 
 static bool PopulateBarriersForCopyRect(GuestSurface* renderTarget, GuestSurface* depthStencil)
 {
@@ -4923,126 +5065,6 @@ void SetVertexAttribute(int32_t Register, FLOAT a, FLOAT b, FLOAT c, FLOAT d)
 	// not present in the vertex declaration.
 	// We use range 193 and up to store these values, as Xbox shaders stop at c192!
 	CopyVertexShaderConstant(HOST_D3DVS_CONSTREG_VREGDEFAULTS_BASE + Register, (DWORD*)attribute_floats, 1);
-}
-
-
-
-// Get viewport offset and scale values intended to match the XDK calculations
-void GetXboxViewportOffsetAndScale(float(&vOffset)[4], float(&vScale)[4])
-{
-	// Antialiasing mode affects the viewport offset and scale
-	float aaScaleX = 1.0f;
-	float aaScaleY = 1.0f;
-	float aaOffsetX = 0.5f;
-	float aaOffsetY = 0.5f;
-	//GetScreenScaleFactors(aaScaleX, aaScaleY); //todo check if this is needed
-
-	float scaledX = g_viewport.x * aaScaleX;
-	float scaledY = g_viewport.y * aaScaleY;
-	float scaledWidth = g_viewport.width * aaScaleX;
-	float scaledHeight = g_viewport.height * aaScaleY;
-
-	// D3D9 viewport info
-	// https://docs.microsoft.com/en-us/windows/win32/direct3d9/viewports-and-clipping
-	// Unlike D3D9, Xbox should scale by the z buffer scale
-
-	auto zRange = g_viewport.maxDepth - g_viewport.minDepth;
-	vScale[0] = scaledWidth / 2;
-	vScale[1] = -scaledHeight / 2;
-	vScale[2] = zRange * g_ZScale;
-	vScale[3] = 1;
-	vOffset[0] = scaledWidth / 2 + scaledX;
-	vOffset[1] = scaledHeight / 2 + scaledY;
-	vOffset[2] = g_viewport.minDepth * g_ZScale;
-	vOffset[3] = 0;
-}
-
-void DirectCopyVertexShaderConstant(int32_t Register, DWORD* pConstantData, const uint32_t count)
-{
-	float* float_vsh_constants = (float*)&(g_vertexShaderConstants[Register * 4]);
-	memcpy(float_vsh_constants, pConstantData, count * sizeof(float) * 4);
-}
-
-void DirectUpdateHostViewPortOffsetAndScaleConstants()
-{
-	float vScaleOffset[2][4]; // 0 - scale 1 - offset
-	GetXboxViewportOffsetAndScale(vScaleOffset[1], vScaleOffset[0]);
-
-	float xboxRenderTargetWidth = g_renderTarget->width;
-	float xboxRenderTargetHeight = g_renderTarget->height;
-	//GetRenderTargetBaseDimensions(xboxRenderTargetWidth, xboxRenderTargetHeight);
-
-	float screenScaleX = 1.0f;
-	float screenScaleY = 1.0f;
-	float aaOffsetX = 0.5f;
-	float aaOffsetY = 0.5f;
-
-
-	float xboxScreenspaceWidth = xboxRenderTargetWidth * screenScaleX;
-	float xboxScreenspaceHeight = xboxRenderTargetHeight * screenScaleY;
-
-	// Passthrough should range 0 to 1, instead of 0 to zbuffer depth
-	float zOutputScale = g_Xbox_VertexShaderMode == VertexShaderMode::Passthrough ? 1 : g_ZScale;
-
-	float screenspaceScale[4] = { xboxScreenspaceWidth / 2,  -xboxScreenspaceHeight / 2, zOutputScale, 1 };
-	float screenspaceOffset[4] = { xboxScreenspaceWidth / 2 + aaOffsetX, xboxScreenspaceHeight / 2 + aaOffsetY, 0, 0 };
-
-	DirectCopyVertexShaderConstant(HOST_D3DVS_SCREENSPACE_SCALE_BASE, (DWORD*)screenspaceScale, HOST_D3DVS_NORMALIZE_SCALE_SIZE);
-	DirectCopyVertexShaderConstant(HOST_D3DVS_SCREENSPACE_OFFSET_BASE, (DWORD*)screenspaceOffset, HOST_D3DVS_NORMALIZE_OFFSET_SIZE);
-	// Store viewport offset and scale in constant registers 58 (c-38) and
-	// 59 (c-37) used for screen space transformation.
-	// We only do this if X_D3DSCM_NORESERVEDCONSTANTS is not set,
-	// since enabling this flag frees up these registers for shader use
-	if (!(g_Xbox_VertexShaderConstantMode & X_D3DSCM_NORESERVEDCONSTANTS)) {
-
-		DirectCopyVertexShaderConstant(X_D3DSCM_RESERVED_CONSTANT_SCALE_CORRECTED, reinterpret_cast<DWORD*>(vScaleOffset), 2);
-	}
-}
-
-void UpdateHostViewPortOffsetAndScaleConstants()
-{
-	float vScaleOffset[2][4]; // 0 - scale 1 - offset
-	GetXboxViewportOffsetAndScale(vScaleOffset[1], vScaleOffset[0]);
-
-
-	// Xbox outputs vertex positions in rendertarget pixel coordinate space, with non-normalized Z
-	// e.g. 0 < x < 640 and 0 < y < 480
-	// We want to scale it back to normalized device coordinates i.e. XY are (-1, +1) and Z is (0, 1)
-
-	// The screenspace is a combination of the rendertarget
-	// and various scale factors
-	// Get the rendertarget width and height
-	float xboxRenderTargetWidth = g_renderTarget->width;
-	float xboxRenderTargetHeight = g_renderTarget->height;
-	//GetRenderTargetBaseDimensions(xboxRenderTargetWidth, xboxRenderTargetHeight);
-
-	float screenScaleX = 1.0f;
-	float screenScaleY = 1.0f;
-	float aaOffsetX = 0.5f;
-	float aaOffsetY = 0.5f;
-	//GetScreenScaleFactors(screenScaleX, screenScaleY);
-	//GetMultiSampleOffset(aaOffsetX, aaOffsetY);
-
-
-	float xboxScreenspaceWidth = xboxRenderTargetWidth * screenScaleX;
-	float xboxScreenspaceHeight = xboxRenderTargetHeight * screenScaleY;
-
-	// Passthrough should range 0 to 1, instead of 0 to zbuffer depth
-	float zOutputScale = g_Xbox_VertexShaderMode == VertexShaderMode::Passthrough ? 1 : g_ZScale;
-
-	float screenspaceScale[4] = { xboxScreenspaceWidth / 2,  -xboxScreenspaceHeight / 2, zOutputScale, 1 };
-	float screenspaceOffset[4] = { xboxScreenspaceWidth / 2 + aaOffsetX, xboxScreenspaceHeight / 2 + aaOffsetY, 0, 0 };
-
-	CopyVertexShaderConstant(HOST_D3DVS_SCREENSPACE_SCALE_BASE, (DWORD*)screenspaceScale, HOST_D3DVS_NORMALIZE_SCALE_SIZE);
-	CopyVertexShaderConstant(HOST_D3DVS_SCREENSPACE_OFFSET_BASE, (DWORD*)screenspaceOffset, HOST_D3DVS_NORMALIZE_OFFSET_SIZE);
-	// Store viewport offset and scale in constant registers 58 (c-38) and
-	// 59 (c-37) used for screen space transformation.
-	// We only do this if X_D3DSCM_NORESERVEDCONSTANTS is not set,
-	// since enabling this flag frees up these registers for shader use
-	if (!(g_Xbox_VertexShaderConstantMode & X_D3DSCM_NORESERVEDCONSTANTS)) 
-	{
-		CopyVertexShaderConstant(X_D3DSCM_RESERVED_CONSTANT_SCALE_CORRECTED, reinterpret_cast<DWORD*>(vScaleOffset), 2);
-	}
 }
 
 
@@ -5732,13 +5754,13 @@ static void FlushRenderStateForMainThread(LocalRenderCommandQueue& queue)
 	}
 }
 
-bool aboutToDrawShadow = false;
 static bool isFixedForRenderThread = false;
 static constexpr int32_t COMMON_DEPTH_BIAS_VALUE = int32_t((1 << 24) * 0.002f);
 static constexpr float COMMON_SLOPE_SCALED_DEPTH_BIAS_VALUE = 1.0f;
 static void FlushRenderStateForRenderThread()
 {
 	const bool isFixed = isFixedForRenderThread;
+	const bool drawShadow = DrawShadow;
 	auto renderTarget = g_pipelineState.colorWriteEnable ? g_renderTarget : nullptr;
 	auto depthStencil = g_pipelineState.zEnable || g_pipelineState.stencilEnable ? g_depthStencil : nullptr;
 
@@ -5773,7 +5795,7 @@ static void FlushRenderStateForRenderThread()
 	FlushBarriers();
 
 	SetFramebuffer(renderTarget, depthStencil, false);
-	FlushViewport(isFixed);
+	FlushViewport(isFixed, drawShadow);
 
 
 	auto& commandList = g_commandLists[g_frame];
@@ -5815,9 +5837,7 @@ static void FlushRenderStateForRenderThread()
 		}
 		else
 		{
-			//Temp for testing race issue fix
-			DirectUpdateHostViewPortOffsetAndScaleConstants();
-			
+
 			auto vertexShaderConstants = g_uploadAllocators[g_frame].allocate(g_vertexShaderConstants, sizeof(g_vertexShaderConstants), 0x100);
 			SetRootDescriptor(vertexShaderConstants, 0);
 		}
@@ -6515,6 +6535,7 @@ void DrawIndexedPrimitive(X_D3DPRIMITIVETYPE PrimitiveType, uint32_t VertexCount
 	cmd.drawIndexedPrimitive.startIndex = 0;
 	cmd.drawIndexedPrimitive.primCount = VertexCount;
 	cmd.drawIndexedPrimitive.isFixed = g_Xbox_VertexShaderMode == VertexShaderMode::FixedFunction;
+	cmd.drawIndexedPrimitive.drawShadow = drawShadow;
 
 	queue.submit();
 }
@@ -6525,8 +6546,10 @@ static void ProcDrawIndexedPrimitive(const RenderCommand& cmd)
 	const auto& args = cmd.drawIndexedPrimitive;
 	SetPrimitiveType(args.primitiveType);
 	isFixedForRenderThread = args.isFixed;
+	DrawShadow = args.drawShadow;
 	FlushRenderStateForRenderThread();
 	g_commandLists[g_frame]->drawIndexedInstanced(args.primCount, 1, args.startIndex, args.baseVertexIndex, 0);
+	DrawShadow = false;
 }
 
 //D3DDevice_DrawVerticesUP - used for 2D Stuff, does not require a vertex buffer (originally)
@@ -6872,8 +6895,6 @@ void GetPixelContainerMeasures
 	if (XBFormatIsCompressed(X_Format))
 		*pRowPitch *= 4;
 }
-
-
 //we need to copy the palette data so we can convert properly when copy texture in the GPU
 static uint32_t* g_currentPaletteData;
 //rwD3D8RasterLockPalette
@@ -7090,7 +7111,6 @@ X86_FUNC(sub_2ED0D0)
 	}
 }
 
-
 //rwD3D8RasterUnlock
 X86_FUNC_IMPL(__imp__sub_2DF870);
 X86_FUNC(sub_2DF870)
@@ -7162,6 +7182,7 @@ X86_FUNC(sub_3DA0A0)
 }
 
 //CreateVertexBuffer 
+//todo store guest VB to detect when they are free to also free the host ones!!!!
 X86_FUNC_IMPL(__imp__sub_2E6750);
 X86_FUNC(sub_2E6750)
 {
@@ -7172,7 +7193,7 @@ X86_FUNC(sub_2E6750)
 	XD3DResource* buffer = (XD3DResource*)g_memory.Translate(addr);
 	//	printf("Create VB %x - size: %d\n", (intptr_t)buffer, size);
 
-	//g_VBList.push_back({ buffer, nullptr, size });
+		//g_VBList.push_back({ buffer, nullptr, size });
 }
 
 
@@ -7226,58 +7247,6 @@ X86_FUNC(sub_3D24B0)
 		printf("\n");;*/
 	}
 }
-
-//rwmatrixTransform
-X86_FUNC_IMPL(__imp__sub_2E3520);
-X86_FUNC(sub_2E3520)
-{
-
-	auto a1Addr = X86_LOAD_U32(ctx.esp.u32 + 4);
-	auto a2Addr = X86_LOAD_U32(ctx.esp.u32 + 8);
-	auto mode = X86_LOAD_U32(ctx.esp.u32 + 12);
-
-	if (logMatrixStart)
-	{
-	int32_t pCurrentAnim; //RtAnimAnimation*
-	RwReal currentTime;
-	void* pNextFrame;
-	int32_t pAnimCallBack; //RtAnimCallBack
-	void* pAnimCallBackData;
-	RwReal animCallBackTime;
-	int32_t pAnimLoopCallBack; //RtAnimCallBack
-	void* pAnimLoopCallBackData;
-	int32_t maxInterpKeyFrameSize;
-	int32_t currentInterpKeyFrameSize;
-	int32_t currentAnimKeyFrameSize;
-	int32_t numNodes;
-	bool isSubInterpolator;
-	int32_t offsetInParent;
-	int32_t parentAnimation; //RtAnimCallBack
-	int32_t keyFrameApplyCB;
-	int32_t keyFrameBlendCB;
-	int32_t keyFrameInterpolateCB;
-	int32_t keyFrameAddCB;
-};
-
-
-	__imp__sub_2E3520(ctx, base);
-
-struct RpHAnimHierarchy
-	{
-	int32_t flags;
-	int32_t numNodes;
-	int32_t pMatrixArray;
-	int32_t pMatrixArrayUnaligned;
-	int32_t pNodeInfo;
-	int32_t parentFrame;
-	int32_t parentHierarchy;
-	int32_t rootParentOffset;
-	int32_t currentAnim; //RtAnimInterpolator ptr
-};
-
-
-
-
 
 static DWORD* g_beginPush = nullptr;
 uint32_t D3DDevice_BeginPush(DWORD Count)
@@ -7430,7 +7399,7 @@ GUEST_FUNCTION_HOOK_STDCALL(sub_3D4760, D3DDevice_EndPush);
 //		 === UNCONFIRMED STUB == TODO CHECK IF THEY ARE ALL CORRECT
 GUEST_FUNCTION_HOOK_STDCALL(sub_3DD8B0, D3D_GetAdapterModeCount);
 GUEST_FUNCTION_HOOK_STDCALL(sub_3DD950, D3D_EnumAdapterModes);
-GUEST_FUNCTION_HOOK_STDCALL(sub_3D0F40, D3D_SetTileNoWait); 
+GUEST_FUNCTION_HOOK_STDCALL(sub_3D0F40, D3D_SetTileNoWait);
 
 
 
