@@ -6,7 +6,7 @@ struct VS_INPUT
 {
     float4 iPos : TEXCOORD;
     float4 weights : TEXCOORD1;
-    uint2 bones : TEXCOORD2;
+    int2 bones : TEXCOORD2;
     float4 v[13] : TEXCOORD3;
 };
 
@@ -56,12 +56,9 @@ VS_OUTPUT main(VS_INPUT xIn)
 
 	// Initialize input registers from the vertex buffer data
 	// Or use the register's default value (which can be changed by the title)
-//#define init_v(i) v##i = lerp(xIn.v[i], vRegisterDefaultValues[i], vRegisterDefaultFlags[i]);
 #define init_v(j, i) v##j = lerp(xIn.v[i], vRegisterDefaultValues[i], vRegisterDefaultFlags[i]);
 
 	// Note : unroll manually instead of for-loop, because of the ## concatenation
-	//init_v(0);init_v(1);init_v(2);
-    
     init_v(3, 0);
 	init_v(4, 1);
     init_v(5, 2);

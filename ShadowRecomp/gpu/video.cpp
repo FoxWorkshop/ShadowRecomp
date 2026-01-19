@@ -74,6 +74,8 @@ bool LogVSConstants = false;
 #include "shader/R2D_vs1.hlsl.dxil.h"
 #include "shader/Rcharacters_vs0.hlsl.dxil.h"
 #include "shader/Rcharacters_vs1.hlsl.dxil.h"
+#include "shader/Reyedoom_vs.hlsl.dxil.h"
+#include "shader/Rblack_bull_vs.hlsl.dxil.h"
 #endif
 
 #include "shader/FixedFunctionVertexShader.hlsl.spirv.h"
@@ -108,6 +110,8 @@ bool LogVSConstants = false;
 #include "shader/R2D_vs1.hlsl.spirv.h"
 #include "shader/Rcharacters_vs0.hlsl.spirv.h"
 #include "shader/Rcharacters_vs1.hlsl.spirv.h"
+#include "shader/Reyedoom_vs.hlsl.spirv.h"
+#include "shader/Rblack_bull_vs.hlsl.spirv.h"
 
 
 namespace plume
@@ -2450,12 +2454,11 @@ GuestShader* CreateShader(ResourceType resourceType)
 
 		shader = g_userHeap.AllocPhysical<GuestShader>(resourceType);
 
-		//if (hash == 0xe555c89eab6e17ed)
 		if (hash == 0xb2b7a0a5e7d5805f)
 		{
 			shader->shader = CREATE_SHADER(R2D_vs0);
 		}
-		else if (hash == 0xcefa8ae484bff7a2) //(hash == 0x89dd45174e675122)
+		else if (hash == 0xcefa8ae484bff7a2)
 		{
 			shader->shader = CREATE_SHADER(R2D_vs1);
 		}
@@ -2463,12 +2466,21 @@ GuestShader* CreateShader(ResourceType resourceType)
 		{
 			shader->shader = CREATE_SHADER(Rcharacters_vs0);
 		}
-		else if (hash == 0xdfae999de3ea6283) //(hash == 0xa90eacbcad6cc71c)
+		else if (hash == 0xdfae999de3ea6283)
 		{
 			shader->shader = CREATE_SHADER(Rcharacters_vs1);
 		}
+		else if (hash == 0x70f76babf348a2b8)
+		{
+			shader->shader = CREATE_SHADER(Reyedoom_vs);
+		}
+		else if (hash == 0xebec9b6d9de987da)
+		{
+			shader->shader = CREATE_SHADER(Rblack_bull_vs);
+		}
 		else
 		{
+			hash = hash;
 			printf("unknown shader, it's time to implement xshader recomp\n");
 		}
 

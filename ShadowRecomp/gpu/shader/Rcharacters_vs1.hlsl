@@ -4,7 +4,7 @@ struct VS_INPUT
 {
     float4 iPos : TEXCOORD;
     float4 weights : TEXCOORD1;
-    uint2 bones : TEXCOORD2;
+    int2 bones : TEXCOORD2;
     float4 v[13] : TEXCOORD3;
 };
 
