@@ -218,7 +218,7 @@ if (WIN32)
 
     set(WIN32_ICON_PATH "${PROJECT_SOURCE_DIR}/../ShadowRecompResources/images/game_icon.ico")
 
-    configure_file("res/win32/res.rc.template" "${CMAKE_BINARY_DIR}/res.rc" @ONLY)
+    configure_file("res/Win32_/res.rc.template" "${CMAKE_BINARY_DIR}/res.rc" @ONLY)
     add_executable(ShadowRecomp ${SHADOW_RECOMP_CXX_SOURCES} "${CMAKE_BINARY_DIR}/res.rc")
 
      # Hide console for release configurations.
