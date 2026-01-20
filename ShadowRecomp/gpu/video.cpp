@@ -299,8 +299,6 @@ struct VBData
 
 std::vector<VBData> g_VBList;
 
-
-
 static GuestTexture* g_textures[TexSlotMax];
 static RenderSamplerDesc g_samplerDescs[TexSlotMax];
 static TextureCombinerState g_sharedSamplerDescs[TexSlotMax];
@@ -321,8 +319,6 @@ struct VBS
 	int32_t size;
 
 };
-
-std::vector<VBS> VBlist; //todo delete
 
 X_STREAMINPUT g_Xbox_SetStreamSource[X_VSH_MAX_STREAMS];
 

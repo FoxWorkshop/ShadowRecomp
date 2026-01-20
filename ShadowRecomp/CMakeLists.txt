@@ -121,6 +121,11 @@ set(SHADOW_RECOMP_UI_CXX_SOURCES
     "ui/imgui_utils.cpp"
 )
 
+set(SHADOW_RECOMP_MOD_CXX_SOURCES
+    "mod/mod_loader.cpp"
+)
+
+
 set(SHADOW_RECOMP_THIRDPARTY_SOURCES
     "${SHADOW_RECOMP_THIRDPARTY_ROOT}/imgui/backends/imgui_impl_sdl2.cpp"
     "${SHADOW_RECOMP_THIRDPARTY_ROOT}/imgui/imgui.cpp"
@@ -169,13 +174,52 @@ set(SHADOW_RECOMP_CXX_SOURCES
     ${SHADOW_RECOMP_PATCHES_CXX_SOURCES}
     ${SHADOW_RECOMP_UI_CXX_SOURCES}
     ${SHADOW_RECOMP_USER_CXX_SOURCES}
+    ${SHADOW_RECOMP_MOD_CXX_SOURCES}
     ${SHADOW_RECOMP_THIRDPARTY_SOURCES}
 )
 
+include("version.cmake")
+
+set(VERSION_TXT "${PROJECT_SOURCE_DIR}/res/version.txt")
+
+# Only show Git info and build type if not Release.
+set(SHOW_GIT_INFO_AND_BUILD_TYPE 0)
+if (NOT ${CMAKE_BUILD_TYPE} MATCHES "Release")
+    set(SHOW_GIT_INFO_AND_BUILD_TYPE 1)
+endif()
+
+GenerateVersionSources(
+    OUTPUT_DIR ${PROJECT_SOURCE_DIR}
+    VERSION_TXT ${VERSION_TXT}
+    H_TEMPLATE "${PROJECT_SOURCE_DIR}/res/version.h.template"
+    CXX_TEMPLATE "${PROJECT_SOURCE_DIR}/res/version.cpp.template"
+    BUILD_TYPE ${CMAKE_BUILD_TYPE}
+    SHOW_GIT_INFO ${SHOW_GIT_INFO_AND_BUILD_TYPE}
+    SHOW_BUILD_TYPE ${SHOW_GIT_INFO_AND_BUILD_TYPE}
+)
+
 if (WIN32)
+    # Create binary version number for Win32 integer attributes.
+    CreateVersionString(
+        VERSION_TXT ${VERSION_TXT}
+        OUTPUT_CSV 1
+        OUTPUT_VAR WIN32_VERSION_BINARY
+    )
+
+    # Create string version number for Win32 detailed attributes.
+    CreateVersionString(
+        VERSION_TXT ${VERSION_TXT}
+        BUILD_TYPE ${CMAKE_BUILD_TYPE}
+        SHOW_GIT_INFO ${SHOW_GIT_INFO_AND_BUILD_TYPE}
+        SHOW_BUILD_TYPE ${SHOW_GIT_INFO_AND_BUILD_TYPE}
+        OUTPUT_VAR WIN32_VERSION_STRING
+    )
 
 
-   add_executable(ShadowRecomp ${SHADOW_RECOMP_CXX_SOURCES} "gpu/FixedFunction.h")
+    set(WIN32_ICON_PATH "${PROJECT_SOURCE_DIR}/../ShadowRecompResources/images/game_icon.ico")
+
+    configure_file("res/win32/res.rc.template" "${CMAKE_BINARY_DIR}/res.rc" @ONLY)
+    add_executable(ShadowRecomp ${SHADOW_RECOMP_CXX_SOURCES} "${CMAKE_BINARY_DIR}/res.rc")
 
      # Hide console for release configurations.
     if (${CMAKE_BUILD_TYPE} MATCHES "Release")
@@ -320,3 +364,13 @@ compile_vertex_shader(Rcharacters_vs0)
 compile_vertex_shader(Rcharacters_vs1)
 compile_vertex_shader(Reyedoom_vs)
 compile_vertex_shader(Rblack_bull_vs)
+
+set(RESOURCES_SOURCE_PATH "${PROJECT_SOURCE_DIR}/../ShadowRecompResources")
+set(RESOURCES_OUTPUT_PATH "${PROJECT_SOURCE_DIR}/res")
+
+## Game Icon ##
+#BIN2C(TARGET_OBJ ShadowRecomp SOURCE_FILE "${RESOURCES_SOURCE_PATH}/images/game_icon.bmp" DEST_FILE "${RESOURCES_OUTPUT_PATH}/images/game_icon.bmp" ARRAY_NAME "g_game_icon")
+#BIN2C(TARGET_OBJ ShadowRecomp SOURCE_FILE "${RESOURCES_SOURCE_PATH}/images/game_icon_evil.bmp" DEST_FILE "${RESOURCES_OUTPUT_PATH}/images/game_icon_evil.bmp" ARRAY_NAME "g_game_icon_evil")
+
+## Audio ##
+#BIN2C(TARGET_OBJ UnleashedRecomp SOURCE_FILE "${RESOURCES_SOURCE_PATH}/music/installer.ogg" DEST_FILE "${RESOURCES_OUTPUT_PATH}/music/installer.ogg" ARRAY_NAME "g_installer_music")
