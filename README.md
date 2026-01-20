@@ -14,7 +14,7 @@ The port currently only work on Windows since it uses DirectX 12. Support for Li
 **This project does not include any game assets. You must provide the files from your own legally acquired copy of the game to install or build Shadow Recompiled.**
 
 [XboxRecomp](https://github.com/FoxWorkshop/XboxRecomp) is the main recompiler used for converting the game's original X86 code into compatible C++. 
-The development of that recompiler was directly inspired by [XenonXeRecomp](https://github.com/hedge-dev/XenonRecomp), which was used to create [Sonic Unleashed Recompiled](https://github.com/hedge-dev/UnleashedRecomp).
+The development of that recompiler was directly inspired by [XenonRecomp](https://github.com/hedge-dev/XenonRecomp), which was used to create [Sonic Unleashed Recompiled](https://github.com/hedge-dev/UnleashedRecomp).
 
 ## Table of Contents
 
