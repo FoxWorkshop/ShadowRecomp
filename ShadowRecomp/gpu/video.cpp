@@ -46,11 +46,6 @@ bool LogVSConstants = false;
 #include "shader/FixedFunctionPixelShader.hlsl.dxil.h"
 #include "shader/PassthroughVertexShader.hlsl.dxil.h"
 
-#include "shader/VS_ColoredTriangle.hlsl.dxil.h"
-#include "shader/VS_FullscreenQuad.hlsl.dxil.h"
-#include "shader/PS_ColoredTriangle.hlsl.dxil.h"
-#include "shader/PS_TexturedQuad.hlsl.dxil.h"
-
 #include "shader/copy_vs.hlsl.dxil.h"
 #include "shader/copy_color_ps.hlsl.dxil.h"
 #include "shader/copy_depth_ps.hlsl.dxil.h"
@@ -81,11 +76,6 @@ bool LogVSConstants = false;
 #include "shader/FixedFunctionVertexShader.hlsl.spirv.h"
 #include "shader/PassthroughVertexShader.hlsl.spirv.h"
 #include "shader/FixedFunctionPixelShader.hlsl.spirv.h"
-
-#include "shader/VS_ColoredTriangle.hlsl.spirv.h"
-#include "shader/VS_FullscreenQuad.hlsl.spirv.h"
-#include "shader/PS_ColoredTriangle.hlsl.spirv.h"
-#include "shader/PS_TexturedQuad.hlsl.spirv.h"
 
 #include "shader/copy_vs.hlsl.spirv.h"
 #include "shader/copy_color_ps.hlsl.spirv.h"
