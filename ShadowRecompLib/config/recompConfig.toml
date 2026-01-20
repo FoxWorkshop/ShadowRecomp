@@ -44,7 +44,7 @@ functions = [
 	{ address = 0x558A0, size = 0x114 },
 	{ address = 0x25C10, size = 0x3F },
 	{ address = 0x26D30, size = 0xAC },
-	{ address = 0x3FBF0, size = 0x590 },
+	{ address = 0x3FBF0, size = 0x5C4 },
 	{ address = 0x415E0, size = 0x4E },	
 	{ address = 0x51830, size = 0x6C },
 	{ address = 0x51910, size = 0x70 },
@@ -235,6 +235,7 @@ functions = [
 	{ address = 0x1B3B10, size = 0x48 }, #missing 
 	{ address = 0x1825E0, size = 0x10 }, #missing 	
 	{ address = 0x236A00, size = 0x36 }, #missing 
+	{ address = 0x186FF0, size = 0x14 }, #missing 	
 	
 	{ address = 0x400708, size = 0x24 }, #added automatically from ida
 	{ address = 0x407f17, size = 0x49 },
