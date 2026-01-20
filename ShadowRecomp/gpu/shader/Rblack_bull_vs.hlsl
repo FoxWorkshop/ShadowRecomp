@@ -54,7 +54,7 @@ VS_OUTPUT main(const VS_INPUT xIn)
 
 	// Initialize input registers from the vertex buffer data
 	// Or use the register's default value (which can be changed by the title)
-#define init_v(j, i) v##j = lerp(xIn.v[i], vRegisterDefaultValues[i], vRegisterDefaultFlags[i]);
+#define init_v(j, i) v##j = lerp(xIn.v[i], vRegisterDefaultValues[j], vRegisterDefaultFlags[j]);
 
 	// Note : unroll manually instead of for-loop, because of the ## concatenation
     init_v(3, 0);

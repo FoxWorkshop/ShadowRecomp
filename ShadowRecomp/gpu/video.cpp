@@ -2486,7 +2486,7 @@ GuestShader* CreateShader(ResourceType resourceType)
 		{
 			shader->shader = CREATE_SHADER(Rcharacters_vs0);
 		}
-		else if (hash == 0xdfae999de3ea6283)
+		else if (hash == 0xdfae999de3ea6283) //this shader fails gpu based validation
 		{
 			shader->shader = CREATE_SHADER(Rcharacters_vs1);
 		}

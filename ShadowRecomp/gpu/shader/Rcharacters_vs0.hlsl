@@ -11,6 +11,8 @@ struct VS_INPUT
 };
 
 
+
+
 struct VS_OUTPUT // Declared identical to pixel shader input (see PS_INPUT)
 {
     float4 oPos : SV_Position; // Homogeneous clip space position
@@ -56,7 +58,7 @@ VS_OUTPUT main(VS_INPUT xIn)
 
 	// Initialize input registers from the vertex buffer data
 	// Or use the register's default value (which can be changed by the title)
-#define init_v(j, i) v##j = lerp(xIn.v[i], vRegisterDefaultValues[i], vRegisterDefaultFlags[i]);
+#define init_v(j, i) v##j = lerp(xIn.v[i], vRegisterDefaultValues[j], vRegisterDefaultFlags[j]);
 
 	// Note : unroll manually instead of for-loop, because of the ## concatenation
     init_v(3, 0);
@@ -73,16 +75,23 @@ VS_OUTPUT main(VS_INPUT xIn)
 	init_v(14, 11);
 	init_v(15, 12);
     
+    
+    if (xIn.bones.x >= 100 || xIn.bones.x < 0)
+        xIn.bones.x = 0;
+    
+    if (xIn.bones.y >= 100 || xIn.bones.y < 0)
+        xIn.bones.y = 0;
+    
     v0 = lerp(xIn.iPos, vRegisterDefaultValues[0], vRegisterDefaultFlags[0]);
     v1 = lerp(xIn.weights, vRegisterDefaultValues[1], vRegisterDefaultFlags[1]);
-    v2 = lerp(_tof4(xIn.bones), vRegisterDefaultValues[2], vRegisterDefaultFlags[2]);
+    v2 = _tof4(xIn.bones);
 
 	// Temp variable for paired VS instruction
     float4 temp;
 
 	// Xbox shader program starts here
 	
-  x_arl(a0,x, v2.x);
+  x_arl(a0, x, (uint)v2.x);
 
 
   x_mov(r11,xyzw, c(-91));

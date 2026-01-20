@@ -1,12 +1,19 @@
 #include "common_vs.hlsli"
 
+//this shader seems to be used for Shadow's hands and legs.
+// currently, bone indices break GPU Validation pass by D3D12, are the bone indice getting corrupted randomly? 
+
 struct VS_INPUT
 {
-    float4 iPos : TEXCOORD;
-    float4 weights : TEXCOORD1;
-    int2 bones : TEXCOORD2;
-    float4 v[13] : TEXCOORD3;
+    float4 v0 : TEXCOORD0; // position
+    float4 v1 : TEXCOORD1; // weights
+    int2 v2 : TEXCOORD2; // bone indices 
+    float4 v3 : TEXCOORD3; // normal
+    float4 v4 : TEXCOORD4;
+    float4 v5 : TEXCOORD5; // UVs
+    float4 v[10] : TEXCOORD6;
 };
+
 
 
 struct VS_OUTPUT // Declared identical to pixel shader input (see PS_INPUT)
@@ -25,12 +32,14 @@ struct VS_OUTPUT // Declared identical to pixel shader input (see PS_INPUT)
 };
 
 
+
 VS_OUTPUT main(VS_INPUT xIn)
 {
 
     
+    
 	// Output variables
-   float4 oPos, oD0, oD1, oB0, oB1, oT0, oT1, oT2, oT3;
+    float4 oPos, oD0, oD1, oB0, oB1, oT0, oT1, oT2, oT3;
     oPos = oD0 = oD1 = oB0 = oB1 = oT0 = oT1 = oT2 = oT3 = float4(0, 0, 0, 1); // Pre-initialize w component of outputs to 1
 
 	// Single component outputs
@@ -39,6 +48,7 @@ VS_OUTPUT main(VS_INPUT xIn)
     oPts = 0;
 
 	// Address (index) register
+    
     int1 a0 = 0;
 
 	// Temporary registers
@@ -52,92 +62,103 @@ VS_OUTPUT main(VS_INPUT xIn)
 	// Unpack 16 flags from 4 float4 constant registers
     float vRegisterDefaultFlags[16] = (float[16]) vRegisterDefaultFlagsPacked;
 
-	// Initialize input registers from the vertex buffer data
-	// Or use the register's default value (which can be changed by the title)
-#define init_v(j, i) v##j = lerp(xIn.v[i], vRegisterDefaultValues[i], vRegisterDefaultFlags[i]);
-
+//#define init_v(i) v##i = lerp(xIn.v[i], vRegisterDefaultValues[i], vRegisterDefaultFlags[i]);
+    
+    #define init_v(j, i) v##j = lerp(xIn.v[i], vRegisterDefaultValues[j], vRegisterDefaultFlags[j]);
 	// Note : unroll manually instead of for-loop, because of the ## concatenation
-	//init_v(0);init_v(1);init_v(2);
     
-    init_v(3, 0);
-	init_v(4, 1);
-    init_v(5, 2);
-    init_v(6, 3);
-    init_v(7, 4);
-	init_v(8, 5);
-    init_v(9, 6);
-    init_v(10, 7);
-    init_v(11, 8);
-	init_v(12, 9);
-	init_v(13, 10);
-	init_v(14, 11);
-	init_v(15, 12);
+
     
-    v0 = lerp(xIn.iPos, vRegisterDefaultValues[0], vRegisterDefaultFlags[0]);
-    v1 = lerp(xIn.weights, vRegisterDefaultValues[1], vRegisterDefaultFlags[1]);
-    v2 = lerp(_tof4(xIn.bones), vRegisterDefaultValues[2], vRegisterDefaultFlags[2]);
+    init_v(6, 0);
+    init_v(7, 1);
+	init_v(8, 2);
+    init_v(9, 3);
+    init_v(10, 4);
+    init_v(11, 5);
+	init_v(12, 6);
+	init_v(13, 7);
+	init_v(14, 8);
+	init_v(15, 9);
+    
+    v0 = lerp(xIn.v0, vRegisterDefaultValues[0], vRegisterDefaultFlags[0]);
+    v1 = lerp(xIn.v1, vRegisterDefaultValues[1], vRegisterDefaultFlags[1]);
+    
+
+    if (xIn.v2.x >= 100 || xIn.v2.x < 0)
+        xIn.v2.x = 0;
+    
+    if (xIn.v2.y >= 100 || xIn.v2.y < 0)
+        xIn.v2.y = 0;
+       
+    v2 = float4((float) xIn.v2.x, (float) xIn.v2.y, 0.0f, 0.0f);
+  
+    v3 = lerp(xIn.v3, vRegisterDefaultValues[3], vRegisterDefaultFlags[3]);
+    v4 = lerp(xIn.v4, vRegisterDefaultValues[4], vRegisterDefaultFlags[4]);
+    v5 = lerp(xIn.v5, vRegisterDefaultValues[5], vRegisterDefaultFlags[5]);
+
 
 	// Temp variable for paired VS instruction
     float4 temp;
 
 	// Xbox shader program starts here
+    
 	
-  x_arl(a0,x, v2.x);
+  x_arl(a0, x, v2.x);
 
-  x_mov(r11,xyzw, c(-91));
-  x_mov(oT0,xyzw, v5);
+  x_mov(r11, xyzw, c(-91));
+  x_mov(oT0, xyzw, v5);
 
-  x_mul(r8,xyzw, v1.x, c(a0.x-88));
+  x_mul(r8, xyzw, v1.x, c(a0.x-88));
 
-  x_mul(r9,xyzw, v1.x, c(a0.x-87));
+  x_mul(r9, xyzw, v1.x, c(a0.x-87));
 
-  x_mul(r10,xyzw, v1.x, c(a0.x-86));
+  x_mul(r10, xyzw, v1.x, c(a0.x-86));
 
-  x_arl(a0,x, v2.y);
+  x_arl(a0, x, v2.y);
 
-  x_mad(r8,xyzw, v1.y, c(a0.x-88), r8);
+  x_mad(r8, xyzw, v1.y, c(a0.x-88), r8);
 
-  x_mad(r9,xyzw, v1.y, c(a0.x-87), r9);
+  x_mad(r9, xyzw, v1.y, c(a0.x-87), r9);
 
-  x_mad(r10,xyzw, v1.y, c(a0.x-86), r10);
+  x_mad(r10, xyzw, v1.y, c(a0.x-86), r10);
 
-  x_dp4(r3,x, v0, r8);
+  x_dp4(r3, x, v0, r8);
 
-  x_dp4(r3,y, v0, r9);
+  x_dp4(r3, y, v0, r9);
 
-  x_dp4(r3,z, v0, r10);
+  x_dp4(r3, z, v0, r10);
 
-  x_dp3(r5,x, v3.xyzz, r8.xyzz);
+  x_dp3(r5, x, v3.xyzz, r8.xyzz);
 
-  x_dp3(r5,y, v3.xyzz, r9.xyzz);
+  x_dp3(r5, y, v3.xyzz, r9.xyzz);
 
-  x_dp3(r5,z, v3.xyzz, r10.xyzz);
+  x_dp3(r5, z, v3.xyzz, r10.xyzz);
 
-  x_dph(oPos,w, r3, c(-92));
+  x_dph(oPos, w, r3, c(-92));
 
-  x_dp3(r5,w, r5.xyzz, r5.xyzz);
+  x_dp3(r5, w, r5.xyzz, r5.xyzz);
 
-  x_dph(oPos,x, r3, c(-95));
-  x_rcc(r1,x, r12.w);
+  x_dph(oPos, x, r3, c(-95));
+  x_rcc(r1, x, r12.w);
 
-  x_dph(oPos,y, r3, c(-94));
-  x_rsq(r1,w, r5.w);
+  x_dph(oPos, y, r3, c(-94));
+  x_rsq(r1, w, r5.w);
 
-  x_dph(oPos,z, r3, c(-93));
+  x_dph(oPos, z, r3, c(-93));
 
-  x_mul(r5,xyz, r5.xyzz, r1.w);
-  x_mov(oFog,x, r12.w);
+  x_mul(r5, xyz, r5.xyzz, r1.w);
+  x_mov(oFog, x, r12.w);
 
-  x_mad(oPos,xyz, r12.xyzz, r1.x, c(-96).xyzz);
+  x_mad(oPos, xyz, r12.xyzz, r1.x, c(-96).xyzz);
 
-  x_dp3(r6,x, c(-90).xyzz, r5.xyzz);
+  x_dp3(r6, x, c(-90).xyzz, r5.xyzz);
 
-  x_max(r6,x, c(-90).w, -r6.x);
+  x_max(r6, x, c(-90).w, -r6.x);
 
-  x_mad(r11,xyz, c(-89).xyzz, r6.x, r11.xyzz);
+  x_mad(r11, xyz, c(-89).xyzz, r6.x, r11.xyzz);
 
 
-  x_mul(oD0,xyzw, c(95), r11);
+  x_mul(oD0, xyzw, c(95), r11);
 	// End Xbox shader program
 
 	// Copy variables to output struct
