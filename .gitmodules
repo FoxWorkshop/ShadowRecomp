@@ -40,3 +40,6 @@
 [submodule "thirdparty/plume"]
 	path = thirdparty/plume
 	url = https://github.com/renderbag/plume.git
+[submodule "ShadowRecompResources"]
+	path = ShadowRecompResources
+	url = https://github.com/FoxWorkshop/ShadowRecompResources
