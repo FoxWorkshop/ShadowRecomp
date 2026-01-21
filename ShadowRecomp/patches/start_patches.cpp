@@ -91,14 +91,17 @@ X86_FUNC(sub_258550)
 	//X86_STORE_U32(ctx.esp.u32 + 4, 602); //Lava Shelter
 	//X86_STORE_U32(ctx.esp.u32 + 4, 710); //Devil Doom
 
-	//X86_STORE_U32(ctx.esp.u32 + 4, 400); //Central City
+	X86_STORE_U32(ctx.esp.u32 + 4, 400); //Central City
 
 
-	//GPU based validation = crash
+	//Those stages trigger a GPU based validation error, the shader related is Rcharacters_vs1, which seems to be used for characters hands / legs.  
+	//There is is currently a dirty hardcoded fix to avoid the crash, but something is wrong... Are bone indice getting corrupted?
+	//X86_STORE_U32(ctx.esp.u32 + 4, 201); //Glyphic Canyon 
+	//X86_STORE_U32(ctx.esp.u32 + 4, 210); //black bull (missing shaders)
 	//X86_STORE_U32(ctx.esp.u32 + 4, 402); //Sky Troops	
-	//X86_STORE_U32(ctx.esp.u32 + 4, 501); //air fleet (GPU based validation = crash due to constants out of bound access??)
-	//X86_STORE_U32(ctx.esp.u32 + 4, 201); //Glyphic Canyon (GPU based validation = crash due to constants out of bound access??)
-	//X86_STORE_U32(ctx.esp.u32 + 4, 210); //black bull (GPU based validation = crash due to constants out of bound access??)
+	//X86_STORE_U32(ctx.esp.u32 + 4, 501); //air fleet 
+
+
 	__imp__sub_258550(ctx, base);
 }
 

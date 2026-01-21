@@ -7,7 +7,6 @@
 #include <DirectXMath.h>
 #include "FixedFunction.h"
 
-
 // original code (mostly) re used from CXBX Reloaded
 // Since modern API don't have a fixed function pipeline, we have to emulate it ourselves using shaders.
 // This page handle many features of the fixed function pipeline such as lighting, world/view/projection matrices, etc
@@ -628,6 +627,16 @@ struct float4 {
 		}
 	}
 
+	float4 operator+(const float4& rhs) const
+	{
+		return { x + rhs.x, y + rhs.y, z + rhs.z, w + rhs.w };
+	}
+
+	float4 operator*(float s) const
+	{
+		return { x * s, y * s, z * s, w * s };
+	}
+
 	static inline float4 mul(const float4& a, const float4& b)
 	{
 		return float4{ a.x * b.x, a.y * b.y, a.z * b.z, a.w * b.w };
@@ -645,6 +654,125 @@ struct float4 {
 };
 
 
+float dot4(const float4& a, const float4& b) {
+	return a.x * b.x + a.y * b.y + a.z * b.z + a.w * b.w;
+}
+
+struct BoneRows
+{
+	float4 r0;
+	float4 r1;
+	float4 r2;
+};
+
+extern uint32_t vsh_constants[HOST_D3DVS_CONSTREG_FULL][4];
+static float4 c(int register_number)
+{
+	// Map Xbox [-96, 95] to Host [0, 191]
+	// Account for Xbox's negative constant indexes
+	register_number += X_D3DSCM_CORRECTION;
+
+	// If the index is too large, set it to -1 so 0 is returned
+	// Note: returning 0 directly requires many more instructions
+	if (register_number >= X_D3DVS_CONSTREG_COUNT) // X_D3DVS_CONSTREG_COUNT
+		register_number = -1;
+
+	float4 constants = { *reinterpret_cast<const float*>(&vsh_constants[register_number][0]), *reinterpret_cast<const float*>(&vsh_constants[register_number][1]),
+		*reinterpret_cast<const float*>(&vsh_constants[register_number][2]), *reinterpret_cast<const float*>(&vsh_constants[register_number][3]) };
+
+	return constants;
+}
+
+
+inline BoneRows fetchBone(int boneIndex)
+{
+	// boneIndex comes directly from v2.x or v2.y
+	BoneRows b;
+	b.r0 = c(boneIndex - 88);
+	b.r1 = c(boneIndex - 87);
+	b.r2 = c(boneIndex - 86);
+	return b;
+}
+
+// VB0 structure (position, normal, UV)
+struct MeshVertex {
+	float pos[3];      // v0 in shader
+	float normal[3];   // v3 in shader
+	float uv[2];       // v5 in shader
+};
+
+// VB1 structure (weights and bone indices)
+struct SkinVertex {
+	uint8_t weights[4];      // v1 in shader (normalized 0-255)
+	uint16_t boneIndices[2]; // v2 in shader
+};
+
+
+float4 deformPosition(
+	const MeshVertex& mesh,
+	const SkinVertex& skin)
+{
+	// Input position (v0)
+	float4 v0(mesh.pos[0], mesh.pos[1], mesh.pos[2], 1.0f);
+
+	// Weights are normalized bytes
+	float w0 = skin.weights[0] / 255.0f; // v1.x
+	float w1 = skin.weights[1] / 255.0f; // v1.y
+
+	// Bone indices (v2.x, v2.y)
+	int bone0 = skin.boneIndices[0];
+	int bone1 = skin.boneIndices[1];
+
+	// Fetch bone matrices
+	BoneRows b0 = fetchBone(bone0);
+	BoneRows b1 = fetchBone(bone1);
+
+	// Weighted bone rows
+	float4 r0 =
+		b0.r0 * w0 +
+		b1.r0 * w1;
+
+	float4 r1 =
+		b0.r1 * w0 +
+		b1.r1 * w1;
+
+	float4 r2 =
+		b0.r2 * w0 +
+		b1.r2 * w1;
+
+	// Transform position (dp4)
+	float4 skinned;
+	skinned.x = dot4(v0, r0);
+	skinned.y = dot4(v0, r1);
+	skinned.z = dot4(v0, r2);
+	skinned.w = 1.0f;
+
+	return skinned;
+}
+
+float4 projectPosition(const float4& skinned)
+{
+	float4 clip;
+	clip.x = dot4(skinned, c(-95));
+	clip.y = dot4(skinned, c(-94));
+	clip.z = dot4(skinned, c(-93));
+	clip.w = dot4(skinned, c(-92));
+	return clip;
+}
+
+
+inline float dot3(const float4& a, const float4& b)
+{
+	return a.x * b.x + a.y * b.y + a.z * b.z;
+}
+
+float4 processVertex(
+	const MeshVertex& mesh,
+	const SkinVertex& skin)
+{
+	float4 skinned = deformPosition(mesh, skin);
+	return projectPosition(skinned);
+}
 
 struct int1 {
 	int x;
@@ -809,24 +937,18 @@ void debug_dp3(const std::string& name, const float4& src0, const float4& src1, 
 		<< result.x << std::endl;
 }
 
-float dot4(const float4& a, const float4& b) {
-	return a.x * b.x + a.y * b.y + a.z * b.z + a.w * b.w;
-}
 
-extern uint32_t vsh_constants[HOST_D3DVS_CONSTREG_FULL][4];
-static float4 c(int register_number)
+
+static int16_t GetCorrectedNumber(int register_number)
 {
-	// Map Xbox [-96, 95] to Host [0, 191]
-	// Account for Xbox's negative constant indexes
-	//register_number += X_D3DSCM_CORRECTION;
+	register_number += X_D3DSCM_CORRECTION;
 
 	// If the index is too large, set it to -1 so 0 is returned
 	// Note: returning 0 directly requires many more instructions
 	if (register_number >= X_D3DVS_CONSTREG_COUNT) // X_D3DVS_CONSTREG_COUNT
 		register_number = -1;
 
-	printf("Get vhs constant with Register %d\n", register_number);
-	return vsh_constants[register_number][0];
+	return register_number;
 }
 
 float4 reverseScreenspaceTransform(float4 oPos)
@@ -842,8 +964,8 @@ float4 reverseScreenspaceTransform(float4 oPos)
 	// oPos.w and xboxViewportScale.z might be VERY big when a D24 depth buffer is used
 	// and multiplying oPos.xyz by oPos.w may cause precision issues.
 
-	float4 xboxScreenspaceOffset = { 256.5, 256.5, 0, 0 };
-	float4 xboxScreenspaceScale = { 256, -256, 1, 1 };
+	float4 xboxScreenspaceOffset = { 256, -256, 1.67772E+07f, 1.0f };
+	float4 xboxScreenspaceScale = { 256.50, 256.50, 0, 0 };
 	// Reverse screenspace offset
 	oPos.x -= xboxScreenspaceOffset.x;
 	oPos.y -= xboxScreenspaceOffset.y;
@@ -867,18 +989,102 @@ float4 reverseScreenspaceTransform(float4 oPos)
 	return oPos;
 }
 
-void reverseScreenspaceTransformZ(float oPos)
+
+#define BIAS 0.001
+
+float x_floor(float src)
+{
+	return floor(src + BIAS);
+}
+
+#define x_arl(dest, src0) dest = x_floor(src0)
+
+// Simulate the exact shader skinning calculation for vertex 988
+
+void SimulateVertexSkinning(int vertexIndex, uint8_t* vb0Data, uint8_t* vb1Data)
 {
 
-	float4 xboxScreenspaceOffset = { 256.5, 256.5, 0, 0 };
-	float4 xboxScreenspaceScale = { 256, -256, 1, 1 };
-	oPos -= xboxScreenspaceOffset.z;
-	oPos /= xboxScreenspaceScale.z;
-	oPos = oPos;
+	MeshVertex* meshVert = &((MeshVertex*)vb0Data)[vertexIndex];
+	SkinVertex* skinVert = &((SkinVertex*)vb1Data)[vertexIndex];
+
+	printf("\n=== Simulating Vertex %d ===\n", vertexIndex);
+
+	float4 clip = processVertex(*meshVert, *skinVert);
+
+	printf("After Projection (clip) %f, %f, %f, %f\n", clip.x, clip.y, clip.z, clip.w);
+
+	float rcpW = 1.0f / clip.w;  // x_rcc
+
+	float4 screen;
+	screen.x = clip.x * rcpW + c(-96).x;  // c(-96) = c(0)
+	screen.y = clip.y * rcpW + c(-96).y;
+	screen.z = clip.z * rcpW + c(-96).z;
+	screen.w = clip.w;
+
+	printf("After perspective+viewport (screen): %.3f, %.3f, %.3f, %.3f\n",
+		screen.x, screen.y, screen.z, screen.w);
+
+
 }
+
+
+void LogAllBonesConstants(uint8_t* vb1Data)
+{
+	for (int i = 0; i < 1126; i++)
+	{
+
+		// VB1 structure (weights and bone indices)
+		struct SkinVertex {
+			uint8_t weights[4];      // v1 in shader (normalized 0-255)
+			uint16_t boneIndices[2]; // v2 in shader
+		};
+
+
+		SkinVertex* skinVert = &((SkinVertex*)vb1Data)[i];
+
+
+		float4 v2 = {
+			(float)skinVert->boneIndices[0],
+			(float)skinVert->boneIndices[1],
+			0.0f, 0.0f
+		};
+
+
+		// Simulate shader: x_arl(a0, x, v2.x)
+		int a0 = (int)floor(v2.x + 0.001f);
+
+		// Get bone 0 matrix constants
+		int c0_idx = a0;
+		auto constantA = GetCorrectedNumber(c0_idx - 88);
+		auto constantB = GetCorrectedNumber(c0_idx - 87);
+		auto constantC = GetCorrectedNumber(c0_idx - 86);
+
+		printf("Bone %d: (constants ID used: %d, %d, %d):\n", a0, constantA, constantB, constantC);
+
+		// Simulate shader: x_arl(a0, x, v2.y)
+		auto a1 = (int)floor(v2.y + 0.001f);
+		// Get bone 1 matrix constants
+		int c1_idx = a1;
+		constantA = GetCorrectedNumber(c1_idx - 88);
+		constantB = GetCorrectedNumber(c1_idx - 87);
+		constantC = GetCorrectedNumber(c1_idx - 86);
+
+		printf("Bone %d: (constants ID used: %d, %d, %d):\n", c1_idx, constantA, constantB, constantC);
+
+	}
+
+	printf("");
+}
+
+
 void RunDebuggingShader(uint8_t* vertexData, uint8_t* vertexData2)
 {
+	return;
 
+	struct vbuffer {
+		uint8_t weights[4];
+		uint16_t bonesIndices[2];
+	};
 
 	float4 rawVertexData[3];
 	float4 rawVertexData2[2];
@@ -887,14 +1093,13 @@ void RunDebuggingShader(uint8_t* vertexData, uint8_t* vertexData2)
 	float* normals = (float*)(vertexData + 12);
 	float* uv = (float*)(vertexData + 24);
 
-	printf("vertex pos x y z %f, %f, %f\n", pos[0], pos[1], pos[2]);
 
 	rawVertexData[0] = { pos[0], pos[1], pos[2], 1.0f };
 	rawVertexData[1] = { normals[0], normals[1],normals[2], 0.0f}; //{ *reinterpret_cast<const float*>(&color[0]),  *reinterpret_cast<const float*>(&color[1]), *reinterpret_cast<const float*>(&color[2]), 1 };
 	rawVertexData[2] = { uv[0], uv[1], 0.0f, 1.0f };
 
-	uint8_t* weights = (uint8_t*)vertexData2;
-	uint8_t weight_data[4] = { weights[0], weights[1], weights[2], weights[3] };
+	vbuffer* vb = (vbuffer*)vertexData2;
+	uint8_t weight_data[4] = { vb[0].weights[0], vb[0].weights[1], vb[0].weights[2], vb[0].weights[3] };
 	int16_t* indices = (int16_t*)(vertexData2 + 4);
 	int16_t blendIndices[2] = { indices[0], indices[1] };
 
@@ -903,7 +1108,7 @@ void RunDebuggingShader(uint8_t* vertexData, uint8_t* vertexData2)
 	vs_consts.reserve(192);
 	std::vector<float4> vRegisterDefaultValues;
 	vRegisterDefaultValues.reserve(16);
-	std::vector<float> vRegisterDefaultFlags(16, 0.0f); // Assume all 0 for now
+	std::vector<float> vRegisterDefaultFlags(16, 0.0f); 
 
 	for (int i = 0; i < 192; i++)
 	{
@@ -950,52 +1155,127 @@ void RunDebuggingShader(uint8_t* vertexData, uint8_t* vertexData2)
 	std::vector<float4> v(16);
 	std::cout << "\n=== Initializing vertex registers ===" << std::endl;
 
-	int bone1_idx = (int)floor(blendIndices[0]) + 96; // Apply correction
-	int bone2_idx = (int)floor(blendIndices[1]) + 96;
-
-	float blendWeights[2] = {
-	weight_data[0] / 255.0f,  // v1.x
-	weight_data[1] / 255.0f   // v1.y
-	};
+	// Input registers
+	float4 v0, v1, v2, v3, v4, v5, v6, v7, v8, v9, v10, v11, v12, v13, v14, v15;
 
 
-	// Build blended transform matrix rows (only need 3 rows for position)
-	float4 r8 = float4::add(
-		float4::scale(blendWeights[0], vs_consts.at(bone1_idx - 88)),
-		float4::scale(blendWeights[1], vs_consts.at(bone2_idx - 88))
-	);
+	for (int i = 0; i < 5; i++)
+	{
+		float4 j = { (float)vb[i].bonesIndices[0], (float)vb[i].bonesIndices[1], 0.f, 0.f};
+		v2 = lerp(j, vRegisterDefaultValues[2], vRegisterDefaultFlags[2]);
 
-	float4 r9 = float4::add(
-		float4::scale(blendWeights[0], vs_consts.at(bone1_idx - 87)),
-		float4::scale(blendWeights[1], vs_consts.at(bone2_idx - 87))
-	);
+		int b0 = 0;
+		x_arl(b0, v2.x);
+		int b1 = 0;
+		x_arl(b1, v2.y);
 
-	float4 r10 = float4::add(
-		float4::scale(blendWeights[0], vs_consts.at(bone1_idx - 86)),
-		float4::scale(blendWeights[1], vs_consts.at(bone2_idx - 86))
-	);
+		printf("[%d]:\n", i);
+		printf("boneIndex (a0.x): %d\n", b0);
 
-	printf("r8 x y z w %f, %f, %f, %f\n", r8.x, r8.y, r8.z, r8.w);
-	printf("r9 x y z w %f, %f, %f, %f\n", r9.x, r9.y, r9.z, r9.w);
-	printf("r10 x y z w %f, %f, %f, %f\n", r10.x, r10.y, r10.z, r10.w);
+		printf("Constants used:\n");
+		float4 const0 = c(b0 - 88);
+		printf("-88 (%d) - %f %f %f %f\n", GetCorrectedNumber(b0 - 88), const0.x, const0.y, const0.z, const0.w);
+		
+		const0 = c(b0 - 87);
+		printf("-87 (%d) - %f %f %f %f\n", GetCorrectedNumber(b0 - 87), const0.x, const0.y, const0.z, const0.w);
+		
+		const0 = c(b0 - 86);
+		printf("-86 (%d) - %f %f %f %f\n", GetCorrectedNumber(b0 - 86), const0.x, const0.y, const0.z, const0.w);
 
-	float r3_x = dot4(rawVertexData[0], r8);
-	float r3_y = dot4(rawVertexData[0], r9);
-	float r3_z = dot4(rawVertexData[0], r10);
 
-	printf("r3_x %f\n", r3_x);
-	printf("r3_y %f\n", r3_y);
-	printf("r3_z %f\n", r3_z);
+		printf("boneIndex 2 (a0.y): %d\n", b1);
 
-	float4 proj_z_row = vs_consts.at(-93 + 96); // c[3]
 
-	printf("proj_z_row x y z w %f %f %f %f\n", proj_z_row.x, proj_z_row.y, proj_z_row.z, proj_z_row.w);
-	float oPos_z = r3_x * proj_z_row.x +
-		r3_y * proj_z_row.y +
-		r3_z * proj_z_row.z +
-		proj_z_row.w;
+		printf("Constants used:\n");
+		const0 = c(b1 - 88);
+		printf("-88 (%d) - %f %f %f %f\n", GetCorrectedNumber(b1 - 88), const0.x, const0.y, const0.z, const0.w);
 
-	printf("oPos_z %f\n", oPos_z);
-	reverseScreenspaceTransformZ(oPos_z);
+		const0 = c(b1 - 87);
+		printf("-87 (%d) - %f %f %f %f\n", GetCorrectedNumber(b1 - 87), const0.x, const0.y, const0.z, const0.w);
 
+		const0 = c(b1 - 86);
+		printf("-86 (%d) - %f %f %f %f\n", GetCorrectedNumber(b1 - 86), const0.x, const0.y, const0.z, const0.w);
+	}
+
+	printf("\n");
+
+	for (int i = 100; i < 105; i++)
+	{
+		float4 j = { (float)vb[i].bonesIndices[0], (float)vb[i].bonesIndices[1], 0.f, 0.f};
+		v2 = lerp(j, vRegisterDefaultValues[2], vRegisterDefaultFlags[2]);
+
+		int b0 = 0;
+		x_arl(b0, v2.x);
+		int b1 = 0;
+		x_arl(b1, v2.y);
+
+		printf("[%d]:\n", i);
+		printf("boneIndex (a0.x): %d\n", b0);
+
+		printf("Constants used:\n");
+		float4 const0 = c(b0 - 88);
+		printf("-88 (%d) - %f %f %f %f\n", GetCorrectedNumber(b0 - 88), const0.x, const0.y, const0.z, const0.w);
+		
+		const0 = c(b0 - 87);
+		printf("-87 (%d) - %f %f %f %f\n", GetCorrectedNumber(b0 - 87), const0.x, const0.y, const0.z, const0.w);
+		
+		const0 = c(b0 - 86);
+		printf("-86 (%d) - %f %f %f %f\n", GetCorrectedNumber(b0 - 86), const0.x, const0.y, const0.z, const0.w);
+
+
+		printf("boneIndex 2 (a0.y): %d\n", b1);
+
+
+		printf("Constants used:\n");
+		const0 = c(b1 - 88);
+		printf("-88 (%d) - %f %f %f %f\n", GetCorrectedNumber(b1 - 88), const0.x, const0.y, const0.z, const0.w);
+
+		const0 = c(b1 - 87);
+		printf("-87 (%d) - %f %f %f %f\n", GetCorrectedNumber(b1 - 87), const0.x, const0.y, const0.z, const0.w);
+
+		const0 = c(b1 - 86);
+		printf("-86 (%d) - %f %f %f %f\n", GetCorrectedNumber(b1 - 86), const0.x, const0.y, const0.z, const0.w);
+	}
+
+	printf("\n");
+
+	for (int i = 750; i < 755; i++)
+	{
+		float4 j = { (float)vb[i].bonesIndices[0], (float)vb[i].bonesIndices[1], 0.f, 0.f};
+		v2 = lerp(j, vRegisterDefaultValues[2], vRegisterDefaultFlags[2]);
+
+		int b0 = 0;
+		x_arl(b0, v2.x);
+		int b1 = 0;
+		x_arl(b1, v2.y);
+
+		printf("[%d]:\n", i);
+		printf("boneIndex (a0.x): %d\n", b0);
+
+		printf("Constants used:\n");
+		float4 const0 = c(b0 - 88);
+		printf("-88 (%d) - %f %f %f %f\n", GetCorrectedNumber(b0 - 88), const0.x, const0.y, const0.z, const0.w);
+		
+		const0 = c(b0 - 87);
+		printf("-87 (%d) - %f %f %f %f\n", GetCorrectedNumber(b0 - 87), const0.x, const0.y, const0.z, const0.w);
+		
+		const0 = c(b0 - 86);
+		printf("-86 (%d) - %f %f %f %f\n", GetCorrectedNumber(b0 - 86), const0.x, const0.y, const0.z, const0.w);
+
+
+		printf("boneIndex 2 (a0.y): %d\n", b1);
+
+
+		printf("Constants used:\n");
+		const0 = c(b1 - 88);
+		printf("-88 (%d) - %f %f %f %f\n", GetCorrectedNumber(b1 - 88), const0.x, const0.y, const0.z, const0.w);
+
+		const0 = c(b1 - 87);
+		printf("-87 (%d) - %f %f %f %f\n", GetCorrectedNumber(b1 - 87), const0.x, const0.y, const0.z, const0.w);
+
+		const0 = c(b1 - 86);
+		printf("-86 (%d) - %f %f %f %f\n", GetCorrectedNumber(b1 - 86), const0.x, const0.y, const0.z, const0.w);
+	}
+
+	printf("okay\n");
 }

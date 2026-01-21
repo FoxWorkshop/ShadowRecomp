@@ -2473,6 +2473,7 @@ GuestShader* CreateShader(ResourceType resourceType)
 		uint64_t hash = GetVertexShaderKey();
 
 		shader = g_userHeap.AllocPhysical<GuestShader>(resourceType);
+		//printf("now use shader %x\n", hash);
 
 		if (hash == 0xb2b7a0a5e7d5805f)
 		{
