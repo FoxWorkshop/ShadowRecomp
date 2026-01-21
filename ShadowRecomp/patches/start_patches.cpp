@@ -37,6 +37,20 @@ int sub_2B0164_r(int a1)
 	return TRUE;
 }
 
+//infinite lives todo implement properly as a cheat
+bool infiniteLives = true;
+X86_FUNC_IMPL(__imp__sub_22D120);
+X86_FUNC(sub_22D120)
+{
+	if (infiniteLives)
+	{
+		auto lives = X86_LOAD_U32(ctx.esp.u32 + 4);
+		lives = 99;
+		X86_STORE_U32(ctx.esp.u32 + 4, lives);
+	}
+
+	__imp__sub_22D120(ctx, base);
+}
 
 //skip FMV
 X86_FUNC_IMPL(__imp__sub_24F80);
