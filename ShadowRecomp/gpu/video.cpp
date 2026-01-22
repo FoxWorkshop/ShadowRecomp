@@ -261,6 +261,7 @@ static PipelineState g_pipelineState;
 static int32_t g_depthBias;
 static float g_slopeScaledDepthBias;
 int32_t g_RenderUpscaleFactor = 1;
+static bool is_loadingThread = false;
 
 GuestSurface* GetRenderTarget()
 {
@@ -271,6 +272,8 @@ uint32_t g_VertexShader_Handle = 0;
 VertexShaderMode g_Xbox_VertexShaderMode = VertexShaderMode::FixedFunction;
 static float g_ZScale = 1.0f;
 DWORD g_Xbox_VertexShaderConstantMode = 1;
+
+static uint32_t* g_currentPaletteData;
 
 //constants are variable send to the GPU
 static uint32_t g_vertexShaderConstants[HOST_D3DVS_CONSTREG_FULL * 4];
@@ -3999,6 +4002,23 @@ X86_FUNC(sub_203A20) {
 }
 
 
+X86_FUNC_IMPL(__imp__sub_59AE0);
+X86_FUNC(sub_59AE0) {
+
+	is_loadingThread = false;
+	printf("Loading Destructor - Thread %d\n", GetCurrentThreadId());
+	__imp__sub_59AE0(ctx, base);
+}
+
+X86_FUNC_IMPL(__imp__sub_59BB0);
+X86_FUNC(sub_59BB0) {
+
+	is_loadingThread = true;
+	//printf("Draw Loading - Thread %d\n", GetCurrentThreadId());
+	__imp__sub_59BB0(ctx, base);
+}
+
+
 X_D3DFORMAT MapToLinearD3DFORMAT(X_D3DFORMAT a1)
 {
 	X_D3DFORMAT result;
@@ -4143,56 +4163,160 @@ static void UnlockTextureRect(GuestTexture* texture)
 }
 
 
+
+void* GetDataFromXboxResource(X_D3DResource* pXboxResource);
+unsigned int GetPixelContainerMipMapLevels(X_D3DPixelContainer* pPixelContainer);
 static void CopyDynamicTextureToGPU(GuestTexture* tex)
 {
 	auto base = g_memory.base;
 	auto format = GetXboxPixelContainerFormat((X_D3DFORMAT)tex->guestResource.Format);
 	bool isSwizzled = FormatIsSwizzled(format);
 	bool bCompressed = XBFormatIsCompressed(format);
+	bool bCubemap = tex->guestResource.Format & X_D3DFORMAT_CUBEMAP;
+	bool bConvertARGB = XBFormatRequiresConversionToARGB(format);
 
-	uint32_t pitch = ComputeTexturePitch(tex);
-	uint32_t slicePitch = pitch * tex->height;
-
-	auto allocation = g_uploadAllocators[g_frame].allocate(slicePitch, PLACEMENT_ALIGNMENT);
-	uint8_t* srcData = reinterpret_cast<uint8_t*>(tex->mappedMemory);
-	uint8_t* dstData = reinterpret_cast<uint8_t*>(allocation.memory);
-
-	if (isSwizzled)
+	struct Slice
 	{
-		uint32_t bpp = bCompressed ?
-			(format == X_D3DFMT_DXT1 ? 8 : 16) :
-			(XBFormatBitsPerPixel(format) / 8);
+		uint32_t width;
+		uint32_t height;
+		uint32_t depth;
+		uint32_t srcOffset;
+		uint32_t dstOffset;
+		uint32_t srcRowPitch;
+		uint32_t dstRowPitch;
+		uint32_t rowCount;
+	};
 
-		UnswizzleBox(
-			srcData,
-			tex->width,
-			tex->height,
-			1, // depth
-			bpp,
-			dstData,
-			pitch,
-			slicePitch);
+	std::vector<Slice> slices;
+	uint32_t curSrcOffset = 0;
+	uint32_t curDstOffset = 0;
+	uint32_t baseW = tex->width;
+	uint32_t baseH = tex->height;
+	uint32_t baseD = tex->depth == 0 ? 1 : tex->depth;
+
+	UINT dwMipMapLevels = GetPixelContainerMipMapLevels((X_D3DPixelContainer*)&tex->guestResource);
+	D3DCUBEMAP_FACES last_face = (bCubemap) ? D3DCUBEMAP_FACE_NEGATIVE_Z : D3DCUBEMAP_FACE_POSITIVE_X;
+	DWORD blockSize = 0;
+
+	if (bCompressed)
+		blockSize = format == X_D3DFMT_DXT1 ? 8 : 16;
+
+	// Build slice descriptors (same as original)
+	for (int32_t face = D3DCUBEMAP_FACE_POSITIVE_X; face <= last_face; face++)
+	{
+		for (uint32_t mipmap_level = 0; mipmap_level < dwMipMapLevels; mipmap_level++)
+		{
+			auto& slice = slices.emplace_back();
+			slice.width = std::max(1u, baseW >> mipmap_level);
+			slice.height = std::max(1u, baseH >> mipmap_level);
+			slice.depth = std::max(1u, baseD >> mipmap_level);
+
+			if (bCompressed)
+			{
+				uint32_t blockCols = (slice.width + 3) / 4;
+				slice.srcRowPitch = blockCols * blockSize;
+				slice.rowCount = (slice.height + 3) / 4;
 	}
 	else
 	{
-		// Already linear, just copy
-		memcpy(dstData, srcData, slicePitch);
+				uint32_t bpp = XBFormatBitsPerPixel(format);
+				uint32_t srcBytesPerRow = (slice.width * bpp) / 8;
+				slice.srcRowPitch = srcBytesPerRow;
+				slice.rowCount = slice.height;
+	}
+
+			uint32_t mip2dSize = slice.srcRowPitch * slice.rowCount;
+			uint32_t mipSlicePitch = mip2dSize * slice.depth;
+			slice.srcOffset = curSrcOffset;
+
+			uint32_t dstBpp = bConvertARGB ? 32 : XBFormatBitsPerPixel(format);
+			uint32_t rawDstRowPitch = (slice.width * dstBpp) / 8;
+			slice.dstRowPitch = (rawDstRowPitch + PITCH_ALIGNMENT - 1) & ~(PITCH_ALIGNMENT - 1);
+			slice.dstOffset = curDstOffset;
+
+			curSrcOffset += mipSlicePitch;
+			uint32_t alignedSliceSize = (slice.dstRowPitch * slice.rowCount * slice.depth + PLACEMENT_ALIGNMENT - 1) & ~(PLACEMENT_ALIGNMENT - 1);
+			curDstOffset += alignedSliceSize;
+		}
+	}
+
+	// Use ring buffer allocator instead of creating a new buffer
+	auto allocation = g_uploadAllocators[g_frame].allocate(curDstOffset, PLACEMENT_ALIGNMENT);
+	uint8_t* mappedMemory = reinterpret_cast<uint8_t*>(allocation.memory);
+
+	// Copy/unswizzle data into ring buffer
+	for (auto& slice : slices)
+	{
+		unsigned long VirtualAddr = (unsigned long)GetDataFromXboxResource((X_D3DResource*)(&tex->guestResource));
+		uint8_t* srcData = reinterpret_cast<uint8_t*>(base + VirtualAddr + slice.srcOffset);
+		uint8_t* dstData = mappedMemory + slice.dstOffset;
+
+		if (bConvertARGB)
+		{
+			ConvertD3DTextureToARGBBuffer(format, srcData, slice.width, slice.height, slice.srcRowPitch,
+				slice.srcRowPitch * slice.rowCount, dstData, slice.dstRowPitch,
+				slice.dstRowPitch * slice.rowCount, slice.depth, (void*)g_currentPaletteData);
+		}
+		else if (isSwizzled)
+		{
+			uint32_t dstSlicePitch = slice.dstRowPitch * slice.rowCount;
+			uint32_t srcBpp = bCompressed ? blockSize : (XBFormatBitsPerPixel(format) / 8);
+
+			UnswizzleBox(srcData, slice.width, slice.height, slice.depth, srcBpp,
+				dstData, slice.dstRowPitch, dstSlicePitch);
+		}
+		else if (bCompressed)
+		{
+			memcpy(dstData, srcData, slice.srcRowPitch * slice.rowCount * slice.depth);
+		}
+		else
+		{
+			if (slice.srcRowPitch == slice.dstRowPitch)
+			{
+				memcpy(dstData, srcData, slice.srcRowPitch * slice.rowCount * slice.depth);
+			}
+			else
+			{
+				for (size_t i = 0; i < slice.rowCount * slice.depth; i++)
+				{
+					memcpy(dstData, srcData, slice.srcRowPitch);
+					srcData += slice.srcRowPitch;
+					dstData += slice.dstRowPitch;
+				}
+			}
+		}
 	}
 
 
-	// Copy on DIRECT command list (texture should already be in COPY_DEST from barrier)
+	// Copy using DIRECT command list (not copy queue)
+	auto copyTextureRegion = [&](Slice& slice, uint32_t subresourceIndex)
+		{
+			uint32_t uploadRowPitchInTexels = slice.dstRowPitch /
+				(bCompressed ? blockSize : RenderFormatSize(tex->format));
+
 	g_commandLists[g_frame]->copyTextureRegion(
-		RenderTextureCopyLocation::Subresource(tex->texture, 0),
-		RenderTextureCopyLocation::PlacedFootprint(
-			allocation.buffer,
-			tex->format,
-			tex->width,
-			tex->height,
-			1,
-			pitch / RenderFormatSize(tex->format),
-			allocation.offset));
+				RenderTextureCopyLocation::Subresource(tex->texture,
+					subresourceIndex % dwMipMapLevels, subresourceIndex % dwMipMapLevels),
+				RenderTextureCopyLocation::PlacedFootprint(allocation.buffer, tex->format,
+					slice.width, slice.height, slice.depth, uploadRowPitchInTexels,
+					allocation.offset + slice.dstOffset));
+		};
+
+	for (size_t i = 0; i < slices.size(); i++)
+		copyTextureRegion(slices[i], i);
+
+	if (bCubemap)
+	{
+		for (size_t i = 1; i < 6; i++)
+		{
+			for (size_t j = 0; j < slices.size(); j++)
+				copyTextureRegion(slices[j], (slices.size() * i) + j);
+}
+	}
+
 }
 
+void CopyTextureToGPU(GuestTexture* tex);
 static void ProcUnlockTextureRect(const RenderCommand& cmd)
 {
 	const auto& args = cmd.unlockTextureRect;
@@ -6883,7 +7007,7 @@ void GetPixelContainerMeasures
 		*pRowPitch *= 4;
 }
 //we need to copy the palette data so we can convert properly when copy texture in the GPU
-static uint32_t* g_currentPaletteData;
+
 //rwD3D8RasterLockPalette
 X86_FUNC_IMPL(__imp__sub_2DF9F0);
 X86_FUNC(sub_2DF9F0)

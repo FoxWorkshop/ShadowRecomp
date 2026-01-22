@@ -57,6 +57,22 @@ struct RwMatrixTag
 };
 
 
+struct GeoMesh
+{
+	float x, y, z;
+	uint8_t r, g, b, a;
+	float u, v;
+};
+
+
+struct WeightedMesh
+{
+	float x, y, z;
+	float nx, ny, nz;
+	float u, v;
+};
+
+
 typedef RwMatrixTag RwMatrix;
 
 void CopyVertexShaderConstant(int32_t Register, DWORD* pConstantData, const uint32_t count);
