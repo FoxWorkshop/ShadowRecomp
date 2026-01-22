@@ -6512,11 +6512,11 @@ GuestBuffer* GetGuestVertexBufferIndexed(int i, uint32_t minIdx, uint32_t maxIdx
 
 	unsigned long dataAddr = (unsigned long)GetDataFromXboxResource((X_D3DResource*)(g_Xbox_SetStreamSource[i].VertexBuffer));
 	uint8_t* pXboxVertexData = reinterpret_cast<uint8_t*>(g_memory.Translate(dataAddr));
-
+	intptr_t offsetT = (minIdx * originalStride);
 	pXboxVertexData += (minIdx * originalStride); //we only want to hash and copy the used vertices, the unused can be skipped.
 
 	const size_t originalSize = usedVertices * originalStride;
-	XXH64_hash_t hash = XXH3_64bits(pXboxVertexData + minIdx * originalStride, originalSize);
+	XXH64_hash_t hash = XXH3_64bits(pXboxVertexData, originalSize);
 
 
 	auto& bufferCache = g_vertexBufferCache[hash];
