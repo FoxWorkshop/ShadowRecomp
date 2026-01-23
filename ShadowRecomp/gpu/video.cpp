@@ -69,6 +69,9 @@ bool LogVSConstants = false;
 #include "shader/R2D_vs1.hlsl.dxil.h"
 #include "shader/Rcharacters_vs0.hlsl.dxil.h"
 #include "shader/Rcharacters_vs1.hlsl.dxil.h"
+#include "shader/Rcharacters_vs2.hlsl.dxil.h"
+#include "shader/Rcharacters_vs3.hlsl.dxil.h"
+#include "shader/Rcharacters_vs4.hlsl.dxil.h"
 #include "shader/Reyedoom_vs.hlsl.dxil.h"
 #include "shader/Rblack_bull_vs.hlsl.dxil.h"
 #endif
@@ -100,6 +103,9 @@ bool LogVSConstants = false;
 #include "shader/R2D_vs1.hlsl.spirv.h"
 #include "shader/Rcharacters_vs0.hlsl.spirv.h"
 #include "shader/Rcharacters_vs1.hlsl.spirv.h"
+#include "shader/Rcharacters_vs2.hlsl.spirv.h"
+#include "shader/Rcharacters_vs3.hlsl.spirv.h"
+#include "shader/Rcharacters_vs4.hlsl.spirv.h"
 #include "shader/Reyedoom_vs.hlsl.spirv.h"
 #include "shader/Rblack_bull_vs.hlsl.spirv.h"
 
@@ -2502,10 +2508,22 @@ GuestShader* CreateShader(ResourceType resourceType)
 		{
 			shader->shader = CREATE_SHADER(Rblack_bull_vs);
 		}
+		else if (hash == 0x15a6de0f9b750cb6)
+		{
+			shader->shader = CREATE_SHADER(Rcharacters_vs2);
+		}
+		else if (hash == 0xb4688dd3697caa3b)
+		{
+			shader->shader = CREATE_SHADER(Rcharacters_vs3);
+		}
+		else if (hash == 0x20dcefa19e31eaf3)
+		{
+			shader->shader = CREATE_SHADER(Rcharacters_vs4);
+		}
 		else
 		{
 			hash = hash;
-			printf("unknown shader, it's time to implement xshader recomp\n");
+			printf("unknown shader, it's time to implement xshader recomp, hash - %llx\n", hash);
 		}
 
 		UpdateShaderCacheEntryNew(shader, hash);
@@ -3346,10 +3364,20 @@ void SleepPrecise(std::chrono::steady_clock::time_point targetTime)
 }
 
 uint64_t g_frameFenceValues[NUM_FRAMES] = { 0, 0 };
+static int copyCount;
+
 void Video::Present()
 
 {
-	//printf("[GAME THREAD] Present START - g_frame=%u\n", g_frame);
+
+	if (is_loadingThread)
+	{
+		//printf("Present called, send command queue ExecuteCommandList to render thread g_frame %d\n", g_frame);
+	}
+
+
+	//printf("[GAME THREAD] Present thread id %d - g_frame=%u\n", GetCurrentThreadId(), g_frame);
+
 	g_readyForCommands = false;
 
 	RenderCommand cmd;
@@ -4216,14 +4244,14 @@ static void CopyDynamicTextureToGPU(GuestTexture* tex)
 				uint32_t blockCols = (slice.width + 3) / 4;
 				slice.srcRowPitch = blockCols * blockSize;
 				slice.rowCount = (slice.height + 3) / 4;
-	}
-	else
-	{
+			}
+			else
+			{
 				uint32_t bpp = XBFormatBitsPerPixel(format);
 				uint32_t srcBytesPerRow = (slice.width * bpp) / 8;
 				slice.srcRowPitch = srcBytesPerRow;
 				slice.rowCount = slice.height;
-	}
+			}
 
 			uint32_t mip2dSize = slice.srcRowPitch * slice.rowCount;
 			uint32_t mipSlicePitch = mip2dSize * slice.depth;
@@ -4294,7 +4322,7 @@ static void CopyDynamicTextureToGPU(GuestTexture* tex)
 			uint32_t uploadRowPitchInTexels = slice.dstRowPitch /
 				(bCompressed ? blockSize : RenderFormatSize(tex->format));
 
-	g_commandLists[g_frame]->copyTextureRegion(
+			g_commandLists[g_frame]->copyTextureRegion(
 				RenderTextureCopyLocation::Subresource(tex->texture,
 					subresourceIndex % dwMipMapLevels, subresourceIndex % dwMipMapLevels),
 				RenderTextureCopyLocation::PlacedFootprint(allocation.buffer, tex->format,
@@ -4311,7 +4339,7 @@ static void CopyDynamicTextureToGPU(GuestTexture* tex)
 		{
 			for (size_t j = 0; j < slices.size(); j++)
 				copyTextureRegion(slices[j], (slices.size() * i) + j);
-}
+		}
 	}
 
 }
@@ -4321,11 +4349,11 @@ static void ProcUnlockTextureRect(const RenderCommand& cmd)
 {
 	const auto& args = cmd.unlockTextureRect;
 
-	AddBarrier(args.texture, RenderTextureLayout::COPY_DEST);
-	FlushBarriers();
+		AddBarrier(args.texture, RenderTextureLayout::COPY_DEST);
+		FlushBarriers();
 
 
-	CopyDynamicTextureToGPU(args.texture);
+		CopyDynamicTextureToGPU(args.texture);
 }
 
 
@@ -6409,7 +6437,6 @@ GuestBuffer* GetGuestVertexBuffer(int32_t VertexCount, int i, uint32_t alignedSt
 		{
 			bufferCache->mappedMemory = HostVertexData; //we already have the vertex copied from the patch earlier so just assign them
 		}
-		//printf("Uploaded to the gpu (not cached)\n");
 
 		UnlockVertexBuffer(bufferCache); //send our VB to the GPU
 	}
@@ -6503,8 +6530,6 @@ static void ComputeIndexRange(const int16_t* indices, uint32_t startIndex, uint3
 	outMax = maxIdx;
 }
 
-
-
 GuestBuffer* GetGuestVertexBufferIndexed(int i, uint32_t minIdx, uint32_t maxIdx, uint32_t alignedStride)
 {
 	uint32_t usedVertices = maxIdx - minIdx + 1;
@@ -6553,14 +6578,6 @@ void DrawIndexedPrimitive(X_D3DPRIMITIVETYPE PrimitiveType, uint32_t VertexCount
 
 	//shadow = 2192 vertex = stride 24 (32 with conversion)
 	//object (shadow eyes) = 91 vertex =  stride 24 (32 with conversion)
-	if (VertexCount == 91)
-	{
-		DrawShadowNext = true;
-	}
-	else if (VertexCount == 2192)
-	{
-		DrawShadowNext = false;
-	}
 
 	XXH64_hash_t hash = XXH3_64bits(pIndexData, VertexCount * sizeof(int16_t));
 	auto& bufferIndexCache = g_indexBufferCache[hash];
@@ -7302,8 +7319,7 @@ X86_FUNC(sub_2E6750)
 	__imp__sub_2E6750(ctx, base);
 	auto addr = ctx.eax.u32;
 	XD3DResource* buffer = (XD3DResource*)g_memory.Translate(addr);
-	//	printf("Create VB %x - size: %d\n", (intptr_t)buffer, size);
-
+	//  printf("Create VB %x - size: %d\n", (intptr_t)buffer, size);
 		//g_VBList.push_back({ buffer, nullptr, size });
 }
 
