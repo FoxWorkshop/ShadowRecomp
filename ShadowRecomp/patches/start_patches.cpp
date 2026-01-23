@@ -105,7 +105,7 @@ X86_FUNC(sub_258550)
 	//X86_STORE_U32(ctx.esp.u32 + 4, 602); //Lava Shelter
 	//X86_STORE_U32(ctx.esp.u32 + 4, 710); //Devil Doom
 
-	X86_STORE_U32(ctx.esp.u32 + 4, 400); //Central City
+	//X86_STORE_U32(ctx.esp.u32 + 4, 400); //Central City
 
 
 	//Those stages trigger a GPU based validation error, the shader related is Rcharacters_vs1, which seems to be used for characters hands / legs.  
