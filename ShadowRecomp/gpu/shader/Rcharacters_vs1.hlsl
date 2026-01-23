@@ -82,20 +82,12 @@ VS_OUTPUT main(VS_INPUT xIn)
     
     v0 = lerp(xIn.v0, vRegisterDefaultValues[0], vRegisterDefaultFlags[0]);
     v1 = lerp(xIn.v1, vRegisterDefaultValues[1], vRegisterDefaultFlags[1]);
-    
 
-    if (xIn.v2.x >= 100 || xIn.v2.x < 0)
-        xIn.v2.x = 0;
-    
-    if (xIn.v2.y >= 100 || xIn.v2.y < 0)
-        xIn.v2.y = 0;
-       
     v2 = float4((float) xIn.v2.x, (float) xIn.v2.y, 0.0f, 0.0f);
   
     v3 = lerp(xIn.v3, vRegisterDefaultValues[3], vRegisterDefaultFlags[3]);
     v4 = lerp(xIn.v4, vRegisterDefaultValues[4], vRegisterDefaultFlags[4]);
     v5 = lerp(xIn.v5, vRegisterDefaultValues[5], vRegisterDefaultFlags[5]);
-
 
 	// Temp variable for paired VS instruction
     float4 temp;

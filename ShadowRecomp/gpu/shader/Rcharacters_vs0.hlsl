@@ -76,12 +76,6 @@ VS_OUTPUT main(VS_INPUT xIn)
 	init_v(15, 12);
     
     
-    if (xIn.bones.x >= 100 || xIn.bones.x < 0)
-        xIn.bones.x = 0;
-    
-    if (xIn.bones.y >= 100 || xIn.bones.y < 0)
-        xIn.bones.y = 0;
-    
     v0 = lerp(xIn.iPos, vRegisterDefaultValues[0], vRegisterDefaultFlags[0]);
     v1 = lerp(xIn.weights, vRegisterDefaultValues[1], vRegisterDefaultFlags[1]);
     v2 = _tof4(xIn.bones);
