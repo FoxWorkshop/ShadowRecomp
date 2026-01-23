@@ -179,7 +179,7 @@ functions = [
 	{ address = 0xBF600, size = 0x197 },  #wrong size		
 	{ address = 0x76b20, size = 0x2B4 },  #missing		
 	{ address = 0x533e0, size = 0xB8 },  #missing		
-	{ address = 0x1d8800, size = 0x82 },  #missing
+	{ address = 0x1d8800, size = 0x82 },  #missing		
 	
 	{ address = 0x142ED0, size = 0x10F },  #missing		
 	{ address = 0x24FD90, size = 0x32 },  #missing		
@@ -243,6 +243,7 @@ functions = [
 	{ address = 0x9FE60, size = 0x5C },	
 	{ address = 0x96380, size = 0x40 },	
 	{ address = 0x13B720, size = 0xAD },
+	{ address = 0x263510, size = 0x5B },  #missing
 	
 	{ address = 0x400708, size = 0x24 }, #added automatically from ida
 	{ address = 0x407f17, size = 0x49 },
