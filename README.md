@@ -59,10 +59,10 @@ This project does not plan to support any more platforms other than Windows and 
 
 ### Special Thanks
 
-CXBX-Reloaded Development Team: This project would not have been possible without the [CXBX emulator](https://github.com/Cxbx-Reloaded/Cxbx-Reloaded). Nearly every aspect of the development was guided by referencing CXBX's research on the original Xbox, specially the graphics part.
+- CXBX-Reloaded Development Team: This project would not have been possible without the [CXBX emulator](https://github.com/Cxbx-Reloaded/Cxbx-Reloaded). Nearly every aspect of the development was guided by referencing CXBX's research on the original Xbox, specially the graphics part.
 
-Unleashed Recompiled Development Team: Created much of the ground work that made all of this possible and sped up development time considerably.
+- Unleashed Recompiled Development Team: Created much of the ground work that made all of this possible and sped up development time considerably.
 
-Skyth: Provided help to understand how Recompilation works, also the author of the original graphics pipeline code which was (mostly) reused here.
+- Skyth: Provided help to understand how Recompilation works, also the author of the original graphics pipeline code which was (mostly) reused here.
 
-Darío: Creator of the graphics hardware abstraction layer plume, used by the project's graphics backend.
+- Darío: Creator of the graphics hardware abstraction layer plume, used by the project's graphics backend.
