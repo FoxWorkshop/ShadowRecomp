@@ -1,6 +1,6 @@
 [main]
-file_path = "default.xbe"
-out_directory_path = "../extracted"
+file_path = "\\..\\private\\default.xbe"
+out_directory_path = "..\\x86"
 switch_table_file_path = "jumpTable.toml"
 tls_indexAddress = 0x5599A8
 
