@@ -74,6 +74,8 @@ bool LogVSConstants = false;
 #include "shader/Rcharacters_vs4.hlsl.dxil.h"
 #include "shader/Reyedoom_vs.hlsl.dxil.h"
 #include "shader/Rblack_bull_vs.hlsl.dxil.h"
+#include "shader/Raura_hero_dark_body_vs.hlsl.dxil.h"
+#include "shader/Raura_hero_dark_eye_vs.hlsl.dxil.h"
 #endif
 
 #include "shader/FixedFunctionVertexShader.hlsl.spirv.h"
@@ -108,6 +110,8 @@ bool LogVSConstants = false;
 #include "shader/Rcharacters_vs4.hlsl.spirv.h"
 #include "shader/Reyedoom_vs.hlsl.spirv.h"
 #include "shader/Rblack_bull_vs.hlsl.spirv.h"
+#include "shader/Raura_hero_dark_body_vs.hlsl.spirv.h"
+#include "shader/Raura_hero_dark_eye_vs.hlsl.spirv.h"
 
 
 namespace plume
@@ -2519,6 +2523,14 @@ GuestShader* CreateShader(ResourceType resourceType)
 		else if (hash == 0x20dcefa19e31eaf3)
 		{
 			shader->shader = CREATE_SHADER(Rcharacters_vs4);
+		}
+		else if (hash == 0x7fdce39d83a5ebbc)
+		{
+			shader->shader = CREATE_SHADER(Raura_hero_dark_body_vs);
+		}
+		else if (hash == 0xd7c5370023c4140d)
+		{
+			shader->shader = CREATE_SHADER(Raura_hero_dark_eye_vs);
 		}
 		else
 		{

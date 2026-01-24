@@ -35,7 +35,7 @@ VS_OUTPUT main(const VS_INPUT xIn)
 
 	// Single component outputs
     float4 oFog, oPts; // x is write-only on Xbox. Use float4 as some games use incorrect masks
-    oFog = 1; // Default to no fog. Test case: Lego Star Wars II
+    oFog = 1; // Default to no fog. 
     oPts = 0;
 
 	// Address (index) register
