@@ -2841,6 +2841,14 @@ static void ProcSetPixelShader(const RenderCommand& cmd)
 	SetDirtyValue(g_dirtyStates.pipelineState, g_pipelineState.isFixedFunctionPS, cmd.setPixelShader.isFixed);
 }
 
+//Stub for now
+//for what I saw on CXBX, there is no need to track them as they are simply regular RenderState which we already have
+//the only advantage to track them would be for optimisation 
+static void SetPixelShaderConstants(int32_t Register, __m128* pConstantData, int32_t ConstantCount)
+{
+	
+}
+
 
 X86_FUNC_IMPL(__imp__sub_3D1E10);
 static void SetStreamSource(uint32_t StreamNumber, GuestBuffer* buffer, uint32_t stride)
@@ -7480,6 +7488,7 @@ GUEST_FUNCTION_HOOK_FASTCALL(sub_3D1D30, D3DDevice_SetVertexShaderConstantNotInl
 //pixel shader
 GUEST_FUNCTION_HOOK_STDCALL(sub_3DC520, CreatePixelShader);
 GUEST_FUNCTION_HOOK_STDCALL(sub_3DC590, SetPixelShader);
+GUEST_FUNCTION_HOOK_STDCALL(sub_3DC790, SetPixelShaderConstants);
 
 
 GUEST_FUNCTION_HOOK_STDCALL(sub_3D0680, D3DDevice_SetViewport);
