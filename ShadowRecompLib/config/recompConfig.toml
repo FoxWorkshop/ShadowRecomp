@@ -656,6 +656,8 @@ functions = [
 	{ address = 0x2368d0, size = 0x43 },
 	{ address = 0x262c30, size = 0x5B },
 	{ address = 0x273c10, size = 0x5B },
+	{ address = 0x265ec0, size = 0x5B },
+	{ address = 0x109940, size = 0x179 },
 ]
 
 banned_addresses = [
