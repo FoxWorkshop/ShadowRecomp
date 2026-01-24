@@ -649,6 +649,13 @@ functions = [
 	{ address = 0x267990, size = 0x4A },
 	{ address = 0x9a580, size = 0x19B },
 	{ address = 0x99160, size = 0xB1 },
+	{ address = 0xe7d00, size = 0x3C },
+	{ address = 0xffea0, size = 0x2AC }, # probably wrong, huge function??
+	{ address = 0x1d1f90, size = 0x250 },
+	{ address = 0x2367e0, size = 0x43 },
+	{ address = 0x2368d0, size = 0x43 },
+	{ address = 0x262c30, size = 0x5B },
+	{ address = 0x273c10, size = 0x5B },
 ]
 
 banned_addresses = [
