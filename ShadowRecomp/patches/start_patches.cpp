@@ -88,25 +88,15 @@ X86_FUNC(sub_29EA60)
 }
 
 
-//test spawn level
+// test spawn level
 X86_FUNC_IMPL(__imp__sub_258550);
 X86_FUNC(sub_258550)
 {
-	//X86_STORE_U32(ctx.esp.u32 + 4, 5); //Debug Mode level 5
-	//X86_STORE_U32(ctx.esp.u32 + 4, 301); //prison island
-	
-	//X86_STORE_U32(ctx.esp.u32 + 4, 302); //circus park (almost playable)
+	// TEMP TODO: Move to Options with Slider Later | Disables bloom
+	X86_STORE_F32(0x52E5C4, 0.0f);
+	// END BLOOM EDIT
 
-	//X86_STORE_U32(ctx.esp.u32 + 4, 300); //cryptic castle (die on first floor lol)
-
-	//missing func
-	//X86_STORE_U32(ctx.esp.u32 + 4, 310); //Egg Breaker 
-	//X86_STORE_U32(ctx.esp.u32 + 4, 600); //Gun Fortress 
-	//X86_STORE_U32(ctx.esp.u32 + 4, 602); //Lava Shelter
-	//X86_STORE_U32(ctx.esp.u32 + 4, 710); //Devil Doom
-
-	//X86_STORE_U32(ctx.esp.u32 + 4, 400); //Central City
-
+	X86_STORE_U32(ctx.esp.u32 + 4, 5); // Test level 5 (used in Sky Troops Intro Cutscene)
 
 	//Those stages trigger a GPU based validation error, the shader related is Rcharacters_vs1, which seems to be used for characters hands / legs.  
 	//There is is currently a dirty hardcoded fix to avoid the crash, but something is wrong... Are bone indice getting corrupted?
@@ -114,8 +104,6 @@ X86_FUNC(sub_258550)
 	//X86_STORE_U32(ctx.esp.u32 + 4, 210); //black bull (missing shaders)
 	//X86_STORE_U32(ctx.esp.u32 + 4, 402); //Sky Troops	
 	//X86_STORE_U32(ctx.esp.u32 + 4, 501); //air fleet 
-
-
 	__imp__sub_258550(ctx, base);
 }
 
