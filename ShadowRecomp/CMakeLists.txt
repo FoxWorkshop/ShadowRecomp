@@ -368,6 +368,7 @@ compile_vertex_shader(Rcharacters_vs3)
 compile_vertex_shader(Rcharacters_vs4)
 compile_vertex_shader(Reyedoom_vs)
 compile_vertex_shader(Rblack_bull_vs)
+compile_vertex_shader(Rchaos_vs)
 compile_vertex_shader(Raura_hero_dark_body_vs)
 compile_vertex_shader(Raura_hero_dark_eye_vs)
 
