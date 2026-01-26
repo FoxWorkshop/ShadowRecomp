@@ -10,9 +10,6 @@ struct VS_INPUT
     float4 v[13] : TEXCOORD3;
 };
 
-
-
-
 struct VS_OUTPUT // Declared identical to pixel shader input (see PS_INPUT)
 {
     float4 oPos : SV_Position; // Homogeneous clip space position
