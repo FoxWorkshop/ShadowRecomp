@@ -5,7 +5,8 @@ switch_table_file_path = "jumpTable.toml"
 tls_indexAddress = 0x5599A8
 
 functions = [
-    { address = 0xE9180, size = 0x671 },  #wrong size 
+    { address = 0xE9180, size = 0x671 },  #wrong size     
+	{ address = 0x133700, size = 0x7AE },  #wrong size 
 	{ address = 0xE7C20, size = 0x11C },	
 	{ address = 0x2b8080, size = 0xC0 }, 	
 	{ address = 0x383735, size = 0xB7D }, 	
