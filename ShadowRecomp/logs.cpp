@@ -60,8 +60,16 @@ void PrintError(const char* a1)
 
 void DebugPrint(char* const Buffer, const char* const Format, va_list ArgList)
 {
+#ifdef _DEBUG 
+	/**std::string s = Format;
+	if (s.find('Scene') != std::string::npos || s.find('Wait') != std::string::npos)
+	{
+		return;
+	}
+
 	vsprintf(Buffer, Format, ArgList);
-	LOGN_ERROR(Buffer);
+	LOG_WARNING(Buffer);*/
+#endif
 }
 
 
@@ -122,6 +130,6 @@ void InitLogs()
 }
 
 GUEST_FUNCTION_HOOK(sub_11210, PrintError);
-GUEST_FUNCTION_HOOK(sub_37E7BB, DebugPrint);
+//GUEST_FUNCTION_HOOK(sub_37E7BB, DebugPrint);
 
 

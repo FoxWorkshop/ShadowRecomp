@@ -371,6 +371,7 @@ compile_vertex_shader(Rblack_bull_vs)
 compile_vertex_shader(Rchaos_vs)
 compile_vertex_shader(Raura_hero_dark_body_vs)
 compile_vertex_shader(Raura_hero_dark_eye_vs)
+compile_vertex_shader(Rshadow_event_vs)
 
 set(RESOURCES_SOURCE_PATH "${PROJECT_SOURCE_DIR}/../ShadowRecompResources")
 set(RESOURCES_OUTPUT_PATH "${PROJECT_SOURCE_DIR}/res")

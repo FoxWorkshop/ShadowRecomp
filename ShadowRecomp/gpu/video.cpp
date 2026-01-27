@@ -76,6 +76,7 @@ bool LogVSConstants = false;
 #include "shader/Rblack_bull_vs.hlsl.dxil.h"
 #include "shader/Raura_hero_dark_body_vs.hlsl.dxil.h"
 #include "shader/Raura_hero_dark_eye_vs.hlsl.dxil.h"
+#include "shader/Rshadow_event_vs.hlsl.dxil.h"
 #include "shader/Rchaos_vs.hlsl.dxil.h"
 #endif
 
@@ -113,6 +114,7 @@ bool LogVSConstants = false;
 #include "shader/Rblack_bull_vs.hlsl.spirv.h"
 #include "shader/Raura_hero_dark_body_vs.hlsl.spirv.h"
 #include "shader/Raura_hero_dark_eye_vs.hlsl.spirv.h"
+#include "shader/Rshadow_event_vs.hlsl.spirv.h"
 #include "shader/Rchaos_vs.hlsl.spirv.h"
 
 
@@ -2537,6 +2539,10 @@ GuestShader* CreateShader(ResourceType resourceType)
 		else if (hash == 0x93adf9d6988519b4)
 		{
 			shader->shader = CREATE_SHADER(Rchaos_vs);
+		}
+		else if (hash == 0x651285052f420938)
+		{
+			shader->shader = CREATE_SHADER(Rshadow_event_vs);
 		}
 		else
 		{
