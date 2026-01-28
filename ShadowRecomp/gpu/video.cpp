@@ -2556,34 +2556,6 @@ GuestShader* CreateShader(ResourceType resourceType)
 	return shader;
 }
 
-
-//Since DX8 doesn't separate Vertex Declaration like DX9, we have to let the original code run so it can create the og shader and extract
-//the vertex elements from it later.
-
-X86_FUNC_IMPL(__imp__sub_3D1BA0);
-/**int32_t CreateVertexShader(uint32_t* pDeclaration, uint32_t* pFunction, GuestShader* pHandle, int32_t Usage)
-{
-	//let original code run first
-	auto ctx = GetX86Context();
-	auto base = g_memory.base;
-	__imp__sub_3D1BA0(*ctx, base);
-	ctx->esp.u32 -= 20; //4 * 4 + 4 esp
-
-	// We can't count on pFunction as it can be null, so we will use the vertex declaration for hash and cache
-	auto type = ResourceType::VertexShader;
-
-	GuestShader* Shader = CreateShader(pDeclaration, type);
-
-	auto guest_shaderAddr = (uint32_t)X86_LOAD_U32(ctx->esp.u32 + 12);
-	auto guest_shader = X86_LOAD_U32(guest_shaderAddr);
-	g_VertexShaderMap.insert({ guest_shader, Shader });
-
-	return 0;
-}*/
-
-
-
-
 // Get viewport offset and scale values intended to match the XDK calculations
 void GetXboxViewportOffsetAndScale(float(&vOffset)[4], float(&vScale)[4])
 {
@@ -7544,7 +7516,8 @@ GUEST_FUNCTION_HOOK_STDCALL(sub_3DC150, DrawPrimitive);
 GUEST_FUNCTION_HOOK_STDCALL(sub_3DBFE0, DrawPrimitiveUP);
 GUEST_FUNCTION_HOOK_STDCALL(sub_3DD560, D3DDevice_Swap); //Present
 
-//TODO: the begin and end push are essentially command system like DX12, this can be used to draw so we will have to handle this 
+// Begin and End push are essentially command system like DX12, this can be used for many things including draw. 
+// see pushbuffer.cpp for more info, this patch here just make it so it won't crash when the game calls that.
 GUEST_FUNCTION_HOOK_STDCALL(sub_3D4740, D3DDevice_BeginPush);
 GUEST_FUNCTION_HOOK_STDCALL(sub_3D4760, D3DDevice_EndPush);
 
