@@ -94,7 +94,6 @@ X86_FUNC(sub_258550)
 {
 	X86_STORE_U32(ctx.esp.u32 + 4, 5); // Test level 5 (used in Sky Troops Intro Cutscene)
 
-	X86_STORE_U32(ctx.esp.u32 + 4, 504); //Debug Mode level 5
 	//X86_STORE_U32(ctx.esp.u32 + 4, 301); //prison island
 
 	//X86_STORE_U32(ctx.esp.u32 + 4, 302); //circus park (almost playable)
@@ -116,6 +115,10 @@ X86_FUNC(sub_258550)
 	__imp__sub_258550(ctx, base);
 }
 
+void nullsub()
+{
+	;
+}
 
 
 GUEST_FUNCTION_HOOK_STDCALL(sub_2B0CE1, TryOpenVolume);
