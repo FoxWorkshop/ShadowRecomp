@@ -6451,7 +6451,7 @@ GuestBuffer* GetGuestVertexBuffer(int32_t VertexCount, int i, uint32_t alignedSt
 //D3D_DrawVertices originally
 void DrawPrimitive(X_D3DPRIMITIVETYPE PrimitiveType, uint32_t StartVertex, uint32_t VertexCount)
 {
-
+	return;
 
 	for (int i = 0; i < 16; i++)
 	{
