@@ -4,6 +4,8 @@
 #include "input.h"
 #include <kernel/function.h>
 #include <string>
+#include <app.h>
+#include <sdl_events.h>
 
 input::EInputDevice input::g_inputDevice;
 input::EInputDevice input::g_inputDeviceController;
@@ -96,7 +98,7 @@ public:
 
 		pad.sThumbLX = SDL_GameControllerGetAxis(controller, SDL_CONTROLLER_AXIS_LEFTX);
 		pad.sThumbLY = (int16_t)std::clamp(-(int32_t)SDL_GameControllerGetAxis(controller, SDL_CONTROLLER_AXIS_LEFTY),
-			(int32_t)-32768, (int32_t)32767); //clamp here fix the int16 overflow with negative angle, this fix press up not working
+			(int32_t)-32768, (int32_t)32767); //clamp here, fix the int16 overflow with negative angle, this fix "press up" not working
 
 
 		pad.sThumbRX = SDL_GameControllerGetAxis(controller, SDL_CONTROLLER_AXIS_RIGHTX);
@@ -176,7 +178,7 @@ inline Controller* FindController(int which)
 	return nullptr;
 }
 
-
+int controlLogSpam = 0;
 static void SetControllerInputDevice(Controller* controller)
 {
 	g_activeController = controller;
@@ -192,14 +194,43 @@ static void SetControllerInputDevice(Controller* controller)
 	{
 		input::g_inputDeviceExplicit = controllerType;
 
-		if (controllerType == input::EInputDeviceExplicit::Unknown)
+		if (controlLogSpam < 20) // Limit log for plug controllers since tool like DS4 keep switching between 360 and ps4 type.
 		{
-			printf("Detected controller: %s (Unknown Controller Type)", controllerName);
+			if (controllerType == input::EInputDeviceExplicit::Unknown)
+			{
+				printf("Detected controller: %s (Unknown Controller Type)\n", controllerName);
+				controlLogSpam++;
+			}
+			else
+			{
+				printf("Detected controller: %s\n", controllerName);
+				controlLogSpam++;
+			}
 		}
-		else
+	}
+}
+
+
+static void SetControllerChaosModeLED(Controller& controller, ELedAura mode)
+{
+	switch (mode)
+	{
+		case LED_AURA_NEUTRAL:
+		default:
 		{
-			printf("Detected controller: %s", controllerName);
+			controller.SetLED(91, 91, 91);
 		}
+		break;
+		case LED_AURA_HERO:
+		{
+			controller.SetLED(0, 94, 255);
+		}
+		break;
+		case LED_AURA_VILAIN:
+		{
+			controller.SetLED(237, 0, 0);
+		}
+		break;
 	}
 }
 
@@ -217,6 +248,7 @@ int Input_OnSDLEvent(void*, SDL_Event* event)
 			auto controller = Controller(event->cdevice.which);
 
 			g_controllers[freeIndex] = controller;
+			SetControllerChaosModeLED(controller, App::s_chaosMode);
 
 		}
 
@@ -293,6 +325,15 @@ int Input_OnSDLEvent(void*, SDL_Event* event)
 	}
 
 
+	case SDL_USER_CHAOSMODE:
+	{
+		for (auto& controller : g_controllers)
+			SetControllerChaosModeLED(controller, (ELedAura)event->user.code);
+
+		break;
+	}
+
+
 	}
 
 	return 0;
@@ -355,10 +396,6 @@ uint32_t input::SetState(uint32_t dwUserIndex, _XINPUT_VIBRATION* pVibration)
 }
 
 
-
-#define _BYTE char
-#define _WORD int16_t
-#define _DWORD int32_t
 
 struct _XPP_DEVICE_TYPE
 {

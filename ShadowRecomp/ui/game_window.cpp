@@ -137,10 +137,9 @@ int Window_OnSDLEvent(void*, SDL_Event* event)
 
         break;
     }
-    case SDL_USER_HERO:
-    case SDL_USER_VILAIN:
-        GameWindow::s_isIcon = event->user.code;
-        GameWindow::SetIcon((SDL_USER_)GameWindow::s_isIcon);
+    case SDL_USER_CHAOSMODE:
+        GameWindow::s_Icon = event->user.code;
+        GameWindow::SetIcon((ELedAura)GameWindow::s_Icon);
         break;
   
     }
@@ -189,7 +188,7 @@ void GameWindow::Init(const char* sdlVideoDriver)
         SDL_ShowCursor(SDL_DISABLE);
 
     SetDisplay(Config::Monitor);
-    SetIcon((SDL_USER_)0);
+    SetIcon((ELedAura)0);
     SetTitle();
 
     SDL_SetWindowMinimumSize(s_pWindow, MIN_WIDTH, MIN_HEIGHT);
@@ -259,17 +258,18 @@ void GameWindow::SetIcon(void* pIconBmp, size_t iconSize)
     }
 }
 
-void GameWindow::SetIcon(SDL_USER_ mode)
+void GameWindow::SetIcon(ELedAura mode)
 {
     switch (mode)
     {
     default:
+    case LED_AURA_NEUTRAL:
         //SetIcon(g_game_icon, sizeof(g_game_icon));
         break;
-    case SDL_USER_HERO:
+    case LED_AURA_HERO:
         //SetIcon(g_game_icon_hero, sizeof(g_game_icon_hero));
         break;
-    case SDL_USER_VILAIN:
+    case LED_AURA_VILAIN:
        // SetIcon(g_game_icon_vilain, sizeof(g_game_icon_vilain));
         break;
     }
@@ -327,7 +327,7 @@ bool GameWindow::SetFullscreen(bool isEnabled)
         SDL_SetWindowFullscreen(s_pWindow, 0);
         SDL_ShowCursor(SDL_ENABLE);
 
-        SetIcon((SDL_USER_)GameWindow::s_isIcon);
+        SetIcon((ELedAura)GameWindow::s_Icon);
         SetDimensions(Config::WindowWidth, Config::WindowHeight, Config::WindowX, Config::WindowY);
     }
 

@@ -88,57 +88,6 @@ X86_FUNC(sub_29EA60)
 }
 
 
-
-struct RwV3d
-{
-	float x;
-	float y;
-	float z;
-};
-
-
-
-struct PlayerShadow
-{
-	int32_t vfTable;
-	int32_t pos;
-};
-
-PlayerShadow* playerPtr = nullptr;
-RwV3d* playerPos = nullptr;
-X86_FUNC_IMPL(__imp__sub_96AD0);
-X86_FUNC(sub_96AD0)
-{	
-	auto playerAddr = ctx.ecx.u32;
-	__imp__sub_96AD0(ctx, base);
-	playerPtr = (PlayerShadow*)X86_LOAD_U32(playerAddr);
-	playerPos = (RwV3d*)g_memory.Translate(playerAddr + 4);
-	printf("Shadow Pointer %llx\n", (intptr_t)playerPtr);
-	printf("Shadow Pos Ptr %llx\n", (intptr_t)playerPos);
-	printf("Shadow Pos x Ptr %llx\n", (intptr_t)&playerPos->x);
-	printf("Shadow Pos y Ptr %llx\n", (intptr_t)&playerPos->y);
-	printf("Shadow Pos z Ptr %llx\n", (intptr_t)&playerPos->z);
-}
-
-bool oncePos = false;
-X86_FUNC_IMPL(__imp__sub_90D10);
-X86_FUNC(sub_90D10)
-{	
-	auto a2Addr = X86_LOAD_U32(ctx.esp.u32 + 4);
-	auto mode = X86_LOAD_U16(a2Addr + 4);
-	__imp__sub_90D10(ctx, base);
-
-
-	if (playerPos && !oncePos && mode == 2)
-	{
-		/**playerPos->x = 6.004902;
-		playerPos->y = -494.980072;
-		playerPos->z = -411.312012;
-		oncePos = true;*/
-	}
-
-}
-
 // test spawn level
 X86_FUNC_IMPL(__imp__sub_258550);
 X86_FUNC(sub_258550)

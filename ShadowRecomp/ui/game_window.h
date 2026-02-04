@@ -21,13 +21,13 @@ public:
     static inline int s_height = DEFAULT_HEIGHT;
 
     static inline bool s_isFocused;
-    static inline int s_isIcon;
+    static inline int s_Icon;
     static inline bool s_isFullscreenCursorVisible;
     static inline bool s_isChangingDisplay;
 
     static SDL_Surface* GetIconSurface(void* pIconBmp, size_t iconSize);
     static void SetIcon(void* pIconBmp, size_t iconSize);
-    static void GameWindow::SetIcon(SDL_USER_ mode);
+    static void GameWindow::SetIcon(ELedAura mode);
     static const char* GetTitle();
     static void SetTitle(const char* title = nullptr);
     static void SetTitleBarColour();
