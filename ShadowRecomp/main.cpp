@@ -242,10 +242,10 @@ int main(int argc, char* argv[])
     NV2ADevice_Init();
 
     //Create "interrupt events" thread, a loop will check and fire guest function stored from KeConnectInterrupt
-    std::thread eventsThread(system_events_launch);
+   // std::thread eventsThread(system_events_launch);
 
     //Create DPC Routine thread, a loop will check and fire guest function stored from KeInsertQueueDpc
-    std::thread dpcThread(dpc_launch);
+    //std::thread dpcThread(dpc_launch);
 
 
     //launch the Start function of the game
