@@ -5,20 +5,19 @@
 #include <kernel/function.h>
 
 // Xbox originally supports immediate drawing by sending some kind of command queue to the GPU directly, bypassing the need of 
-// calling DrawPrimitive functions. It is done by calling D3DDevice_BeginPush call, a D3DDevice_SetVertexData* call per vertex and one 
+// calling DrawPrimitive functions, although, this system can also be used for non drawing operations.
+// For rendering, it is usually done by calling D3DDevice_BeginPush call, a D3DDevice_SetVertexData* call per vertex and one 
 // D3DDevice_EndPush API call. Similar to the other Xbox D3D APIs, these APIs "push" commands and data towards the Xbox GPU 
 // (called NV2A) to perform drawing. More Info: https://github.com/Cxbx-Reloaded/Cxbx-Reloaded/wiki/Xbox-D3D-drawing-via-NV2A-Kelvin
 
-// In the case of ShadowRecomp, rather than trying to emulate the entire push system command, we're going to take shortcuts 
-// and manually patch the few draw calls that we need.
-
-
-typedef unsigned long       DWORD;
-typedef DWORD NV2AMETHOD;
-#define CONTIGUOUS_MEMORY_BASE  0x80000000
+// In the case of ShadowRecomp, rather than trying to emulate the entire push system command of Xbox, we're going to take shortcuts 
+// and manually patch the few functions that need it.
 
 
 static float ClearQuadVertex[16]; // 4 vertices, Stride 16 (float X Y Z W)
+static float RasterRenderQuadVertex[24]; // 4 vertices, Stride 24 (float X Y Z W)
+
+static float SubmitNodeQuadVertex[256]; //arbitrary limitation, should be enough to handle all case scenarios
 
 DWORD GetStrideFromVertexDeclaration(HostVertexDeclaration* pVertexDeclaration)
 {
@@ -75,14 +74,6 @@ void HLE_draw_inline_elements(NV2AState* d)
 }
 
 
-static inline uint32_t ldl_le_p(const void* p)
-{
-	return *(uint32_t*)p;
-}
-
-
-extern GuestTexture* RTTexRef;
-void QuickDumpTexture(GuestTexture* texture, const char* name);
 void HLE_draw_inline_array(X_D3DPRIMITIVETYPE primitiveMode, int32_t VertexCount, void* VertexData)
 {
 
@@ -96,7 +87,6 @@ void HLE_draw_inline_array(X_D3DPRIMITIVETYPE primitiveMode, int32_t VertexCount
 	DWORD dwVertexStride = GetStrideFromVertexDeclaration(HostGetVertexDeclaration((size_t)g_memory.Translate(g_VertexShader_Handle), g_Xbox_VertexShaderMode == VertexShaderMode::FixedFunction));
 	if (dwVertexStride > 0)
 	{
-	//	printf("now drawing fullscreen quad.\n");
 		DrawPrimitiveUP(primitiveMode, VertexCount, VertexData, dwVertexStride);
 	}
 }
@@ -111,14 +101,78 @@ void ClearWithQuadsMidAsmHook(X86Register& eax)
 	X_D3DPRIMITIVETYPE primitiveMode = (X_D3DPRIMITIVETYPE)X86_LOAD_U32(addr - 8);
 	for (int i = 0; i < 16; i++)
 	{
-		ClearQuadVertex[i] = X86_LOAD_F32(addr + i * 4);
+		ClearQuadVertex[i] = X86_LOAD_F32(addr + i * sizeof(float));
 	}
 
 	//printf("draw quad clear for 640x480 RT composite.\n");
 	HLE_draw_inline_array(primitiveMode, 4, ClearQuadVertex);
 }
 
+//todo check if this one is correct, I don't know where the game uses that
+void RasterRenderQuadMidAsmHook(X86Register& eax)
+{
 
+	auto base = g_memory.base;
+
+
+	intptr_t addr = eax.u32 - (24 * sizeof(DWORD)) - 4;
+
+	X_D3DPRIMITIVETYPE primitiveMode = (X_D3DPRIMITIVETYPE)X86_LOAD_U32(addr - 8);
+	// Vertex data starts after: 0x417FC, 8, 0x40601818
+	intptr_t vertexDataAddr = addr - (24 * sizeof(DWORD));
+
+
+	for (int i = 0; i < 24; i++)
+	{
+		RasterRenderQuadVertex[i] = X86_LOAD_F32(vertexDataAddr + i * sizeof(float));
+	}
+
+	HLE_draw_inline_array(primitiveMode, 4, RasterRenderQuadVertex);
+}
+
+
+const int32_t dword_55FDEC = 0x55FDEC;  //used to detect the flag for stride 24 vs 16
+// This is used to draw the homing attack or spin dash aura, as well as shooting from guns.
+void _XbSubmitNodeMidAsmHook(X86Register& eax)
+{
+
+	auto base = g_memory.base;
+
+	//Get stride from flag
+	uint32_t v1_addr = X86_LOAD_U32(dword_55FDEC) + 12;
+	uint8_t flagStride = X86_LOAD_U8(v1_addr);
+
+	const int32_t stride = (flagStride & 1) ? 6 : 4; // 6 or 4 DWORDs per vertex
+
+	// Get vertex count from dword_55FDEC
+	uint32_t dword_55FDEC_ptr = X86_LOAD_U32(dword_55FDEC);
+	uint16_t vertexCount = X86_LOAD_U16(dword_55FDEC_ptr);
+
+	if (vertexCount > 256) //if this condition ever pass, we should consisder increasing the size of SubmitNodeQuadVertex array
+	{
+		printf("WARNING Too many vertices for SubmitNodeQuad detected, capping to 256!!!\n");
+		vertexCount = 256;
+	}
+
+	// Calculate total vertex data size
+	const int32_t totalDwords = vertexCount * stride;
+
+	int32_t vertexDataAddr = eax.u32 - sizeof(DWORD) - (totalDwords * sizeof(DWORD));
+
+	// Primitive type is at vertexDataAddr - 8
+	X_D3DPRIMITIVETYPE primitiveType = (X_D3DPRIMITIVETYPE)X86_LOAD_U32(vertexDataAddr - 8);
+
+	for (int i = 0; i < totalDwords; i++)
+	{
+		SubmitNodeQuadVertex[i] = X86_LOAD_F32(vertexDataAddr + i * sizeof(float));
+	}
+
+	HLE_draw_inline_array(primitiveType, vertexCount, SubmitNodeQuadVertex);
+}
+
+
+//this is needed so weighted characters have proper textures / material color, including Shadow.
+// no push function used here, so we just copy constants.
 void _rpSkinXboxSetMaterialColor(int32_t a1addr, int32_t a2)
 {
 	constexpr int COLOR_CONST = 191;

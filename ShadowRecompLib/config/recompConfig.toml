@@ -662,6 +662,8 @@ functions = [
 	{ address = 0x223A50, size = 0x60 },
 	{ address = 0x96680, size = 0x40 },
 	{ address = 0x254160, size = 0x3 },
+
+	{ address = 0x12BB0, size = 0x49A }, #broken size
 ]
 
 banned_addresses = [
@@ -696,4 +698,14 @@ address = 0x2AFBBC
 [[midasm_hook]]
 name = "ClearWithQuadsMidAsmHook"
 address = 0x2DE00B
+registers = ["r0"]
+
+[[midasm_hook]]
+name = "RasterRenderQuadMidAsmHook"
+address = 0x2ED959
+registers = ["r0"]
+
+[[midasm_hook]]
+name = "_XbSubmitNodeMidAsmHook"
+address = 0x2F1056
 registers = ["r0"]
