@@ -87,6 +87,6 @@ namespace input
     void Init();
 
     uint32_t GetState(uint32_t dwUserIndex, XINPUT_STATE* pState);
-    uint32_t SetState(uint32_t dwUserIndex, XINPUT_VIBRATION* pVibration);
+    uint32_t SetState(uint32_t dwUserIndex, uint8_t* outPacket);
 }
 

@@ -139,6 +139,15 @@ public:
 
 	}
 
+	void SetVibration(const uint8_t strength)
+	{
+		if (!CanPoll())
+			return;
+
+
+		SDL_GameControllerRumble(controller, strength * 256, strength * 256, VIBRATION_TIMEOUT_MS);
+	}
+
 	void SetLED(const uint8_t r, const uint8_t g, const uint8_t b) const
 	{
 		SDL_GameControllerSetLED(controller, r, g, b);
@@ -199,13 +208,13 @@ static void SetControllerInputDevice(Controller* controller)
 			if (controllerType == input::EInputDeviceExplicit::Unknown)
 			{
 				printf("Detected controller: %s (Unknown Controller Type)\n", controllerName);
-				controlLogSpam++;
 			}
 			else
 			{
 				printf("Detected controller: %s\n", controllerName);
-				controlLogSpam++;
 			}
+
+			controlLogSpam++;
 		}
 	}
 }
@@ -215,22 +224,22 @@ static void SetControllerChaosModeLED(Controller& controller, ELedAura mode)
 {
 	switch (mode)
 	{
-		case LED_AURA_NEUTRAL:
-		default:
-		{
-			controller.SetLED(91, 91, 91);
-		}
-		break;
-		case LED_AURA_HERO:
-		{
-			controller.SetLED(0, 94, 255);
-		}
-		break;
-		case LED_AURA_VILAIN:
-		{
-			controller.SetLED(237, 0, 0);
-		}
-		break;
+	case LED_AURA_NEUTRAL:
+	default:
+	{
+		controller.SetLED(91, 91, 91);
+	}
+	break;
+	case LED_AURA_HERO:
+	{
+		controller.SetLED(0, 94, 255);
+	}
+	break;
+	case LED_AURA_VILAIN:
+	{
+		controller.SetLED(237, 0, 0);
+	}
+	break;
 	}
 }
 
@@ -305,8 +314,8 @@ int Input_OnSDLEvent(void*, SDL_Event* event)
 	case SDL_MOUSEBUTTONDOWN:
 	case SDL_MOUSEBUTTONUP:
 	{
-		/**if (!GameWindow::IsFullscreen() || GameWindow::s_isFullscreenCursorVisible)
-			SDL_ShowCursor(SDL_ENABLE);*/
+		if (!GameWindow::IsFullscreen() || GameWindow::s_isFullscreenCursorVisible)
+			SDL_ShowCursor(SDL_ENABLE);
 
 		input::g_inputDevice = input::EInputDevice::Mouse;
 
@@ -318,6 +327,8 @@ int Input_OnSDLEvent(void*, SDL_Event* event)
 		if (event->window.event == SDL_WINDOWEVENT_FOCUS_LOST)
 		{
 			// Stop vibrating controllers on focus lost.
+			/**for (auto& controller : g_controllers)
+				controller.SetVibration({ 0, 0 });*/
 
 		}
 
@@ -382,15 +393,16 @@ uint32_t input::GetState(uint32_t dwUserIndex, XINPUT_STATE* pState)
 }
 
 
-uint32_t input::SetState(uint32_t dwUserIndex, _XINPUT_VIBRATION* pVibration)
+uint32_t input::SetState(uint32_t dwUserIndex, uint8_t* outPacket)
 {
-	if (!pVibration)
+	if (!outPacket)
 		return ERROR_BAD_ARGUMENTS;
 
 	if (!g_activeController)
 		return ERROR_DEVICE_NOT_CONNECTED;
 
-	// g_activeController->SetVibration(*pVibration);
+
+	//g_activeController->SetVibration(strength);
 
 	return ERROR_SUCCESS;
 }
