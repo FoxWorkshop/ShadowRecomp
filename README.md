@@ -65,4 +65,6 @@ This project does not plan to support any more platforms other than Windows and 
 
 - Skyth: Provided help to understand how Recompilation works, also the author of the original graphics pipeline code which was (mostly) reused here.
 
-- Darío: Creator of the graphics hardware abstraction layer plume, used by the project's graphics backend.
+- DarÃ­o: Creator of the graphics hardware abstraction layer plume, used by the project's graphics backend.
+
+- MattKC: Useful explanation of Xbox's Push Buffers system on [his blog with Reburn3.](https://forum.mattkc.com/viewtopic.php?t=154)
