@@ -98,7 +98,7 @@ X86_FUNC(sub_258550)
 		//X86_STORE_U32(ctx.esp.u32 + 4, 5); // Test level 5 (used in Sky Troops Intro Cutscene)
 
 		//X86_STORE_U32(ctx.esp.u32 + 4, 504); 
-		X86_STORE_U32(ctx.esp.u32 + 4, 301); //prison island
+		//X86_STORE_U32(ctx.esp.u32 + 4, 301); //prison island
 
 		//X86_STORE_U32(ctx.esp.u32 + 4, 302); //circus park 
 
