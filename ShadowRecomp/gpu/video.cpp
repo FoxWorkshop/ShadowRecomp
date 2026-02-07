@@ -1338,6 +1338,15 @@ static void ProcSetRenderState(const RenderCommand& cmd)
 	}
 	case X_D3DRS_FOGCOLOR:
 	{
+		uint32_t fog = value;
+
+		float r = ((fog >> 16) & 0xFF) / 255.0f;
+		float g = ((fog >> 8) & 0xFF) / 255.0f;
+		float b = ((fog >> 0) & 0xFF) / 255.0f;
+
+		SetDirtyValue(g_dirtyStates.sharedConstants, g_sharedConstants.FogColor[0], r);
+		SetDirtyValue(g_dirtyStates.sharedConstants, g_sharedConstants.FogColor[1], g);
+		SetDirtyValue(g_dirtyStates.sharedConstants, g_sharedConstants.FogColor[2], b);
 
 		break;
 	}
@@ -1408,6 +1417,18 @@ static void ProcSetRenderState(const RenderCommand& cmd)
 	}
 	case X_D3DRS_TEXTUREFACTOR:
 	{
+		uint32_t tf = value;
+
+
+		float r = ((tf >> 16) & 0xFF) / 255.0f;
+		float g = ((tf >> 8) & 0xFF) / 255.0f;
+		float b = ((tf >> 0) & 0xFF) / 255.0f;
+		float a = ((tf >> 24) & 0xFF) / 255.0f;
+	
+		SetDirtyValue(g_dirtyStates.sharedConstants, g_sharedConstants.TextureFactor[0], r);
+		SetDirtyValue(g_dirtyStates.sharedConstants, g_sharedConstants.TextureFactor[1], g);
+		SetDirtyValue(g_dirtyStates.sharedConstants, g_sharedConstants.TextureFactor[2], b);
+		SetDirtyValue(g_dirtyStates.sharedConstants, g_sharedConstants.TextureFactor[3], a);
 
 		break;
 	}
