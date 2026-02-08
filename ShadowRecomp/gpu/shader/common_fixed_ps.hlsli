@@ -131,15 +131,27 @@ cbuffer SharedConstants : register(b2, space4)
     
     //alpha arg0 c36
     uint alpha_arg0_0 : packoffset(c36.x);
+    uint alpha_arg0_1 : packoffset(c36.y);
+    uint alpha_arg0_2 : packoffset(c36.z);
+    uint alpha_arg0_3 : packoffset(c36.w);
     
     //alpha arg1 c40
     uint alpha_arg1_0 : packoffset(c40.x);
+    uint alpha_arg1_1 : packoffset(c40.y);
+    uint alpha_arg1_2 : packoffset(c40.z);
+    uint alpha_arg1_3 : packoffset(c40.w);
     
     //alpha arg2 c44
     uint alpha_arg2_0 : packoffset(c44.x);
+    uint alpha_arg2_1 : packoffset(c44.y);
+    uint alpha_arg2_2 : packoffset(c44.z);
+    uint alpha_arg2_3 : packoffset(c44.w);
     
     //resultarg c48
     uint result_arg_0 : packoffset(c48.x);
+    uint result_arg_1 : packoffset(c48.y);
+    uint result_arg_2 : packoffset(c48.z);
+    uint result_arg_3 : packoffset(c48.w);
     
     uint TextureSampleType_0 : packoffset(c52.x);
     uint TextureSampleType_1 : packoffset(c52.y);
@@ -195,12 +207,22 @@ uint GetTextureStage(uint slot, uint type)
     {
         case 1:
         default:
+        if (slot == 0)
             return texture2D_0;
+        else if (slot == 1)
+            return texture2D_1;
+        else if (slot == 2)
+            return texture2D_2;
+        else if (slot == 3)
+            return texture2D_3;
+        break;
         case 2:
             return texture3D_0;
         case 3:
             return textureCube_0;
     }
+    
+    return texture2D_0;
 }
 
 uint GetSamplerState(uint slot)

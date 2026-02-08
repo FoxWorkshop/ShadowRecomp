@@ -278,7 +278,7 @@ TextureArgs ExecuteTextureStage(
         ctx.TEMP = value;
     else
         ctx.CURRENT = value;
-
+ 
     return ctx;
   
 }
@@ -344,6 +344,36 @@ float4 main(PS_INPUT input) : SV_Target
     stages[0].ALPHAARG1 = alpha_arg1_0;
     stages[0].ALPHAARG2 = alpha_arg2_0;
     stages[0].RESULTARG = result_arg_0;
+    
+    stages[1].COLOROP = color_op_1;
+    stages[1].COLORARG0 = color_arg0_1;
+    stages[1].COLORARG1 = color_arg1_1;
+    stages[1].COLORARG2 = color_arg2_1;
+    stages[1].ALPHAOP = alpha_op_1; 
+    stages[1].ALPHAARG0 = alpha_arg0_1;
+    stages[1].ALPHAARG1 = alpha_arg1_1;
+    stages[1].ALPHAARG2 = alpha_arg2_1;
+    stages[1].RESULTARG = result_arg_1;
+    
+    stages[2].COLOROP = color_op_2;
+    stages[2].COLORARG0 = color_arg0_2;
+    stages[2].COLORARG1 = color_arg1_2;
+    stages[2].COLORARG2 = color_arg2_2;
+    stages[2].ALPHAOP = alpha_op_2; 
+    stages[2].ALPHAARG0 = alpha_arg0_2;
+    stages[2].ALPHAARG1 = alpha_arg1_2;
+    stages[2].ALPHAARG2 = alpha_arg2_2;
+    stages[2].RESULTARG = result_arg_2;
+    
+    stages[3].COLOROP = color_op_3;
+    stages[3].COLORARG0 = color_arg0_3;
+    stages[3].COLORARG1 = color_arg1_3;
+    stages[3].COLORARG2 = color_arg2_3;
+    stages[3].ALPHAOP = alpha_op_3; 
+    stages[3].ALPHAARG0 = alpha_arg0_3;
+    stages[3].ALPHAARG1 = alpha_arg1_3;
+    stages[3].ALPHAARG2 = alpha_arg2_3;
+    stages[3].RESULTARG = result_arg_3;
 
 	// Define stages
 	// https://docs.microsoft.com/en-us/windows/win32/direct3d9/d3dtexturestagestatetype
@@ -405,6 +435,9 @@ float4 main(PS_INPUT input) : SV_Target
         if (!passTest)
             discard;
     }
+    
+
   
+    
    return ctx.CURRENT;
 }
