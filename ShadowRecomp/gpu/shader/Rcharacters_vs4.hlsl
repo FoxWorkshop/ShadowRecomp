@@ -78,8 +78,8 @@ VS_OUTPUT main(const VS_INPUT xIn)
 	// Xbox shader program will be inserted here
 	
   x_arl(a0, x, v2.x);
-
-  x_mov(r11, xyzw, c(-91));
+    
+  x_mov(r11, xyzw, c(-91)); //ambient color
   x_mov(oT0, xyzw, v5);
 
   x_mul(r8, xyzw, v1.x, c(a0.x-88));

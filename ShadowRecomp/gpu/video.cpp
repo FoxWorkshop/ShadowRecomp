@@ -6342,14 +6342,16 @@ uint8_t* ApplyVertexPatch(uint8_t* vertexData, const uint8_t indexStream, const 
 				pHostVertexAsShort[3] = pXboxVertexAsShort[3];
 				break;
 			}
-			case X_D3DVSDT_NORMPACKED3: { // 0x16:
+			case X_D3DVSDT_NORMPACKED3: 
+			{ 
+				
 				// Make it FLOAT3
 				union {
 					int32_t value;
 					struct {
-						int x : 11;
-						int y : 11;
-						int z : 10;
+						int32_t x : 11;
+						int32_t y : 11;
+						int32_t z : 10;
 					};
 				} NormPacked3;
 
@@ -6414,7 +6416,7 @@ uint8_t* ApplyVertexPatch(uint8_t* vertexData, const uint8_t indexStream, const 
 			}
 			case X_D3DVSDT_NONE: { // 0x02:
 
-				printf("X_D3DVSDT_NONE");
+				printf("X_D3DVSDT_NONE\n");
 				// No host element data (but Xbox size can be above zero, when used for X_D3DVSD_MASK_SKIP*
 				break;
 			}

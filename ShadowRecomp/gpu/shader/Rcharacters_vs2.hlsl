@@ -1,5 +1,6 @@
 #include "common_vs.hlsli"
 
+//this seems to be used to draw Sonk's eyes, wirst and is re used for muzzle, arm and torso.
 struct VS_INPUT
 {
     float4 iPos : TEXCOORD;
@@ -80,8 +81,9 @@ VS_OUTPUT main(const VS_INPUT xIn)
 	// Xbox shader program will be inserted here
 	
   x_arl(a0, x, v2.x);
-
-  x_mov(r11, xyzw, c(-91));
+    
+      
+  x_mov(r11, xyzw, c(-91)); //c5 ambient color
   x_mov(oT0, xyzw, v5);
 
   x_mul(r8, xyzw, v1.x, c(a0.x-88));
@@ -139,10 +141,10 @@ VS_OUTPUT main(const VS_INPUT xIn)
 
   x_max(r6, x, c(-90).w, -r6.x);
 
-  x_mad(r11, xyz, c(-89).xyzz, r6.x, r11.xyzz);
+  x_mad(r11, xyz, c(-89).xyzz, r6.x, r11.xyzz); //c7 lighting calculation (?)
 
 
-  x_mul(oD0, xyzw, c(95), r11);
+  x_mul(oD0, xyzw, c(95), r11); //c191, final color multiplier.
 	// End Xbox shader program
 
 	// Copy variables to output struct

@@ -171,15 +171,41 @@ void _XbSubmitNodeMidAsmHook(X86Register& eax)
 }
 
 
-//this is needed so weighted characters have proper textures / material color, including Shadow.
+//this is needed so weighted characters have proper textures / material color, and lighting.
 // no push function used here, so we just copy constants.
 void _rpSkinXboxSetMaterialColor(int32_t a1addr, int32_t a2)
 {
-	constexpr int COLOR_CONST = 191;
-
-	float g_VSConstants[4];
-
 	intptr_t a1 = (intptr_t)g_memory.Translate(a1addr);
+	float g_VSConstants[4];
+	auto base = g_memory.base;
+
+	//lighting
+	constexpr int LIGHT_CONST = 5;
+	auto v3 = *((float*)a1 + 3);
+
+	float r = X86_LOAD_F32(0x55B3C0);
+	float g = X86_LOAD_F32(0x55B3C4);
+	float b = X86_LOAD_F32(0x55B3C8);
+	float a = X86_LOAD_F32(0x55B3CC);
+	if (v3 == 1.0)
+	{
+		g_VSConstants[0] = r;
+		g_VSConstants[1] = g;
+		g_VSConstants[2] = g;
+	}
+	else
+	{
+		g_VSConstants[0] = r * v3;
+		g_VSConstants[1] = g * v3;
+		g_VSConstants[2] = b * v3;
+	}
+
+	g_VSConstants[3] = a;
+
+	CopyVertexShaderConstant(LIGHT_CONST, (DWORD*)g_VSConstants, 1);
+
+	//material texture
+	constexpr int COLOR_CONST = 191;
 
 	if (!a2 || *(intptr_t*)(a1 + 4) == -1)
 	{
