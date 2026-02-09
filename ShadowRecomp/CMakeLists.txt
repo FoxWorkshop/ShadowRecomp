@@ -116,6 +116,7 @@ set(SHADOW_RECOMP_PATCHES_CXX_SOURCES
     "patches/start_patches.cpp"
     "patches/bloom_patch.cpp"
     "patches/player_patches.cpp"
+    "patches/misc_patches.cpp"
 )
 
 set(SHADOW_RECOMP_UI_CXX_SOURCES
