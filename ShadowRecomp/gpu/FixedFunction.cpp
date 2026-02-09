@@ -284,6 +284,10 @@ void UpdateMaterial(Material* pMaterial)
 	ffShaderState.Materials[0].Power = pMaterial->Power;
 }
 
+void UpdateLightData(uint32_t index, X_D3DLIGHT8* pLight)
+{
+	g_LightState.Lights[index] = *pLight;
+}
 
 void UpdateFixedFunctionShaderLight(int d3dLightIndex, Light* pShaderLight, DirectX::XMFLOAT4* pLightAmbient) {
 	if (d3dLightIndex == -1) 

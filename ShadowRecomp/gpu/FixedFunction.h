@@ -14,3 +14,4 @@ struct Material
 
 
 void UpdateMaterial(Material* pMaterial);
+void UpdateLightData(uint32_t index, X_D3DLIGHT8* pLight);

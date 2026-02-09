@@ -2525,7 +2525,7 @@ GuestShader* CreateShader(ResourceType resourceType)
 		{
 			shader->shader = CREATE_SHADER(Rcharacters_vs0);
 		}
-		else if (hash == 0xdfae999de3ea6283) //this shader fails gpu based validation
+		else if (hash == 0xdfae999de3ea6283) 
 		{
 			shader->shader = CREATE_SHADER(Rcharacters_vs1);
 		}
@@ -2537,7 +2537,7 @@ GuestShader* CreateShader(ResourceType resourceType)
 		{
 			shader->shader = CREATE_SHADER(Rblack_bull_vs);
 		}
-		else if (hash == 0x15a6de0f9b750cb6)
+		else if (hash == 0x15a6de0f9b750cb6) //used to draw sonk eyes and wrist
 		{
 			shader->shader = CREATE_SHADER(Rcharacters_vs2);
 		}
@@ -2545,7 +2545,7 @@ GuestShader* CreateShader(ResourceType resourceType)
 		{
 			shader->shader = CREATE_SHADER(Rcharacters_vs3);
 		}
-		else if (hash == 0x20dcefa19e31eaf3)
+		else if (hash == 0x20dcefa19e31eaf3) //Sonk's body uses this shader
 		{
 			shader->shader = CREATE_SHADER(Rcharacters_vs4);
 		}
@@ -6967,6 +6967,17 @@ int32_t D3DDevice_LightEnable(uint32_t Index, int32_t bEnable)
 	return ctx->eax.u32;
 }
 
+X86_FUNC_IMPL(__imp__sub_3D08B0);
+int32_t D3DDevice_SetLight(uint32_t Index, X_D3DLIGHT8* pLight)
+{
+	auto ctx = GetX86Context();
+	auto base = g_memory.base;
+	__imp__sub_3D08B0(*ctx, base);
+	ctx->esp.u32 -= 12;
+	UpdateLightData(Index, pLight);
+	return ctx->eax.u32;
+}
+
 void SetMaterial(Material* pMaterial)
 {
 	UpdateMaterial(pMaterial);
@@ -7530,6 +7541,7 @@ GUEST_FUNCTION_HOOK_STDCALL(sub_3DD810, LockTextureRect); //todo cube version?
 
 GUEST_FUNCTION_HOOK_STDCALL(sub_3CFDF0, SetMaterial);
 GUEST_FUNCTION_HOOK_STDCALL(sub_3D0B70, D3DDevice_LightEnable);
+GUEST_FUNCTION_HOOK_STDCALL(sub_3D08B0, D3DDevice_SetLight);
 
 
 //Rendering
