@@ -385,7 +385,7 @@ uint32_t input::GetState(uint32_t dwUserIndex, XINPUT_STATE* pState)
 
 	pState->dwPacketNumber = packet++;
 
-	if (!g_activeController)
+	if (!g_activeController || !g_controllers[dwUserIndex - 1].controller)
 		return ERROR_DEVICE_NOT_CONNECTED;
 
 	pState->Gamepad = g_activeController->state;
@@ -447,14 +447,20 @@ struct DeviceState {
 
 HANDLE XInputOpen(int* a1, int a2)
 {
+	auto base = g_memory.base;
 
-	if (g_controllers[0].controller)
+	for (int i = 0; i < 4; i++)
 	{
-		SetControllerInputDevice(&g_controllers[0]);
-		auto base = g_memory.base;
+		if (g_controllers[i].controller)
+		{
+			SetControllerInputDevice(&g_controllers[i]);
+		}
 
-		X86_STORE_U32(0x559984, (uint32_t)&g_controllers[0]);
+		g_controllers[i].index = i + 1;
+
+		X86_STORE_U32(0x559984 + (4 * i), i + 1);
 	}
+
 	return 0;
 }
 
