@@ -662,6 +662,9 @@ functions = [
 	{ address = 0x223A50, size = 0x60 },
 	{ address = 0x96680, size = 0x40 },
 	{ address = 0x254160, size = 0x3 },
+	{ address = 0x266D70, size = 0x5B },
+	{ address = 0x26CF00, size = 0x5B },
+	{ address = 0x26B3E0, size = 0x5B },
 
 	{ address = 0x12BB0, size = 0x11C }, #broken size
 ]
