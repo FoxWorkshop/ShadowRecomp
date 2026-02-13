@@ -95,28 +95,7 @@ X86_FUNC(sub_258550)
 {
 	if (!changeLevelOnce)
 	{
-		//X86_STORE_U32(ctx.esp.u32 + 4, 5); // Test level 5 (used in Sky Troops Intro Cutscene)
-
-		//X86_STORE_U32(ctx.esp.u32 + 4, 504); 
-		//X86_STORE_U32(ctx.esp.u32 + 4, 301); //prison island
-
-		//X86_STORE_U32(ctx.esp.u32 + 4, 302); //circus park 
-
-		//X86_STORE_U32(ctx.esp.u32 + 4, 300); 
-
-
-		//X86_STORE_U32(ctx.esp.u32 + 4, 310); //Egg Breaker 
-		//X86_STORE_U32(ctx.esp.u32 + 4, 600); //Gun Fortress (require pixel shader)
-		//X86_STORE_U32(ctx.esp.u32 + 4, 602); //Lava Shelter
-		X86_STORE_U32(ctx.esp.u32 + 4, 710); //Devil Doom
-
-		//X86_STORE_U32(ctx.esp.u32 + 4, 400); //Central City
-
-		//X86_STORE_U32(ctx.esp.u32 + 4, 201); //Glyphic Canyon 
-		//X86_STORE_U32(ctx.esp.u32 + 4, 210); //black bull (require pixel shader)
-		//X86_STORE_U32(ctx.esp.u32 + 4, 402); //Sky Troops	
-	//	X86_STORE_U32(ctx.esp.u32 + 4, 501); //air fleet  (eventually require pixel shader)
-
+		X86_STORE_U32(ctx.esp.u32 + 4, 710);
 		changeLevelOnce = true;
 	}
 	__imp__sub_258550(ctx, base);
