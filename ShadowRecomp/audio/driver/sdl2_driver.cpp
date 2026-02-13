@@ -10,12 +10,11 @@
 
 static SDL_AudioDeviceID g_audioDevice{};
 
-std::vector<uint8_t> reference_data; //todo delete
+
 //thread audio can be deleted after
 int adxm_vsyncThread = -1;
 static int adxm_fsThread = -1;
 static int adxm_mwidlThread = -1;
-int countBeforeBreak = 0;
 static volatile bool g_audioThreadShouldExit = false;
 
 
@@ -114,84 +113,6 @@ void XAudioInitializeSystem()
 	g_audioThreadShouldExit = false;
 }
 
-struct adxT
-{
-	BYTE gap0[12];
-	DWORD dwordC;
-	DWORD dword10;
-	DWORD dword14;
-	char* pchar18;
-	DWORD dword1C;
-	WORD* leftPCM;
-	WORD* rightPCM;
-	__int16 int1628;
-	BYTE gap2A[2];
-	__int16 int162C;
-	BYTE gap2E[2];
-	WORD word30;
-	WORD word32;
-	WORD word34;
-	WORD word36;
-	WORD word38;
-};
-
-
-
-int audioSize = 0;
-extern bool adxTest;
-static int currentThread = 0;
-
-int __cdecl ADXB_GetDecNumSmpl(int a1)
-{
-	auto base = g_memory.base;
-	auto res = X86_LOAD_U32(a1 + 144);
-	return res;
-}
-
-
-//adxsjd_decode_exec_r
-//__int16 __usercall adxsjd_decode_exec@<ax>(_DWORD *a1@<esi>)
-X86_FUNC_IMPL(__imp__sub_32E7C0);
-X86_FUNC(sub_32E7C0)
-{
-
-	__imp__sub_32E7C0(ctx, base);
-
-	/**ctx.esp.u32 -= 4;
-
-	int* a1 = (int*)(base + ctx.esi.u32);
-
-
-	//FILE* f = fopen("D:\\GitHub\\Downloaded Projects\\ShadowRecomp\\out\\build\\x64-Clang-Debug\\ShadowRecomp\\outSHTH.raw", "ab"); // append
-	void* ptr;
-	//if (f)
-	{
-
-		audioSize = ADXB_GetDecNumSmpl(a1[1]);
-		ptr = (g_memory.Translate(a1[7]));
-		SDL_QueueAudio(g_audioDevice, ptr, audioSize * 2);
-		//auto len = fwrite((const void*)(ptr), 1, audioSize * 2, f);
-		//fclose(f);
-	}
-
-	ctx.esp.u32 += 4;*/
-}
-
-void CaptureRawAudio(uint32_t data)
-{
-	if (data < 0x1000)
-		return;
-
-	FILE* f = fopen("outSHTH.raw", "ab"); // append
-	void* ptr;
-	if (f)
-	{
-		//fwrite((void*)data, 1, 500 * 2, f);
-		fclose(f);
-	}
-}
-
-
 #include <filesystem>
 namespace fs = std::filesystem;
 
@@ -207,6 +128,5 @@ void AudioQuit()
 
 void initSDL2Driver()
 {
-	//XAudioInitializeSystem();
 
 }
