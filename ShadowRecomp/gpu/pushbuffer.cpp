@@ -53,7 +53,7 @@ void HLE_draw_inline_array(NV2AState* d)
 
 	bool isFixed = g_Xbox_VertexShaderMode == VertexShaderMode::FixedFunction;
 
-	DWORD dwVertexStride = GetStrideFromVertexDeclaration(HostGetVertexDeclaration((size_t)g_memory.Translate(g_VertexShader_Handle), isFixed));
+	DWORD dwVertexStride = GetStrideFromVertexDeclaration(XSR_HostGetVertexDeclaration((size_t)g_memory.Translate(g_VertexShader_Handle), isFixed));
 	if (dwVertexStride > 0)
 	{
 		uint32_t VertexCount = (pg->inline_array_length * sizeof(DWORD)) / dwVertexStride;
@@ -84,7 +84,7 @@ void HLE_draw_inline_array(X_D3DPRIMITIVETYPE primitiveMode, int32_t VertexCount
 	// retrieve vertex shader
 
 
-	DWORD dwVertexStride = GetStrideFromVertexDeclaration(HostGetVertexDeclaration((size_t)g_memory.Translate(g_VertexShader_Handle), g_Xbox_VertexShaderMode == VertexShaderMode::FixedFunction));
+	DWORD dwVertexStride = GetStrideFromVertexDeclaration(XSR_HostGetVertexDeclaration((size_t)g_memory.Translate(g_VertexShader_Handle), g_Xbox_VertexShaderMode == VertexShaderMode::FixedFunction));
 	if (dwVertexStride > 0)
 	{
 		DrawPrimitiveUP(primitiveMode, VertexCount, VertexData, dwVertexStride);

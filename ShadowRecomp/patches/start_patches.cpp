@@ -108,14 +108,14 @@ X86_FUNC(sub_258550)
 		//X86_STORE_U32(ctx.esp.u32 + 4, 310); //Egg Breaker 
 		//X86_STORE_U32(ctx.esp.u32 + 4, 600); //Gun Fortress (require pixel shader)
 		//X86_STORE_U32(ctx.esp.u32 + 4, 602); //Lava Shelter
-		//X86_STORE_U32(ctx.esp.u32 + 4, 710); //Devil Doom
+		X86_STORE_U32(ctx.esp.u32 + 4, 710); //Devil Doom
 
 		//X86_STORE_U32(ctx.esp.u32 + 4, 400); //Central City
 
 		//X86_STORE_U32(ctx.esp.u32 + 4, 201); //Glyphic Canyon 
 		//X86_STORE_U32(ctx.esp.u32 + 4, 210); //black bull (require pixel shader)
 		//X86_STORE_U32(ctx.esp.u32 + 4, 402); //Sky Troops	
-		//X86_STORE_U32(ctx.esp.u32 + 4, 501); //air fleet  (eventually require pixel shader)
+	//	X86_STORE_U32(ctx.esp.u32 + 4, 501); //air fleet  (eventually require pixel shader)
 
 		changeLevelOnce = true;
 	}

@@ -52,3 +52,4 @@ void SetVertexShaderPassthroughProgram();
 
 extern VertexShaderMode g_Xbox_VertexShaderMode;
 extern uint32_t g_VertexShader_Handle;
+const uint8_t* CreateRecompiledShader(size_t handle, size_t* outSize);

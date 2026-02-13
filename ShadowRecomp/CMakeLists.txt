@@ -119,6 +119,12 @@ set(SHADOW_RECOMP_PATCHES_CXX_SOURCES
     "patches/misc_patches.cpp"
 )
 
+
+set(SHADOW_RECOMP_USER_CXX_SOURCES
+    "user/config.cpp"
+    "user/paths.cpp"
+)
+
 set(SHADOW_RECOMP_UI_CXX_SOURCES
     "ui/game_window.cpp"
     "ui/imgui_utils.cpp"
@@ -140,12 +146,9 @@ set(SHADOW_RECOMP_THIRDPARTY_SOURCES
     "${SHADOW_RECOMP_THIRDPARTY_ROOT}/implot/implot.cpp"
     "${SHADOW_RECOMP_THIRDPARTY_ROOT}/implot/implot_demo.cpp"
     "${SHADOW_RECOMP_THIRDPARTY_ROOT}/implot/implot_items.cpp"
+    "${SHADOW_RECOMP_TOOLS_ROOT}/XShaderRecomp/thirdparty/smol-v/source/smolv.cpp"
 )
 
-set(SHADOW_RECOMP_USER_CXX_SOURCES
-    "user/config.cpp"
-    "user/paths.cpp"
-)
 
 set(SHADOW_RECOMP_THIRDPARTY_INCLUDES
     "${SHADOW_RECOMP_THIRDPARTY_ROOT}/concurrentqueue"
@@ -154,6 +157,7 @@ set(SHADOW_RECOMP_THIRDPARTY_INCLUDES
     "${SHADOW_RECOMP_THIRDPARTY_ROOT}/stb"
     "${SHADOW_RECOMP_THIRDPARTY_ROOT}/unordered_dense/include"
     "${SHADOW_RECOMP_THIRDPARTY_ROOT}/DirectXMath/Inc"
+    "${SHADOW_RECOMP_TOOLS_ROOT}/XShaderRecomp/thirdparty/smol-v/source"
 )
 
 set_source_files_properties(${SHADOW_RECOMP_THIRDPARTY_SOURCES} PROPERTIES SKIP_PRECOMPILE_HEADERS ON)
@@ -242,8 +246,7 @@ if (SHADOW_RECOMP_D3D12)
     )
 endif()
 
-
-find_package(directx-dxc REQUIRED)
+#find_package(directx-dxc REQUIRED)
 find_package(CURL REQUIRED)
 
 if (SHADOW_RECOMP_D3D12)
@@ -293,8 +296,10 @@ target_link_libraries(ShadowRecomp PRIVATE
     ShadowRecompLib
     xxHash::xxhash
     plume
-
+    XShaderRecompLib
 )
+
+target_compile_definitions(XShaderRecompLib PRIVATE SHADOW_RECOMP)
 
 target_include_directories(ShadowRecomp PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}

@@ -446,32 +446,11 @@ struct _D3DRECT
 	LONG y2;
 };
 
-struct GuestVertexElement
-{
-	DWORD StreamIndex;
-	DWORD Offset;
-	DWORD Format;
-	BYTE TessellationType;
-	BYTE TessellationSource;
-	BYTE Padding0;
-	BYTE Padding1;
-};
-
 // This is used to initialize the last vertex element in a vertex declaration
 // array
 //
 #define D3DDECL_END() {0xFF,0,D3DDECLTYPE_UNUSED,0,0,0}
 
-
-typedef struct _D3DVERTEXELEMENT9
-{
-	WORD    Stream;     // Stream index
-	WORD    Offset;     // Offset in the stream in bytes
-	BYTE    Type;       // Data type
-	BYTE    Method;     // Processing method
-	BYTE    Usage;      // Semantics
-	BYTE    UsageIndex; // Semantic index
-} D3DVERTEXELEMENT9, * LPD3DVERTEXELEMENT9;
 
 struct GuestVertexDeclaration : GuestResource
 {
@@ -504,6 +483,41 @@ struct GuestShader : GuestResource
 	const char* name = "<unknown>";
 #endif
 };
+
+typedef struct _X_D3DPIXELSHADERDEF
+{
+	DWORD    PSAlphaInputs[8];          // X_D3DRS_PSALPHAINPUTS0..X_D3DRS_PSALPHAINPUTS7 : Alpha inputs for each stage
+	DWORD    PSFinalCombinerInputsABCD; // X_D3DRS_PSFINALCOMBINERINPUTSABCD : Final combiner inputs
+	DWORD    PSFinalCombinerInputsEFG;  // X_D3DRS_PSFINALCOMBINERINPUTSEFG : Final combiner inputs (continued)
+	DWORD    PSConstant0[8];            // X_D3DRS_PSCONSTANT0_0..X_D3DRS_PSCONSTANT0_7 : C0 for each stage
+	DWORD    PSConstant1[8];            // X_D3DRS_PSCONSTANT1_0..X_D3DRS_PSCONSTANT1_7 : C1 for each stage
+	DWORD    PSAlphaOutputs[8];         // X_D3DRS_PSALPHAOUTPUTS0..X_D3DRS_PSALPHAOUTPUTS7 : Alpha output for each stage
+	DWORD    PSRGBInputs[8];            // X_D3DRS_PSRGBINPUTS0..X_D3DRS_PSRGBINPUTS7 : RGB inputs for each stage
+	DWORD    PSCompareMode;             // X_D3DRS_PSCOMPAREMODE : Compare modes for clipplane texture mode
+	DWORD    PSFinalCombinerConstant0;  // X_D3DRS_PSFINALCOMBINERCONSTANT0 : C0 in final combiner
+	DWORD    PSFinalCombinerConstant1;  // X_D3DRS_PSFINALCOMBINERCONSTANT1 : C1 in final combiner
+	DWORD    PSRGBOutputs[8];           // X_D3DRS_PSRGBOUTPUTS0..X_D3DRS_PSRGBOUTPUTS7 : Stage 0 RGB outputs
+	DWORD    PSCombinerCount;           // X_D3DRS_PSCOMBINERCOUNT : Active combiner count (Stages 0-7)
+	DWORD    PSTextureModes;            // X_D3DRS_PS_RESERVED (copied from out-of-range X_D3DRS_PSTEXTUREMODES) : Texture addressing modes
+	DWORD    PSDotMapping;              // X_D3DRS_PSDOTMAPPING : Input mapping for dot product modes
+	DWORD    PSInputTexture;            // X_D3DRS_PSINPUTTEXTURE : Texture source for some texture modes
+
+	// These last three DWORDs are used to define how Direct3D8 pixel shader constants map to the constant
+	// registers in each combiner stage. They are used by the Direct3D run-time software but not by the hardware.
+	DWORD    PSC0Mapping;               // Mapping of c0 regs to D3D constants
+	DWORD    PSC1Mapping;               // Mapping of c1 regs to D3D constants
+	DWORD    PSFinalCombinerConstants;  // Final combiner constant mapping
+}
+X_D3DPIXELSHADERDEF;
+
+typedef void X_D3DDevice;
+
+typedef struct GuestPixelShader
+{
+	DWORD RefCount;
+	DWORD D3DOwned;
+	uint32_t pPSDef; //pointer to _X_D3DPIXELSHADERDEF
+} X_PixelShader;
 
 
 //_XD3DVIEWPORT8
@@ -860,48 +874,10 @@ enum _D3DTEXTUREADDRESS : __int32
 
 // vertex shader input registers for fixed function vertex shader
 
-//          Name                   Register number      D3DFVF
-const int X_D3DVSDE_VERTEX = -1; // Xbox extension for Begin/End drawing - equivalent to POSITION
-const int X_D3DVSDE_POSITION = 0; // Corresponds to X_D3DFVF_XYZ
-const int X_D3DVSDE_BLENDWEIGHT = 1; // Corresponds to X_D3DFVF_XYZB1? (was X_D3DFVF_XYZRHW?)
-const int X_D3DVSDE_NORMAL = 2; // Corresponds to X_D3DFVF_NORMAL
-const int X_D3DVSDE_DIFFUSE = 3; // Corresponds to X_D3DFVF_DIFFUSE
-const int X_D3DVSDE_SPECULAR = 4; // Corresponds to X_D3DFVF_SPECULAR
-const int X_D3DVSDE_FOG = 5; // Xbox extension
-const int X_D3DVSDE_POINTSIZE = 6; // Dxbx addition
-const int X_D3DVSDE_BACKDIFFUSE = 7; // Xbox extension
-const int X_D3DVSDE_BACKSPECULAR = 8; // Xbox extension
-const int X_D3DVSDE_TEXCOORD0 = 9; // Corresponds to X_D3DFVF_TEX1 (not X_D3DFVF_TEX0, which means no textures are present)
-const int X_D3DVSDE_TEXCOORD1 = 10; // Corresponds to X_D3DFVF_TEX2
-const int X_D3DVSDE_TEXCOORD2 = 11; // Corresponds to X_D3DFVF_TEX3
-const int X_D3DVSDE_TEXCOORD3 = 12; // Corresponds to X_D3DFVF_TEX4
+
 
 //typedef X_D3DVSDE = X_D3DVSDE_POSITION..High(DWORD)-2; // Unique declaration to make overloads possible;
 
-// bit declarations for _Type fields
-const int X_D3DVSDT_FLOAT1 = 0x12; // 1D float expanded to (value, 0.0, 0.0, 1.0)
-const int X_D3DVSDT_FLOAT2 = 0x22; // 2D float expanded to (value, value, 0.0, 1.0)
-const int X_D3DVSDT_FLOAT3 = 0x32; // 3D float expanded to (value, value, value, 1.0) In double word format this is ARGB, or in byte ordering it would be B, G, R, A.
-const int X_D3DVSDT_FLOAT4 = 0x42; // 4D float
-const int X_D3DVSDT_D3DCOLOR = 0x40; // 4D packed unsigned bytes mapped to 0.0 to 1.0 range
-//const int X_D3DVSDT_UBYTE4      = 0x05; // 4D unsigned byte   Dxbx note : Not supported on Xbox ?
-const int X_D3DVSDT_SHORT2 = 0x25; // 2D signed short expanded to (value, value, 0.0, 1.0)
-const int X_D3DVSDT_SHORT4 = 0x45; // 4D signed short
-
-//  Xbox only declarations :
-const int X_D3DVSDT_NORMSHORT1 = 0x11; // xbox ext. 1D signed, normalized short expanded to (value, 0.0, 0.0, 1.0). Signed, normalized shorts map from -1.0 to 1.0.
-const int X_D3DVSDT_NORMSHORT2 = 0x21; // xbox ext. 2D signed, normalized short expanded to (value, value, 0.0, 1.0). Signed, normalized shorts map from -1.0 to 1.0.
-const int X_D3DVSDT_NORMSHORT3 = 0x31; // xbox ext. 3D signed, normalized short expanded to (value, value, value, 1.0). Signed, normalized shorts map from -1.0 to 1.0.
-const int X_D3DVSDT_NORMSHORT4 = 0x41; // xbox ext. 4D signed, normalized short expanded to (value, value, value, value). Signed, normalized shorts map from -1.0 to 1.0.
-const int X_D3DVSDT_NORMPACKED3 = 0x16; // xbox ext. Three signed, normalized components packed in 32-bits. (11,11,10). Each component ranges from -1.0 to 1.0. Expanded to (value, value, value, 1.0).
-const int X_D3DVSDT_SHORT1 = 0x15; // xbox ext. 1D signed short expanded to (value, 0., 0., 1). Signed shorts map to the range [-32768, 32767].
-const int X_D3DVSDT_SHORT3 = 0x35; // xbox ext. 3D signed short expanded to (value, value, value, 1). Signed shorts map to the range [-32768, 32767].
-const int X_D3DVSDT_PBYTE1 = 0x14; // xbox ext. 1D packed byte expanded to (value, 0., 0., 1). Packed bytes map to the range [0, 1].
-const int X_D3DVSDT_PBYTE2 = 0x24; // xbox ext. 2D packed byte expanded to (value, value, 0., 1). Packed bytes map to the range [0, 1].
-const int X_D3DVSDT_PBYTE3 = 0x34; // xbox ext. 3D packed byte expanded to (value, value, value, 1). Packed bytes map to the range [0, 1].
-const int X_D3DVSDT_PBYTE4 = 0x44; // xbox ext. 4D packed byte expanded to (value, value, value, value). Packed bytes map to the range [0, 1].
-const int X_D3DVSDT_FLOAT2H = 0x72; // xbox ext. 3D float that expands to (value, value, 0.0, value). Useful for projective texture coordinates.
-const int X_D3DVSDT_NONE = 0x02; // xbox ext. nsp
 
 //
 // DeclTypes
@@ -917,62 +893,8 @@ const int X_D3DVSDT_NONE = 0x02; // xbox ext. nsp
 #define D3DDTCAPS_FLOAT16_2  0x00000100L
 #define D3DDTCAPS_FLOAT16_4  0x00000200L
 
-//maybe?
-typedef enum _D3DDECLTYPE
-{
-	D3DDECLTYPE_FLOAT1 = 0,  // 1D float expanded to (value, 0., 0., 1.)
-	D3DDECLTYPE_FLOAT2 = 1,  // 2D float expanded to (value, value, 0., 1.)
-	D3DDECLTYPE_FLOAT3 = 2,  // 3D float expanded to (value, value, value, 1.)
-	D3DDECLTYPE_FLOAT4 = 3,  // 4D float
-	D3DDECLTYPE_D3DCOLOR = 4,  // 4D packed unsigned bytes mapped to 0. to 1. range
-	// Input is in D3DCOLOR format (ARGB) expanded to (R, G, B, A)
-	D3DDECLTYPE_UBYTE4 = 5,  // 4D unsigned byte
-	D3DDECLTYPE_SHORT2 = 6,  // 2D signed short expanded to (value, value, 0., 1.)
-	D3DDECLTYPE_SHORT4 = 7,  // 4D signed short
-
-	// The following types are valid only with vertex shaders >= 2.0
 
 
-	D3DDECLTYPE_UBYTE4N = 8,  // Each of 4 bytes is normalized by dividing to 255.0
-	D3DDECLTYPE_SHORT2N = 9,  // 2D signed short normalized (v[0]/32767.0,v[1]/32767.0,0,1)
-	D3DDECLTYPE_SHORT4N = 10,  // 4D signed short normalized (v[0]/32767.0,v[1]/32767.0,v[2]/32767.0,v[3]/32767.0)
-	D3DDECLTYPE_USHORT2N = 11,  // 2D unsigned short normalized (v[0]/65535.0,v[1]/65535.0,0,1)
-	D3DDECLTYPE_USHORT4N = 12,  // 4D unsigned short normalized (v[0]/65535.0,v[1]/65535.0,v[2]/65535.0,v[3]/65535.0)
-	D3DDECLTYPE_UDEC3 = 13,  // 3D unsigned 10 10 10 format expanded to (value, value, value, 1)
-	D3DDECLTYPE_DEC3N = 14,  // 3D signed 10 10 10 format normalized and expanded to (v[0]/511.0, v[1]/511.0, v[2]/511.0, 1)
-	D3DDECLTYPE_FLOAT16_2 = 15,  // Two 16-bit floating point values, expanded to (value, value, 0, 1)
-	D3DDECLTYPE_FLOAT16_4 = 16,  // Four 16-bit floating point values
-	D3DDECLTYPE_UNUSED = 17,  // When the type field in a decl is unused.
-} D3DDECLTYPE;
-
-typedef enum _D3DDECLUSAGE
-{
-	D3DDECLUSAGE_POSITION = 0,
-	D3DDECLUSAGE_BLENDWEIGHT,   // 1
-	D3DDECLUSAGE_BLENDINDICES,  // 2
-	D3DDECLUSAGE_NORMAL,        // 3
-	D3DDECLUSAGE_PSIZE,         // 4
-	D3DDECLUSAGE_TEXCOORD,      // 5
-	D3DDECLUSAGE_TANGENT,       // 6
-	D3DDECLUSAGE_BINORMAL,      // 7
-	D3DDECLUSAGE_TESSFACTOR,    // 8
-	D3DDECLUSAGE_POSITIONT,     // 9
-	D3DDECLUSAGE_COLOR,         // 10
-	D3DDECLUSAGE_FOG,           // 11
-	D3DDECLUSAGE_DEPTH,         // 12
-	D3DDECLUSAGE_SAMPLE,        // 13
-} D3DDECLUSAGE;
-
-typedef enum _D3DDECLMETHOD
-{
-	D3DDECLMETHOD_DEFAULT = 0,
-	D3DDECLMETHOD_PARTIALU,
-	D3DDECLMETHOD_PARTIALV,
-	D3DDECLMETHOD_CROSSUV,    // Normal
-	D3DDECLMETHOD_UV,
-	D3DDECLMETHOD_LOOKUP,               // Lookup a displacement map
-	D3DDECLMETHOD_LOOKUPPRESAMPLED,     // Lookup a pre-sampled displacement map
-} D3DDECLMETHOD;
 
 // X_D3DVertexShader.Flags values :
 #define X_VERTEXSHADER_FLAG_WRITE           (1 <<  0) // = 0x0001 // Set for Xbox ShaderType != X_VST_NORMAL 

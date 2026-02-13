@@ -41,6 +41,7 @@ using Microsoft::WRL::ComPtr;
 
 #include <o1heap.h>
 #include <cstddef>
+#include <smolv.h>
 #include <set>
 #include <fmt/core.h>
 #include <list>
@@ -50,6 +51,7 @@ using Microsoft::WRL::ComPtr;
 
 #include "util.h"
 #include "mutex.h"
+#include "include/xshader_api.h"
 
 #ifndef _WIN32
 #include <sys/mman.h>

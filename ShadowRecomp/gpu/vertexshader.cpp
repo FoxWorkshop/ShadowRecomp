@@ -176,7 +176,7 @@ inline boolean VshHandleIsPassthrough(size_t Handle) {
 	return VshHandleIsFVF(Handle) && ((Handle & X_D3DFVF_POSITION_MASK) == X_D3DFVF_XYZRHW);
 }
 
-X_D3DVertexShader* GetXboxVertexShaderForHandle(size_t Handle)
+X_D3DVertexShader* GetXboxVertexShaderForHandle_(size_t Handle)
 {
 	if (VshHandleIsVertexShader(Handle))
 	{
@@ -188,11 +188,7 @@ X_D3DVertexShader* GetXboxVertexShaderForHandle(size_t Handle)
 	}
 }
 
-X_D3DVertexShader* GetXboxVertexShader(size_t handle)
-{
-	X_D3DVertexShader* pXboxVertexShader = GetXboxVertexShaderForHandle(handle);
-	return pXboxVertexShader;
-}
+
 
 static X_VERTEXATTRIBUTEFORMAT* GetVertexShaderAttributes(X_D3DVertexShader* pXboxVertexShader)
 {
@@ -205,18 +201,6 @@ DWORD* GetVertexShaderTokens(X_D3DVertexShader* pXboxVertexShader, DWORD* pNrTok
 	return &pXboxVertexShader->ProgramAndConstants[0];
 }
 
-X_VERTEXATTRIBUTEFORMAT* GetXboxVertexAttributeFormat(size_t handle)
-{
-
-	X_D3DVertexShader* pXboxVertexShader = GetXboxVertexShader(handle);
-	if (pXboxVertexShader == 0)
-	{
-		printf("Error getting vertex shader\n");
-		return nullptr;
-	}
-
-	return GetVertexShaderAttributes(pXboxVertexShader);
-}
 
 namespace XboxVertexShaderDecoder
 {
@@ -460,3 +444,14 @@ GuestShader* FindShaderCacheEntryNew()
 	return nullptr; //findResult != end && findResult->hash == hash ? findResult : nullptr;
 }
 
+const uint8_t* CreateRecompiledShader(size_t handle, size_t* outSize)
+{
+	auto pTokens = GetVertexShaderSlotPtr(g_Xbox_VertexShader_FunctionSlots_StartAddress);
+	assert(pTokens);
+	// Create a vertex shader from the tokens
+	DWORD shaderSize;
+
+	auto pShaderOut = XSR_CreateRecompiledShader(handle, pTokens, &shaderSize, outSize, true);
+	return pShaderOut;
+
+}
