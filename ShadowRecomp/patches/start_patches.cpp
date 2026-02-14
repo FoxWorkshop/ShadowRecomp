@@ -95,7 +95,7 @@ X86_FUNC(sub_258550)
 {
 	if (!changeLevelOnce)
 	{
-		X86_STORE_U32(ctx.esp.u32 + 4, 710);
+		X86_STORE_U32(ctx.esp.u32 + 4, 301);
 		changeLevelOnce = true;
 	}
 	__imp__sub_258550(ctx, base);

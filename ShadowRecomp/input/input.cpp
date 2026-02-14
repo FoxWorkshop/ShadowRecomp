@@ -158,6 +158,66 @@ public:
 std::array<Controller, 4> g_controllers;
 Controller* g_activeController;
 
+class KeyboardController
+{
+public:
+    _XINPUT_GAMEPAD_OG state{};
+
+    static constexpr int16_t STICK_MAX = 32767;
+    static constexpr int16_t STICK_MIN = -32768;
+
+    void Poll()
+    {
+        const uint8_t* keystate = SDL_GetKeyboardState(nullptr);
+
+        state.wButtons = 0;
+
+        if (keystate[SDL_SCANCODE_UP])    state.sThumbLY = STICK_MAX;
+        else if (keystate[SDL_SCANCODE_DOWN])  state.sThumbLY = STICK_MIN;
+        else state.sThumbLY = 0;
+
+        if (keystate[SDL_SCANCODE_LEFT])  state.sThumbLX = STICK_MIN;
+        else if (keystate[SDL_SCANCODE_RIGHT]) state.sThumbLX = STICK_MAX;
+        else state.sThumbLX = 0;
+
+        if (keystate[SDL_SCANCODE_I])    state.sThumbRY = STICK_MAX;
+        else if (keystate[SDL_SCANCODE_K])  state.sThumbRY = STICK_MIN;
+        else state.sThumbRY = 0;
+
+        if (keystate[SDL_SCANCODE_J])  state.sThumbRX = STICK_MIN;
+        else if (keystate[SDL_SCANCODE_L]) state.sThumbRX = STICK_MAX;
+        else state.sThumbRX = 0;
+
+        if (keystate[SDL_SCANCODE_RETURN]) state.wButtons |= XINPUT_GAMEPAD_START;
+
+        if (keystate[SDL_SCANCODE_S]) state.bAnalogButtons[Buttons_Y] = 0xFF;
+        else state.bAnalogButtons[Buttons_Y] = 0;
+
+        if (keystate[SDL_SCANCODE_C]) state.bAnalogButtons[Buttons_B] = 0xFF;
+        else state.bAnalogButtons[Buttons_B] = 0;
+
+        if (keystate[SDL_SCANCODE_X]) state.bAnalogButtons[Buttons_A] = 0xFF;
+        else state.bAnalogButtons[Buttons_A] = 0;
+
+        if (keystate[SDL_SCANCODE_Z]) state.bAnalogButtons[Buttons_X] = 0xFF;
+        else state.bAnalogButtons[Buttons_X] = 0;
+
+        if (keystate[SDL_SCANCODE_Q]) state.bAnalogButtons[Buttons_White] = 0xFF;
+        else state.bAnalogButtons[Buttons_White] = 0;
+
+        if (keystate[SDL_SCANCODE_W]) state.bAnalogButtons[Buttons_Black] = 0xFF;
+        else state.bAnalogButtons[Buttons_Black] = 0;
+
+        if (keystate[SDL_SCANCODE_D]) state.bAnalogButtons[Buttons_LT] = 0xFF;
+        else state.bAnalogButtons[Buttons_LT] = 0;
+
+        if (keystate[SDL_SCANCODE_F]) state.bAnalogButtons[Buttons_RT] = 0xFF;
+        else state.bAnalogButtons[Buttons_RT] = 0;
+    }
+};
+
+KeyboardController g_keyboardController;
+
 inline Controller* EnsureController(uint32_t dwUserIndex)
 {
 	if (!g_controllers[dwUserIndex].controller)
@@ -384,6 +444,39 @@ uint32_t input::GetState(uint32_t dwUserIndex, XINPUT_STATE* pState)
 	memset(pState, 0, sizeof(*pState));
 
 	pState->dwPacketNumber = packet++;
+
+	if (dwUserIndex == 1)
+	{
+		if (g_controllers[0].controller)
+		{
+			g_controllers[0].Poll();
+			g_controllers[0].PollAxis();
+			pState->Gamepad = g_controllers[0].state;
+		}
+		else
+		{
+			memset(&pState->Gamepad, 0, sizeof(pState->Gamepad));
+		}
+
+		g_keyboardController.Poll();
+		auto& kbPad = g_keyboardController.state;
+		auto& pad = pState->Gamepad;
+
+		if (kbPad.sThumbLX != 0) pad.sThumbLX = kbPad.sThumbLX;
+		if (kbPad.sThumbLY != 0) pad.sThumbLY = kbPad.sThumbLY;
+		if (kbPad.sThumbRX != 0) pad.sThumbRX = kbPad.sThumbRX;
+		if (kbPad.sThumbRY != 0) pad.sThumbRY = kbPad.sThumbRY;
+
+		pad.wButtons |= kbPad.wButtons;
+
+		for (int i = 0; i < 8; i++)
+		{
+			if (kbPad.bAnalogButtons[i] != 0)
+				pad.bAnalogButtons[i] = kbPad.bAnalogButtons[i];
+		}
+
+		return ERROR_SUCCESS;
+	}
 
 	if (!g_activeController || !g_controllers[dwUserIndex - 1].controller)
 		return ERROR_DEVICE_NOT_CONNECTED;
