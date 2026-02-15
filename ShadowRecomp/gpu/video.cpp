@@ -309,15 +309,6 @@ bool psh_constants_dirty[30];
 
 std::array<D3DMATRIX, X_D3DTS_MAX> g_Transforms;
 
-struct VBData
-{
-	XD3DResource* guestVBData;
-	GuestBuffer* buffer;
-	int size;
-
-};
-
-std::vector<VBData> g_VBList;
 
 static GuestTexture* g_textures[TexSlotMax];
 static RenderSamplerDesc g_samplerDescs[TexSlotMax];
@@ -332,13 +323,6 @@ typedef struct _X_STREAMINPUT
 	UINT                Stride;
 
 } X_STREAMINPUT;
-
-struct VBS
-{
-	GuestBuffer* bufferPtr;
-	int32_t size;
-
-};
 
 X_STREAMINPUT g_Xbox_SetStreamSource[X_VSH_MAX_STREAMS];
 
@@ -628,6 +612,13 @@ float GetRenderTargetHeight()
 
 static std::thread::id g_presentThreadId = std::this_thread::get_id();
 static std::atomic<bool> g_readyForCommands;
+
+//experimental hack to see if this fix the random race issue in the loading thread
+void Guard_Rendering()
+{
+	g_readyForCommands.wait(false);
+	g_presentThreadId = std::this_thread::get_id();
+}
 
 static ankerl::unordered_dense::map<RenderTexture*, RenderTextureLayout> g_barrierMap;
 
@@ -3442,11 +3433,13 @@ void Video::Present()
 
 	if (g_swapChainValid)
 	{
+		// this seems to affect events
+		// disabled for now to see if that's needed.
 		if (g_pendingWaitOnSwapChain)
 		{
-			g_presentWaitProfiler.Begin();
-			g_swapChain->wait(); // Never gonna happen outside loading threads as explained above.
-			g_presentWaitProfiler.End();
+			//g_presentWaitProfiler.Begin();
+			//g_swapChain->wait(); // Never gonna happen outside loading threads as explained above.
+			//g_presentWaitProfiler.End();
 		}
 
 		RenderCommandSemaphore* signalSemaphores[] = { g_renderSemaphores[g_frame].get() };
@@ -6619,22 +6612,6 @@ GuestBuffer* GetGuestVertexBufferIndexed(int i, uint32_t minIdx, uint32_t maxIdx
 	const size_t originalSize = usedVertices * originalStride;
 	XXH64_hash_t hash = XXH3_64bits(pXboxVertexData, originalSize);
 
-	/**if (g_vertexBufferCache.size() >= 0x1000) //clear cache if it grows too much to avoid memory bloat
-	{
-		for (auto& buffer_ : g_vertexBufferCache)
-		{
-			auto &buffer = buffer_.second;
-
-			if (buffer->mappedMemory != nullptr)
-				g_userHeap.Free(buffer->mappedMemory);
-
-			buffer->~GuestBuffer();
-		}
-
-		g_vertexBufferCache.clear();
-	}*/
-
-
 
 	auto& bufferCache = g_vertexBufferCache[hash];
 	if (bufferCache == nullptr)
@@ -6666,7 +6643,8 @@ GuestBuffer* GetGuestVertexBufferIndexed(int i, uint32_t minIdx, uint32_t maxIdx
 //On Xbox, VertexCount = IndexCount, both are the same
 void DrawIndexedPrimitive(X_D3DPRIMITIVETYPE PrimitiveType, uint32_t VertexCount, int16_t* pIndexData)
 {
-	//printf("[GAME THREAD] Enqueue Draw - g_frame=%u\n", g_frame);
+
+	Guard_Rendering();
 
 	//shadow = 2192 vertex = stride 24 (32 with conversion)
 	//object (shadow eyes) = 91 vertex =  stride 24 (32 with conversion)
@@ -6724,16 +6702,6 @@ void DrawIndexedPrimitive(X_D3DPRIMITIVETYPE PrimitiveType, uint32_t VertexCount
 		if (!bufferCache)
 			return;
 
-		if (VertexCount == 2192)
-		{
-			if (!i)
-				v1 = bufferCache;
-			else if (i == 1)
-				v2 = bufferCache;
-
-			drawShadow = true;
-
-		}
 
 		RenderCommand cmd;
 		cmd.type = RenderCommandType::SetStreamSource;
@@ -6775,6 +6743,8 @@ extern bool captureNow;
 //D3DDevice_DrawVerticesUP - used for 2D Stuff, does not require a vertex buffer (originally)
 void DrawPrimitiveUP(X_D3DPRIMITIVETYPE PrimitiveType, uint32_t VertexCount, void* pVertexStreamZeroData, uint32_t VertexStreamZeroStride)
 {
+	Guard_Rendering();
+
 	LocalRenderCommandQueue queue;
 	FlushRenderStateForMainThread(queue);
 
@@ -7520,10 +7490,6 @@ void D3D_BlockOnTime(int32_t a1, int32_t a2)
 	;
 }
 
-void RenderThreadLoop(const size_t count, RenderCommand* commands)
-{
-
-}
 
 static std::thread g_renderThread([]
 	{
