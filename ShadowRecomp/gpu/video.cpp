@@ -309,15 +309,6 @@ bool psh_constants_dirty[30];
 
 std::array<D3DMATRIX, X_D3DTS_MAX> g_Transforms;
 
-struct VBData
-{
-	XD3DResource* guestVBData;
-	GuestBuffer* buffer;
-	int size;
-
-};
-
-std::vector<VBData> g_VBList;
 
 static GuestTexture* g_textures[TexSlotMax];
 static RenderSamplerDesc g_samplerDescs[TexSlotMax];
@@ -332,13 +323,6 @@ typedef struct _X_STREAMINPUT
 	UINT                Stride;
 
 } X_STREAMINPUT;
-
-struct VBS
-{
-	GuestBuffer* bufferPtr;
-	int32_t size;
-
-};
 
 X_STREAMINPUT g_Xbox_SetStreamSource[X_VSH_MAX_STREAMS];
 
@@ -500,8 +484,9 @@ struct std::unique_ptr<RenderDescriptorSet> g_samplerDescriptorSet;
 
 static xxHashMap<std::pair<uint32_t, std::unique_ptr<RenderSampler>>> g_samplerStates;
 
-static xxHashMap<GuestBuffer*> g_vertexBufferCache;
+static xxHashMap<GuestBuffer*> g_indexedVertexBufferCache;
 static xxHashMap<GuestBuffer*> g_indexBufferCache;
+static xxHashMap<uint8_t*> g_vertexCache; //Draw Primitive seems to only use dynamic VB for particles, we will keep that as a warning if it ever stop.
 
 struct UploadBuffer
 {
@@ -628,6 +613,13 @@ float GetRenderTargetHeight()
 
 static std::thread::id g_presentThreadId = std::this_thread::get_id();
 static std::atomic<bool> g_readyForCommands;
+
+//experimental hack to see if this fix the random race issue in the loading thread
+void Guard_Rendering()
+{
+	g_readyForCommands.wait(false);
+	g_presentThreadId = std::this_thread::get_id();
+}
 
 static ankerl::unordered_dense::map<RenderTexture*, RenderTextureLayout> g_barrierMap;
 
@@ -822,6 +814,14 @@ struct PrimitiveIndexData
 
 static PrimitiveIndexData<X_D3DPT_QUADLIST> g_quadIndexData;
 
+struct DerivedVertexBuffer
+{
+	GuestBuffer* vertexBuffer;
+	uint64_t hash;
+};
+
+std::unordered_map<GuestBuffer*, std::vector<DerivedVertexBuffer>> VBsList;
+
 //todo figure out this
 static void DestructTempResources()
 {
@@ -853,10 +853,13 @@ static void DestructTempResources()
 		{
 			const auto buffer = reinterpret_cast<GuestBuffer*>(resource);
 
+
+			//printf("destruct buffer %x\n", buffer);
 			if (buffer->mappedMemory != nullptr)
 				g_userHeap.Free(buffer->mappedMemory);
 
 			buffer->~GuestBuffer();
+			valid = true;
 			break;
 		}
 
@@ -3442,11 +3445,13 @@ void Video::Present()
 
 	if (g_swapChainValid)
 	{
+		// this seems to affect events
+		// disabled for now to see if that's needed.
 		if (g_pendingWaitOnSwapChain)
 		{
-			g_presentWaitProfiler.Begin();
-			g_swapChain->wait(); // Never gonna happen outside loading threads as explained above.
-			g_presentWaitProfiler.End();
+			//g_presentWaitProfiler.Begin();
+			//g_swapChain->wait(); // Never gonna happen outside loading threads as explained above.
+			//g_presentWaitProfiler.End();
 		}
 
 		RenderCommandSemaphore* signalSemaphores[] = { g_renderSemaphores[g_frame].get() };
@@ -3904,6 +3909,7 @@ GuestSurface* CreateSurfaceOfTexture(X_D3DFORMAT Format, uint32_t size, GuestBas
 	auto newSurface = GetSurfaceLevel((GuestTexture*)pParent, 0, Format);
 	memcpy(&newSurface->guestResource, gSurface, sizeof(X_D3DSurface));
 	ctx->eax.u32 = g_memory.MapVirtual(newSurface);
+	g_userHeap.Free(gSurface);
 	return newSurface;
 	//return CreateSurface(pParent->width, pParent->height, (X_D3DFORMAT)pParent->format, true);
 }
@@ -5362,7 +5368,7 @@ static RenderShader* GetOrLinkShader(GuestShader* guestShader, uint32_t specCons
 		{
 			assert(guestShader->shaderCacheEntry != nullptr);
 
-			if (g_vulkan) 
+			if (g_vulkan)
 			{
 				auto compressedSpirvData = g_shaderCache.get() + guestShader->shaderCacheEntry->spirvOffset;
 
@@ -6484,47 +6490,19 @@ uint8_t* ApplyVertexPatch(uint8_t* vertexData, const uint8_t indexStream, const 
 	return pHostVertexData;
 }
 
-GuestBuffer* GetGuestVertexBuffer(int32_t VertexCount, int32_t startVertex, int i, uint32_t alignedStride)
-{
-	unsigned long dataAddr = (unsigned long)GetDataFromXboxResource((X_D3DResource*)(g_Xbox_SetStreamSource[i].VertexBuffer));
-	uint8_t* pXboxVertexData = reinterpret_cast<uint8_t*>(g_memory.Translate(dataAddr));
-	const uint32_t originalStride = g_Xbox_SetStreamSource[i].Stride;
-	auto AlignedStrige = AlignStride(originalStride);
-	const bool requirePadding = (AlignedStrige != originalStride);
-	const size_t originalSize = VertexCount * AlignedStrige;
-	pXboxVertexData += (startVertex * originalStride); //we only want to hash and copy the used vertices, the unused can be skipped.
 
-
-	XXH64_hash_t hash = XXH3_64bits(pXboxVertexData, originalSize);
-	auto& bufferCache = g_vertexBufferCache[hash];
-	if (bufferCache == nullptr)
-	{
-
-		uint8_t* HostVertexData = ApplyVertexPatch(pXboxVertexData, i, VertexCount, originalStride, alignedStride);
-		const size_t newSize = VertexCount * alignedStride;
-		bufferCache = CreateVertexBuffer(newSize);
-
-		bufferCache->hash = hash;
-		if (HostVertexData == nullptr) //if patch didn't happen simply copy the vertex as they are
-		{
-			bufferCache->mappedMemory = g_userHeap.AllocPhysical(bufferCache->dataSize, 0x10);
-			memcpy(bufferCache->mappedMemory, pXboxVertexData, originalSize);
-		}
-		else
-		{
-			bufferCache->mappedMemory = HostVertexData; //we already have the vertex copied from the patch earlier so just assign them
-		}
-
-		UnlockVertexBuffer(bufferCache); //send our VB to the GPU
-	}
-
-	return bufferCache;
-}
-
-//D3D_DrawVertices originally
+// D3D_DrawVertices originally
+// this seems to be used only for particles with a dynamic vertex buffer
+// in that case we can redirect it to DrawPrimitiveUP to use our memory allocator
+bool reUsedVertex = false;
 void DrawPrimitive(X_D3DPRIMITIVETYPE PrimitiveType, uint32_t StartVertex, uint32_t VertexCount)
 {
-	return;
+
+	Guard_Rendering();
+
+	LocalRenderCommandQueue queue;
+
+	FlushRenderStateForMainThread(queue);
 
 	for (int i = 0; i < 16; i++)
 	{
@@ -6538,34 +6516,55 @@ void DrawPrimitive(X_D3DPRIMITIVETYPE PrimitiveType, uint32_t StartVertex, uint3
 			bool bNeedVertexPatching = (pVertexShaderStreamInfo != nullptr && pVertexShaderStreamInfo->NeedPatch);
 
 			//if patching is needed the stride may be bigger so update it from the Vertex Declaration that we got earlier
-			if (bNeedVertexPatching)
-				alignedStride = pVertexShaderStreamInfo->HostVertexStride;
+			alignedStride = pVertexShaderStreamInfo->HostVertexStride;
 
+	
+			unsigned long dataAddr = (unsigned long)GetDataFromXboxResource((X_D3DResource*)(g_Xbox_SetStreamSource[i].VertexBuffer));
+			uint8_t* pXboxVertexData = reinterpret_cast<uint8_t*>(g_memory.Translate(dataAddr));
+			
 
-			auto bufferCache = GetGuestVertexBuffer(VertexCount, StartVertex, i, alignedStride);
+			XXH64_hash_t hash = XXH3_64bits(pXboxVertexData, g_Xbox_SetStreamSource[i].Stride);
+			auto &vertexCache = g_vertexCache[hash];
 
+			//experimental
+			if (g_vertexCache.size() > 0xA000)
+			{
+				for (auto& vertex : g_vertexCache)
+					g_userHeap.Free(vertex.second);
 
-			RenderCommand cmd;
-			cmd.type = RenderCommandType::SetStreamSource;
-			cmd.setStreamSource.StreamNumber = i;
-			cmd.setStreamSource.vertexBuffer = bufferCache;
-			cmd.setStreamSource.stride = alignedStride;
-			g_renderQueue.enqueue(cmd);
+				g_vertexCache.clear();
+			}
+
+			if (vertexCache == nullptr)
+			{
+				//so far testing shows that patching is always needed
+				if (bNeedVertexPatching)
+				{
+					const uint32_t originalStride = g_Xbox_SetStreamSource[i].Stride;
+					vertexCache = ApplyVertexPatch(pXboxVertexData, i, VertexCount, originalStride, alignedStride);
+				}
+				else
+				{
+					const size_t originalSize = VertexCount * alignedStride;
+					vertexCache = (uint8_t*)g_userHeap.AllocPhysical(VertexCount * alignedStride, 0x10);
+					memcpy(vertexCache, pXboxVertexData, originalSize);
+				}
+			}
+			
+
+			auto& cmd = queue.enqueue();
+			cmd.type = RenderCommandType::DrawPrimitiveUP;
+			cmd.drawPrimitiveUP.primitiveType = PrimitiveType;
+			cmd.drawPrimitiveUP.vertexStreamZeroData = g_intermediaryUploadAllocator.allocate(vertexCache, VertexCount * alignedStride);
+			cmd.drawPrimitiveUP.vertexStreamZeroSize = VertexCount * alignedStride;
+			cmd.drawPrimitiveUP.vertexStreamZeroStride = alignedStride;
+			cmd.drawPrimitiveUP.primitiveCount = VertexCount;
+			cmd.drawPrimitiveUP.isFixed = g_Xbox_VertexShaderMode == VertexShaderMode::FixedFunction;
+
+			queue.submit();
+
 		}
 	}
-
-	LocalRenderCommandQueue queue;
-	FlushRenderStateForMainThread(queue);
-
-
-	auto& cmd = queue.enqueue();
-	cmd.type = RenderCommandType::DrawPrimitive;
-	cmd.drawPrimitive.primitiveType = PrimitiveType;
-	cmd.drawPrimitive.startVertex = StartVertex;
-	cmd.drawPrimitive.primitiveCount = VertexCount;
-	cmd.drawPrimitive.isFixed = g_Xbox_VertexShaderMode == VertexShaderMode::FixedFunction;
-
-	queue.submit();
 }
 
 static void ProcDrawPrimitive(const RenderCommand& cmd)
@@ -6576,8 +6575,10 @@ static void ProcDrawPrimitive(const RenderCommand& cmd)
 	SetPrimitiveType(args.primitiveType);
 	isFixedForRenderThread = args.isFixed;
 	FlushRenderStateForRenderThread();
+
+	uint32_t primitiveCount = args.primitiveCount;
 	auto& commandList = g_commandLists[g_frame];
-	commandList->drawInstanced(args.primitiveCount, 1, args.startVertex, 0);
+	commandList->drawInstanced(primitiveCount, 1, args.startVertex, 0);
 }
 
 static void ComputeIndexRange(const int16_t* indices, uint32_t startIndex, uint32_t indexCount, uint32_t& outMin, uint32_t& outMax)
@@ -6619,24 +6620,8 @@ GuestBuffer* GetGuestVertexBufferIndexed(int i, uint32_t minIdx, uint32_t maxIdx
 	const size_t originalSize = usedVertices * originalStride;
 	XXH64_hash_t hash = XXH3_64bits(pXboxVertexData, originalSize);
 
-	/**if (g_vertexBufferCache.size() >= 0x1000) //clear cache if it grows too much to avoid memory bloat
-	{
-		for (auto& buffer_ : g_vertexBufferCache)
-		{
-			auto &buffer = buffer_.second;
 
-			if (buffer->mappedMemory != nullptr)
-				g_userHeap.Free(buffer->mappedMemory);
-
-			buffer->~GuestBuffer();
-		}
-
-		g_vertexBufferCache.clear();
-	}*/
-
-
-
-	auto& bufferCache = g_vertexBufferCache[hash];
+	auto& bufferCache = g_indexedVertexBufferCache[hash];
 	if (bufferCache == nullptr)
 	{
 		uint8_t* HostVertexData = ApplyVertexPatch(pXboxVertexData, i, usedVertices, originalStride, alignedStride);
@@ -6653,8 +6638,11 @@ GuestBuffer* GetGuestVertexBufferIndexed(int i, uint32_t minIdx, uint32_t maxIdx
 		{
 			bufferCache->mappedMemory = HostVertexData; //we already have the vertex copied from the patch earlier so just assign them
 		}
-		//printf("Uploaded to the gpu (not cached)\n");
 
+		//printf("add VB %x\n", g_Xbox_SetStreamSource[i].VertexBuffer);
+		auto& vbDerived = VBsList[g_Xbox_SetStreamSource[i].VertexBuffer];
+		DerivedVertexBuffer newDerivedVB = { bufferCache, hash };
+		vbDerived.push_back(newDerivedVB);
 		UnlockVertexBuffer(bufferCache); //send our VB to the GPU
 	}
 
@@ -6666,7 +6654,8 @@ GuestBuffer* GetGuestVertexBufferIndexed(int i, uint32_t minIdx, uint32_t maxIdx
 //On Xbox, VertexCount = IndexCount, both are the same
 void DrawIndexedPrimitive(X_D3DPRIMITIVETYPE PrimitiveType, uint32_t VertexCount, int16_t* pIndexData)
 {
-	//printf("[GAME THREAD] Enqueue Draw - g_frame=%u\n", g_frame);
+
+	Guard_Rendering();
 
 	//shadow = 2192 vertex = stride 24 (32 with conversion)
 	//object (shadow eyes) = 91 vertex =  stride 24 (32 with conversion)
@@ -6724,16 +6713,6 @@ void DrawIndexedPrimitive(X_D3DPRIMITIVETYPE PrimitiveType, uint32_t VertexCount
 		if (!bufferCache)
 			return;
 
-		if (VertexCount == 2192)
-		{
-			if (!i)
-				v1 = bufferCache;
-			else if (i == 1)
-				v2 = bufferCache;
-
-			drawShadow = true;
-
-		}
 
 		RenderCommand cmd;
 		cmd.type = RenderCommandType::SetStreamSource;
@@ -6775,6 +6754,8 @@ extern bool captureNow;
 //D3DDevice_DrawVerticesUP - used for 2D Stuff, does not require a vertex buffer (originally)
 void DrawPrimitiveUP(X_D3DPRIMITIVETYPE PrimitiveType, uint32_t VertexCount, void* pVertexStreamZeroData, uint32_t VertexStreamZeroStride)
 {
+	Guard_Rendering();
+
 	LocalRenderCommandQueue queue;
 	FlushRenderStateForMainThread(queue);
 
@@ -6983,6 +6964,40 @@ X86_FUNC(sub_3D5F10)
 	{
 		ctx.esp.u32 += 0x8;  //Adjust esp for return value (0xC2 + 0x4)
 	}
+}
+
+void AddDestructResource(GuestResource* ressource)
+{
+	RenderCommand cmd;
+	cmd.type = RenderCommandType::DestructResource;
+	cmd.destructResource.resource = ressource;
+	g_renderQueue.enqueue(cmd);
+}
+
+//Free Vertex Buffer
+X86_FUNC_IMPL(__imp__sub_2E6140);
+X86_FUNC(sub_2E6140)
+{
+	auto resource = X86_LOAD_U32(ctx.esp.u32 + 4);
+	if (resource)
+	{
+		GuestBuffer* resourcePtr = (GuestBuffer*)(base + resource);
+
+		auto it = VBsList.find(resourcePtr);
+		if (it != VBsList.end())
+		{
+			for (auto& vec : it->second)
+			{
+				g_vertexCache.erase(vec.hash);
+				g_indexedVertexBufferCache.erase(vec.hash);
+				AddDestructResource(vec.vertexBuffer);
+			}
+
+			VBsList.erase(resourcePtr);
+		}
+	}
+
+	__imp__sub_2E6140(ctx, base);
 }
 
 
@@ -7432,8 +7447,8 @@ X86_FUNC(sub_2E6750)
 	__imp__sub_2E6750(ctx, base);
 	auto addr = ctx.eax.u32;
 	XD3DResource* buffer = (XD3DResource*)g_memory.Translate(addr);
-	//  printf("Create VB %x - size: %d\n", (intptr_t)buffer, size);
-		//g_VBList.push_back({ buffer, nullptr, size });
+	//printf("Create VB %x - size: %d\n", (intptr_t)buffer, size);
+	//g_VBList.push_back({ buffer, nullptr, size });
 }
 
 
@@ -7520,10 +7535,6 @@ void D3D_BlockOnTime(int32_t a1, int32_t a2)
 	;
 }
 
-void RenderThreadLoop(const size_t count, RenderCommand* commands)
-{
-
-}
 
 static std::thread g_renderThread([]
 	{

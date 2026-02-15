@@ -41,6 +41,33 @@ size_t TOTAL_SIZE = KPCR_SIZE + TLS_SIZE + STACK_SIZE + ETHREAD_R_SIZE;
 
 bool isHostThread = false;
 
+std::string GetThreadName(uint32_t func)
+{
+	std::string name = "";
+
+	switch (func)
+	{
+	case 0x4F440:
+		name = "Event And Loading Thread";
+		break;
+	case 0x2AFADF:
+		name = "mainXapi GameLoop";
+		break;
+	case 0x3291E0:
+		name = "adxm_vsyncThread";
+		break;
+	case 0x329260:
+		name = "adxm_fsThread";
+		break;
+	case 0x328E80:
+		name = "adxm_mwidlThread";
+		break;
+
+	}
+
+	return name;
+}
+
 void KiInitializeContextThread(
 	IN KTHREAD_R* Thread,
 	IN xbox::ulong_xt TlsDataSize,
@@ -212,7 +239,17 @@ GuestThreadHandle* GuestThread::Start(const GuestThreadParams& params, uint32_t*
 	auto hThread = CreateKernelObject<GuestThreadHandle>(params);
 
 	if (threadId != nullptr)
+	{
 		*threadId = GetThreadId(hThread->thread.get_id());
+
+#ifdef _WIN32
+		std::string s = GetThreadName(params.function);
+		if (s != "")
+			GuestThread::SetThreadName(*threadId, s.c_str());
+#endif
+	}
+
+
 
 	return hThread;
 }
