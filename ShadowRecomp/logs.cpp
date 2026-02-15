@@ -10,10 +10,12 @@ void Logger::SetTextColor(int color)
 
 void Logger::LogFile(const std::string_view str, std::filesystem::path fileName)
 {
+#ifdef _DEBUG
 	auto path_string = fileName.string();
 	SetTextColor(FOREGROUND_YELLOW | FOREGROUND_INTENSITY);
 	fmt::println("{} '{}'...", str, path_string);
 	SetTextColor(FOREGROUND_WHITE);
+#endif
 }
 
 void Logger::Log(const std::string_view str, ELogType type, const char* func)
@@ -126,7 +128,9 @@ X86_FUNC(sub_28AF30)
 
 void InitLogs()
 {
+#ifdef _DEBUG
 	logs.SetHandleStandardOutput();
+#endif
 }
 
 GUEST_FUNCTION_HOOK(sub_11210, PrintError);
