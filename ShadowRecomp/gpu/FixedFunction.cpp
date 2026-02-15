@@ -159,41 +159,44 @@ namespace FixedFunctionVertexShader {
 
 struct Transforms
 {
-	alignas(16) XMFLOAT4X4 View;
-	alignas(16) XMFLOAT4X4 Projection;
-	alignas(16) XMFLOAT4X4 Texture[4]; // c8-c23 (4 matrices × 4 regs each)
-	alignas(16) XMFLOAT4X4 WorldView[4];
-	alignas(16) XMFLOAT4X4 WorldViewInverseTranspose[4];
+	XMFLOAT4X4 View;
+	XMFLOAT4X4 Projection;
+	XMFLOAT4X4 Texture[4]; // c8-c23 (4 matrices × 4 regs each)
+	XMFLOAT4X4 WorldView[4];
+	XMFLOAT4X4 WorldViewInverseTranspose[4];
 };
+
+static_assert(sizeof(Transforms) % 16 == 0, "Transforms must be multiple of 16 bytes");
 
 struct Light {
 
-	alignas(16) XMFLOAT4 Diffuse;
-	alignas(16) XMFLOAT4 Specular;
+	XMFLOAT4 Diffuse;
+	XMFLOAT4 Specular;
 
 	// Viewspace light position Range in posW
-	alignas(16) D3DVECTOR4 PositionV;
+	 D3DVECTOR4 PositionV;
 	// alignas(16) float Range;
 
 	 // Viewspace light direction (normalized) - type in directionW
-	alignas(16) D3DVECTOR4 DirectionVN;
+	 D3DVECTOR4 DirectionVN;
 	// alignas(16) float Type; // 1=Point, 2=Spot, 3=Directional
 
-	alignas(16) D3DVECTOR4 Attenuation; //fall off in W
+	D3DVECTOR4 Attenuation; //fall off in W
 	//alignas(16) float Falloff;
 
-	alignas(16) D3DVECTOR4 SpotParams; // cN+5: x=CosHalfPhi, y=SpotIntensityDivisor, zw unused
+	D3DVECTOR4 SpotParams; // cN+5: x=CosHalfPhi, y=SpotIntensityDivisor, zw unused
 };
-
+static_assert(sizeof(Light) % 16 == 0, "Light must be multiple of 16 bytes");
 
 
 // Vertex lighting
 // Both frontface and backface lighting can be calculated
 struct TwoSidedColor
 {
-	alignas(16) D3DVECTOR4 Front; // c104.xyz
-	alignas(16) D3DVECTOR4 Back; // c105.xyz
+	D3DVECTOR4 Front; // c104.xyz
+	D3DVECTOR4 Back; // c105.xyz
 };
+static_assert(sizeof(TwoSidedColor) % 16 == 0, "TwoSidedColor must be multiple of 16 bytes");
 
 struct Modes
 {
