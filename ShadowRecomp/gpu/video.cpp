@@ -484,8 +484,9 @@ struct std::unique_ptr<RenderDescriptorSet> g_samplerDescriptorSet;
 
 static xxHashMap<std::pair<uint32_t, std::unique_ptr<RenderSampler>>> g_samplerStates;
 
-static xxHashMap<GuestBuffer*> g_vertexBufferCache;
+static xxHashMap<GuestBuffer*> g_indexedVertexBufferCache;
 static xxHashMap<GuestBuffer*> g_indexBufferCache;
+static xxHashMap<uint8_t*> g_vertexCache; //Draw Primitive seems to only use dynamic VB for particles, we will keep that as a warning if it ever stop.
 
 struct UploadBuffer
 {
@@ -813,6 +814,14 @@ struct PrimitiveIndexData
 
 static PrimitiveIndexData<X_D3DPT_QUADLIST> g_quadIndexData;
 
+struct DerivedVertexBuffer
+{
+	GuestBuffer* vertexBuffer;
+	uint64_t hash;
+};
+
+std::unordered_map<GuestBuffer*, std::vector<DerivedVertexBuffer>> VBsList;
+
 //todo figure out this
 static void DestructTempResources()
 {
@@ -844,10 +853,13 @@ static void DestructTempResources()
 		{
 			const auto buffer = reinterpret_cast<GuestBuffer*>(resource);
 
+
+			//printf("destruct buffer %x\n", buffer);
 			if (buffer->mappedMemory != nullptr)
 				g_userHeap.Free(buffer->mappedMemory);
 
 			buffer->~GuestBuffer();
+			valid = true;
 			break;
 		}
 
@@ -3897,6 +3909,7 @@ GuestSurface* CreateSurfaceOfTexture(X_D3DFORMAT Format, uint32_t size, GuestBas
 	auto newSurface = GetSurfaceLevel((GuestTexture*)pParent, 0, Format);
 	memcpy(&newSurface->guestResource, gSurface, sizeof(X_D3DSurface));
 	ctx->eax.u32 = g_memory.MapVirtual(newSurface);
+	g_userHeap.Free(gSurface);
 	return newSurface;
 	//return CreateSurface(pParent->width, pParent->height, (X_D3DFORMAT)pParent->format, true);
 }
@@ -5355,7 +5368,7 @@ static RenderShader* GetOrLinkShader(GuestShader* guestShader, uint32_t specCons
 		{
 			assert(guestShader->shaderCacheEntry != nullptr);
 
-			if (g_vulkan) 
+			if (g_vulkan)
 			{
 				auto compressedSpirvData = g_shaderCache.get() + guestShader->shaderCacheEntry->spirvOffset;
 
@@ -6483,9 +6496,9 @@ uint8_t* ApplyVertexPatch(uint8_t* vertexData, const uint8_t indexStream, const 
 // in that case we can redirect it to DrawPrimitiveUP to use our memory allocator
 bool reUsedVertex = false;
 void DrawPrimitive(X_D3DPRIMITIVETYPE PrimitiveType, uint32_t StartVertex, uint32_t VertexCount)
-	{
-	Guard_Rendering();
+{
 
+	Guard_Rendering();
 
 	LocalRenderCommandQueue queue;
 
@@ -6503,12 +6516,12 @@ void DrawPrimitive(X_D3DPRIMITIVETYPE PrimitiveType, uint32_t StartVertex, uint3
 			bool bNeedVertexPatching = (pVertexShaderStreamInfo != nullptr && pVertexShaderStreamInfo->NeedPatch);
 
 			//if patching is needed the stride may be bigger so update it from the Vertex Declaration that we got earlier
-				alignedStride = pVertexShaderStreamInfo->HostVertexStride;
+			alignedStride = pVertexShaderStreamInfo->HostVertexStride;
 
-
+	
 			unsigned long dataAddr = (unsigned long)GetDataFromXboxResource((X_D3DResource*)(g_Xbox_SetStreamSource[i].VertexBuffer));
 			uint8_t* pXboxVertexData = reinterpret_cast<uint8_t*>(g_memory.Translate(dataAddr));
-
+			
 
 			XXH64_hash_t hash = XXH3_64bits(pXboxVertexData, g_Xbox_SetStreamSource[i].Stride);
 			auto &vertexCache = g_vertexCache[hash];
@@ -6520,7 +6533,7 @@ void DrawPrimitive(X_D3DPRIMITIVETYPE PrimitiveType, uint32_t StartVertex, uint3
 					g_userHeap.Free(vertex.second);
 
 				g_vertexCache.clear();
-		}
+			}
 
 			if (vertexCache == nullptr)
 			{
@@ -6529,7 +6542,7 @@ void DrawPrimitive(X_D3DPRIMITIVETYPE PrimitiveType, uint32_t StartVertex, uint3
 				{
 					const uint32_t originalStride = g_Xbox_SetStreamSource[i].Stride;
 					vertexCache = ApplyVertexPatch(pXboxVertexData, i, VertexCount, originalStride, alignedStride);
-	}
+				}
 				else
 				{
 					const size_t originalSize = VertexCount * alignedStride;
@@ -6537,9 +6550,9 @@ void DrawPrimitive(X_D3DPRIMITIVETYPE PrimitiveType, uint32_t StartVertex, uint3
 					memcpy(vertexCache, pXboxVertexData, originalSize);
 				}
 			}
+			
 
-
-	auto& cmd = queue.enqueue();
+			auto& cmd = queue.enqueue();
 			cmd.type = RenderCommandType::DrawPrimitiveUP;
 			cmd.drawPrimitiveUP.primitiveType = PrimitiveType;
 			cmd.drawPrimitiveUP.vertexStreamZeroData = g_intermediaryUploadAllocator.allocate(vertexCache, VertexCount * alignedStride);
@@ -6548,7 +6561,7 @@ void DrawPrimitive(X_D3DPRIMITIVETYPE PrimitiveType, uint32_t StartVertex, uint3
 			cmd.drawPrimitiveUP.primitiveCount = VertexCount;
 			cmd.drawPrimitiveUP.isFixed = g_Xbox_VertexShaderMode == VertexShaderMode::FixedFunction;
 
-	queue.submit();
+			queue.submit();
 
 		}
 	}
@@ -6608,7 +6621,7 @@ GuestBuffer* GetGuestVertexBufferIndexed(int i, uint32_t minIdx, uint32_t maxIdx
 	XXH64_hash_t hash = XXH3_64bits(pXboxVertexData, originalSize);
 
 
-	auto& bufferCache = g_vertexBufferCache[hash];
+	auto& bufferCache = g_indexedVertexBufferCache[hash];
 	if (bufferCache == nullptr)
 	{
 		uint8_t* HostVertexData = ApplyVertexPatch(pXboxVertexData, i, usedVertices, originalStride, alignedStride);
@@ -6625,8 +6638,11 @@ GuestBuffer* GetGuestVertexBufferIndexed(int i, uint32_t minIdx, uint32_t maxIdx
 		{
 			bufferCache->mappedMemory = HostVertexData; //we already have the vertex copied from the patch earlier so just assign them
 		}
-		//printf("Uploaded to the gpu (not cached)\n");
 
+		//printf("add VB %x\n", g_Xbox_SetStreamSource[i].VertexBuffer);
+		auto& vbDerived = VBsList[g_Xbox_SetStreamSource[i].VertexBuffer];
+		DerivedVertexBuffer newDerivedVB = { bufferCache, hash };
+		vbDerived.push_back(newDerivedVB);
 		UnlockVertexBuffer(bufferCache); //send our VB to the GPU
 	}
 
@@ -6948,6 +6964,40 @@ X86_FUNC(sub_3D5F10)
 	{
 		ctx.esp.u32 += 0x8;  //Adjust esp for return value (0xC2 + 0x4)
 	}
+}
+
+void AddDestructResource(GuestResource* ressource)
+{
+	RenderCommand cmd;
+	cmd.type = RenderCommandType::DestructResource;
+	cmd.destructResource.resource = ressource;
+	g_renderQueue.enqueue(cmd);
+}
+
+//Free Vertex Buffer
+X86_FUNC_IMPL(__imp__sub_2E6140);
+X86_FUNC(sub_2E6140)
+{
+	auto resource = X86_LOAD_U32(ctx.esp.u32 + 4);
+	if (resource)
+	{
+		GuestBuffer* resourcePtr = (GuestBuffer*)(base + resource);
+
+		auto it = VBsList.find(resourcePtr);
+		if (it != VBsList.end())
+		{
+			for (auto& vec : it->second)
+			{
+				g_vertexCache.erase(vec.hash);
+				g_indexedVertexBufferCache.erase(vec.hash);
+				AddDestructResource(vec.vertexBuffer);
+			}
+
+			VBsList.erase(resourcePtr);
+		}
+	}
+
+	__imp__sub_2E6140(ctx, base);
 }
 
 
@@ -7398,7 +7448,7 @@ X86_FUNC(sub_2E6750)
 	auto addr = ctx.eax.u32;
 	XD3DResource* buffer = (XD3DResource*)g_memory.Translate(addr);
 	//printf("Create VB %x - size: %d\n", (intptr_t)buffer, size);
-		//g_VBList.push_back({ buffer, nullptr, size });
+	//g_VBList.push_back({ buffer, nullptr, size });
 }
 
 
