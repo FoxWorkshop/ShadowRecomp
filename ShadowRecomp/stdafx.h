@@ -38,6 +38,7 @@ using Microsoft::WRL::ComPtr;
 #include <imgui_internal.h>
 #include <implot.h>
 #include <backends/imgui_impl_sdl2.h>
+#include <xbox.h>
 
 #include <o1heap.h>
 #include <cstddef>

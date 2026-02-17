@@ -5,13 +5,25 @@
 #include <kernel/kernel.h>
 #include <iostream>
 #include <filesystem>
+#include <audio/audio.h>
+#include <audio/driver/sdl2_driver.h>
 
 
-const uint32_t bufferSize = 0x10000; 
+HRESULT DirectSoundCreate_r(int* pcGuidDevice, SHTHR_SOUNDDEVICE* ppDS, int* pUnkOuter)
+{
+	HRESULT hr;
 
+	if (FAILED(hr = SHTHRSoundCreate(&ppDS)))
+		return hr;
+
+	auto ctx = GetX86Context();
+	auto base = g_memory.base;
+	X86_STORE_U32(ppDSAddr, g_memory.MapVirtual(ppDS));
+	return hr;
+}
 
 //todo
-int32_t IDirectSoundBuffer_Lock(int32_t a1, int32_t dwOffset, int32_t dwBytes, LPVOID* ppvAudioPtr1, int32_t* pdwAudioBytes1, void** ppvAudioPtr2, int32_t* pdwAudioBytes2, uint32_t dwFlags)
+int32_t IDirectSoundBuffer_Lock(SHTHR_SOUNDBUFFER* pThis, int32_t dwOffset, int32_t dwBytes, LPVOID* ppvAudioPtr1, int32_t* pdwAudioBytes1, void** ppvAudioPtr2, int32_t* pdwAudioBytes2, uint32_t dwFlags)
 {
 
 
@@ -19,44 +31,20 @@ int32_t IDirectSoundBuffer_Lock(int32_t a1, int32_t dwOffset, int32_t dwBytes, L
 }
 
 //Xbox doesn't seem to use this todo check if we can still use it
-int32_t IDirectSoundBuffer_Unlock(int32_t pHybridThis, void* ppvAudioPtr1, int32_t pdwAudioBytes1, void* ppvAudioPtr2, int32_t pdwAudioBytes2)
-{
-	return 0;
-}
-
-//todo
-HRESULT IDirectSoundBuffer_GetStatus(int32_t buffer, DWORD* pdwStatus)
-{
-
-	*pdwStatus = 0x00010000;
-	return S_OK;
-}
-
-
-//todo
-int DirectSoundCreate_r(int* pcGuidDevice, int* ppDS, int* pUnkOuter)
+int32_t IDirectSoundBuffer_Unlock(SHTHR_SOUNDBUFFER* pThis, void* ppvAudioPtr1, int32_t pdwAudioBytes1, void* ppvAudioPtr2, int32_t pdwAudioBytes2)
 {
 	return 0;
 }
 
 
-//DirectSoundCreate
-/**X86_FUNC_IMPL(__imp__sub_3E5A27);
-X86_FUNC(sub_3E5A27)
+HRESULT IDirectSoundBuffer_GetStatus(SHTHR_SOUNDBUFFER* pThis, uint32_t* pdwStatus)
 {
-	//TODO RE IMPLEMENT
-	__imp__sub_3E5A27(ctx, base);
+	if (!pThis)
+		return FALSE;
 
-	auto Dsound = X86_LOAD_U32(0x550310);
-	if (Dsound)
-	{
-		LOGN_UTIL("Successfully created DirectSound Buffer.");
-	}
-	else
-	{
-		LOGN_ERROR("Failed to create DirectSound Buffer.");
-	}
-}*/
+	return pThis->GetStatus(pdwStatus);
+}
+
 
 //TODO
 int32_t CDirectSound_DownloadEffectsImage(int* a1, LPCVOID pvImageBuffer, int32_t dwImageSize, void* pImageLoc, void** ppImageDesc)
@@ -64,40 +52,189 @@ int32_t CDirectSound_DownloadEffectsImage(int* a1, LPCVOID pvImageBuffer, int32_
 	return 0;
 }
 
-int32_t IDirectSoundBuffer_GetCurrentPosition(int32_t a1, int32_t* CurrentPlayCursor, int32_t* pdwCurrentWriteCursor)
+int32_t IDirectSoundBuffer_GetCurrentPosition(SHTHR_SOUNDBUFFER* pThis, int32_t* CurrentPlayCursor, int32_t* pdwCurrentWriteCursor)
+{
+	if (!pThis)
+		return FALSE;
+
+	return pThis->GetCurrentPosition(CurrentPlayCursor, pdwCurrentWriteCursor);
+}
+
+int32_t IDirectSoundBuffer_SetCurrentPosition(SHTHR_SOUNDBUFFER* pThis, int32_t dwNewPosition)
 {
 	return 0;
 }
 
-int32_t IDirectSoundBuffer_SetCurrentPosition(int32_t* pHybridThis, int32_t dwNewPosition)
+
+int32_t IDirectSound_CreateSoundBuffer(SHTHR_SOUNDDEVICE* pThis, X_DSBUFFERDESC* pdsbd, SHTHR_SOUNDBUFFER** ppBufferOut, int a4)
 {
-	return 0;
+	return TRUE; //stubbed for now
+
+	auto ctx = GetX86Context();
+	auto base = g_memory.base;
+
+	pThis->CreateSoundBuffer(pdsbd, ppBufferOut);
+	X86_STORE_U32(ctx->esp.u32 + 12, g_memory.MapVirtual(ppBufferOut));
+
+	return FALSE;
 }
 
-int32_t IDirectSoundBuffer_Play(int32_t* a1, int32_t dwReserved1, int32_t dwReserved2, int32_t dwFlags)
+//This doesn't seem to exist on PC originally, it looks like it replace the buffer’s entire PCM data with this memory.
+int32_t IDirectSoundBuffer_SetBufferData(SHTHR_SOUNDBUFFER* pThis, void* pvBufferData, uint32_t dwBufferBytes)
 {
 
-	return 0;
+	if (!pThis)
+		return FALSE;
+
+
+	return pThis->SetBufferData(pvBufferData, dwBufferBytes);
+}
+
+int32_t IDirectSoundBuffer_Play(SHTHR_SOUNDBUFFER* pThis, int32_t dwReserved1, int32_t dwReserved2, int32_t dwFlags)
+{
+	if (!pThis)
+		return FALSE;
+
+	return pThis->Play(dwReserved1, dwReserved2, dwFlags);
 }
 
 
-int32_t IDirectSoundBuffer_Stop(int32_t a1)
+int32_t IDirectSoundBuffer_Stop(SHTHR_SOUNDBUFFER* pThis)
 {
-	return 0;
+	if (!pThis)
+		return FALSE;
+
+	return pThis->Stop();
 }
 
 //todo double check if it's 3 parameters or 4.
-int32_t IDirectSoundBuffer_StopEx(int32_t a1, longlong_xt rtTimeStamp, dword_xt dwFlags)
+//todo implementation might be more complex for this variation...
+int32_t IDirectSoundBuffer_StopEx(SHTHR_SOUNDBUFFER* pThis, longlong_xt rtTimeStamp, dword_xt dwFlags)
+{
+	if (!pThis)
+		return FALSE;
+
+	return pThis->Stop();
+}
+
+int32_t IDirectSoundBuffer_Release(SHTHR_SOUNDBUFFER* pThis)
+{
+	pThis->Stop();
+	pThis->Release();
+	return S_OK;
+}
+
+int32_t IDirectSoundBuffer_SetVolume(SHTHR_SOUNDBUFFER* pThis, int32_t lVolume)
+{
+	if (!pThis)
+		return FALSE;
+
+	return pThis->SetVolume(lVolume);
+}
+
+int32_t IDirectSoundBuffer_SetLoopRegion(SHTHR_SOUNDBUFFER* pThis, int32_t dwLoopStart, int32_t dwLoopLength)
+{
+	if (!pThis)
+		return FALSE;
+
+	return pThis->SetLoopRegion(dwLoopStart, dwLoopLength);
+}
+
+int32_t IDirectSound_SetAllParameters(SHTHR_SOUNDDEVICE* this_, Listener3D* pDS3DListenerParameters, char dwApply)
+{
+	pDS3DListenerParameters = pDS3DListenerParameters;
+	this_->SetAllParameters(pDS3DListenerParameters);
+	return 0;
+}
+
+//to do
+int32_t IDirectSoundBuffer_SetMinDistance(SHTHR_SOUNDBUFFER* pThis, float flMinDistance, int32_t dwApply)
+{
+	return 1;
+}
+
+int32_t IDirectSoundBuffer_SetMaxDistance(SHTHR_SOUNDBUFFER* pThis, float flMaxDistance, int32_t dwApply)
+{
+	return 1;
+}
+
+int32_t IDirectSoundBuffer_SetMixBins(SHTHR_SOUNDBUFFER* pThis, int mixBins)
+{
+	return 1;
+}
+
+int32_t IDirectSoundBuffer_SetConeAngles(SHTHR_SOUNDBUFFER* pThis, int a2, int a3, int a4)
+{
+	return 1;
+}
+
+//todo
+int32_t IDirectSoundBuffer_SetPitch(SHTHR_SOUNDBUFFER* pThis, int a2)
 {
 	return 0;
 }
 
-int32_t IDirectSoundBuffer_SetVolume(int32_t this_, int32_t lVolume)
+//todo
+int IDirectSoundBuffer_SetHeadroom(SHTHR_SOUNDBUFFER* pThis, int dwHeadroom)
 {
 	return 0;
+}
+
+int IDirectSoundBuffer_SetFrequency(SHTHR_SOUNDBUFFER* pThis, int frequency)
+{
+	if (!pThis)
+		return FALSE;
+
+	return pThis->SetFrequency(frequency);
+}
+
+
+
+//====== IDIRECT SOUND FUNCTIONS ==========
+
+//stub
+int32_t IDirectSound_SetI3DL2Listener(int ppDS_, int a2, char a3)
+{
+	return FALSE;
+}
+
+//todo(?)
+int32_t IDirectSound_SetDistanceFactor(int32_t pThis, float fDistanceFactor, int32_t dwApply)
+{
+	return FALSE;
+}
+
+//todo(?)
+int32_t IDirectSound_SetRolloffFactor(int32_t pThis, float RolloffFactor, int32_t dwApply)
+{
+	return FALSE;
+}
+
+//todo
+int32_t IDirectSound_SetPosition(int pThis, float x, float y, float z, int dwApply)
+{
+	return FALSE;
+}
+
+//todo(?)
+int32_t IDirectSound_SetOrientation(int a1, float xFront, float yFront, float zFront, float xTop, float yTop, float zTop, int dwApply)
+{
+	return FALSE;
+}
+
+int32_t CDirectSound_CommitDeferredSettings(int a1)
+{
+	return FALSE;
+}
+
+int32_t IDirectSound_CommitDeferredSettings(int a1)
+{
+	return FALSE;
 }
 
 GUEST_FUNCTION_HOOK_STDCALL(sub_3E5A27, DirectSoundCreate_r)
+GUEST_FUNCTION_HOOK_STDCALL(sub_3E5756, IDirectSound_CreateSoundBuffer);
+GUEST_FUNCTION_HOOK_STDCALL(sub_3E4EE9, IDirectSoundBuffer_SetBufferData);
 GUEST_FUNCTION_HOOK_STDCALL(sub_3E421C, IDirectSoundBuffer_GetStatus);
 GUEST_FUNCTION_HOOK_STDCALL(sub_3E4274, IDirectSoundBuffer_Lock);
 GUEST_FUNCTION_HOOK_STDCALL(sub_3E34B8, IDirectSoundBuffer_Unlock);
@@ -107,4 +244,22 @@ GUEST_FUNCTION_HOOK_STDCALL(sub_3E4258, IDirectSoundBuffer_SetCurrentPosition);
 GUEST_FUNCTION_HOOK_STDCALL(sub_3E419C, IDirectSoundBuffer_Play);
 GUEST_FUNCTION_HOOK_STDCALL(sub_3E41C0, IDirectSoundBuffer_Stop);
 GUEST_FUNCTION_HOOK_STDCALL(sub_3E41D8, IDirectSoundBuffer_StopEx);
+GUEST_FUNCTION_HOOK_STDCALL(sub_3E34BD, IDirectSoundBuffer_Release);
 GUEST_FUNCTION_HOOK_STDCALL(sub_3E412C, IDirectSoundBuffer_SetVolume);
+GUEST_FUNCTION_HOOK_STDCALL(sub_3E41FC, IDirectSoundBuffer_SetLoopRegion);
+GUEST_FUNCTION_HOOK_STDCALL(sub_3E4148, IDirectSoundBuffer_SetPitch);
+GUEST_FUNCTION_HOOK_STDCALL(sub_3E4164, IDirectSoundBuffer_SetHeadroom);
+
+//3D Sound
+GUEST_FUNCTION_HOOK_STDCALL(sub_3E497A, IDirectSoundBuffer_SetMinDistance);
+GUEST_FUNCTION_HOOK_STDCALL(sub_3E4956, IDirectSoundBuffer_SetMaxDistance);
+GUEST_FUNCTION_HOOK_STDCALL(sub_3E4932, IDirectSoundBuffer_SetConeAngles);
+GUEST_FUNCTION_HOOK_STDCALL(sub_3E577A, IDirectSound_SetAllParameters);
+GUEST_FUNCTION_HOOK_STDCALL(sub_3E5861, IDirectSound_SetI3DL2Listener);
+GUEST_FUNCTION_HOOK_STDCALL(sub_3E579A, IDirectSound_SetDistanceFactor);
+GUEST_FUNCTION_HOOK_STDCALL(sub_3E583D, IDirectSound_SetRolloffFactor);
+GUEST_FUNCTION_HOOK_STDCALL(sub_3E5808, IDirectSound_SetPosition);
+GUEST_FUNCTION_HOOK_STDCALL(sub_3E57BE, IDirectSound_SetOrientation);
+GUEST_FUNCTION_HOOK_STDCALL(sub_3E52DC, IDirectSound_CommitDeferredSettings);
+GUEST_FUNCTION_HOOK_STDCALL(sub_3E4FB4, CDirectSound_CommitDeferredSettings);
+

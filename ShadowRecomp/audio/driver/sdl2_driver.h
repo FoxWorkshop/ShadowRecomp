@@ -1,0 +1,59 @@
+
+struct Vec3
+{
+	float x, y, z;
+};
+
+struct Listener3D
+{
+	uint32_t dwSize;
+
+	Vec3 position;
+	Vec3 velocity;
+	Vec3 front;
+	Vec3 top;
+
+	float distanceFactor;
+	float rolloffFactor;
+	float dopplerFactor;
+};
+
+class Interface
+{
+public:
+	virtual void Release();
+};
+
+
+class SHTHR_SOUNDBUFFER : public Interface
+{
+public:
+	//SHTHR_SOUND3DBUFFER* m3DBuffer = nullptr;
+	virtual ~SHTHR_SOUNDBUFFER() = default;
+	virtual int GetStatus(uint32_t* pdwStatus) PURE;
+	virtual int GetCurrentPosition(int* pdwCurrentPlayCursor, int* pdwCurrentWriteCursor) PURE;
+//	virtual int Lock(int dwOffset, int dwBytes, void** ppvAudioPtr1, int* pdwAudioBytes1, void** ppvAudioPtr2, int* pdwAudioBytes2, int dwFlags) PURE;
+	//virtual int Unlock(void* pvAudioPtr1, int dwAudioBytes1, void* pvAudioPtr2, int dwAudioBytes2) PURE;
+	virtual int Play(int dwReserved1, int dwPriority, int dwFlags) PURE;
+	virtual int Stop() PURE;
+	virtual int SetVolume(int lVolume) PURE;
+	//virtual int SetPan(int lPan) PURE;
+	virtual int SetFrequency(int lFrequency) PURE;
+	virtual int SetBufferData(void* pvBufferData, int dwBufferBytes) PURE;
+	virtual int SetLoopRegion(int dwLoopStartOffset, int dwLoopLength) PURE;
+};
+
+
+class SHTHR_SOUNDDEVICE : public Interface
+{
+public:
+	virtual ~SHTHR_SOUNDDEVICE() = default;
+	virtual int CreateSoundBuffer(X_DSBUFFERDESC* ppDesc, SHTHR_SOUNDBUFFER** ppBuffer) PURE;
+	virtual bool ReleaseSoundBuffer(SHTHR_SOUNDBUFFER* ppBuffer) PURE;
+	virtual int SetAllParameters(Listener3D* params) PURE;
+
+};
+
+
+
+int SHTHRSoundCreate(SHTHR_SOUNDDEVICE** ppDevice);
