@@ -104,7 +104,7 @@ public:
 	SHTHR_SOUNDDEVICE_Impl();
 	~SHTHR_SOUNDDEVICE_Impl();
 	void AudioCallback(Uint8* stream, int len);
-	int CreateSoundBuffer(X_DSBUFFERDESC* ppDesc, SHTHR_SOUNDBUFFER** ppBuffer) override;
+	SHTHR_SOUNDBUFFER* CreateSoundBuffer(X_DSBUFFERDESC* ppDesc, SHTHR_SOUNDBUFFER** ppBuffer) override;
 	bool ReleaseSoundBuffer(SHTHR_SOUNDBUFFER* pBuffer) override;
 	int SetAllParameters(Listener3D* params) override;
 };
@@ -113,9 +113,19 @@ public:
 
 SHTHR_SOUNDBUFFER_Impl::SHTHR_SOUNDBUFFER_Impl(SHTHR_SOUNDDEVICE_Impl* parent, X_DSBUFFERDESC* desc) : mParent(parent)
 {
+	printf("FormatTag: 0x%X\n", desc->lpwfxFormat->wFormatTag);
+	printf("Game format: %d Hz, %d channels, bits: %d\n",
+		desc->lpwfxFormat->nSamplesPerSec,
+		desc->lpwfxFormat->nChannels,
+		desc->lpwfxFormat->wBitsPerSample);
+
+	printf("Device format: %d Hz, %d channels\n",
+		mParent->mFrequency,
+		mParent->mChannelCount);
+
 	mCaps = desc->dwFlags;
 	mChannelCount = desc->lpwfxFormat->nChannels;
-	mFrequency = desc->lpwfxFormat->nAvgBytesPerSec;
+	mFrequency = desc->lpwfxFormat->nSamplesPerSec; //desc->lpwfxFormat->nAvgBytesPerSec;
 	mFormat = desc->lpwfxFormat->wFormatTag == 3 ? AUDIO_F32 : (0x8000 | desc->lpwfxFormat->wBitsPerSample);
 
 	mBufferSize = desc->dwBufferBytes;
@@ -150,23 +160,23 @@ SHTHR_SOUNDBUFFER_Impl::~SHTHR_SOUNDBUFFER_Impl()
 	mParent->ReleaseSoundBuffer(this);
 }
 
-int SHTHR_SOUNDDEVICE_Impl::CreateSoundBuffer(X_DSBUFFERDESC* ppDesc, SHTHR_SOUNDBUFFER** ppBuffer)
+SHTHR_SOUNDBUFFER* SHTHR_SOUNDDEVICE_Impl::CreateSoundBuffer(X_DSBUFFERDESC* ppDesc, SHTHR_SOUNDBUFFER** ppBuffer)
 {
 	if (!mDeviceID)
 	{
-		return MAKE_DSHRESULT(170);
+		return nullptr;
 	}
 
 	if (!ppDesc || !ppBuffer)
 	{
-		return E_INVALIDARG;
+		return nullptr;
 	}
 
 	SHTHR_SOUNDBUFFER_Impl* buffer = g_userHeap.Alloc<SHTHR_SOUNDBUFFER_Impl>(this, ppDesc);
 
 	if (!buffer)
 	{
-		return E_FAIL;
+		return nullptr;
 	}
 
 	mutex.lock();
@@ -174,9 +184,8 @@ int SHTHR_SOUNDDEVICE_Impl::CreateSoundBuffer(X_DSBUFFERDESC* ppDesc, SHTHR_SOUN
 	mutex.unlock();
 	//SDL_UnlockMutex(mutex);
 
-	*ppBuffer = buffer;
 
-	return S_OK;
+	return buffer;
 }
 
 int SHTHR_SOUNDBUFFER_Impl::SetBufferData(void* pvBufferData, int dwBufferBytes)
@@ -340,8 +349,8 @@ int SHTHR_SOUNDBUFFER_Impl::GetStatus(uint32_t* pdwStatus)
 		status |= X_DSBSTATUS_PLAYING;
 	}
 
-	*pdwStatus = status;
-	return S_OK;
+	//*pdwStatus = status;
+	return status;
 }
 
 int SHTHR_SOUNDBUFFER_Impl::GetCurrentPosition(int* pdwCurrentPlayCursor, int* pdwCurrentWriteCursor)
@@ -406,7 +415,7 @@ SHTHR_SOUNDDEVICE_Impl::~SHTHR_SOUNDDEVICE_Impl()
 
 int SHTHR_SOUNDDEVICE_Impl::SetAllParameters(Listener3D* params)
 {
-	params = &paramsListener;
+	paramsListener = *params;
 	return S_OK;
 }
 
@@ -495,25 +504,6 @@ static int adxm_mwidlThread = -1;
 static volatile bool g_audioThreadShouldExit = false;
 
 
-void XAudioInitializeSystem()
-{
-#ifdef _WIN32
-	// Force wasapi on Windows.
-	SDL_setenv("SDL_AUDIODRIVER", "wasapi", true);
-#endif
-
-	SDL_SetHint(SDL_HINT_AUDIO_CATEGORY, "playback");
-	SDL_SetHint(SDL_HINT_AUDIO_DEVICE_APP_NAME, "Shadow Recompiled");
-
-	if (SDL_InitSubSystem(SDL_INIT_AUDIO) < 0)
-	{
-		//LOGFN_ERROR("Failed to init audio subsystem: {}", SDL_GetError());
-		return;
-	}
-
-
-	g_audioThreadShouldExit = false;
-}
 
 #include <filesystem>
 namespace fs = std::filesystem;
@@ -537,16 +527,16 @@ bool SHTHR_SOUNDDEVICE_Impl::ReleaseSoundBuffer(SHTHR_SOUNDBUFFER* pBuffer)
 	return true;
 }
 
-int SHTHRSoundCreate(SHTHR_SOUNDDEVICE** ppDevice)
+SHTHR_SOUNDDEVICE* SHTHRSoundCreate(SHTHR_SOUNDDEVICE** ppDevice)
 {
 	if (!ppDevice)
-		return E_INVALIDARG;
+		return nullptr;
 
-	*ppDevice = g_userHeap.AllocPhysical<SHTHR_SOUNDDEVICE_Impl>();
+	SHTHR_SOUNDDEVICE* device = g_userHeap.AllocPhysical<SHTHR_SOUNDDEVICE_Impl>();
 
-	ppDS = *ppDevice;
+	ppDS = device;
 	printf("created sound device\n");
-	return S_OK;
+	return device;
 }
 
 

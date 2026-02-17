@@ -28,6 +28,7 @@ public:
 class SHTHR_SOUNDBUFFER : public Interface
 {
 public:
+
 	//SHTHR_SOUND3DBUFFER* m3DBuffer = nullptr;
 	virtual ~SHTHR_SOUNDBUFFER() = default;
 	virtual int GetStatus(uint32_t* pdwStatus) PURE;
@@ -48,7 +49,7 @@ class SHTHR_SOUNDDEVICE : public Interface
 {
 public:
 	virtual ~SHTHR_SOUNDDEVICE() = default;
-	virtual int CreateSoundBuffer(X_DSBUFFERDESC* ppDesc, SHTHR_SOUNDBUFFER** ppBuffer) PURE;
+	virtual SHTHR_SOUNDBUFFER* CreateSoundBuffer(X_DSBUFFERDESC* ppDesc, SHTHR_SOUNDBUFFER** ppBuffer) PURE;
 	virtual bool ReleaseSoundBuffer(SHTHR_SOUNDBUFFER* ppBuffer) PURE;
 	virtual int SetAllParameters(Listener3D* params) PURE;
 
@@ -56,4 +57,4 @@ public:
 
 
 
-int SHTHRSoundCreate(SHTHR_SOUNDDEVICE** ppDevice);
+SHTHR_SOUNDDEVICE* SHTHRSoundCreate(SHTHR_SOUNDDEVICE** ppDevice);

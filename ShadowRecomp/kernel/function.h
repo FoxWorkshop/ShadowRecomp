@@ -32,6 +32,8 @@ enum Register
     rEDX,
 };
 
+
+
 template <typename R, typename... T>
 constexpr std::tuple<T...> function_args(R(*)(T...)) noexcept
 {
@@ -178,6 +180,8 @@ struct ArgTranslator
     }
 };
 
+
+
 struct Argument
 {
     enum Type { Integer = 0, Float = 1, Double = 2 };
@@ -265,6 +269,7 @@ std::enable_if_t<(I < sizeof...(TArgs)), void> _translate_args_to_guest(X86Conte
 }
 
 //Function to handle translation from host (C++) to guest (x86)
+//return esp is handled automatically for some specific cases ONLY. There is no support for jmp or 64 bits arguments (int64, long double etc.)
 template<auto Func, CallConvention CC>
 X86_FUNC(HostToGuestFunction)
 {
