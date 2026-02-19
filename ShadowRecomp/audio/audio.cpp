@@ -92,18 +92,22 @@ int32_t IDirectSound_CreateSoundBuffer(int32_t keyDevice, X_DSBUFFERDESC* pdsbd,
 	if (!pThis)
 		return E_FAIL;
 
-	auto buffer = pThis->CreateSoundBuffer(pdsbd, ppBufferOut);
+	if (pdsbd && pdsbd->dwFlags & XTL_DSBCAPS_CTRL3D) //3D sound aren't supported yet todo implement
+	{
+		return E_FAIL;
+
+	}
+
+	auto bufferKey = pThis->CreateSoundBuffer(pdsbd, ppBufferOut);
 
 
-	if (buffer)
+	if (bufferKey)
 	{
 		ctx->esp.u32 += 20;
-		//X86_STORE_U32(ctx->esp.u32 + 12, g_memory.MapVirtual(buffer));
-		X86_STORE_U32(ctx->esp.u32 + 12, buffer);
+		X86_STORE_U32(ctx->esp.u32 + 12, bufferKey);
 		ctx->esp.u32 -= 20;
 		return S_OK;
 	}
-
 
 	return E_FAIL;
 }
