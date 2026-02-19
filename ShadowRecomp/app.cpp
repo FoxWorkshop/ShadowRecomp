@@ -11,7 +11,8 @@ static std::thread::id g_mainThreadId = std::this_thread::get_id();
 void App::Exit()
 {
 
-	AudioQuit();
+	SDL_Quit();
+
 	//Config::Save();
 
 #ifdef _WIN32
@@ -42,8 +43,6 @@ X86_FUNC(sub_57630)
 	App::s_time += App::s_deltaTime;
 
 	__imp__sub_57630(ctx, base);
-	//std::this_thread::sleep_for(std::chrono::milliseconds(16));
-
 }
 
 std::atomic<bool> shouldQuit = false; 
@@ -63,7 +62,5 @@ void UpdateSDLEventsMidAsmHook()
 			SDL_FlushEvents(SDL_FIRSTEVENT, SDL_LASTEVENT);
 			GameWindow::Update();
 		}
-
-		//std::this_thread::sleep_for(std::chrono::milliseconds(16));
 	}
 }

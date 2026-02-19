@@ -74,6 +74,3 @@ struct X_DSBUFFERDESC
     uint32_t           dwInputMixBin;
 };
 
-
-void initSDL2Driver();
-void AudioQuit();

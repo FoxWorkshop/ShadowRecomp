@@ -17,8 +17,6 @@
 // Research shows that sound effect seem to use XADPCM, a format for Xbox that need to be decoded, while music likely use PCM directly.
 // We need to use host memory because the classes size can grow dynamically, but still need to trick the game that pointer exist with guest memory.
 
-static SDL_AudioDeviceID g_audioDevice{};
-
 #define SAFE_DELETE(p)       { if(p) { delete (p);     (p)=NULL; } }
 #define FORMAT_TO_SIZE(format) (SDL_AUDIO_BITSIZE(format) >> 3)
 std::vector<Uint8> gResampleBuffer;
@@ -117,7 +115,6 @@ class SHTHR_SOUNDDEVICE_Impl : public SHTHR_SOUNDDEVICE
 {
 public:
 	std::mutex mutex;
-	//SDL_mutex mutex;
 
 	SDL_AudioDeviceID mDeviceID = 0;
 	SDL_AudioSpec mAudioSpec;
@@ -470,7 +467,6 @@ int SHTHR_SOUNDBUFFER_Impl::SetLoopRegion(int dwLoopStartOffset, int dwLoopLengt
 	return 0;
 }
 
-// todo rework to add resampling
 int32_t SHTHR_SOUNDBUFFER_Impl::Pull(unsigned char* data, int32_t size)
 {
 	std::lock_guard<std::mutex> lock(mutex);
@@ -774,15 +770,6 @@ int adxm_vsyncThread = -1;
 static int adxm_fsThread = -1;
 static int adxm_mwidlThread = -1;
 static volatile bool g_audioThreadShouldExit = false;
-
-void AudioQuit()
-{
-	if (g_audioDevice)
-	{
-		SDL_CloseAudioDevice(g_audioDevice);
-		SDL_Quit();
-	}
-}
 
 
 bool SHTHR_SOUNDDEVICE_Impl::ReleaseSoundBuffer(SHTHR_SOUNDBUFFER* pBuffer)
