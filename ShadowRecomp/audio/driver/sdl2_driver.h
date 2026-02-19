@@ -35,8 +35,9 @@ public:
 	virtual int GetCurrentPosition(int* pdwCurrentPlayCursor, int* pdwCurrentWriteCursor) PURE;
 //	virtual int Lock(int dwOffset, int dwBytes, void** ppvAudioPtr1, int* pdwAudioBytes1, void** ppvAudioPtr2, int* pdwAudioBytes2, int dwFlags) PURE;
 	//virtual int Unlock(void* pvAudioPtr1, int dwAudioBytes1, void* pvAudioPtr2, int dwAudioBytes2) PURE;
-	virtual int Play(int dwReserved1, int dwPriority, int dwFlags) PURE;
+	virtual int Play(int dwReserved1, int dwPriority, uint32_t dwFlags) PURE;
 	virtual int Stop() PURE;
+	virtual int StopEx(int64_t rtTimeStamp, uint32_t dwFlags) PURE;
 	virtual int SetVolume(int lVolume) PURE;
 	//virtual int SetPan(int lPan) PURE;
 	virtual int SetFrequency(int lFrequency) PURE;
@@ -49,7 +50,7 @@ class SHTHR_SOUNDDEVICE : public Interface
 {
 public:
 	virtual ~SHTHR_SOUNDDEVICE() = default;
-	virtual SHTHR_SOUNDBUFFER* CreateSoundBuffer(X_DSBUFFERDESC* ppDesc, SHTHR_SOUNDBUFFER** ppBuffer) PURE;
+	virtual int32_t CreateSoundBuffer(X_DSBUFFERDESC* ppDesc, SHTHR_SOUNDBUFFER** ppBuffer) PURE;
 	virtual bool ReleaseSoundBuffer(SHTHR_SOUNDBUFFER* ppBuffer) PURE;
 	virtual int SetAllParameters(Listener3D* params) PURE;
 
@@ -57,4 +58,6 @@ public:
 
 
 
-SHTHR_SOUNDDEVICE* SHTHRSoundCreate(SHTHR_SOUNDDEVICE** ppDevice);
+int32_t SHTHRSoundCreate(SHTHR_SOUNDDEVICE** ppDevice);
+extern SHTHR_SOUNDDEVICE* ppDS;
+SHTHR_SOUNDBUFFER* GetCurrentSoundBuffer(const int32_t key);

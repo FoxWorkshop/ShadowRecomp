@@ -3,7 +3,7 @@ const int32_t ppDSAddr = 0x550310;
 const int32_t ppDSEventAddr = 0x5611C0;
 
 //#define XAUDIO_SAMPLES_HZ     24000      
-#define XAUDIO_SAMPLES_HZ     44100      
+#define XAUDIO_SAMPLES_HZ     48000      
 #define XAUDIO_NUM_CHANNELS   2          
 #define XAUDIO_SAMPLE_BITS    16         
 #define XAUDIO_NUM_SAMPLES    256        
@@ -21,11 +21,31 @@ const int32_t ppDSEventAddr = 0x5611C0;
 #define X_DSBSTATUS_LOOPING           0x00000004
 
 #define X_DSBPLAY_LOOPING       0x00000001
+#define X_DSBPLAY_FROMSTART     0x00000002
 
 #define _FACDS  0x878   /* DirectSound's facility code */
 #define MAKE_DSHRESULT(code)  MAKE_HRESULT(1, _FACDS, code)
 #define XTL_DSBCAPS_CTRL3D               0x00000010
 #define DSERR_UNINITIALIZED             MAKE_DSHRESULT(170)
+#define DSE_FLAG_BUFFER_EXTERNAL        (1 << 31)
+#define DSE_FLAG_PAUSE                  (1 << 11)
+#define DSBSTATUS_LOOPING           0x00000004
+
+#define DSBSIZE_MIN                 4
+
+#define DSE_FLAG_PCM                    (1 << 0)
+#define DSE_FLAG_XADPCM                 (1 << 1)
+#define DSE_FLAG_PCM_UNKNOWN            (1 << 2)
+#define DSBCAPS_CTRL3D              0x00000010
+
+#define WAVE_FORMAT_ADPCM 0x0002
+#define WAVE_FORMAT_XBOX_ADPCM 0x0069
+
+// IDirectSoundBuffer_StopEx flags
+#define X_DSBSTOPEX_IMMEDIATE         0x00000000
+#define X_DSBSTOPEX_ENVELOPE          0x00000001
+#define X_DSBSTOPEX_RELEASEWAVEFORM   0x00000002
+#define X_DSBSTOPEX_ALL               (X_DSBSTOPEX_ENVELOPE | X_DSBSTOPEX_RELEASEWAVEFORM)
 
 typedef struct _XDSMIXBINVOLUMEPAIR {
     uint32_t       dwMixBin;
