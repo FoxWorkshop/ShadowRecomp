@@ -5869,7 +5869,16 @@ static void FlushRenderStateForMainThread(LocalRenderCommandQueue& queue)
 	UpdateAllRenderState();
 
 	if (g_Xbox_VertexShaderMode == VertexShaderMode::FixedFunction)
+	{
+		/**float x = ((double)rand()) / ((double)RAND_MAX) * 0.9 + 0.1;
+		float y = ((double)rand()) / ((double)RAND_MAX) * 0.9 + 0.1;
+		float z = ((double)rand()) / ((double)RAND_MAX) * 0.9 + 0.1;
+
+		float uvRandomTest[4] = { x, y, z, 1.0f };
+
+		CopyVertexShaderConstant(218, (DWORD*)uvRandomTest, 1);*/
 		UpdateFixedFunctionVertexShaderState((size_t)g_memory.Translate(g_VertexShader_Handle), g_pipelineState.isFixedFunctionPS);
+	}
 	else
 		UpdateHostViewPortOffsetAndScaleConstants();
 
