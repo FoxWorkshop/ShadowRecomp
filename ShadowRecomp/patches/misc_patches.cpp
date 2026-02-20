@@ -98,39 +98,3 @@ X86_FUNC(sub_41CD65)
 	return;
 }
 
-extern int currentTexDebugIndex;
-X86_FUNC_IMPL(__imp__sub_2D82E0);
-X86_FUNC(sub_2D82E0)
-{
-	auto charData = X86_LOAD_U32(ctx.esp.u32 + 8);
-	char* s = (char*)g_memory.Translate(charData);
-	std::string str = s;
-	if (str.find("ef_t") != std::string::npos)
-	{
-		printf("set texture name %s\n", s);
-	}
-
-
-	if (currentTexDebugIndex < 3)
-	{
-		if (str.find("ef_tnd03") != std::string::npos)
-		{
-			currentTexDebugIndex = 0;
-		}
-		else if (str.find("ef_tnd05") != std::string::npos)
-		{
-			currentTexDebugIndex = 1;
-		}
-		else if (str.find("ef_tnd00") != std::string::npos)
-		{
-			currentTexDebugIndex = 2;
-		}
-		else if (str.find("ef_thall") != std::string::npos)
-		{
-			currentTexDebugIndex = 3;
-		}
-	}
-
-	__imp__sub_2D82E0(ctx, base);
-}
-
