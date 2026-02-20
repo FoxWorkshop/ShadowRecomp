@@ -38,3 +38,99 @@ X86_FUNC(sub_19730)
 }
 
 
+
+// Patch out logs Artificial Chaos can spew (causes crashes)
+X86_FUNC(sub_37EBE6)
+{
+	ctx.esp.u32 += 4;
+	return;
+}
+
+//leftover debugprint functions be gone!
+X86_FUNC(sub_3DA150)
+{
+	ctx.esp.u32 += 4;
+	return;
+}
+
+X86_FUNC(sub_41D78A)
+{
+	ctx.esp.u32 += 4;
+	return;
+}
+
+X86_FUNC(sub_41A46B)
+{
+	ctx.esp.u32 += 4;
+	return;
+}
+
+
+X86_FUNC(sub_14710)
+{
+	ctx.esp.u32 += 4;
+	return;
+}
+
+X86_FUNC(sub_40634F)
+{
+	ctx.esp.u32 += 4;
+	return;
+}
+
+//this one is a hard lock, we will let it run
+X86_FUNC(sub_2B1A00)
+{
+	printf("Not inititalized m_eDealloctor\n");
+	while (1)
+		;
+}
+
+X86_FUNC(sub_41C0D5)
+{
+	ctx.esp.u32 += 4;
+	return;
+}
+
+X86_FUNC(sub_41CD65)
+{
+	ctx.esp.u32 += 4;
+	return;
+}
+
+extern int currentTexDebugIndex;
+X86_FUNC_IMPL(__imp__sub_2D82E0);
+X86_FUNC(sub_2D82E0)
+{
+	auto charData = X86_LOAD_U32(ctx.esp.u32 + 8);
+	char* s = (char*)g_memory.Translate(charData);
+	std::string str = s;
+	if (str.find("ef_t") != std::string::npos)
+	{
+		printf("set texture name %s\n", s);
+	}
+
+
+	if (currentTexDebugIndex < 3)
+	{
+		if (str.find("ef_tnd03") != std::string::npos)
+		{
+			currentTexDebugIndex = 0;
+		}
+		else if (str.find("ef_tnd05") != std::string::npos)
+		{
+			currentTexDebugIndex = 1;
+		}
+		else if (str.find("ef_tnd00") != std::string::npos)
+		{
+			currentTexDebugIndex = 2;
+		}
+		else if (str.find("ef_thall") != std::string::npos)
+		{
+			currentTexDebugIndex = 3;
+		}
+	}
+
+	__imp__sub_2D82E0(ctx, base);
+}
+

@@ -121,12 +121,6 @@ X86_FUNC(sub_258550)
 	__imp__sub_258550(ctx, base);
 }
 
-X86_FUNC_IMPL(__imp__sub_37EBE6); // Patch out logs Artificial Chaos can spew (causes crashes)
-X86_FUNC(sub_37EBE6)
-{
-	ctx.esp.u32 += 4;
-	return;
-}
 
 GUEST_FUNCTION_HOOK_STDCALL(sub_2B0CE1, TryOpenVolume);
 GUEST_FUNCTION_HOOK_STDCALL(sub_2B0C27, MapLetterToDirectory); //this stub will trigger the lack of space after pressing start
