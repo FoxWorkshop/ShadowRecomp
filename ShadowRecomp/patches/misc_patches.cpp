@@ -113,3 +113,8 @@ X86_FUNC(sub_2A6530)
 	__imp__sub_2A6530(ctx, base);
 }
 
+//todo implement as an option
+void SkipPartnerIntroMidAsmHook(X86Register& eax)
+{
+	eax.u32 = 1;
+}

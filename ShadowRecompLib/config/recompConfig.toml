@@ -715,3 +715,8 @@ registers = ["r0"]
 name = "_XbSubmitNodeMidAsmHook"
 address = 0x2F1056
 registers = ["r0"]
+
+[[midasm_hook]]
+name = "SkipPartnerIntroMidAsmHook"
+address = 0xA5BA2
+registers = ["r0"]
