@@ -4064,13 +4064,6 @@ int D3D_GetAdapterModeCount(int a1)
 	return 4 * 1;
 }
 
-//is this broken? (hardware remove thing)
-X86_FUNC_IMPL(__imp__sub_203A20);
-X86_FUNC(sub_203A20) {
-
-	__imp__sub_203A20(ctx, base);
-}
-
 
 X86_FUNC_IMPL(__imp__sub_59AE0);
 X86_FUNC(sub_59AE0) {
