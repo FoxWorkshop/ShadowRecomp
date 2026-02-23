@@ -32,12 +32,16 @@ typedef struct _ETHREAD_R
 ETHREAD_R;
 static_assert(sizeof(ETHREAD_R) == 0x140);
 
+const uint32_t tls_indexAddr = 0x5599A8;
 constexpr size_t KPCR_SIZE = 0x280;
 constexpr size_t ETHREAD_R_SIZE = sizeof(_ETHREAD_R);
 
 constexpr size_t TLS_SIZE = 0x2000;//0x1000;
 constexpr size_t STACK_SIZE = 0x10000;
-size_t TOTAL_SIZE = KPCR_SIZE + TLS_SIZE + STACK_SIZE + ETHREAD_R_SIZE;
+constexpr size_t FX_SAVE_AREA_SIZE = sizeof(FX_SAVE_AREA);
+constexpr size_t KSTART_SWITCH_FRAME_SIZE = 24;
+
+size_t TOTAL_SIZE = KPCR_SIZE + FX_SAVE_AREA_SIZE + TLS_SIZE + STACK_SIZE + ETHREAD_R_SIZE + KSTART_SWITCH_FRAME_SIZE;
 
 bool isHostThread = false;
 
@@ -68,15 +72,16 @@ std::string GetThreadName(uint32_t func)
 	return name;
 }
 
-void KiInitializeContextThread(
-	IN KTHREAD_R* Thread,
-	IN xbox::ulong_xt TlsDataSize,
-	IN uint32_t SystemRoutine,
-	IN uint32_t StartRoutine,
-	IN uint32_t StartContext
-)
+
+static uint32_t GenerateStackSize(uint32_t &espBaseAddress, uint32_t TlsDataSize) 
 {
-	*(uint32_t*)(Thread + 0x30) = NPX_STATE_NOT_LOADED;
+	dword_xt StackSize = espBaseAddress & 15; // Fix 16 byte alignment
+	espBaseAddress -= StackSize;
+	StackSize += sizeof(FX_SAVE_AREA);
+	TlsDataSize = ALIGN_UP(TlsDataSize, ulong_xt);
+	StackSize += TlsDataSize; 	
+	StackSize += 24; //KSWITCHFRAME + KSTART_FRAME
+	return StackSize;
 }
 
 GuestThreadContext::GuestThreadContext(GuestThreadParams params)
@@ -90,7 +95,7 @@ GuestThreadContext::GuestThreadContext(GuestThreadParams params)
 	if (KernelStackSize <= 0)
 		KernelStackSize = STACK_SIZE;
 
-	TOTAL_SIZE = KPCR_SIZE + tlsSize + KernelStackSize + ETHREAD_R_SIZE;
+	TOTAL_SIZE = KPCR_SIZE + tlsSize + KernelStackSize + FX_SAVE_AREA_SIZE + KSTART_SWITCH_FRAME_SIZE + ETHREAD_R_SIZE;
 
 	assert(thread == nullptr);
 	thread = (uint8_t*)g_userHeap.Alloc(TOTAL_SIZE);
@@ -98,35 +103,53 @@ GuestThreadContext::GuestThreadContext(GuestThreadParams params)
 
 	ETHREAD_R* eThread = reinterpret_cast<ETHREAD_R*>(thread + KPCR_SIZE + tlsSize + KernelStackSize);
 
-
-	uint8_t* stack_limit = thread + KPCR_SIZE + tlsSize;
+	uint8_t* kpcr = thread;
+	uint8_t* tls_region = kpcr + KPCR_SIZE;
+	uint8_t* stack_limit = tls_region + tlsSize;
 	uint8_t* stack_top = stack_limit + KernelStackSize;
-	uint8_t* tls_region = thread + KPCR_SIZE;
+	uint8_t* fx_save = stack_top;
+	uint8_t* frames = fx_save + FX_SAVE_AREA_SIZE;
+	uint8_t* eThreadMem = frames + KSTART_SWITCH_FRAME_SIZE;
+
+	
+	unsigned EspAddr = g_memory.MapVirtual(stack_top);
+	auto sizeReserved = GenerateStackSize(EspAddr, params.tlsSize); //this is needed to enssure ESP start at the right place
+	EspAddr -= sizeReserved;
+
+	assert(stack_limit < stack_top);
+	assert(tls_region >= kpcr + KPCR_SIZE);
+	assert(stack_limit >= tls_region + tlsSize);
+	assert(stack_top - stack_limit == KernelStackSize);
+
 
 	memset(thread, 0, TOTAL_SIZE);
 	memset(eThread, 0, sizeof(ETHREAD_R));
 
 	// Set up memory regions
 	uint8_t* NewPcr = thread;   //FS:[0x00] points here
-	memset(NewPcr, 0, TOTAL_SIZE);
 	uint8_t* XbTib = (NewPcr + 0x0);
-
 	uint8_t* Prcb = NewPcr + 0x28; //FS:[0x28] = prcbData
 
-	*(uint32_t*)(NewPcr + 0x04) = g_memory.MapVirtual(thread + 0x04);
+	eThread->Tcb.StackBase = g_memory.MapVirtual(stack_top); // stack;
+	eThread->Tcb.StackLimit = g_memory.MapVirtual(stack_limit);
+	eThread->Tcb.KernelStack = eThread->Tcb.StackBase; 
+	eThread->Tcb.TlsData = g_memory.MapVirtual(tls_region);
+
+	*(uint32_t*)(NewPcr + 0x30) = NPX_STATE_NOT_LOADED;
+
+	xbox::addr_xt StackBaseAddr = reinterpret_cast<xbox::addr_xt>(eThread->Tcb.StackBase);
+
+	uint32_t AdjustedStackBase = StackBaseAddr - sizeof(FX_SAVE_AREA);
+	*(uint32_t*)(NewPcr + 0x04) = AdjustedStackBase;
+	*(uint32_t*)(NewPcr + 0x08) = eThread->Tcb.StackLimit;
+
 	*(uint32_t*)(NewPcr + 0x01C) = g_memory.MapVirtual(NewPcr); //SelfPcr
 	*(uint32_t*)(NewPcr + 0x018) = g_memory.MapVirtual(XbTib); //Self
 	*(uint32_t*)(NewPcr + 0x020) = g_memory.MapVirtual(Prcb);  //fs:[0x20] = Prcb
 
 	*(uint32_t*)(Prcb + 0x30) = FALSE;
 	*(uint32_t*)(NewPcr + 0x24) = PASSIVE_LEVEL;
-
-
-	eThread->Tcb.StackBase = g_memory.MapVirtual(stack_top); // stack;
-	eThread->Tcb.StackLimit = g_memory.MapVirtual(stack_limit);
-	eThread->Tcb.KernelStack = eThread->Tcb.StackBase; // g_memory.MapVirtual(stack_top);
-	eThread->Tcb.TlsData = g_memory.MapVirtual(tls_region);
-	KiInitializeContextThread(&eThread->Tcb, tlsSize, 0, 0, 0);
+	*(uint32_t*)(NewPcr + 0x28) = g_memory.MapVirtual(Prcb);
 
 
 	if (eThread->Tcb.TlsData) 
@@ -135,9 +158,9 @@ GuestThreadContext::GuestThreadContext(GuestThreadParams params)
 		uint32_t RawTlsDataSize = m_TLS->dwDataEndAddr - m_TLS->dwDataStartAddr;
 		uint32_t TlsSizeTotal = RawTlsDataSize + m_TLS->dwSizeofZeroFill;
 
-		xbox::addr_xt* TlsData = reinterpret_cast<xbox::addr_xt*>(newPtr);
+		uint32_t* TlsData = reinterpret_cast<xbox::addr_xt*>(newPtr);
 		
-		*TlsData = reinterpret_cast<xbox::addr_xt>(newPtr) + sizeof(xbox::addr_xt);
+		*TlsData = reinterpret_cast<uint32_t>(newPtr) + sizeof(uint32_t);
 		// Set the actual tls data from xbe.
 		TlsData += 1;
 		std::memcpy(TlsData, reinterpret_cast<xbox::PVOID>(m_TLS->dwDataStartAddr), RawTlsDataSize);
@@ -145,21 +168,23 @@ GuestThreadContext::GuestThreadContext(GuestThreadParams params)
 		if (m_TLS->dwSizeofZeroFill) {
 			std::memset(reinterpret_cast<xbox::PBYTE>(TlsData) + RawTlsDataSize, 0, m_TLS->dwSizeofZeroFill);
 		}
-
-		eThread->Tcb.TlsData = g_memory.MapVirtual(TlsData);
 	}
 
 
 	if (isHostThread == false)
 	{
-		printf("StackBase: 0x%08X, StackLimit: 0x%08X, TlsData: 0x%08X\n",
-			eThread->Tcb.StackBase, eThread->Tcb.StackLimit, eThread->Tcb.TlsData);
+		printf("StackBase: 0x%08X, StackLimit: 0x%08X, StackSize: 0x%08X  NtTibStackBase: 0x%08X,  TlsData: 0x%08X\n",
+			eThread->Tcb.StackBase, eThread->Tcb.StackLimit, eThread->Tcb.StackBase - eThread->Tcb.StackLimit,  AdjustedStackBase, eThread->Tcb.TlsData);
+
+		int addr = g_memory.MapVirtual(thread) + 0x4;
+		auto base = g_memory.base;
+		int ptrAddr = X86_LOAD_U32(addr) + (X86_LOAD_U32(tls_indexAddr) * 4);
+		X86_STORE_U32(ptrAddr, eThread->Tcb.TlsData);
 	}
 
 	*(uint32_t*)(Prcb + 0x04B) = GuestThread::GetCurrentThreadId(); //maybe
 
 	memset(&x86Context, 0, sizeof(x86Context));
-
 
 	if (isHostThread)
 	{
@@ -168,8 +193,7 @@ GuestThreadContext::GuestThreadContext(GuestThreadParams params)
 	}
 	else
 	{
-
-		x86Context.esp.u32 = eThread->Tcb.StackBase & ~0xF;
+		x86Context.esp.u32 = EspAddr; // eThread->Tcb.StackBase & 15;
 		x86Context.ebp.u32 = x86Context.esp.u32;
 	}
 
