@@ -651,7 +651,7 @@ functions = [
 	{ address = 0x9a580, size = 0x19B },
 	{ address = 0x99160, size = 0xB1 },
 	{ address = 0xe7d00, size = 0x3C },
-	{ address = 0xffea0, size = 0x2AC }, # probably wrong, huge function??
+	{ address = 0xffea0, size = 0x2AC }, 
 	{ address = 0x1d1f90, size = 0x251 },
 	{ address = 0x2367e0, size = 0x44 }, # digital circuit
 	{ address = 0x2368d0, size = 0x44 }, # mad matrix
@@ -668,6 +668,7 @@ functions = [
 	{ address = 0xA5DC0, size = 0x20 },
 	{ address = 0x22D170, size = 0xB4 },
 	{ address = 0x966C0, size = 0x40 },
+	{ address = 0x96640, size = 0x40 },
 
 	{ address = 0x12BB0, size = 0x11C }, #broken size	
 	{ address = 0x203970, size = 0x555 }, #broken size
