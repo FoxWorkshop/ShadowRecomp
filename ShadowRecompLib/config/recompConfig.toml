@@ -720,3 +720,8 @@ registers = ["r0"]
 name = "SkipPartnerIntroMidAsmHook"
 address = 0xA5BA2
 registers = ["r0"]
+
+[[midasm_hook]]
+name = "SelectModeUnlockCheckBypassMidAsmHook"
+address = 0x29A460
+registers = ["r0"]

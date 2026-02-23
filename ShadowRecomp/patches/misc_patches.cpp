@@ -118,3 +118,9 @@ void SkipPartnerIntroMidAsmHook(X86Register& eax)
 {
 	eax.u32 = 1;
 }
+
+// TODO: This is temporary, replace with a proper SaveData patch
+void SelectModeUnlockCheckBypassMidAsmHook(X86Register& eax)
+{
+	eax.u32 = 1;
+}
