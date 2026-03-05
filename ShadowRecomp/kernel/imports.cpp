@@ -490,8 +490,7 @@ void KeQuerySystemTime(uint64_t* CurrentTime_)
 
 LONG KeQueryBasePriorityThread(GuestThreadHandle* Thread)
 {
-	//xbox::PKTHREAD t = (xbox::PKTHREAD)Thread;
-	return 8;
+	return 0;
 }
 
 typedef struct _KINTERRUPT
@@ -681,6 +680,7 @@ std::int32_t KeSetBasePriorityThread(GuestThreadHandle* hThread, LONG priority)
 	{
 		printf("Failed to set priority: %d\n", GetLastError());
 	}
+
 #endif
 
 	return priority;
@@ -1213,9 +1213,13 @@ void PsTerminateSystemThread(LONG ExitStatus)
 	// No-op (thread cleanup is handled by the recompiler)
 }
 
-LONG ObReferenceObjectByHandle(uint32_t Handle, uint32_t ObjectType, uint32_t* Object)
+// Turns a handle into a kernel object pointer.  The ObjectType parameter
+// specifies what type of object it is. 
+LONG ObReferenceObjectByHandle(uint32_t Handle, uint32_t ObjectType, uint32_t Object)
 {
-	*Object = Handle;
+	auto base = g_memory.base;
+	X86_STORE_U32(Object, Handle);
+	//*Object = Handle;
 	return X_STATUS_SUCCESS;
 }
 

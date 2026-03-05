@@ -362,6 +362,17 @@ int XAPILIBGetCurrentThreadId()
 	return GuestThread::GetCurrentThreadId();
 }
 
+int32_t GetThreadPriorityImpl(GuestThreadHandle* hThread)
+{
+#ifdef _WIN32
+	return GetThreadPriority(hThread == GetKernelObject(CURRENT_THREAD_HANDLE) ? GetCurrentThread() : hThread->thread.native_handle());
+#else 
+	return 0;
+#endif
+}
+
+GUEST_FUNCTION_HOOK_STDCALL(sub_2ADC8D, GetThreadPriorityImpl);
+
 GUEST_FUNCTION_HOOK(sub_2ADF79, XAPILIBGetCurrentThreadId);
 
 GUEST_FUNCTION_STUB(sub_2B126A); // Some kernel hardware check, not needed on PC.
