@@ -2883,31 +2883,22 @@ static void SetPixelShaderConstants(int32_t Register, __m128* pConstantData, int
 
 }
 
-
+//SetStreamSource
 X86_FUNC_IMPL(__imp__sub_3D1E10);
-static void SetStreamSource(uint32_t StreamNumber, GuestBuffer* buffer, uint32_t stride)
-{
-	auto base = g_memory.base;
+X86_FUNC(sub_3D1E10) {
+
+	auto StreamNumber = (uint32_t)GetHostParameter(1);
+	auto buffer = (GuestBuffer*)GetHostParameter(2, CallConvention::Stdcall, ParameterType::Pointer);
+	auto stride = (uint32_t)GetHostParameter(3);
 
 
 	g_Xbox_SetStreamSource[StreamNumber].VertexBuffer = buffer;
 	g_Xbox_SetStreamSource[StreamNumber].Stride = stride;
 
-
-	/**RenderCommand cmd;
-	cmd.type = RenderCommandType::SetStreamSource;
-	cmd.setStreamSource.StreamNumber = StreamNumber;
-	cmd.setStreamSource.vertexBuffer = buffer;
-	cmd.setStreamSource.stride = stride;
-	g_renderQueue.enqueue(cmd);*/
-
 	//we need to let the original code run otherwise this preven't other vertex buffer to be used
-
-	//printf("set VB %x, stream number %d, stride %d\n", buffer, StreamNumber, stride);
-	auto ctx = GetX86Context();
-	__imp__sub_3D1E10(*ctx, base);
-	ctx->esp.u32 -= (4 + 12);
+	__imp__sub_3D1E10(ctx, base);
 }
+
 
 //offset might be 0 but I'm not sure, to do check
 static void ProcSetStreamSource(const RenderCommand& cmd)
@@ -6690,16 +6681,24 @@ void DrawIndexedPrimitive(X_D3DPRIMITIVETYPE PrimitiveType, uint32_t VertexCount
 	ComputeIndexRange(pIndexData, 0, VertexCount, minIdx, maxIdx);
 
 	bool patched = false;
-	GuestBuffer* v1;
-	GuestBuffer* v2;
+
 	bool drawShadow = false;
 
 	for (int i = 0; i < 16; i++)
 	{
+		if (VertexCount == 91)
+		{
+			printf("");
+		}
+
 		if (g_Xbox_SetStreamSource[i].VertexBuffer == nullptr)
 			continue;
 
 		auto alignedStride = AlignStride(g_Xbox_SetStreamSource[i].Stride);
+
+		/**if (alignedStride == 0)
+			continue;*/
+
 		size_t host_handle = (size_t)g_memory.Translate(g_VertexShader_Handle);
 		auto vertexElement = XSR_HostGetVertexDeclaration(host_handle, g_Xbox_VertexShaderMode == VertexShaderMode::FixedFunction);
 
@@ -7047,28 +7046,24 @@ void D3DDevice_SetVertexShaderConstantNotInlineFast(int32_t Register, DWORD* pCo
 	CopyVertexShaderConstant(Register, pConstantData, ConstantCount / 4);
 }
 
+//D3DDevice_LightEnable
 X86_FUNC_IMPL(__imp__sub_3D0B70);
-int32_t D3DDevice_LightEnable(uint32_t Index, int32_t bEnable)
+X86_FUNC(sub_3D0B70)
 {
-	auto ctx = GetX86Context();
-	auto base = g_memory.base;
-
-	__imp__sub_3D0B70(*ctx, base);
-	ctx->esp.u32 -= 12;
+	uint32_t Index = GetHostParameter(1);
+	uint32_t bEnable = GetHostParameter(2);
+	__imp__sub_3D0B70(ctx, base);
 	LightEnable(Index, bEnable);
-
-	return ctx->eax.u32;
 }
 
+//D3DDevice_SetLight
 X86_FUNC_IMPL(__imp__sub_3D08B0);
-int32_t D3DDevice_SetLight(uint32_t Index, X_D3DLIGHT8* pLight)
+X86_FUNC(sub_3D08B0)
 {
-	auto ctx = GetX86Context();
-	auto base = g_memory.base;
-	__imp__sub_3D08B0(*ctx, base);
-	ctx->esp.u32 -= 12;
+	uint32_t Index = GetHostParameter(1);
+	X_D3DLIGHT8* pLight = (X_D3DLIGHT8*)GetHostParameter(2, CallConvention::Stdcall, ParameterType::Pointer);
+	__imp__sub_3D08B0(ctx, base);
 	UpdateLightData(Index, pLight);
-	return ctx->eax.u32;
 }
 
 void SetMaterial(Material* pMaterial)
@@ -7598,7 +7593,7 @@ static std::thread g_renderThread([]
 GUEST_FUNCTION_HOOK_STDCALL(sub_3DDAB0, Direct3D_CreateDevice_r);
 //GUEST_FUNCTION_HOOK(sub_2E6750, CreateVertexBuffer);
 //GUEST_FUNCTION_HOOK_STDCALL(sub_3D5FE0, LockVertexBuffer);
-GUEST_FUNCTION_HOOK_STDCALL(sub_3D1E10, SetStreamSource);
+
 
 //vertex shader
 //GUEST_FUNCTION_HOOK_STDCALL(sub_3D1BA0, CreateVertexShader);
@@ -7635,8 +7630,6 @@ GUEST_FUNCTION_HOOK_STDCALL(sub_3D0040, D3DDevice_SetRenderTarget);
 GUEST_FUNCTION_HOOK_STDCALL(sub_3DD810, LockTextureRect); //todo cube version?
 
 GUEST_FUNCTION_HOOK_STDCALL(sub_3CFDF0, SetMaterial);
-GUEST_FUNCTION_HOOK_STDCALL(sub_3D0B70, D3DDevice_LightEnable);
-GUEST_FUNCTION_HOOK_STDCALL(sub_3D08B0, D3DDevice_SetLight);
 
 
 //Rendering

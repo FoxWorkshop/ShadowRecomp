@@ -50,6 +50,18 @@
       }
     },
     {
+      "name": "x64-Clang-RelWithDebInfo-Aggressive",
+      "displayName": "RelWithDebInfo (Release Optimization)",
+      "inherits": "x64-Clang-Debug",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "RelWithDebInfo",
+        "CMAKE_INTERPROCEDURAL_OPTIMIZATION": true,
+        "CMAKE_CXX_FLAGS_RELWITHDEBINFO": "-O2 -g",
+        "CMAKE_C_FLAGS_RELWITHDEBINFO": "-O2 -g",
+        "CMAKE_EXE_LINKER_FLAGS_RELWITHDEBINFO": "/DEBUG /OPT:ICF /OPT:REF /LTCG"
+      }
+    },
+    {
       "name": "x64-Clang-Release",
       "displayName": "Release",
       "inherits": "x64-Clang-Debug",

@@ -16,12 +16,29 @@
 
 enum CallConvention
 {
-    Cdecl,
-	Stdcall,
+    Cdecl = 0,
+    Stdcall = 1,
 	Fastcall,
 	Thiscall,
     Usercall,
     Userpurge
+};
+
+enum ParameterType
+{
+    Integer,
+    Float,
+    Pointer
+};
+
+enum ParameterSize
+{
+    U8,
+    U16,
+    U32,
+    F32,
+    F64,
+    F80
 };
 
 enum Register
@@ -353,6 +370,122 @@ T GuestToHostFunction(const TFunction& func, TArgs&&... argv)
     }
 }
 
+/*
+* Get and convert a parameter of a guest function for the host, this can then be used to edit or check data
+@param
+* paramID - the parameter ID requested, example if you want to grab the first argument of the function, pick 1, if you want the second 2 etc.
+* funcType - specify the function type, cdecl, stdcall etc. Default to Cdecl and does not work with usercall and userpurge at the moment
+* ParamType - specify if the parameter is a int, a float or a pointer using ParameterType enum. Default to int.
+*/
+inline uintptr_t GetHostParameter(int8_t paramID, CallConvention funcType = CallConvention::Cdecl, ParameterType ParamType = ParameterType::Integer, ParameterSize paramSize = ParameterSize::U32)
+{
+    auto ctx = GetX86Context();
+
+    if (!ctx)
+        return 0;
+
+    if (paramID <= 0)
+        paramID = 1;
+
+    auto base = g_memory.base;
+
+    switch (funcType)
+    {
+    case CallConvention::Cdecl:
+    case CallConvention::Stdcall:
+    default:
+        if (ParamType == ParameterType::Pointer)
+        {
+            auto ptr = X86_LOAD_U32(ctx->esp.u32 + (4 * paramID));
+            if (!ptr)
+                return 0;
+
+            return (uintptr_t)g_memory.Translate(ptr);
+        }
+        else if (ParamType == ParameterType::Float)
+        {
+            return (uintptr_t)X86_LOAD_F32(ctx->esp.u32 + (4 * paramID));
+        }
+        else
+        {
+            if (paramSize == ParameterSize::U8)
+                return (uintptr_t)X86_LOAD_U8(ctx->esp.u32 + (4 * paramID));
+            else if (paramSize == ParameterSize::U16)
+                return (uintptr_t)X86_LOAD_U16(ctx->esp.u32 + (4 * paramID));
+            else
+                return (uintptr_t)X86_LOAD_U32(ctx->esp.u32 + (4 * paramID));
+        }
+        break;
+    case CallConvention::Thiscall:
+        if (paramID == 1)
+        {
+            if (ctx->ecx.u32 == 0)
+                return 0;
+
+            return (uintptr_t)g_memory.Translate(ctx->ecx.u32);
+        }
+        if (ParamType == ParameterType::Pointer)
+        {
+            auto ptr = X86_LOAD_U32(ctx->esp.u32 + (4 * (paramID - 1)));
+            if (!ptr)
+                return 0;
+
+            return (uintptr_t)g_memory.Translate(ptr);
+        }
+        else
+        {
+            return (uintptr_t)X86_LOAD_U32(ctx->esp.u32 + (4 * (paramID - 1)));
+        }
+        break;
+    case CallConvention::Fastcall:
+        if (paramID == 1)
+        {
+            if (ParamType == ParameterType::Pointer)
+            {
+                if (ctx->ecx.u32 == 0)
+                    return 0;
+
+                return (uintptr_t)g_memory.Translate(ctx->ecx.u32);
+            }
+            else if (ParamType == ParameterType::Float)
+                return (uintptr_t)X86_LOAD_F32(ctx->ecx.u32);
+            else
+                return (uintptr_t)X86_LOAD_U32(ctx->ecx.u32);
+        }
+        else if (paramID == 2)
+        {
+            if (ParamType == ParameterType::Pointer)
+            {
+                if (ctx->edx.u32 == 0)
+                    return 0;
+
+                return (uintptr_t)g_memory.Translate(ctx->edx.u32);
+            }
+            else if (ParamType == ParameterType::Float)
+                return (uintptr_t)X86_LOAD_F32(ctx->edx.u32);
+            else
+                return (uintptr_t)X86_LOAD_U32(ctx->edx.u32);
+        }
+        else
+        {
+            if (ParamType == ParameterType::Pointer)
+            {
+                auto ptr = X86_LOAD_U32(ctx->esp.u32 + (4 * (paramID - 2)));
+                if (!ptr)
+                    return 0;
+
+                return (uintptr_t)g_memory.Translate(ptr);
+            }
+            else if (ParamType == ParameterType::Float)
+                return (uintptr_t)X86_LOAD_F32(ctx->esp.u32 + (4 * (paramID - 2)));
+            else
+                return (uintptr_t)X86_LOAD_U32(ctx->esp.u32 + (4 * (paramID - 2)));
+        }
+
+       break;
+    }
+
+}
 
 X86_FUNC(StubWithCleanStack);
 
