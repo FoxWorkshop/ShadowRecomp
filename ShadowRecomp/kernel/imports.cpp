@@ -1268,6 +1268,23 @@ void RtlLeaveCriticalSection(XRTL_CRITICAL_SECTION* CritSec)
 	owningThread.notify_one();
 }
 
+//patch for loading thread race issue
+XRTL_CRITICAL_SECTION dirtyListLock;
+void InitDirtyListCriticalSection()
+{
+	RtlInitializeCriticalSection(&dirtyListLock);
+}
+
+void EnterDirtyListCriticalSection()
+{
+	RtlEnterCriticalSection(&dirtyListLock);
+}
+
+void LeaveDirtyListCriticalSection()
+{
+	RtlLeaveCriticalSection(&dirtyListLock);
+}
+
 void RtlInitAnsiString(_XANSI_STRING* Destination, char* Source)
 {
 	const uint16_t length = Source ? (uint16_t)strlen(Source) : 0;

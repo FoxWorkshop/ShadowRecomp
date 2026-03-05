@@ -88,3 +88,6 @@ inline T* QueryKernelObject(XDISPATCHER_HEADER &header)
 
 
 void InitDpcData();
+void InitDirtyListCriticalSection();
+void EnterDirtyListCriticalSection();
+void LeaveDirtyListCriticalSection();
