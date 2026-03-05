@@ -148,3 +148,31 @@ typedef struct _XOVERLAPPED {
 	uint32_t OffsetHigh;
 	uint32_t hEvent;
 } XOVERLAPPED;
+
+#pragma pack(push, 1)
+typedef struct _FLOATING_SAVE_AREA
+{
+	uint16_t ControlWord;
+	uint16_t StatusWord;
+	uint16_t TagWord;
+	uint16_t ErrorOpcode;
+	uint32_t ErrorOffset;
+	uint32_t ErrorSelector;
+	uint32_t DataOffset;
+	uint32_t DataSelector;
+	uint32_t MXCsr;
+	uint32_t Reserved2;
+	uint8_t RegisterArea[128];
+	uint8_t XmmRegisterArea[128];
+	uint8_t Reserved4[224];
+	uint32_t Cr0NpxState;
+} FLOATING_SAVE_AREA, * PFLOATING_SAVE_AREA;
+#pragma pack(pop)
+static_assert(sizeof(_FLOATING_SAVE_AREA) == 0x204);
+
+typedef struct _FX_SAVE_AREA {
+	FLOATING_SAVE_AREA FloatSave;
+	uint32_t Unknown[3];
+} FX_SAVE_AREA, * PFX_SAVE_AREA;
+static_assert(sizeof(_FX_SAVE_AREA) == 0x210);
+

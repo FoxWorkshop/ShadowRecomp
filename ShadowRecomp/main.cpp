@@ -246,6 +246,8 @@ int main(int argc, char* argv[])
     //Create DPC Routine thread, a loop will check and fire guest function stored from KeInsertQueueDpc
     //std::thread dpcThread(dpc_launch);
 
+    //init mutex for Loading thread patch
+    InitDirtyListCriticalSection();
 
     //launch the Start function of the game
     isHostThread = true;

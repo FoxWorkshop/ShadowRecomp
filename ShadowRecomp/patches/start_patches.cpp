@@ -89,7 +89,7 @@ X86_FUNC(sub_29EA60)
 
 
 // test spawn level
-static bool changeLevelOnce = false;
+static bool changeLevelOnce = true; // true = disabled
 X86_FUNC_IMPL(__imp__sub_258550);
 X86_FUNC(sub_258550)
 {
@@ -98,7 +98,7 @@ X86_FUNC(sub_258550)
 		//X86_STORE_U32(ctx.esp.u32 + 4, 5); // Test level 5 (used in Sky Troops Intro Cutscene)
 
 		//X86_STORE_U32(ctx.esp.u32 + 4, 504); 
-		X86_STORE_U32(ctx.esp.u32 + 4, 301); //prison island
+		//X86_STORE_U32(ctx.esp.u32 + 4, 301); //prison island
 
 		//X86_STORE_U32(ctx.esp.u32 + 4, 302); //circus park 
 
@@ -115,12 +115,11 @@ X86_FUNC(sub_258550)
 		//X86_STORE_U32(ctx.esp.u32 + 4, 201); //Glyphic Canyon 
 		//X86_STORE_U32(ctx.esp.u32 + 4, 210); //black bull (require pixel shader)
 		//X86_STORE_U32(ctx.esp.u32 + 4, 402); //Sky Troops	
-		//X86_STORE_U32(ctx.esp.u32 + 4, 501); //air fleet  (eventually require pixel shader)
+		X86_STORE_U32(ctx.esp.u32 + 4, 501); //air fleet  (eventually require pixel shader)
 		changeLevelOnce = true;
 	}
 	__imp__sub_258550(ctx, base);
 }
-
 
 
 GUEST_FUNCTION_HOOK_STDCALL(sub_2B0CE1, TryOpenVolume);

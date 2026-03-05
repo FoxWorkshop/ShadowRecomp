@@ -343,7 +343,7 @@ float4 DoTexCoord(const uint stage, const VS_INPUT xIn)
         if (componentCount == 1)
             texCoord.yzw = float3(0, 0, 1);
         if (componentCount == 2)
-            texCoord.zw = float2(0, 1);
+            texCoord.zw = float2(1, 1); //testing: was texCoord.zw = float2(0, 1), (setting texCoord.z to 1 fix uv anim)
         if (componentCount == 3)
             texCoord.w = 1;
     } // Generate texture coordinates
@@ -370,8 +370,11 @@ float4 DoTexCoord(const uint stage, const VS_INPUT xIn)
     }
 
     // Transform the texture coordinates if requested
-    if (countFlag != D3DTTFF_DISABLE)
+    if (countFlag != D3DTTFF_DISABLE) //issue is likely here
+    {
         texCoord = mul(texCoord, transforms.Texture[stage]);
+    }
+        //
 
     // We always send four coordinates
     // If we are supposed to send less than four

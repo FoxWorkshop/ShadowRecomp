@@ -179,6 +179,9 @@ cbuffer VertexShaderConstants : register(b0, space4)
     float4 xboxScreenspaceScale : packoffset(c212);
     float4 xboxScreenspaceOffset : packoffset(c213);
     float4 xboxTextureScale[4] : packoffset(c214);
+    
+    //float4 randomUVTest : packoffset(c218); //left over debugging keep it in case I need to make another similar test
+    
    // float4 FogInfo : packoffset(c218); //Parameters for mapping the shader's fog output value to a fog factor (D3DVS_CONSTREG_FOGINFO)  
 }
 

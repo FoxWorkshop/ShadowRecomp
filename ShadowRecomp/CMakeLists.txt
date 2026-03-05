@@ -115,6 +115,8 @@ set(SHADOW_RECOMP_HID_CXX_SOURCES
 set(SHADOW_RECOMP_PATCHES_CXX_SOURCES
     "patches/start_patches.cpp"
     "patches/bloom_patch.cpp"
+    "patches/loading_patches.cpp"
+    "patches/prompt_patches.cpp"
     "patches/player_patches.cpp"
     "patches/misc_patches.cpp"
 )
