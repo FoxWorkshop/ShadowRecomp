@@ -88,6 +88,7 @@ inline T* QueryKernelObject(XDISPATCHER_HEADER &header)
 
 
 void InitDpcData();
-void InitDirtyListCriticalSection();
-void EnterDirtyListCriticalSection();
-void LeaveDirtyListCriticalSection();
+void InitPatchesLoadingCriticalSection();
+void RtlEnterCriticalSection(XRTL_CRITICAL_SECTION* CritSec);
+void RtlLeaveCriticalSection(XRTL_CRITICAL_SECTION* CritSec);
+void RtlInitializeCriticalSection(XRTL_CRITICAL_SECTION* CritSec);

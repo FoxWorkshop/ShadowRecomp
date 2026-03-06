@@ -283,6 +283,8 @@ static void SetControllerInputDevice(Controller* controller)
 
 static void SetControllerChaosModeLED(Controller& controller, ELedAura mode)
 {
+	return;
+
 	switch (mode)
 	{
 	case LED_AURA_NEUTRAL:

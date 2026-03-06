@@ -123,14 +123,14 @@ namespace plume
 #ifdef SHADOW_RECOMP_D3D12
 	extern std::unique_ptr<RenderInterface> CreateD3D12Interface();
 #endif
-#ifdef SDL_VULKAN_ENABLED
+#ifdef PLUME_SDL_VULKAN_ENABLED
 	extern std::unique_ptr<RenderInterface> CreateVulkanInterface(RenderWindow sdlWindow);
 #else
 	extern std::unique_ptr<RenderInterface> CreateVulkanInterface();
 #endif
 
 	static std::unique_ptr<RenderInterface> CreateVulkanInterfaceWrapper() {
-#ifdef SDL_VULKAN_ENABLED
+#ifdef PLUME_SDL_VULKAN_ENABLED
 		return CreateVulkanInterface(GameWindow::s_renderWindow);
 #else
 		return CreateVulkanInterface();
@@ -821,6 +821,7 @@ struct DerivedVertexBuffer
 };
 
 std::unordered_map<GuestBuffer*, std::vector<DerivedVertexBuffer>> VBsList;
+std::vector<GuestResource*> g_tempUnreadyResource; //store VB that weren't ready to be deleted
 
 //todo figure out this
 static void DestructTempResources()
@@ -852,7 +853,19 @@ static void DestructTempResources()
 		case ResourceType::IndexBuffer:
 		{
 			const auto buffer = reinterpret_cast<GuestBuffer*>(resource);
+			bool invalid = false;
+			for (int i = 0; i < 16; i++)
+			{
+				if (buffer->buffer->at(0) == g_vertexBufferViews[i].buffer) // ensure Render Thread isn't about to use the VB while we try to delete it
+				{
+					g_tempUnreadyResource.push_back(resource); //we can store the resource to delete it later when the render thread isn't trying to use it
+					invalid = true;
+					break;
+				}
+			}
 
+			if (invalid) //fine to not delete now, it will be deleted next time 
+				continue;
 
 			//printf("destruct buffer %x\n", buffer);
 			if (buffer->mappedMemory != nullptr)
@@ -2258,7 +2271,14 @@ bool Video::CreateHostDevice(const char* sdlVideoDriver, bool graphicsApiRetry)
 		break;
 	}
 
-	g_swapChain = g_queue->createSwapChain(GameWindow::s_renderWindow, bufferCount, BACKBUFFER_FORMAT, Config::MaxFrameLatency);
+	RenderSwapChainDesc swapChainDesc;
+	swapChainDesc.renderWindow = GameWindow::s_renderWindow;
+	swapChainDesc.textureCount = bufferCount;
+	swapChainDesc.format = BACKBUFFER_FORMAT;
+	swapChainDesc.maxFrameLatency = Config::MaxFrameLatency;
+	swapChainDesc.enablePresentWait = g_capabilities.presentWait;
+
+	g_swapChain = g_queue->createSwapChain(swapChainDesc);
 	g_swapChain->setVsyncEnabled(Config::VSync);
 	g_swapChainValid = !g_swapChain->needsResize();
 
@@ -3436,13 +3456,11 @@ void Video::Present()
 
 	if (g_swapChainValid)
 	{
-		// this seems to affect events
-		// disabled for now to see if that's needed.
 		if (g_pendingWaitOnSwapChain)
 		{
-			//g_presentWaitProfiler.Begin();
-			//g_swapChain->wait(); // Never gonna happen outside loading threads as explained above.
-			//g_presentWaitProfiler.End();
+			g_presentWaitProfiler.Begin();
+			g_swapChain->wait(); // Never gonna happen outside loading threads as explained above.
+			g_presentWaitProfiler.End();
 		}
 
 		RenderCommandSemaphore* signalSemaphores[] = { g_renderSemaphores[g_frame].get() };
@@ -6795,7 +6813,8 @@ void DrawPrimitiveUP(X_D3DPRIMITIVETYPE PrimitiveType, uint32_t VertexCount, voi
 	//	printf("Game called Draw Primitive UP - ID: %d, thread id %d - g_frame=%u\n", g_drawPrimitiveUP_ID, GetCurrentThreadId(), g_frame);
 
 }
-
+extern bool readyToDebug;
+int countBeforeBreak = 0;
 static void ProcDrawPrimitiveUP(const RenderCommand& cmd)
 {
 
@@ -6996,6 +7015,13 @@ X86_FUNC(sub_2E6140)
 
 			VBsList.erase(resourcePtr);
 		}
+
+		for (auto& temp : g_tempUnreadyResource) //if previous VB wasn't ready to be deleted before, try again now
+		{
+			AddDestructResource(temp);
+		}
+
+		g_tempUnreadyResource.clear();
 	}
 
 	__imp__sub_2E6140(ctx, base);

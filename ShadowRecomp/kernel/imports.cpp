@@ -1268,22 +1268,7 @@ void RtlLeaveCriticalSection(XRTL_CRITICAL_SECTION* CritSec)
 	owningThread.notify_one();
 }
 
-//patch for loading thread race issue
-XRTL_CRITICAL_SECTION dirtyListLock;
-void InitDirtyListCriticalSection()
-{
-	RtlInitializeCriticalSection(&dirtyListLock);
-}
 
-void EnterDirtyListCriticalSection()
-{
-	RtlEnterCriticalSection(&dirtyListLock);
-}
-
-void LeaveDirtyListCriticalSection()
-{
-	RtlLeaveCriticalSection(&dirtyListLock);
-}
 
 void RtlInitAnsiString(_XANSI_STRING* Destination, char* Source)
 {
