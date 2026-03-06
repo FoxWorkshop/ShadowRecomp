@@ -7,6 +7,16 @@
 // would be nice to find a better way, but so far this is the best compromise I found
 
 
+//patch for loading thread race issue
+XRTL_CRITICAL_SECTION dirtyListLock;
+XRTL_CRITICAL_SECTION dword_559E94Lock;
+void InitPatchesLoadingCriticalSection()
+{
+	RtlInitializeCriticalSection(&dirtyListLock);
+	RtlInitializeCriticalSection(&dword_559E94Lock);
+}
+
+
 // RwFrameUpdateObject
 X86_FUNC_IMPL(__imp__sub_2E1300);
 X86_FUNC(sub_2E1300)
@@ -19,7 +29,7 @@ X86_FUNC(sub_2E1300)
 		auto flag = (uint32_t)X86_LOAD_U8(frameRoot + 0x3);
 		if ((flag & 3) == 0) //dirty list only get updated if this condition pass
 		{
-			EnterDirtyListCriticalSection();
+			RtlEnterCriticalSection(&dirtyListLock);
 			valid = true;
 		}
 	}
@@ -27,15 +37,42 @@ X86_FUNC(sub_2E1300)
 	__imp__sub_2E1300(ctx, base);
 
 	if (valid)
-		LeaveDirtyListCriticalSection();
+		RtlLeaveCriticalSection(&dirtyListLock);
 }
 
 //RwFrameSyncDirty
 X86_FUNC_IMPL(__imp__sub_2EC720);
 X86_FUNC(sub_2EC720)
 {
-	EnterDirtyListCriticalSection();
+	RtlEnterCriticalSection(&dirtyListLock);
 	__imp__sub_2EC720(ctx, base);
-	LeaveDirtyListCriticalSection();
+	RtlLeaveCriticalSection(&dirtyListLock);
 }
+
+//test to do check if it work
+X86_FUNC_IMPL(__imp__sub_2B39A0);
+X86_FUNC(sub_2B39A0)
+{
+	RtlEnterCriticalSection(&dword_559E94Lock);
+	__imp__sub_2B39A0(ctx, base);
+	RtlLeaveCriticalSection(&dword_559E94Lock);
+}
+
+X86_FUNC_IMPL(__imp__sub_2B4440);
+X86_FUNC(sub_2B4440)
+{
+	RtlEnterCriticalSection(&dword_559E94Lock);
+	__imp__sub_2B4440(ctx, base);
+	RtlLeaveCriticalSection(&dword_559E94Lock);
+}
+
+X86_FUNC_IMPL(__imp__sub_2B3A70);
+X86_FUNC(sub_2B3A70)
+{
+	RtlEnterCriticalSection(&dword_559E94Lock);
+	__imp__sub_2B3A70(ctx, base);
+	RtlLeaveCriticalSection(&dword_559E94Lock);
+}
+
+//maybe sub_2B42C0 with dword_559E90
 

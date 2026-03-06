@@ -248,7 +248,7 @@ int main(int argc, char* argv[])
     //std::thread dpcThread(dpc_launch);
 
     //init mutex for Loading thread patch
-    InitDirtyListCriticalSection();
+    InitPatchesLoadingCriticalSection();
 
     //launch the Start function of the game
     isHostThread = true;
