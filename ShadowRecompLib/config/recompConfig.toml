@@ -672,7 +672,8 @@ functions = [
 	{ address = 0x96780, size = 0x46 },
 
 	{ address = 0x12BB0, size = 0x11C }, #broken size	
-	{ address = 0x203970, size = 0x555 }, #broken size
+	{ address = 0x203970, size = 0x555 }, #broken size	
+	{ address = 0x1F50B0, size = 0x123 }, #broken size
 ]
 
 banned_addresses = [
