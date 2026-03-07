@@ -33,6 +33,7 @@ public:
 	virtual ~SHTHR_SOUNDBUFFER() = default;
 	virtual int GetStatus(uint32_t* pdwStatus) PURE;
 	virtual int GetCurrentPosition(int* pdwCurrentPlayCursor, int* pdwCurrentWriteCursor) PURE;
+	virtual int SetCurrentPosition(DWORD dwNewPosition) PURE;
 	virtual int Lock(int dwOffset, int dwBytes, void** ppvAudioPtr1, int* pdwAudioBytes1, void** ppvAudioPtr2, int* pdwAudioBytes2, int dwFlags) PURE;
 	virtual int Unlock(void* pvAudioPtr1, int dwAudioBytes1, void* pvAudioPtr2, int dwAudioBytes2) PURE;
 	virtual int Play(int dwReserved1, int dwPriority, uint32_t dwFlags) PURE;

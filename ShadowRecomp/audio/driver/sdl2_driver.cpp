@@ -94,6 +94,7 @@ public:
 	int32_t Pull(unsigned char* data, int32_t size);
 	int GetStatus(uint32_t* pdwStatus) override;
 	int GetCurrentPosition(int* pdwCurrentPlayCursor, int* pdwCurrentWriteCursor) override;
+	int SetCurrentPosition(DWORD dwNewPosition) override;
 	int Lock(int dwOffset, int dwBytes, void** ppvAudioPtr1, int* pdwAudioBytes1, void** ppvAudioPtr2, int* pdwAudioBytes2, int dwFlags) override;
 	int Unlock(void* pvAudioPtr1, int dwAudioBytes1, void* pvAudioPtr2, int dwAudioBytes2) override;
 	int Play(int dwReserved1, int dwPriority, uint32_t dwFlags) override;
@@ -246,12 +247,12 @@ int32_t SHTHR_SOUNDDEVICE_Impl::CreateSoundBuffer(X_DSBUFFERDESC* ppDesc, SHTHR_
 {
 	if (!mDeviceID)
 	{
-		return -1;
+		return E_FAIL;
 	}
 
 	if (!ppDesc || !ppBuffer)
 	{
-		return -1;
+		return E_FAIL;
 	}
 
 	// Since the sound classes have size that can grow dynamically due to vector and other stuff, we need to use host memory here
@@ -612,6 +613,19 @@ int SHTHR_SOUNDBUFFER_Impl::GetCurrentPosition(int* pdwCurrentPlayCursor, int* p
 	return S_OK;
 }
 
+int SHTHR_SOUNDBUFFER_Impl::SetCurrentPosition(DWORD dwNewPosition)
+{
+	std::lock_guard<std::mutex> lock(mutex);
+
+	if (dwNewPosition >= mBufferSize)
+	{
+		return -1;
+	}
+
+	mBufferReadLoc = dwNewPosition;
+	return S_OK;
+}
+
 int SHTHR_SOUNDBUFFER_Impl::Lock(int dwOffset, int dwBytes, void** ppvAudioPtr1, int* pdwAudioBytes1, void** ppvAudioPtr2, int* pdwAudioBytes2, int dwFlags)
 {
 	mutex.lock();
@@ -727,7 +741,7 @@ int SHTHR_SOUNDBUFFER_Impl::StopEx(int64_t rtTimeStamp, uint32_t dwFlags)
 	{
 		mPlay = false;
 	}
-	else if (dwFlags & X_DSBSTOPEX_ENVELOPE) //todo fadeout
+	else if (dwFlags & X_DSBSTOPEX_ENVELOPE) //todo fadeout(?) Need to check if the game ever use that
 	{
 
 		if (dwFlags & X_DSBSTOPEX_RELEASEWAVEFORM) {

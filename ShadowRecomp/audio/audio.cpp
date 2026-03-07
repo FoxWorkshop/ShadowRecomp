@@ -103,10 +103,14 @@ int32_t IDirectSoundBuffer_GetCurrentPosition(int32_t keyBuffer, int32_t Current
 	return res;
 }
 
-int32_t IDirectSoundBuffer_SetCurrentPosition(SHTHR_SOUNDBUFFER* pThis, int32_t dwNewPosition)
+int32_t IDirectSoundBuffer_SetCurrentPosition(int32_t keyBuffer, int32_t dwNewPosition)
 {
-	printf("IDirectSoundBuffer_SetCurrentPosition\n");
-	return E_FAIL;
+	auto pThis = GetCurrentSoundBuffer(keyBuffer);
+
+	if (!pThis)
+		return E_FAIL;
+
+	return pThis->SetCurrentPosition(dwNewPosition);
 }
 
 
