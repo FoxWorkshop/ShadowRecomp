@@ -23,16 +23,43 @@ HRESULT DirectSoundCreate_r(int* pcGuidDevice, SHTHR_SOUNDDEVICE* ppDS, int* pUn
 	return S_OK;
 }
 
-//todo
-int32_t IDirectSoundBuffer_Lock(SHTHR_SOUNDBUFFER* pThis, int32_t dwOffset, int32_t dwBytes, LPVOID* ppvAudioPtr1, int32_t* pdwAudioBytes1, void** ppvAudioPtr2, int32_t* pdwAudioBytes2, uint32_t dwFlags)
+
+int32_t IDirectSoundBuffer_Lock(int32_t keyBuffer, int32_t dwOffset, int32_t dwBytes, uint32_t ppvAudioPtr1, uint32_t pdwAudioBytes1, uint32_t ppvAudioPtr2, uint32_t pdwAudioBytes2, uint32_t dwFlags)
 {
-	return E_FAIL; //success
+	auto pThis = GetCurrentSoundBuffer(keyBuffer);
+
+	if (!pThis)
+		return E_FAIL;
+
+	// Host-side temporary variables to receive the lock results
+	void* hostPpvAudioPtr1 = nullptr;
+	int32_t hostpdwAudioBytes1 = 0;
+	void* hostPpvAudioPtr2 = nullptr;
+	int32_t hostpdwAudioBytes2 = 0;
+
+	auto res = pThis->Lock(dwOffset, dwBytes, &hostPpvAudioPtr1, &hostpdwAudioBytes1, &hostPpvAudioPtr2, &hostpdwAudioBytes2, dwFlags);
+
+	if (res != 0)
+		return res;
+
+	auto base = g_memory.base;
+
+	X86_STORE_U32(ppvAudioPtr1, g_memory.MapVirtual(hostPpvAudioPtr1));
+	X86_STORE_U32(pdwAudioBytes1, hostpdwAudioBytes1);
+	X86_STORE_U32(ppvAudioPtr2, g_memory.MapVirtual(hostPpvAudioPtr2));
+	X86_STORE_U32(pdwAudioBytes2, hostpdwAudioBytes2);
+	return res;
 }
 
 //Xbox doesn't seem to use this todo check if we can still use it
-int32_t IDirectSoundBuffer_Unlock(SHTHR_SOUNDBUFFER* pThis, void* ppvAudioPtr1, int32_t pdwAudioBytes1, void* ppvAudioPtr2, int32_t pdwAudioBytes2)
+int32_t IDirectSoundBuffer_Unlock(int32_t keyBuffer, void* ppvAudioPtr1, int32_t pdwAudioBytes1, void* ppvAudioPtr2, int32_t pdwAudioBytes2)
 {
-	return E_FAIL;
+	auto pThis = GetCurrentSoundBuffer(keyBuffer);
+
+	if (!pThis)
+		return E_FAIL;
+
+	return pThis->Unlock(ppvAudioPtr1, pdwAudioBytes1, ppvAudioPtr2, pdwAudioBytes2);
 }
 
 
@@ -44,15 +71,10 @@ HRESULT IDirectSoundBuffer_GetStatus(int32_t keyBuffer, uint32_t* pdwStatus)
 		return E_FAIL;
 
 	auto res = pThis->GetStatus(pdwStatus);
-
-	auto ctx = GetX86Context();
 	auto base = g_memory.base;
 	auto ptr = pdwStatus;
 
-	//printf("addr ptr pdwStatus %x\n", g_memory.MapVirtual(pdwStatus));
 	X86_STORE_U32(g_memory.MapVirtual(pdwStatus), res);
-	//printf("pdwStatus res %x\n", X86_LOAD_U32(g_memory.MapVirtual(pdwStatus)));
-
 	return S_OK;
 }
 
@@ -63,15 +85,22 @@ int32_t CDirectSound_DownloadEffectsImage(int* a1, LPCVOID pvImageBuffer, int32_
 	return E_FAIL;
 }
 
-int32_t IDirectSoundBuffer_GetCurrentPosition(int32_t keyBuffer, int32_t* CurrentPlayCursor, int32_t* pdwCurrentWriteCursor)
+int32_t IDirectSoundBuffer_GetCurrentPosition(int32_t keyBuffer, int32_t CurrentPlayCursor, int32_t pdwCurrentWriteCursor)
 {
-	printf("IDirectSoundBuffer_GetCurrentPosition\n");
+
 	auto pThis = GetCurrentSoundBuffer(keyBuffer);
 
 	if (!pThis)
 		return E_FAIL;
 
-	return pThis->GetCurrentPosition(CurrentPlayCursor, pdwCurrentWriteCursor);
+	int32_t hostCurrentPlayCursor = 0;
+	int32_t hostpdwCurrentWriteCursor = 0;
+
+	auto res = pThis->GetCurrentPosition(&hostCurrentPlayCursor, &hostpdwCurrentWriteCursor);
+	auto base = g_memory.base;
+	X86_STORE_U32(CurrentPlayCursor, hostCurrentPlayCursor);
+	X86_STORE_U32(pdwCurrentWriteCursor, hostpdwCurrentWriteCursor);
+	return res;
 }
 
 int32_t IDirectSoundBuffer_SetCurrentPosition(SHTHR_SOUNDBUFFER* pThis, int32_t dwNewPosition)
@@ -340,15 +369,8 @@ int32_t IDirectSound_CommitDeferredSettings(int a1)
 	return E_FAIL;
 }
 
-X86_FUNC_IMPL(__imp__sub_333A80);
-X86_FUNC(sub_333A80) 
-{
-	char* source = (char*)GetHostParameter(1, CallConvention::Cdecl, ParameterType::Pointer);
-	source = source;
-
-	__imp__sub_333A80(ctx, base);
-}
-
+// needed to make the game load adx files
+// should implement a better emulation later
 void BlockUntilVerticalBlank()
 {
 	std::this_thread::sleep_for(std::chrono::microseconds(16667));

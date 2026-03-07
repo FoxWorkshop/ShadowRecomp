@@ -14,7 +14,7 @@
 // Memo: 
 // Two way of using buffers: Static (sfx, voices - Buffer is filled once with complete audio, Pull just read the buffer) 
 // Dynamic (Music... - Buffer starts empty or partially filled, game writes chunks continuously while playing, Pull read mWrittenSize)
-// Research shows that sound effect seem to use XADPCM, a format for Xbox that need to be decoded, while music likely use PCM directly.
+// Research shows that sound effect use XADPCM, a format for Xbox that need to be decoded, while music likely use PCM directly.
 // We need to use host memory because the classes size can grow dynamically, but still need to trick the game that pointer exist with guest memory.
 
 #define SAFE_DELETE(p)       { if(p) { delete (p);     (p)=NULL; } }
@@ -93,8 +93,8 @@ public:
 	int32_t Pull(unsigned char* data, int32_t size);
 	int GetStatus(uint32_t* pdwStatus) override;
 	int GetCurrentPosition(int* pdwCurrentPlayCursor, int* pdwCurrentWriteCursor) override;
-	//int Lock(int dwOffset, int dwBytes, void** ppvAudioPtr1, int* pdwAudioBytes1, void** ppvAudioPtr2, int* pdwAudioBytes2, int dwFlags) override;
-	//int Unlock(void* pvAudioPtr1, int dwAudioBytes1, void* pvAudioPtr2, int dwAudioBytes2) override;
+	int Lock(int dwOffset, int dwBytes, void** ppvAudioPtr1, int* pdwAudioBytes1, void** ppvAudioPtr2, int* pdwAudioBytes2, int dwFlags) override;
+	int Unlock(void* pvAudioPtr1, int dwAudioBytes1, void* pvAudioPtr2, int dwAudioBytes2) override;
 	int Play(int dwReserved1, int dwPriority, uint32_t dwFlags) override;
 	int Stop() override;
 	int StopEx(int64_t rtTimeStamp, uint32_t dwFlags) override;
@@ -103,6 +103,7 @@ public:
 	int SetFrequency(int lFrequency) override;
 	int SetBufferData(void* pvBufferData, int dwBufferBytes) override;
 	int SetLoopRegion(int dwLoopStartOffset, int dwLoopLength) override;
+
 	void BufferResizeUpdate(HRESULT& hRet, DWORD Xb_dwStartOffset, DWORD Xb_dwByteLength);
 	void BufferUpdate(HRESULT& hRet);
 	void BufferRegionCurrentLocation(DWORD& Xb_dwStartOffset, DWORD& Xb_dwByteLength);
@@ -191,11 +192,11 @@ SHTHR_SOUNDBUFFER_Impl::SHTHR_SOUNDBUFFER_Impl(SHTHR_SOUNDDEVICE_Impl* parent, X
 
 	mCaps = desc->dwFlags;
 	mChannelCount = desc->lpwfxFormat->nChannels;
-	mFrequency = desc->lpwfxFormat->nSamplesPerSec; //desc->lpwfxFormat->nAvgBytesPerSec;
+	mFrequency = desc->lpwfxFormat->nSamplesPerSec; 
 	memset(&mAudioCVT, 0, sizeof(mAudioCVT));
 
 	mBufferSize = desc->dwBufferBytes;
-	mBuffer = (unsigned char*)malloc(mBufferSize);
+	mBuffer = (unsigned char*)g_userHeap.Alloc(mBufferSize); //malloc(mBufferSize);
 
 	SDL_BuildAudioCVT(&mAudioCVT, // translator between what the game provides and what audio device expects. (ex: 22050 hs vs 41800)
 		mFormat, mChannelCount, mFrequency,
@@ -218,7 +219,8 @@ SHTHR_SOUNDBUFFER_Impl::~SHTHR_SOUNDBUFFER_Impl()
 	mPlay = false; 
 
 	if (mBuffer && !mExternalBuffer) {
-		free(mBuffer);
+		//free(mBuffer);
+		g_userHeap.Free(mBuffer);
 		mBuffer = nullptr;
 	}
 
@@ -291,7 +293,8 @@ int SHTHR_SOUNDBUFFER_Impl::SetBufferData(void* pvBufferData, int dwBufferBytes)
 	// Free old internal buffer if we own it
 	if (mBuffer && !mExternalBuffer)
 	{
-		free(mBuffer);
+	//	free(mBuffer);
+		g_userHeap.Free(mBuffer);
 		mBuffer = nullptr;
 	}
 
@@ -300,7 +303,7 @@ int SHTHR_SOUNDBUFFER_Impl::SetBufferData(void* pvBufferData, int dwBufferBytes)
 	if (pvBufferData == nullptr)
 	{
 
-		mBuffer = (unsigned char*)malloc(pcmSize);
+		mBuffer = (unsigned char*)g_userHeap.Alloc(pcmSize); //malloc(pcmSize);
 		if (!mBuffer) {
 			return -1; // Out of memory
 		}
@@ -311,7 +314,7 @@ int SHTHR_SOUNDBUFFER_Impl::SetBufferData(void* pvBufferData, int dwBufferBytes)
 	else if (mSourceFormat == SOURCE_FORMAT_ADPCM_XBOX)
 	{
 
-		mBuffer = (unsigned char*)malloc(pcmSize);
+		mBuffer = (unsigned char*)g_userHeap.Alloc(pcmSize);// malloc(pcmSize);
 		if (!mBuffer) {
 			return -1;
 		}
@@ -326,7 +329,8 @@ int SHTHR_SOUNDBUFFER_Impl::SetBufferData(void* pvBufferData, int dwBufferBytes)
 
 
 		if (actualPcmSize <= 0) {
-			free(mBuffer);
+			//free(mBuffer);
+			g_userHeap.Free(mBuffer);
 			mBuffer = nullptr;
 			return -1;
 		}
@@ -375,7 +379,8 @@ int SHTHR_SOUNDBUFFER_Impl::BufferResizeSetSize(DWORD Xb_dwByteLength)
 
 	// Free old buffer if we own it
 	if (this->mBuffer && !mExternalBuffer) {
-		free(mBuffer);
+		g_userHeap.Free(mBuffer);
+		//free(mBuffer);
 		this->mBuffer = nullptr;
 	}
 
@@ -592,6 +597,7 @@ int SHTHR_SOUNDBUFFER_Impl::GetCurrentPosition(int* pdwCurrentPlayCursor, int* p
 {
 	if (pdwCurrentPlayCursor)
 	{
+
 		*pdwCurrentPlayCursor = mBufferReadLoc;
 	}
 
@@ -600,6 +606,83 @@ int SHTHR_SOUNDBUFFER_Impl::GetCurrentPosition(int* pdwCurrentPlayCursor, int* p
 		*pdwCurrentWriteCursor = mBufferWriteLoc;
 	}
 
+	return S_OK;
+}
+
+int SHTHR_SOUNDBUFFER_Impl::Lock(int dwOffset, int dwBytes, void** ppvAudioPtr1, int* pdwAudioBytes1, void** ppvAudioPtr2, int* pdwAudioBytes2, int dwFlags)
+{
+	mutex.lock();
+
+	if (dwFlags & DSBLOCK_ENTIREBUFFER)
+	{
+		*ppvAudioPtr1 = mBuffer;
+		*pdwAudioBytes1 = mBufferSize;
+		*ppvAudioPtr2 = NULL;
+		*pdwAudioBytes2 = 0;
+		mBufferWriteLoc = 0;
+		mWrittenSize = mBufferSize;
+	}
+	else
+	{
+		int offset = dwFlags & DSBLOCK_FROMWRITECURSOR ? mBufferWriteLoc : dwOffset;
+		int bytes = dwBytes;
+
+		if (bytes > mBufferSize)
+		{
+			mutex.unlock();
+			return DSERR_INVALIDPARAM;
+		}
+
+		if (offset + bytes > mBufferSize)
+		{
+			if (ppvAudioPtr1 && pdwAudioBytes1 && ppvAudioPtr2 && pdwAudioBytes2)
+			{
+				int remaining_size = mBufferSize - offset;
+				*ppvAudioPtr1 = &mBuffer[offset];
+				*pdwAudioBytes1 = remaining_size;
+
+				offset = bytes - remaining_size;
+				*ppvAudioPtr2 = &mBuffer[0];
+				*pdwAudioBytes2 = offset;
+			}
+			else
+			{
+				mutex.unlock();
+				return DSERR_INVALIDPARAM;
+			}
+		}
+		else
+		{
+			if (ppvAudioPtr1 && pdwAudioBytes1)
+			{
+				*ppvAudioPtr1 = &mBuffer[offset];
+				*pdwAudioBytes1 = bytes;
+			}
+			else
+			{
+				mutex.unlock();
+				return DSERR_INVALIDPARAM;
+			}
+			if (ppvAudioPtr2 && pdwAudioBytes2)
+			{
+				*ppvAudioPtr2 = NULL;
+				*pdwAudioBytes2 = 0;
+			}
+			offset += bytes;
+		}
+
+		mBufferWriteLoc = offset;
+		mWrittenSize += bytes;
+		if (mWrittenSize > mBufferSize)
+			mWrittenSize = mBufferSize;
+	}
+
+	return S_OK;
+}
+
+int SHTHR_SOUNDBUFFER_Impl::Unlock(void* pvAudioPtr1, int dwAudioBytes1, void* pvAudioPtr2, int dwAudioBytes2)
+{
+	mutex.unlock();
 	return S_OK;
 }
 
@@ -662,10 +745,20 @@ int SHTHR_SOUNDBUFFER_Impl::SetVolume(int lVolume)
 	return S_OK;
 }
 
-//todo
 int SHTHR_SOUNDBUFFER_Impl::SetFrequency(int lFrequency)
 {
-	return E_FAIL;
+	std::lock_guard<std::mutex> lock(mutex);
+
+	if (lFrequency < 100 || lFrequency > 200000)
+		return -1; 
+
+	mFrequency = lFrequency;
+	
+	SDL_BuildAudioCVT(&mAudioCVT,
+		mFormat, mChannelCount, mFrequency,      
+		mParent->mFormat, mParent->mChannelCount, mParent->mFrequency);
+
+	return S_OK;
 }
 
 SHTHR_SOUNDDEVICE_Impl::~SHTHR_SOUNDDEVICE_Impl()
