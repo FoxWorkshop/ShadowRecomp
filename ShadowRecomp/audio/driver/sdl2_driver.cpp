@@ -61,6 +61,7 @@ private:
 	int mFormat = 0;
 
 	int mVolume = 0;
+	int mVolumeLinear = 128;
 	int mPan = 0;
 
 	DWORD mPlayFlags = 0;
@@ -99,6 +100,7 @@ public:
 	int Stop() override;
 	int StopEx(int64_t rtTimeStamp, uint32_t dwFlags) override;
 	int SetVolume(int lVolume) override;
+	int GetVolumeLinear() const { return mVolumeLinear; }
 	//int SetPan(int lPan) override;
 	int SetFrequency(int lFrequency) override;
 	int SetBufferData(void* pvBufferData, int dwBufferBytes) override;
@@ -110,6 +112,7 @@ public:
 	int BufferResizeSetSize(DWORD Xb_dwByteLength);
 	void SetFormatTag(xpointer<WAVEFORMATEX> format);
 	void SetBufferKey(int32_t key);
+
 };
 
 class SHTHR_SOUNDDEVICE_Impl : public SHTHR_SOUNDDEVICE
@@ -742,6 +745,30 @@ int SHTHR_SOUNDBUFFER_Impl::StopEx(int64_t rtTimeStamp, uint32_t dwFlags)
 
 int SHTHR_SOUNDBUFFER_Impl::SetVolume(int lVolume)
 {
+	std::lock_guard<std::mutex> lock(mutex);
+
+	// adjust to DirectSound range
+	if (lVolume < DSBVOLUME_MIN) 
+		lVolume = DSBVOLUME_MIN;
+
+	if (lVolume > DSBVOLUME_MAX) 
+		lVolume = DSBVOLUME_MAX;
+
+	mVolume = lVolume;
+
+	// Convert decibels to linear (0-128 for SDL)
+	// Formula: linear = 128 * 10^(dB/2000)
+	float db = lVolume / 100.0f;  // Convert centibels to decibels
+	float linear = powf(10.0f, db / 20.0f);  // dB to linear
+	mVolumeLinear = static_cast<int>(linear * SDL_MIX_MAXVOLUME);  // 0-128
+
+	// Clamp
+	if (mVolumeLinear < 0) 
+		mVolumeLinear = 0;
+
+	if (mVolumeLinear > SDL_MIX_MAXVOLUME) 
+		mVolumeLinear = SDL_MIX_MAXVOLUME;
+
 	return S_OK;
 }
 
@@ -804,7 +831,7 @@ void SHTHR_SOUNDDEVICE_Impl::AudioCallback(Uint8* stream, int32_t len)
 			{
 				memset(&read_buffer[readsize], mAudioSpec.silence, len - readsize);
 			}
-			SDL_MixAudioFormat(stream, &read_buffer[0], mFormat, len, SDL_MIX_MAXVOLUME);
+			SDL_MixAudioFormat(stream, &read_buffer[0], mFormat, len, queue->GetVolumeLinear());
 		}
 	}
 	mutex.unlock();

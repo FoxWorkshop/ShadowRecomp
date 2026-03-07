@@ -52,6 +52,9 @@ const int32_t ppDSEventAddr = 0x5611C0;
 #define X_DSBSTOPEX_RELEASEWAVEFORM   0x00000002
 #define X_DSBSTOPEX_ALL               (X_DSBSTOPEX_ENVELOPE | X_DSBSTOPEX_RELEASEWAVEFORM)
 
+#define DSBVOLUME_MIN   -10000  // Silence (-100 dB)
+#define DSBVOLUME_MAX        0  // Full volume (0 dB no attenuation)
+
 typedef struct _XDSMIXBINVOLUMEPAIR {
     uint32_t       dwMixBin;
     int32_t        lVolume;
