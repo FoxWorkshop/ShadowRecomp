@@ -203,45 +203,10 @@ int main(int argc, char* argv[])
 
     InitDpcData();
 
-
-    for (const auto& entry : fs::directory_iterator(fs::current_path()))
-    {
-        if (entry.path().extension() == ".raw")
-        {
-            auto s = entry.path().string();
-            if (s.find("outSHTH") != std::string::npos)
-            {
-                //outSHTH.raw
-                std::error_code ec; // optional: avoid exceptions
-                if (fs::remove(entry.path(), ec))
-                {
-                    std::cout << "Deleted: " << entry.path() << '\n';
-                    break;
-                }
-            }
-        }
-    }
-
-    for (const auto& entry : fs::directory_iterator(fs::current_path())) {
-        if (entry.path().extension() == ".txt")
-        {
-            if (entry.path().string().find("float_dump.txt") != std::string::npos)
-            {
-                continue;
-            }
-
-            std::error_code ec; // optional: avoid exceptions
-            if (fs::remove(entry.path(), ec))
-                std::cout << "Deleted: " << entry.path() << '\n';
-        }
-    }
-
-
-
     NV2ADevice_Init();
 
     //Create "interrupt events" thread, a loop will check and fire guest function stored from KeConnectInterrupt
-   // std::thread eventsThread(system_events_launch);
+    // std::thread eventsThread(system_events_launch);
 
     //Create DPC Routine thread, a loop will check and fire guest function stored from KeInsertQueueDpc
     //std::thread dpcThread(dpc_launch);

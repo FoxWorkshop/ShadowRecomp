@@ -103,9 +103,9 @@ int32_t IDirectSound_CreateSoundBuffer(int32_t keyDevice, X_DSBUFFERDESC* pdsbd,
 
 	if (bufferKey)
 	{
-		ctx->esp.u32 += 20;
-		X86_STORE_U32(ctx->esp.u32 + 12, bufferKey);
-		ctx->esp.u32 -= 20;
+
+		X86_STORE_U32(g_memory.MapVirtual(ppBufferOut), bufferKey);
+
 		return S_OK;
 	}
 
@@ -175,11 +175,11 @@ int32_t IDirectSoundBuffer_Release(int32_t keyBuffer)
 		return E_FAIL;
 
 	pThis->Stop();
-	
+
 	pDevice->ReleaseSoundBuffer(pThis);
-	
+
 	delete pThis;
-	
+
 	return S_OK;
 }
 
@@ -340,6 +340,22 @@ int32_t IDirectSound_CommitDeferredSettings(int a1)
 	return E_FAIL;
 }
 
+X86_FUNC_IMPL(__imp__sub_333A80);
+X86_FUNC(sub_333A80) 
+{
+	char* source = (char*)GetHostParameter(1, CallConvention::Cdecl, ParameterType::Pointer);
+	source = source;
+
+	__imp__sub_333A80(ctx, base);
+}
+
+void BlockUntilVerticalBlank()
+{
+	std::this_thread::sleep_for(std::chrono::microseconds(16667));
+}
+
+GUEST_FUNCTION_HOOK(sub_3CFE70, BlockUntilVerticalBlank);
+
 GUEST_FUNCTION_HOOK_STDCALL(sub_3E5A27, DirectSoundCreate_r)
 GUEST_FUNCTION_HOOK_STDCALL(sub_3E5756, IDirectSound_CreateSoundBuffer);
 GUEST_FUNCTION_HOOK_STDCALL(sub_3E4EE9, IDirectSoundBuffer_SetBufferData);
@@ -357,6 +373,7 @@ GUEST_FUNCTION_HOOK_STDCALL(sub_3E412C, IDirectSoundBuffer_SetVolume);
 GUEST_FUNCTION_HOOK_STDCALL(sub_3E41FC, IDirectSoundBuffer_SetLoopRegion);
 GUEST_FUNCTION_HOOK_STDCALL(sub_3E4148, IDirectSoundBuffer_SetPitch);
 GUEST_FUNCTION_HOOK_STDCALL(sub_3E4164, IDirectSoundBuffer_SetHeadroom);
+GUEST_FUNCTION_HOOK_STDCALL(sub_3E48FA, IDirectSoundBuffer_SetFrequency);
 
 //3D Sound
 GUEST_FUNCTION_HOOK_STDCALL(sub_3E497A, IDirectSoundBuffer_SetMinDistance);

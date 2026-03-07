@@ -90,7 +90,7 @@ public:
 			m_Pending = false;
 		}
 
-		//Sleep(16);
+		Sleep(16);
 		uint32_t funcAddr = (uint32_t)Interrupt->ServiceRoutine;
 
 
@@ -1464,7 +1464,7 @@ void ExecuteDpcQueue(X86Context* ctx)
 		// Are there entries in the DpqQueue?
 	while (!IsListEmpty((PXLIST_ENTRY)&(g_DpcData.DpcQueue)))
 	{
-		//Sleep(16);
+		Sleep(16);
 		// Extract the head entry and retrieve the containing KDPC pointer for it:
 		pkdpc = CONTAINING_RECORD(RemoveHeadList((PXLIST_ENTRY)&(g_DpcData.DpcQueue)).get(), KDPC, DpcListEntry);
 		// Mark it as no longer linked into the DpcQueue
