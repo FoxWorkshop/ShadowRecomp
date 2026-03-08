@@ -24,12 +24,24 @@ public:
 	virtual void Release();
 };
 
+class SHTHR_SOUND3DBUFFER : public Interface
+{
+public:
+	virtual ~SHTHR_SOUND3DBUFFER() = default;
+	virtual int GetMaxDistance(float* pflMaxDistance) PURE;
+	virtual int GetMinDistance(float* pflMinDistance) PURE;
+	virtual int GetPosition(float* pvPosition) PURE;
+	virtual int SetMaxDistance(float flMaxDistance, int dwApply) PURE;
+	virtual int SetMinDistance(float flMaxDistance, int dwApply) PURE;
+	virtual int SetPosition(float x, float y, float z, int dwApply) PURE;
+};
+
 
 class SHTHR_SOUNDBUFFER : public Interface
 {
 public:
 
-	//SHTHR_SOUND3DBUFFER* m3DBuffer = nullptr;
+	SHTHR_SOUND3DBUFFER* m3DBuffer = nullptr;
 	virtual ~SHTHR_SOUNDBUFFER() = default;
 	virtual int GetStatus(uint32_t* pdwStatus) PURE;
 	virtual int GetCurrentPosition(int* pdwCurrentPlayCursor, int* pdwCurrentWriteCursor) PURE;
@@ -40,10 +52,10 @@ public:
 	virtual int Stop() PURE;
 	virtual int StopEx(int64_t rtTimeStamp, uint32_t dwFlags) PURE;
 	virtual int SetVolume(int lVolume) PURE;
-	//virtual int SetPan(int lPan) PURE;
 	virtual int SetFrequency(int lFrequency) PURE;
 	virtual int SetBufferData(void* pvBufferData, int dwBufferBytes) PURE;
 	virtual int SetLoopRegion(int dwLoopStartOffset, int dwLoopLength) PURE;
+	virtual float Calculate3DVolume() PURE;
 };
 
 

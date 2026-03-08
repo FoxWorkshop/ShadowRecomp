@@ -136,20 +136,72 @@ struct ArgTranslator
         *reinterpret_cast<uint32_t*>(base + stack_ptr + 4 + (arg * 4)) = value;
     }
 
+    static float GetFloatArgumentValue(const X86Context& ctx, uint8_t* base, size_t arg, size_t argCount = 0, CallConvention cc = Cdecl) noexcept
+    {
+        if (cc == Fastcall)
+        {
+            // First two arguments in registers
+            if (arg == 0) 
+                return ctx.ecx.u32;
+
+            if (arg == 1) 
+                return ctx.edx.u32;
+
+            // Remaining arguments are on the stack, after the return address
+            const uint32_t stack_ptr = ctx.esp.u32;
+            const uint32_t offset = 4 + ((arg - 2) * 4);
+            return *reinterpret_cast<float*>(base + stack_ptr + offset);
+        }
+
+        if (cc == Thiscall)
+        {
+            // 'this' pointer is in ECX
+            if (arg == 0)
+            {
+                return ctx.ecx.u32;
+            }
+
+            const uint32_t stack_ptr = ctx.esp.u32;
+            const uint32_t offset = 4 + ((arg - 1) * 4);
+            auto value = *reinterpret_cast<float*>(base + stack_ptr + offset);
+            return value;
+        }
+
+
+        uint32_t esp = ctx.esp.u32 + 4 + (arg * 4);
+        return *reinterpret_cast<float*>(base + esp);
+    }
+
+    // Set float value on the stack
+    static void SetFloatArgumentValue(X86Context& ctx, uint8_t* base, size_t arg, uint32_t value, CallConvention cc = Cdecl) noexcept
+    {
+        if (cc == Thiscall)
+        {
+            if (arg == 0) { ctx.ecx.u32 = value; return; }
+
+            const uint32_t stack_ptr = ctx.esp.u32;
+            *reinterpret_cast<float*>(base + stack_ptr + ((arg - 1) * 4)) = value;
+            return;
+        }
+
+        const uint32_t stack_ptr = ctx.esp.u32;
+        *reinterpret_cast<float*>(base + stack_ptr + 4 + (arg * 4)) = value;
+    }
+
 
     template<typename T>
     static std::enable_if_t<!std::is_pointer_v<T>, T> GetValue(const X86Context& ctx, uint8_t* base, size_t idx, const size_t argCount = 0, CallConvention cc = Cdecl) noexcept
     {
 
-        /**if constexpr (is_float_v<T>)
+        if constexpr (is_float_v<T>)
         {
             return static_cast<T>(GetFloatArgumentValue(ctx, base, idx));
         }
-        else if constexpr (is_double_v<T>)
+        /**else if constexpr (is_double_v<T>)
         {
             return static_cast<T>(GetDoubleArgumentValue(ctx, base, idx));
-        }
-        else*/
+        }*/
+        else
         {
             return static_cast<T>(GetIntegerArgumentValue(ctx, base, idx, argCount, cc));
         }

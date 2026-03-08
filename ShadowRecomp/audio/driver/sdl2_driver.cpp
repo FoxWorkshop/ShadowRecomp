@@ -35,6 +35,22 @@ void Interface::Release()
 
 class SHTHR_SOUNDDEVICE_Impl;
 
+class SHTHR_SOUND3DBUFFER_Impl : public SHTHR_SOUND3DBUFFER
+{
+private:
+	float mMaxDistance = 1000000000.0f;
+	float mMinDistance = 1.0f;
+	float mPosition[3] = { 0.f, 0.f, 0.f };
+public:
+
+	int SetMaxDistance(float flMaxDistance, int dwApply) override;
+	int SetMinDistance(float flMinDistance, int dwApply) override;
+	int GetPosition(float* pvPosition) override;
+	int SetPosition(float x, float y, float z, int dwApply) override;
+	int GetMaxDistance(float* pflMaxDistance) override;
+	int GetMinDistance(float* pflMinDistance) override;
+};
+
 class SHTHR_SOUNDBUFFER_Impl : public SHTHR_SOUNDBUFFER
 {
 private:
@@ -62,7 +78,6 @@ private:
 
 	int mVolume = 0;
 	int mVolumeLinear = 128;
-	int mPan = 0;
 
 	DWORD mPlayFlags = 0;
 	DWORD mG_flags;
@@ -82,9 +97,9 @@ private:
 
 	SourceFormat mSourceFormat;
 
-	//bool EffectVolume(unsigned char* data, int size);
-	//void EffectPanning(unsigned char* data, int size);
-	//bool Effect3D(unsigned char* data, int size);
+
+	bool Effect3D(unsigned char* data, int size);
+	float Calculate3DVolume();
 
 public:
 
@@ -102,15 +117,12 @@ public:
 	int StopEx(int64_t rtTimeStamp, uint32_t dwFlags) override;
 	int SetVolume(int lVolume) override;
 	int GetVolumeLinear() const { return mVolumeLinear; }
-	//int SetPan(int lPan) override;
+
 	int SetFrequency(int lFrequency) override;
 	int SetBufferData(void* pvBufferData, int dwBufferBytes) override;
 	int SetLoopRegion(int dwLoopStartOffset, int dwLoopLength) override;
 
-	void BufferResizeUpdate(HRESULT& hRet, DWORD Xb_dwStartOffset, DWORD Xb_dwByteLength);
-	void BufferUpdate(HRESULT& hRet);
-	void BufferRegionCurrentLocation(DWORD& Xb_dwStartOffset, DWORD& Xb_dwByteLength);
-	int BufferResizeSetSize(DWORD Xb_dwByteLength);
+
 	void SetFormatTag(xpointer<WAVEFORMATEX> format);
 	void SetBufferKey(int32_t key);
 
@@ -188,6 +200,94 @@ void SHTHR_SOUNDBUFFER_Impl::SetFormatTag(xpointer<WAVEFORMATEX> format)
 	}
 }
 
+int SHTHR_SOUND3DBUFFER_Impl::GetPosition(float* pvPosition)
+{
+	if (!pvPosition)
+	{
+		return DSERR_INVALIDPARAM;
+	}
+
+	pvPosition[0] = mPosition[0];
+	pvPosition[1] = mPosition[1];
+	pvPosition[2] = mPosition[2];
+	return S_OK;
+}
+
+int SHTHR_SOUND3DBUFFER_Impl::SetMaxDistance(float flMaxDistance, int dwApply)
+{
+	mMaxDistance = flMaxDistance;
+	return S_OK;
+}
+
+int SHTHR_SOUND3DBUFFER_Impl::SetMinDistance(float flMinDistance, int dwApply)
+{
+
+	mMinDistance = flMinDistance;
+	return S_OK;
+}
+
+int SHTHR_SOUND3DBUFFER_Impl::SetPosition(float x, float y, float z, int dwApply)
+{
+	mPosition[0] = x;
+	mPosition[1] = y;
+	mPosition[2] = z;
+	return S_OK;
+}
+
+int SHTHR_SOUND3DBUFFER_Impl::GetMaxDistance(float* pflMaxDistance)
+{
+	if (!pflMaxDistance)
+	{
+		return DSERR_INVALIDPARAM;
+	}
+
+	*pflMaxDistance = mMaxDistance;
+	return S_OK;
+}
+
+int SHTHR_SOUND3DBUFFER_Impl::GetMinDistance(float* pflMinDistance)
+{
+	if (!pflMinDistance)
+	{
+		return DSERR_INVALIDPARAM;
+	}
+
+	*pflMinDistance = mMinDistance;
+	return S_OK;
+}
+
+float SHTHR_SOUNDBUFFER_Impl::Calculate3DVolume()
+{
+	float vecPos[3];
+	this->m3DBuffer->GetPosition(vecPos);
+
+	// Calculate distance
+	float posX = vecPos[0];
+	float posY = vecPos[1];
+	float posZ = vecPos[2];
+
+	float mMinDistance = 1.0f; 
+	this->m3DBuffer->GetMinDistance(&mMinDistance);
+
+	float mMaxDistance = 1000000000.0f;
+	this->m3DBuffer->GetMaxDistance(&mMaxDistance);
+
+	float distance = sqrtf(posX * posX + posY * posY + posZ * posZ);
+
+	// DirectSound inverse distance model
+	float dist_clamped = std::max(mMinDistance, std::min(distance, mMaxDistance));
+
+	// Inverse distance attenuation
+	// Volume = minDist / distance
+	float attenuation = mMinDistance / dist_clamped;
+
+	if (attenuation > 1.0f)
+		attenuation = 1.0f;
+
+	return attenuation;
+}
+
+
 
 SHTHR_SOUNDBUFFER_Impl::SHTHR_SOUNDBUFFER_Impl(SHTHR_SOUNDDEVICE_Impl* parent, X_DSBUFFERDESC* desc) : mParent(parent)
 {
@@ -195,7 +295,7 @@ SHTHR_SOUNDBUFFER_Impl::SHTHR_SOUNDBUFFER_Impl(SHTHR_SOUNDDEVICE_Impl* parent, X
 
 	mCaps = desc->dwFlags;
 	mChannelCount = desc->lpwfxFormat->nChannels;
-	mFrequency = desc->lpwfxFormat->nSamplesPerSec; 
+	mFrequency = desc->lpwfxFormat->nSamplesPerSec;
 	memset(&mAudioCVT, 0, sizeof(mAudioCVT));
 
 	mBufferSize = desc->dwBufferBytes;
@@ -208,7 +308,7 @@ SHTHR_SOUNDBUFFER_Impl::SHTHR_SOUNDBUFFER_Impl(SHTHR_SOUNDDEVICE_Impl* parent, X
 
 	if (mCaps & XTL_DSBCAPS_CTRL3D)
 	{
-		//m3DBuffer = new SHTHR_SOUND3DBUFFER_Impl();
+		m3DBuffer = new SHTHR_SOUND3DBUFFER_Impl();
 	}
 }
 
@@ -216,9 +316,9 @@ std::unordered_map<int32_t, SHTHR_SOUNDBUFFER*> SoundBufferList;
 
 SHTHR_SOUNDBUFFER_Impl::~SHTHR_SOUNDBUFFER_Impl()
 {
-	mPlay = false; 
+	mPlay = false;
 
-	if (mBuffer && !mExternalBuffer) 
+	if (mBuffer && !mExternalBuffer)
 	{
 		g_userHeap.Free(mBuffer);
 		mBuffer = nullptr;
@@ -327,7 +427,7 @@ int SHTHR_SOUNDBUFFER_Impl::SetBufferData(void* pvBufferData, int dwBufferBytes)
 		);
 
 
-		if (actualPcmSize <= 0) 
+		if (actualPcmSize <= 0)
 		{
 			g_userHeap.Free(mBuffer);
 			mBuffer = nullptr;
@@ -360,97 +460,6 @@ int SHTHR_SOUNDBUFFER_Impl::SetBufferData(void* pvBufferData, int dwBufferBytes)
 		mParent->mFormat, mParent->mChannelCount, mParent->mFrequency);
 
 	return 0; // Success
-}
-
-
-int SHTHR_SOUNDBUFFER_Impl::BufferResizeSetSize(DWORD Xb_dwByteLength)
-{
-	DWORD Host_dwByteLength = DSoundBufferGetPCMBufferSize(this->mG_flags, Xb_dwByteLength);
-
-	if (this->mBufferSize == Host_dwByteLength)
-	{
-		return 0;
-	}
-
-	if (Host_dwByteLength < DSBSIZE_MIN)
-		Host_dwByteLength = DSBSIZE_MIN;
-
-
-	// Free old buffer if we own it
-	if (this->mBuffer && !mExternalBuffer) {
-		g_userHeap.Free(mBuffer);
-		//free(mBuffer);
-		this->mBuffer = nullptr;
-	}
-
-	// Allocate new buffer
-	this->mBuffer = (unsigned char*)malloc(Host_dwByteLength);
-	if (!mBuffer) {
-		this->mBufferSize = 0;
-		return -1; // Out of memory
-	}
-
-	// Clear the new buffer
-	memset(mBuffer, 0, Host_dwByteLength);
-
-	this->mBufferSize = Host_dwByteLength;
-	this->mExternalBuffer = false;  // We own this buffer now
-	this->mBufferReadLoc = 0;       // Reset playback position
-
-	// Rebuild audio converter with new size
-	SDL_BuildAudioCVT(&mAudioCVT,
-		mFormat, mChannelCount, mFrequency,
-		mParent->mFormat, mParent->mChannelCount, mParent->mFrequency);
-
-
-
-	return 1;
-}
-
-void SHTHR_SOUNDBUFFER_Impl::BufferResizeUpdate(HRESULT& hRet,
-	DWORD     Xb_dwStartOffset,
-	DWORD    Xb_dwByteLength)
-{
-
-	BufferResizeSetSize(Xb_dwByteLength);
-}
-
-void SHTHR_SOUNDBUFFER_Impl::BufferRegionCurrentLocation(
-
-	DWORD& Xb_dwStartOffset,
-	DWORD& Xb_dwByteLength)
-{
-
-	if ((this->mPlayFlags & X_DSBPLAY_LOOPING) > 0)
-	{
-		Xb_dwStartOffset = this->mLoopStartOffset; //can also use RegionPlayStartOffset but Shadow doesn't use that
-
-		// Must check for zero length, then apply true length.
-		if (this->mLoopLength == 0)
-		{
-			Xb_dwByteLength = this->mX_BufferCacheSize - Xb_dwStartOffset;
-		}
-		else
-		{
-			Xb_dwByteLength = this->mLoopLength;
-		}
-	}
-	else
-	{
-		Xb_dwStartOffset = 0;
-		Xb_dwByteLength = this->mX_BufferCacheSize - Xb_dwStartOffset;
-	}
-}
-
-void SHTHR_SOUNDBUFFER_Impl::BufferUpdate(HRESULT& hRet)
-{
-
-	DWORD Xb_dwByteLength = 0;
-	DWORD Xb_dwStartOffset = 0;
-
-	BufferRegionCurrentLocation(Xb_dwStartOffset, Xb_dwByteLength);
-
-	BufferResizeUpdate(hRet, Xb_dwStartOffset, Xb_dwByteLength);
 }
 
 int SHTHR_SOUNDBUFFER_Impl::SetLoopRegion(int dwLoopStartOffset, int dwLoopLength)
@@ -550,6 +559,8 @@ int32_t SHTHR_SOUNDBUFFER_Impl::Pull(unsigned char* data, int32_t size)
 		}
 	}
 
+
+	int output_size = read_size;
 	// Convert if needed
 	if (mAudioCVT.needed)
 	{
@@ -560,12 +571,27 @@ int32_t SHTHR_SOUNDBUFFER_Impl::Pull(unsigned char* data, int32_t size)
 			return 0;  // Conversion failed
 		}
 
-		int output_size = std::min(size, mAudioCVT.len_cvt);
+		output_size = std::min(size, mAudioCVT.len_cvt);
 		memcpy(data, mAudioCVT.buf, output_size);
-		return output_size;
+
 	}
 
-	return read_size;
+	if (mCaps & XTL_DSBCAPS_CTRL3D)
+	{
+		// Calculate 3D volume
+		float volumeScale = Calculate3DVolume();
+
+		// Apply volume scaling
+		int16_t* samples = reinterpret_cast<int16_t*>(data);
+		int sampleCount = output_size / sizeof(int16_t);
+
+		for (int i = 0; i < sampleCount; i++) {
+			samples[i] = static_cast<int16_t>(samples[i] * volumeScale);
+		}
+
+	}
+
+	return output_size;
 }
 
 int SHTHR_SOUNDBUFFER_Impl::GetStatus(uint32_t* pdwStatus)
@@ -757,10 +783,10 @@ int SHTHR_SOUNDBUFFER_Impl::SetVolume(int lVolume)
 	std::lock_guard<std::mutex> lock(mutex);
 
 	// adjust to DirectSound range
-	if (lVolume < DSBVOLUME_MIN) 
+	if (lVolume < DSBVOLUME_MIN)
 		lVolume = DSBVOLUME_MIN;
 
-	if (lVolume > DSBVOLUME_MAX) 
+	if (lVolume > DSBVOLUME_MAX)
 		lVolume = DSBVOLUME_MAX;
 
 	mVolume = lVolume;
@@ -771,16 +797,16 @@ int SHTHR_SOUNDBUFFER_Impl::SetVolume(int lVolume)
 	float linear = powf(10.0f, db / 20.0f);  // dB to linear
 	mVolumeLinear = static_cast<int>(linear * SDL_MIX_MAXVOLUME);  // 0-128
 
-	if (this->mSourceFormat == SOURCE_FORMAT_ADPCM_XBOX && this->mBufferSize < 400 * 1024)
+	if (this->mSourceFormat == SOURCE_FORMAT_ADPCM_XBOX && this->mBufferSize < 400 * 1024 && (this->mCaps & XTL_DSBCAPS_CTRL3D) == 0)
 	{
 		mVolumeLinear = static_cast<int>(mVolumeLinear * SFX_VOLUME_SCALE); //SFX tend to be way too loud
 	}
 
 	// Clamp
-	if (mVolumeLinear < 0) 
+	if (mVolumeLinear < 0)
 		mVolumeLinear = 0;
 
-	if (mVolumeLinear > SDL_MIX_MAXVOLUME) 
+	if (mVolumeLinear > SDL_MIX_MAXVOLUME)
 		mVolumeLinear = SDL_MIX_MAXVOLUME;
 
 	return S_OK;
@@ -791,12 +817,12 @@ int SHTHR_SOUNDBUFFER_Impl::SetFrequency(int lFrequency)
 	std::lock_guard<std::mutex> lock(mutex);
 
 	if (lFrequency < 100 || lFrequency > 200000)
-		return -1; 
+		return -1;
 
 	mFrequency = lFrequency;
-	
+
 	SDL_BuildAudioCVT(&mAudioCVT,
-		mFormat, mChannelCount, mFrequency,      
+		mFormat, mChannelCount, mFrequency,
 		mParent->mFormat, mParent->mChannelCount, mParent->mFrequency);
 
 	return S_OK;

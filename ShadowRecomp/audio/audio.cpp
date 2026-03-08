@@ -79,7 +79,7 @@ HRESULT IDirectSoundBuffer_GetStatus(int32_t keyBuffer, uint32_t* pdwStatus)
 }
 
 
-//TODO(?)
+// Stub
 int32_t CDirectSound_DownloadEffectsImage(int* a1, LPCVOID pvImageBuffer, int32_t dwImageSize, void* pImageLoc, void** ppImageDesc)
 {
 	return E_FAIL;
@@ -125,11 +125,7 @@ int32_t IDirectSound_CreateSoundBuffer(int32_t keyDevice, X_DSBUFFERDESC* pdsbd,
 	if (!pThis)
 		return E_FAIL;
 
-	if (pdsbd && pdsbd->dwFlags & XTL_DSBCAPS_CTRL3D) //3D sound aren't supported yet todo implement
-	{
-		return E_FAIL;
 
-	}
 
 	auto bufferKey = pThis->CreateSoundBuffer(pdsbd, ppBufferOut);
 
@@ -155,6 +151,7 @@ int32_t IDirectSoundBuffer_SetBufferData(int32_t key, void* pvBufferData, uint32
 
 	return pThis->SetBufferData(pvBufferData, dwBufferBytes);
 }
+
 
 int32_t IDirectSoundBuffer_Play(int32_t key, int32_t dwReserved1, int32_t dwReserved2, int32_t dwFlags)
 {
@@ -226,15 +223,15 @@ int32_t IDirectSoundBuffer_SetVolume(int32_t keyDevice, int32_t lVolume)
 	return pThis->SetVolume(lVolume);
 }
 
-//todo
-int IDirectSoundBuffer_SetPosition(int32_t keyBuffer, float a2, float a3, float a4, int a5)
+
+int32_t IDirectSoundBuffer_SetPosition(int32_t keyBuffer, float x, float y, float z, int32_t dwApply)
 {
 	auto pThis = GetCurrentSoundBuffer(keyBuffer);
 
 	if (!pThis)
 		return E_FAIL;
 
-	return E_FAIL;
+	return pThis->m3DBuffer->SetPosition(x, y, z, dwApply);
 }
 
 int32_t IDirectSoundBuffer_SetLoopRegion(int32_t keyBuffer, int32_t dwLoopStart, int32_t dwLoopLength)
@@ -258,7 +255,6 @@ int32_t IDirectSound_SetAllParameters(int32_t keyDevice, Listener3D* pDS3DListen
 	return 0;
 }
 
-//to do
 int32_t IDirectSoundBuffer_SetMinDistance(int32_t keyBuffer, float flMinDistance, int32_t dwApply)
 {
 	auto pThis = GetCurrentSoundBuffer(keyBuffer);
@@ -266,11 +262,13 @@ int32_t IDirectSoundBuffer_SetMinDistance(int32_t keyBuffer, float flMinDistance
 	if (!pThis)
 		return E_FAIL;
 
-	return E_FAIL;
+	return 	pThis->m3DBuffer->SetMinDistance(flMinDistance, dwApply);
 }
 
+//todo ?
 int IDirectSoundBuffer_SetMixBinVolumes_8(int32_t keyBuffer, int a2)
 {
+
 	auto pThis = GetCurrentSoundBuffer(keyBuffer);
 
 	if (!pThis)
@@ -286,11 +284,12 @@ int32_t IDirectSoundBuffer_SetMaxDistance(int32_t keyBuffer, float flMaxDistance
 	if (!pThis)
 		return E_FAIL;
 
-	return E_FAIL;
+	return 	pThis->m3DBuffer->SetMaxDistance(flMaxDistance, dwApply);;
 }
 
 int32_t IDirectSoundBuffer_SetMixBins(int32_t keyBuffer, int mixBins)
 {
+
 	auto pThis = GetCurrentSoundBuffer(keyBuffer);
 
 	if (!pThis)
@@ -308,12 +307,14 @@ int32_t IDirectSoundBuffer_SetConeAngles(SHTHR_SOUNDBUFFER* pThis, int a2, int a
 //todo
 int32_t IDirectSoundBuffer_SetPitch(SHTHR_SOUNDBUFFER* pThis, int a2)
 {
+
 	return E_FAIL;
 }
 
 //todo
 int IDirectSoundBuffer_SetHeadroom(SHTHR_SOUNDBUFFER* pThis, int dwHeadroom)
 {
+
 	return E_FAIL;
 }
 
@@ -333,24 +334,28 @@ int IDirectSoundBuffer_SetFrequency(int32_t keyBuffer, int frequency)
 //stub
 int32_t IDirectSound_SetI3DL2Listener(int ppDS_, int a2, char a3)
 {
+
 	return E_FAIL;
 }
 
 //todo(?)
 int32_t IDirectSound_SetDistanceFactor(int32_t pThis, float fDistanceFactor, int32_t dwApply)
 {
+
 	return E_FAIL;
 }
 
 //todo(?)
 int32_t IDirectSound_SetRolloffFactor(int32_t pThis, float RolloffFactor, int32_t dwApply)
 {
+
 	return E_FAIL;
 }
 
-//todo
+//todo listener stuff
 int32_t IDirectSound_SetPosition(int pThis, float x, float y, float z, int dwApply)
 {
+
 	//printf("IDirectSound_SetPosition\n");
 	return E_FAIL;
 }
@@ -358,7 +363,7 @@ int32_t IDirectSound_SetPosition(int pThis, float x, float y, float z, int dwApp
 //todo(?)
 int32_t IDirectSound_SetOrientation(int a1, float xFront, float yFront, float zFront, float xTop, float yTop, float zTop, int dwApply)
 {
-	//printf("IDirectSound_SetOrientation\n");
+
 	return E_FAIL;
 }
 
@@ -369,6 +374,7 @@ int32_t CDirectSound_CommitDeferredSettings(int a1)
 
 int32_t IDirectSound_CommitDeferredSettings(int a1)
 {
+
 	//printf("IDirectSound_CommitDeferredSettings\n");
 	return E_FAIL;
 }

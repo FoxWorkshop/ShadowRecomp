@@ -42,6 +42,8 @@ const int32_t ppDSEventAddr = 0x5611C0;
 #define DSE_FLAG_XADPCM                 (1 << 1)
 #define DSE_FLAG_PCM_UNKNOWN            (1 << 2)
 #define DSBCAPS_CTRL3D              0x00000010
+#define DSBCAPS_CTRLPAN             0x00000040
+#define DSERR_CONTROLUNAVAIL            MAKE_DSHRESULT(30)
 
 #define WAVE_FORMAT_ADPCM 0x0002
 #define WAVE_FORMAT_XBOX_ADPCM 0x0069
@@ -51,6 +53,8 @@ const int32_t ppDSEventAddr = 0x5611C0;
 #define X_DSBSTOPEX_ENVELOPE          0x00000001
 #define X_DSBSTOPEX_RELEASEWAVEFORM   0x00000002
 #define X_DSBSTOPEX_ALL               (X_DSBSTOPEX_ENVELOPE | X_DSBSTOPEX_RELEASEWAVEFORM)
+
+
 
 #define DSBVOLUME_MIN   -10000  // Silence (-100 dB)
 #define DSBVOLUME_MAX        0  // Full volume (0 dB no attenuation)
