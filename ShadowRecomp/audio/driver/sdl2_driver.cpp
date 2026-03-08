@@ -191,7 +191,6 @@ void SHTHR_SOUNDBUFFER_Impl::SetFormatTag(xpointer<WAVEFORMATEX> format)
 
 SHTHR_SOUNDBUFFER_Impl::SHTHR_SOUNDBUFFER_Impl(SHTHR_SOUNDDEVICE_Impl* parent, X_DSBUFFERDESC* desc) : mParent(parent)
 {
-
 	SetFormatTag(desc->lpwfxFormat);
 
 	mCaps = desc->dwFlags;
@@ -200,7 +199,7 @@ SHTHR_SOUNDBUFFER_Impl::SHTHR_SOUNDBUFFER_Impl(SHTHR_SOUNDDEVICE_Impl* parent, X
 	memset(&mAudioCVT, 0, sizeof(mAudioCVT));
 
 	mBufferSize = desc->dwBufferBytes;
-	mBuffer = (unsigned char*)g_userHeap.Alloc(mBufferSize); //malloc(mBufferSize);
+	mBuffer = (unsigned char*)g_userHeap.Alloc(mBufferSize);
 
 	SDL_BuildAudioCVT(&mAudioCVT, // translator between what the game provides and what audio device expects. (ex: 22050 hs vs 41800)
 		mFormat, mChannelCount, mFrequency,
@@ -211,9 +210,6 @@ SHTHR_SOUNDBUFFER_Impl::SHTHR_SOUNDBUFFER_Impl(SHTHR_SOUNDDEVICE_Impl* parent, X
 	{
 		//m3DBuffer = new SHTHR_SOUND3DBUFFER_Impl();
 	}
-
-
-	//mutex = SDL_CreateMutex();
 }
 
 std::unordered_map<int32_t, SHTHR_SOUNDBUFFER*> SoundBufferList;
@@ -222,8 +218,8 @@ SHTHR_SOUNDBUFFER_Impl::~SHTHR_SOUNDBUFFER_Impl()
 {
 	mPlay = false; 
 
-	if (mBuffer && !mExternalBuffer) {
-		//free(mBuffer);
+	if (mBuffer && !mExternalBuffer) 
+	{
 		g_userHeap.Free(mBuffer);
 		mBuffer = nullptr;
 	}
@@ -297,7 +293,6 @@ int SHTHR_SOUNDBUFFER_Impl::SetBufferData(void* pvBufferData, int dwBufferBytes)
 	// Free old internal buffer if we own it
 	if (mBuffer && !mExternalBuffer)
 	{
-	//	free(mBuffer);
 		g_userHeap.Free(mBuffer);
 		mBuffer = nullptr;
 	}
@@ -307,7 +302,7 @@ int SHTHR_SOUNDBUFFER_Impl::SetBufferData(void* pvBufferData, int dwBufferBytes)
 	if (pvBufferData == nullptr)
 	{
 
-		mBuffer = (unsigned char*)g_userHeap.Alloc(pcmSize); //malloc(pcmSize);
+		mBuffer = (unsigned char*)g_userHeap.Alloc(pcmSize);
 		if (!mBuffer) {
 			return -1; // Out of memory
 		}
@@ -318,7 +313,7 @@ int SHTHR_SOUNDBUFFER_Impl::SetBufferData(void* pvBufferData, int dwBufferBytes)
 	else if (mSourceFormat == SOURCE_FORMAT_ADPCM_XBOX)
 	{
 
-		mBuffer = (unsigned char*)g_userHeap.Alloc(pcmSize);// malloc(pcmSize);
+		mBuffer = (unsigned char*)g_userHeap.Alloc(pcmSize);
 		if (!mBuffer) {
 			return -1;
 		}
@@ -332,8 +327,8 @@ int SHTHR_SOUNDBUFFER_Impl::SetBufferData(void* pvBufferData, int dwBufferBytes)
 		);
 
 
-		if (actualPcmSize <= 0) {
-			//free(mBuffer);
+		if (actualPcmSize <= 0) 
+		{
 			g_userHeap.Free(mBuffer);
 			mBuffer = nullptr;
 			return -1;
@@ -775,6 +770,11 @@ int SHTHR_SOUNDBUFFER_Impl::SetVolume(int lVolume)
 	float db = lVolume / 100.0f;  // Convert centibels to decibels
 	float linear = powf(10.0f, db / 20.0f);  // dB to linear
 	mVolumeLinear = static_cast<int>(linear * SDL_MIX_MAXVOLUME);  // 0-128
+
+	if (this->mSourceFormat == SOURCE_FORMAT_ADPCM_XBOX && this->mBufferSize < 400 * 1024)
+	{
+		mVolumeLinear = static_cast<int>(mVolumeLinear * SFX_VOLUME_SCALE); //SFX tend to be way too loud
+	}
 
 	// Clamp
 	if (mVolumeLinear < 0) 
