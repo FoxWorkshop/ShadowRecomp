@@ -97,8 +97,6 @@ private:
 
 	SourceFormat mSourceFormat;
 
-
-	bool Effect3D(unsigned char* data, int size);
 	float Calculate3DVolume();
 
 public:
@@ -130,6 +128,11 @@ public:
 
 class SHTHR_SOUNDDEVICE_Impl : public SHTHR_SOUNDDEVICE
 {
+private:
+	float mListenerPosition[3] = { 0, 0, 0 };
+	float mDistanceFactor = 1.0f;  // Default: (no scaling)
+	float mRolloffFactor = 1.0f; // Default: (realistic)
+
 public:
 	std::mutex mutex;
 
@@ -150,6 +153,12 @@ public:
 	int32_t CreateSoundBuffer(X_DSBUFFERDESC* ppDesc, SHTHR_SOUNDBUFFER** ppBuffer) override;
 	bool ReleaseSoundBuffer(SHTHR_SOUNDBUFFER* pBuffer) override;
 	int SetAllParameters(Listener3D* params) override;
+	int SetRolloffFactor(float flRolloffFactor, DWORD dwApply) override;
+	int SetDistanceFactor(float flDistanceFactor, DWORD dwApply) override;
+	int SetPosition(float x, float y, float z, DWORD dwApply) override;
+	float GetRolloffFactor() const { return mRolloffFactor; }
+	float GetDistanceFactor() const { return mDistanceFactor; }
+	float* GetListenerPosition() { return mListenerPosition; }
 };
 
 void SHTHR_SOUNDBUFFER_Impl::SetBufferKey(int32_t key)
@@ -261,32 +270,42 @@ float SHTHR_SOUNDBUFFER_Impl::Calculate3DVolume()
 	float vecPos[3];
 	this->m3DBuffer->GetPosition(vecPos);
 
-	// Calculate distance
-	float posX = vecPos[0];
-	float posY = vecPos[1];
-	float posZ = vecPos[2];
-
 	float mMinDistance = 1.0f; 
 	this->m3DBuffer->GetMinDistance(&mMinDistance);
 
 	float mMaxDistance = 1000000000.0f;
 	this->m3DBuffer->GetMaxDistance(&mMaxDistance);
 
+	float* listenerPos = mParent->GetListenerPosition();
+
+
+	float posX = vecPos[0] - listenerPos[0];
+	float posY = vecPos[1] - listenerPos[1];
+	float posZ = vecPos[2] - listenerPos[2];
+
+
 	float distance = sqrtf(posX * posX + posY * posY + posZ * posZ);
 
-	// DirectSound inverse distance model
-	float dist_clamped = std::max(mMinDistance, std::min(distance, mMaxDistance));
+	float distanceFactor = mParent->GetDistanceFactor();
 
-	// Inverse distance attenuation
-	// Volume = minDist / distance
-	float attenuation = mMinDistance / dist_clamped;
+	float scaledMin = mMinDistance / distanceFactor;
+	float scaledMax = mMaxDistance / distanceFactor;
+
+	scaledMin = std::max(0.0001f, scaledMin); // just in case
+
+	// DirectSound inverse distance model
+	float dist_clamped = std::max(scaledMin, std::min(distance, scaledMax));
+
+	float rolloff = mParent->GetRolloffFactor();
+
+
+	float attenuation = scaledMin / (scaledMin + rolloff * (dist_clamped - scaledMin));
 
 	if (attenuation > 1.0f)
 		attenuation = 1.0f;
 
 	return attenuation;
 }
-
 
 
 SHTHR_SOUNDBUFFER_Impl::SHTHR_SOUNDBUFFER_Impl(SHTHR_SOUNDDEVICE_Impl* parent, X_DSBUFFERDESC* desc) : mParent(parent)
@@ -550,15 +569,16 @@ int32_t SHTHR_SOUNDBUFFER_Impl::Pull(unsigned char* data, int32_t size)
 		mBufferReadLoc += read_size;
 
 		if (mBufferReadLoc >= loopEnd) {
-			if (mLooping) {
+			if (mLooping)
+			{
 				mBufferReadLoc = loopStart;
 			}
-			else {
+			else 
+			{
 				mPlay = false;
 			}
 		}
 	}
-
 
 	int output_size = read_size;
 	// Convert if needed
@@ -567,20 +587,17 @@ int32_t SHTHR_SOUNDBUFFER_Impl::Pull(unsigned char* data, int32_t size)
 		mAudioCVT.len = read_size;
 		mAudioCVT.buf = mResampleBuffer.data();
 
-		if (SDL_ConvertAudio(&mAudioCVT) != 0) {
-			return 0;  // Conversion failed
-		}
+		if (SDL_ConvertAudio(&mAudioCVT) != 0) 
+			return 0;  
 
 		output_size = std::min(size, mAudioCVT.len_cvt);
 		memcpy(data, mAudioCVT.buf, output_size);
-
 	}
 
 	if (mCaps & XTL_DSBCAPS_CTRL3D)
 	{
-		// Calculate 3D volume
 		float volumeScale = Calculate3DVolume();
-
+		
 		// Apply volume scaling
 		int16_t* samples = reinterpret_cast<int16_t*>(data);
 		int sampleCount = output_size / sizeof(int16_t);
@@ -588,7 +605,6 @@ int32_t SHTHR_SOUNDBUFFER_Impl::Pull(unsigned char* data, int32_t size)
 		for (int i = 0; i < sampleCount; i++) {
 			samples[i] = static_cast<int16_t>(samples[i] * volumeScale);
 		}
-
 	}
 
 	return output_size;
@@ -846,6 +862,47 @@ SHTHR_SOUNDDEVICE_Impl::~SHTHR_SOUNDDEVICE_Impl()
 int SHTHR_SOUNDDEVICE_Impl::SetAllParameters(Listener3D* params)
 {
 	paramsListener = *params;
+	return S_OK;
+}
+
+
+int SHTHR_SOUNDDEVICE_Impl::SetDistanceFactor(float flDistanceFactor, DWORD dwApply)
+{
+	std::lock_guard<std::mutex> lock(mutex);
+
+	if (flDistanceFactor < 0.0f) 
+		flDistanceFactor = 0.0f;
+
+	if (flDistanceFactor > 10.0f) 
+		flDistanceFactor = 10.0f;
+
+	mDistanceFactor = flDistanceFactor;
+	return S_OK;
+}
+
+int SHTHR_SOUNDDEVICE_Impl::SetRolloffFactor(float flRolloffFactor, DWORD dwApply)
+{
+	std::lock_guard<std::mutex> lock(mutex);
+
+	if (flRolloffFactor < 0.0f) 
+		flRolloffFactor = 0.0f;
+
+	if (flRolloffFactor > 10.0f) 
+		flRolloffFactor = 10.0f;
+
+	mRolloffFactor = flRolloffFactor;
+
+	return S_OK;
+}
+
+int SHTHR_SOUNDDEVICE_Impl::SetPosition(float x, float y, float z, DWORD dwApply)
+{
+	std::lock_guard<std::mutex> lock(mutex);
+
+	mListenerPosition[0] = x;
+	mListenerPosition[1] = y;
+	mListenerPosition[2] = z;
+
 	return S_OK;
 }
 

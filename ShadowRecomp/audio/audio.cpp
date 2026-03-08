@@ -339,25 +339,36 @@ int32_t IDirectSound_SetI3DL2Listener(int ppDS_, int a2, char a3)
 }
 
 //todo(?)
-int32_t IDirectSound_SetDistanceFactor(int32_t pThis, float fDistanceFactor, int32_t dwApply)
+int32_t IDirectSound_SetDistanceFactor(int32_t ppDS_, float fDistanceFactor, int32_t dwApply)
 {
+	auto pThis = ppDS;
 
-	return E_FAIL;
+	if (!pThis)
+		return E_FAIL;
+
+	return pThis->SetDistanceFactor(fDistanceFactor, dwApply);
 }
 
-//todo(?)
-int32_t IDirectSound_SetRolloffFactor(int32_t pThis, float RolloffFactor, int32_t dwApply)
-{
 
-	return E_FAIL;
+int32_t IDirectSound_SetRolloffFactor(int32_t ppDS_, float RolloffFactor, int32_t dwApply)
+{
+	auto pThis = ppDS;
+
+	if (!pThis)
+		return E_FAIL;
+
+	return pThis->SetRolloffFactor(RolloffFactor, dwApply);
 }
 
-//todo listener stuff
-int32_t IDirectSound_SetPosition(int pThis, float x, float y, float z, int dwApply)
-{
 
-	//printf("IDirectSound_SetPosition\n");
-	return E_FAIL;
+int32_t IDirectSound_SetPosition(int pThis_, float x, float y, float z, int dwApply)
+{
+	auto pThis = ppDS;
+
+	if (!pThis)
+		return E_FAIL;
+
+	return pThis->SetPosition(x, y, z, dwApply);
 }
 
 //todo(?)

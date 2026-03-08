@@ -66,6 +66,9 @@ public:
 	virtual int32_t CreateSoundBuffer(X_DSBUFFERDESC* ppDesc, SHTHR_SOUNDBUFFER** ppBuffer) PURE;
 	virtual bool ReleaseSoundBuffer(SHTHR_SOUNDBUFFER* ppBuffer) PURE;
 	virtual int SetAllParameters(Listener3D* params) PURE;
+	virtual int SetDistanceFactor(float flDistanceFactor, DWORD dwApply) PURE;
+	virtual int SetRolloffFactor(float flRolloffFactor, DWORD dwApply) PURE;
+	virtual int SetPosition(float x, float y, float z, DWORD dwApply) PURE;
 
 };
 
