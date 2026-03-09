@@ -64,6 +64,7 @@ private:
 	bool mExternalBuffer = false; // track if buffer is externally owned
 	DWORD mX_BufferCacheSize;
 
+	bool isStreaming = false;
 	int mBufferWriteLoc = 0;
 	int mBufferReadLoc = 0;
 	int mBufferSize = 0;
@@ -418,6 +419,7 @@ int SHTHR_SOUNDBUFFER_Impl::SetBufferData(void* pvBufferData, int dwBufferBytes)
 
 	int pcmSize = DSoundBufferGetPCMBufferSize(this->mG_flags, dwBufferBytes);
 
+
 	if (pvBufferData == nullptr)
 	{
 
@@ -469,12 +471,12 @@ int SHTHR_SOUNDBUFFER_Impl::SetBufferData(void* pvBufferData, int dwBufferBytes)
 	// Update size and reset positions
 	mBufferReadLoc = 0;
 	mBufferWriteLoc = 0;
-	mWrittenSize = 0;
 	mLoopStartOffset = 0;
 	mLoopLength = 0;
+	mWrittenSize = pcmSize;
 
 	// Rebuild audio converter if needed (in case format changed)
-	int error = SDL_BuildAudioCVT(&mAudioCVT,
+	SDL_BuildAudioCVT(&mAudioCVT,
 		mFormat, mChannelCount, mFrequency,
 		mParent->mFormat, mParent->mChannelCount, mParent->mFrequency);
 
@@ -501,113 +503,79 @@ int SHTHR_SOUNDBUFFER_Impl::SetLoopRegion(int dwLoopStartOffset, int dwLoopLengt
 
 int32_t SHTHR_SOUNDBUFFER_Impl::Pull(unsigned char* data, int32_t size)
 {
-	std::lock_guard<std::mutex> lock(mutex);
-
-	if (!mPlay || !mBuffer) {
-		return 0;
-	}
-
-	// Determine loop region
-	int32_t loopStart = (mLooping && mLoopLength > 0) ? mLoopStartOffset : 0;
-	int32_t loopEnd = (mLooping && mLoopLength > 0) ? (mLoopStartOffset + mLoopLength) : mBufferSize;
-
-	// Calculate source size needed (before conversion)
-	int32_t source_size = size;
-	if (mAudioCVT.needed)
+	mutex.lock();
+	if (!mPlay || !mBuffer)
 	{
-		source_size = static_cast<int32_t>(size / mAudioCVT.len_ratio);
-		// Align to sample boundary
-		int32_t sampleSize = (SDL_AUDIO_BITSIZE(mFormat) / 8) * mChannelCount;
-		source_size = (source_size / sampleSize) * sampleSize;
+		mutex.unlock();
+		return 0; // Nothing to pull!
+	}
+	mutex.unlock();
+
+	static int callCount = 0;
+	if (++callCount % 25 == 0)
+	{
+		//printf("[%d] pull - read=%d, write=%d\n", callCount, mBufferReadLoc, mBufferWriteLoc);
 	}
 
-	int32_t read_size = std::min(source_size, loopEnd - mBufferReadLoc);
+	// Calculate size before resampling to destination size
+	int _size = size / mAudioCVT.len_ratio;
+	_size += _size % FORMAT_TO_SIZE(mFormat);
+
+	// Get how much to read from this sound buffer
+	int read_size = mLooping ? _size : std::min(_size, mWrittenSize);
 
 	if (read_size <= 0)
+		return 0;
+
+	// Prepare conversion buffer
+	mResampleBuffer.resize(read_size * mAudioCVT.len_mult);
+	mAudioCVT.len = read_size;
+	mAudioCVT.buf = mResampleBuffer.data();
+
+	// Send source data to resampler
+	mutex.lock();
+	if (mBufferReadLoc + read_size >= mBufferSize)
 	{
-		if (mLooping) {
-			mBufferReadLoc = loopStart;
-			read_size = std::min(source_size, loopEnd - loopStart);
-		}
-		else {
-			mPlay = false;
-			return 0;
-		}
-	}
-
-	// Prepare buffer for reading
-	unsigned char* readBuffer = data;
-	if (mAudioCVT.needed)
-	{
-		// Need conversion - use resample buffer
-		int cvtBufferSize = read_size * mAudioCVT.len_mult;
-		mResampleBuffer.resize(cvtBufferSize);
-		readBuffer = mResampleBuffer.data();
-	}
-
-	// Read from source buffer with wrapping
-	if (mBufferReadLoc + read_size > loopEnd)
-	{
-		// Wraps around
-		int32_t first_part = loopEnd - mBufferReadLoc;
-		int32_t second_part = read_size - first_part;
-
-		memcpy(readBuffer, &mBuffer[mBufferReadLoc], first_part);
-
-		if (mLooping) {
-			memcpy(readBuffer + first_part, &mBuffer[loopStart], second_part);
-			mBufferReadLoc = loopStart + second_part;
-		}
-		else {
-			mPlay = false;
-			read_size = first_part;  // Only return what we read
-		}
+		// End of buffer, loop back to beginning
+		int remaining_size = mBufferSize - mBufferReadLoc;
+		memcpy(&mAudioCVT.buf[0], &mBuffer[mBufferReadLoc], remaining_size);
+		mBufferReadLoc = read_size - remaining_size;
+		memcpy(&mAudioCVT.buf[remaining_size], &mBuffer[0], mBufferReadLoc);
 	}
 	else
 	{
-		memcpy(readBuffer, &mBuffer[mBufferReadLoc], read_size);
+		memcpy(&mAudioCVT.buf[0], &mBuffer[mBufferReadLoc], read_size);
 		mBufferReadLoc += read_size;
-
-		if (mBufferReadLoc >= loopEnd) {
-			if (mLooping)
-			{
-				mBufferReadLoc = loopStart;
-			}
-			else 
-			{
-				mPlay = false;
-			}
-		}
 	}
+	mWrittenSize -= read_size;
+	if (mWrittenSize < 0)
+		mWrittenSize = 0;
+	mutex.unlock();
 
-	int output_size = read_size;
-	// Convert if needed
-	if (mAudioCVT.needed)
-	{
-		mAudioCVT.len = read_size;
-		mAudioCVT.buf = mResampleBuffer.data();
+	// Perform resampling
+	SDL_ConvertAudio(&mAudioCVT);
 
-		if (SDL_ConvertAudio(&mAudioCVT) != 0) 
-			return 0;  
-
-		output_size = std::min(size, mAudioCVT.len_cvt);
-		memcpy(data, mAudioCVT.buf, output_size);
-	}
+	// Get how much data was converted
+	int writesize = std::min(size, mAudioCVT.len_cvt);
+	if (writesize <= 0)
+		return 0;
 
 	if (mCaps & XTL_DSBCAPS_CTRL3D)
 	{
 		float volumeScale = Calculate3DVolume();
-		
+
 		// Apply volume scaling
 		int16_t* samples = reinterpret_cast<int16_t*>(data);
-		int sampleCount = output_size / sizeof(int16_t);
+		int sampleCount = writesize / sizeof(int16_t);
 
 		for (int i = 0; i < sampleCount; i++) {
 			samples[i] = static_cast<int16_t>(samples[i] * volumeScale);
 		}
 	}
 
-	return output_size;
+	// Send resampled data to device
+	memcpy(data, mAudioCVT.buf, writesize);
+	return writesize;
 }
 
 int SHTHR_SOUNDBUFFER_Impl::GetStatus(uint32_t* pdwStatus)
@@ -663,8 +631,12 @@ int SHTHR_SOUNDBUFFER_Impl::SetCurrentPosition(DWORD dwNewPosition)
 	return S_OK;
 }
 
+//the lock
+
 int SHTHR_SOUNDBUFFER_Impl::Lock(int dwOffset, int dwBytes, void** ppvAudioPtr1, int* pdwAudioBytes1, void** ppvAudioPtr2, int* pdwAudioBytes2, int dwFlags)
 {
+
+	isStreaming = true;
 	mutex.lock();
 
 	if (dwFlags & DSBLOCK_ENTIREBUFFER)
@@ -732,6 +704,7 @@ int SHTHR_SOUNDBUFFER_Impl::Lock(int dwOffset, int dwBytes, void** ppvAudioPtr1,
 	}
 
 	return S_OK;
+
 }
 
 int SHTHR_SOUNDBUFFER_Impl::Unlock(void* pvAudioPtr1, int dwAudioBytes1, void* pvAudioPtr2, int dwAudioBytes2)
@@ -746,7 +719,7 @@ int SHTHR_SOUNDBUFFER_Impl::Play(int dwReserved1, int dwPriority, uint32_t dwFla
 
 	this->mPlay = true;
 	this->mPlayFlags = dwFlags;
-	this->mAudioCVT.len_ratio = this->mAudioCVT.len_ratio;
+
 	if ((dwFlags & X_DSBPLAY_FROMSTART)) {
 
 		this->mPlayFlags &= ~X_DSBPLAY_FROMSTART;
@@ -915,7 +888,6 @@ void SHTHR_SOUNDDEVICE_Impl::AudioCallback(Uint8* stream, int32_t len)
 	{
 		return;
 	}
-
 	read_buffer.resize(len);
 	mutex.lock();
 
