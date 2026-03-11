@@ -1,5 +1,4 @@
 #include "video.h"
-#include "nv2a.h"
 #include "vertexdeclaration.h"
 #include "vertexshader.h"
 #include <kernel/function.h>
@@ -40,39 +39,6 @@ DWORD GetStrideFromVertexDeclaration(HostVertexDeclaration* pVertexDeclaration)
 
 	return Stride;
 }
-
-void HLE_draw_inline_array(NV2AState* d)
-{
-	PGRAPHState* pg = &d->pgraph;
-
-	//DWORD vertex data array, 
-	// To be used as a replacement for DrawVerticesUP, the caller needs to set the vertex format using IDirect3DDevice8::SetVertexShader before calling BeginPush.
-	// All attributes in the vertex format must be padded DWORD multiples, and the vertex attributes must be specified in the canonical FVF ordering
-	// (position followed by weight, normal, diffuse, and so on).
-	// retrieve vertex shader
-
-	bool isFixed = g_Xbox_VertexShaderMode == VertexShaderMode::FixedFunction;
-
-	DWORD dwVertexStride = GetStrideFromVertexDeclaration(XSR_HostGetVertexDeclaration((size_t)g_memory.Translate(g_VertexShader_Handle), isFixed));
-	if (dwVertexStride > 0)
-	{
-		uint32_t VertexCount = (pg->inline_array_length * sizeof(DWORD)) / dwVertexStride;
-
-		DrawPrimitiveUP((X_D3DPRIMITIVETYPE)pg->primitive_mode, VertexCount, pg->inline_array, dwVertexStride);
-	}
-}
-
-void HLE_draw_inline_elements(NV2AState* d)
-{
-	PGRAPHState* pg = &d->pgraph;
-	unsigned int uiIndexCount = pg->inline_elements_length;
-
-	DrawIndexedPrimitive((X_D3DPRIMITIVETYPE)pg->primitive_mode,
-		uiIndexCount,
-		(int16_t*)d->pgraph.inline_elements);
-
-}
-
 
 void HLE_draw_inline_array(X_D3DPRIMITIVETYPE primitiveMode, int32_t VertexCount, void* VertexData)
 {
