@@ -611,6 +611,12 @@ float GetRenderTargetHeight()
 	return 0.0f;
 }
 
+bool is_vulkan()
+{
+	return g_vulkan;
+}
+
+
 static std::thread::id g_presentThreadId = std::this_thread::get_id();
 static std::atomic<bool> g_readyForCommands;
 
@@ -6814,7 +6820,7 @@ void DrawPrimitiveUP(X_D3DPRIMITIVETYPE PrimitiveType, uint32_t VertexCount, voi
 
 }
 extern bool readyToDebug;
-int countBeforeBreak = 0;
+
 static void ProcDrawPrimitiveUP(const RenderCommand& cmd)
 {
 

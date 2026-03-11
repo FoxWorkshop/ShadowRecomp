@@ -1,6 +1,5 @@
 #include "common_fixed_vs.hlsli"
 
-
 static bool vRegisterDefaultFlags[16];
 
 // Input registers
@@ -17,6 +16,7 @@ struct VS_INPUT
     float4 reserved[3] : TEXCOORD6;
 };
 
+
 // Output registers
 struct VS_OUTPUT
 {
@@ -32,7 +32,6 @@ struct VS_OUTPUT
     float4 oT2 : TEXCOORD2; // Texture coordinate set 2
     float4 oT3 : TEXCOORD3; // Texture coordinate set 3
 };
-
 
 
 float4 Get(const VS_INPUT xIn, const uint index)
@@ -108,6 +107,7 @@ LightingOutput DoLight(const Light l, const float2 powers)
     float attenuation = 1;
     float spotIntensity = 1;
     float type = l.DirectionVN.w;
+    
 	
     if (type == LIGHT_TYPE_DIRECTIONAL)
     {
@@ -148,6 +148,7 @@ LightingOutput DoLight(const Light l, const float2 powers)
             attenuation = 0;
     }
 
+
 	// Diffuse lighting calculation
     const float NdotLFront = dot(View.Normal, toLightN);
     const float NdotLBack = dot(-View.Normal, toLightN);
@@ -155,7 +156,7 @@ LightingOutput DoLight(const Light l, const float2 powers)
     o.Diffuse.Back.xyz = max(NdotLBack, 0) * l.Diffuse.rgb * attenuation * spotIntensity;
 
 	// Specular lighting calculation
-    float3 toViewerN = modes.LocalViewer
+    float3 toViewerN = ModeLocalViewer
 		? normalize(-View.Position.xyz) // Strip sample
 		: float3(0, 0, -1); // DoA 3 character select
 	
@@ -181,9 +182,12 @@ LightingOutput CalcLighting(const float2 powers)
     totalLightOutput.Specular.Back.xyz = float3(0, 0, 0);
 
     
+    Light Lights_[8];
+    FillLightArray(Lights_);
+    
     for (uint i = 0; i < 8; i++)
     {
-        const Light currentLight = Lights[i];
+        const Light currentLight = Lights_[i];
         float type = currentLight.DirectionVN.w;
         LightingOutput currentLightOutput;
 
@@ -208,31 +212,43 @@ TransformInfo DoTransform(const float4 position, const float3 normal, const floa
     output.Normal = float3(0, 0, 0);
 
     // The number of matrices to blend (always in the range [1..4])
-    const int matrices = modes.VertexBlend_NrOfMatrices;
+    const int matrices = ModeVertexBlend_NrOfMatrices;
 
     // Initialize the final matrix its blend weight at 1, from which all preceding blend weights will be deducted :
     float lastBlend = 1;
     for (int i = 0; i < matrices; i++)
     {
         // Do we have to calculate the last blend value (never happens when there's already 4 matrices) ?
-        const bool bCalcFinalWeight = (modes.VertexBlend_CalcLastWeight > 0) && (i == (matrices - 1));
+        const bool bCalcFinalWeight = (ModeVertexBlend_CalcLastWeight > 0) && (i == (matrices - 1));
         // Note : In case of X_D3DVBF_DISABLE, no prior weights have been deducted from lastBlend, so it will still be 1.
         // The number of matrices will also be 1, which effectively turns this into non-weighted single-matrix multiplications :
         const float blendWeight = bCalcFinalWeight ? lastBlend : blendWeights[i];
         // Reduce the blend weight for the final matrix :
         lastBlend -= blendWeights[i];
         // Add this matrix (multiplied by its blend weight) to the output :
-        output.Position += mul(position, transforms.WorldView[i]) * blendWeight;
-        output.Normal += mul(normal, (float3x3) transforms.WorldViewInverseTranspose[i]) * blendWeight;
+        
+        
+        output.Position += mul(position, TransfoWorldView(i)) * blendWeight;
+        output.Normal += mul(normal, (float3x3) TransfoWorldViewIT(i)) * blendWeight;
+        
     }
+    
 
+    
     return output;
 }
 
 Material DoMaterial(const uint index, const uint diffuseReg, const uint specularReg, const VS_INPUT xIn)
 {
     // Get the material from material state
-    Material material = Materials[index];
+    Material materialsArray[2];
+    FillMaterialArray(materialsArray);
+    
+
+
+
+    
+    Material material = materialsArray[index];
 
     // Note : if (state.Modes.ColorVertex) no longer required because when disabled, CPU sets all MaterialSource's to D3DMCS_MATERIAL
     {
@@ -247,26 +263,26 @@ Material DoMaterial(const uint index, const uint diffuseReg, const uint specular
         if (!vRegisterDefaultFlags[diffuseReg])
         {
             const float4 diffuseVertexColour = Get(xIn, diffuseReg);
-            if (modes.AmbientMaterialSource == D3DMCS_COLOR1)
+            if (ModeAmbientMaterialSource == D3DMCS_COLOR1)
                 material.Ambient = diffuseVertexColour;
-            if (modes.DiffuseMaterialSource == D3DMCS_COLOR1)
+            if (ModeDiffuseMaterialSource == D3DMCS_COLOR1)
                 material.Diffuse = diffuseVertexColour;
-            if (modes.SpecularMaterialSource == D3DMCS_COLOR1)
+            if (ModeSpecularMaterialSource == D3DMCS_COLOR1)
                 material.Specular = diffuseVertexColour;
-            if (modes.EmissiveMaterialSource == D3DMCS_COLOR1)
+            if (ModeEmissiveMaterialSource == D3DMCS_COLOR1)
                 material.Emissive = diffuseVertexColour;
         }
 
         if (!vRegisterDefaultFlags[specularReg])
         {
             const float4 specularVertexColour = Get(xIn, specularReg);
-            if (modes.AmbientMaterialSource == D3DMCS_COLOR2)
+            if (ModeAmbientMaterialSource == D3DMCS_COLOR2)
                 material.Ambient = specularVertexColour;
-            if (modes.DiffuseMaterialSource == D3DMCS_COLOR2)
+            if (ModeDiffuseMaterialSource == D3DMCS_COLOR2)
                 material.Diffuse = specularVertexColour;
-            if (modes.SpecularMaterialSource == D3DMCS_COLOR2)
+            if (ModeSpecularMaterialSource == D3DMCS_COLOR2)
                 material.Specular = specularVertexColour;
-            if (modes.EmissiveMaterialSource == D3DMCS_COLOR2)
+            if (ModeEmissiveMaterialSource == D3DMCS_COLOR2)
                 material.Emissive = specularVertexColour;
         }
     }
@@ -296,7 +312,7 @@ float DoFog(const VS_INPUT xIn)
 }
 
 
-float4 DoTexCoord(const uint stage, const VS_INPUT xIn)
+float4 DoTexCoord(const uint stage, const VS_INPUT xIn, const TextureState TextureStates_[4])
 {
     // Texture transform flags
     // https://docs.microsoft.com/en-gb/windows/win32/direct3d9/d3dtexturetransformflags
@@ -316,7 +332,7 @@ float4 DoTexCoord(const uint stage, const VS_INPUT xIn)
     static const int TCI_OBJECT = 4; // Xbox
     static const int TCI_SPHERE = 5; // Xbox
 
-    const TextureState tState = TextureStates[stage];
+    const TextureState tState = TextureStates_[stage];
 
     // Extract transform flags
     const int countFlag = tState.TextureTransformFlagsCount;
@@ -372,7 +388,7 @@ float4 DoTexCoord(const uint stage, const VS_INPUT xIn)
     // Transform the texture coordinates if requested
     if (countFlag != D3DTTFF_DISABLE) //issue is likely here
     {
-        texCoord = mul(texCoord, transforms.Texture[stage]);
+        texCoord = mul(texCoord, TransfoTex(stage));
     }
         //
 
@@ -402,7 +418,7 @@ float4 DoTexCoord(const uint stage, const VS_INPUT xIn)
 // Test case: Point sprite sample
 float DoPointSpriteSize()
 {
-    const PointSprite ps = pointSprite;
+    const PointSprite ps = GetPointSprite();
 
     float pointSize = ps.PointSize;
     const float A = ps.PointScaleABC.x;
@@ -430,7 +446,7 @@ VS_INPUT InitializeInputRegisters(const VS_INPUT xInput)
     // Or use the register's default value (which can be changed by the title)
     for (uint i = 0; i < 16; i++)
     {
-        const float4 value = lerp(Get(xInput, i), vRegisterDefaultValues[i], vRegisterDefaultFlags[i]);
+        const float4 value = lerp(Get(xInput, i), vRegisterDefaultValues(i), vRegisterDefaultFlags[i]);
 
             // switch statements inexplicably don't work here
         if (i == position)
@@ -476,7 +492,7 @@ VS_OUTPUT main(const VS_INPUT xInput)
     VS_OUTPUT xOut;
 
     // Unpack 16 bool flags from 4 float4 constant registers
-    vRegisterDefaultFlags = (bool[16]) vRegisterDefaultFlagsPacked;
+    UnpackRegisterDefaultFlags(vRegisterDefaultFlags);
 
     // TODO make sure this goes fast
 
@@ -484,17 +500,17 @@ VS_OUTPUT main(const VS_INPUT xInput)
     VS_INPUT xIn = InitializeInputRegisters(xInput);
     
 
-   
      // World + View transform with vertex blending
     View = DoTransform(Get(xIn, position), Get(xIn, normal).xyz, Get(xIn, weight));
     
     // Optionally normalize camera-space normals
-    if (modes.NormalizeNormals)
+    if (ModeNormalizeNormals)
         View.Normal = normalize(View.Normal);
     
+ 
     
     // Projection transform
-    Projection.Position = mul(View.Position, transforms.Projection);
+    Projection.Position = mul(View.Position, TransfoProj);
     // Normal unused...
 
     // Projection transform - final position
@@ -505,10 +521,11 @@ VS_OUTPUT main(const VS_INPUT xInput)
     xOut.oD1 = Get(xIn, specular);
     xOut.oB0 = Get(xIn, backDiffuse);
     xOut.oB1 = Get(xIn, backSpecular);
-
+    
+    
   
     // Vertex lighting
-    if (modes.Lighting) // TODO : Remove this check by incorporating this boolean into the variables used below (set DiffuseMaterialSource to D3DMCS_COLOR1, SpecularMaterialSource to D3DMCS_COLOR2, all other to D3DMCS_MATERIAL and their colors and TotalLightsAmbient to zero, etc)
+    if (ModeLighting) // TODO : Remove this check by incorporating this boolean into the variables used below (set DiffuseMaterialSource to D3DMCS_COLOR1, SpecularMaterialSource to D3DMCS_COLOR2, all other to D3DMCS_MATERIAL and their colors and TotalLightsAmbient to zero, etc)
     {
         // Materials
         Material material = DoMaterial(0, diffuse, specular, xIn);
@@ -521,16 +538,16 @@ VS_OUTPUT main(const VS_INPUT xInput)
         // Frontface
         material.Specular.rgb *= lighting.Specular.Front.xyz;
         material.Diffuse.rgb *= lighting.Diffuse.Front.xyz;
-        material.Ambient.rgb *= TotalLightsAmbient.Front.xyz;
+        material.Ambient.rgb *= TLightColorFront.xyz;
         xOut.oD0 = float4(material.Diffuse.rgb + material.Ambient.rgb + material.Emissive.rgb, material.Diffuse.a);
         xOut.oD1 = float4(material.Specular.rgb, 0);
 
-        if (modes.TwoSidedLighting) // TODO : Same as above, for backface lighting variables
+        if (ModeTwoSidedLighting) // TODO : Same as above, for backface lighting variables
         {
             // Backface
             backMaterial.Specular.rgb *= lighting.Specular.Back.xyz;
             backMaterial.Diffuse.rgb *= lighting.Diffuse.Back.xyz;
-            backMaterial.Ambient.rgb *= TotalLightsAmbient.Back.xyz;
+            backMaterial.Ambient.rgb *= TLightColorBack.xyz;
             xOut.oB0 = float4(backMaterial.Diffuse.rgb + backMaterial.Ambient.rgb + backMaterial.Emissive.rgb, backMaterial.Diffuse.a);
             xOut.oB1 = float4(backMaterial.Specular.rgb, 0);
         }
@@ -548,14 +565,18 @@ VS_OUTPUT main(const VS_INPUT xInput)
     // Point Sprite
     xOut.oPts = DoPointSpriteSize();
 
-    // Texture coordinates
-    xOut.oT0 = DoTexCoord(0, xIn) / xboxTextureScale[0];
-    xOut.oT1 = DoTexCoord(1, xIn) / xboxTextureScale[1];
-    xOut.oT2 = DoTexCoord(2, xIn) / xboxTextureScale[2];
-    xOut.oT3 = DoTexCoord(3, xIn) / xboxTextureScale[3];
-
+    TextureState texArray[4];
+    FillTextureStateArray(texArray);
     
-    //xOut.oPos = xInput.pos;
+    // Texture coordinates
+    xOut.oT0 = DoTexCoord(0, xIn, texArray) / xboxTextureScale(0);
+    xOut.oT1 = DoTexCoord(1, xIn, texArray) / xboxTextureScale(1);
+    xOut.oT2 = DoTexCoord(2, xIn, texArray) / xboxTextureScale(2);
+    xOut.oT3 = DoTexCoord(3, xIn, texArray) / xboxTextureScale(3);
+
+
+
+
     return xOut;
 }
 

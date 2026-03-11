@@ -450,8 +450,14 @@ const uint8_t* CreateRecompiledShader(size_t handle, size_t* outSize)
 	assert(pTokens);
 	// Create a vertex shader from the tokens
 	DWORD shaderSize;
+	const bool isvulkan = is_vulkan();
+	bool exportHLSLFile = false;
 
-	auto pShaderOut = XSR_CreateRecompiledShader(handle, pTokens, &shaderSize, outSize, true);
+#ifdef _DEBUG
+	exportHLSLFile = true;
+#endif
+
+	auto pShaderOut = XSR_CreateRecompiledShader(handle, pTokens, &shaderSize, outSize, isvulkan, exportHLSLFile);
 	return pShaderOut;
 
 }

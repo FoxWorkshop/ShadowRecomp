@@ -30,9 +30,6 @@ struct Transforms
 // See D3DLIGHT
 struct Light
 {
-    // TODO in vs_4_0+ when floats are packable
-    // Change colour values to float3
-    // And put something useful in the alpha slot
     float4 Diffuse;
     float4 Specular;
 
@@ -87,6 +84,7 @@ struct Modes
     float TwoSidedLighting;
     // float SpecularEnable; 
     float LocalViewer;
+    float _pad0;
     // c118.w unused
 
     // c119
@@ -94,6 +92,7 @@ struct Modes
     float VertexBlend_NrOfMatrices;
     float VertexBlend_CalcLastWeight;
     float NormalizeNormals;
+    float _pad1;
     // c119.w unused
 };
 
@@ -132,7 +131,10 @@ struct Fog
     // c121
     float Start; // LINEAR start
     float End; // LINEAR end
+    float _pad0;
+    float _pad1;
 };
+
 
 // Vertex lighting
 // Both frontface and backface lighting can be calculated
@@ -157,32 +159,295 @@ struct FixedFunctionVertexShaderState
 };
 
 
+#ifdef __spirv__
+
+struct PushConstants
+{
+    uint64_t VertexShaderConstants;
+    uint64_t PixelShaderConstants;
+    uint64_t SharedConstants;
+};
+
+[[vk::push_constant]] ConstantBuffer<PushConstants> g_PushConstants;
+
+float4x4 LoadMatrix(uint addr)
+{
+    float4 r0 = vk::RawBufferLoad<float4>(addr + 0);
+    float4 r1 = vk::RawBufferLoad<float4>(addr + 16);
+    float4 r2 = vk::RawBufferLoad<float4>(addr + 32);
+    float4 r3 = vk::RawBufferLoad<float4>(addr + 48);
+    return float4x4(r0,r1,r2,r3);
+}
+
+#define REG(cN) ((cN) * 16)
+#define REG_COMP(c,comp) (REG(c) + (comp)*4)
+#define V_CBUFFER_OFFSET(cN, comp) ((cN)*16 + ((comp) == 'x' ? 0 : (comp) == 'y' ? 4 : (comp) == 'z' ? 8 : 12))
+#define V_ARRAY_OFFSET(cn, slot) ((cn)*16 + (slot)*16)
+#define V_STRUCT_OFFSET(cN, subOffset) (REG(cN) + (subOffset))
+
+// Separate macros for register offsets (converted to bytes) vs array indices
+#define REG_TO_BYTES(cN) ((cN) * 16)
+
+// For single component access within a register
+#define COMP_OFFSET(comp) ((comp) * 4)  // 0, 1, 2, or 3 for x, y, z, w
+
+// For array access where the base is a register number
+#define ARRAY_ELEMENT_BYTES(baseReg, elementIndex) (REG_TO_BYTES(baseReg) + (elementIndex) * 16)
+
+// Updated macros
+#define LOAD_FLOAT(c, comp) \
+    vk::RawBufferLoad<float>(g_PushConstants.VertexShaderConstants + REG_TO_BYTES(c) + COMP_OFFSET(comp))
+
+#define LOAD_FLOAT4(c) \
+    vk::RawBufferLoad<float4>(g_PushConstants.VertexShaderConstants + REG_TO_BYTES(c))
+
+#define vRegisterDefaultValues(i) vk::RawBufferLoad<float4>(g_PushConstants.VertexShaderConstants + 192*16 + (i)*16)
+#define vRegisterDefaultFlagsPacked(i) vk::RawBufferLoad<float4>(g_PushConstants.VertexShaderConstants + 208*16 + (i)*16)
+
+#define TransfoView vk::RawBufferLoad<float4x4>(g_PushConstants.VertexShaderConstants + V_STRUCT_OFFSET(0, 0))
+#define TransfoProj vk::RawBufferLoad<float4x4>(g_PushConstants.VertexShaderConstants + V_STRUCT_OFFSET(4, 0))
+#define TransfoTex(i) vk::RawBufferLoad<float4x4>(g_PushConstants.VertexShaderConstants + V_STRUCT_OFFSET(8, (i)*64))
+#define TransfoWorldView(i)   vk::RawBufferLoad<float4x4>(g_PushConstants.VertexShaderConstants + V_STRUCT_OFFSET(24, (i)*64))
+#define TransfoWorldViewIT(i) vk::RawBufferLoad<float4x4>(g_PushConstants.VertexShaderConstants + V_STRUCT_OFFSET(40, (i)*64))
+
+
+#define PSPointSize \
+vk::RawBufferLoad<float>(g_PushConstants.VertexShaderConstants + V_CBUFFER_OFFSET(126,'x'))
+
+#define PSPointSize_Min \
+vk::RawBufferLoad<float>(g_PushConstants.VertexShaderConstants + V_CBUFFER_OFFSET(126,'y'))
+
+#define PSPointSize_Max \
+vk::RawBufferLoad<float>(g_PushConstants.VertexShaderConstants + V_CBUFFER_OFFSET(126,'z'))
+
+#define PSXboxRenderTargetHeight \
+vk::RawBufferLoad<float>(g_PushConstants.VertexShaderConstants + V_CBUFFER_OFFSET(126,'w'))
+
+#define PSPointScaleABC \
+vk::RawBufferLoad<float4>(g_PushConstants.VertexShaderConstants + V_CBUFFER_OFFSET(127,'x'))
+
+#define LIGHT_STRIDE 96
+
+#define LIGHT_CBASE 56
+#define LIGHT_SIZE_BYTES 96 // 6 float4s * 16
+#define LDiffuse(i)        vk::RawBufferLoad<float4>(g_PushConstants.VertexShaderConstants + (LIGHT_CBASE*16 + (i)*LIGHT_SIZE_BYTES + 0))
+#define LSpecular(i)       vk::RawBufferLoad<float4>(g_PushConstants.VertexShaderConstants + (LIGHT_CBASE*16 + (i)*LIGHT_SIZE_BYTES + 16))
+#define LPositionV(i)      vk::RawBufferLoad<float4>(g_PushConstants.VertexShaderConstants + (LIGHT_CBASE*16 + (i)*LIGHT_SIZE_BYTES + 32))
+#define LDirectionVN(i)    vk::RawBufferLoad<float4>(g_PushConstants.VertexShaderConstants + (LIGHT_CBASE*16 + (i)*LIGHT_SIZE_BYTES + 48))
+#define LAttenuation(i)    vk::RawBufferLoad<float4>(g_PushConstants.VertexShaderConstants + (LIGHT_CBASE*16 + (i)*LIGHT_SIZE_BYTES + 64))
+#define LSpotParams(i)     vk::RawBufferLoad<float4>(g_PushConstants.VertexShaderConstants + (LIGHT_CBASE*16 + (i)*LIGHT_SIZE_BYTES + 80))
+
+#define TLightColorFront vk::RawBufferLoad<float4>(g_PushConstants.VertexShaderConstants + V_STRUCT_OFFSET(104, 0))
+#define TLightColorBack vk::RawBufferLoad<float4>(g_PushConstants.VertexShaderConstants + V_STRUCT_OFFSET(105, 0))
+
+
+#define MAT_STRIDE 80
+
+#define MDiffuse(i) \
+vk::RawBufferLoad<float4>(g_PushConstants.VertexShaderConstants + V_STRUCT_OFFSET(106, (i)*MAT_STRIDE + 0))
+#define MAmbient(i) \
+vk::RawBufferLoad<float4>(g_PushConstants.VertexShaderConstants + V_STRUCT_OFFSET(106, (i)*MAT_STRIDE + 16))
+#define MSpecular(i) \
+vk::RawBufferLoad<float4>(g_PushConstants.VertexShaderConstants + V_STRUCT_OFFSET(106, (i)*MAT_STRIDE + 32))
+#define MEmissive(i) \
+vk::RawBufferLoad<float4>(g_PushConstants.VertexShaderConstants + V_STRUCT_OFFSET(106, (i)*MAT_STRIDE + 48))
+#define MPower(i) \
+vk::RawBufferLoad<float4>(g_PushConstants.VertexShaderConstants + V_STRUCT_OFFSET(106, (i)*MAT_STRIDE + 64))
+
+#define ModeAmbientMaterialSource LOAD_FLOAT(116,0)
+#define ModeDiffuseMaterialSource LOAD_FLOAT(116,1)
+#define ModeSpecularMaterialSource LOAD_FLOAT(116,2)
+#define ModeEmissiveMaterialSource LOAD_FLOAT(116,3)
+
+#define ModeLighting LOAD_FLOAT(118,0)
+#define ModeTwoSidedLighting LOAD_FLOAT(118,1)
+#define ModeLocalViewer LOAD_FLOAT(118,2)
+#define ModeVertexBlend_NrOfMatrices LOAD_FLOAT(119,0)
+#define ModeVertexBlend_CalcLastWeight LOAD_FLOAT(119,1)
+#define ModeNormalizeNormals LOAD_FLOAT(119,2)
+
+
+#define fog vk::RawBufferLoad<Fog>(g_PushConstants.VertexShaderConstants + V_STRUCT_OFFSET(120,0))
+
+#define TexState_TransfoFlagsCount(i) \
+vk::RawBufferLoad<float>(g_PushConstants.VertexShaderConstants + REG(122) + (i)*16 + 0)
+
+#define TexState_TransfoFlagsProj(i) \
+vk::RawBufferLoad<float>(g_PushConstants.VertexShaderConstants + REG(122) + (i)*16 + 4)
+
+#define TexState_TexCoordIndex(i) \
+vk::RawBufferLoad<float>(g_PushConstants.VertexShaderConstants + REG(122) + (i)*16 + 8)
+
+#define TexState_TexCoorIndexGen(i) \
+vk::RawBufferLoad<float>(g_PushConstants.VertexShaderConstants + REG(122) + (i)*16 + 12)
+
+#define TexCoordComponentCount vk::RawBufferLoad<float4>(g_PushConstants.VertexShaderConstants + V_CBUFFER_OFFSET(128, 'x') )
+
+#define xboxScreenspaceScale  vk::RawBufferLoad<float4>(g_PushConstants.VertexShaderConstants + V_CBUFFER_OFFSET(212, 'x') )
+#define xboxScreenspaceOffset  vk::RawBufferLoad<float4>(g_PushConstants.VertexShaderConstants + V_CBUFFER_OFFSET(213, 'x') )
+#define xboxTextureScale(i) vk::RawBufferLoad<float4>(g_PushConstants.VertexShaderConstants +  V_ARRAY_OFFSET(214, i) )
+
+#else
 
 // Default values for vertex registers, and whether to use them
 
 cbuffer VertexShaderConstants : register(b0, space4)
 {
     Transforms transforms : packoffset(c0);
-    Light Lights[8] : packoffset(c56);
+    Light Lights[8] : packoffset(c56); //c56 - c103 (6 * 8 = 48)
 
     TwoSidedColor TotalLightsAmbient : packoffset(c104); // c104 - c105
     Material Materials[2] : packoffset(c106); // c106 - c115
     Modes modes : packoffset(c116); // c116 - c119
     Fog fog : packoffset(c120); // c120 - c121
     TextureState TextureStates[4] : packoffset(c122); // c122 - c125
-    PointSprite pointSprite : packoffset(c126); // c126 - c128
-    float4 TexCoordComponentCount : packoffset(c128); // c129
+    PointSprite pointSprite : packoffset(c126); // c126 - c127
+    float4 texCoordComponentCount : packoffset(c128); // c128
     
     //regular vertex constant
-    float4 vRegisterDefaultValues[16] : packoffset(c192); //vertex attribute (on cxbx it seems to work if those are empty see SetFixedFunctionDefaultVertexAttributes)
-    float4 vRegisterDefaultFlagsPacked[4] : packoffset(c208); // Default values for vertex registers, and whether to use them (see UpdateHostVertexDeclaration function)
+    float4 vRegisterDefaultVal[16] : packoffset(c192); //vertex attribute (on cxbx it seems to work if those are empty see SetFixedFunctionDefaultVertexAttributes)
+    float4 vRegisterDefaultFlagsPack[4] : packoffset(c208); // Default values for vertex registers, and whether to use them (see UpdateHostVertexDeclaration function)
     float4 xboxScreenspaceScale : packoffset(c212);
     float4 xboxScreenspaceOffset : packoffset(c213);
-    float4 xboxTextureScale[4] : packoffset(c214);
+    float4 xboxTextureScl[4] : packoffset(c214);
     
     //float4 randomUVTest : packoffset(c218); //left over debugging keep it in case I need to make another similar test
     
    // float4 FogInfo : packoffset(c218); //Parameters for mapping the shader's fog output value to a fog factor (D3DVS_CONSTREG_FOGINFO)  
+}
+
+#define TransfoView transforms.View
+#define TransfoProj transforms.Projection
+#define TransfoTex(i) transforms.Texture[i]
+#define TransfoWorldView(i) transforms.WorldView[i]
+#define TransfoWorldViewIT(i) transforms.WorldViewInverseTranspose[i]
+
+#define TLightColorBack TotalLightsAmbient.Back
+#define TLightColorFront TotalLightsAmbient.Front
+
+#define ModeAmbientMaterialSource modes.AmbientMaterialSource
+#define ModeDiffuseMaterialSource modes.DiffuseMaterialSource
+#define ModeSpecularMaterialSource modes.SpecularMaterialSource
+#define ModeEmissiveMaterialSource modes.EmissiveMaterialSource
+
+
+#define ModeTwoSidedLighting modes.TwoSidedLighting
+#define ModeLocalViewer modes.LocalViewer
+#define ModeVertexBlend_NrOfMatrices modes.VertexBlend_NrOfMatrices
+#define ModeVertexBlend_CalcLastWeight modes.VertexBlend_CalcLastWeight
+#define ModeNormalizeNormals modes.NormalizeNormals
+#define ModeLighting modes.Lighting
+
+#define TexCoordComponentCount texCoordComponentCount
+
+
+#define vRegisterDefaultValues(i) vRegisterDefaultVal[i]
+#define vRegisterDefaultFlagsPacked(i) vRegisterDefaultFlagsPack[i]
+#define xboxTextureScale(i) xboxTextureScl[i]
+
+
+#endif
+
+void UnpackRegisterDefaultFlags(out bool flags[16])
+{
+    float4 packed0 = vRegisterDefaultFlagsPacked(0);
+    float4 packed1 = vRegisterDefaultFlagsPacked(1);
+    float4 packed2 = vRegisterDefaultFlagsPacked(2);
+    float4 packed3 = vRegisterDefaultFlagsPacked(3);
+
+    flags[0] = packed0.x;
+    flags[1] = packed0.y;
+    flags[2] = packed0.z;
+    flags[3] = packed0.w;
+
+    flags[4] = packed1.x;
+    flags[5] = packed1.y;
+    flags[6] = packed1.z;
+    flags[7] = packed1.w;
+
+    flags[8] = packed2.x;
+    flags[9] = packed2.y;
+    flags[10] = packed2.z;
+    flags[11] = packed2.w;
+
+    flags[12] = packed3.x;
+    flags[13] = packed3.y;
+    flags[14] = packed3.z;
+    flags[15] = packed3.w;
+}
+
+void FillLightArray(out Light lightsArray[8])
+{
+#ifdef __spirv__
+    
+    for (uint i = 0; i < 8; i++)
+    {
+        lightsArray[i].Diffuse = LDiffuse(i);
+        lightsArray[i].Specular = LSpecular(i);
+        lightsArray[i].PositionV = LPositionV(i);
+        lightsArray[i].DirectionVN = LDirectionVN(i);
+        lightsArray[i].Attenuation = LAttenuation(i);
+        lightsArray[i].SpotParams = LSpotParams(i);
+    
+    }
+
+    
+#else   
+    lightsArray = Lights;
+ #endif
+}
+
+void FillMaterialArray(out Material matArray[2])
+{
+#ifdef __spirv__
+    
+    for (uint i = 0; i < 2; i++)
+    {
+        matArray[i].Diffuse = MDiffuse(i);
+        matArray[i].Ambient = MAmbient(i);
+        matArray[i].Specular = MSpecular(i);
+        matArray[i].Emissive = MEmissive(i);
+        matArray[i].Power = MPower(i);
+    }
+
+    
+#else   
+    matArray = Materials;
+ #endif
+}
+
+
+void FillTextureStateArray(out TextureState texArray[4])
+{
+#ifdef __spirv__
+    
+    for (uint i = 0; i < 4; i++)
+    {
+        texArray[i].TextureTransformFlagsCount = TexState_TransfoFlagsCount(i);
+        texArray[i].TextureTransformFlagsProjected = TexState_TransfoFlagsProj(i);
+        texArray[i].TexCoordIndex = TexState_TexCoordIndex(i);
+        texArray[i].TexCoordIndexGen = TexState_TexCoorIndexGen(i);
+    } 
+#else   
+    texArray = TextureStates;
+ #endif
+}
+
+PointSprite GetPointSprite()
+{
+#ifdef __spirv__
+    PointSprite pr; 
+    pr.PointSize = PSPointSize;
+    pr.PointSize_Min = PSPointSize_Min;
+    pr.PointSize_Max = PSPointSize_Max;
+    pr.XboxRenderTargetHeight = PSXboxRenderTargetHeight;
+    pr.PointScaleABC = PSPointScaleABC;
+    
+    return pr;
+   
+#else
+    return pointSprite;
+#endif
 }
 
 // Input register indices (also known as attributes, as given in VS_INPUT.v array)
