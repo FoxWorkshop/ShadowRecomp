@@ -5,6 +5,7 @@
 #include <stdafx.h>
 #include <iostream>
 #include <audio/audio.h>
+#include <os/logger.h>
 
 //Original code from Unleashed Recomp, O.G Xbox uses similar file / write operation functions than Xbox 360.
 
@@ -111,7 +112,7 @@ FileHandle* XCreateFile_r(const char* SourceString, ULONG CreateDisposition, ULO
 	std::ios::openmode fileOpenMode = std::ios::binary;
 	if (CreateDisposition_ == FILE_OPEN || CreateDisposition_ == FILE_OPEN_IF)
 	{
-		logs.LogFile("Loading", filePath.c_str());
+		os::logger::LogFile("Loading", filePath.c_str());
 		fileOpenMode |= std::ios::in;
 	}
 	else

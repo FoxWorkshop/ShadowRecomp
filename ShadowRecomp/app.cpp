@@ -2,18 +2,27 @@
 #include <gpu/video.h>
 #include <kernel/function.h>
 #include <ui/game_window.h>
+#include <os/process.h>
 #include <user/config.h>
 #include <audio/audio.h>
 #include <volk.h>
+#include <user/config.h>
+#include <user/paths.h>
+#include <user/registry.h>
 
 static std::thread::id g_mainThreadId = std::this_thread::get_id();
+
+void App::Restart(std::vector<std::string> restartArgs)
+{
+	os::process::StartProcess(os::process::GetExecutablePath(), restartArgs, os::process::GetWorkingDirectory());
+	Exit();
+}
 
 void App::Exit()
 {
 
-	SDL_Quit();
-
-	//Config::Save();
+	AudioQuit();
+	Config::Save();
 
 #ifdef _WIN32
 	timeEndPeriod(1);
@@ -22,6 +31,8 @@ void App::Exit()
 	std::_Exit(0);
 
 }
+
+
 int Window_OnSDLEvent(void*, SDL_Event* event);
 
 //main game loop
@@ -43,6 +54,20 @@ X86_FUNC(sub_57630)
 	App::s_time += App::s_deltaTime;
 
 	__imp__sub_57630(ctx, base);
+	//std::this_thread::sleep_for(std::chrono::milliseconds(16));
+
+}
+
+X86_FUNC_IMPL(__imp__sub_11AD0);
+X86_FUNC(sub_11AD0)
+{
+	App::s_isInit = true;
+	App::s_language = Config::Language;
+
+	
+	Registry::Save();
+
+	__imp__sub_11AD0(ctx, base);
 }
 
 std::atomic<bool> shouldQuit = false; 
@@ -62,5 +87,7 @@ void UpdateSDLEventsMidAsmHook()
 			SDL_FlushEvents(SDL_FIRSTEVENT, SDL_LASTEVENT);
 			GameWindow::Update();
 		}
+
+		//std::this_thread::sleep_for(std::chrono::milliseconds(16));
 	}
 }

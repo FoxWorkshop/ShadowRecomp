@@ -174,11 +174,11 @@ struct Light {
 	XMFLOAT4 Specular;
 
 	// Viewspace light position Range in posW
-	 D3DVECTOR4 PositionV;
+	D3DVECTOR4 PositionV;
 	// alignas(16) float Range;
 
 	 // Viewspace light direction (normalized) - type in directionW
-	 D3DVECTOR4 DirectionVN;
+	D3DVECTOR4 DirectionVN;
 	// alignas(16) float Type; // 1=Point, 2=Spot, 3=Directional
 
 	D3DVECTOR4 Attenuation; //fall off in W
@@ -217,15 +217,19 @@ struct Modes
 	float TwoSidedLighting;
 	// float SpecularEnable; 
 	float LocalViewer;
-	// c118.w unused
+	float _pad0; 	// c118.w unused
+
 
 	// c119
 	// float ColorVertex;
 	float VertexBlend_NrOfMatrices;
 	float VertexBlend_CalcLastWeight;
 	float NormalizeNormals;
-	// c119.w unused
+	float _pad1; 	// c119.w unused
+
 };
+
+static_assert(sizeof(Modes) == 64);
 
 struct Fog
 {
@@ -237,7 +241,12 @@ struct Fog
 	// c121
 	float Start; // LINEAR start
 	float End; // LINEAR end
+	float _pad0;
+	float _pad1;
 };
+
+static_assert(sizeof(Fog) == 32);
+
 
 struct TextureState
 {
@@ -246,6 +255,8 @@ struct TextureState
 	float TexCoordIndex;
 	float TexCoordIndexGen;
 };
+
+static_assert(sizeof(TextureState) == 16);
 
 struct PointSprite
 {
@@ -260,18 +271,23 @@ struct PointSprite
 	//alignas(16) float RenderUpscaleFactor;
 };
 
+static_assert(sizeof(PointSprite) == 32);
+
 struct FixedFunctionVertexShaderState
 {
-	alignas(16) Transforms Transforms;
-	alignas(16) Light Lights[8];
-	alignas(16) TwoSidedColor TotalLightsAmbient; // c104 - c105
-	alignas(16) Material Materials[2]; // c106 - c115
-	alignas(16) Modes Modes; // c116 - c119
-	alignas(16) Fog Fog; // c120 - c121
-	alignas(16) TextureState TextureStates[4]; // c122 - c125;
-	alignas(16) PointSprite PointSprite; // c126 - c128
-	alignas(16) float TexCoordComponentCount[4]; // c129
+	Transforms Transforms;
+	Light Lights[8];
+	TwoSidedColor TotalLightsAmbient; // c104 - c105
+	Material Materials[2]; // c106 - c115
+	Modes Modes; // c116 - c119
+	Fog Fog; // c120 - c121
+	TextureState TextureStates[4]; // c122 - c125;
+	PointSprite PointSprite; // c126 - c127
+	float TexCoordComponentCount[4]; // c128
 };
+
+
+static_assert(sizeof(FixedFunctionVertexShaderState) == 2064);
 
 FixedFunctionVertexShaderState ffShaderState = {};
 extern int32_t* g_texture_stage_states;
@@ -293,7 +309,7 @@ void UpdateLightData(uint32_t index, X_D3DLIGHT8* pLight)
 }
 
 void UpdateFixedFunctionShaderLight(int d3dLightIndex, Light* pShaderLight, DirectX::XMFLOAT4* pLightAmbient) {
-	if (d3dLightIndex == -1) 
+	if (d3dLightIndex == -1)
 	{
 		pShaderLight->DirectionVN.w = 0; // Disable the light
 		return;
@@ -431,6 +447,11 @@ void UpdateFixedFunctionVertexShaderState(size_t Handle, bool isPSFixed)
 	if (VertexBlend > X_D3DVBF_4WEIGHTS4MATRICES)
 		printf("X_D3DRS_VERTEXBLEND out of range\n");
 
+	// Note DX12 expects matrix to be column major for HLSL so we convert them with Transpose
+	// however this breaks Vulkan when multiplication with matrix and vector are involved,
+	// so make sure to not transpose if vulkan is used.
+	const bool vulkan = is_vulkan();
+
 	// Calculate the number of matrices, by adding the LSB to turn (0,1,3,5) and (0,2,4,6) into (0,2,4,6); Then divide by 2 to get (0,1,2,3), and add 1 to get 1, 2, 3 or 4 matrices :
 	auto NrBlendMatrices = ((VertexBlend + (VertexBlend & 1)) / 2) + 1;
 	// Looking at the above values, 0 or the LSB of VertexBlend signals that the final weight needs to be calculated from all previous weigths (deducting them all from an initial 1) :
@@ -440,20 +461,20 @@ void UpdateFixedFunctionVertexShaderState(size_t Handle, bool isPSFixed)
 	ffShaderState.Modes.VertexBlend_CalcLastWeight = (float)CalcLastBlendWeight;
 
 	// Transforms
-	// Transpose row major to column major for HLSL
+	// Transpose row major to column major for HLSL (unless Vulkan is used as explained above).
 	XMMATRIX projection = XMLoadFloat4x4((XMFLOAT4X4*)&g_Transforms[X_D3DTS_PROJECTION]); //first we read the projection matrix
-	XMMATRIX projectionT = XMMatrixTranspose(projection); //then we transpose it
+	XMMATRIX projectionT = vulkan ? projection : XMMatrixTranspose(projection); //then we transpose it
 	XMStoreFloat4x4((XMFLOAT4X4*)&ffShaderState.Transforms.Projection, projectionT); //finally we store it (overwrite previous data if any)
 
 	XMMATRIX view = XMLoadFloat4x4((XMFLOAT4X4*)&g_Transforms[X_D3DTS_VIEW]);
-	XMMATRIX viewT = XMMatrixTranspose(view);
+	XMMATRIX viewT = vulkan ? view : XMMatrixTranspose(view);
 	XMStoreFloat4x4((XMFLOAT4X4*)&ffShaderState.Transforms.View, viewT);
 
 	for (unsigned i = 0; i < 4; i++)
 	{ // TODO : Would it help to limit this to just the active texture channels?
 
 		XMMATRIX transfoTexture = XMLoadFloat4x4((XMFLOAT4X4*)&g_Transforms[X_D3DTS_TEXTURE0 + i]);
-		XMMATRIX transfoTextureT = XMMatrixTranspose(transfoTexture);
+		XMMATRIX transfoTextureT = vulkan ? transfoTexture : XMMatrixTranspose(transfoTexture);
 		XMStoreFloat4x4((XMFLOAT4X4*)&ffShaderState.Transforms.Texture[i], transfoTextureT);
 	}
 
@@ -461,11 +482,11 @@ void UpdateFixedFunctionVertexShaderState(size_t Handle, bool isPSFixed)
 	{
 
 		XMMATRIX transfoWorldView = XMLoadFloat4x4((XMFLOAT4X4*)GetWorldView(i));
-		XMMATRIX transfoWorldViewT = XMMatrixTranspose(transfoWorldView);
+		XMMATRIX transfoWorldViewT = vulkan ? transfoWorldView : XMMatrixTranspose(transfoWorldView);
 		XMStoreFloat4x4((XMFLOAT4X4*)&ffShaderState.Transforms.WorldView[i], transfoWorldViewT);
 
 		XMMATRIX WorldViewInverseTranspose = XMLoadFloat4x4((XMFLOAT4X4*)GetWorldViewInverseTranspose(i));
-		XMMATRIX WorldViewInverseTransposeT = XMMatrixTranspose(WorldViewInverseTranspose);
+		XMMATRIX WorldViewInverseTransposeT = vulkan ? WorldViewInverseTranspose : XMMatrixTranspose(WorldViewInverseTranspose);
 		XMStoreFloat4x4((XMFLOAT4X4*)&ffShaderState.Transforms.WorldViewInverseTranspose[i], WorldViewInverseTransposeT);
 	}
 
@@ -528,14 +549,14 @@ void UpdateFixedFunctionVertexShaderState(size_t Handle, bool isPSFixed)
 
 		if (GetGuestRenderState(X_D3DRS_RANGEFOGENABLE))
 		{
-			printf("Using RANGE fog\n");
+		
 			ffShaderState.Fog.DepthMode = FixedFunctionVertexShader::FOG_DEPTH_RANGE;
 		}
 		else if (proj->_14 == 0 &&
 			proj->_24 == 0 &&
 			proj->_34 == 0 &&
 			proj->_44 == 1) {
-			printf("Using Z fog\n");
+	
 			ffShaderState.Fog.DepthMode = FixedFunctionVertexShader::FOG_DEPTH_Z;
 		}
 		else {
@@ -614,675 +635,3 @@ void UpdateFixedFunctionVertexShaderState(size_t Handle, bool isPSFixed)
 
 }
 
-//shader debug
-
-#include <iostream>
-struct float4 {
-	float x, y, z, w;
-
-	float4() : x(0), y(0), z(0), w(0) {}
-	float4(float x_, float y_, float z_, float w_) : x(x_), y(y_), z(z_), w(w_) {}
-	float4(float val) : x(val), y(val), z(val), w(val) {}
-
-	float& operator[](int index) {
-		switch (index) {
-		case 0: return x;
-		case 1: return y;
-		case 2: return z;
-		case 3: return w;
-		default: assert(false); return x;
-		}
-	}
-
-	float4 operator+(const float4& rhs) const
-	{
-		return { x + rhs.x, y + rhs.y, z + rhs.z, w + rhs.w };
-	}
-
-	float4 operator*(float s) const
-	{
-		return { x * s, y * s, z * s, w * s };
-	}
-
-	static inline float4 mul(const float4& a, const float4& b)
-	{
-		return float4{ a.x * b.x, a.y * b.y, a.z * b.z, a.w * b.w };
-	}
-
-	static inline float4 add(const float4& a, const float4& b)
-	{
-		return float4{ a.x + b.x, a.y + b.y, a.z + b.z, a.w + b.w };
-	}
-
-	static inline float4 scale(float s, const float4& v)
-	{
-		return float4{ s * v.x, s * v.y, s * v.z, s * v.w };
-	}
-};
-
-
-float dot4(const float4& a, const float4& b) {
-	return a.x * b.x + a.y * b.y + a.z * b.z + a.w * b.w;
-}
-
-struct BoneRows
-{
-	float4 r0;
-	float4 r1;
-	float4 r2;
-};
-
-extern uint32_t vsh_constants[HOST_D3DVS_CONSTREG_FULL][4];
-static float4 c(int register_number)
-{
-	// Map Xbox [-96, 95] to Host [0, 191]
-	// Account for Xbox's negative constant indexes
-	register_number += X_D3DSCM_CORRECTION;
-
-	// If the index is too large, set it to -1 so 0 is returned
-	// Note: returning 0 directly requires many more instructions
-	if (register_number >= X_D3DVS_CONSTREG_COUNT) // X_D3DVS_CONSTREG_COUNT
-		register_number = -1;
-
-	float4 constants = { *reinterpret_cast<const float*>(&vsh_constants[register_number][0]), *reinterpret_cast<const float*>(&vsh_constants[register_number][1]),
-		*reinterpret_cast<const float*>(&vsh_constants[register_number][2]), *reinterpret_cast<const float*>(&vsh_constants[register_number][3]) };
-
-	return constants;
-}
-
-
-inline BoneRows fetchBone(int boneIndex)
-{
-	// boneIndex comes directly from v2.x or v2.y
-	BoneRows b;
-	b.r0 = c(boneIndex - 88);
-	b.r1 = c(boneIndex - 87);
-	b.r2 = c(boneIndex - 86);
-	return b;
-}
-
-// VB0 structure (position, normal, UV)
-struct MeshVertex {
-	float pos[3];      // v0 in shader
-	float normal[3];   // v3 in shader
-	float uv[2];       // v5 in shader
-};
-
-// VB1 structure (weights and bone indices)
-struct SkinVertex {
-	uint8_t weights[4];      // v1 in shader (normalized 0-255)
-	uint16_t boneIndices[2]; // v2 in shader
-};
-
-
-float4 deformPosition(
-	const MeshVertex& mesh,
-	const SkinVertex& skin)
-{
-	// Input position (v0)
-	float4 v0(mesh.pos[0], mesh.pos[1], mesh.pos[2], 1.0f);
-
-	// Weights are normalized bytes
-	float w0 = skin.weights[0] / 255.0f; // v1.x
-	float w1 = skin.weights[1] / 255.0f; // v1.y
-
-	// Bone indices (v2.x, v2.y)
-	int bone0 = skin.boneIndices[0];
-	int bone1 = skin.boneIndices[1];
-
-	// Fetch bone matrices
-	BoneRows b0 = fetchBone(bone0);
-	BoneRows b1 = fetchBone(bone1);
-
-	// Weighted bone rows
-	float4 r0 =
-		b0.r0 * w0 +
-		b1.r0 * w1;
-
-	float4 r1 =
-		b0.r1 * w0 +
-		b1.r1 * w1;
-
-	float4 r2 =
-		b0.r2 * w0 +
-		b1.r2 * w1;
-
-	// Transform position (dp4)
-	float4 skinned;
-	skinned.x = dot4(v0, r0);
-	skinned.y = dot4(v0, r1);
-	skinned.z = dot4(v0, r2);
-	skinned.w = 1.0f;
-
-	return skinned;
-}
-
-float4 projectPosition(const float4& skinned)
-{
-	float4 clip;
-	clip.x = dot4(skinned, c(-95));
-	clip.y = dot4(skinned, c(-94));
-	clip.z = dot4(skinned, c(-93));
-	clip.w = dot4(skinned, c(-92));
-	return clip;
-}
-
-
-inline float dot3(const float4& a, const float4& b)
-{
-	return a.x * b.x + a.y * b.y + a.z * b.z;
-}
-
-float4 processVertex(
-	const MeshVertex& mesh,
-	const SkinVertex& skin)
-{
-	float4 skinned = deformPosition(mesh, skin);
-	return projectPosition(skinned);
-}
-
-struct int1 {
-	int x;
-	int1(int val = 0) : x(val) {}
-};
-
-// Helper functions matching the shader macros
-float4 _tof4(float src) { return float4(src, src, src, src); }
-float4 _tof4(const float4& src) { return src; }
-float4 _ssss(float s) { return float4(s, s, s, s); }
-float _scalar(const float4& src) { return src.x; }
-
-float4 x_floor(const float4& src) {
-	return float4(std::floor(src.x), std::floor(src.y), std::floor(src.z), std::floor(src.w));
-}
-
-// Shader instruction implementations
-void x_arl(int1& dest, char mask, const float4& src0) {
-	float4 floored = x_floor(_tof4(src0));
-	if (strchr(&mask, 'x')) dest.x = (int)floored.x;
-	// Add other mask components if needed
-}
-
-void x_mov(float4& dest, const char* mask, const float4& src0) {
-	float4 src = _tof4(src0);
-	for (int i = 0; i < strlen(mask); i++) {
-		switch (mask[i]) {
-		case 'x': dest.x = src.x; break;
-		case 'y': dest.y = src.y; break;
-		case 'z': dest.z = src.z; break;
-		case 'w': dest.w = src.w; break;
-		}
-	}
-}
-
-void x_mul(float4& dest, const char* mask, const float4& src0, const float4& src1) {
-	float4 result;
-	float4 s0 = _tof4(src0);
-	float4 s1 = _tof4(src1);
-	result.x = s0.x * s1.x;
-	result.y = s0.y * s1.y;
-	result.z = s0.z * s1.z;
-	result.w = s0.w * s1.w;
-
-	for (int i = 0; i < strlen(mask); i++) {
-		switch (mask[i]) {
-		case 'x': dest.x = result.x; break;
-		case 'y': dest.y = result.y; break;
-		case 'z': dest.z = result.z; break;
-		case 'w': dest.w = result.w; break;
-		}
-	}
-}
-
-void x_mad(float4& dest, const char* mask, const float4& src0, const float4& src1, const float4& src2) {
-	float4 result;
-	float4 s0 = _tof4(src0);
-	float4 s1 = _tof4(src1);
-	float4 s2 = _tof4(src2);
-	result.x = s0.x * s1.x + s2.x;
-	result.y = s0.y * s1.y + s2.y;
-	result.z = s0.z * s1.z + s2.z;
-	result.w = s0.w * s1.w + s2.w;
-
-	for (int i = 0; i < strlen(mask); i++) {
-		switch (mask[i]) {
-		case 'x': dest.x = result.x; break;
-		case 'y': dest.y = result.y; break;
-		case 'z': dest.z = result.z; break;
-		case 'w': dest.w = result.w; break;
-		}
-	}
-}
-
-void x_dp3(float4& dest, const char* mask, const float4& src0, const float4& src1) {
-	float4 s0 = _tof4(src0);
-	float4 s1 = _tof4(src1);
-	float dot_result = s0.x * s1.x + s0.y * s1.y + s0.z * s1.z;
-	float4 result = _ssss(dot_result);
-
-	for (int i = 0; i < strlen(mask); i++) {
-		switch (mask[i]) {
-		case 'x':
-			dest.x = result.x;
-			break;
-		case 'y':
-			dest.y = result.y;
-			break;
-		case 'z':
-			dest.z = result.z;
-			break;
-		case 'w':
-			dest.w = result.w;
-			break;
-		}
-	}
-}
-
-void x_dp4(float4& dest, const char* mask, const float4& src0, const float4& src1) {
-	float4 s0 = _tof4(src0);
-	float4 s1 = _tof4(src1);
-	float dot_result = s0.x * s1.x + s0.y * s1.y + s0.z * s1.z + s0.w * s1.w;
-	float4 result = _ssss(dot_result);
-
-	for (int i = 0; i < strlen(mask); i++) {
-		switch (mask[i]) {
-		case 'x': dest.x = result.x; break;
-		case 'y': dest.y = result.y; break;
-		case 'z': dest.z = result.z; break;
-		case 'w': dest.w = result.w; break;
-		}
-	}
-}
-
-float _rsq(float src) {
-	float a = std::abs(src);
-	std::cout << "[RSQ] Input: " << src << ", abs: " << a << std::endl;
-
-	// TODO: Enable special cases if needed
-	// if (a == 1.0f) return 1.0f;
-	// if (a == 0.0f) return std::numeric_limits<float>::infinity();
-
-	float result = 1.0f / std::sqrt(a);
-	std::cout << "[RSQ] Result: " << result << std::endl;
-	return result;
-}
-
-void x_rsq(float4& dest, const char* mask, const float4& src0) {
-	float scalar_src = _scalar(src0);
-	float4 result = _ssss(_rsq(scalar_src));
-
-	for (int i = 0; i < strlen(mask); i++) {
-		switch (mask[i]) {
-		case 'x': dest.x = result.x; break;
-		case 'y': dest.y = result.y; break;
-		case 'z': dest.z = result.z; break;
-		case 'w': dest.w = result.w; break;
-		}
-	}
-}
-
-
-// Linear interpolation function (matches HLSL lerp)
-float4 lerp(const float4& a, const float4& b, float t) {
-	return float4(
-		a.x * (1 - t) + b.x * t,
-		a.y * (1 - t) + b.y * t,
-		a.z * (1 - t) + b.z * t,
-		a.w * (1 - t) + b.w * t
-	);
-}
-
-// Debug function to print float4
-void print_float4(const char* name, const float4& vec) {
-	std::cout << name << ": (" << vec.x << ", " << vec.y << ", " << vec.z << ", " << vec.w << ")" << std::endl;
-}
-
-void debug_dp3(const std::string& name, const float4& src0, const float4& src1, const float4& result) {
-	std::cout << "[DP3] " << name << ": dot(("
-		<< src0.x << "," << src0.y << "," << src0.z << "), ("
-		<< src1.x << "," << src1.y << "," << src1.z << ")) = "
-		<< result.x << std::endl;
-}
-
-
-
-static int16_t GetCorrectedNumber(int register_number)
-{
-	register_number += X_D3DSCM_CORRECTION;
-
-	// If the index is too large, set it to -1 so 0 is returned
-	// Note: returning 0 directly requires many more instructions
-	if (register_number >= X_D3DVS_CONSTREG_COUNT) // X_D3DVS_CONSTREG_COUNT
-		register_number = -1;
-
-	return register_number;
-}
-
-float4 reverseScreenspaceTransform(float4 oPos)
-{
-	// On Xbox, oPos should contain the vertex position in screenspace
-	// We need to reverse this transformation
-	// Conventionally, each Xbox Vertex Shader includes instructions like this
-	// mul oPos.xyz, r12, c-38
-	// +rcc r1.x, r12.w
-	// mad oPos.xyz, r12, r1.x, c-37
-	// where c-37 and c-38 are reserved transform values
-
-	// oPos.w and xboxViewportScale.z might be VERY big when a D24 depth buffer is used
-	// and multiplying oPos.xyz by oPos.w may cause precision issues.
-
-	float4 xboxScreenspaceOffset = { 256, -256, 1.67772E+07f, 1.0f };
-	float4 xboxScreenspaceScale = { 256.50, 256.50, 0, 0 };
-	// Reverse screenspace offset
-	oPos.x -= xboxScreenspaceOffset.x;
-	oPos.y -= xboxScreenspaceOffset.y;
-	oPos.z -= xboxScreenspaceOffset.z;
-	oPos.w -= xboxScreenspaceOffset.w;
-	// Reverse screenspace scale
-	oPos.x /= xboxScreenspaceScale.x;
-	oPos.y /= xboxScreenspaceScale.y;
-	oPos.z /= xboxScreenspaceScale.z;
-	oPos.w /= xboxScreenspaceScale.w;
-
-
-	// Ensure w is nonzero
-	if (oPos.w == 0)
-		oPos.w = 1;
-	// Reverse perspective divide
-	oPos.x *= oPos.w;
-	oPos.y *= oPos.w;
-	oPos.z *= oPos.w;
-
-	return oPos;
-}
-
-
-#define BIAS 0.001
-
-float x_floor(float src)
-{
-	return floor(src + BIAS);
-}
-
-#define x_arl(dest, src0) dest = x_floor(src0)
-
-// Simulate the exact shader skinning calculation for vertex 988
-
-void SimulateVertexSkinning(int vertexIndex, uint8_t* vb0Data, uint8_t* vb1Data)
-{
-
-	MeshVertex* meshVert = &((MeshVertex*)vb0Data)[vertexIndex];
-	SkinVertex* skinVert = &((SkinVertex*)vb1Data)[vertexIndex];
-
-	printf("\n=== Simulating Vertex %d ===\n", vertexIndex);
-
-	float4 clip = processVertex(*meshVert, *skinVert);
-
-	printf("After Projection (clip) %f, %f, %f, %f\n", clip.x, clip.y, clip.z, clip.w);
-
-	float rcpW = 1.0f / clip.w;  // x_rcc
-
-	float4 screen;
-	screen.x = clip.x * rcpW + c(-96).x;  // c(-96) = c(0)
-	screen.y = clip.y * rcpW + c(-96).y;
-	screen.z = clip.z * rcpW + c(-96).z;
-	screen.w = clip.w;
-
-	printf("After perspective+viewport (screen): %.3f, %.3f, %.3f, %.3f\n",
-		screen.x, screen.y, screen.z, screen.w);
-
-
-}
-
-
-void LogAllBonesConstants(uint8_t* vb1Data)
-{
-	for (int i = 0; i < 1126; i++)
-	{
-
-		// VB1 structure (weights and bone indices)
-		struct SkinVertex {
-			uint8_t weights[4];      // v1 in shader (normalized 0-255)
-			uint16_t boneIndices[2]; // v2 in shader
-		};
-
-
-		SkinVertex* skinVert = &((SkinVertex*)vb1Data)[i];
-
-
-		float4 v2 = {
-			(float)skinVert->boneIndices[0],
-			(float)skinVert->boneIndices[1],
-			0.0f, 0.0f
-		};
-
-
-		// Simulate shader: x_arl(a0, x, v2.x)
-		int a0 = (int)floor(v2.x + 0.001f);
-
-		// Get bone 0 matrix constants
-		int c0_idx = a0;
-		auto constantA = GetCorrectedNumber(c0_idx - 88);
-		auto constantB = GetCorrectedNumber(c0_idx - 87);
-		auto constantC = GetCorrectedNumber(c0_idx - 86);
-
-		printf("Bone %d: (constants ID used: %d, %d, %d):\n", a0, constantA, constantB, constantC);
-
-		// Simulate shader: x_arl(a0, x, v2.y)
-		auto a1 = (int)floor(v2.y + 0.001f);
-		// Get bone 1 matrix constants
-		int c1_idx = a1;
-		constantA = GetCorrectedNumber(c1_idx - 88);
-		constantB = GetCorrectedNumber(c1_idx - 87);
-		constantC = GetCorrectedNumber(c1_idx - 86);
-
-		printf("Bone %d: (constants ID used: %d, %d, %d):\n", c1_idx, constantA, constantB, constantC);
-
-	}
-
-	printf("");
-}
-
-
-void RunDebuggingShader(uint8_t* vertexData, uint8_t* vertexData2)
-{
-	return;
-
-	struct vbuffer {
-		uint8_t weights[4];
-		uint16_t bonesIndices[2];
-	};
-
-	float4 rawVertexData[3];
-	float4 rawVertexData2[2];
-
-	float* pos = (float*)vertexData;
-	float* normals = (float*)(vertexData + 12);
-	float* uv = (float*)(vertexData + 24);
-
-
-	rawVertexData[0] = { pos[0], pos[1], pos[2], 1.0f };
-	rawVertexData[1] = { normals[0], normals[1],normals[2], 0.0f}; //{ *reinterpret_cast<const float*>(&color[0]),  *reinterpret_cast<const float*>(&color[1]), *reinterpret_cast<const float*>(&color[2]), 1 };
-	rawVertexData[2] = { uv[0], uv[1], 0.0f, 1.0f };
-
-	vbuffer* vb = (vbuffer*)vertexData2;
-	uint8_t weight_data[4] = { vb[0].weights[0], vb[0].weights[1], vb[0].weights[2], vb[0].weights[3] };
-	int16_t* indices = (int16_t*)(vertexData2 + 4);
-	int16_t blendIndices[2] = { indices[0], indices[1] };
-
-	// Simulate vertex shader execution
-	std::vector<float4> vs_consts;
-	vs_consts.reserve(192);
-	std::vector<float4> vRegisterDefaultValues;
-	vRegisterDefaultValues.reserve(16);
-	std::vector<float> vRegisterDefaultFlags(16, 0.0f); 
-
-	for (int i = 0; i < 192; i++)
-	{
-		float4 val = {
-	*reinterpret_cast<const float*>(&vsh_constants[i][0]),
-	*reinterpret_cast<const float*>(&vsh_constants[i][1]),
-	*reinterpret_cast<const float*>(&vsh_constants[i][2]),
-	*reinterpret_cast<const float*>(&vsh_constants[i][3])
-		};
-
-		vs_consts.push_back(val);
-	}
-
-	for (int i = 192; i < 208; i++)
-	{
-		int index = i;
-		float4 val = {
-	*reinterpret_cast<const float*>(&vsh_constants[index][0]),
-	*reinterpret_cast<const float*>(&vsh_constants[index][1]),
-	*reinterpret_cast<const float*>(&vsh_constants[index][2]),
-	*reinterpret_cast<const float*>(&vsh_constants[index][3])
-		};
-
-		vRegisterDefaultValues.push_back(val);
-	}
-
-	for (int i = 208; i < 208 + 4; i++)
-	{
-		int index = i;
-		float4 val = {
-	*reinterpret_cast<const float*>(&vsh_constants[index][0]),
-	*reinterpret_cast<const float*>(&vsh_constants[index][1]),
-	*reinterpret_cast<const float*>(&vsh_constants[index][2]),
-	*reinterpret_cast<const float*>(&vsh_constants[index][3])
-		};
-
-		vRegisterDefaultFlags.push_back(val[0]);
-		vRegisterDefaultFlags.push_back(val[1]);
-		vRegisterDefaultFlags.push_back(val[2]);
-		vRegisterDefaultFlags.push_back(val[3]);
-	}
-
-	// Initialize vertex registers using lerp (conditional based on flags)
-	std::vector<float4> v(16);
-	std::cout << "\n=== Initializing vertex registers ===" << std::endl;
-
-	// Input registers
-	float4 v0, v1, v2, v3, v4, v5, v6, v7, v8, v9, v10, v11, v12, v13, v14, v15;
-
-
-	for (int i = 0; i < 5; i++)
-	{
-		float4 j = { (float)vb[i].bonesIndices[0], (float)vb[i].bonesIndices[1], 0.f, 0.f};
-		v2 = lerp(j, vRegisterDefaultValues[2], vRegisterDefaultFlags[2]);
-
-		int b0 = 0;
-		x_arl(b0, v2.x);
-		int b1 = 0;
-		x_arl(b1, v2.y);
-
-		printf("[%d]:\n", i);
-		printf("boneIndex (a0.x): %d\n", b0);
-
-		printf("Constants used:\n");
-		float4 const0 = c(b0 - 88);
-		printf("-88 (%d) - %f %f %f %f\n", GetCorrectedNumber(b0 - 88), const0.x, const0.y, const0.z, const0.w);
-		
-		const0 = c(b0 - 87);
-		printf("-87 (%d) - %f %f %f %f\n", GetCorrectedNumber(b0 - 87), const0.x, const0.y, const0.z, const0.w);
-		
-		const0 = c(b0 - 86);
-		printf("-86 (%d) - %f %f %f %f\n", GetCorrectedNumber(b0 - 86), const0.x, const0.y, const0.z, const0.w);
-
-
-		printf("boneIndex 2 (a0.y): %d\n", b1);
-
-
-		printf("Constants used:\n");
-		const0 = c(b1 - 88);
-		printf("-88 (%d) - %f %f %f %f\n", GetCorrectedNumber(b1 - 88), const0.x, const0.y, const0.z, const0.w);
-
-		const0 = c(b1 - 87);
-		printf("-87 (%d) - %f %f %f %f\n", GetCorrectedNumber(b1 - 87), const0.x, const0.y, const0.z, const0.w);
-
-		const0 = c(b1 - 86);
-		printf("-86 (%d) - %f %f %f %f\n", GetCorrectedNumber(b1 - 86), const0.x, const0.y, const0.z, const0.w);
-	}
-
-	printf("\n");
-
-	for (int i = 100; i < 105; i++)
-	{
-		float4 j = { (float)vb[i].bonesIndices[0], (float)vb[i].bonesIndices[1], 0.f, 0.f};
-		v2 = lerp(j, vRegisterDefaultValues[2], vRegisterDefaultFlags[2]);
-
-		int b0 = 0;
-		x_arl(b0, v2.x);
-		int b1 = 0;
-		x_arl(b1, v2.y);
-
-		printf("[%d]:\n", i);
-		printf("boneIndex (a0.x): %d\n", b0);
-
-		printf("Constants used:\n");
-		float4 const0 = c(b0 - 88);
-		printf("-88 (%d) - %f %f %f %f\n", GetCorrectedNumber(b0 - 88), const0.x, const0.y, const0.z, const0.w);
-		
-		const0 = c(b0 - 87);
-		printf("-87 (%d) - %f %f %f %f\n", GetCorrectedNumber(b0 - 87), const0.x, const0.y, const0.z, const0.w);
-		
-		const0 = c(b0 - 86);
-		printf("-86 (%d) - %f %f %f %f\n", GetCorrectedNumber(b0 - 86), const0.x, const0.y, const0.z, const0.w);
-
-
-		printf("boneIndex 2 (a0.y): %d\n", b1);
-
-
-		printf("Constants used:\n");
-		const0 = c(b1 - 88);
-		printf("-88 (%d) - %f %f %f %f\n", GetCorrectedNumber(b1 - 88), const0.x, const0.y, const0.z, const0.w);
-
-		const0 = c(b1 - 87);
-		printf("-87 (%d) - %f %f %f %f\n", GetCorrectedNumber(b1 - 87), const0.x, const0.y, const0.z, const0.w);
-
-		const0 = c(b1 - 86);
-		printf("-86 (%d) - %f %f %f %f\n", GetCorrectedNumber(b1 - 86), const0.x, const0.y, const0.z, const0.w);
-	}
-
-	printf("\n");
-
-	for (int i = 750; i < 755; i++)
-	{
-		float4 j = { (float)vb[i].bonesIndices[0], (float)vb[i].bonesIndices[1], 0.f, 0.f};
-		v2 = lerp(j, vRegisterDefaultValues[2], vRegisterDefaultFlags[2]);
-
-		int b0 = 0;
-		x_arl(b0, v2.x);
-		int b1 = 0;
-		x_arl(b1, v2.y);
-
-		printf("[%d]:\n", i);
-		printf("boneIndex (a0.x): %d\n", b0);
-
-		printf("Constants used:\n");
-		float4 const0 = c(b0 - 88);
-		printf("-88 (%d) - %f %f %f %f\n", GetCorrectedNumber(b0 - 88), const0.x, const0.y, const0.z, const0.w);
-		
-		const0 = c(b0 - 87);
-		printf("-87 (%d) - %f %f %f %f\n", GetCorrectedNumber(b0 - 87), const0.x, const0.y, const0.z, const0.w);
-		
-		const0 = c(b0 - 86);
-		printf("-86 (%d) - %f %f %f %f\n", GetCorrectedNumber(b0 - 86), const0.x, const0.y, const0.z, const0.w);
-
-
-		printf("boneIndex 2 (a0.y): %d\n", b1);
-
-
-		printf("Constants used:\n");
-		const0 = c(b1 - 88);
-		printf("-88 (%d) - %f %f %f %f\n", GetCorrectedNumber(b1 - 88), const0.x, const0.y, const0.z, const0.w);
-
-		const0 = c(b1 - 87);
-		printf("-87 (%d) - %f %f %f %f\n", GetCorrectedNumber(b1 - 87), const0.x, const0.y, const0.z, const0.w);
-
-		const0 = c(b1 - 86);
-		printf("-86 (%d) - %f %f %f %f\n", GetCorrectedNumber(b1 - 86), const0.x, const0.y, const0.z, const0.w);
-	}
-
-	printf("okay\n");
-}

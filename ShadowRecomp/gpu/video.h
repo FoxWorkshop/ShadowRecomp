@@ -1049,3 +1049,4 @@ const uint16_t HOST_D3DVS_CONSTREG_VREGDEFAULTS_SIZE = 16u;
 void DrawPrimitiveUP(X_D3DPRIMITIVETYPE PrimitiveType, uint32_t VertexCount, void* pVertexStreamZeroData, uint32_t VertexStreamZeroStride);
 void DrawIndexedPrimitive(X_D3DPRIMITIVETYPE PrimitiveType, uint32_t VertexCount, int16_t* pIndexData);
 void UpdateVertexShader(uint32_t Handle);
+bool is_vulkan();

@@ -6,6 +6,8 @@
 #include "function.h"
 #include <gpu/nv2a.h>
 
+#include <user/config.h>
+#include <os/logger.h>
 #include "xbox_types.h"
 #include "xbox.h"
 #include "types.h"
@@ -226,24 +228,24 @@ uint32_t AvSetDisplayMode
 	IN  uint32_t   FrameBuffer
 )
 {
-	LOG_UTIL("!!! STUB !!!");
+	LOG_UTILITY("!!! STUB !!!");
 	return X_STATUS_SUCCESS;
 }
 
 void NtReadFile()
 {
-	LOG_UTIL("!!! STUB !!!");
+	LOG_UTILITY("!!! STUB !!!");
 }
 
 void AvGetSavedDataAddress()
 {
-	LOG_UTIL("!!! STUB !!!");
+	LOG_UTILITY("!!! STUB !!!");
 }
 
 
 int32_t NtFreeVirtualMemory(IN OUT uint32_t* BaseAddress, IN OUT ULONG32 FreeSize, IN uint32_t FreeType)
 {
-	printf("NtFreeVirtualMemory\n");
+	LOG_UTILITY("!!! STUB !!!");
 	//g_userHeap.Free(g_memory.Translate((size_t)BaseAddress));
 	return X_STATUS_SUCCESS;
 }
@@ -869,7 +871,7 @@ LONG NtDeviceIoControlFile(
 	PVOID OutputBuffer,
 	ULONG OutputBufferLength
 ) {
-	LOG_UTIL("!!! STUB !!!");
+	LOG_UTILITY("!!! STUB !!!");
 	return X_STATUS_SUCCESS;
 }
 
@@ -895,7 +897,7 @@ LONG NtFsControlFile(
 	uint32_t* OutputBuffer,
 	ULONG OutputBufferLength
 ) {
-	LOG_UTIL("!!! STUB !!!");
+	LOG_UTILITY("!!! STUB !!!");
 	return X_STATUS_SUCCESS;
 }
 
@@ -954,7 +956,7 @@ LONG NtQueryInformationFile(
 	uint32_t FileInformationClass_
 )
 {
-	LOG_UTIL("!!! STUB !!!");
+	LOG_UTILITY("!!! STUB !!!");
 	/**xbox::FILE_INFORMATION_CLASS FileInformationClass = (xbox::FILE_INFORMATION_CLASS)FileInformationClass_;
 	xbox::PIO_STATUS_BLOCK IoStatusBlock = (xbox::PIO_STATUS_BLOCK)IoStatusBlock_;
 
@@ -998,7 +1000,7 @@ LONG NtQuerySymbolicLinkObject(HANDLE LinkHandle, void* TargetName_, PULONG Retu
 
 LONG NtQueryVirtualMemory(uint32_t* BaseAddress, uint32_t* Buffer)
 {
-	LOG_UTIL("STUB NtQueryVirtualMemory\n");
+	LOG_UTILITY("STUB NtQueryVirtualMemory\n");
 
 	if (!Buffer)
 		return X_STATUS_UNSUCCESSFUL;
@@ -1032,7 +1034,7 @@ uint32_t MmGetPhysicalAddress(uint32_t BaseAddress)
 
 LONG MmLockUnlockBufferPages(uint32_t* BaseAddress, uint32_t NumberOfBytes, BOOLEAN Lock)
 {
-	LOG_UTIL("!!! STUB !!!");
+	LOG_UTILITY("!!! STUB !!!");
 	printf("\n");
 	return X_STATUS_SUCCESS; // No-op in recompiler
 }
@@ -1048,7 +1050,7 @@ LONG MmLockUnlockPhysicalPage(uint32_t PhysicalAddress_, BOOLEAN Lock)
 
 VOID MmPersistContiguousMemory(uint32_t* BaseAddress, uint32_t NumberOfBytes, BOOLEAN Persist)
 {
-	LOG_UTIL("!!! STUB !!!");
+	LOG_UTILITY("!!! STUB !!!");
 }
 
 LONG MmQueryAddressProtect(uint32_t* BaseAddress, uint32_t* Protect)
@@ -1065,7 +1067,7 @@ SIZE_T MmQueryAllocationSize(uint32_t* BaseAddress)
 
 LONG MmSetAddressProtect(uint32_t* BaseAddress, SIZE_T NumberOfBytes, ULONG NewProtect)
 {
-	LOG_UTIL("!!! STUB !!!");
+	LOG_UTILITY("!!! STUB !!!");
 	return X_STATUS_SUCCESS;
 }
 
@@ -1088,7 +1090,7 @@ LONG NtWaitForSingleObject(uint32_t Handle, BOOLEAN Alertable, int64_t* Timeout)
 
 LONG NtSetEvent(Event* handle, uint32_t* PreviousState)
 {
-	LOG_UTIL(" Handle Set");
+	LOG_UTILITY(" Handle Set");
 	handle->Set();
 
 	return X_STATUS_SUCCESS;
@@ -1105,7 +1107,7 @@ LONG NtWriteFile(
 	uint32_t* ByteOffset
 ) {
 
-	LOG_UTIL("!!! STUB !!!");
+	LOG_UTILITY("!!! STUB !!!");
 	/**xbox::PIO_APC_ROUTINE Apcroutine = (xbox::PIO_APC_ROUTINE)ApcRoutine_;
 	xbox::PIO_STATUS_BLOCK IoStatusBlock = (xbox::PIO_STATUS_BLOCK)IoStatusBlock_;
 	if (IoStatusBlock)
@@ -1119,7 +1121,7 @@ LONG NtWriteFile(
 
 ULONG RtlLONGToDosError(LONG Status)
 {
-	LOG_UTIL("!!! STUB !!!");
+	LOG_UTILITY("!!! STUB !!!");
 	return X_STATUS_SUCCESS;
 }
 
@@ -1325,7 +1327,7 @@ LONG NtSetInformationFile(
 }
 
 void HalInitiateShutdown() {
-	LOG_UTIL("!!! STUB !!!");
+	LOG_UTILITY("!!! STUB !!!");
 }
 
 LONG XeLoadSection(const char* Name)
@@ -1358,6 +1360,11 @@ void XcHMAC(uint32_t* Key, ULONG KeySize, uint32_t* Data, ULONG DataSize, uint32
 	memset(Digest, 0xBB, 20);
 }
 
+uint32_t XGetLanguage()
+{
+	return (uint32_t)Config::Language.Value;
+}
+
 void RtlRaiseException_(uint32_t* ExceptionRecord)
 {
 	printf("RtlRaiseException\n");
@@ -1366,7 +1373,7 @@ void RtlRaiseException_(uint32_t* ExceptionRecord)
 
 void RtlUnwind_()
 {
-	LOG_UTIL("!!! STUB !!!");
+	LOG_UTILITY("!!! STUB !!!");
 }
 
 uint32_t RtlNtStatusToDosError(xbox::ntstatus_xt status)
@@ -1863,6 +1870,7 @@ GUEST_FUNCTION_HOOK_STDCALL(__imp__AvSetDisplayMode, AvSetDisplayMode);
 GUEST_FUNCTION_HOOK_STDCALL(__imp__AvSendTVEncoderOption, AvSendTVEncoderOption);
 GUEST_FUNCTION_HOOK(__imp__DbgPrint, DbgPrintV);
 
+GUEST_FUNCTION_HOOK(sub_2ADB04, XGetLanguage);
 
 //XAutoPowerDownResetTimer
 GUEST_FUNCTION_STUB(sub_2B17E8);

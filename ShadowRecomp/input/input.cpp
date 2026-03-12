@@ -172,47 +172,76 @@ public:
 
         state.wButtons = 0;
 
-        if (keystate[SDL_SCANCODE_UP])    state.sThumbLY = STICK_MAX;
-        else if (keystate[SDL_SCANCODE_DOWN])  state.sThumbLY = STICK_MIN;
-        else state.sThumbLY = 0;
+        if (keystate[Config::Key_LeftStickUp])    
+			state.sThumbLY = STICK_MAX;
+        else if (keystate[Config::Key_LeftStickDown])
+			state.sThumbLY = STICK_MIN;
+        else 
+			state.sThumbLY = 0;
 
-        if (keystate[SDL_SCANCODE_LEFT])  state.sThumbLX = STICK_MIN;
-        else if (keystate[SDL_SCANCODE_RIGHT]) state.sThumbLX = STICK_MAX;
-        else state.sThumbLX = 0;
+        if (keystate[Config::Key_LeftStickLeft])  
+			state.sThumbLX = STICK_MIN;
+        else if (keystate[Config::Key_LeftStickRight])
+			state.sThumbLX = STICK_MAX;
+        else 
+			state.sThumbLX = 0;
 
-        if (keystate[SDL_SCANCODE_I])    state.sThumbRY = STICK_MAX;
-        else if (keystate[SDL_SCANCODE_K])  state.sThumbRY = STICK_MIN;
-        else state.sThumbRY = 0;
+        if (keystate[SDL_SCANCODE_I])    
+			state.sThumbRY = STICK_MAX;
+        else if (keystate[SDL_SCANCODE_K])  
+			state.sThumbRY = STICK_MIN;
+        else 
+			state.sThumbRY = 0;
 
-        if (keystate[SDL_SCANCODE_J])  state.sThumbRX = STICK_MIN;
-        else if (keystate[SDL_SCANCODE_L]) state.sThumbRX = STICK_MAX;
-        else state.sThumbRX = 0;
+        if (keystate[SDL_SCANCODE_J])  
+			state.sThumbRX = STICK_MIN;
+        else if (keystate[SDL_SCANCODE_L]) 
+			state.sThumbRX = STICK_MAX;
+        else 
+			state.sThumbRX = 0;
 
-        if (keystate[SDL_SCANCODE_RETURN]) state.wButtons |= XINPUT_GAMEPAD_START;
+        if (keystate[Config::Key_Start])
+			state.wButtons |= XINPUT_GAMEPAD_START;
 
-        if (keystate[SDL_SCANCODE_S]) state.bAnalogButtons[Buttons_Y] = 0xFF;
-        else state.bAnalogButtons[Buttons_Y] = 0;
+        if (keystate[Config::Key_Y])
+			state.bAnalogButtons[Buttons_Y] = 0xFF;
+        else 
+			state.bAnalogButtons[Buttons_Y] = 0;
 
-        if (keystate[SDL_SCANCODE_C]) state.bAnalogButtons[Buttons_B] = 0xFF;
-        else state.bAnalogButtons[Buttons_B] = 0;
+        if (keystate[Config::Key_B])
+			state.bAnalogButtons[Buttons_B] = 0xFF;
+        else 
+			state.bAnalogButtons[Buttons_B] = 0;
 
-        if (keystate[SDL_SCANCODE_X]) state.bAnalogButtons[Buttons_A] = 0xFF;
-        else state.bAnalogButtons[Buttons_A] = 0;
+        if (keystate[Config::Key_A])
+			state.bAnalogButtons[Buttons_A] = 0xFF;
+        else 
+			state.bAnalogButtons[Buttons_A] = 0;
 
-        if (keystate[SDL_SCANCODE_Z]) state.bAnalogButtons[Buttons_X] = 0xFF;
-        else state.bAnalogButtons[Buttons_X] = 0;
+        if (keystate[Config::Key_X])
+			state.bAnalogButtons[Buttons_X] = 0xFF;
+        else 
+			state.bAnalogButtons[Buttons_X] = 0;
 
-        if (keystate[SDL_SCANCODE_Q]) state.bAnalogButtons[Buttons_White] = 0xFF;
-        else state.bAnalogButtons[Buttons_White] = 0;
+        if (keystate[Config::Key_LeftBumper])
+			state.bAnalogButtons[Buttons_White] = 0xFF;
+        else 
+			state.bAnalogButtons[Buttons_White] = 0;
 
-        if (keystate[SDL_SCANCODE_W]) state.bAnalogButtons[Buttons_Black] = 0xFF;
-        else state.bAnalogButtons[Buttons_Black] = 0;
+        if (keystate[Config::Key_RightBumper]) 
+			state.bAnalogButtons[Buttons_Black] = 0xFF;
+        else 
+			state.bAnalogButtons[Buttons_Black] = 0;
 
-        if (keystate[SDL_SCANCODE_D]) state.bAnalogButtons[Buttons_LT] = 0xFF;
-        else state.bAnalogButtons[Buttons_LT] = 0;
+        if (keystate[Config::Key_LeftTrigger])
+			state.bAnalogButtons[Buttons_LT] = 0xFF;
+        else 
+			state.bAnalogButtons[Buttons_LT] = 0;
 
-        if (keystate[SDL_SCANCODE_F]) state.bAnalogButtons[Buttons_RT] = 0xFF;
-        else state.bAnalogButtons[Buttons_RT] = 0;
+        if (keystate[Config::Key_RightTrigger]) 
+			state.bAnalogButtons[Buttons_RT] = 0xFF;
+        else 
+			state.bAnalogButtons[Buttons_RT] = 0;
     }
 };
 
