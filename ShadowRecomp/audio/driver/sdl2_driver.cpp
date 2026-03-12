@@ -920,7 +920,7 @@ void SHTHR_SOUNDDEVICE_Impl::AudioCallback(Uint8* stream, int32_t len)
 			{
 				memset(&read_buffer[readsize], mAudioSpec.silence, len - readsize);
 			}
-			SDL_MixAudioFormat(stream, &read_buffer[0], mFormat, len, queue->GetVolumeLinear());
+			SDL_MixAudioFormat(stream, &read_buffer[0], mFormat, len, queue->GetVolumeLinear() * Config::MasterVolume.Value);
 		}
 	}
 	mutex.unlock();
