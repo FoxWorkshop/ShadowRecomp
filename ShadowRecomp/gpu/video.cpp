@@ -1996,7 +1996,7 @@ static void BeginCommandList()
 		uint32_t height = Video::s_viewportHeight;
 
 		bool usingIntermediaryTexture = (width != g_swapChain->getWidth()) || (height != g_swapChain->getHeight()) ||
-			(abs(Config::Brightness - 0.5f) > 0.001f);
+			(abs(Config::Brightness.Value - 0.5f) > 0.001f);
 
 		if (usingIntermediaryTexture)
 		{
@@ -3586,7 +3586,7 @@ static void ProcExecuteCommandList(const RenderCommand& cmd)
 			constants.gammaG = 1.0f;
 			constants.gammaB = 1.0f;
 
-			float offset = (Config::Brightness - 0.5f) * 1.2f;
+			float offset = (Config::Brightness.Value - 0.5f) * 1.2f;
 
 			constants.gammaR = 1.0f / std::clamp(constants.gammaR + offset, 0.1f, 4.0f);
 			constants.gammaG = 1.0f / std::clamp(constants.gammaG + offset, 0.1f, 4.0f);
