@@ -6,7 +6,6 @@
 #include <user/config.h>
 #include <audio/audio.h>
 #include <volk.h>
-#include <user/config.h>
 #include <user/paths.h>
 #include <user/registry.h>
 

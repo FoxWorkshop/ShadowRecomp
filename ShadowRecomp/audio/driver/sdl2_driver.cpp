@@ -11,6 +11,7 @@
 #include <DirectXMath.h>
 #include <unordered_set>
 #include <os/logger.h>
+#include <user/config.h>
 
 // Memo: 
 // Two way of using buffers: Static (sfx, voices - Buffer is filled once with complete audio, Pull just read the buffer) 
@@ -25,7 +26,7 @@ std::vector<Uint8> gResampleBuffer;
 #define DSoundBufferGetPCMBufferSize(EmuFlags, size) (EmuFlags & DSE_FLAG_XADPCM) > 0 ? DWORD((size / float(XBOX_ADPCM_SRCSIZE)) * XBOX_ADPCM_DSTSIZE) : size
 #define DSoundBufferGetXboxBufferSize(EmuFlags, size) (EmuFlags & DSE_FLAG_XADPCM) > 0 ? DWORD((size / float(XBOX_ADPCM_DSTSIZE)) * XBOX_ADPCM_SRCSIZE) : size
 
-
+bool PlayMusic = false;
 SHTHR_SOUNDDEVICE* ppDS = nullptr;
 
 void Interface::Release()
@@ -80,6 +81,7 @@ private:
 
 	int mVolume = 0;
 	int mVolumeLinear = 128;
+	bool mVolumeChangeFlag = false; // ensure we don't scale volume multiple times
 
 	DWORD mPlayFlags = 0;
 	DWORD mG_flags;
@@ -561,12 +563,13 @@ int32_t SHTHR_SOUNDBUFFER_Impl::Pull(unsigned char* data, int32_t size)
 	if (writesize <= 0)
 		return 0;
 
+
 	if (mCaps & XTL_DSBCAPS_CTRL3D)
 	{
 		float volumeScale = Calculate3DVolume();
 
 		// Apply volume scaling
-		int16_t* samples = reinterpret_cast<int16_t*>(data);
+		int16_t* samples = reinterpret_cast<int16_t*>(mAudioCVT.buf);
 		int sampleCount = writesize / sizeof(int16_t);
 
 		for (int i = 0; i < sampleCount; i++) {
@@ -721,6 +724,21 @@ int SHTHR_SOUNDBUFFER_Impl::Play(int dwReserved1, int dwPriority, uint32_t dwFla
 	this->mPlay = true;
 	this->mPlayFlags = dwFlags;
 
+	if (!mVolumeChangeFlag) // since the game can re use the same buffer, make sure to not scale volume multiple times
+	{
+		if (PlayMusic) 
+		{
+			this->mVolumeLinear *= Config::MusicVolume.Value;
+			PlayMusic = false;
+		}
+		else // if TObjBGM::Play wasn't used, assume voice is requested
+		{
+			this->mVolumeLinear *= Config::VoicesVolume.Value;
+		}
+
+		mVolumeChangeFlag = true;
+	}
+
 	if ((dwFlags & X_DSBPLAY_FROMSTART)) {
 
 		this->mPlayFlags &= ~X_DSBPLAY_FROMSTART;
@@ -787,9 +805,10 @@ int SHTHR_SOUNDBUFFER_Impl::SetVolume(int lVolume)
 	float linear = powf(10.0f, db / 20.0f);  // dB to linear
 	mVolumeLinear = static_cast<int>(linear * SDL_MIX_MAXVOLUME);  // 0-128
 
-	if (this->mSourceFormat == SOURCE_FORMAT_ADPCM_XBOX && this->mBufferSize < 400 * 1024)
+	if (this->isStreaming == false)
 	{
-		mVolumeLinear = static_cast<int>(mVolumeLinear * SFX_VOLUME_SCALE); //SFX tend to be way too loud
+		// SFX tend to be way too loud so we scale them in addition to the user config
+		mVolumeLinear = static_cast<int>(mVolumeLinear * SFX_VOLUME_SCALE * Config::EffectsVolume.Value); 
 	}
 
 	// Clamp
@@ -996,6 +1015,26 @@ int32_t SHTHRSoundCreate(SHTHR_SOUNDDEVICE** ppDevice)
 	printf("created sound device\n");
 	return key;
 }
+
+// hack to detect if we're about to play a music
+// TObjBGM::Play
+X86_FUNC_IMPL(__imp__sub_25CBB0);
+X86_FUNC(sub_25CBB0)
+{
+	auto specialMode = X86_LOAD_U8(ctx.ecx.u32 + 0x2A);
+	bool valid = specialMode == 2;
+
+	if (valid == false)
+	{
+		char* s = (char*)(base + ctx.ecx.u32 + 0x50);
+		valid = strlen(s) > 0;
+	}
+	__imp__sub_25CBB0(ctx, base);
+
+	if (valid)
+		PlayMusic = true;
+}
+
 
 
 //adxm_mwidlThread
