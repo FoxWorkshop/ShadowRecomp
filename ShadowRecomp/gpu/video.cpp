@@ -3950,15 +3950,6 @@ static void FlushViewport(const bool isFixed)
 		g_dirtyStates.scissorRect = true;
 	}
 
-	if (g_dirtyStates.viewport)
-	{
-		//awful dirty hack that almost fix viewport not being updated properly
-		if (g_renderTarget->width != viewport.width)
-		{
-			viewport.width = g_renderTarget->width;
-			viewport.height = g_renderTarget->height;
-		}
-	}
 
 	viewPort_wasFixed = isFixed;
 
@@ -4784,7 +4775,7 @@ void D3DDevice_SetViewport(GuestViewport* viewport)
 		return;
 	}
 
-	SetViewport(viewport, g_renderTarget);
+	SetViewport(viewport, g_next_RenderTarget);
 }
 
 static bool PopulateBarriersForCopyRect(GuestSurface* renderTarget, GuestSurface* depthStencil)
