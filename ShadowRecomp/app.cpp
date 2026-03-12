@@ -21,7 +21,6 @@ void App::Restart(std::vector<std::string> restartArgs)
 void App::Exit()
 {
 
-	AudioQuit();
 	Config::Save();
 
 #ifdef _WIN32
@@ -58,16 +57,25 @@ X86_FUNC(sub_57630)
 
 }
 
+//init
 X86_FUNC_IMPL(__imp__sub_11AD0);
 X86_FUNC(sub_11AD0)
 {
 	App::s_isInit = true;
 	App::s_language = Config::Language;
 
-	
 	Registry::Save();
 
 	__imp__sub_11AD0(ctx, base);
+}
+
+//Set Voice Language
+X86_FUNC_IMPL(__imp__sub_55BE0);
+X86_FUNC(sub_55BE0)
+{
+	__imp__sub_55BE0(ctx, base);
+
+	X86_STORE_U32(0x54DD8C, (uint32_t)Config::VoiceLanguage.Value);
 }
 
 std::atomic<bool> shouldQuit = false; 

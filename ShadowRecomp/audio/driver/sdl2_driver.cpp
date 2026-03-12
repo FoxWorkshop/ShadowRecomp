@@ -10,6 +10,7 @@
 #include <fstream>
 #include <DirectXMath.h>
 #include <unordered_set>
+#include <os/logger.h>
 
 // Memo: 
 // Two way of using buffers: Static (sfx, voices - Buffer is filled once with complete audio, Pull just read the buffer) 
@@ -786,7 +787,7 @@ int SHTHR_SOUNDBUFFER_Impl::SetVolume(int lVolume)
 	float linear = powf(10.0f, db / 20.0f);  // dB to linear
 	mVolumeLinear = static_cast<int>(linear * SDL_MIX_MAXVOLUME);  // 0-128
 
-	if (this->mSourceFormat == SOURCE_FORMAT_ADPCM_XBOX && this->mBufferSize < 400 * 1024 && (this->mCaps & XTL_DSBCAPS_CTRL3D) == 0)
+	if (this->mSourceFormat == SOURCE_FORMAT_ADPCM_XBOX && this->mBufferSize < 400 * 1024)
 	{
 		mVolumeLinear = static_cast<int>(mVolumeLinear * SFX_VOLUME_SCALE); //SFX tend to be way too loud
 	}

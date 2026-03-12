@@ -55,7 +55,6 @@ public:
 	virtual int SetFrequency(int lFrequency) PURE;
 	virtual int SetBufferData(void* pvBufferData, int dwBufferBytes) PURE;
 	virtual int SetLoopRegion(int dwLoopStartOffset, int dwLoopLength) PURE;
-	virtual float Calculate3DVolume() PURE;
 };
 
 

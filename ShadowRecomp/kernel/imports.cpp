@@ -1365,6 +1365,8 @@ uint32_t XGetLanguage()
 	return (uint32_t)Config::Language.Value;
 }
 
+
+
 void RtlRaiseException_(uint32_t* ExceptionRecord)
 {
 	printf("RtlRaiseException\n");
