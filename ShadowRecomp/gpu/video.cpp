@@ -1043,7 +1043,6 @@ struct RenderCommand
 			int16_t* pIndexData;
 			GuestBuffer* indexBuffer;
 			bool isFixed;
-			bool drawShadow;
 		} drawIndexedPrimitive;
 
 		struct
@@ -3936,15 +3935,12 @@ GuestSurface* CreateStandAloneSurface(int32_t Width, int32_t Height, int32_t a3,
 	return CreateSurface(Width, Height, Format);
 }
 
-bool DrawShadowNext = false;
-bool DrawShadow = false;
 bool viewPort_wasFixed = false;
-static void FlushViewport(const bool isFixed, const bool drawShadow)
+static void FlushViewport(const bool isFixed)
 {
 	auto& commandList = g_commandLists[g_frame];
 	auto hostWidth = g_renderTarget->width;
 	auto hostHeight = g_renderTarget->height;
-	const bool DrawShadow_ = drawShadow;
 	auto viewport = g_renderviewport.vp;
 
 
@@ -3963,7 +3959,6 @@ static void FlushViewport(const bool isFixed, const bool drawShadow)
 			viewport.height = g_renderTarget->height;
 		}
 	}
-
 
 	viewPort_wasFixed = isFixed;
 
@@ -3989,13 +3984,6 @@ static void FlushViewport(const bool isFixed, const bool drawShadow)
 		viewport.width = width;
 		viewport.height = height;
 
-		if (width == 128 && g_renderTarget->width == 640)
-		{
-			//g_next_viewport = g_next_viewport;
-			printf("!!!\n");
-		}
-
-
 		commandList->setViewports(viewport);
 		g_dirtyStates.viewport = false;
 
@@ -4013,17 +4001,11 @@ static void FlushViewport(const bool isFixed, const bool drawShadow)
 			bottom = (int32_t)hostHeight;
 		}
 
-
 		scissorRect = g_scissorTestEnable ? g_scissorRect : RenderRect(
 			viewport.x,
 			viewport.y,
 			right,
 			bottom);
-
-		if (DrawShadow_)
-		{
-			bottom = bottom;
-		}
 
 		commandList->setScissors(scissorRect);
 		g_dirtyStates.scissorRect = false;
@@ -5114,10 +5096,6 @@ static void ProcClear(const RenderCommand& cmd)
 {
 	const auto& args = cmd.clear;
 
-	/**g_dirtyStates.viewport = true;
-	g_dirtyStates.scissorRect = true;
-	FlushViewport(args.isFixed);*/
-
 	if (PopulateBarriersForCopyRect(g_renderTarget, g_depthStencil))
 	{
 		FlushBarriers();
@@ -5995,7 +5973,6 @@ static constexpr float COMMON_SLOPE_SCALED_DEPTH_BIAS_VALUE = 1.0f;
 static void FlushRenderStateForRenderThread()
 {
 	const bool isFixed = isFixedForRenderThread;
-	const bool drawShadow = DrawShadow;
 	auto renderTarget = g_pipelineState.colorWriteEnable ? g_renderTarget : nullptr;
 	auto depthStencil = g_pipelineState.zEnable || g_pipelineState.stencilEnable ? g_depthStencil : nullptr;
 
@@ -6030,7 +6007,7 @@ static void FlushRenderStateForRenderThread()
 	FlushBarriers();
 
 	SetFramebuffer(renderTarget, depthStencil, false);
-	FlushViewport(isFixed, drawShadow);
+	FlushViewport(isFixed);
 
 
 	auto& commandList = g_commandLists[g_frame];
@@ -6760,7 +6737,6 @@ void DrawIndexedPrimitive(X_D3DPRIMITIVETYPE PrimitiveType, uint32_t VertexCount
 	cmd.drawIndexedPrimitive.startIndex = 0;
 	cmd.drawIndexedPrimitive.primCount = VertexCount;
 	cmd.drawIndexedPrimitive.isFixed = g_Xbox_VertexShaderMode == VertexShaderMode::FixedFunction;
-	cmd.drawIndexedPrimitive.drawShadow = drawShadow;
 
 	queue.submit();
 }
@@ -6770,10 +6746,8 @@ static void ProcDrawIndexedPrimitive(const RenderCommand& cmd)
 	const auto& args = cmd.drawIndexedPrimitive;
 	SetPrimitiveType(args.primitiveType);
 	isFixedForRenderThread = args.isFixed;
-	DrawShadow = args.drawShadow;
 	FlushRenderStateForRenderThread();
 	g_commandLists[g_frame]->drawIndexedInstanced(args.primCount, 1, args.startIndex, args.baseVertexIndex, 0);
-	DrawShadow = false;
 }
 extern bool captureNow;
 //D3DDevice_DrawVerticesUP - used for 2D Stuff, does not require a vertex buffer (originally)
