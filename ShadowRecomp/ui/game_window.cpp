@@ -1,6 +1,6 @@
 #include "game_window.h"
 #include <gpu/video.h>
-#include <logs.h>
+
 #include <app.h>
 #include <sdl_listener.h>
 #include <SDL_syswm.h>
@@ -9,6 +9,7 @@
 #include <dwmapi.h>
 #include <shellscalingapi.h>
 #endif
+#include <os/logger.h>
 
 //Original code from Unleashed Recomp
 
@@ -200,11 +201,11 @@ void GameWindow::Init(const char* sdlVideoDriver)
 #if defined(_WIN32)
     s_renderWindow = info.info.win.window;
 
-    if (Config::DisableDWMRoundedCorners)
+    /**if (Config::DisableDWMRoundedCorners)
     {
         DWM_WINDOW_CORNER_PREFERENCE wcp = DWMWCP_DONOTROUND;
         DwmSetWindowAttribute(s_renderWindow, DWMWA_WINDOW_CORNER_PREFERENCE, &wcp, sizeof(wcp));
-    }
+    }*/
 #elif defined(PLUME_SDL_VULKAN_ENABLED)
     s_renderWindow = s_pWindow;
 #elif defined(__linux__)

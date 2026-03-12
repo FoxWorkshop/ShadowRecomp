@@ -116,6 +116,7 @@ bool LogVSConstants = false;
 #include "shader/Raura_hero_dark_eye_vs.hlsl.spirv.h"
 #include "shader/Rshadow_event_vs.hlsl.spirv.h"
 #include "shader/Rchaos_vs.hlsl.spirv.h"
+#include <os/logger.h>
 
 
 namespace plume
@@ -1785,7 +1786,7 @@ extern ImFontBuilderIO g_fontBuilderIO;
 
 static void CreateImGuiBackend()
 {
-	printf("Init ImGui, please wait...\n");
+	LOG_UTILITY("Init ImGui, please wait...\n");
 	ImGuiIO& io = ImGui::GetIO();
 	io.IniFilename = nullptr;
 	io.BackendFlags |= ImGuiBackendFlags_RendererHasVtxOffset;
@@ -1950,7 +1951,7 @@ static void CreateImGuiBackend()
 	}
 #endif
 
-	printf("Done.\n");
+	LOG_UTILITY("Done.\n");
 }
 
 static void CheckSwapChain()
@@ -3082,7 +3083,7 @@ static void DrawProfiler()
 			ImGui::Text("SDL Video Driver: %s", sdlVideoDriver);
 
 		ImGui::NewLine();
-		ImGui::Checkbox("Show FPS", &Config::ShowFPS);
+		ImGui::Checkbox("Show FPS", &Config::ShowFPS.Value);
 		ImGui::NewLine();
 
 		if (ImGui::TreeNode("Device Names"))
@@ -4149,7 +4150,7 @@ X86_FUNC_IMPL(__imp__sub_3D4E30);
 
 int32_t Direct3D_CreateDevice_r(int32_t Adapter, int32_t DeviceType, int32_t hFocusWindow, char Flags, X_D3DPRESENT_PARAMETERS* pPresentationParameters, uint32_t* device)
 {
-	printf("\nCREATE GUEST D3D DEVICE!\n");
+	LOG_UTILITY("CREATE GUEST D3D DEVICE!");
 
 	auto ctx = GetX86Context();
 	auto base = g_memory.base;
@@ -4472,7 +4473,7 @@ float GetZScaleForPixelContainer(X_D3DPixelContainer* pSurface)
 	}
 
 	// Default to 1 if unknown depth format
-	printf("GetZScaleForSurface: Unknown Xbox Depth Format\n");
+	LOG_ERROR("Unknown Xbox Depth Format");
 	return 1.0f;
 }
 
@@ -6486,7 +6487,7 @@ uint8_t* ApplyVertexPatch(uint8_t* vertexData, const uint8_t indexStream, const 
 			}
 			case X_D3DVSDT_NONE: { // 0x02:
 
-				printf("X_D3DVSDT_NONE\n");
+				LOG_WARNING("X_D3DVSDT_NONE\n");
 				// No host element data (but Xbox size can be above zero, when used for X_D3DVSD_MASK_SKIP*
 				break;
 			}
@@ -6656,7 +6657,7 @@ GuestBuffer* GetGuestVertexBufferIndexed(int i, uint32_t minIdx, uint32_t maxIdx
 			bufferCache->mappedMemory = HostVertexData; //we already have the vertex copied from the patch earlier so just assign them
 		}
 
-		//printf("add VB %x\n", g_Xbox_SetStreamSource[i].VertexBuffer);
+
 		auto& vbDerived = VBsList[g_Xbox_SetStreamSource[i].VertexBuffer];
 		DerivedVertexBuffer newDerivedVB = { bufferCache, hash };
 		vbDerived.push_back(newDerivedVB);
@@ -6766,7 +6767,6 @@ void DrawIndexedPrimitive(X_D3DPRIMITIVETYPE PrimitiveType, uint32_t VertexCount
 
 static void ProcDrawIndexedPrimitive(const RenderCommand& cmd)
 {
-	//printf("[RENDER THREAD] Process Draw - recording to commandList[%u]\n", g_frame);
 	const auto& args = cmd.drawIndexedPrimitive;
 	SetPrimitiveType(args.primitiveType);
 	isFixedForRenderThread = args.isFixed;
@@ -7505,30 +7505,7 @@ X86_FUNC(sub_3D24B0)
 		auto padding7 = X86_LOAD_U32(device + 0xEF8);
 
 		valB = valB;
-		/**printf("GetViewportOffsetAndScale\n");
-		printf("viewport Width %d\n", X86_LOAD_U32(device + 0xEE8));
-		printf("viewport Height %d\n", X86_LOAD_U32(device + 0xEEC));
-		printf("D3D_g_pDevice->padding6[8] %d\n", padding68);
-		printf("D3D_g_pDevice->padding6[16] %f\n", valA);
-		printf("D3D_g_pDevice->padding6[20] %f\n", valB);
-		printf("D3D_g_pDevice->padding6[36] %f\n", padding636);
-		printf("D3D_g_pDevice->padding7 %d\n", padding7)
 
-		float v2 = (float)X86_LOAD_U32(device + 0xEE0) * (float)valA * (float)padding7;
-		float scaleX = (float)X86_LOAD_U32(device + 0xEE8) * (float)valA * 0.5f;
-
-		printf("v2 %f\n", v2);
-		printf("scaleX %f\n", scaleX);
-		printf("*offset res %f\n", scaleX + v2);
-
-
-		float offset[4] = { X86_LOAD_F32(0x55B410), X86_LOAD_F32(0x55B410 + 4), X86_LOAD_F32(0x55B410 + 8), X86_LOAD_F32(0x55B410 + 12) };
-		float scale[4] = { X86_LOAD_F32(ctx.eax.u32), X86_LOAD_F32(ctx.eax.u32 + 4), X86_LOAD_F32(ctx.eax.u32 + 8), X86_LOAD_F32(ctx.eax.u32 + 12) };
-		//printf("D3D_g_pDevice->padding7[4] %f\n", *(float*)&g_pDevice->padding7[4]);
-		printf("offset: %f, %f, %f, %f\n", offset[0], offset[1], offset[2], offset[3]);
-		printf("scale: %f, %f, %f, %f\n", scale[0], scale[1], scale[2], scale[3]);
-
-		printf("\n");;*/
 	}
 }
 

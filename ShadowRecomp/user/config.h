@@ -1,24 +1,17 @@
 #pragma once
 
+
+#include <locale/locale.h>
+
 static constexpr int32_t FPS_MIN = 15;
 static constexpr int32_t FPS_MAX = 60;
-
-enum class ELanguage : uint32_t
-{
-    English = 1,
-    Japanese,
-    German,
-    French,
-    Spanish,
-    Italian
-};
 
 class IConfigDef
 {
 public:
     virtual ~IConfigDef() = default;
     virtual bool IsHidden() = 0;
-   // virtual void ReadValue(toml::v3::ex::parse_result& toml) = 0;
+    virtual void ReadValue(toml::v3::ex::parse_result& toml) = 0;
     virtual void MakeDefault() = 0;
     virtual std::string_view GetSection() const = 0;
     virtual std::string_view GetName() const = 0;
@@ -52,6 +45,13 @@ enum class EVoiceLanguage : uint32_t
     English,
     Japanese
 };
+
+enum class ECameraRotationMode : uint32_t
+{
+    Normal,
+    Reverse
+};
+
 
 enum class EControllerIcons : uint32_t
 {
@@ -91,6 +91,75 @@ enum class ETripleBuffering : uint32_t
     Off
 };
 
+enum class EAntiAliasing : uint32_t
+{
+    None = 0,
+    MSAA2x = 2,
+    MSAA4x = 4,
+    MSAA8x = 8
+};
+
+template<typename T, bool isHidden = false>
+class ConfigDef final : public IConfigDef
+{
+public:
+    std::string Section{};
+    std::string Name{};
+    CONFIG_LOCALE* Locale{};
+    T DefaultValue{};
+    T Value{ DefaultValue };
+    std::set<T> InaccessibleValues{};
+    std::unordered_map<std::string, T>* EnumTemplate{};
+    std::map<T, std::string> EnumTemplateReverse{};
+    CONFIG_ENUM_LOCALE(T)* EnumLocale {};
+    std::function<void(ConfigDef<T, isHidden>*)> Callback;
+    std::function<void(ConfigDef<T, isHidden>*)> LockCallback;
+    std::function<void(ConfigDef<T, isHidden>*)> ApplyCallback;
+    bool IsLoadedFromConfig{};
+
+    // CONFIG_DEFINE
+    ConfigDef(std::string section, std::string name, T defaultValue);
+
+    // CONFIG_DEFINE_LOCALISED
+    ConfigDef(std::string section, std::string name, CONFIG_LOCALE* nameLocale, T defaultValue);
+
+    // CONFIG_DEFINE_ENUM
+    ConfigDef(std::string section, std::string name, T defaultValue, std::unordered_map<std::string, T>* enumTemplate);
+
+    // CONFIG_DEFINE_ENUM_LOCALISED
+    ConfigDef(std::string section, std::string name, CONFIG_LOCALE* nameLocale, T defaultValue, std::unordered_map<std::string, T>* enumTemplate, CONFIG_ENUM_LOCALE(T)* enumLocale);
+
+    ConfigDef(const ConfigDef&) = delete;
+    ConfigDef(ConfigDef&&) = delete;
+    ~ConfigDef();
+
+    bool IsHidden() override;
+    void ReadValue(toml::v3::ex::parse_result& toml) override;
+    void MakeDefault() override;
+    std::string_view GetSection() const override;
+    std::string_view GetName() const override;
+    std::string GetNameLocalised(ELanguage language) const override;
+    std::string GetDescription(ELanguage language) const override;
+    bool IsDefaultValue() const override;
+    const void* GetValue() const override;
+    std::string GetValueLocalised(ELanguage language) const override;
+    std::string GetValueDescription(ELanguage language) const override;
+    std::string GetDefinition(bool withSection = false) const override;
+    std::string ToString(bool strWithQuotes = true) const override;
+    void GetLocaleStrings(std::vector<std::string_view>& localeStrings) const override;
+    void SnapToNearestAccessibleValue(bool searchUp) override;
+
+    operator T() const
+    {
+        return Value;
+    }
+
+    void operator=(const T& other)
+    {
+        Value = other;
+    }
+};
+
 
 #define CONFIG_DECLARE(type, name)                                              static ConfigDef<type>       name;
 #define CONFIG_DECLARE_HIDDEN(type, name)                                       static ConfigDef<type, true> name;
@@ -101,35 +170,21 @@ enum class ETripleBuffering : uint32_t
 #define CONFIG_DEFINE_ENUM(section, type, name, defaultValue)                   CONFIG_DECLARE(type, name)
 #define CONFIG_DEFINE_ENUM_LOCALISED(section, type, name, defaultValue)         CONFIG_DECLARE(type, name)
 
+
+
+
 class Config
 {
 public:
+#include "config_def.h"
+
 
     static inline bool s_isCallbacksCreated;
-    static inline bool Fullscreen = false;
-    static inline int Monitor = 0;
-    static inline EWindowState WindowState = EWindowState::Normal;
-    static inline int WindowSize = -1;
-    static inline int WindowX = WINDOWPOS_CENTRED;
-    static inline int WindowY = WINDOWPOS_CENTRED;
-    static inline int WindowWidth = 640;
-    static inline int WindowHeight = 480;
-    static inline int32_t FPS = 60;
-    static inline bool VSync = true;
-    static inline bool DisableLowResolutionFontOnCustomUI = false;
+
     static std::filesystem::path GetConfigPath();
-
-    static inline EGraphicsAPI GraphicsAPI = EGraphicsAPI::D3D12; //EGraphicsAPI::Auto;
-    static inline std::string GraphicsDevice = "";
-
-    static inline ETripleBuffering TripleBuffering = ETripleBuffering::Auto;
-    static inline bool ShowFPS = true;//false;
-    static inline uint32_t MaxFrameLatency = 2;
-    static inline float Brightness = 0.5f;
-    static inline bool DisableDWMRoundedCorners = false;
-    static inline EAspectRatio AspectRatio = EAspectRatio::Auto;
 
     static void CreateCallbacks();
     static void Load();
-    static void Config::Save();
+    static void Save();
 };
+

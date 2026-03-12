@@ -1,7 +1,7 @@
 #include <audio/audio.h>
 #include <cpu/guest_thread.h>
 #include <kernel/heap.h>
-#include <logs.h>
+
 #include <kernel/function.h>
 #include <dsound.h>
 

@@ -27,9 +27,10 @@ using Microsoft::WRL::ComPtr;
 #include <chrono>
 #include <span>
 #include <xxhash.h>
-#include "logs.h"
+
 #include <ankerl/unordered_dense.h>
 #include <x86/x86_recomp_shared.h>
+#include <toml++/toml.hpp>
 #include <stb_image.h>
 #include <blockingconcurrentqueue.h>
 #include <SDL.h>
@@ -50,6 +51,8 @@ using Microsoft::WRL::ComPtr;
 #include <charconv>
 
 #include "util.h"
+
+#include "framework.h"
 #include "mutex.h"
 #include "include/xshader_api.h"
 

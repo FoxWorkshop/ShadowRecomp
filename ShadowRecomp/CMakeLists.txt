@@ -76,14 +76,25 @@ set(SHADOW_RECOMP_KERNEL_CXX_SOURCES
     "kernel/io/file_system.cpp"
 )
 
+
+set(SHADOW_RECOMP_LOCALE_CXX_SOURCES
+    "locale/config_locale.cpp"
+    "locale/locale.cpp"
+)
+
 if (WIN32)
     set(SHADOW_RECOMP_OS_CXX_SOURCES
-        "os/windows/process_win32.cpp"
+        "os/win32/logger_win32.cpp"
+        "os/win32/process_win32.cpp"
+        "os/win32/user_win32.cpp"
+        "os/win32/version_win32.cpp"
+
     )
 elseif (CMAKE_SYSTEM_NAME MATCHES "Linux")
     set(SHADOW_RECOMP_OS_CXX_SOURCES
     )
 endif()
+
 
 set(SHADOW_RECOMP_CPU_CXX_SOURCES
     "cpu/guest_thread.cpp"
@@ -124,6 +135,7 @@ set(SHADOW_RECOMP_PATCHES_CXX_SOURCES
 
 set(SHADOW_RECOMP_USER_CXX_SOURCES
     "user/config.cpp"
+    "user/registry.cpp"
     "user/paths.cpp"
 )
 
@@ -171,7 +183,6 @@ set(SHADOW_RECOMP_CXX_SOURCES
     "misc_impl.cpp"
     "sdl_listener.cpp"
     "stdafx.cpp"
-    "logs.cpp"
     
     ${SHADOW_RECOMP_KERNEL_CXX_SOURCES}
     ${SHADOW_RECOMP_LOCALE_CXX_SOURCES}
@@ -295,6 +306,7 @@ target_link_libraries(ShadowRecomp PRIVATE
     XboxUtils
     SDL2::SDL2-static
     SDL2_mixer
+    tomlplusplus::tomlplusplus
     ShadowRecompLib
     xxHash::xxhash
     plume

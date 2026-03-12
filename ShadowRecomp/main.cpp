@@ -11,7 +11,9 @@
 #include <kernel/io/file_system.h>
 #include <audio/audio.h>
 #include <ui/game_window.h>
-#include <logs.h>
+#include <os/logger.h>
+#include <os/process.h>
+#include <os/registry.h>
 
 #include <xbe.h>
 #ifdef _WIN32
@@ -152,7 +154,13 @@ int main(int argc, char* argv[])
     timeBeginPeriod(1);
 #endif
 
-    InitLogs();
+    os::process::CheckConsole();
+
+    if (!os::registry::Init())
+        LOGN_WARNING("OS does not support registry.");
+
+
+    os::logger::Init();
     LOGN("Starting Shadow Recomp...");
     HostStartup();
     std::filesystem::path xbePath;
@@ -183,6 +191,15 @@ int main(int argc, char* argv[])
         }
     }
 
+    if (!useDefaultWorkingDirectory)
+    {
+        // Set the current working directory to the executable's path.
+        std::error_code ec;
+        std::filesystem::current_path(os::process::GetExecutableRoot(), ec);
+    }
+
+    Config::Load();
+
 #if defined(_WIN32) && defined(SHADOW_RECOMP_D3D12)
     for (auto& dll : g_D3D12RequiredModules)
     {
@@ -195,6 +212,10 @@ int main(int argc, char* argv[])
         }
     }
 #endif
+
+    if (Config::ShowConsole)
+        os::process::ShowConsole();
+
 
     if (!Video::CreateHostDevice(sdlVideoDriver, graphicsApiRetry))
     {
