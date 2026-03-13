@@ -3942,7 +3942,7 @@ static void FlushViewport(const bool isFixed)
 	auto hostWidth = g_renderTarget->width;
 	auto hostHeight = g_renderTarget->height;
 	auto viewport = g_renderviewport.vp;
-
+	auto backupVP = viewport;
 
 	if (isFixed != viewPort_wasFixed)
 	{
@@ -3953,7 +3953,7 @@ static void FlushViewport(const bool isFixed)
 
 	viewPort_wasFixed = isFixed;
 
-	auto backupVP = viewport;
+
 	float width = (float)std::min(viewport.width, (DWORD)hostWidth - viewport.x);
 	float height = (float)std::min(viewport.height, (DWORD)hostHeight - viewport.y);
 
@@ -3963,14 +3963,14 @@ static void FlushViewport(const bool isFixed)
 		height = (float)hostHeight;
 		viewport.minDepth = 0.0f;
 		viewport.maxDepth = 1.0f;
+		viewport.x = 0;
+		viewport.y = 0;
 	}
-
 
 	if (g_dirtyStates.viewport)
 	{
 		if (viewport.minDepth > viewport.maxDepth)
 			std::swap(viewport.minDepth, viewport.maxDepth);
-
 
 		viewport.width = width;
 		viewport.height = height;
@@ -3983,18 +3983,22 @@ static void FlushViewport(const bool isFixed)
 	if (g_dirtyStates.scissorRect)
 	{
 		RenderRect scissorRect;
-		int32_t right = (int32_t)backupVP.width;
-		int32_t bottom = (int32_t)backupVP.height;
+		int32_t left = (int32_t)backupVP.x;
+		int32_t top = (int32_t)backupVP.y;
+		int32_t right = left + (int32_t)backupVP.width;
+		int32_t bottom = top + (int32_t)backupVP.height;
 
 		if (isFixed)
 		{
 			right = (int32_t)hostWidth;
 			bottom = (int32_t)hostHeight;
+			left = 0;
+			top = 0;
 		}
 
 		scissorRect = g_scissorTestEnable ? g_scissorRect : RenderRect(
-			viewport.x,
-			viewport.y,
+			left,
+			top,
 			right,
 			bottom);
 
@@ -4634,12 +4638,12 @@ static void SetViewport(GuestViewport* viewport, GuestSurface* surface)
 
 		RenderCommand cmd;
 		cmd.type = RenderCommandType::SetViewport;
-		cmd.setViewport.x = 0.0f;
-		cmd.setViewport.y = 0.0f;
+		cmd.setViewport.x = viewport->X;
+		cmd.setViewport.y = viewport->Y;
 		cmd.setViewport.width = width;
 		cmd.setViewport.height = height;
-		cmd.setViewport.minDepth = 0.0f;
-		cmd.setViewport.maxDepth = 1.0f;
+		cmd.setViewport.minDepth = viewport->MinZ;
+		cmd.setViewport.maxDepth = viewport->MaxZ;
 		cmd.setViewport.isFixed = isFixed;
 		g_renderQueue.enqueue(cmd);
 	}
