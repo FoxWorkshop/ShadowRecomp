@@ -509,12 +509,18 @@ uint32_t input::GetState(uint32_t dwUserIndex, XINPUT_STATE* pState)
 		return ERROR_SUCCESS;
 	}
 
-	if (!g_activeController || !g_controllers[dwUserIndex - 1].controller)
+	if (!g_activeController)
 		return ERROR_DEVICE_NOT_CONNECTED;
 
-	pState->Gamepad = g_activeController->state;
+	if (g_controllers[dwUserIndex - 1].controller)
+	{
+		g_controllers[dwUserIndex - 1].Poll();
+		g_controllers[dwUserIndex - 1].PollAxis();
+		pState->Gamepad = g_controllers[dwUserIndex - 1].state;
+		return ERROR_SUCCESS;
+	}
 
-	return ERROR_SUCCESS;
+	return ERROR_DEVICE_NOT_CONNECTED;
 }
 
 
