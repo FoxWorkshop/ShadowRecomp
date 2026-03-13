@@ -969,7 +969,7 @@ SHTHR_SOUNDDEVICE_Impl::SHTHR_SOUNDDEVICE_Impl()
 		mFormat = mAudioSpec.format;
 
 		SDL_PauseAudioDevice(mDeviceID, SDL_FALSE);
-		printf("Init SDL2 Audio ok\n");
+		LOGFN_UTILITY("Init SDL2 Audio ok\n");
 	}
 }
 
@@ -1012,7 +1012,7 @@ int32_t SHTHRSoundCreate(SHTHR_SOUNDDEVICE** ppDevice)
 	auto key = g_memory.MapVirtual(ptr);
 
 	ppDS = device;
-	printf("created sound device\n");
+	LOGN_UTILITY("created sound device\n");
 	return key;
 }
 
