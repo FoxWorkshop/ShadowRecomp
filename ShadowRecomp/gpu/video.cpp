@@ -17,6 +17,7 @@
 #include <ui/game_window.h>
 #include <user/config.h>
 #include "x86_context.h"
+#include <patches/aspect_ratio_patches.h>
 #include <sdl_listener.h>
 #include <memory>
 #include <shader/shader_cache.h>
@@ -3671,16 +3672,87 @@ static GuestSurface* GetBackBuffer()
 	return g_backBuffer;
 }
 
-//todo
+
+void GetUpscaledRTResolution(uint32_t widthOrigin, uint32_t heightOrigin, uint32_t* widthOut, uint32_t* heightOut)
+{
+	float percent = (float)widthOrigin / 640.f;
+
+	auto res = percent * Video::s_viewportWidth;
+	*widthOut = res;
+	
+	percent = (float)heightOrigin / 480.f;
+	res = percent * Video::s_viewportHeight;
+
+	*heightOut = res;
+
+}
+
+//todo finish
 void Video::ComputeViewportDimensions()
 {
 	uint32_t width = g_swapChain->getWidth();
 	uint32_t height = g_swapChain->getHeight();
 	float aspectRatio = float(width) / float(height);
 
-	s_viewportWidth = 640;
-	s_viewportHeight = 480;
 
+	switch (Config::AspectRatio)
+	{
+	case EAspectRatio::Wide:
+	{
+		if (aspectRatio > WIDE_ASPECT_RATIO)
+		{
+			s_viewportWidth = height * 16 / 9;
+			s_viewportHeight = height;
+		}
+		else
+		{
+			s_viewportWidth = width;
+			s_viewportHeight = width * 9 / 16;
+		}
+
+		break;
+	}
+
+	case EAspectRatio::Narrow:
+	case EAspectRatio::OriginalNarrow:
+	{
+		if (aspectRatio > NARROW_ASPECT_RATIO)
+		{
+			s_viewportWidth = height * 4 / 3;
+			s_viewportHeight = height;
+		}
+		else
+		{
+			s_viewportWidth = width;
+			s_viewportHeight = width * 3 / 4;
+		}
+
+		break;
+	}
+
+	default:
+		s_viewportWidth = width;
+		s_viewportHeight = height;
+		break;
+	}
+
+	auto base = g_memory.base;
+
+	//update rwRASTERTYPECAMERA resolution (main 640x480 rt)
+	X86_STORE_U32(0x4E5D3C, width);
+	X86_STORE_U32(0x4E5D40, height);
+
+
+	//update rwRASTERTYPEZBUFFER and rwRASTERTYPECAMERATEXTURE resolution
+	/**GetUpscaledRTResolution(512, 512, &width, &height);
+	X86_STORE_U32(0x4E5D50, width);
+	X86_STORE_U32(0x4E5D54, height);
+
+	GetUpscaledRTResolution(512, 384, &width, &height);
+	X86_STORE_U32(0x4E5D64, width);
+	X86_STORE_U32(0x4E5D68, height);*/
+
+	X86_STORE_F32(0x4E5D44, aspectRatio);
 }
 
 static RenderFormat ConvertFormat(X_D3DFORMAT format)
@@ -3845,7 +3917,7 @@ static GuestBuffer* CreateIndexBuffer(uint32_t IndexCount, X_D3DFORMAT format)
 
 
 static GuestSurface* CreateSurface(uint32_t width, uint32_t height, X_D3DFORMAT format, bool formatSet = false)
-{
+{	
 	RenderTextureDesc desc;
 	desc.dimension = RenderTextureDimension::TEXTURE_2D;
 	desc.width = width;
@@ -4007,14 +4079,9 @@ static void FlushViewport(const bool isFixed)
 	}
 }
 
-//Replace the fake modes[] array with real values from SDL2, DX12, etc.).
-//If we decode sub_3D68A5(), make sure to match its format ID to whatever format we need
-//CMiniport_GetDisplayCapabilities() should be stub 
 
-void D3D_EnumAdapterModes(int adapter, unsigned int a2, uint32_t* a3)
+void SetResolution(int adapter, unsigned int a2, uint32_t a3)
 {
-	if (!a3)
-		return;
 
 	// Simulate format flags
 	uint32_t formatFlag;
@@ -4026,29 +4093,18 @@ void D3D_EnumAdapterModes(int adapter, unsigned int a2, uint32_t* a3)
 	case 3: formatFlag = 18; break;
 	}
 
-	// Fake mode table
-	struct FakeMode {
-		uint16_t width;
-		uint16_t height;
-		uint32_t fmt; // return value of sub_3D68A5
-	};
+	Video::ComputeViewportDimensions();
 
-	static FakeMode modes[] = {
-		{ 640, 480, 0x15 },   // 0x15 = D3DFMT_X8R8G8B8 maybe
-		{ 800, 600, 0x15 },
-		{ 1280, 720, 0x15 },
-	};
+	uint32_t width = uint32_t(round(Video::s_viewportWidth * Config::ResolutionScale));
+	uint32_t height = uint32_t(round(Video::s_viewportHeight * Config::ResolutionScale));
 
-	unsigned int modeIndex = a2 >> 2;
-	if (modeIndex >= std::size(modes))
-		return;
+	auto base = g_memory.base;
 
-	const FakeMode& mode = modes[modeIndex];
-	a3[0] = mode.width;
-	a3[1] = mode.height;
-	a3[2] = 60;           // refresh rate
-	a3[3] = 0x50;     // pixel format
-	a3[4] = formatFlag;   // format flag based on a2 & 3
+	X86_STORE_U32(a3, width);
+	X86_STORE_U32(a3 + (4 * 1), height);
+	X86_STORE_U32(a3 + (4 * 2), 60); //refresh rate in hz
+	X86_STORE_U32(a3 + (4 * 3), 0x120);
+	X86_STORE_U32(a3 + (4 * 4), formatFlag);
 }
 
 int D3D_GetAdapterModeCount(int a1)
@@ -4124,7 +4180,7 @@ X86_FUNC_IMPL(__imp__sub_3D4420);
 X86_FUNC_IMPL(__imp__sub_3D4E30);
 
 
-
+GuestViewport* g_viewportPtr = nullptr;
 int32_t Direct3D_CreateDevice_r(int32_t Adapter, int32_t DeviceType, int32_t hFocusWindow, char Flags, X_D3DPRESENT_PARAMETERS* pPresentationParameters, uint32_t* device)
 {
 	LOG_UTILITY("CREATE GUEST D3D DEVICE!");
@@ -4157,6 +4213,8 @@ int32_t Direct3D_CreateDevice_r(int32_t Adapter, int32_t DeviceType, int32_t hFo
 	__imp__sub_3DDAB0(*ctx, base);
 	ctx->esp.u32 -= 28; //readjust esp because of calling original function
 
+	g_viewportPtr = (GuestViewport*)g_memory.Translate(0x3E0A20 + 0xE0);
+	g_viewportPtr = g_viewportPtr;
 	return 0; //success
 }
 static int desCount = 0;
@@ -4635,6 +4693,10 @@ static void SetViewport(GuestViewport* viewport, GuestSurface* surface)
 		float width = (float)std::min(viewport->Width, (DWORD)rtWidth - viewport->X);
 		float height = (float)std::min(viewport->Height, (DWORD)rtHeight - viewport->Y);
 
+		if (height == 256 || width == 512)
+		{
+			//printf("");
+		}
 
 		RenderCommand cmd;
 		cmd.type = RenderCommandType::SetViewport;
@@ -4666,12 +4728,16 @@ void D3DDevice_SetRenderTarget(GuestSurface* surface, GuestSurface* pNewZStencil
 	GuestSurface* newSurface = nullptr;
 	GuestSurface* newDepthStencil = nullptr;
 
+
+
 	if (!g_XboxBackBuffer)
 	{
 		g_XboxBackBuffer = surface;
 		g_XboxDefaultDepthStencilSurface = pNewZStencil;
-
-		g_defaultStencil = CreateSurface(512, 512, X_D3DFMT_LIN_D24S8);
+		uint32_t widthStencil = 512;
+		uint32_t heightStencil = 512;
+		//GetUpscaledRTResolution(512, 512, &widthStencil, &heightStencil);
+		g_defaultStencil = CreateSurface(widthStencil, heightStencil, X_D3DFMT_LIN_D24S8);
 		newSurface = g_backBuffer;
 		newDepthStencil = g_defaultStencil;
 	}
@@ -4712,8 +4778,8 @@ void D3DDevice_SetRenderTarget(GuestSurface* surface, GuestSurface* pNewZStencil
 	static GuestViewport defaultViewport;
 	defaultViewport.X = 0;
 	defaultViewport.Y = 0;
-	defaultViewport.Width = INT_MAX;
-	defaultViewport.Height = INT_MAX;
+	defaultViewport.Width = INT32_MAX;
+	defaultViewport.Height = INT32_MAX;
 	defaultViewport.MinZ = 0;
 	defaultViewport.MaxZ = 1;
 
@@ -4766,7 +4832,6 @@ static void ProcSetDepthStencilSurface(const RenderCommand& cmd)
 X86_FUNC_IMPL(__imp__sub_3D0680);
 void D3DDevice_SetViewport(GuestViewport* viewport)
 {
-	const bool isFixed = g_Xbox_VertexShaderMode == VertexShaderMode::FixedFunction;
 
 	//call original func first
 	auto ctx = GetX86Context();
@@ -5846,6 +5911,18 @@ void* GetDataFromXboxResource(X_D3DResource* pXboxResource)
 	return (uint8_t*)pData;
 }
 
+void UpdateUserConfigConstant(bool toggle)
+{
+	// upload user resolution to add HD resolution 
+	float userConfig[4];
+	
+	userConfig[0] = toggle ? (float)Video::s_viewportWidth : 0.f;
+	userConfig[1] = toggle ? (float)Video::s_viewportHeight : 0.f;
+	userConfig[2] = toggle ? 1.f : 0.f;
+	userConfig[3] = 0.f;
+	CopyVertexShaderConstant(HOST_USER_CONFIG, (DWORD*)userConfig, 1);
+}
+
 static void FlushRenderStateForMainThread(LocalRenderCommandQueue& queue)
 {
 	UpdateAllRenderState();
@@ -5897,7 +5974,6 @@ static void FlushRenderStateForMainThread(LocalRenderCommandQueue& queue)
 		//g_dirtyStates.textureStageState = false;
 	}
 
-	//todo check if this is correct
 
 	XXH64_hash_t hash = XXH3_64bits(&vsh_constants[0][0], sizeof(vsh_constants));
 	bool isDirty = g_lastVertexShaderConstants != hash;
@@ -6753,24 +6829,10 @@ void DrawPrimitiveUP(X_D3DPRIMITIVETYPE PrimitiveType, uint32_t VertexCount, voi
 	LocalRenderCommandQueue queue;
 	FlushRenderStateForMainThread(queue);
 
-	// For some reason, some vertex have their position w set to Inf
-	// while Xbox may not care about this, modern shaders definitely do, so we have to fix this
-	// this isn't a recomp instruction bug, I checked on CXBX Reloaded and logged the values, pos.w is meant to be inf.
-	// so far I only saw this issue with the message box on the title screen.
+
 
 	UpVertex* vertexData = (UpVertex*)(pVertexStreamZeroData);
-	for (int32_t i = 0; i < VertexCount; i++)
-	{
-		if (isinf(vertexData[i].w) || isnan(vertexData[i].w))
-		{
-			vertexData[i].w = 1.0f;
-		}
 
-		//if (captureNow)
-		{
-			//vertexData[i].w = 1.0f;
-		}
-	}
 
 
 	auto& cmd = queue.enqueue();
@@ -6844,7 +6906,7 @@ static void ProcSetTextureStageState(const RenderCommand& cmd)
 	auto mipFilter = ConvertTextureFilter(cmd.SetTextureStageState.D3DTSS_MIPFILTER);
 	auto borderColor = ConvertBorderColor(cmd.SetTextureStageState.D3DTSS_BORDERCOLOR);
 
-	bool anisotropyEnabled = false; // Config::AnisotropicFiltering > 0 && mipFilter == RenderFilter::LINEAR; //TODO
+	bool anisotropyEnabled = Config::AnisotropicFiltering > 0 && mipFilter == RenderFilter::LINEAR; 
 	if (anisotropyEnabled)
 	{
 		magFilter = RenderFilter::LINEAR;
@@ -6861,7 +6923,7 @@ static void ProcSetTextureStageState(const RenderCommand& cmd)
 	SetDirtyValue(dirtySampler, samplerDesc.minFilter, minFilter);
 	SetDirtyValue(dirtySampler, samplerDesc.magFilter, magFilter);
 	SetDirtyValue(dirtySampler, samplerDesc.mipmapMode, RenderMipmapMode(mipFilter));
-	SetDirtyValue(dirtySampler, samplerDesc.maxAnisotropy, 16u); // anisotropyEnabled ? Config::AnisotropicFiltering : 16u);
+	SetDirtyValue(dirtySampler, samplerDesc.maxAnisotropy, anisotropyEnabled ? Config::AnisotropicFiltering : 16u); // anisotropyEnabled ? Config::AnisotropicFiltering : 16u);
 	SetDirtyValue(dirtySampler, samplerDesc.anisotropyEnabled, anisotropyEnabled);
 	SetDirtyValue(dirtySampler, samplerDesc.borderColor, borderColor);
 
@@ -7384,6 +7446,12 @@ X86_FUNC(sub_2DFE20)
 {
 	RwRaster* info = (RwRaster*)g_memory.Translate(ctx.ecx.u32);
 	uint8_t level = X86_LOAD_U8(ctx.eax.u32 + 19);
+	int usage = LOBYTE(info->cType) == rwRASTERTYPECAMERATEXTURE ? 1 : 0;
+
+	if (usage)
+	{
+		info = info;
+	}
 
 	X_D3DFORMAT format = (X_D3DFORMAT)ctx.esi.u32;
 	__imp__sub_2DFE20(ctx, base);
@@ -7394,8 +7462,21 @@ X86_FUNC(sub_2DFE20)
 	ctx.esp.u32 -= 4;
 
 
-	int usage = LOBYTE(info->cType) == rwRASTERTYPECAMERATEXTURE ? 1 : 0;
 
+
+	if (usage)
+	{
+		if (texture->Size)
+		{
+			auto  v7 = ((texture->Size >> 12) & 0xFFF) + 1;
+			v7 = v7;
+		}
+		else
+		{
+			auto v7 = 1 << ((texture->Format) & 0xF);
+			v7 = v7;
+		}
+	}
 	auto newTex = CreateTexture(info->width, info->height, 1, level, usage, format, X_D3DRTYPE_TEXTURE);
 
 	newTex->guestResource.Common = texture->Common;
@@ -7457,26 +7538,6 @@ X86_FUNC(sub_3D5FE0)
 	__imp__sub_3D5FE0(ctx, base);
 }
 
-//GetViewportOffsetAndScale
-X86_FUNC_IMPL(__imp__sub_3D24B0);
-X86_FUNC(sub_3D24B0)
-{
-
-	__imp__sub_3D24B0(ctx, base);
-
-	if (LogVSConstants)
-	{
-		auto device = X86_LOAD_U32(GuestDevicePtrAddr);
-		auto valA = X86_LOAD_F32(device + 0x95C);
-		auto valB = X86_LOAD_F32(device + 0x960);
-		auto padding636 = X86_LOAD_F32(device + 0x970);
-		auto padding68 = X86_LOAD_U32(device + 0x954);
-		auto padding7 = X86_LOAD_U32(device + 0xEF8);
-
-		valB = valB;
-
-	}
-}
 
 static DWORD* g_beginPush = nullptr;
 uint32_t D3DDevice_BeginPush(DWORD Count)
@@ -7569,9 +7630,8 @@ static std::thread g_renderThread([]
 
 //=============== DONE =========
 GUEST_FUNCTION_HOOK_STDCALL(sub_3DDAB0, Direct3D_CreateDevice_r);
-//GUEST_FUNCTION_HOOK(sub_2E6750, CreateVertexBuffer);
+GUEST_FUNCTION_HOOK_STDCALL(sub_3DD950, SetResolution);
 //GUEST_FUNCTION_HOOK_STDCALL(sub_3D5FE0, LockVertexBuffer);
-
 
 //vertex shader
 //GUEST_FUNCTION_HOOK_STDCALL(sub_3D1BA0, CreateVertexShader);
@@ -7631,7 +7691,6 @@ GUEST_FUNCTION_HOOK_STDCALL(sub_3D4760, D3DDevice_EndPush);
 
 //		 === UNCONFIRMED STUB == TODO CHECK IF THEY ARE ALL CORRECT
 GUEST_FUNCTION_HOOK_STDCALL(sub_3DD8B0, D3D_GetAdapterModeCount);
-GUEST_FUNCTION_HOOK_STDCALL(sub_3DD950, D3D_EnumAdapterModes);
 GUEST_FUNCTION_HOOK_STDCALL(sub_3D0F40, D3D_SetTileNoWait);
 
 

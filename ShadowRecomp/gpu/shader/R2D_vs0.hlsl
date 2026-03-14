@@ -62,6 +62,31 @@ VS_OUTPUT main(VS_INPUT xIn)
 
 	// Temp variable for paired VS instruction
     float4 temp;
+    
+    
+    float resolution_Width = UserInfo.x;
+    float resolution_Height = UserInfo.y;
+
+    if (UserInfo.z > 0 && resolution_Width > 0 && resolution_Height > 0)
+    {
+        if (v0.x < resolution_Width)
+            v0.x = (v0.x / 640.0f) * resolution_Width;
+    
+        if (v0.y < resolution_Height)
+            v0.y = (v0.y / 480.0f) * resolution_Height;
+    }
+    
+
+    // For some reason, some vertex have their position w set to Inf
+	// while Xbox may not care about this, modern shaders definitely do, so we have to fix this
+	// this isn't a recomp instruction bug, I checked on CXBX Reloaded and logged the values, pos.w is meant to be inf.
+	// so far I only saw this issue with the message box.
+    if (isinf(v0.w) || isnan(v0.w))
+    {
+        v0.w = 1.f;
+    }
+
+
 
 	// Xbox shader program starts here
 	

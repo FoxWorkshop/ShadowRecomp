@@ -13,3 +13,4 @@ struct AspectRatioPatches
 {
     static void ComputeOffsets();
 };
+void UpdateUserConfigConstant(bool toggle);
