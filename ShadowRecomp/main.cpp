@@ -162,10 +162,9 @@ int main(int argc, char* argv[])
 
     os::logger::Init();
     LOGN("Starting Shadow Recomp...");
-    HostStartup();
+
     std::filesystem::path xbePath;
     xbePath = GameExecutable;
-    uint32_t entry = LoadXbeModule(xbePath);
 
     bool forceInstaller = false;
     bool forceDLCInstaller = false;
@@ -216,48 +215,8 @@ int main(int argc, char* argv[])
     if (Config::ShowConsole)
         os::process::ShowConsole();
 
-
-    if (!Video::CreateHostDevice(sdlVideoDriver, graphicsApiRetry))
-    {
-        SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_ERROR, GameWindow::GetTitle(), "Backend Graphics error", GameWindow::s_pWindow);
-        std::_Exit(1);
-    }
-
+    HostStartup();
     InitDpcData();
-
-
-    for (const auto& entry : fs::directory_iterator(fs::current_path()))
-    {
-        if (entry.path().extension() == ".raw")
-        {
-            auto s = entry.path().string();
-            if (s.find("outSHTH") != std::string::npos)
-            {
-                //outSHTH.raw
-                std::error_code ec; // optional: avoid exceptions
-                if (fs::remove(entry.path(), ec))
-                {
-                    std::cout << "Deleted: " << entry.path() << '\n';
-                    break;
-                }
-            }
-        }
-    }
-
-    for (const auto& entry : fs::directory_iterator(fs::current_path())) {
-        if (entry.path().extension() == ".txt")
-        {
-            if (entry.path().string().find("float_dump.txt") != std::string::npos)
-            {
-                continue;
-            }
-
-            std::error_code ec; // optional: avoid exceptions
-            if (fs::remove(entry.path(), ec))
-                std::cout << "Deleted: " << entry.path() << '\n';
-        }
-    }
-
 
 
     NV2ADevice_Init();
@@ -270,6 +229,15 @@ int main(int argc, char* argv[])
 
     //init mutex for Loading thread patch
     InitPatchesLoadingCriticalSection();
+    uint32_t entry = LoadXbeModule(xbePath);
+
+
+    if (!Video::CreateHostDevice(sdlVideoDriver, graphicsApiRetry))
+    {
+        SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_ERROR, GameWindow::GetTitle(), "Backend Graphics error", GameWindow::s_pWindow);
+        std::_Exit(1);
+    }
+
 
     //launch the Start function of the game
     isHostThread = true;
