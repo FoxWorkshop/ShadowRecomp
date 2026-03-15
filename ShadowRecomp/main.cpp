@@ -101,6 +101,7 @@ void HostStartup()
 
     input::Init();
     g_userHeap.Init();
+    initSDL2Driver();
 }
 
 std::atomic<bool> running{ true };
@@ -161,10 +162,9 @@ int main(int argc, char* argv[])
 
     os::logger::Init();
     LOGN("Starting Shadow Recomp...");
-    HostStartup();
+
     std::filesystem::path xbePath;
     xbePath = GameExecutable;
-    uint32_t entry = LoadXbeModule(xbePath);
 
     bool forceInstaller = false;
     bool forceDLCInstaller = false;
@@ -215,6 +215,22 @@ int main(int argc, char* argv[])
     if (Config::ShowConsole)
         os::process::ShowConsole();
 
+    HostStartup();
+    InitDpcData();
+
+
+    NV2ADevice_Init();
+
+    //Create "interrupt events" thread, a loop will check and fire guest function stored from KeConnectInterrupt
+   // std::thread eventsThread(system_events_launch);
+
+    //Create DPC Routine thread, a loop will check and fire guest function stored from KeInsertQueueDpc
+    //std::thread dpcThread(dpc_launch);
+
+    //init mutex for Loading thread patch
+    InitPatchesLoadingCriticalSection();
+    uint32_t entry = LoadXbeModule(xbePath);
+
 
     if (!Video::CreateHostDevice(sdlVideoDriver, graphicsApiRetry))
     {
@@ -222,18 +238,6 @@ int main(int argc, char* argv[])
         std::_Exit(1);
     }
 
-    InitDpcData();
-
-    NV2ADevice_Init();
-
-    //Create "interrupt events" thread, a loop will check and fire guest function stored from KeConnectInterrupt
-    // std::thread eventsThread(system_events_launch);
-
-    //Create DPC Routine thread, a loop will check and fire guest function stored from KeInsertQueueDpc
-    //std::thread dpcThread(dpc_launch);
-
-    //init mutex for Loading thread patch
-    InitPatchesLoadingCriticalSection();
 
     //launch the Start function of the game
     isHostThread = true;

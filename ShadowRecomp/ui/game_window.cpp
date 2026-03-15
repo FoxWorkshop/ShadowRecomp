@@ -174,8 +174,8 @@ void GameWindow::Init(const char* sdlVideoDriver)
 
     s_x = Config::WindowX;
     s_y = Config::WindowY;
-    s_width = Config::WindowWidth;
-    s_height = Config::WindowHeight;
+    s_width = Config::WindowWidth.Value;
+    s_height = Config::WindowHeight.Value;
 
     if (s_x == -1 && s_y == -1)
         s_x = s_y = SDL_WINDOWPOS_CENTERED;
@@ -435,7 +435,7 @@ int GameWindow::GetDisplayCount()
 
     if (result < 0)
     {
-        //LOGF_ERROR("Failed to get display count: {}", SDL_GetError());
+        LOGF_ERROR("Failed to get display count: {}", SDL_GetError());
         return 1;
     }
 

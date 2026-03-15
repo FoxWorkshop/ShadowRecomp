@@ -26,7 +26,6 @@ struct VS_OUTPUT // Declared identical to pixel shader input (see PS_INPUT)
 VS_OUTPUT main(VS_INPUT xIn)
 {
 
-    
 	// Output variables
    float4 oPos, oD0, oD1, oB0, oB1, oT0, oT1, oT2, oT3;
     oPos = oD0 = oD1 = oB0 = oB1 = oT0 = oT1 = oT2 = oT3 = float4(0, 0, 0, 1); // Pre-initialize w component of outputs to 1
@@ -59,7 +58,33 @@ VS_OUTPUT main(VS_INPUT xIn)
 	init_v(4);init_v(5);init_v(6);init_v(7);
 	init_v(8);init_v(9);init_v(10);init_v(11);
 	init_v(12);init_v(13);init_v(14);init_v(15);
+    
+    float resolution_Width = UserInfo.x;
+    float resolution_Height = UserInfo.y;
+    
+    if (UserInfo.z > 0 && resolution_Width > 0 && resolution_Height > 0)
+    {
+        if (v0.x < resolution_Width)
+            v0.x = (v0.x / 640.0f) * resolution_Width;
+    
+        if (v0.y < resolution_Height)
+            v0.y = (v0.y / 480.0f) * resolution_Height;
+    }
+    
+    
 
+     
+    // For some reason, some vertex have their position w set to Inf
+	// while Xbox may not care about this, modern shaders definitely do, so we have to fix this
+	// this isn't a recomp instruction bug, I checked on CXBX Reloaded and logged the values, pos.w is meant to be inf.
+	// so far I only saw this issue with the message box.
+    if (isinf(v0.w) || isnan(v0.w))
+    {
+        v0.w = 1.f;
+    }
+    
+
+    
 	// Temp variable for paired VS instruction
     float4 temp;
 

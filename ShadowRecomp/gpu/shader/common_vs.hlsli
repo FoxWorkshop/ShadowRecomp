@@ -24,7 +24,7 @@ struct PushConstants
 #define xboxScreenspaceScale  vk::RawBufferLoad<float4>(g_PushConstants.VertexShaderConstants + V_CBUFFER_OFFSET(212, 'x') )
 #define xboxScreenspaceOffset  vk::RawBufferLoad<float4>(g_PushConstants.VertexShaderConstants + V_CBUFFER_OFFSET(213, 'x') )
 #define xboxTextureScale(i) vk::RawBufferLoad<float4>(g_PushConstants.VertexShaderConstants +  V_ARRAY_OFFSET(214, i) )
-
+#define UserInfo  vk::RawBufferLoad<float4>(g_PushConstants.VertexShaderConstants + V_CBUFFER_OFFSET(219, 'x') )
 
 
 #define FogTableMode vk::RawBufferLoad<uint>(g_PushConstants.SharedConstants + V_CBUFFER_OFFSET(81, 'z') )
@@ -43,7 +43,8 @@ cbuffer VertexShaderConstants : register(b0, space4)
     float4 xboxScreenspaceScale : packoffset(c212);
     float4 xboxScreenspaceOffset : packoffset(c213);
     float4 xboxTextureScl[4] : packoffset(c214);
-   // float4 FogInfo : packoffset(c218); //Parameters for mapping the shader's fog output value to a fog factor (D3DVS_CONSTREG_FOGINFO)  
+    float4 FogInfo : packoffset(c218); //Parameters for mapping the shader's fog output value to a fog factor (D3DVS_CONSTREG_FOGINFO) 
+    float4 UserInfo_ : packoffset(c219); // res width, height and Config AspectRatio
 }
 
 cbuffer SharedConstants : register(b2, space4)
@@ -58,6 +59,7 @@ cbuffer SharedConstants : register(b2, space4)
 #define vRegisterDefaultValues(i) vRegisterDefaultVal[i]
 #define vRegisterDefaultFlagsPacked(i) vRegisterDefaultFlagsPack[i]
 #define xboxTextureScale(i) xboxTextureScl[i]
+#define UserInfo UserInfo_
 
 
 #endif
