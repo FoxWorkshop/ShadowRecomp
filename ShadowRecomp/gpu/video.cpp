@@ -3383,7 +3383,7 @@ void Video::WaitOnSwapChain()
 {
 	if (g_pendingWaitOnSwapChain)
 	{
-		if (g_swapChainValid)
+		if (g_swapChainValid && g_capabilities.presentWait)
 		{
 			g_presentWaitProfiler.Begin();
 			g_swapChain->wait();
@@ -3463,7 +3463,7 @@ void Video::Present()
 
 	if (g_swapChainValid)
 	{
-		if (g_pendingWaitOnSwapChain)
+		if (g_pendingWaitOnSwapChain && g_capabilities.presentWait)
 		{
 			g_presentWaitProfiler.Begin();
 			g_swapChain->wait(); // Never gonna happen outside loading threads as explained above.
