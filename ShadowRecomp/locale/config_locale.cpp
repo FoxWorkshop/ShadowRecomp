@@ -330,6 +330,17 @@ CONFIG_DEFINE_LOCALE(EffectsVolume)
 };
 
 // Japanese Notes: This localization should include furigana.
+CONFIG_DEFINE_LOCALE(VoicesVolume)
+{
+    { ELanguage::English, { "Voices Volume", "Adjust the volume for sound effects." } },
+    { ELanguage::Japanese, { "Voices Volume", "Adjust the volume for sound effects." } },
+    { ELanguage::German,   { "Voices Volume", "Adjust the volume for sound effects." } },
+    { ELanguage::French,   { "Volume des voix", "Réglage du volume des voix." } },
+    { ELanguage::Spanish,  { "Voices Volume", "Adjust the volume for sound effects." } },
+    { ELanguage::Italian,  { "Voices Volume", "Adjust the volume for sound effects." } },
+};
+
+// Japanese Notes: This localization should include furigana.
 CONFIG_DEFINE_LOCALE(VoiceLanguage)
 {
     { ELanguage::English, { "Voice Language", "Change the language used for character voices." } },
