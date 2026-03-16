@@ -101,7 +101,6 @@ void HostStartup()
 
     input::Init();
     g_userHeap.Init();
-    initSDL2Driver();
 }
 
 std::atomic<bool> running{ true };
