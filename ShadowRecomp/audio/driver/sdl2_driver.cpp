@@ -21,7 +21,6 @@
 
 #define SAFE_DELETE(p)       { if(p) { delete (p);     (p)=NULL; } }
 #define FORMAT_TO_SIZE(format) (SDL_AUDIO_BITSIZE(format) >> 3)
-std::vector<Uint8> gResampleBuffer;
 #define DSE_FLAG_XADPCM                 (1 << 1)
 #define DSoundBufferGetPCMBufferSize(EmuFlags, size) (EmuFlags & DSE_FLAG_XADPCM) > 0 ? DWORD((size / float(XBOX_ADPCM_SRCSIZE)) * XBOX_ADPCM_DSTSIZE) : size
 #define DSoundBufferGetXboxBufferSize(EmuFlags, size) (EmuFlags & DSE_FLAG_XADPCM) > 0 ? DWORD((size / float(XBOX_ADPCM_DSTSIZE)) * XBOX_ADPCM_SRCSIZE) : size
@@ -53,7 +52,7 @@ public:
 	int GetMinDistance(float* pflMinDistance) override;
 };
 
-int globalIDTrack = 0;
+
 class SHTHR_SOUNDBUFFER_Impl : public SHTHR_SOUNDBUFFER
 {
 private:
@@ -63,7 +62,6 @@ private:
 
 	SHTHR_SOUNDDEVICE_Impl* mParent;
 	SDL_AudioCVT mAudioCVT;
-	int ID = 0;
 
 	struct PendingWrite {
 		int offset;
@@ -338,7 +336,6 @@ float SHTHR_SOUNDBUFFER_Impl::Calculate3DVolume()
 SHTHR_SOUNDBUFFER_Impl::SHTHR_SOUNDBUFFER_Impl(SHTHR_SOUNDDEVICE_Impl* parent, X_DSBUFFERDESC* desc) : mParent(parent)
 {
 	SetFormatTag(desc->lpwfxFormat);
-	ID = globalIDTrack++;
 	mCaps = desc->dwFlags;
 	mChannelCount = desc->lpwfxFormat->nChannels;
 	mFrequency = desc->lpwfxFormat->nSamplesPerSec;
@@ -348,9 +345,7 @@ SHTHR_SOUNDBUFFER_Impl::SHTHR_SOUNDBUFFER_Impl(SHTHR_SOUNDDEVICE_Impl* parent, X
 	mBuffer = (unsigned char*)g_userHeap.Alloc(mBufferSize);
 
 	// translator between what the game provides and what audio device expects. (ex: 22050 hs vs 41800)
-	
 	RebuildStream(mFormat, mChannelCount, mFrequency, mParent->mFormat, mParent->mChannelCount, mParent->mFrequency);
-
 
 
 	if (mCaps & XTL_DSBCAPS_CTRL3D)

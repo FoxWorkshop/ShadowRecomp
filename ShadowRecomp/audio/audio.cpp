@@ -51,7 +51,7 @@ int32_t IDirectSoundBuffer_Lock(int32_t keyBuffer, int32_t dwOffset, int32_t dwB
 	return res;
 }
 
-//Xbox doesn't seem to use this todo check if we can still use it
+
 int32_t IDirectSoundBuffer_Unlock(int32_t keyBuffer, void* ppvAudioPtr1, int32_t pdwAudioBytes1, void* ppvAudioPtr2, int32_t pdwAudioBytes2)
 {
 	auto pThis = GetCurrentSoundBuffer(keyBuffer);
