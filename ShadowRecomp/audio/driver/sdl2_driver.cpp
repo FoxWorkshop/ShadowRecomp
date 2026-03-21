@@ -631,61 +631,6 @@ int32_t SHTHR_SOUNDBUFFER_Impl::Pull(unsigned char* data, int32_t size)
 		return 0;
 	}
 
-	// handle sound effect loop we don't check streaming since they loop their own way
-	if (mLooping && this->isStreaming == false)
-	{
-		if (mWrittenSize <= 0 && mBakedLoop.empty())
-		{
-			mutex.unlock();
-			return 0;
-		}
-
-		// Serve intro first if not done
-		if (!mIntroDone && !mBakedIntro.empty())
-		{
-			int available = (int)mBakedIntro.size() - mBakedIntroPos;
-			int writesize = std::min(size, available);
-
-			if (writesize > 0)
-			{
-				memcpy(data, mBakedIntro.data() + mBakedIntroPos, writesize);
-				mBakedIntroPos += writesize;
-
-				if (mBakedIntroPos >= (int)mBakedIntro.size())
-				{
-					mIntroDone = true;
-					mBakedIntroPos = 0;
-				}
-
-				mutex.unlock();
-				return writesize;
-			}
-		}
-
-		// Now that sound effect intro played we can do loop
-
-		if (!mBakedLoop.empty())
-		{
-			int available = (int)mBakedLoop.size() - mBakedLoopPos;
-			int writesize = std::min(size, available);
-
-			if (writesize <= 0)
-			{
-				mBakedLoopPos = 0;
-				writesize = std::min(size, (int)mBakedLoop.size());
-			}
-
-			memcpy(data, mBakedLoop.data() + mBakedLoopPos, writesize);
-			mBakedLoopPos += writesize;
-			if (mBakedLoopPos >= (int)mBakedLoop.size())
-				mBakedLoopPos = 0;
-
-			mutex.unlock();
-			return writesize;
-		}
-	}
-
-
 
 	int srcBytesPerSample = SDL_AUDIO_BITSIZE(mFormat) / 8 * mChannelCount;
 	int dstBytesPerSample = SDL_AUDIO_BITSIZE(mParent->mFormat) / 8 * mParent->mChannelCount;
@@ -702,6 +647,14 @@ int32_t SHTHR_SOUNDBUFFER_Impl::Pull(unsigned char* data, int32_t size)
 	{
 		mutex.unlock();
 		return 0;
+	}
+
+	if (this->isStreaming == false && mLooping && mLoopLength > 0)
+	{
+		int loopEnd = mLoopStartOffset + mLoopLength;
+		int distToLoopEnd = loopEnd - mBufferReadLoc;
+		if (distToLoopEnd > 0 && read_size > distToLoopEnd)
+			read_size = distToLoopEnd;
 	}
 
 	// Copy from ring buffer into a temp staging buffer
@@ -722,6 +675,35 @@ int32_t SHTHR_SOUNDBUFFER_Impl::Pull(unsigned char* data, int32_t size)
 
 	if (mWrittenSize < 0) 
 		mWrittenSize = 0;
+
+	if (this->isStreaming == false)
+	{
+		if (mLooping && mLoopLength > 0)
+		{
+			int loopEnd = mLoopStartOffset + mLoopLength;
+			if (mBufferReadLoc >= loopEnd)
+			{
+				mBufferReadLoc = mLoopStartOffset + (mBufferReadLoc - loopEnd);
+				mWrittenSize = mLoopLength; // reset to loop region size
+			}
+		}
+		else if (mLooping && mLoopLength == 0)
+		{
+			if (mBufferReadLoc >= mBufferSize)
+			{
+				mBufferReadLoc %= mBufferSize;
+				mWrittenSize = mBufferSize; // reset to full buffer size
+			}
+		}
+		else
+		{
+			if (mWrittenSize <= 0)
+			{
+				mPlay = false;
+				SDL_AudioStreamClear(mAudioStream);
+			}
+		}
+	}
 
 	mutex.unlock();
 
@@ -921,9 +903,9 @@ int SHTHR_SOUNDBUFFER_Impl::Play(int dwReserved1, int dwPriority, uint32_t dwFla
 	if (dwFlags & X_DSBPLAY_LOOPING)
 	{
 		this->mLooping = true;
-		this->mBakedLoop.clear();
+		/**this->mBakedLoop.clear();
 		this->mBakedLoopPos = 0;
-		this->BakeResampledLoop();
+		this->BakeResampledLoop();*/
 	}
 	else
 	{
@@ -1281,9 +1263,7 @@ X86_FUNC(sub_25CBB0)
 	bool valid = specialMode == 2;
 	auto bgmTaskAddr = GetHostParameter(1, CallConvention::Thiscall, ParameterType::Pointer);
 
-#ifdef _DEBUG
-	os::logger::LogFile("Play BGM", (char*)(bgmTaskAddr + 0x50));
-#endif
+
 	if (valid == false)
 	{
 		char* s = (char*)(base + ctx.ecx.u32 + 0x50);
