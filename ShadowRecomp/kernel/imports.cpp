@@ -764,7 +764,7 @@ uint32_t* MmAllocateContiguousMemoryEx(uint32_t NumberOfBytes, uint32_t LowestAc
 	uint32_t ProtectionType
 )
 {
-	printf("MmAllocateContiguousMemoryEx(%zu bytes, Align %u)\n\n", NumberOfBytes, Alignment);
+	//printf("MmAllocateContiguousMemoryEx(%zu bytes, Align %u)\n\n", NumberOfBytes, Alignment);
 	return reinterpret_cast<uint32_t*>(g_memory.MapVirtual(g_userHeap.AllocPhysical(NumberOfBytes, Alignment)));
 }
 
@@ -944,8 +944,8 @@ LONG NtQueryDirectoryFile(
 //todo figure out if this is correct
 LONG NtQueryFullAttributesFile(uint32_t* ObjectAttributes_, uint32_t* FileInformation_)
 {
-	printf("NtQueryFullAttributesFile STUB\n");
-	return X_STATUS_OBJECT_PATH_NOT_FOUND;
+	//printf("NtQueryFullAttributesFile STUB\n");
+	return -1073741772;
 }
 
 LONG NtQueryInformationFile(

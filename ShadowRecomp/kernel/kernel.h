@@ -38,8 +38,7 @@ struct KernelObject
 
 template<typename T, typename... Args>
 inline T* CreateKernelObject(Args&&... args)
-{
-	printf("CreateKernelObject %s\n", typeid(T).name());    
+{ 
     static_assert(std::is_base_of_v<KernelObject, T>);
     return g_userHeap.AllocPhysical<T>(std::forward<Args>(args)...);
 }
