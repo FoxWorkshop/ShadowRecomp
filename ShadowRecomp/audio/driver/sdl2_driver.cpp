@@ -89,6 +89,7 @@ private:
 
 	int mVolume = 0;
 	int mVolumeLinear = 128;
+	int mPrevVolume = 0;
 	bool mVolumeChangeFlag = false; // ensure we don't scale volume multiple times
 
 	DWORD mPlayFlags = 0;
@@ -755,7 +756,7 @@ int SHTHR_SOUNDBUFFER_Impl::Play(int dwReserved1, int dwPriority, uint32_t dwFla
 	this->mPlay = true;
 	this->mPlayFlags = dwFlags;
 
-	if (!mVolumeChangeFlag) // since the game can re use the same buffer, make sure to not scale volume multiple times
+	if (!mVolumeChangeFlag || mPrevVolume != this->mVolumeLinear) // since the game can re use the same buffer, make sure to not scale volume multiple times
 	{
 		if (PlayMusic)
 		{
@@ -767,6 +768,7 @@ int SHTHR_SOUNDBUFFER_Impl::Play(int dwReserved1, int dwPriority, uint32_t dwFla
 			this->mVolumeLinear *= Config::VoicesVolume.Value;
 		}
 
+		mPrevVolume = this->mVolumeLinear;
 		mVolumeChangeFlag = true;
 	}
 
@@ -1133,7 +1135,11 @@ X86_FUNC(sub_25CBB0)
 {
 	auto specialMode = X86_LOAD_U8(ctx.ecx.u32 + 0x2A);
 	bool valid = specialMode == 2;
+	auto bgmTaskAddr = GetHostParameter(1, CallConvention::Thiscall, ParameterType::Pointer);
 
+#ifdef _DEBUG
+	os::logger::LogFile("Play BGM", (char*)(bgmTaskAddr + 0x50));
+#endif
 	if (valid == false)
 	{
 		char* s = (char*)(base + ctx.ecx.u32 + 0x50);
