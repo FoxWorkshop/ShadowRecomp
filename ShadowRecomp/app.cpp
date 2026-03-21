@@ -96,4 +96,5 @@ void UpdateSDLEventsMidAsmHook()
 		}
 
 		std::this_thread::sleep_for(std::chrono::milliseconds(16)); // This is a hack; Without it two+ controllers connected makes framerate tank even on menus
+	}
 }

@@ -1015,6 +1015,49 @@ enum class VertexShaderMode {
 	ShaderProgram
 };
 
+enum RwRasterType : uint8_t
+{
+	rwRASTERTYPENORMAL = 0x0,
+	rwRASTERTYPEZBUFFER = 0x1,
+	rwRASTERTYPECAMERA = 0x2,
+	rwRASTERTYPETEXTURE = 0x4,
+	rwRASTERTYPECAMERATEXTURE = 0x5,
+	rwRASTERTYPEMASK = 0x7,
+	rwRASTERDONTALLOCATE = 0x80,
+};
+
+struct RwRaster
+{
+	uint32_t parent; //RwRaster*
+	uint32_t cpPixels; //uint8_t* 
+	uint32_t palette; //uint8_t*
+	int32_t width;
+	int32_t height;
+	int32_t depth;
+	int32_t stride;
+	int16_t nOffsetX;
+	int16_t nOffsetY;
+	RwRasterType cType;
+	uint32_t cFlags;
+	uint8_t privateFlags;
+	uint8_t cFormat;
+	uint32_t originalPixels; //uint8_t*
+	int32_t originalWidth;
+	int32_t originalHeight;
+	int32_t originalStride;
+};
+
+struct RwTexture
+{
+	uint32_t raster;   //RwRaster*
+	uint32_t dict; //RwTexDictionary ptr
+	uint32_t lInDictionary[2];
+	char name[32];
+	char mask[32];
+	uint32_t filterAddressing;
+	int32_t refCount;
+};
+
 // Xbox vertex shader constant modes
 #define X_D3DSCM_96CONSTANTS                  0x00 // Enables constants 0..95
 #define X_D3DSCM_192CONSTANTS                 0x01 // Enables constants -96..-1 on top of 0..95

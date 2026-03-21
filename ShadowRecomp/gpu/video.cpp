@@ -33,6 +33,7 @@ const uint32_t AutoDepthStencilFormat = 0x57DD68;
 const uint32_t RwD3D8RasterExtOffsetAddr = 0x57DD20;
 const uint32_t g_DeferredTextureStateAddr = 0x3E0580;
 const uint32_t g_RenderStateAddr = 0x3E0780;
+const uint32_t g_cameraAddr = 0x540C40;
 
 bool LogVSConstants = false;
 
@@ -118,6 +119,7 @@ bool LogVSConstants = false;
 #include "shader/Rshadow_event_vs.hlsl.spirv.h"
 #include "shader/Rchaos_vs.hlsl.spirv.h"
 #include <os/logger.h>
+#include <os/process.h>
 
 
 namespace plume
@@ -2186,7 +2188,7 @@ bool Video::CreateHostDevice(const char* sdlVideoDriver, bool graphicsApiRetry)
 			else
 			{
 				// If this is the first crash we ran into, reboot and try the other graphics API.
-				//os::process::StartProcess(os::process::GetExecutablePath(), { "--graphics-api-retry" });
+				os::process::StartProcess(os::process::GetExecutablePath(), { "--graphics-api-retry" });
 				std::_Exit(0);
 			}
 		}
@@ -3687,6 +3689,23 @@ void GetUpscaledRTResolution(uint32_t widthOrigin, uint32_t heightOrigin, uint32
 
 }
 
+
+void UpdateCameraRasterResolution(const uint32_t width, const uint32_t height)
+{
+	auto base = g_memory.base;
+	auto cam = X86_LOAD_U32(g_cameraAddr);
+	if (cam)
+	{
+		auto camRaster = X86_LOAD_U32(cam + 0x10);
+
+		if (camRaster)
+		{
+			X86_STORE_U32(camRaster + 0xC, width);
+			X86_STORE_U32(camRaster + 0x10, height);
+		}
+	}
+}
+
 //todo finish
 void Video::ComputeViewportDimensions()
 {
@@ -3790,7 +3809,7 @@ static GuestTexture* CreateTexture(uint32_t width, uint32_t height, uint32_t dep
 	auto texture = g_userHeap.AllocPhysical<GuestTexture>(type == X_D3DRTYPE_VOLUMETEXTURE ? ResourceType::VolumeTexture : ResourceType::Texture);
 
 	RenderTextureDesc desc;
-	desc.dimension = RenderTextureDimension::TEXTURE_2D; //check if it's accurate
+	desc.dimension = RenderTextureDimension::TEXTURE_2D; 
 
 	if (usage == 1) //will be RenderTarget
 	{
@@ -4114,24 +4133,6 @@ int D3D_GetAdapterModeCount(int a1)
 }
 
 
-X86_FUNC_IMPL(__imp__sub_59AE0);
-X86_FUNC(sub_59AE0) {
-
-	is_loadingThread = false;
-	loadingThreadID = -1;
-	//printf("Loading Destructor - Thread %d\n", GetCurrentThreadId());
-	__imp__sub_59AE0(ctx, base);
-}
-
-X86_FUNC_IMPL(__imp__sub_59BB0);
-X86_FUNC(sub_59BB0) {
-
-	is_loadingThread = true;
-	if (loadingThreadID == -1)
-		loadingThreadID = GetCurrentThreadId();
-	//printf("Draw Loading - Thread %d\n", GetCurrentThreadId());
-	__imp__sub_59BB0(ctx, base);
-}
 
 
 X_D3DFORMAT MapToLinearD3DFORMAT(X_D3DFORMAT a1)
@@ -4627,8 +4628,6 @@ X86_FUNC(sub_2DDC50)
 	__imp__sub_2DDC50(ctx, base);
 
 }
-bool isTexInVec(GuestTexture* tex);
-//D3DDevice_SetTexture
 
 void SetTexture(uint32_t stage, GuestTexture* texture)
 {
@@ -4641,20 +4640,11 @@ void SetTexture(uint32_t stage, GuestTexture* texture)
 	g_renderQueue.enqueue(cmd);
 }
 
+
 static void SetTextureInRenderThread(uint32_t index, GuestTexture* texture, const bool isFixed = false)
 {
-	/**if (texture)
-		printf("SetTextureInRenderThread - Add barrier SHADER_READ to Texture %x\n", texture);*/
 
 	AddBarrier(texture, RenderTextureLayout::SHADER_READ);
-
-	if (texture && texture->isRenderTarget)
-	{
-		//currentRTTex = texture;
-		//AddBarrier(lastSurface, RenderTextureLayout::SHADER_READ);
-		//printf("SetTexture now bind a RenderTarget texture. %x, width %d, height %d\n", texture->texture, texture->width, texture->height);
-	}
-
 
 	auto viewDimension = texture != nullptr ? texture->viewDimension : RenderTextureViewDimension::UNKNOWN;
 
@@ -4662,7 +4652,6 @@ static void SetTextureInRenderThread(uint32_t index, GuestTexture* texture, cons
 	{
 		g_sharedConstants.TextureSampleType[index] = (uint32_t)(viewDimension)-1;
 		UpdateHostTextureScaling(texture, isFixed);
-		//	printf("Assigned texture descriptor index: %u\n", texture->descriptorIndex);
 	}
 	else
 	{
@@ -6298,63 +6287,6 @@ static void UnlockBuffer(GuestBuffer* buffer, bool useCopyQueue)
 
 
 template<typename T>
-static void UnlockBufferToGPU(GuestBuffer* buffer, bool useCopyQueue)
-{
-	auto uniqueGPUBuffer = CreateVertexBuffer(buffer->dataSize);// g_userHeap.AllocPhysical<GuestBuffer>(ResourceType::VertexBuffer);
-	//uniqueGPUBuffer->buffer = g_device->createBuffer(RenderBufferDesc::VertexBuffer(buffer->dataSize, GetBufferHeapType(), RenderBufferFlag::INDEX));
-	uniqueGPUBuffer->mappedMemory = g_userHeap.AllocPhysical(buffer->dataSize, 0x10);
-	memcpy(uniqueGPUBuffer->mappedMemory, buffer->mappedMemory, buffer->dataSize);
-
-	auto copyBuffer = [&](T* dest)
-		{
-
-			auto src = reinterpret_cast<const T*>(buffer->mappedMemory);
-
-			for (size_t i = 0; i < buffer->dataSize; i += sizeof(T))
-			{
-				*dest = *src;
-				++dest;
-				++src;
-			}
-
-		};
-
-	if (useCopyQueue && g_capabilities.gpuUploadHeap)
-	{
-		copyBuffer(reinterpret_cast<T*>(uniqueGPUBuffer->buffer->map()));
-		uniqueGPUBuffer->buffer->unmap();
-	}
-	else
-	{
-		auto uploadBuffer = g_device->createBuffer(RenderBufferDesc::UploadBuffer(buffer->dataSize));
-
-		copyBuffer(reinterpret_cast<T*>(uploadBuffer->map()));
-
-		uploadBuffer->unmap();
-
-		if (useCopyQueue)
-		{
-			ExecuteCopyCommandList([&]
-				{
-					g_copyCommandList->copyBufferRegion(uniqueGPUBuffer->buffer->at(0), uploadBuffer->at(0), buffer->dataSize);
-				});
-		}
-		else
-		{
-			auto& commandList = g_commandLists[g_frame];
-
-			commandList->barriers(RenderBarrierStage::COPY, RenderBufferBarrier(uniqueGPUBuffer->buffer.get(), RenderBufferAccess::WRITE));
-			commandList->copyBufferRegion(uniqueGPUBuffer->buffer->at(0), uploadBuffer->at(0), buffer->dataSize);
-			commandList->barriers(RenderBarrierStage::GRAPHICS, RenderBufferBarrier(uniqueGPUBuffer->buffer.get(), RenderBufferAccess::READ));
-
-			g_tempBuffers[g_frame].emplace_back(std::move(uploadBuffer));
-		}
-	}
-
-	g_bufferUploadCount++;
-}
-
-template<typename T>
 static void UnlockBuffer(GuestBuffer* buffer)
 {
 	if (!buffer->lockedReadOnly)
@@ -6375,7 +6307,6 @@ static void ProcUnlockBuffer32(const RenderCommand& cmd)
 
 static void UnlockVertexBuffer(GuestBuffer* buffer)
 {
-	//UnlockBufferToGPU<uint32_t>(buffer, true);
 	UnlockBuffer<uint32_t>(buffer);
 }
 
@@ -7134,43 +7065,7 @@ void SetMaterial(Material* pMaterial)
 	UpdateMaterial(pMaterial);
 }
 
-enum RwRasterType : uint8_t
-{
-	rwRASTERTYPENORMAL = 0x0,
-	rwRASTERTYPEZBUFFER = 0x1,
-	rwRASTERTYPECAMERA = 0x2,
-	rwRASTERTYPETEXTURE = 0x4,
-	rwRASTERTYPECAMERATEXTURE = 0x5,
-	rwRASTERTYPEMASK = 0x7,
-	rwRASTERDONTALLOCATE = 0x80,
-};
 
-struct RwRaster
-{
-	uint32_t parent; //RwRaster*
-	uint32_t cpPixels; //uint8_t* 
-	uint32_t palette; //uint8_t*
-	int32_t width;
-	int32_t height;
-	int32_t depth;
-	int32_t stride;
-	int16_t nOffsetX;
-	int16_t nOffsetY;
-	RwRasterType cType;
-	uint32_t cFlags;
-	uint8_t privateFlags;
-	uint8_t cFormat;
-	uint32_t originalPixels; //uint8_t*
-	int32_t originalWidth;
-	int32_t originalHeight;
-	int32_t originalStride;
-};
-
-struct RwTexture
-{
-	uint32_t raster;   //RwRaster*
-	uint8_t padding[0x54];
-};
 
 unsigned int GetPixelContainerMipMapLevels(X_D3DPixelContainer* pPixelContainer)
 {
