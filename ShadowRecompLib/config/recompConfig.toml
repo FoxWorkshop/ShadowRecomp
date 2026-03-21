@@ -734,3 +734,13 @@ registers = ["r0"]
 name = "SelectModeUnlockCheckBypassMidAsmHook"
 address = 0x29A460
 registers = ["r0"]
+
+[[midasm_hook]]
+name = "GetCurrentDictionaryThreadMidAsmHook"
+address = 0x2D8512
+registers = ["r0"]
+
+[[midasm_hook]]
+name = "GetCurrentDictionaryThreadMidAsmHook"
+address = 0x2D8D0D
+registers = ["r0"]

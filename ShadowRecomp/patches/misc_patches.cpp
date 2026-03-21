@@ -102,4 +102,4 @@ bool loadAllChunks(float* a1, float* a2, float* a3)
 	return 1;
 }
 // Uncomment below if wanting to test with all chunks loaded
-// GUEST_FUNCTION_HOOK_STDCALL(sub_12700, loadAllChunks);
+//GUEST_FUNCTION_HOOK_STDCALL(sub_12700, loadAllChunks);

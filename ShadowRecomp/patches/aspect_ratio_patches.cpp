@@ -119,3 +119,35 @@ X86_FUNC(sub_2A57E0)
 	UpdateUserConfigConstant(false);
 }
 
+
+X86_FUNC_IMPL(__imp__sub_2DD9C0);
+X86_FUNC(sub_2DD9C0)
+{
+	auto rwCam = X86_LOAD_U32(ctx.esp.u32 + 8);
+	auto recipX = X86_LOAD_F32(rwCam + 0x70);
+	auto recipY = X86_LOAD_F32(rwCam + 0x74);
+	if (fabs(recipY - 2.0f) < 0.001f)
+	{
+		float originalAspect = 4.0f / 3.0f;
+		float screenAspect = (float)Video::s_viewportWidth / (float)Video::s_viewportHeight;
+
+		float aspectFix = screenAspect / originalAspect;
+
+	}
+	//printf("recipViewWindow.x %f, recipViewWindow.y %f\n", recipX, recipY);
+
+	__imp__sub_2DD9C0(ctx, base);
+
+}
+
+
+X86_FUNC_IMPL(__imp__sub_1AF2E0);
+X86_FUNC(sub_1AF2E0)
+{
+
+
+	__imp__sub_1AF2E0(ctx, base);
+
+}
+
+
