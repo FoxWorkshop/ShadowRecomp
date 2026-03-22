@@ -15,9 +15,11 @@ static std::mutex g_threadDictsMutex;
 
 
 XRTL_CRITICAL_SECTION dirtyListLock;
+XRTL_CRITICAL_SECTION csdNodeLock;
 void InitPatchesLoadingCriticalSection()
 {
 	RtlInitializeCriticalSection(&dirtyListLock);
+	RtlInitializeCriticalSection(&csdNodeLock);
 }
 
 /* --- RwFrame Dirty link list race ---
@@ -154,3 +156,26 @@ X86_FUNC(sub_2D8470)
 {
 	__imp__sub_2D8470(ctx, base);
 }
+
+/* --- CSD Node Race --- */
+
+
+//CSDPushNewNode
+X86_FUNC_IMPL(__imp__sub_2B4440);
+X86_FUNC(sub_2B4440)
+{
+	RtlEnterCriticalSection(&csdNodeLock);
+	__imp__sub_2B4440(ctx, base);
+	RtlLeaveCriticalSection(&csdNodeLock);
+
+}
+
+//CSDPopNode
+X86_FUNC_IMPL(__imp__sub_2B3ED0);
+X86_FUNC(sub_2B3ED0)
+{
+	RtlEnterCriticalSection(&csdNodeLock);
+	__imp__sub_2B3ED0(ctx, base);
+	RtlLeaveCriticalSection(&csdNodeLock);
+}
+
