@@ -1,10 +1,6 @@
 #include <gpu/video.h>
 #include <kernel/function.h>
 
-
-
-
-
 // Patch out logs Artificial Chaos can spew (causes crashes)
 X86_FUNC(sub_37EBE6)
 {

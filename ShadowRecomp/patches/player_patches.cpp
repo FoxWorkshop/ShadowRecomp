@@ -2,6 +2,10 @@
 #include <user/config.h>
 #include <app.h>
 #include <sdl_events.h>
+#include "global.h"
+
+PlayerShadow* playerPtr = nullptr;
+RwV3d* playerPos = nullptr;
 
 //Awake Set Chaos Control / Blast mode
 X86_FUNC_IMPL(__imp__sub_8E690);
@@ -22,23 +26,6 @@ X86_FUNC(sub_8E9A0)
 	SDL_User_ChaosMode(App::s_chaosMode);
 }
 
-struct RwV3d
-{
-	float x;
-	float y;
-	float z;
-};
-
-
-
-struct PlayerShadow
-{
-	int32_t vfTable;
-	int32_t pos;
-};
-
-PlayerShadow* playerPtr = nullptr;
-RwV3d* playerPos = nullptr;
 X86_FUNC_IMPL(__imp__sub_96AD0);
 X86_FUNC(sub_96AD0)
 {
@@ -47,11 +34,11 @@ X86_FUNC(sub_96AD0)
 	playerPtr = (PlayerShadow*)X86_LOAD_U32(playerAddr);
 	playerPos = (RwV3d*)g_memory.Translate(playerAddr + 4);
 #ifdef _DEBUG
-	printf("Shadow Pointer %llx\n", (intptr_t)playerPtr);
-	printf("Shadow Pos Ptr %llx\n", (intptr_t)playerPos);
-	printf("Shadow Pos x Ptr %llx\n", (intptr_t)&playerPos->x);
-	printf("Shadow Pos y Ptr %llx\n", (intptr_t)&playerPos->y);
-	printf("Shadow Pos z Ptr %llx\n", (intptr_t)&playerPos->z);
+	printf("Last Shadow Pointer %llx\n", (intptr_t)playerPtr);
+	printf("Last Shadow Pos Ptr %llx\n", (intptr_t)playerPos);
+	printf("Last Shadow Pos x Ptr %llx\n", (intptr_t)&playerPos->x);
+	printf("Last Shadow Pos y Ptr %llx\n", (intptr_t)&playerPos->y);
+	printf("Last Shadow Pos z Ptr %llx\n", (intptr_t)&playerPos->z);
 #endif
 }
 
@@ -72,5 +59,4 @@ X86_FUNC(sub_90D10)
 		playerPos->z = -411.312012;
 		oncePos = true;*/
 	}
-
 }
