@@ -625,7 +625,8 @@ void SHTHR_SOUNDBUFFER_Impl::BakeResampledLoop()
 int32_t SHTHR_SOUNDBUFFER_Impl::Pull(unsigned char* data, int32_t size)
 {
 	mutex.lock();
-	if (!mPlay || !mBuffer || mWrittenSize <= 0 || !mAudioStream)
+
+	if (!mPlay || !mBuffer || mWrittenSize <= 0 && this->isStreaming == false || !mAudioStream)
 	{
 		mutex.unlock();
 		return 0;
