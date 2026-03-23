@@ -4428,7 +4428,7 @@ static void CopyDynamicTextureToGPU(GuestTexture* tex)
 
 }
 
-void CopyTextureToGPU(GuestTexture* tex);
+
 static void ProcUnlockTextureRect(const RenderCommand& cmd)
 {
 	const auto& args = cmd.unlockTextureRect;
@@ -4606,21 +4606,6 @@ void UpdateHostTextureScaling(GuestTexture* tex, const bool isFixedFunc)
 	CopyVertexShaderConstant(HOST_D3DVS_TEXTURES_SCALE_BASE, (DWORD*)texcoordScales.data(), HOST_D3DVS_TEXTURES_SCALE_SIZE);
 }
 
-bool aboutToDrawFlame = false;
-const intptr_t flameTexAddr = 0x00000001a0d455b0;
-const intptr_t RTTexAddr = 0x00000001a0bb72f0;
-const intptr_t RTBuggy = 0x00000001a0ebefb0;
-intptr_t lastTex = 0;
-
-bool aboutToDrawQuad = false;
-X86_FUNC_IMPL(__imp__sub_2DDC50);
-X86_FUNC(sub_2DDC50)
-{
-	aboutToDrawQuad = true;
-	__imp__sub_2DDC50(ctx, base);
-
-}
-
 void SetTexture(uint32_t stage, GuestTexture* texture)
 {
 	RenderCommand cmd;
@@ -4632,10 +4617,8 @@ void SetTexture(uint32_t stage, GuestTexture* texture)
 	g_renderQueue.enqueue(cmd);
 }
 
-
 static void SetTextureInRenderThread(uint32_t index, GuestTexture* texture, const bool isFixed = false)
 {
-
 	AddBarrier(texture, RenderTextureLayout::SHADER_READ);
 
 	auto viewDimension = texture != nullptr ? texture->viewDimension : RenderTextureViewDimension::UNKNOWN;
@@ -4674,10 +4657,6 @@ static void SetViewport(GuestViewport* viewport, GuestSurface* surface)
 		float width = (float)std::min(viewport->Width, (DWORD)rtWidth - viewport->X);
 		float height = (float)std::min(viewport->Height, (DWORD)rtHeight - viewport->Y);
 
-		if (height == 256 || width == 512)
-		{
-			//printf("");
-		}
 
 		RenderCommand cmd;
 		cmd.type = RenderCommandType::SetViewport;
@@ -4700,7 +4679,6 @@ X86_FUNC_IMPL(__imp__sub_3D6250);
 //on DX8 Xbox, SetDepthStencilSurface is merged with SetRenderTarget.
 void D3DDevice_SetRenderTarget(GuestSurface* surface, GuestSurface* pNewZStencil)
 {
-	//printf("Now set RenderTarget %x width %d height %d texture %x\n", surface, surface->width, surface->height, surface->texture);
 	auto ctx = GetX86Context();
 	auto base = g_memory.base;
 	auto device = X86_LOAD_U32(GuestDevicePtrAddr);
@@ -4708,8 +4686,6 @@ void D3DDevice_SetRenderTarget(GuestSurface* surface, GuestSurface* pNewZStencil
 
 	GuestSurface* newSurface = nullptr;
 	GuestSurface* newDepthStencil = nullptr;
-
-
 
 	if (!g_XboxBackBuffer)
 	{
@@ -4798,8 +4774,6 @@ static void ProcSetRenderTarget(const RenderCommand& cmd)
 
 	// When alpha to coverage is enabled, update the alpha test mode as it's dependent on sample count.
 	SetAlphaTestMode((g_pipelineState.specConstants & (SPEC_CONSTANT_ALPHA_TEST | SPEC_CONSTANT_ALPHA_TO_COVERAGE)) != 0);
-
-	//AddBarrier(g_renderTarget, RenderTextureLayout::COLOR_WRITE);
 }
 
 static void ProcSetDepthStencilSurface(const RenderCommand& cmd)
@@ -5165,7 +5139,6 @@ static void ProcClear(const RenderCommand& cmd)
 
 
 		commandList->clearColor(0, RenderColor(args.color[0], args.color[1], args.color[2], args.color[3]));
-		//commandList->clearColor(0, debugColor);
 	}
 
 	const bool clearDepth = (args.flags & X_D3DCLEAR_ZBUFFER) != 0;
@@ -5184,18 +5157,6 @@ static void ProcClear(const RenderCommand& cmd)
 //Clears one or more surfaces such as a render target, multiple render targets, a stencil buffer, and a depth buffer.
 void D3DDevice_Clear(uint32_t count, _D3DRECT* pRects, uint32_t flags, uint32_t Color, float Z, uint32_t Stencil)
 {
-	/**GuestViewport port;
-
-	port.X = 0;
-	port.Y = 0;
-	port.Width = CurrentRt->width;
-	port.Height = CurrentRt->height;
-	port.MinZ = g_viewport.minDepth;
-	port.MaxZ = g_viewport.maxDepth;
-	D3DDevice_SetViewport(&port);*/
-
-
-
 	RenderCommand cmd;
 	cmd.type = RenderCommandType::Clear;
 	cmd.clear.flags = flags;
@@ -5214,11 +5175,6 @@ void D3DDevice_Clear(uint32_t count, _D3DRECT* pRects, uint32_t flags, uint32_t 
 
 	cmd.clear.z = float(Z);
 	cmd.clear.stencil = Stencil;
-
-	if (g_renderTarget != nullptr && (flags & X_D3DCLEAR_TARGET) != 0)
-	{
-		//printf("clear rendertarget requested\n");
-	}
 
 	const bool clearDepth = (flags & X_D3DCLEAR_ZBUFFER) != 0;
 	const bool clearStencil = (flags & X_D3DCLEAR_STENCIL) != 0;
@@ -5250,7 +5206,6 @@ X86_FUNC(sub_3CFCD0)
 		bWorldViewDirty[State - X_D3DTS_WORLD] = true;
 	}
 }
-
 
 
 //SetShaderConstantMode
@@ -5309,13 +5264,6 @@ void SetFixedFunctionDefaultVertexAttributes(size_t Handle)
 
 		SetVertexAttribute(i, value[0], value[1], value[2], value[3]);
 	}
-
-}
-
-
-DWORD* D3D_CommonSetDebugRegisters()
-{
-	return 0;
 }
 
 
@@ -5324,7 +5272,6 @@ int D3DDevice_Swap(int32_t a1)
 	Video::Present();
 	return 0;
 }
-
 
 struct LocalRenderCommandQueue
 {
@@ -5910,13 +5857,6 @@ static void FlushRenderStateForMainThread(LocalRenderCommandQueue& queue)
 
 	if (g_Xbox_VertexShaderMode == VertexShaderMode::FixedFunction)
 	{
-		/**float x = ((double)rand()) / ((double)RAND_MAX) * 0.9 + 0.1;
-		float y = ((double)rand()) / ((double)RAND_MAX) * 0.9 + 0.1;
-		float z = ((double)rand()) / ((double)RAND_MAX) * 0.9 + 0.1;
-
-		float uvRandomTest[4] = { x, y, z, 1.0f };
-
-		CopyVertexShaderConstant(218, (DWORD*)uvRandomTest, 1);*/
 		UpdateFixedFunctionVertexShaderState((size_t)g_memory.Translate(g_VertexShader_Handle), g_pipelineState.isFixedFunctionPS);
 	}
 	else
@@ -5951,8 +5891,6 @@ static void FlushRenderStateForMainThread(LocalRenderCommandQueue& queue)
 		}
 
 		memcpy(g_dirty_texture_stage_states, (uint32_t*)g_texture_stage_states, sizeof(uint32_t) * 128);
-
-		//g_dirtyStates.textureStageState = false;
 	}
 
 
@@ -6051,10 +5989,8 @@ static void FlushRenderStateForRenderThread()
 	if (!g_pendingMsaaResolves.empty())
 		g_pendingMsaaResolves.clear();
 
-	//printf("Add barrier COLOR_WRITE to RenderTarget %x\n", renderTarget);
 	AddBarrier(renderTarget, RenderTextureLayout::COLOR_WRITE);
 	AddBarrier(depthStencil, RenderTextureLayout::DEPTH_WRITE);
-
 
 	FlushBarriers();
 
@@ -6257,10 +6193,6 @@ static void UnlockBuffer(GuestBuffer* buffer, bool useCopyQueue)
 					g_copyCommandList->copyBufferRegion(buffer->buffer->at(0), uploadBuffer->at(0), buffer->dataSize);
 				});
 
-			if (buffer->isVertexBuffer)
-			{
-				//printf("[UPLOAD] guestVB=%p -> gpuResource=%p size=%u\n", buffer, (void*)buffer->buffer->at(0).ref, buffer->dataSize);
-			}
 		}
 		else
 		{
@@ -6692,9 +6624,6 @@ void DrawIndexedPrimitive(X_D3DPRIMITIVETYPE PrimitiveType, uint32_t VertexCount
 
 		auto alignedStride = AlignStride(g_Xbox_SetStreamSource[i].Stride);
 
-		/**if (alignedStride == 0)
-			continue;*/
-
 		size_t host_handle = (size_t)g_memory.Translate(g_VertexShader_Handle);
 		auto vertexElement = XSR_HostGetVertexDeclaration(host_handle, g_Xbox_VertexShaderMode == VertexShaderMode::FixedFunction);
 
@@ -6919,17 +6848,6 @@ static void ProcSetPixelShaderConstants(const RenderCommand& cmd)
 	g_dirtyStates.pixelShaderConstants = true;*/
 }
 
-
-BOOL D3Device_IsBusy()
-{
-	return FALSE;
-}
-
-
-int D3D_SetTileNoWait(int a1, int* a2)
-{
-	return 0;
-}
 
 //D3DResource_Release
 X86_FUNC_IMPL(__imp__sub_3D5F10);
@@ -7468,6 +7386,23 @@ void D3DDevice_EndPush(DWORD* pPush)
 	}
 }
 
+// Stubbed DX8 functions
+
+DWORD* D3D_CommonSetDebugRegisters()
+{
+	return 0;
+}
+
+BOOL D3Device_IsBusy()
+{
+	return FALSE;
+}
+
+int D3D_SetTileNoWait(int a1, int* a2)
+{
+	return 0;
+}
+
 BOOL D3DDevice_IsFencePending(int a1)
 {
 	return FALSE;
@@ -7565,9 +7500,6 @@ GUEST_FUNCTION_HOOK_STDCALL(sub_3D6BF0, D3DDevice_Clear);
 
 GUEST_FUNCTION_HOOK_STDCALL(sub_3D5DB0, DestructResource);
 
-
-//GUEST_FUNCTION_HOOK_STDCALL(sub_82BE7780, UnlockTextureRect);
-
 GUEST_FUNCTION_HOOK_FASTCALL(sub_3D2420, D3DDevice_SetRenderState_Simple);
 
 //Resource
@@ -7600,19 +7532,14 @@ GUEST_FUNCTION_HOOK_STDCALL(sub_3D4760, D3DDevice_EndPush);
 //GUEST_FUNCTION_HOOK_STDCALL(sub_3CFCD0, D3DDevice_SetTransform);
 
 
-
 //		 === UNCONFIRMED STUB == TODO CHECK IF THEY ARE ALL CORRECT
 GUEST_FUNCTION_HOOK_STDCALL(sub_3DD8B0, D3D_GetAdapterModeCount);
 GUEST_FUNCTION_HOOK_STDCALL(sub_3D0F40, D3D_SetTileNoWait);
 
 
-
 //				==== STUB CONFIRMED ====
 GUEST_FUNCTION_HOOK(sub_3D3240, D3D_CommonSetDebugRegisters);
 GUEST_FUNCTION_HOOK(sub_3D0F10, D3Device_IsBusy);
-
-
 GUEST_FUNCTION_HOOK_STDCALL(sub_3D4720, D3DDevice_IsFencePending);
 GUEST_FUNCTION_HOOK_STDCALL(sub_3D5F60, D3DResource_BlockUntilNotBusy);
 GUEST_FUNCTION_HOOK_STDCALL(sub_3D4950, D3D_BlockOnTime);
-
