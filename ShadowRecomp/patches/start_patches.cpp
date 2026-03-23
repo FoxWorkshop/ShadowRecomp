@@ -52,14 +52,17 @@ X86_FUNC(sub_22D120)
 	__imp__sub_22D120(ctx, base);
 }
 
-//skip FMV
+//skip FMV opening if QuickBoot is enabled
 X86_FUNC_IMPL(__imp__sub_24F80);
 X86_FUNC(sub_24F80)
 {
-	if (QuickBoot)
+	char* str = (char*)GetHostParameter(1, CallConvention::Cdecl, ParameterType::Pointer);
+
+	if (QuickBoot && str && !strcmp(str, "Op.sfd")) 
 	{
 		ctx.eax.u32 = 0;
 		ctx.esp.u32 += 4;
+	
 		return;
 	}
 	else
