@@ -391,12 +391,13 @@ struct GuestBaseTexture : GuestResource
 	}
 };
 
-// Texture/VolumeTexture (will likely need to implement D3DResource)
+// Texture/VolumeTexture 
 struct GuestTexture : GuestBaseTexture
 {
 	uint32_t depth = 0;
 	RenderTextureViewDimension viewDimension = RenderTextureViewDimension::UNKNOWN;
 	void* mappedMemory = nullptr;
+	uint32_t sizeOfTextureRect = 0;
 	std::unique_ptr<RenderFramebuffer> framebuffer;
 	std::unique_ptr<GuestTexture> patchedTexture;
 	std::unique_ptr<GuestTexture> recreatedCubeMapTexture;

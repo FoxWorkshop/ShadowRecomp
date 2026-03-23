@@ -4254,14 +4254,15 @@ static uint32_t ComputeTexturePitch(GuestTexture* texture)
 
 static void LockTextureRect(GuestTexture* texture, int32_t level, GuestLockedRect* lockedRect, RECT* pRect, uint32_t flags)
 {
-
 	uint32_t pitch = ComputeTexturePitch(texture);
 	uint32_t slicePitch = pitch * texture->height;
 
-
 	if (texture->mappedMemory == nullptr)
+	{
 		texture->mappedMemory = g_userHeap.AllocPhysical(slicePitch, 0x10);
+	}
 
+	texture->sizeOfTextureRect = slicePitch;
 	lockedRect->pitch = pitch;
 	lockedRect->bits = g_memory.MapVirtual(texture->mappedMemory);
 }
@@ -4273,7 +4274,6 @@ static void UnlockTextureRect(GuestTexture* texture)
 		return;
 	}
 
-
 	RenderCommand cmd;
 	cmd.type = RenderCommandType::UnlockTextureRect;
 	cmd.unlockTextureRect.texture = texture;
@@ -4281,8 +4281,8 @@ static void UnlockTextureRect(GuestTexture* texture)
 }
 
 
+// this seems to be used by FMV
 
-void* GetDataFromXboxResource(X_D3DResource* pXboxResource);
 unsigned int GetPixelContainerMipMapLevels(X_D3DPixelContainer* pPixelContainer);
 static void CopyDynamicTextureToGPU(GuestTexture* tex)
 {
@@ -4291,7 +4291,6 @@ static void CopyDynamicTextureToGPU(GuestTexture* tex)
 	bool isSwizzled = FormatIsSwizzled(format);
 	bool bCompressed = XBFormatIsCompressed(format);
 	bool bCubemap = tex->guestResource.Format & X_D3DFORMAT_CUBEMAP;
-	bool bConvertARGB = XBFormatRequiresConversionToARGB(format);
 
 	struct Slice
 	{
@@ -4312,14 +4311,14 @@ static void CopyDynamicTextureToGPU(GuestTexture* tex)
 	uint32_t baseH = tex->height;
 	uint32_t baseD = tex->depth == 0 ? 1 : tex->depth;
 
-	UINT dwMipMapLevels = GetPixelContainerMipMapLevels((X_D3DPixelContainer*)&tex->guestResource);
+	UINT dwMipMapLevels = 1;
 	D3DCUBEMAP_FACES last_face = (bCubemap) ? D3DCUBEMAP_FACE_NEGATIVE_Z : D3DCUBEMAP_FACE_POSITIVE_X;
 	DWORD blockSize = 0;
 
 	if (bCompressed)
 		blockSize = format == X_D3DFMT_DXT1 ? 8 : 16;
 
-	// Build slice descriptors (same as original)
+	// Build slice descriptors 
 	for (int32_t face = D3DCUBEMAP_FACE_POSITIVE_X; face <= last_face; face++)
 	{
 		for (uint32_t mipmap_level = 0; mipmap_level < dwMipMapLevels; mipmap_level++)
@@ -4347,7 +4346,7 @@ static void CopyDynamicTextureToGPU(GuestTexture* tex)
 			uint32_t mipSlicePitch = mip2dSize * slice.depth;
 			slice.srcOffset = curSrcOffset;
 
-			uint32_t dstBpp = bConvertARGB ? 32 : XBFormatBitsPerPixel(format);
+			uint32_t dstBpp = XBFormatBitsPerPixel(format);
 			uint32_t rawDstRowPitch = (slice.width * dstBpp) / 8;
 			slice.dstRowPitch = (rawDstRowPitch + PITCH_ALIGNMENT - 1) & ~(PITCH_ALIGNMENT - 1);
 			slice.dstOffset = curDstOffset;
@@ -4358,24 +4357,19 @@ static void CopyDynamicTextureToGPU(GuestTexture* tex)
 		}
 	}
 
-	// Use ring buffer allocator instead of creating a new buffer
+
 	auto allocation = g_uploadAllocators[g_frame].allocate(curDstOffset, PLACEMENT_ALIGNMENT);
 	uint8_t* mappedMemory = reinterpret_cast<uint8_t*>(allocation.memory);
 
 	// Copy/unswizzle data into ring buffer
 	for (auto& slice : slices)
 	{
-		unsigned long VirtualAddr = (unsigned long)GetDataFromXboxResource((X_D3DResource*)(&tex->guestResource));
-		uint8_t* srcData = reinterpret_cast<uint8_t*>(base + VirtualAddr + slice.srcOffset);
+	
+		uint8_t* srcData = reinterpret_cast<uint8_t*>(tex->mappedMemory);
 		uint8_t* dstData = mappedMemory + slice.dstOffset;
 
-		if (bConvertARGB)
-		{
-			ConvertD3DTextureToARGBBuffer(format, srcData, slice.width, slice.height, slice.srcRowPitch,
-				slice.srcRowPitch * slice.rowCount, dstData, slice.dstRowPitch,
-				slice.dstRowPitch * slice.rowCount, slice.depth, (void*)g_currentPaletteData);
-		}
-		else if (isSwizzled)
+
+		if (isSwizzled)
 		{
 			uint32_t dstSlicePitch = slice.dstRowPitch * slice.rowCount;
 			uint32_t srcBpp = bCompressed ? blockSize : (XBFormatBitsPerPixel(format) / 8);
@@ -4406,7 +4400,7 @@ static void CopyDynamicTextureToGPU(GuestTexture* tex)
 	}
 
 
-	// Copy using DIRECT command list (not copy queue)
+
 	auto copyTextureRegion = [&](Slice& slice, uint32_t subresourceIndex)
 		{
 			uint32_t uploadRowPitchInTexels = slice.dstRowPitch /
@@ -4442,10 +4436,8 @@ static void ProcUnlockTextureRect(const RenderCommand& cmd)
 	AddBarrier(args.texture, RenderTextureLayout::COPY_DEST);
 	FlushBarriers();
 
-
 	CopyDynamicTextureToGPU(args.texture);
 }
-
 
 
 //todo finish
@@ -7296,11 +7288,11 @@ void CopyTextureToGPU(GuestTexture* tex)
 		});
 }
 
-//rwD3D8NativeTextureRead
+// rwD3D8NativeTextureRead
 X86_FUNC_IMPL(__imp__sub_2ED0D0);
 X86_FUNC(sub_2ED0D0)
 {
-	//call original function first
+	// call original function first
 	__imp__sub_2ED0D0(ctx, base);
 
 	if (ctx.eax.u32 == 1) //did the function return 1 aka was the texture created
@@ -7322,20 +7314,44 @@ X86_FUNC(sub_2ED0D0)
 	}
 }
 
-//rwD3D8RasterUnlock
+
+GuestTexture* g_currentTextureRect = nullptr;
+// rwD3D8RasterUnlock
 X86_FUNC_IMPL(__imp__sub_2DF870);
 X86_FUNC(sub_2DF870)
 {
-	//texture data aren't stored in the raster, instead they store the image in another raster using the extension offset to reach it
-	auto rasterAddr = X86_LOAD_U32(ctx.esp.u32 + 8); //get raster param addr 
+	// Texture data aren't stored in the raster, instead they store the image in another raster using the extension offset to reach it
+	auto rasterAddr = X86_LOAD_U32(ctx.esp.u32 + 8); // get raster param addr 
 	auto RasterExtOffsetAddr = (uint32_t)(X86_LOAD_U32(rasterAddr) + X86_LOAD_U32(RwD3D8RasterExtOffsetAddr));
 	auto TexAddr = X86_LOAD_U32(RasterExtOffsetAddr);
-	GuestTexture* tex = (GuestTexture*)(base + TexAddr);
-	UnlockTextureRect(tex);
+	g_currentTextureRect = (GuestTexture*)(base + TexAddr);
 	__imp__sub_2DF870(ctx, base);
 }
 
-//CreateTexture
+// XGSwizzleRect - This is the final step where texture are ready for Xbox to use, we can upload safely here.
+X86_FUNC_IMPL(__imp__sub_40B363);
+X86_FUNC(sub_40B363)
+{
+	auto textureData = GetHostParameter(4, CallConvention::Stdcall, ParameterType::Pointer);
+	auto bytesPerPixel = GetHostParameter(8, CallConvention::Stdcall, ParameterType::Integer);
+
+	__imp__sub_40B363(ctx, base);
+
+	if (g_currentTextureRect)
+	{
+		auto tex = g_currentTextureRect;
+
+		uint32_t size = tex->width * tex->height * bytesPerPixel;
+
+		if (size > tex->sizeOfTextureRect) // this should never pass, but just in case.
+			size = tex->sizeOfTextureRect;
+
+		memcpy(tex->mappedMemory, (void*)textureData, size);
+		UnlockTextureRect(g_currentTextureRect);
+	}
+}
+
+// CreateTexture
 X86_FUNC_IMPL(__imp__sub_2DFE20);
 X86_FUNC(sub_2DFE20)
 {
@@ -7372,6 +7388,7 @@ X86_FUNC(sub_2DFE20)
 			v7 = v7;
 		}
 	}
+
 	auto newTex = CreateTexture(info->width, info->height, 1, level, usage, format, X_D3DRTYPE_TEXTURE);
 
 	newTex->guestResource.Common = texture->Common;

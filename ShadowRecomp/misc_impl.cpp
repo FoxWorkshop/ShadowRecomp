@@ -135,7 +135,7 @@ char* __cdecl _StrrChr(char* a1, char a2)
 GUEST_FUNCTION_HOOK_STDCALL(sub_2AAF10, QueryPerformanceCounterImpl);
 GUEST_FUNCTION_HOOK(sub_3D7000, GetRdtSc);
 
-GUEST_FUNCTION_HOOK_STDCALL(sub_2AAF21, QueryPerformanceFrequencyImpl);
+//GUEST_FUNCTION_HOOK_STDCALL(sub_2AAF21, QueryPerformanceFrequencyImpl);
 GUEST_FUNCTION_HOOK(sub_388458, GetKeTickCountImpl);
 
 GUEST_FUNCTION_HOOK(sub_37FDA0, memcpy);
