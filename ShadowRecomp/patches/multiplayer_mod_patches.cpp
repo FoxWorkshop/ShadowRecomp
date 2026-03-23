@@ -17,11 +17,11 @@ X86_FUNC(sub_12700)
 }
 
 //sub_226E50 // Skip all event loading
-bool skipAllEventLoading(int *a2, int a3, char a4)
+bool skipAllEventLoading(DWORD* this_, int *a2, int a3, char a4)
 {
 	return 0;
 }
-GUEST_FUNCTION_HOOK_STDCALL(sub_226E50, skipAllEventLoading);
+GUEST_FUNCTION_HOOK_THISCALL(sub_226E50, skipAllEventLoading);
 
 
 // 2P Lite Stuff
