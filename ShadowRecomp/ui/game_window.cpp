@@ -18,8 +18,8 @@ bool m_isResizing = false;
 
 int Window_OnSDLEvent(void*, SDL_Event* event)
 {
-    /**if (ImGui::GetIO().BackendPlatformUserData != nullptr)
-        ImGui_ImplSDL2_ProcessEvent(event);*/
+    if (ImGui::GetIO().BackendPlatformUserData != nullptr)
+        ImGui_ImplSDL2_ProcessEvent(event);
 
     for (auto listener : GetEventListeners())
     {

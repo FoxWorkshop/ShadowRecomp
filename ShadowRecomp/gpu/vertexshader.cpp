@@ -170,26 +170,6 @@ static X_D3DVertexShader* XboxVertexShaderFromFVF(size_t xboxFvf)
 }
 
 
-inline boolean VshHandleIsVertexShader(size_t Handle) { return (Handle & X_D3DFVF_RESERVED0) ? TRUE : FALSE; }
-inline boolean VshHandleIsFVF(size_t Handle) { return !VshHandleIsVertexShader(Handle); }
-inline boolean VshHandleIsPassthrough(size_t Handle) {
-	return VshHandleIsFVF(Handle) && ((Handle & X_D3DFVF_POSITION_MASK) == X_D3DFVF_XYZRHW);
-}
-
-X_D3DVertexShader* GetXboxVertexShaderForHandle_(size_t Handle)
-{
-	if (VshHandleIsVertexShader(Handle))
-	{
-		return VshHandleToXboxVertexShader(Handle);
-	}
-	else
-	{
-		return XboxVertexShaderFromFVF(Handle);
-	}
-}
-
-
-
 static X_VERTEXATTRIBUTEFORMAT* GetVertexShaderAttributes(X_D3DVertexShader* pXboxVertexShader)
 {
 	return &(pXboxVertexShader->VertexAttribute);

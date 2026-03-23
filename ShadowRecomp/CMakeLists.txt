@@ -237,7 +237,7 @@ if (WIN32)
         OUTPUT_VAR WIN32_VERSION_STRING
     )
 
-
+    # Set Win32 icon path.
     set(WIN32_ICON_PATH "${PROJECT_SOURCE_DIR}/../ShadowRecompResources/images/game_icon.ico")
 
     configure_file("res/Win32_/res.rc.template" "${CMAKE_BINARY_DIR}/res.rc" @ONLY)
@@ -303,6 +303,7 @@ endif()
 
 target_link_libraries(ShadowRecomp PRIVATE
     fmt::fmt
+    libzstd_static
     msdf-atlas-gen::msdf-atlas-gen
     o1heap
     XboxUtils
@@ -399,9 +400,12 @@ compile_vertex_shader(Rshadow_event_vs)
 set(RESOURCES_SOURCE_PATH "${PROJECT_SOURCE_DIR}/../ShadowRecompResources")
 set(RESOURCES_OUTPUT_PATH "${PROJECT_SOURCE_DIR}/res")
 
+## Miscellaneous ##
+BIN2C(TARGET_OBJ ShadowRecomp SOURCE_FILE "${RESOURCES_SOURCE_PATH}/font/im_font_atlas.bin" DEST_FILE "${RESOURCES_OUTPUT_PATH}/font/im_font_atlas.bin" ARRAY_NAME "g_im_font_atlas" COMPRESSION_TYPE "zstd")
+BIN2C(TARGET_OBJ ShadowRecomp SOURCE_FILE "${RESOURCES_SOURCE_PATH}/font/im_font_atlas.png" DEST_FILE "${RESOURCES_OUTPUT_PATH}/font/im_font_atlas.png" ARRAY_NAME "g_im_font_atlas_texture" COMPRESSION_TYPE "zstd")
+
 ## Game Icon ##
-#BIN2C(TARGET_OBJ ShadowRecomp SOURCE_FILE "${RESOURCES_SOURCE_PATH}/images/game_icon.bmp" DEST_FILE "${RESOURCES_OUTPUT_PATH}/images/game_icon.bmp" ARRAY_NAME "g_game_icon")
-#BIN2C(TARGET_OBJ ShadowRecomp SOURCE_FILE "${RESOURCES_SOURCE_PATH}/images/game_icon_evil.bmp" DEST_FILE "${RESOURCES_OUTPUT_PATH}/images/game_icon_evil.bmp" ARRAY_NAME "g_game_icon_evil")
+BIN2C(TARGET_OBJ ShadowRecomp SOURCE_FILE "${RESOURCES_SOURCE_PATH}/images/game_icon.bmp" DEST_FILE "${RESOURCES_OUTPUT_PATH}/images/game_icon.bmp" ARRAY_NAME "g_game_icon")
 
 ## Audio ##
-#BIN2C(TARGET_OBJ UnleashedRecomp SOURCE_FILE "${RESOURCES_SOURCE_PATH}/music/installer.ogg" DEST_FILE "${RESOURCES_OUTPUT_PATH}/music/installer.ogg" ARRAY_NAME "g_installer_music")
+BIN2C(TARGET_OBJ ShadowRecomp SOURCE_FILE "${RESOURCES_SOURCE_PATH}/music/installer.ogg" DEST_FILE "${RESOURCES_OUTPUT_PATH}/music/installer.ogg" ARRAY_NAME "g_installer_music")

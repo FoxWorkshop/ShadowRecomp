@@ -3,6 +3,8 @@
 #include "imgui/imgui_common.h"
 #include "imgui/imgui_snapshot.h"
 #include "imgui/imgui_font_builder.h"
+#define STB_IMAGE_WRITE_IMPLEMENTATION
+#include "stb_image_write.h"
 
 #include "vertexdeclaration.h"
 #include "vertexshader.h"
@@ -12,6 +14,11 @@
 #include "FixedFunction.h"
 #include "renderstate.h"
 #include <app.h>
+#include <cpu/guest_thread.h>
+#include <decompressor.h>
+
+#include <res/font/im_font_atlas.png.h>
+
 #include <kernel/function.h>
 #include <kernel/heap.h>
 #include <ui/game_window.h>
@@ -23,7 +30,7 @@
 #include <shader/shader_cache.h>
 #include <ui/imgui_utils.h>
 #include <xxHashMap.h>
-#include <cpu/guest_thread.h>
+
 
 
 const uint32_t GuestDevicePtrAddr = 0x3E0A18;
@@ -120,6 +127,7 @@ bool LogVSConstants = false;
 #include "shader/Rchaos_vs.hlsl.spirv.h"
 #include <os/logger.h>
 #include <os/process.h>
+
 
 
 namespace plume
@@ -1786,6 +1794,7 @@ struct ImGuiPushConstants
 
 extern ImFontBuilderIO g_fontBuilderIO;
 
+
 static void CreateImGuiBackend()
 {
 	LOG_UTILITY("Init ImGui, please wait...\n");
@@ -1794,13 +1803,15 @@ static void CreateImGuiBackend()
 	io.BackendFlags |= ImGuiBackendFlags_RendererHasVtxOffset;
 	io.ConfigFlags |= ImGuiConfigFlags_NoMouseCursorChange;
 
-	/**#ifdef ENABLE_IM_FONT_ATLAS_SNAPSHOT
-		IM_DELETE(io.Fonts);
-		io.Fonts = ImFontAtlasSnapshot::Load();
-	#else*/
+#ifdef ENABLE_IM_FONT_ATLAS_SNAPSHOT
+	IM_DELETE(io.Fonts);
+	io.Fonts = ImFontAtlasSnapshot::Load();
+
+#else
+	//io.Fonts->AddFontFromFileTTF("font.ttc", 18.0f);
 	io.Fonts->AddFontDefault();
 	ImFontAtlasSnapshot::GenerateGlyphRanges();
-	//#endif
+#endif
 
 	InitImGuiUtils();
 	/**AchievementMenu::Init();
@@ -1813,10 +1824,13 @@ static void CreateImGuiBackend()
 	ImGui_ImplSDL2_InitForOther(GameWindow::s_pWindow);
 
 
-	/**#ifdef ENABLE_IM_FONT_ATLAS_SNAPSHOT //todo
-		g_imFontTexture = LoadTexture(
-			decompressZstd(g_im_font_atlas_texture, g_im_font_atlas_texture_uncompressed_size).get(), g_im_font_atlas_texture_uncompressed_size);
-	#else*/
+#ifdef ENABLE_IM_FONT_ATLAS_SNAPSHOT 
+	uint8_t* pixels;
+	int width, height;
+	io.Fonts->GetTexDataAsRGBA32(&pixels, &width, &height);
+
+	g_imFontTexture = LoadCustomTexture(decompressZstd(g_im_font_atlas_texture, g_im_font_atlas_texture_uncompressed_size).get(), g_im_font_atlas_texture_uncompressed_size);
+#else
 	io.Fonts->FontBuilderIO = &g_fontBuilderIO;
 	io.Fonts->Build();
 
@@ -1878,7 +1892,7 @@ static void CreateImGuiBackend()
 
 	g_imFontTexture->descriptorIndex = g_textureDescriptorAllocator.allocate();
 	g_textureDescriptorSet->setTexture(g_imFontTexture->descriptorIndex, g_imFontTexture->texture, RenderTextureLayout::SHADER_READ, g_imFontTexture->textureView.get());
-	//#endif
+#endif
 
 	io.Fonts->SetTexID(g_imFontTexture.get());
 
@@ -1938,7 +1952,7 @@ static void CreateImGuiBackend()
 		fclose(file);
 	}
 
-	ddspp::Header header;
+	/**ddspp::Header header;
 	ddspp::HeaderDXT10 headerDX10;
 	ddspp::encode_header(ddspp::R8G8B8A8_UNORM, width, height, 1, ddspp::Texture2D, 1, 1, header, headerDX10);
 
@@ -1950,7 +1964,14 @@ static void CreateImGuiBackend()
 		fwrite(&headerDX10, sizeof(headerDX10), 1, file);
 		fwrite(pixels, 4, width * height, file);
 		fclose(file);
-	}
+	}*/
+
+
+	uint8_t* pixelsCopy;
+	int atlasW = 0, atlasH = 0, bpp = 0;
+	io.Fonts->GetTexDataAsRGBA32(&pixelsCopy, &atlasW, &atlasH, &bpp);
+
+	stbi_write_png("im_font_atlas.png", atlasW, atlasH, bpp, pixelsCopy, atlasW * bpp);
 #endif
 
 	LOG_UTILITY("Done.\n");
@@ -2404,7 +2425,7 @@ bool Video::CreateHostDevice(const char* sdlVideoDriver, bool graphicsApiRetry)
 
 
 
-	//CreateImGuiBackend();
+	CreateImGuiBackend();
 
 	auto gammaCorrectionShader = CREATE_SHADER(gamma_correction_ps);
 
@@ -3446,7 +3467,7 @@ void Video::Present()
 	cmd.type = RenderCommandType::ExecutePendingCopyRectsCommands;
 	g_renderQueue.enqueue(cmd);
 
-	//DrawImGui();
+	DrawImGui();
 
 	cmd.type = RenderCommandType::ExecuteCommandList;
 	g_renderQueue.enqueue(cmd);
@@ -3681,7 +3702,7 @@ void GetUpscaledRTResolution(uint32_t widthOrigin, uint32_t heightOrigin, uint32
 
 	auto res = percent * Video::s_viewportWidth;
 	*widthOut = res;
-	
+
 	percent = (float)heightOrigin / 480.f;
 	res = percent * Video::s_viewportHeight;
 
@@ -3809,7 +3830,7 @@ static GuestTexture* CreateTexture(uint32_t width, uint32_t height, uint32_t dep
 	auto texture = g_userHeap.AllocPhysical<GuestTexture>(type == X_D3DRTYPE_VOLUMETEXTURE ? ResourceType::VolumeTexture : ResourceType::Texture);
 
 	RenderTextureDesc desc;
-	desc.dimension = RenderTextureDimension::TEXTURE_2D; 
+	desc.dimension = RenderTextureDimension::TEXTURE_2D;
 
 	if (usage == 1) //will be RenderTarget
 	{
@@ -3875,6 +3896,74 @@ static GuestTexture* CreateTexture_(uint32_t width, uint32_t height, uint32_t de
 	return CreateTexture(width, height, depth, levels, usage, format, type);
 }
 
+static bool LoadTexture(GuestTexture& texture, const uint8_t* data, size_t dataSize, RenderComponentMapping componentMapping, bool forceCubeMap = false)
+{
+
+	int width, height;
+	void* stbImage = stbi_load_from_memory(data, dataSize, &width, &height, nullptr, 4);
+
+	if (stbImage != nullptr)
+	{
+		texture.textureHolder = g_device->createTexture(RenderTextureDesc::Texture2D(width, height, 1, RenderFormat::R8G8B8A8_UNORM));
+		texture.texture = texture.textureHolder.get();
+		texture.viewDimension = RenderTextureViewDimension::TEXTURE_2D;
+		texture.layout = RenderTextureLayout::COPY_DEST;
+
+		texture.descriptorIndex = g_textureDescriptorAllocator.allocate();
+		g_textureDescriptorSet->setTexture(texture.descriptorIndex, texture.texture, RenderTextureLayout::SHADER_READ);
+
+		uint32_t rowPitch = (width * 4 + PITCH_ALIGNMENT - 1) & ~(PITCH_ALIGNMENT - 1);
+		uint32_t slicePitch = rowPitch * height;
+
+		auto uploadBuffer = g_device->createBuffer(RenderBufferDesc::UploadBuffer(slicePitch));
+		uint8_t* mappedMemory = reinterpret_cast<uint8_t*>(uploadBuffer->map());
+
+		if (rowPitch == (width * 4))
+		{
+			memcpy(mappedMemory, stbImage, slicePitch);
+		}
+		else
+		{
+			auto data = reinterpret_cast<const uint8_t*>(stbImage);
+
+			for (size_t i = 0; i < height; i++)
+			{
+				memcpy(mappedMemory, data, width * 4);
+				data += width * 4;
+				mappedMemory += rowPitch;
+			}
+		}
+
+		uploadBuffer->unmap();
+
+		stbi_image_free(stbImage);
+
+		ExecuteCopyCommandList([&]
+			{
+				g_copyCommandList->barriers(RenderBarrierStage::COPY, RenderTextureBarrier(texture.texture, RenderTextureLayout::COPY_DEST));
+
+				g_copyCommandList->copyTextureRegion(
+					RenderTextureCopyLocation::Subresource(texture.texture, 0),
+					RenderTextureCopyLocation::PlacedFootprint(uploadBuffer.get(), RenderFormat::R8G8B8A8_UNORM, width, height, 1, rowPitch / 4, 0));
+			});
+
+		return true;
+	}
+
+	return false;
+}
+
+
+std::unique_ptr<GuestTexture> LoadCustomTexture(const uint8_t* data, size_t dataSize, RenderComponentMapping componentMapping)
+{
+	GuestTexture texture(ResourceType::Texture);
+
+	if (LoadTexture(texture, data, dataSize, componentMapping))
+		return std::make_unique<GuestTexture>(std::move(texture));
+
+	return nullptr;
+}
+
 static RenderHeapType GetBufferHeapType()
 {
 	return g_capabilities.gpuUploadHeap ? RenderHeapType::GPU_UPLOAD : RenderHeapType::DEFAULT;
@@ -3936,7 +4025,7 @@ static GuestBuffer* CreateIndexBuffer(uint32_t IndexCount, X_D3DFORMAT format)
 
 
 static GuestSurface* CreateSurface(uint32_t width, uint32_t height, X_D3DFORMAT format, bool formatSet = false)
-{	
+{
 	RenderTextureDesc desc;
 	desc.dimension = RenderTextureDimension::TEXTURE_2D;
 	desc.width = width;
@@ -4364,7 +4453,7 @@ static void CopyDynamicTextureToGPU(GuestTexture* tex)
 	// Copy/unswizzle data into ring buffer
 	for (auto& slice : slices)
 	{
-	
+
 		uint8_t* srcData = reinterpret_cast<uint8_t*>(tex->mappedMemory);
 		uint8_t* dstData = mappedMemory + slice.dstOffset;
 
@@ -5843,7 +5932,7 @@ void UpdateUserConfigConstant(bool toggle)
 {
 	// upload user resolution to add HD resolution 
 	float userConfig[4];
-	
+
 	userConfig[0] = toggle ? (float)Video::s_viewportWidth : 0.f;
 	userConfig[1] = toggle ? (float)Video::s_viewportHeight : 0.f;
 	userConfig[2] = toggle ? 1.f : 0.f;
@@ -6439,13 +6528,13 @@ void DrawPrimitive(X_D3DPRIMITIVETYPE PrimitiveType, uint32_t StartVertex, uint3
 			//if patching is needed the stride may be bigger so update it from the Vertex Declaration that we got earlier
 			alignedStride = pVertexShaderStreamInfo->HostVertexStride;
 
-	
+
 			unsigned long dataAddr = (unsigned long)GetDataFromXboxResource((X_D3DResource*)(g_Xbox_SetStreamSource[i].VertexBuffer));
 			uint8_t* pXboxVertexData = reinterpret_cast<uint8_t*>(g_memory.Translate(dataAddr));
-			
+
 
 			XXH64_hash_t hash = XXH3_64bits(pXboxVertexData, g_Xbox_SetStreamSource[i].Stride);
-			auto &vertexCache = g_vertexCache[hash];
+			auto& vertexCache = g_vertexCache[hash];
 
 			//experimental
 			if (g_vertexCache.size() > 0xA000)
@@ -6471,7 +6560,7 @@ void DrawPrimitive(X_D3DPRIMITIVETYPE PrimitiveType, uint32_t StartVertex, uint3
 					memcpy(vertexCache, pXboxVertexData, originalSize);
 				}
 			}
-			
+
 
 			auto& cmd = queue.enqueue();
 			cmd.type = RenderCommandType::DrawPrimitiveUP;
@@ -6758,7 +6847,7 @@ static void ProcSetTextureStageState(const RenderCommand& cmd)
 	auto mipFilter = ConvertTextureFilter(cmd.SetTextureStageState.D3DTSS_MIPFILTER);
 	auto borderColor = ConvertBorderColor(cmd.SetTextureStageState.D3DTSS_BORDERCOLOR);
 
-	bool anisotropyEnabled = Config::AnisotropicFiltering > 0 && mipFilter == RenderFilter::LINEAR; 
+	bool anisotropyEnabled = Config::AnisotropicFiltering > 0 && mipFilter == RenderFilter::LINEAR;
 	if (anisotropyEnabled)
 	{
 		magFilter = RenderFilter::LINEAR;

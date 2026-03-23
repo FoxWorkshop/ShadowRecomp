@@ -5,6 +5,7 @@
 #define D3DCLEAR_TARGET  0x1
 #define D3DCLEAR_ZBUFFER 0x10
 
+
 constexpr DWORD X_D3DTS_STAGECOUNT = 4; // Dxbx addition
 extern uint32_t g_VertexShader_Handle;
 
@@ -1096,3 +1097,5 @@ void DrawPrimitiveUP(X_D3DPRIMITIVETYPE PrimitiveType, uint32_t VertexCount, voi
 void DrawIndexedPrimitive(X_D3DPRIMITIVETYPE PrimitiveType, uint32_t VertexCount, int16_t* pIndexData);
 void UpdateVertexShader(uint32_t Handle);
 bool is_vulkan();
+
+extern std::unique_ptr<GuestTexture> LoadCustomTexture(const uint8_t* data, size_t dataSize, RenderComponentMapping componentMapping = RenderComponentMapping());
