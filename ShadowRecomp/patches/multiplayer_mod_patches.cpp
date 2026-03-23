@@ -1,4 +1,6 @@
 #include "global.h"
+#include <kernel/function.h>
+
 
 // Patch the TBlock / Chunk to check P2 if P1 returns false
 X86_FUNC_IMPL(__imp__sub_12700);
@@ -13,6 +15,13 @@ X86_FUNC(sub_12700)
 		__imp__sub_12700(ctx, base); // P2
 	}
 }
+
+//sub_226E50 // Skip all event loading
+bool skipAllEventLoading(int *a2, int a3, char a4)
+{
+	return 0;
+}
+GUEST_FUNCTION_HOOK_STDCALL(sub_226E50, skipAllEventLoading);
 
 
 // 2P Lite Stuff
