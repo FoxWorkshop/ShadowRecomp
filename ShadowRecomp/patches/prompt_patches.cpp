@@ -21,7 +21,5 @@ X86_FUNC(sub_2A6530)
 X86_FUNC_IMPL(__imp__sub_5A7B0);
 X86_FUNC(sub_5A7B0)
 {
-
-
 	__imp__sub_5A7B0(ctx, base);
 }

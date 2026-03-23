@@ -1,10 +1,6 @@
 #include <gpu/video.h>
 #include <kernel/function.h>
 
-
-
-
-
 // Patch out logs Artificial Chaos can spew (causes crashes)
 X86_FUNC(sub_37EBE6)
 {
@@ -103,3 +99,12 @@ bool loadAllChunks(float* a1, float* a2, float* a3)
 }
 // Uncomment below if wanting to test with all chunks loaded
 //GUEST_FUNCTION_HOOK_STDCALL(sub_12700, loadAllChunks);
+
+// Input locking PAD2 for forcing 2P and Enabling Partner Control
+X86_FUNC_IMPL(__imp__sub_28AF30);
+X86_FUNC(sub_28AF30)
+{
+	auto thisAddr = ctx.ecx.u32;
+	__imp__sub_28AF30(ctx, base);
+	X86_STORE_U32(0x5356E8, 1); // PAD2 locked to XInput PORT 2
+}
