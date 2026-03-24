@@ -287,8 +287,6 @@ if (SHADOW_RECOMP_D3D12)
     )
 endif()
 
-file(CHMOD ${DIRECTX_DXC_TOOL} PERMISSIONS OWNER_READ OWNER_WRITE OWNER_EXECUTE)
-
 if (WIN32)
     target_link_libraries(ShadowRecomp PRIVATE
         comctl32
