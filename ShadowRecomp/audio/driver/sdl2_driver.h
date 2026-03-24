@@ -76,3 +76,4 @@ public:
 int32_t SHTHRSoundCreate(SHTHR_SOUNDDEVICE** ppDevice);
 extern SHTHR_SOUNDDEVICE* ppDS;
 SHTHR_SOUNDBUFFER* GetCurrentSoundBuffer(const int32_t key);
+void AudioShutDown();

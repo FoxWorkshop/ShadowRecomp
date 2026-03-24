@@ -127,6 +127,7 @@ bool LogVSConstants = false;
 #include "shader/Rchaos_vs.hlsl.spirv.h"
 #include <os/logger.h>
 #include <os/process.h>
+#include <ui/fader.h>
 
 
 
@@ -1821,6 +1822,7 @@ static void CreateImGuiBackend()
 	OptionsMenu::Init();
 	InstallerWizard::Init();*/
 
+
 	ImGui_ImplSDL2_InitForOther(GameWindow::s_pWindow);
 
 
@@ -3229,8 +3231,9 @@ static void DrawImGui()
 	InstallerWizard::Draw();
 	MessageWindow::Draw();
 	ButtonGuide::Draw();
-	Fader::Draw();
+
 	BlackBar::Draw();*/
+	Fader::Draw();
 
 	assert(ImGui::GetBackgroundDrawList()->_ClipRectStack.Size == 1 && "Some clip rects were not removed from the stack!");
 

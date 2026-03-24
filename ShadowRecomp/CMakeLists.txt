@@ -132,6 +132,7 @@ set(SHADOW_RECOMP_PATCHES_CXX_SOURCES
     "patches/player_patches.cpp"
     "patches/misc_patches.cpp"
     "patches/multiplayer_mod_patches.cpp"
+    "patches/titlescreen_patches.cpp"
 )
 
 
@@ -144,6 +145,7 @@ set(SHADOW_RECOMP_USER_CXX_SOURCES
 set(SHADOW_RECOMP_UI_CXX_SOURCES
     "ui/game_window.cpp"
     "ui/imgui_utils.cpp"
+    "ui/fader.cpp"
 )
 
 set(SHADOW_RECOMP_MOD_CXX_SOURCES

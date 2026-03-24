@@ -574,6 +574,10 @@ struct DeviceState {
 	uint32_t padding[2];
 };
 
+bool isPressedAnalogButton(const uint8_t index, bAnalogBtnE btn)
+{
+	return g_keyboardController.state.bAnalogButtons[btn] == 0xFF || g_controllers[index].state.bAnalogButtons[btn] == 0xFF;
+}
 
 HANDLE XInputOpen(int* a1, int a2)
 {

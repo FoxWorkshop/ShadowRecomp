@@ -27,6 +27,12 @@
 
 bool PlayMusic = false;
 SHTHR_SOUNDDEVICE* ppDS = nullptr;
+static volatile bool g_audioThreadShouldExit;
+
+void AudioShutDown()
+{
+	g_audioThreadShouldExit = true;
+}
 
 void Interface::Release()
 {
@@ -1046,7 +1052,7 @@ int SHTHR_SOUNDDEVICE_Impl::PullThreadFunc()
 	std::vector<uint8_t> mix_buf(FILL_CHUNK_BYTES, 0);
 	std::vector<uint8_t> src_buf(FILL_CHUNK_BYTES, 0);
 
-	while (SDL_AtomicGet(&mPullThreadRunning))
+	while (SDL_AtomicGet(&mPullThreadRunning) && g_audioThreadShouldExit == false)
 	{
 		const Uint32 queued = SDL_GetQueuedAudioSize(mDeviceID);
 
@@ -1085,6 +1091,12 @@ int SHTHR_SOUNDDEVICE_Impl::PullThreadFunc()
 
 		SDL_Delay(SLEEP_EMPTY_MS);
 	}
+
+	if (g_audioThreadShouldExit == true)
+	{
+		this->Release();
+	}
+
 	return 0;
 }
 
@@ -1217,7 +1229,7 @@ SHTHR_SOUNDDEVICE_Impl::SHTHR_SOUNDDEVICE_Impl()
 int adxm_vsyncThread = -1;
 static int adxm_fsThread = -1;
 static int adxm_mwidlThread = -1;
-static volatile bool g_audioThreadShouldExit = false;
+
 
 
 bool SHTHR_SOUNDDEVICE_Impl::ReleaseSoundBuffer(SHTHR_SOUNDBUFFER* pBuffer)

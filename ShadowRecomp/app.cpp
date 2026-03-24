@@ -8,6 +8,7 @@
 #include <volk.h>
 #include <user/paths.h>
 #include <user/registry.h>
+#include <audio/driver/sdl2_driver.h>
 
 static std::thread::id g_mainThreadId = std::this_thread::get_id();
 
@@ -19,7 +20,7 @@ void App::Restart(std::vector<std::string> restartArgs)
 
 void App::Exit()
 {
-
+	AudioShutDown();
 	Config::Save();
 
 #ifdef _WIN32
