@@ -1,13 +1,13 @@
 #include <kernel/function.h>
 
 
-//skip error message save
+// skip error message save
 X86_FUNC_IMPL(__imp__sub_2A6530);
 X86_FUNC(sub_2A6530)
 {
 	auto mode = X86_LOAD_U32(ctx.ecx.u32);
 
-	if (mode == 6)
+	if (mode == 6) //this technically should no longer trigger
 	{
 		X86_STORE_U32(ctx.ecx.u32, 14);
 	}

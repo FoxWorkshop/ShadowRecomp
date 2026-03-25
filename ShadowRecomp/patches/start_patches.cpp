@@ -92,7 +92,7 @@ X86_FUNC(sub_29EA60)
 
 
 // test spawn level
-static bool changeLevelOnce = true; // true = disabled
+static bool changeLevelOnce = false; // true = disabled
 X86_FUNC_IMPL(__imp__sub_258550);
 X86_FUNC(sub_258550)
 {
@@ -118,7 +118,7 @@ X86_FUNC(sub_258550)
 		//X86_STORE_U32(ctx.esp.u32 + 4, 201); //Glyphic Canyon 
 		//X86_STORE_U32(ctx.esp.u32 + 4, 210); //black bull (require pixel shader)
 		//X86_STORE_U32(ctx.esp.u32 + 4, 402); //Sky Troops	
-		X86_STORE_U32(ctx.esp.u32 + 4, 501); //air fleet  (eventually require pixel shader)
+		//X86_STORE_U32(ctx.esp.u32 + 4, 501); //air fleet  (eventually require pixel shader)
 		changeLevelOnce = true;
 	}
 	__imp__sub_258550(ctx, base);

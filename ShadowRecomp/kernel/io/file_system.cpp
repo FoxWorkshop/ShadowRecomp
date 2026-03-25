@@ -6,8 +6,9 @@
 #include <iostream>
 #include <audio/audio.h>
 #include <os/logger.h>
+#include <user/paths.h>
 
-//Original code from Unleashed Recomp, O.G Xbox uses similar file / write operation functions than Xbox 360.
+// Original code from Unleashed Recomp, O.G Xbox uses similar file / write operation functions than Xbox 360.
 
 struct FileHandle : KernelObject
 {
@@ -59,31 +60,112 @@ struct FindHandle : KernelObject
 	}
 };
 
+
+// for save file path detection, we don't want the title ID in it.
+
+static bool isHexSegment(const std::string_view& seg) {
+
+	if (seg.size() < 8)
+		return false;
+
+	return std::all_of(seg.begin(), seg.end(), [](char c) {
+		return (c >= '0' && c <= '9') || (c >= 'a' && c <= 'f') || (c >= 'A' && c <= 'F');
+		});
+}
+
+struct DriveMapping
+{
+	std::string_view letter;
+	std::filesystem::path root;
+	std::filesystem::path saveRoot;  // used when stripSegment triggers
+	std::function<bool(const std::string_view&)> stripSegment;
+};
+
+static const DriveMapping& GetDriveMapping(const std::string_view& letter)
+{
+	static const std::vector<DriveMapping> table = {
+		{ "d:", MainGameFolder, {}, nullptr },
+		{ "u:", GetUserPath(), GetSavePath(true), isHexSegment},
+	};
+
+	for (auto& m : table)
+	{
+		if (std::equal(letter.begin(), letter.end(), m.letter.begin(), m.letter.end(),
+			[](char a, char b) { return std::tolower(a) == std::tolower(b); }))
+			return m;
+	}
+
+	static const DriveMapping fallback = { "", MainGameFolder };
+
+	return fallback;
+}
+
+
 std::filesystem::path FileSystem::ResolvePath(const std::string_view& path, bool checkForMods)
 {
-	thread_local std::string builtPath;
-	builtPath.clear();
-	builtPath = MainGameFolder + "/";
+	std::filesystem::path p(path);
 
-	size_t index = path.find(":\\");
-	if (index != std::string::npos)
+	auto colonPos = path.find(':');
+
+	bool rootResolved = false;
+	thread_local std::filesystem::path result;
+	std::string_view relative;
+
+
+	if (colonPos != std::string_view::npos) 
 	{
-		std::string_view relativePart = path.substr(index + 2);
+		auto driveLetter = path.substr(0, colonPos + 1);
+		const auto& mapping = GetDriveMapping(driveLetter);
+		result = mapping.root;
 
-		builtPath += relativePart;
+		// Skip past ":\" or ":/"
+		size_t start = colonPos + 1;
+		if (start < path.size() && (path[start] == '\\' || path[start] == '/'))
+			++start;
+		relative = path.substr(start);
+
+		// Walk each path segment, applying strip filter
+		std::string_view remaining = relative;
+		while (!remaining.empty()) 
+		{
+			auto sep = remaining.find_first_of("/\\");
+			std::string_view seg = (sep == std::string_view::npos)
+				? remaining
+				: remaining.substr(0, sep);
+
+			if (mapping.stripSegment && mapping.stripSegment(seg))
+			{
+				// Hex segment stripped — switch to save root
+				if (!rootResolved && !mapping.saveRoot.empty())
+				{
+					result = mapping.saveRoot;
+					rootResolved = true;
+				}
+			}
+			else
+			{
+				result /= std::string(seg);
+			}
+
+			remaining = (sep == std::string_view::npos)
+				? std::string_view{}
+			: remaining.substr(sep + 1);
+		}
 	}
-	else
+	else 
 	{
-		builtPath += path;
+		// No drive letter — relative path, append to game folder
+		result = MainGameFolder;
+		result /= std::string(path);
 	}
 
-	std::replace(builtPath.begin(), builtPath.end(), '\\', '/');
-	return std::u8string_view((const char8_t*)builtPath.c_str());
+	return result;
 }
 
 
 FileHandle* XCreateFile_r(const char* SourceString, ULONG CreateDisposition, ULONG ShareAccess, int a4, int mode, unsigned int a6, int a7)
 {
+
 	ULONG CreateDisposition_ = FILE_OPEN;
 	switch (mode)
 	{
@@ -110,6 +192,7 @@ FileHandle* XCreateFile_r(const char* SourceString, ULONG CreateDisposition, ULO
 	std::filesystem::path filePath = FileSystem::ResolvePath(SourceString, true);
 	std::fstream fileStream;
 	std::ios::openmode fileOpenMode = std::ios::binary;
+
 	if (CreateDisposition_ == FILE_OPEN || CreateDisposition_ == FILE_OPEN_IF)
 	{
 		os::logger::LogFile("Loading", filePath.c_str());
@@ -120,16 +203,29 @@ FileHandle* XCreateFile_r(const char* SourceString, ULONG CreateDisposition, ULO
 		fileOpenMode |= std::ios::out;
 	}
 
-	if (filePath.string().find("Op.sfd") != std::string::npos)
+	if (CreateDisposition & 0x80000000)  // generic read
+		fileOpenMode |= std::ios::in;   
+
+	if (CreateDisposition & 0x40000000) // generic write
+		fileOpenMode |= std::ios::out;
+
+	if ((fileOpenMode & std::ios::out) &&
+		CreateDisposition != FILE_OPEN &&
+		CreateDisposition != FILE_OPEN_IF)
+		fileOpenMode |= std::ios::trunc;
+
+
+	if (fileOpenMode & std::ios::out)
 	{
-
+		os::logger::LogFile("Write", filePath.c_str());
 	}
-
 
 	std::error_code ec;
 	fileStream.open(filePath, fileOpenMode);
 	if (!std::filesystem::exists(filePath))
 		std::cout << "File does not exist: " << filePath << std::endl;
+
+
 	if (!fileStream.is_open())
 	{
 		std::cout << "Failed to open: " << filePath << " | errno: " << errno << " | message: " << strerror(errno) << std::endl;
@@ -140,6 +236,33 @@ FileHandle* XCreateFile_r(const char* SourceString, ULONG CreateDisposition, ULO
 	fileHandle->stream = std::move(fileStream);
 	fileHandle->path = std::move(filePath);
 	return fileHandle;
+}
+
+// Because the game call ntCreateFile for save file creation and we don't have it implemented, we use a mid asm hook 
+// to redirect it to XCreateFile instead.
+void CreateSaveMetaMidAsmHook()
+{
+	auto ctx = GetX86Context();
+	ctx->esp.u32 -= 4; // adjust esp to simulate guest call instruction that was skipped from ntCreateFile hook
+	auto base = g_memory.base;
+
+	// The hook is right when the game is about to call ntCreateFile so we can safely pull the parameters at the same region than ntCreateFile
+	auto ObjectAttributes_ = GetHostParameter(3, CallConvention::Stdcall);
+	auto DesiredAccess = GetHostParameter(2, CallConvention::Stdcall);
+	auto ShareAccess = GetHostParameter(7, CallConvention::Stdcall);
+	auto FileHandlePtr = (uint32_t*)GetHostParameter(1, CallConvention::Stdcall, ParameterType::Pointer);
+
+	// Get the string that contains the path destination for the file
+	auto ObjectAttributesAddr = X86_LOAD_U32(ObjectAttributes_ + 4);
+	auto pathAddr = X86_LOAD_U32(ObjectAttributesAddr + 4);
+	auto path = (char*)g_memory.Translate(pathAddr);
+	
+	// create empty SaveMeta.xml
+	auto newFileHandle = XCreateFile_r(path, DesiredAccess, ShareAccess, 0, 1, 0, 0);
+
+	*FileHandlePtr = g_memory.MapVirtual(newFileHandle);
+
+	ctx->esp.u32 += (4 * 9) + 4; // re adjust esp to simulate guest function clean up (clear 9 params + ret instruction)
 }
 
 uint32_t XReadFile_r(FileHandle* Handle, void* buffer, int length, uint32_t* bytesRead, XOVERLAPPED* overLapped)
@@ -289,11 +412,16 @@ uint32_t XWriteFile_r(FileHandle* hFile, const void* lpBuffer, uint32_t nNumberO
 	assert(lpOverlapped == nullptr && "Overlapped not implemented.");
 
 	hFile->stream.write((const char*)(lpBuffer), nNumberOfBytesToWrite);
-	if (hFile->stream.bad())
+	if (hFile->stream.fail())
+	{
+		if (lpNumberOfBytesWritten != nullptr)
+			*lpNumberOfBytesWritten = 0;
+
 		return FALSE;
+	}
 
 	if (lpNumberOfBytesWritten != nullptr)
-		*lpNumberOfBytesWritten = uint32_t(hFile->stream.gcount());
+		*lpNumberOfBytesWritten = nNumberOfBytesToWrite;
 
 	return TRUE;
 }
@@ -387,19 +515,44 @@ uint32_t XFindNextFile(FindHandle* Handle, WIN32_FIND_DATAA* lpFindFileData)
 	}
 }
 
-int CacheGameFiles(int a1)
+int32_t UserPathExist(const char* SourceString, int32_t freeSpaceAvailable, int32_t totalBytes, int32_t a4)
 {
+	auto base = g_memory.base;
+	constexpr uint32_t fake_free = 1ULL * 1024 * 1024 * 1024;
+	constexpr uint32_t fake_total = 2ULL * 1024 * 1024 * 1024;
 
-	LOGN("CACHE STUB");
-	return 0;
-
+	X86_STORE_U32(freeSpaceAvailable, fake_free); // lie to the game that we have enough free space in the non-existent Xbox HDD.
+	X86_STORE_U32(totalBytes, fake_total);
+	return std::filesystem::exists(GetUserPath());
 }
 
+int32_t CreateSaveFolder(const char* SourceString, int32_t a2)
+{
+	const auto saveFilePath = GetSaveFilePath(true);
+	bool saveFileExists = std::filesystem::exists(saveFilePath);
 
-//GUEST_FUNCTION_HOOK_THISCALL(sub_14D10, IsPtrEqual);
+	if (!saveFileExists)
+	{
+		// Copy base save data to modded save as fallback.
+		std::error_code ec;
+		std::filesystem::create_directories(saveFilePath.parent_path(), ec);
 
-//GUEST_FUNCTION_HOOK(sub_382D53, sub382D53_r);
-//GUEST_FUNCTION_HOOK(sub_37E577, sub_37E577_r);
+		if (!ec)
+		{
+			std::filesystem::copy_file(GetSaveFilePath(false), saveFilePath, ec);
+			saveFileExists = true;
+		}
+
+	}
+
+	return saveFileExists;
+}
+
+int CacheGameFiles(int a1)
+{
+	LOGN("CACHE STUB");
+	return 0;
+}
 
 GUEST_FUNCTION_HOOK_STDCALL(sub_2AF653, XCreateFile_r);
 GUEST_FUNCTION_HOOK_STDCALL(sub_2ADFF0, XReadFile_r);
@@ -411,88 +564,10 @@ GUEST_FUNCTION_HOOK_STDCALL(sub_2AE331, XSetFilePointerEx_r);
 GUEST_FUNCTION_HOOK_STDCALL(sub_2AD93C, XFindFirstFile);
 GUEST_FUNCTION_HOOK_STDCALL(sub_2ADA49, XFindNextFile);
 
+
+// save file stuff (fake U partition)
+GUEST_FUNCTION_HOOK_STDCALL(sub_2AF174, UserPathExist);
+GUEST_FUNCTION_HOOK_STDCALL(sub_2B04AE, CreateSaveFolder);
+
+// stub
 GUEST_FUNCTION_HOOK(sub_332B60, CacheGameFiles);
-
-
-//sprintf
-
-X86_FUNC_IMPL(__imp__sub_37E577);
-X86_FUNC(sub_37E577)
-{
-
-	/**if (1)
-	{
-		uint32_t ebp = X86_LOAD_U32(ctx.esp.u32 + 4 + (0 * 4));
-		const char* arg0 = (char*)(base + ebp);
-		ebp = X86_LOAD_U32(ctx.esp.u32 + 4 + (1 * 4));
-		auto arg1 = (char*)(base + ebp);
-		arg1 = arg1;
-		ebp = X86_LOAD_U32(ctx.esp.u32 + 4 + (2 * 4));
-		auto arg2 = (char*)(base + ebp);
-		arg2 = arg2;
-		ebp = X86_LOAD_U32(ctx.esp.u32 + 4 + (3 * 4));
-		auto arg3 = (char*)(base + ebp);
-		arg3 = arg3;
-	}*/
-
-	__imp__sub_37E577(ctx, base); //call og function
-
-	/**if (1)
-	{
-		ctx.esp.u32 -= 4;
-		uint32_t ebp = X86_LOAD_U32(ctx.esp.u32 + 4 + (0 * 4));
-		const char* arg0 = (char*)(base + ebp);
-		ebp = X86_LOAD_U32(ctx.esp.u32 + 4 + (1 * 4));
-		auto arg1 = (char*)(base + ebp);
-		arg1 = arg1;
-		ebp = X86_LOAD_U32(ctx.esp.u32 + 4 + (2 * 4));
-		auto arg2 = (char*)(base + ebp);
-		arg2 = arg2;
-		ebp = X86_LOAD_U32(ctx.esp.u32 + 4 + (3 * 4));
-		auto arg3 = (char*)(base + ebp);
-		arg3 = arg3;
-		ctx.esp.u32 += 4;
-
-	}*/
-
-
-}
-
-//sscanF
-X86_FUNC_IMPL(__imp__sub_37F0C6);
-X86_FUNC(sub_37F0C6)
-{
-
-	/**if (1)
-	{
-
-		uint32_t ebp = X86_LOAD_U32(ctx.esp.u32 + 4 + (0 * 4));
-		const char* arg0 = (char*)(base + ebp);
-		ebp = X86_LOAD_U32(ctx.esp.u32 + 4 + (1 * 4));
-		auto arg1 = (char*)(base + ebp);
-		ebp = X86_LOAD_U32(ctx.esp.u32 + 4 + (2 * 4));
-		auto arg2 = (char*)(base + ebp);
-		ebp = X86_LOAD_U32(ctx.esp.u32 + 4 + (3 * 4));
-		auto arg3 = (char*)(base + ebp);
-		arg3 = arg3;
-		//auto test = sscanf(arg0, arg1, arg2, arg3);
-		//test = test;
-	}*/
-	__imp__sub_37F0C6(ctx, base);
-
-	/**if (1)
-	{
-		ctx.esp.u32 -= 4;
-		uint32_t ebp = X86_LOAD_U32(ctx.esp.u32 + 4 + (0 * 4));
-		const char* arg0 = (char*)(base + ebp);
-		ebp = X86_LOAD_U32(ctx.esp.u32 + 4 + (1 * 4));
-		auto arg1 = (char*)(base + ebp);
-		arg1 = arg1;
-		ebp = X86_LOAD_U32(ctx.esp.u32 + 4 + (2 * 4));
-		auto arg2 = (char*)(base + ebp);
-		ebp = X86_LOAD_U32(ctx.esp.u32 + 4 + (3 * 4));
-		auto arg3 = (char*)(base + ebp);
-		arg3 = arg3;
-		ctx.esp.u32 += 4;
-	}*/
-}

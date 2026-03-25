@@ -14,9 +14,10 @@
 #include "heap.h"
 #include "memory.h"
 #include <memory>
-#include "kernel.h"
+#include <kernel/kernel.h>
 #include <util.h>
 #include <gpu/renderstate.h>
+
 
 #define MMIO_BASE  0xFE800000
 #define MMIO_SIZE  0x00800000 
@@ -845,7 +846,7 @@ using FileHandleType = int;
 LONG NtCreateFile(
 	OUT uint32_t* FileHandle,
 	IN  uint32_t         DesiredAccess,
-	IN  uint32_t* ObjectAttributes_,
+	IN  uint32_t ObjectAttributes_,
 	OUT uint32_t* IoStatusBlock_,
 	IN  uint32_t* AllocationSize_ OPTIONAL,
 	IN  uint32_t               FileAttributes,
@@ -854,8 +855,7 @@ LONG NtCreateFile(
 	IN  uint32_t               CreateOptions
 )
 {
-
-	printf("Stub ntCreatefile\n");
+	LOG_UTILITY("!!! STUB !!!");
 	return 0;
 }
 
