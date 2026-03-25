@@ -1,18 +1,21 @@
 #include "global.h"
 #include <kernel/function.h>
 
-
+const bool Enable2PLite = false;
 // Patch the TBlock / Chunk to check P2 if P1 returns false
 X86_FUNC_IMPL(__imp__sub_12700);
 X86_FUNC(sub_12700)
 {
 	auto beforeCTX = ctx;
 	__imp__sub_12700(ctx, base); // P1
-	if (ctx.eax.u8_lo == 0 && playerPos) { // Note: Runs twice now in SP - when we migrate to static playerCount we can change this to exit with < 2
-		ctx = beforeCTX; // restore ctx to before original call, so we can call it again with new params
-		auto playerPosGuest = g_memory.MapVirtual(playerPos); // NOTE: HACK - playerPos is last Shadow allocated, which is P2 in the case of MP; But we should change this to be a proper grab later
-		X86_STORE_U32(ctx.esp.u32 + 12, playerPosGuest);
-		__imp__sub_12700(ctx, base); // P2
+	if (Enable2PLite)
+	{
+		if (ctx.eax.u8_lo == 0 && playerPos) { // Note: Runs twice now in SP - when we migrate to static playerCount we can change this to exit with < 2
+			ctx = beforeCTX; // restore ctx to before original call, so we can call it again with new params
+			auto playerPosGuest = g_memory.MapVirtual(playerPos); // NOTE: HACK - playerPos is last Shadow allocated, which is P2 in the case of MP; But we should change this to be a proper grab later
+			X86_STORE_U32(ctx.esp.u32 + 12, playerPosGuest);
+			__imp__sub_12700(ctx, base); // P2
+		}
 	}
 }
 
@@ -61,8 +64,11 @@ auto stageTableGameMode = 0x462F98;
 X86_FUNC_IMPL(__imp__sub_16FEF0);
 X86_FUNC(sub_16FEF0)
 {
-	for (int i = 0; i <= 22; i++) {
-		X86_STORE_U32(stageTableGameMode + (0x50 * i), 6);
+	if (Enable2PLite)
+	{
+		for (int i = 0; i <= 22; i++) {
+			X86_STORE_U32(stageTableGameMode + (0x50 * i), 6);
+		}
 	}
 	__imp__sub_16FEF0(ctx, base);
 }
@@ -71,8 +77,11 @@ X86_FUNC(sub_16FEF0)
 X86_FUNC_IMPL(__imp__sub_170850);
 X86_FUNC(sub_170850)
 {
-	for (int i = 0; i <= 22; i++) {
-		X86_STORE_U32(stageTableGameMode + (0x50 * i), 6);
+	if (Enable2PLite)
+	{
+		for (int i = 0; i <= 22; i++) {
+			X86_STORE_U32(stageTableGameMode + (0x50 * i), 6);
+		}
 	}
 	__imp__sub_170850(ctx, base);
 }
@@ -81,8 +90,11 @@ X86_FUNC(sub_170850)
 X86_FUNC_IMPL(__imp__sub_281C50);
 X86_FUNC(sub_281C50)
 {
-	for (int i = 0; i <= 22; i++) {
-		X86_STORE_U32(stageTableGameMode + (0x50 * i), 0);
+	if (Enable2PLite)
+	{
+		for (int i = 0; i <= 22; i++) {
+			X86_STORE_U32(stageTableGameMode + (0x50 * i), 0);
+		}
 	}
 	__imp__sub_281C50(ctx, base);
 }
@@ -91,8 +103,11 @@ X86_FUNC(sub_281C50)
 X86_FUNC_IMPL(__imp__sub_281FE0);
 X86_FUNC(sub_281FE0)
 {
-	for (int i = 0; i <= 22; i++) {
-		X86_STORE_U32(stageTableGameMode + (0x50 * i), 6);
+	if (Enable2PLite)
+	{
+		for (int i = 0; i <= 22; i++) {
+			X86_STORE_U32(stageTableGameMode + (0x50 * i), 6);
+		}
 	}
 	__imp__sub_281FE0(ctx, base);
 }
@@ -101,8 +116,11 @@ X86_FUNC(sub_281FE0)
 X86_FUNC_IMPL(__imp__sub_16F7E0);
 X86_FUNC(sub_16F7E0)
 {
-	for (int i = 0; i <= 22; i++) {
-		X86_STORE_U32(stageTableGameMode + (0x50 * i), 6);
+	if (Enable2PLite)
+	{
+		for (int i = 0; i <= 22; i++) {
+			X86_STORE_U32(stageTableGameMode + (0x50 * i), 6);
+		}
 	}
 	__imp__sub_16F7E0(ctx, base);
 }
@@ -111,8 +129,11 @@ X86_FUNC(sub_16F7E0)
 X86_FUNC_IMPL(__imp__sub_238650);
 X86_FUNC(sub_238650)
 {
-	for (int i = 0; i <= 22; i++) {
-		X86_STORE_U32(stageTableGameMode + (0x50 * i), 6);
+	if (Enable2PLite)
+	{
+		for (int i = 0; i <= 22; i++) {
+			X86_STORE_U32(stageTableGameMode + (0x50 * i), 6);
+		}
 	}
 	__imp__sub_238650(ctx, base);
 }
@@ -121,8 +142,11 @@ X86_FUNC(sub_238650)
 X86_FUNC_IMPL(__imp__sub_2385E0);
 X86_FUNC(sub_2385E0)
 {
-	for (int i = 0; i <= 22; i++) {
-		X86_STORE_U32(stageTableGameMode + (0x50 * i), 0);
+	if (Enable2PLite)
+	{
+		for (int i = 0; i <= 22; i++) {
+			X86_STORE_U32(stageTableGameMode + (0x50 * i), 0);
+		}
 	}
 	__imp__sub_2385E0(ctx, base);
 }
@@ -131,8 +155,11 @@ X86_FUNC(sub_2385E0)
 X86_FUNC_IMPL(__imp__sub_16E0D0);
 X86_FUNC(sub_16E0D0)
 {
-	for (int i = 0; i <= 22; i++) {
-		X86_STORE_U32(stageTableGameMode + (0x50 * i), 0);
+	if (Enable2PLite)
+	{
+		for (int i = 0; i <= 22; i++) {
+			X86_STORE_U32(stageTableGameMode + (0x50 * i), 0);
+		}
 	}
 	__imp__sub_16E0D0(ctx, base);
 }
@@ -141,7 +168,10 @@ X86_FUNC(sub_16E0D0)
 X86_FUNC_IMPL(__imp__sub_237DA0);
 X86_FUNC(sub_237DA0)
 {
-	X86_STORE_U8(0x54DDE2, 0); // Disable 2P_UI, SoundListener/RenderDist Flag for GoalClear
+	if (Enable2PLite)
+	{
+		X86_STORE_U8(0x54DDE2, 0); // Disable 2P_UI, SoundListener/RenderDist Flag for GoalClear
+	}
 	__imp__sub_237DA0(ctx, base);
 }
 
