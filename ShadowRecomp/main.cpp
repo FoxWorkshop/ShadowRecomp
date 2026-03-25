@@ -100,6 +100,14 @@ void HostStartup()
 #endif
 
     input::Init();
+
+    if (g_memory.base == nullptr)
+    {
+        SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_ERROR, GameWindow::GetTitle(), Localise("System_MemoryAllocationFailed").c_str(), GameWindow::s_pWindow);
+        std::_Exit(1);
+    }
+
+
     g_userHeap.Init();
 }
 
