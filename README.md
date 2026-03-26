@@ -42,7 +42,7 @@ Before reporting any issues, check if they are listed [here](https://github.com/
 
 This project does not plan to support any more platforms other than Windows and Linux at the moment. Any contributors who wish to support more platforms should do so through a fork.
 
-## Building (todo)
+## Building
 
 [Check out the building instructions here](/docs/BUILDING.md).
 
