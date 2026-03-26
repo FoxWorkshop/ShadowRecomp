@@ -11,7 +11,7 @@ else()
 endif()
 
 target_compile_definitions(XboxRecomp PRIVATE 
-    XBOX_RECOMP_CONFIG_FILE_PATH=\"${CMAKE_CURRENT_SOURCE_DIR}/config/jumpTable.toml\"
+    XBOX_RECOMP_CONFIG_FILE_PATH=\"${CMAKE_CURRENT_SOURCE_DIR}/config/recompConfig.toml\"
     XBOX_RECOMP_HEADER_FILE_PATH=\"${SHADOW_RECOMP_TOOLS_ROOT}/XboxRecomp/XboxUtils/x86_context.h\")
 
 set(SHADOW_RECOMP_X86_RECOMPILED_SOURCES 
