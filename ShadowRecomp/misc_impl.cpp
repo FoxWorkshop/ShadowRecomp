@@ -56,13 +56,6 @@ BOOL QueryPerformanceCounterImpl(LARGE_INTEGER* lpPerformanceCount)
 	return TRUE;
 }
 
-
-BOOL QueryPerformanceFrequencyImpl(LARGE_INTEGER* lpPerformanceCount)
-{
-    lpPerformanceCount->QuadPart = XBOX_ACPI_FREQUENCY;
-    return TRUE;
-}
-
 unsigned __int64 GetRdtSc()
 {
 	ULARGE_INTEGER PerformanceCount;
@@ -103,23 +96,6 @@ int sub_2C0390_r(int Str1)
 	return 0;
 }
 
-//example of how to grab usercall args, no need to use X86_LOAD here.
-//int __usercall FillDeviceName@<eax>(char* a1@<eax>, int(__thiscall* a2)(unsigned int))
-X86_FUNC_IMPL(__imp__sub_32B4F0);
-X86_FUNC(sub_32B4F0)
-{
-	auto a1 = ctx.eax.u32;
-	char* oldPath = (char*)(base + a1);
-
-	__imp__sub_32B4F0(ctx, base);
-	a1 = 0x560624;
-	oldPath = (char*)(base + a1);
-	oldPath = oldPath;
-	oldPath += 16;
-	oldPath = oldPath;
-
-	return;
-}
 
 char* __cdecl _StrChr(char* a1, char a2)
 {
@@ -135,7 +111,6 @@ char* __cdecl _StrrChr(char* a1, char a2)
 GUEST_FUNCTION_HOOK_STDCALL(sub_2AAF10, QueryPerformanceCounterImpl);
 GUEST_FUNCTION_HOOK(sub_3D7000, GetRdtSc);
 
-//GUEST_FUNCTION_HOOK_STDCALL(sub_2AAF21, QueryPerformanceFrequencyImpl);
 GUEST_FUNCTION_HOOK(sub_388458, GetKeTickCountImpl);
 
 GUEST_FUNCTION_HOOK(sub_37FDA0, memcpy);
@@ -158,10 +133,6 @@ GUEST_FUNCTION_HOOK(sub_37FD10, strlen);
 GUEST_FUNCTION_HOOK(sub_2EC110, _strupr);
 GUEST_FUNCTION_HOOK(sub_2EC140, _strlwr);
 GUEST_FUNCTION_HOOK(sub_38066D, strtok);
-
-//GUEST_FUNCTION_HOOK(sub_37E577, sprintf);
-//GUEST_FUNCTION_HOOK(sub_37F0C6, sscanf_);
-//GUEST_FUNCTION_HOOK(sub_383735, sscanf_r);
 
 
 GUEST_FUNCTION_HOOK(sub_2AAEDE, OutputDebugStringA);

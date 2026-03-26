@@ -4,31 +4,24 @@
 bool QuickBoot = true;
 
 //stub unnecessary startup functions to force the game to boot
-//to do find a workdaround this is needed for savefile.
 
 NTSTATUS TryOpenVolume(uint32_t* FileHandle)
 {
-	printf("TryOpenVolume be gone\n");
 	return X_STATUS_SUCCESS;
 }
 
 NTSTATUS MapLetterToDirectory(uint32_t* FileHandle, WORD* a2)
 {
-	printf("MapLetterToDirectory be gone\n");
 	return X_STATUS_SUCCESS;
 }
 
 int XMountUtilityDrive(int32_t a1)
 {
-	printf("XMountUtilityDrive be gone\n");
 	return TRUE;
 }
 
-
 int XAPILIBXGetParentalControlSetting(int a1)
 {
-
-	printf("XAPILIBXGetParentalControlSetting be gone\n");
 	return X_STATUS_SUCCESS;
 }
 
