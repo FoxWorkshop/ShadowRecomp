@@ -24,7 +24,7 @@ int64_t Timer_GetScaledPerformanceCounter(int64_t Period)
 	return whole + part;
 }
 
-static ULONGLONG HostGetPerformanceCounter(bool acpi)
+static uint64_t HostGetPerformanceCounter(bool acpi)
 {
 	const int64_t period = acpi ? XBOX_ACPI_FREQUENCY : XBOX_TSC_FREQUENCY;
 	return Timer_GetScaledPerformanceCounter(period);
@@ -47,7 +47,7 @@ BOOL QueryPerformanceCounterImpl(LARGE_INTEGER* lpPerformanceCount)
 	ctx->eax.u32 = lpPerformanceCount->LowPart;
 	ctx->edx.u32 = lpPerformanceCount->HighPart;
 	auto base = g_memory.base;
-	ctx->ecx.u32 = (uint32_t)lpPerformanceCount;
+	ctx->ecx.u32 = (uint32_t)(uintptr_t)lpPerformanceCount;
 
 
 	X86_STORE_U32(ctx->ecx.u32, ctx->eax.u32);
@@ -56,15 +56,14 @@ BOOL QueryPerformanceCounterImpl(LARGE_INTEGER* lpPerformanceCount)
 	return TRUE;
 }
 
-unsigned __int64 GetRdtSc()
+unsigned long long GetRdtSc()
 {
-	ULARGE_INTEGER PerformanceCount;
-	PerformanceCount.QuadPart = HostGetPerformanceCounter(false);
+	uint64_t counter = HostGetPerformanceCounter(false);
 
 	auto ctx = GetX86Context();
 
-	ctx->eax.u32 = PerformanceCount.LowPart;
-	ctx->edx.u32 = PerformanceCount.HighPart;
+	ctx->eax.u32 = (uint32_t)(counter & 0xFFFFFFFF);
+	ctx->edx.u32 = (uint32_t)(counter >> 32);
 
 
 

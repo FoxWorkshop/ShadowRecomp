@@ -49,6 +49,10 @@
 #define LOGFN_UTILITY(str, ...)
 #endif
 
+#ifdef None
+#undef None
+#endif
+
 namespace os::logger
 {
     enum class ELogType

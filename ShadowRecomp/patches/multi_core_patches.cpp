@@ -240,8 +240,7 @@ X86_FUNC(sub_2B39A0)
 				__debugbreak();
 #endif
 				ctx.eax.u32 = transfoNodeSource;
-				LOGFN_ERROR("pword1C is null, skipping CSD node transformation\n");
-			
+				LOGFN_ERROR("pword1C is null, skipping CSD node transformation\n", "CSD");
 				ctx.AddEsp(1);
 				return;
 			}

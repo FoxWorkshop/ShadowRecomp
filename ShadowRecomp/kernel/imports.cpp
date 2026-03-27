@@ -106,7 +106,7 @@ public:
 
 		auto base = g_memory.base;
 
-		uint32_t interrupt = (uint32_t)Interrupt;
+		uint32_t interrupt = (uint32_t)(uintptr_t)Interrupt;
 
 		X86_STORE_U32(ctx->esp.u32, interrupt);
 		X86_STORE_U32(ctx->esp.u32 + 4, (uint32_t)Interrupt->ServiceContext);
@@ -288,7 +288,7 @@ uint32_t DbgPrint(PCHAR Format, ...) {
 
 void ExFreePool(void* ptr)
 {
-	g_userHeap.Free(g_memory.Translate(reinterpret_cast<uint32_t>(ptr)));
+	g_userHeap.Free(g_memory.Translate((uint32_t)(uintptr_t)ptr));
 }
 
 void* ExAllocatePoolWithTag
@@ -600,8 +600,8 @@ VOID KeInitializeDpc(_KDPC* Dpc, uint32_t* DeferredRoutine, uint32_t* DeferredCo
 {
 	Dpc->Type = 19;
 	Dpc->Inserted = FALSE;
-	Dpc->DeferredRoutine.v = (uint32_t)DeferredRoutine;
-	Dpc->DeferredContext.v = (uint32_t)DeferredContext;
+	Dpc->DeferredRoutine.v = (uint32_t)(uintptr_t)DeferredRoutine;
+	Dpc->DeferredContext.v = (uint32_t)(uintptr_t)DeferredContext;
 }
 
 typedef struct _XKTIMER
@@ -880,7 +880,7 @@ LONG NtFlushBuffersFile(HANDLE FileHandle, uint32_t* IoStatusBlock)
 #ifdef _WIN32
 	FlushFileBuffers(FileHandle);
 #else
-	fsync(reinterpret_cast<int>(FileHandle));
+	fsync((int)(intptr_t)FileHandle);
 #endif
 	return X_STATUS_SUCCESS;
 }
@@ -1418,12 +1418,12 @@ DpcData g_DpcData = { 0 };
 // https://github.com/reactos/reactos/blob/40a16a9cf1cdfca399e9154b42d32c30b63480f5/reactos/drivers/filesystems/udfs/Include/env_spec_w32.h
 void InitializeListHead(PXLIST_ENTRY pListHead)
 {
-	pListHead->Flink = pListHead->Blink = (uint32_t)pListHead.get();
+	pListHead->Flink = pListHead->Blink = (uint32_t)(uintptr_t)pListHead.get();
 }
 
 bool IsListEmpty(PXLIST_ENTRY pListHead)
 {
-	return (pListHead->Flink == (uint32_t)pListHead.get());
+	return (pListHead->Flink == (uint32_t)(uintptr_t)pListHead.get());
 }
 
 
@@ -1438,11 +1438,11 @@ bool RemoveEntryList(PXLIST_ENTRY pEntry)
 	xpointer<XLIST_ENTRY> _EX_Blink{ pEntry->Blink };
 
 	if (_EX_Blink != nullptr) {
-		_EX_Blink->Flink = (uint32_t)_EX_Flink.get();
+		_EX_Blink->Flink = (uint32_t)(uintptr_t)_EX_Flink.get();
 	}
 
 	if (_EX_Flink != nullptr) {
-		_EX_Flink->Blink = (uint32_t)_EX_Blink.get();
+		_EX_Flink->Blink = (uint32_t)(uintptr_t)_EX_Blink.get();
 	}
 
 	if (_EX_Blink != nullptr && _EX_Flink != nullptr) {
@@ -1491,7 +1491,7 @@ void ExecuteDpcQueue(X86Context* ctx)
 		auto func = (uint32_t)pkdpc->DeferredRoutine.v;
 
 
-		X86_STORE_U32(ctx->esp.u32, (uint32_t)pkdpc);
+		X86_STORE_U32(ctx->esp.u32, (uint32_t)(uintptr_t)pkdpc);
 		X86_STORE_U32(ctx->esp.u32 + 4, (uint32_t)pkdpc->DeferredContext.v);
 		X86_STORE_U32(ctx->esp.u32 + 8, (uint32_t)pkdpc->SystemArgument1.v);
 		X86_STORE_U32(ctx->esp.u32 + 12, (uint32_t)pkdpc->SystemArgument2.v);
@@ -1547,8 +1547,8 @@ std::uint8_t KeInsertQueueDpc(PKDPC Dpc, uint32_t* Argument1, uint32_t* Argument
 	{
 		// Remember the arguments and link it into our DpcQueue :
 		Dpc->Inserted = TRUE;
-		Dpc->SystemArgument1.v = (uint32_t)Argument1;
-		Dpc->SystemArgument2.v = (uint32_t)Argument2;
+		Dpc->SystemArgument1.v = (uint32_t)(uintptr_t)Argument1;
+		Dpc->SystemArgument2.v = (uint32_t)(uintptr_t)Argument2;
 		InsertTailList(
 			xpointer<XLIST_ENTRY>(&g_DpcData.DpcQueue),
 			xpointer<XLIST_ENTRY>(&Dpc->DpcListEntry)

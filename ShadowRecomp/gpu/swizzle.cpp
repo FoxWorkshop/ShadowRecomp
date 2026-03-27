@@ -294,14 +294,14 @@ BOOL FormatIsSwizzled(X_D3DFORMAT Format)
 
 void UnswizzleBox
 (
-	CONST PVOID pSrcBuff,
-	CONST DWORD dwWidth,
-	CONST DWORD dwHeight,
-	CONST DWORD dwDepth,
-	CONST DWORD dwBytesPerPixel,
-	CONST PVOID pDstBuff,
-	CONST DWORD dwDstRowPitch,
-	CONST DWORD dwDstSlicePitch
+	const void* pSrcBuff,
+	const uint32_t dwWidth,
+	const uint32_t dwHeight,
+	const uint32_t dwDepth,
+	const uint32_t dwBytesPerPixel,
+	const void* pDstBuff,
+	const uint32_t dwDstRowPitch,
+	const uint32_t dwDstSlicePitch
 ) // Source : Dxbx
 {
 	uint8_t* src_p8 = (uint8_t*)pSrcBuff;
