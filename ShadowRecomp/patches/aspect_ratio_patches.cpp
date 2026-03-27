@@ -3,10 +3,56 @@
 #include <gpu/video.h>
 
 bool readyToDebugConstant = false;
+#define widthMin 640.f
+#define heightMin 480.f
+
+static float ComputeScale(float aspectRatio)
+{
+	return ((aspectRatio * heightMin) / widthMin) / sqrt((aspectRatio * heightMin) / widthMin);
+}
+
+void AspectRatioPatches::ComputeOffsets()
+{
+	float width = Video::s_viewportWidth;
+	float height = Video::s_viewportHeight;
+
+	g_aspectRatio = width / height;
+	g_aspectRatioGameplayScale = 1.0f;
+
+	if (g_aspectRatio >= NARROW_ASPECT_RATIO)
+	{
+		g_aspectRatioOffsetX = (width - height * WIDE_ASPECT_RATIO) / 2.0f;
+		g_aspectRatioOffsetY = 0.0f;
+		g_aspectRatioScale = height / heightMin;
+
+		// keep same scale above Steam Deck aspect ratio
+		if (g_aspectRatio < WIDE_ASPECT_RATIO)
+		{
+			// interpolate to original 4:3 scale
+			float steamDeckScale = g_aspectRatio / WIDE_ASPECT_RATIO;
+			float narrowScale = ComputeScale(NARROW_ASPECT_RATIO);
+
+			float lerpFactor = std::clamp((g_aspectRatio - NARROW_ASPECT_RATIO) / (STEAM_DECK_ASPECT_RATIO - NARROW_ASPECT_RATIO), 0.0f, 1.0f);
+			g_aspectRatioGameplayScale = narrowScale + (steamDeckScale - narrowScale) * lerpFactor;
+		}
+	}
+	else
+	{
+		// 4:3 crop
+		g_aspectRatioOffsetX = (width - width * NARROW_ASPECT_RATIO) / 2.0f;
+		g_aspectRatioOffsetY = (height - width / NARROW_ASPECT_RATIO) / 2.0f;
+		g_aspectRatioScale = width / widthMin;
+		g_aspectRatioGameplayScale = ComputeScale(NARROW_ASPECT_RATIO);
+	}
+
+	g_aspectRatioNarrowScale = std::clamp((g_aspectRatio - NARROW_ASPECT_RATIO) / (WIDE_ASPECT_RATIO - NARROW_ASPECT_RATIO), 0.0f, 1.0f);
+}
+
 void PatchResolutionCapMidAsmHook(X86Register& eax)
 {
 
 }
+
 
 const uint32_t GuestDevicePtrAddr = 0x3E0A18;
 //GetViewportOffsetAndScale

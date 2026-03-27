@@ -128,6 +128,7 @@ bool LogVSConstants = false;
 #include <os/logger.h>
 #include <os/process.h>
 #include <ui/fader.h>
+#include <ui/message_window.h>
 
 
 
@@ -1818,9 +1819,9 @@ static void CreateImGuiBackend()
 	/**AchievementMenu::Init();
 	AchievementOverlay::Init();
 	ButtonGuide::Init();
-	MessageWindow::Init();
 	OptionsMenu::Init();
 	InstallerWizard::Init();*/
+	MessageWindow::Init();
 
 
 	ImGui_ImplSDL2_InitForOther(GameWindow::s_pWindow);
@@ -3229,10 +3230,11 @@ static void DrawImGui()
 	OptionsMenu::Draw();
 	AchievementOverlay::Draw();
 	InstallerWizard::Draw();
-	MessageWindow::Draw();
+
 	ButtonGuide::Draw();
 
 	BlackBar::Draw();*/
+	MessageWindow::Draw();
 	Fader::Draw();
 
 	assert(ImGui::GetBackgroundDrawList()->_ClipRectStack.Size == 1 && "Some clip rects were not removed from the stack!");
@@ -3796,6 +3798,11 @@ void Video::ComputeViewportDimensions()
 	X86_STORE_U32(0x4E5D68, height);*/
 
 	X86_STORE_F32(0x4E5D44, aspectRatio);
+
+	AspectRatioPatches::ComputeOffsets();
+
+
+
 }
 
 static RenderFormat ConvertFormat(X_D3DFORMAT format)
@@ -6540,7 +6547,7 @@ void DrawPrimitive(X_D3DPRIMITIVETYPE PrimitiveType, uint32_t StartVertex, uint3
 			auto& vertexCache = g_vertexCache[hash];
 
 			//experimental
-			if (g_vertexCache.size() > 0xA000)
+			if (g_vertexCache.size() > 0xFFFF)
 			{
 				for (auto& vertex : g_vertexCache)
 					g_userHeap.Free(vertex.second);
@@ -6776,7 +6783,6 @@ void DrawPrimitiveUP(X_D3DPRIMITIVETYPE PrimitiveType, uint32_t VertexCount, voi
 
 
 	UpVertex* vertexData = (UpVertex*)(pVertexStreamZeroData);
-
 
 
 	auto& cmd = queue.enqueue();

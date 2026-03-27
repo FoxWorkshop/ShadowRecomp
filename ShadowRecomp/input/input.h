@@ -91,3 +91,4 @@ namespace input
 }
 
 bool isPressedAnalogButton(const uint8_t index, bAnalogBtnE btn);
+bool IsInputAllowed();

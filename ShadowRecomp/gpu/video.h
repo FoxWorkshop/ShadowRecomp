@@ -1009,6 +1009,13 @@ struct UpVertex
 	float u, v;
 };
 
+struct UpVertexInt
+{
+	uint32_t x, y, z, w;
+	uint8_t R, G, B, A;
+	float u, v;
+};
+
 enum class VertexShaderMode {
 	FixedFunction,
 	// When titles use Xbox fixed function with pre-transformed vertices

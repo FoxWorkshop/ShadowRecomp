@@ -14,6 +14,12 @@ input::EInputDeviceExplicit input::g_inputDeviceExplicit;
 #define TRANSLATE_INPUT(S, X) SDL_GameControllerGetButton(controller, S) << FirstBitLow(X)
 #define VIBRATION_TIMEOUT_MS 5000
 
+bool IsInputAllowed()
+{
+	return GameWindow::s_isFocused || Config::AllowBackgroundInput;
+}
+
+
 //todo implement vibration
 class Controller
 {

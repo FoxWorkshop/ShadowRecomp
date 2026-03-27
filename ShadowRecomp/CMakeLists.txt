@@ -146,6 +146,7 @@ set(SHADOW_RECOMP_UI_CXX_SOURCES
     "ui/game_window.cpp"
     "ui/imgui_utils.cpp"
     "ui/fader.cpp"
+    "ui/message_window.cpp"
 )
 
 set(SHADOW_RECOMP_MOD_CXX_SOURCES

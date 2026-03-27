@@ -554,10 +554,10 @@ std::unordered_map<std::string_view, std::unordered_map<ELanguage, std::string>>
         // Japanese Notes: This localization should include furigana.
         "Title_Message_Quit",
         {
-            { ELanguage::English,  "Are you sure you want to quit?" },
+            { ELanguage::English,  "Are you sure you want to quit the game?" },
             { ELanguage::Japanese, "[終了:しゅうりょう]してもよろしいですか？" },
             { ELanguage::German,   "Spiel verlassen?" },
-            { ELanguage::French,   "Êtes-vous sûr de vouloir quitter ?" },
+            { ELanguage::French,   "Êtes-vous sûr de vouloir quitter le jeu ?" },
             { ELanguage::Spanish,  "¿Estás seguro de que quieres\nsalir?" },
             { ELanguage::Italian,  "Sicuro di voler uscire ?" }
         }
@@ -787,12 +787,12 @@ std::string& Localise(const std::string_view& key)
     auto localeFindResult = g_locale.find(key);
     if (localeFindResult != g_locale.end())
     {
-        /**auto languageFindResult = localeFindResult->second.find(Config::Language);
+        auto languageFindResult = localeFindResult->second.find(Config::Language);
         if (languageFindResult == localeFindResult->second.end())
             languageFindResult = localeFindResult->second.find(ELanguage::English);
 
         if (languageFindResult != localeFindResult->second.end())
-            return languageFindResult->second;*/
+            return languageFindResult->second;
     }
 
     return g_localeMissing;
