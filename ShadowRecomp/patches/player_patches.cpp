@@ -61,6 +61,7 @@ X86_FUNC(sub_90D10)
 	}
 }
 
+#ifdef Cheats
 // cheat infinite ammo
 X86_FUNC_IMPL(__imp__sub_9FC00);
 X86_FUNC(sub_9FC00)
@@ -70,6 +71,9 @@ X86_FUNC(sub_9FC00)
 	X86_STORE_U32(0x5456fc, 999);
 	ctx.eax.u32 = 999;
 	auto res = X86_LOAD_U32(0x5456D0);
+
+	// infinite chaos blast
 	res += 0x100;
 	X86_STORE_U32(0x5456D0, res);
 }
+#endif
