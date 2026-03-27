@@ -77,11 +77,12 @@ VS_OUTPUT main(VS_INPUT xIn)
     }
     
 
-    // For some reason, some vertex have their position w set to Inf
-	// while Xbox may not care about this, modern shaders definitely do, so we have to fix this
-	// this isn't a recomp instruction bug, I checked on CXBX Reloaded and logged the values, pos.w is meant to be inf.
-	// so far I only saw this issue with the message box.
-    if (isinf(v0.w) || isnan(v0.w))
+    // For some reason, some vertex for 2D elements have their position w set to an absurdly high number
+	// while Xbox may not care about this, modern api definitely do, so we have to fix this
+	// this isn't a recomp instruction bug, I checked on CXBX Reloaded and logged the values, pos.w is supposed to be high.
+	// for what I saw, message box have it set to inf, while fadeout and credits text have their entry around 10.f.
+    
+    if (isinf(v0.w) || isnan(v0.w) || v0.w > 1.f)
     {
         v0.w = 1.f;
     }

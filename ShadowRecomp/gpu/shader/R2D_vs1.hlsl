@@ -23,6 +23,7 @@ struct VS_OUTPUT // Declared identical to pixel shader input (see PS_INPUT)
 };
 
 
+
 VS_OUTPUT main(VS_INPUT xIn)
 {
 
@@ -73,16 +74,15 @@ VS_OUTPUT main(VS_INPUT xIn)
     
     
 
-     
-    // For some reason, some vertex have their position w set to Inf
-	// while Xbox may not care about this, modern shaders definitely do, so we have to fix this
-	// this isn't a recomp instruction bug, I checked on CXBX Reloaded and logged the values, pos.w is meant to be inf.
-	// so far I only saw this issue with the message box.
-    if (isinf(v0.w) || isnan(v0.w))
+    // For some reason, some vertex for 2D elements have their position w set to an absurdly high number
+	// while Xbox may not care about this, modern api definitely do, so we have to fix this
+	// this isn't a recomp instruction bug, I checked on CXBX Reloaded and logged the values, pos.w is supposed to be high.
+	// for what I saw, message box have it set to inf, while fadeout and credits text have them around 10.f.
+    
+    if (isinf(v0.w) || isnan(v0.w) || v0.w > 1.f)
     {
         v0.w = 1.f;
     }
-    
 
     
 	// Temp variable for paired VS instruction
@@ -104,7 +104,6 @@ VS_OUTPUT main(VS_INPUT xIn)
     
     xOut.oPos = reverseScreenspaceTransform(oPos);
     
-
 
     
     //ensure depth is clamped to [0, 1] this fix a bug that prevent geometry to show up in the game due to RT composite shenanigans.
