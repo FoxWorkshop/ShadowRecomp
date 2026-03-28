@@ -53,6 +53,8 @@ cbuffer SharedConstants : register(b2, space4)
     uint FogDensity : packoffset(c81.w);   
     uint FogStart : packoffset(c82.x);
     uint FogEnd : packoffset(c82.y);
+
+    float alphaThreshold : packoffset(c88.z);
 }
 
 #define vs_consts(i) vs_constants[i]
@@ -60,8 +62,6 @@ cbuffer SharedConstants : register(b2, space4)
 #define vRegisterDefaultFlagsPacked(i) vRegisterDefaultFlagsPack[i]
 #define xboxTextureScale(i) xboxTextureScl[i]
 #define UserInfo UserInfo_
-
-
 #endif
 
 void UnpackRegisterDefaultFlags(out float flags[16])
@@ -350,10 +350,9 @@ float4 reverseScreenspaceTransform(float4 oPos)
 
 	// oPos.w and xboxViewportScale.z might be VERY big when a D24 depth buffer is used
 	// and multiplying oPos.xyz by oPos.w may cause precision issues.
-   
-
+     
 	// Reverse screenspace offset
-    oPos -= xboxScreenspaceOffset;
+    oPos -= xboxScreenspaceOffset;  
 	// Reverse screenspace scale
     oPos /= xboxScreenspaceScale;
 
@@ -362,6 +361,6 @@ float4 reverseScreenspaceTransform(float4 oPos)
         oPos.w = 1;
 	// Reverse perspective divide
     oPos.xyz *= oPos.w;
-	
+    
     return oPos;
 }

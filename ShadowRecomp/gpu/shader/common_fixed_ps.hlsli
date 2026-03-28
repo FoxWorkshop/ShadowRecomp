@@ -298,13 +298,7 @@ cbuffer SharedConstants : register(b2, space4)
  
        
 
-        // Other data
-   /* uint booleans : packoffset(c12.x);
-    uint swappedTexcoords : packoffset(c12.y);
-    float halfPixelOffsetX : packoffset(c12.z);
-    float halfPixelOffsetY : packoffset(c12.w);
-    
-    float alphaThreshold : packoffset(c13.x);*/
+    float alphaThreshold : packoffset(c88.z);
     
     //TextureCombinerState combiners[16] : packoffset(c14);
 };

@@ -53,7 +53,6 @@ void PatchResolutionCapMidAsmHook(X86Register& eax)
 
 }
 
-
 const uint32_t GuestDevicePtrAddr = 0x3E0A18;
 //GetViewportOffsetAndScale
 X86_FUNC_IMPL(__imp__sub_3D24B0);
@@ -69,13 +68,16 @@ X86_FUNC(sub_3D24B0)
 	if (readyToDebugConstant)
 	{
 
-		/**auto padding610 = X86_LOAD_F32(device + 0x94C + 0x10);
+		auto padding610 = X86_LOAD_F32(device + 0x94C + 0x10);
 		auto padding614 = X86_LOAD_F32(device + 0x94C + 0x14);
+
 		auto padding636 = X86_LOAD_F32(device + 0x970);
 		auto padding68 = X86_LOAD_U32(device + 0x954);
-		auto padding7 = X86_LOAD_F32(device + 0xEF8);*/
 
-		//printf("viewport horizontal %d, viewport vertical %d\n", X86_LOAD_U32(device + 0xEE8), X86_LOAD_U32(device + 0xEEC));
+		auto padding616 = X86_LOAD_F32(device + 0x95C);
+		auto padding7 = X86_LOAD_F32(device + 0xEF8);
+		auto padding74 = X86_LOAD_F32(device + 0xEFC);
+		//printf("&D3D_g_pDevice->padding6[16] %f D3D_g_pDevice->padding7 %f D3D_g_pDevice->padding7[4] %f\n", padding616, padding7, padding74);
 
 
 
@@ -86,13 +88,6 @@ X86_FUNC(sub_3D24B0)
 	}
 }
 
-
-X86_FUNC_IMPL(__imp__sub_2C89D0);
-X86_FUNC(sub_2C89D0)
-{
-	readyToDebugConstant = true;
-	__imp__sub_2C89D0(ctx, base);
-}
 
 //draw CSD element, this patches HUD to implement 16:9 support
 // this handle title screen, menu and basic hud in game, but not all of it
@@ -159,14 +154,11 @@ X86_FUNC(sub_2DD9C0)
 
 }
 
-
-X86_FUNC_IMPL(__imp__sub_1AF2E0);
-X86_FUNC(sub_1AF2E0)
+// remove the infamous half-pixel offset issue 
+// see https://microsoft.github.io/DirectX-Specs/d3d/archive/D3D11_3_FunctionalSpec.htm#3.3.1%20Pixel%20Coordinate%20System
+void D3DDevice_SetScreenSpaceOffset(float a1, float a2)
 {
-
-
-	__imp__sub_1AF2E0(ctx, base);
-
+	;
 }
 
-
+GUEST_FUNCTION_HOOK_STDCALL(sub_3D1320, D3DDevice_SetScreenSpaceOffset);

@@ -265,10 +265,6 @@ struct SharedConstants
 	uint32_t alphaFunc; // D3DCMP_* comparison function
 	float alphaRef; // Reference value (0.0 - 1.0)
 
-	uint32_t booleans;
-	uint32_t swappedTexcoords;
-	float halfPixelOffsetX;
-	float halfPixelOffsetY;
 	float alphaThreshold;
 };
 
@@ -2656,8 +2652,8 @@ void GetXboxViewportOffsetAndScale(float(&vOffset)[4], float(&vScale)[4])
 	// Antialiasing mode affects the viewport offset and scale
 	float aaScaleX = 1.0f;
 	float aaScaleY = 1.0f;
-	float aaOffsetX = 0.5f;
-	float aaOffsetY = 0.5f;
+	float aaOffsetX = 0.0f;
+	float aaOffsetY = 0.0f;
 	//GetScreenScaleFactors(aaScaleX, aaScaleY); //todo check if this is needed
 
 	auto g_viewport = g_renderviewport.vp;
@@ -2700,8 +2696,9 @@ void UpdateHostViewPortOffsetAndScaleConstants()
 
 	float screenScaleX = 1.0f;
 	float screenScaleY = 1.0f;
-	float aaOffsetX = 0.5f;
-	float aaOffsetY = 0.5f;
+	float aaOffsetX = 0.0f; // used to be 0.5 but this creates visible white bar at the bottom and right side of the screen 
+	float aaOffsetY = 0.0f;
+
 	//GetScreenScaleFactors(screenScaleX, screenScaleY);
 	//GetMultiSampleOffset(aaOffsetX, aaOffsetY);
 
@@ -5190,11 +5187,6 @@ static void SetFramebuffer(GuestSurface* renderTarget, GuestSurface* depthStenci
 			g_framebuffer = nullptr;
 		}
 
-		if (g_framebuffer != nullptr)
-		{
-			SetDirtyValue(g_dirtyStates.sharedConstants, g_sharedConstants.halfPixelOffsetX, 1.0f / float(g_framebuffer->getWidth()));
-			SetDirtyValue(g_dirtyStates.sharedConstants, g_sharedConstants.halfPixelOffsetY, -1.0f / float(g_framebuffer->getHeight()));
-		}
 
 		g_dirtyStates.renderTargetAndDepthStencil = settingForClear;
 	}
@@ -5953,7 +5945,9 @@ static void FlushRenderStateForMainThread(LocalRenderCommandQueue& queue)
 		UpdateFixedFunctionVertexShaderState((size_t)g_memory.Translate(g_VertexShader_Handle), g_pipelineState.isFixedFunctionPS);
 	}
 	else
+	{
 		UpdateHostViewPortOffsetAndScaleConstants();
+	}
 
 	if (isTextureStageStateDirty() == true)
 	{
@@ -7546,7 +7540,6 @@ static std::thread g_renderThread([]
 				case RenderCommandType::SetTexture:                        ProcSetTexture(cmd); break;
 					//case RenderCommandType::SetScissorRect:                    ProcSetScissorRect(cmd); break;
 				case RenderCommandType::SetTextureStageState:                   ProcSetTextureStageState(cmd); break;
-					//case RenderCommandType::SetBooleans:                       ProcSetBooleans(cmd); break;
 				case RenderCommandType::SetVertexShaderConstants:          ProcSetVertexShaderConstants(cmd); break;
 					//case RenderCommandType::SetPixelShaderConstants:           ProcSetPixelShaderConstants(cmd); break;
 				case RenderCommandType::DrawPrimitive:                     ProcDrawPrimitive(cmd); break;

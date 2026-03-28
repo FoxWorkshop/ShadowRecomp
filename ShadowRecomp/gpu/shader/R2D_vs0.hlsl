@@ -103,8 +103,8 @@ VS_OUTPUT main(VS_INPUT xIn)
 
 	// Copy variables to output struct
     VS_OUTPUT xOut;
-    
-    
+         
+ 
     xOut.oPos = reverseScreenspaceTransform(oPos);
 
     //ensure depth is clamped to [0, 1] this fix a bug that prevent geometry to show up in the game due to RT composite shenanigans.

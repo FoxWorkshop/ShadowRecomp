@@ -316,6 +316,20 @@ cbuffer VertexShaderConstants : register(b0, space4)
    // float4 FogInfo : packoffset(c218); //Parameters for mapping the shader's fog output value to a fog factor (D3DVS_CONSTREG_FOGINFO)  
 }
 
+cbuffer SharedConstants : register(b2, space4)
+{
+    uint FogTableMode : packoffset(c81.z);
+    uint FogDensity : packoffset(c81.w);
+    uint FogStart : packoffset(c82.x);
+    uint FogEnd : packoffset(c82.y);
+    
+    float2 halfPixelOffset : packoffset(c88);
+    //float halfPixelOffsetY : packoffset(c88.y);
+    
+    float alphaThreshold : packoffset(c88.z);
+}
+
+#define g_halfPixelOffset halfPixelOffset
 #define TransfoView transforms.View
 #define TransfoProj transforms.Projection
 #define TransfoTex(i) transforms.Texture[i]
