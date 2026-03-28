@@ -381,8 +381,10 @@ struct GuestBaseTexture : GuestResource
 	std::unique_ptr<RenderTexture> textureHolder;
 	RenderTexture* texture = nullptr;
 	std::unique_ptr<RenderTextureView> textureView;
-	uint32_t width = 0;
-	uint32_t height = 0;
+	uint32_t width = 0; //host width res
+	uint32_t height = 0; //host height res
+	uint32_t g_width = 0; //og width for resolution scaling
+	uint32_t g_height = 0; //og height for resolution scaling
 	RenderFormat format = RenderFormat::UNKNOWN;
 	uint32_t descriptorIndex = 0;
 	RenderTextureLayout layout = RenderTextureLayout::UNKNOWN;

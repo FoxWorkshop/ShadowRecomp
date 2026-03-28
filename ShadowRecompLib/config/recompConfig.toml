@@ -703,7 +703,6 @@ invalid_instructions = [
 	{ data = 0x2DD6BC, size = 2 }, # same as above	
 	{ data = 0x32107F, size = 13 }, # Remove XboxSignature flag thing on RenderState	
 	{ data = 0x3D2481, size = 13 }, # same as above	
-	{ data = 0x11B0E, size = 32 }, # remove hardcoded 640x480 resolution
 ]
 
 [[midasm_hook]]

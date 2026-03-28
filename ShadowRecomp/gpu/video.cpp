@@ -281,7 +281,7 @@ struct RenderViewport_r
 
 static GuestSurface* g_renderTarget;
 static GuestSurface* g_depthStencil;
-static GuestSurface* g_next_RenderTarget; //because of how heavy and fast the game swap the render target, our queue system sometimes faces a race issue, this second pointer copy the current RT earlier as a workaround for now
+static GuestSurface* g_next_RenderTarget; //because of how heavy and fast the game swap the render target, our queue system sometimes faces a race issue, this second pointer copy the current RT earlier as a workaround
 static RenderFramebuffer* g_framebuffer;
 static RenderViewport_r g_renderviewport = { { 0.0f, 0.0f, 640.0f, 480.0f }, true, false };
 
@@ -2452,6 +2452,8 @@ bool Video::CreateHostDevice(const char* sdlVideoDriver, bool graphicsApiRetry)
 	g_backBuffer = g_backBufferHolder.get();
 	g_backBuffer->width = 640;
 	g_backBuffer->height = 480;
+	g_backBuffer->g_width = g_backBuffer->width; 
+	g_backBuffer->g_height = g_backBuffer->height;
 	g_backBuffer->format = BACKBUFFER_FORMAT;
 	g_backBuffer->textureHolder = g_device->createTexture(RenderTextureDesc::Texture2D(1, 1, 1, BACKBUFFER_FORMAT, RenderTextureFlag::RENDER_TARGET));
 
@@ -2692,8 +2694,8 @@ void UpdateHostViewPortOffsetAndScaleConstants()
 	// The screenspace is a combination of the rendertarget
 	// and various scale factors
 	// Get the rendertarget width and height
-	float xboxRenderTargetWidth = g_next_RenderTarget->width;
-	float xboxRenderTargetHeight = g_next_RenderTarget->height;
+	float xboxRenderTargetWidth = g_next_RenderTarget->g_width;
+	float xboxRenderTargetHeight = g_next_RenderTarget->g_height;
 	//GetRenderTargetBaseDimensions(xboxRenderTargetWidth, xboxRenderTargetHeight);
 
 	float screenScaleX = 1.0f;
@@ -3700,37 +3702,18 @@ static GuestSurface* GetBackBuffer()
 	return g_backBuffer;
 }
 
-
 void GetUpscaledRTResolution(uint32_t widthOrigin, uint32_t heightOrigin, uint32_t* widthOut, uint32_t* heightOut)
 {
 	float percent = (float)widthOrigin / 640.f;
 
-	auto res = percent * Video::s_viewportWidth;
+	auto res = percent * Video::s_viewportWidth * Config::ResolutionScale;
 	*widthOut = res;
 
 	percent = (float)heightOrigin / 480.f;
-	res = percent * Video::s_viewportHeight;
-
+	res = percent * Video::s_viewportHeight * Config::ResolutionScale;
 	*heightOut = res;
-
 }
 
-
-void UpdateCameraRasterResolution(const uint32_t width, const uint32_t height)
-{
-	auto base = g_memory.base;
-	auto cam = X86_LOAD_U32(g_cameraAddr);
-	if (cam)
-	{
-		auto camRaster = X86_LOAD_U32(cam + 0x10);
-
-		if (camRaster)
-		{
-			X86_STORE_U32(camRaster + 0xC, width);
-			X86_STORE_U32(camRaster + 0x10, height);
-		}
-	}
-}
 
 //todo finish
 void Video::ComputeViewportDimensions()
@@ -3738,7 +3721,6 @@ void Video::ComputeViewportDimensions()
 	uint32_t width = g_swapChain->getWidth();
 	uint32_t height = g_swapChain->getHeight();
 	float aspectRatio = float(width) / float(height);
-
 
 	switch (Config::AspectRatio)
 	{
@@ -3784,9 +3766,8 @@ void Video::ComputeViewportDimensions()
 	auto base = g_memory.base;
 
 	//update rwRASTERTYPECAMERA resolution (main 640x480 rt)
-	X86_STORE_U32(0x4E5D3C, width);
-	X86_STORE_U32(0x4E5D40, height);
-
+	//X86_STORE_U32(0x4E5D3C, width);
+	//X86_STORE_U32(0x4E5D40, height);
 
 	//update rwRASTERTYPEZBUFFER and rwRASTERTYPECAMERATEXTURE resolution
 	/**GetUpscaledRTResolution(512, 512, &width, &height);
@@ -3797,12 +3778,9 @@ void Video::ComputeViewportDimensions()
 	X86_STORE_U32(0x4E5D64, width);
 	X86_STORE_U32(0x4E5D68, height);*/
 
-	X86_STORE_F32(0x4E5D44, aspectRatio);
+	//X86_STORE_F32(0x4E5D44, aspectRatio);
 
 	AspectRatioPatches::ComputeOffsets();
-
-
-
 }
 
 static RenderFormat ConvertFormat(X_D3DFORMAT format)
@@ -3839,19 +3817,23 @@ static GuestTexture* CreateTexture(uint32_t width, uint32_t height, uint32_t dep
 {
 	auto texture = g_userHeap.AllocPhysical<GuestTexture>(type == X_D3DRTYPE_VOLUMETEXTURE ? ResourceType::VolumeTexture : ResourceType::Texture);
 
+	texture->g_width = width; // store original info for resolution scaling later 
+	texture->g_height = height;
+
 	RenderTextureDesc desc;
 	desc.dimension = RenderTextureDimension::TEXTURE_2D;
 
 	if (usage == 1) //will be RenderTarget
 	{
-		desc.width = width;
-		desc.height = height;
+		uint32_t newWidth, newHeight;
+		GetUpscaledRTResolution(width, height, &newWidth, &newHeight);
+		width = newWidth;
+		height = newHeight;
 	}
-	else
-	{
-		desc.width = width;
-		desc.height = height;
-	}
+
+
+	desc.width = width;
+	desc.height = height;
 	desc.depth = depth;
 	desc.mipLevels = levels;
 	desc.arraySize = 1;
@@ -3986,22 +3968,14 @@ static GuestBuffer* CreateVertexBuffer(uint32_t length)
 	auto base = g_memory.base;
 	auto ctx = GetX86Context();
 
-	//call original function
-	/**__imp__sub_2E6750(*ctx, base);
-	ctx->esp.u32 -= 4;*/
-
-	int ogSize = length;
-
-	int newSize = length;//(ogSize + 31) & 0xFFFFFFE0;
-
 
 	//if (ctx->eax.u32 != 0)
 	{
 		//auto guestBufferData = (X_D3DResource*)g_memory.Translate(ctx->eax.u32);
 
 		auto buffer = g_userHeap.AllocPhysical<GuestBuffer>(ResourceType::VertexBuffer);
-		buffer->buffer = g_device->createBuffer(RenderBufferDesc::VertexBuffer(newSize, GetBufferHeapType(), RenderBufferFlag::INDEX));
-		buffer->dataSize = newSize;
+		buffer->buffer = g_device->createBuffer(RenderBufferDesc::VertexBuffer(length, GetBufferHeapType(), RenderBufferFlag::INDEX));
+		buffer->dataSize = length;
 		buffer->guestResource.Common = 1;
 
 		//memcpy(&buffer->guestResource, guestBufferData, sizeof(X_D3DResource));
@@ -4036,6 +4010,17 @@ static GuestBuffer* CreateIndexBuffer(uint32_t IndexCount, X_D3DFORMAT format)
 
 static GuestSurface* CreateSurface(uint32_t width, uint32_t height, X_D3DFORMAT format, bool formatSet = false)
 {
+
+	uint32_t ogWidth, ogHeight;
+	ogWidth = width;
+	ogHeight = height;
+
+	uint32_t newWidth, newHeight;
+
+	GetUpscaledRTResolution(width, height, &newWidth, &newHeight);
+	width = newWidth;
+	height = newHeight;
+
 	RenderTextureDesc desc;
 	desc.dimension = RenderTextureDimension::TEXTURE_2D;
 	desc.width = width;
@@ -4054,6 +4039,8 @@ static GuestSurface* CreateSurface(uint32_t width, uint32_t height, X_D3DFORMAT 
 	surface->texture = surface->textureHolder.get();
 	surface->width = width;
 	surface->height = height;
+	surface->g_width = ogWidth;
+	surface->g_height = ogHeight;
 	surface->format = desc.format;
 	surface->guestFormat = format;
 	surface->sampleCount = desc.multisampling.sampleCount;
@@ -4091,6 +4078,8 @@ static GuestSurface* GetSurfaceLevel(GuestTexture* texture, int32_t level, X_D3D
 	surface->texture = texture->texture;
 	surface->width = mipWidth;
 	surface->height = mipHeight;
+	surface->g_width = texture->g_width;
+	surface->g_height = texture->g_height;
 	surface->format = texture->format;
 	surface->guestFormat = Format;
 	surface->sampleCount = RenderSampleCount::COUNT_1;
@@ -4109,6 +4098,7 @@ GuestSurface* CreateSurfaceOfTexture(X_D3DFORMAT Format, uint32_t size, GuestBas
 	auto base = g_memory.base;
 	__imp__sub_3DA010(*ctx, base);
 	ctx->esp.u32 -= 20;
+
 
 	auto gSurface = (X_D3DSurface*)g_memory.Translate(ctx->eax.u32);
 	auto newSurface = GetSurfaceLevel((GuestTexture*)pParent, 0, Format);
@@ -4143,11 +4133,19 @@ static void FlushViewport(const bool isFixed)
 
 	viewPort_wasFixed = isFixed;
 
-
+	float scaleX = (float)g_renderTarget->width / (float)g_renderTarget->g_width;
+	float scaleY = (float)g_renderTarget->height / (float)g_renderTarget->g_height;
 	float width = (float)std::min(viewport.width, (DWORD)hostWidth - viewport.x);
 	float height = (float)std::min(viewport.height, (DWORD)hostHeight - viewport.y);
 
-	if (!isFixed)
+	uint32_t newWidth, newHeight;
+	GetUpscaledRTResolution((uint32_t)width, (uint32_t)height, &newWidth, &newHeight);
+	width = newWidth;
+	height = newHeight;
+	viewport.x *= scaleX;
+	viewport.y *= scaleY;
+
+	if (isFixed == false)
 	{
 		width = (float)hostWidth;
 		height = (float)hostHeight;
@@ -4167,16 +4165,19 @@ static void FlushViewport(const bool isFixed)
 
 		commandList->setViewports(viewport);
 		g_dirtyStates.viewport = false;
-
 	}
 
 	if (g_dirtyStates.scissorRect)
 	{
+		uint32_t newScisWidth, newScisHeight;
+		GetUpscaledRTResolution((uint32_t)backupVP.width, (uint32_t)backupVP.height, &newScisWidth, &newScisHeight);
+		backupVP.width = newScisWidth;
+		backupVP.height = newScisHeight;
 		RenderRect scissorRect;
-		int32_t left = (int32_t)backupVP.x;
-		int32_t top = (int32_t)backupVP.y;
-		int32_t right = left + (int32_t)backupVP.width;
-		int32_t bottom = top + (int32_t)backupVP.height;
+		int32_t left = (int32_t)backupVP.x * scaleX;
+		int32_t top = (int32_t)backupVP.y * scaleY;
+		int32_t right = left + (int32_t)(backupVP.width);
+		int32_t bottom = top + (int32_t)(backupVP.height);
 
 		if (isFixed)
 		{
@@ -4218,8 +4219,9 @@ void SetResolution(int adapter, unsigned int a2, uint32_t a3)
 
 	auto base = g_memory.base;
 
-	X86_STORE_U32(a3, width);
-	X86_STORE_U32(a3 + (4 * 1), height);
+	// this does affect fixed function, such as text position on the screen
+	X86_STORE_U32(a3, 640);
+	X86_STORE_U32(a3 + (4 * 1), 480);
 	X86_STORE_U32(a3 + (4 * 2), 60); //refresh rate in hz
 	X86_STORE_U32(a3 + (4 * 3), 0x120);
 	X86_STORE_U32(a3 + (4 * 4), formatFlag);
@@ -4230,8 +4232,6 @@ int D3D_GetAdapterModeCount(int a1)
 	printf("STUB D3D_GetAdapterModeCount\n");
 	return 4 * 1;
 }
-
-
 
 
 X_D3DFORMAT MapToLinearD3DFORMAT(X_D3DFORMAT a1)
@@ -4276,9 +4276,6 @@ X_D3DFORMAT MapToLinearD3DFORMAT(X_D3DFORMAT a1)
 
 
 X86_FUNC_IMPL(__imp__sub_3DDAB0); //CreateDevice
-X86_FUNC_IMPL(__imp__sub_3D4420);
-X86_FUNC_IMPL(__imp__sub_3D4E30);
-
 
 GuestViewport* g_viewportPtr = nullptr;
 int32_t Direct3D_CreateDevice_r(int32_t Adapter, int32_t DeviceType, int32_t hFocusWindow, char Flags, X_D3DPRESENT_PARAMETERS* pPresentationParameters, uint32_t* device)
@@ -4772,7 +4769,7 @@ static void SetViewport(GuestViewport* viewport, GuestSurface* surface)
 
 
 X86_FUNC_IMPL(__imp__sub_3D0040);
-X86_FUNC_IMPL(__imp__sub_3D6250);
+
 
 //Specify where it should draws (Either framebuffer surface or texture surface)
 //on DX8 Xbox, SetDepthStencilSurface is merged with SetRenderTarget.
@@ -4790,10 +4787,7 @@ void D3DDevice_SetRenderTarget(GuestSurface* surface, GuestSurface* pNewZStencil
 	{
 		g_XboxBackBuffer = surface;
 		g_XboxDefaultDepthStencilSurface = pNewZStencil;
-		uint32_t widthStencil = 512;
-		uint32_t heightStencil = 512;
-		//GetUpscaledRTResolution(512, 512, &widthStencil, &heightStencil);
-		g_defaultStencil = CreateSurface(widthStencil, heightStencil, X_D3DFMT_LIN_D24S8);
+		g_defaultStencil = CreateSurface(512, 512, X_D3DFMT_LIN_D24S8);
 		newSurface = g_backBuffer;
 		newDepthStencil = g_defaultStencil;
 	}

@@ -69,11 +69,11 @@ VS_OUTPUT main(VS_INPUT xIn)
 
     if (UserInfo.z > 0 && resolution_Width > 0 && resolution_Height > 0)
     {
-        if (v0.x < resolution_Width)
+        /*if (v0.x < resolution_Width)
             v0.x = (v0.x / 640.0f) * resolution_Width;
-    
+
         if (v0.y < resolution_Height)
-            v0.y = (v0.y / 480.0f) * resolution_Height;
+            v0.y = (v0.y / 480.0f) * resolution_Height;*/
     }
     
 
