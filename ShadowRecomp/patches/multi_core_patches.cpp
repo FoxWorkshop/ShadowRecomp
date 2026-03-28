@@ -179,3 +179,12 @@ X86_FUNC(sub_2B3ED0)
 	RtlLeaveCriticalSection(&csdNodeLock);
 }
 
+// just an attempt
+X86_FUNC_IMPL(__imp__sub_2B3F00);
+X86_FUNC(sub_2B3F00)
+{
+	RtlEnterCriticalSection(&csdNodeLock);
+	__imp__sub_2B3F00(ctx, base);
+	RtlLeaveCriticalSection(&csdNodeLock);
+}
+
