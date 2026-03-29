@@ -560,3 +560,65 @@ CONFIG_DEFINE_ENUM_LOCALE(EAntiAliasing)
         }
     },
 };
+
+CONFIG_DEFINE_LOCALE(TextureFiltering)
+{
+    { ELanguage::English, { "Texture Filtering", "Change the quality of the filtering used for textures." } },
+    { ELanguage::Japanese, { "GIテクスチャフィルタリング", "GIテクスチャに\u200B[使用:しよう]する\u200Bフィルタリングの\u200B[品質:ひんしつ]を\u200B[変更:へんこう]できます" } },
+    { ELanguage::German,   { "GI Texturfilterung", "Ändere die Qualität der Filterung für Global-Illumination-Texturen." } },
+    { ELanguage::French,   { "Filtre des textures", "Modifie la qualité du filtre utilisé pour les textures." } },
+    { ELanguage::Spanish,  { "Filtrado de texturas de GI", "Cambia la calidad del filtrado utilizado en las texturas de iluminación global." } },
+    { ELanguage::Italian,  { "Filtraggio delle texture GI", "Regola la qualità del sistema di filtraggio utilizzato per le texture dell'illuminazione." } }
+};
+
+CONFIG_DEFINE_ENUM_LOCALE(ETextureFiltering)
+{
+    {
+        ELanguage::English,
+        {
+            { ETextureFiltering::Auto, { "AUTO", "" } },
+            { ETextureFiltering::Nearest,  { "NEAREST", "" } },
+            { ETextureFiltering::Linear,  { "LINEAR", "" } }
+        }
+    },
+    {
+        ELanguage::Japanese,
+        {
+            { ETextureFiltering::Auto, { "AUTO", "" } },
+            { ETextureFiltering::Nearest,  { "NEAREST", "" } },
+            { ETextureFiltering::Linear,  { "LINEAR", "" } }
+        }
+    },
+    {
+        ELanguage::German,
+        {
+            { ETextureFiltering::Auto, { "AUTO", "" } },
+            { ETextureFiltering::Nearest,  { "NEAREST", "" } },
+            { ETextureFiltering::Linear,  { "LINEAR", "" } }
+        }
+    },
+    {
+        ELanguage::French,
+        {
+            { ETextureFiltering::Auto, { "AUTO", "" } },
+            { ETextureFiltering::Nearest,  { "LE PLUS PROCHE", "" } },
+            { ETextureFiltering::Linear,  { "LINÉAIRE", "" } }
+        }
+    },
+    {
+        ELanguage::Spanish,
+        {
+            { ETextureFiltering::Auto, { "AUTO", "" } },
+            { ETextureFiltering::Nearest,  { "NEAREST", "" } },
+            { ETextureFiltering::Linear,  { "LINEAR", "" } }
+        }
+    },
+    {
+        ELanguage::Italian,
+        {
+            { ETextureFiltering::Auto, { "AUTO", "" } },
+            { ETextureFiltering::Nearest,  { "NEAREST", "" } },
+            { ETextureFiltering::Linear,  { "LINEAR", "" } }
+        }
+    }
+};

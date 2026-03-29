@@ -6850,6 +6850,20 @@ static void ProcSetTextureStageState(const RenderCommand& cmd)
 	auto mipFilter = ConvertTextureFilter(cmd.SetTextureStageState.D3DTSS_MIPFILTER);
 	auto borderColor = ConvertBorderColor(cmd.SetTextureStageState.D3DTSS_BORDERCOLOR);
 
+	if (Config::TextureFiltering == ETextureFiltering::Linear)
+	{
+		mipFilter = RenderFilter::LINEAR;
+		magFilter = RenderFilter::LINEAR;
+		minFilter = RenderFilter::LINEAR;
+	}
+	else if (Config::TextureFiltering == ETextureFiltering::Nearest)
+	{
+		mipFilter = RenderFilter::NEAREST;
+		magFilter = RenderFilter::NEAREST;
+		minFilter = RenderFilter::NEAREST;
+	}
+
+
 	bool anisotropyEnabled = Config::AnisotropicFiltering > 0 && mipFilter == RenderFilter::LINEAR;
 	if (anisotropyEnabled)
 	{

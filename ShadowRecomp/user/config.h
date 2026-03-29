@@ -99,6 +99,13 @@ enum class EAntiAliasing : uint32_t
     MSAA8x = 8
 };
 
+enum class ETextureFiltering : uint32_t
+{
+    Auto,
+    Nearest,
+    Linear
+};
+
 template<typename T, bool isHidden = false>
 class ConfigDef final : public IConfigDef
 {

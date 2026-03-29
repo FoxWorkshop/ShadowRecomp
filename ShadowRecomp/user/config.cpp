@@ -324,6 +324,13 @@ CONFIG_DEFINE_ENUM_TEMPLATE(EAntiAliasing)
     { "8x MSAA", EAntiAliasing::MSAA8x }
 };
 
+CONFIG_DEFINE_ENUM_TEMPLATE(ETextureFiltering)
+{
+    { "Auto", ETextureFiltering::Auto },
+    { "Nearest",  ETextureFiltering::Nearest },
+    { "Linear",  ETextureFiltering::Linear }
+};
+
 
 #undef  CONFIG_DEFINE
 #define CONFIG_DEFINE(section, type, name, defaultValue) \
