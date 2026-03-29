@@ -390,15 +390,6 @@ int32_t IDirectSound_CommitDeferredSettings(int a1)
 	return E_FAIL;
 }
 
-// needed to make the game load adx files
-// should implement a better emulation later
-void BlockUntilVerticalBlank()
-{
-	std::this_thread::sleep_for(std::chrono::microseconds(16667));
-}
-
-GUEST_FUNCTION_HOOK(sub_3CFE70, BlockUntilVerticalBlank);
-
 GUEST_FUNCTION_HOOK_STDCALL(sub_3E5A27, DirectSoundCreate_r)
 GUEST_FUNCTION_HOOK_STDCALL(sub_3E5756, IDirectSound_CreateSoundBuffer);
 GUEST_FUNCTION_HOOK_STDCALL(sub_3E4EE9, IDirectSoundBuffer_SetBufferData);

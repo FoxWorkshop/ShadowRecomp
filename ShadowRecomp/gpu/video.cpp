@@ -4535,8 +4535,32 @@ static void ProcUnlockTextureRect(const RenderCommand& cmd)
 	CopyDynamicTextureToGPU(args.texture);
 }
 
+// This function is needed for ADX and FMV decoding, as they rely on the VBlank timing to update their buffers.
+// For now we just fake vblank with a precise sleep, this seems to work good enough. 
+void BlockUntilVerticalBlank()
+{
+	using namespace std::chrono;
 
-//todo finish
+	static constexpr auto VBLANK_DURATION = microseconds(16667);
+
+	thread_local steady_clock::time_point lastCall = {};
+
+	auto now = steady_clock::now();
+
+	if (lastCall != steady_clock::time_point{})
+	{
+		auto elapsed = now - lastCall;
+		auto remaining = VBLANK_DURATION - elapsed;
+		if (remaining > microseconds(500))
+		{
+			std::this_thread::sleep_for(remaining);
+		}
+	}
+
+	lastCall = steady_clock::now();
+}
+
+
 static void ProcSetViewport(const RenderCommand& cmd)
 {
 	const auto& args = cmd.setViewport;
@@ -7613,10 +7637,17 @@ GUEST_FUNCTION_HOOK_STDCALL(sub_3DC150, DrawPrimitive);
 GUEST_FUNCTION_HOOK_STDCALL(sub_3DBFE0, DrawPrimitiveUP);
 GUEST_FUNCTION_HOOK_STDCALL(sub_3DD560, D3DDevice_Swap); //Present
 
+
+// Misc
+
 // Begin and End push are essentially command system like DX12, this can be used for many things including draw. 
 // see pushbuffer.cpp for more info, this patch here just make it so it won't crash when the game calls that.
 GUEST_FUNCTION_HOOK_STDCALL(sub_3D4740, D3DDevice_BeginPush);
 GUEST_FUNCTION_HOOK_STDCALL(sub_3D4760, D3DDevice_EndPush);
+
+// adx and fmv decoding requires vblank signal
+GUEST_FUNCTION_HOOK(sub_3CFE70, BlockUntilVerticalBlank);
+
 
 
 //texture stuff
