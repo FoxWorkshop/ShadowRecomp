@@ -2448,7 +2448,7 @@ bool Video::CreateHostDevice(const char* sdlVideoDriver, bool graphicsApiRetry)
 	g_backBuffer = g_backBufferHolder.get();
 	g_backBuffer->width = 640;
 	g_backBuffer->height = 480;
-	g_backBuffer->g_width = g_backBuffer->width; 
+	g_backBuffer->g_width = g_backBuffer->width;
 	g_backBuffer->g_height = g_backBuffer->height;
 	g_backBuffer->format = BACKBUFFER_FORMAT;
 	g_backBuffer->textureHolder = g_device->createTexture(RenderTextureDesc::Texture2D(1, 1, 1, BACKBUFFER_FORMAT, RenderTextureFlag::RENDER_TARGET));
@@ -6348,7 +6348,7 @@ static inline FLOAT PackedIntToFloat(const int32_t value, const FLOAT PosFactor,
 }
 
 //handle vertex format difference such as normalized short format
-uint8_t* ApplyVertexPatch(uint8_t* vertexData, const uint8_t indexStream, const uint32_t VertexCount, const uint32_t originalStride, uint32_t alignedStride)
+uint8_t* ApplyVertexPatch(uint8_t* vertexData, const uint8_t indexStream, const uint32_t VertexCount, const uint32_t originalStride, uint32_t alignedStride, bool useHostMemory = false)
 {
 	size_t host_handle = (size_t)g_memory.Translate(g_VertexShader_Handle);
 	auto vertexElement = XSR_HostGetVertexDeclaration(host_handle, g_Xbox_VertexShaderMode == VertexShaderMode::FixedFunction);
@@ -6360,7 +6360,7 @@ uint8_t* ApplyVertexPatch(uint8_t* vertexData, const uint8_t indexStream, const 
 	if (!bNeedVertexPatching)
 		return nullptr;
 
-	uint8_t* pHostVertexData = (uint8_t*)g_userHeap.AllocPhysical(VertexCount * alignedStride, 0x10);
+	uint8_t* pHostVertexData = useHostMemory ? g_intermediaryUploadAllocator.allocate(VertexCount * alignedStride) : (uint8_t*)g_userHeap.AllocPhysical(VertexCount * alignedStride, 0x10);
 
 	for (uint32_t uiVertex = 0; uiVertex < VertexCount; uiVertex++)
 	{
@@ -6533,48 +6533,40 @@ void DrawPrimitive(X_D3DPRIMITIVETYPE PrimitiveType, uint32_t StartVertex, uint3
 
 
 			XXH64_hash_t hash = XXH3_64bits(pXboxVertexData, g_Xbox_SetStreamSource[i].Stride);
-			auto& vertexCache = g_vertexCache[hash];
+			//auto& vertexCache = g_vertexCache[hash];
 
-			// this is needed to avoir reaching the physical memory cap as particles allocate every frame
-			if (g_vertexCache.size() > 0x9000)
-			{
-				for (auto& vertex : g_vertexCache)
-				{
-					g_userHeap.Free(vertex.second);
-				}
+			uint8_t* vertexParticles = nullptr;
 
-				printf("clear vertex cache particles\n");
+			// particles allocate memory every frame and we never pass the VB to the guest memory
+			// thus, we can use our dynamic allocator with host memory for better use without worrying about guest physical memory cap.
 
-				g_vertexCache.clear();
-			}
-
-			if (vertexCache == nullptr)
-			{
 				//so far testing shows that patching is always needed
-				if (bNeedVertexPatching)
-				{
-					const uint32_t originalStride = g_Xbox_SetStreamSource[i].Stride;
-					vertexCache = ApplyVertexPatch(pXboxVertexData, i, VertexCount, originalStride, alignedStride);
-				}
-				else
-				{
-					const size_t originalSize = VertexCount * alignedStride;
-					vertexCache = (uint8_t*)g_userHeap.AllocPhysical(VertexCount * alignedStride, 0x10);
-					memcpy(vertexCache, pXboxVertexData, originalSize);
-				}
+			if (bNeedVertexPatching)
+			{
+				const uint32_t originalStride = g_Xbox_SetStreamSource[i].Stride;
+				vertexParticles = ApplyVertexPatch(pXboxVertexData, i, VertexCount, originalStride, alignedStride, true);
+			}
+			else
+			{
+				const size_t originalSize = VertexCount * alignedStride;
+				vertexParticles = (uint8_t*)g_intermediaryUploadAllocator.allocate(VertexCount * alignedStride);  //g_userHeap.AllocPhysical(VertexCount * alignedStride, 0x10);
+				memcpy(vertexParticles, pXboxVertexData, originalSize);
 			}
 
 
-			auto& cmd = queue.enqueue();
-			cmd.type = RenderCommandType::DrawPrimitiveUP;
-			cmd.drawPrimitiveUP.primitiveType = PrimitiveType;
-			cmd.drawPrimitiveUP.vertexStreamZeroData = g_intermediaryUploadAllocator.allocate(vertexCache, VertexCount * alignedStride);
-			cmd.drawPrimitiveUP.vertexStreamZeroSize = VertexCount * alignedStride;
-			cmd.drawPrimitiveUP.vertexStreamZeroStride = alignedStride;
-			cmd.drawPrimitiveUP.primitiveCount = VertexCount;
-			cmd.drawPrimitiveUP.isFixed = g_Xbox_VertexShaderMode == VertexShaderMode::FixedFunction;
+			if (vertexParticles)
+			{
+				auto& cmd = queue.enqueue();
+				cmd.type = RenderCommandType::DrawPrimitiveUP;
+				cmd.drawPrimitiveUP.primitiveType = PrimitiveType;
+				cmd.drawPrimitiveUP.vertexStreamZeroData = vertexParticles;
+				cmd.drawPrimitiveUP.vertexStreamZeroSize = VertexCount * alignedStride;
+				cmd.drawPrimitiveUP.vertexStreamZeroStride = alignedStride;
+				cmd.drawPrimitiveUP.primitiveCount = VertexCount;
+				cmd.drawPrimitiveUP.isFixed = g_Xbox_VertexShaderMode == VertexShaderMode::FixedFunction;
 
-			queue.submit();
+				queue.submit();
+			}
 
 		}
 	}
