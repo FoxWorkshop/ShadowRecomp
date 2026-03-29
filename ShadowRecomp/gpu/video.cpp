@@ -6348,7 +6348,7 @@ static inline FLOAT PackedIntToFloat(const int32_t value, const FLOAT PosFactor,
 }
 
 //handle vertex format difference such as normalized short format
-uint8_t* ApplyVertexPatch(uint8_t* vertexData, const uint8_t indexStream, const uint32_t VertexCount, const uint32_t originalStride, uint32_t alignedStride, bool useHostMemory = false)
+uint8_t* ApplyVertexPatch(uint8_t* vertexData, const uint8_t indexStream, const uint32_t VertexCount, const uint32_t originalStride, uint32_t alignedStride)
 {
 	size_t host_handle = (size_t)g_memory.Translate(g_VertexShader_Handle);
 	auto vertexElement = XSR_HostGetVertexDeclaration(host_handle, g_Xbox_VertexShaderMode == VertexShaderMode::FixedFunction);
@@ -6360,7 +6360,7 @@ uint8_t* ApplyVertexPatch(uint8_t* vertexData, const uint8_t indexStream, const 
 	if (!bNeedVertexPatching)
 		return nullptr;
 
-	uint8_t* pHostVertexData = useHostMemory ? (uint8_t*)calloc(1, VertexCount * alignedStride) : (uint8_t*)g_userHeap.AllocPhysical(VertexCount * alignedStride, 0x10);
+	uint8_t* pHostVertexData = (uint8_t*)g_userHeap.AllocPhysical(VertexCount * alignedStride, 0x10);
 
 	for (uint32_t uiVertex = 0; uiVertex < VertexCount; uiVertex++)
 	{
@@ -6535,14 +6535,13 @@ void DrawPrimitive(X_D3DPRIMITIVETYPE PrimitiveType, uint32_t StartVertex, uint3
 			XXH64_hash_t hash = XXH3_64bits(pXboxVertexData, g_Xbox_SetStreamSource[i].Stride);
 			auto& vertexCache = g_vertexCache[hash];
 
-			//experimental
-			if (g_vertexCache.size() > 0xA000)
+			// this is needed to avoir reaching the physical memory cap as particles allocate every frame
+			if (g_vertexCache.size() > 0x9000)
 			{
 				for (auto& vertex : g_vertexCache)
 				{
-					free(vertex.second);
+					g_userHeap.Free(vertex.second);
 				}
-					//g_userHeap.Free(vertex.second);
 
 				printf("clear vertex cache particles\n");
 
@@ -6555,12 +6554,12 @@ void DrawPrimitive(X_D3DPRIMITIVETYPE PrimitiveType, uint32_t StartVertex, uint3
 				if (bNeedVertexPatching)
 				{
 					const uint32_t originalStride = g_Xbox_SetStreamSource[i].Stride;
-					vertexCache = ApplyVertexPatch(pXboxVertexData, i, VertexCount, originalStride, alignedStride, true);
+					vertexCache = ApplyVertexPatch(pXboxVertexData, i, VertexCount, originalStride, alignedStride);
 				}
 				else
 				{
 					const size_t originalSize = VertexCount * alignedStride;
-					vertexCache = (uint8_t*)calloc(1, VertexCount * alignedStride);  //g_userHeap.AllocPhysical(VertexCount * alignedStride, 0x10);
+					vertexCache = (uint8_t*)g_userHeap.AllocPhysical(VertexCount * alignedStride, 0x10);
 					memcpy(vertexCache, pXboxVertexData, originalSize);
 				}
 			}
