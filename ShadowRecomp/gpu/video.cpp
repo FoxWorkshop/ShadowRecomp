@@ -4373,7 +4373,6 @@ static void UnlockTextureRect(GuestTexture* texture)
 	g_renderQueue.enqueue(cmd);
 }
 
-
 // this seems to be used by FMV
 
 unsigned int GetPixelContainerMipMapLevels(X_D3DPixelContainer* pPixelContainer);
@@ -4451,6 +4450,11 @@ static void CopyDynamicTextureToGPU(GuestTexture* tex)
 	}
 
 
+	// this function should only be used for FMV and nothing else, but just in case, we can have
+	// a small heuristic to ensure it's an FMV texture.
+	bool isFmv = isSwizzled && tex->depth == 1 && tex->width > 256 && tex->height > 256 && slices.size() == 1; // fmv tex should never use mipmap.
+
+
 	auto allocation = g_uploadAllocators[g_frame].allocate(curDstOffset, PLACEMENT_ALIGNMENT);
 	uint8_t* mappedMemory = reinterpret_cast<uint8_t*>(allocation.memory);
 
@@ -4467,8 +4471,7 @@ static void CopyDynamicTextureToGPU(GuestTexture* tex)
 			uint32_t dstSlicePitch = slice.dstRowPitch * slice.rowCount;
 			uint32_t srcBpp = bCompressed ? blockSize : (XBFormatBitsPerPixel(format) / 8);
 
-			UnswizzleBox(srcData, slice.width, slice.height, slice.depth, srcBpp,
-				dstData, slice.dstRowPitch, dstSlicePitch);
+			UnswizzleBox(srcData, slice.width, slice.height, slice.depth, srcBpp, dstData, slice.dstRowPitch, dstSlicePitch);
 		}
 		else if (bCompressed)
 		{
@@ -6527,20 +6530,17 @@ void DrawPrimitive(X_D3DPRIMITIVETYPE PrimitiveType, uint32_t StartVertex, uint3
 			//if patching is needed the stride may be bigger so update it from the Vertex Declaration that we got earlier
 			alignedStride = pVertexShaderStreamInfo->HostVertexStride;
 
-
 			unsigned long dataAddr = (unsigned long)GetDataFromXboxResource((X_D3DResource*)(g_Xbox_SetStreamSource[i].VertexBuffer));
 			uint8_t* pXboxVertexData = reinterpret_cast<uint8_t*>(g_memory.Translate(dataAddr));
 
-
 			XXH64_hash_t hash = XXH3_64bits(pXboxVertexData, g_Xbox_SetStreamSource[i].Stride);
-			//auto& vertexCache = g_vertexCache[hash];
 
 			uint8_t* vertexParticles = nullptr;
 
-			// particles allocate memory every frame and we never pass the VB to the guest memory
+			// particles allocate memory every frame and we never pass our VB to the guest memory
 			// thus, we can use our dynamic allocator with host memory for better use without worrying about guest physical memory cap.
 
-				//so far testing shows that patching is always needed
+			// so far testing shows that patching is always needed
 			if (bNeedVertexPatching)
 			{
 				const uint32_t originalStride = g_Xbox_SetStreamSource[i].Stride;
@@ -6549,7 +6549,7 @@ void DrawPrimitive(X_D3DPRIMITIVETYPE PrimitiveType, uint32_t StartVertex, uint3
 			else
 			{
 				const size_t originalSize = VertexCount * alignedStride;
-				vertexParticles = (uint8_t*)g_intermediaryUploadAllocator.allocate(VertexCount * alignedStride);  //g_userHeap.AllocPhysical(VertexCount * alignedStride, 0x10);
+				vertexParticles = (uint8_t*)g_intermediaryUploadAllocator.allocate(VertexCount * alignedStride); 
 				memcpy(vertexParticles, pXboxVertexData, originalSize);
 			}
 
@@ -6766,9 +6766,7 @@ void DrawPrimitiveUP(X_D3DPRIMITIVETYPE PrimitiveType, uint32_t VertexCount, voi
 	FlushRenderStateForMainThread(queue);
 
 
-
 	UpVertex* vertexData = (UpVertex*)(pVertexStreamZeroData);
-
 
 	auto& cmd = queue.enqueue();
 	cmd.type = RenderCommandType::DrawPrimitiveUP;
@@ -6781,7 +6779,6 @@ void DrawPrimitiveUP(X_D3DPRIMITIVETYPE PrimitiveType, uint32_t VertexCount, voi
 	cmd.drawPrimitiveUP.isFixed = g_Xbox_VertexShaderMode == VertexShaderMode::FixedFunction;
 
 	queue.submit();
-
 	//	printf("Game called Draw Primitive UP - ID: %d, thread id %d - g_frame=%u\n", g_drawPrimitiveUP_ID, GetCurrentThreadId(), g_frame);
 
 }
