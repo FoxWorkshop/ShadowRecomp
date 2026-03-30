@@ -151,6 +151,7 @@ set(SHADOW_RECOMP_UI_CXX_SOURCES
 
 set(SHADOW_RECOMP_MOD_CXX_SOURCES
     "mod/mod_loader.cpp"
+    "mod/IniFile.cpp"
 )
 
 
@@ -267,6 +268,17 @@ endif()
 #find_package(directx-dxc REQUIRED)
 find_package(CURL REQUIRED)
 
+include(FetchContent)
+
+FetchContent_Declare(
+  nlohmann_json
+  GIT_REPOSITORY https://github.com/nlohmann/json.git
+  GIT_TAG v3.12.0
+)
+
+FetchContent_MakeAvailable(nlohmann_json)
+
+
 if (SHADOW_RECOMP_D3D12)
     file(MAKE_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/D3D12)
     add_custom_command(TARGET ShadowRecomp POST_BUILD
@@ -315,7 +327,9 @@ target_link_libraries(ShadowRecomp PRIVATE
     xxHash::xxhash
     plume
     XShaderRecompLib
+    nlohmann_json::nlohmann_json
 )
+
 
 target_compile_definitions(XShaderRecompLib PRIVATE SHADOW_RECOMP)
 

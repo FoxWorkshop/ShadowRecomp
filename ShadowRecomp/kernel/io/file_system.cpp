@@ -7,6 +7,7 @@
 #include <audio/audio.h>
 #include <os/logger.h>
 #include <user/paths.h>
+#include <mod/mod_loader.h>
 
 // Original code from Unleashed Recomp, O.G Xbox uses similar file / write operation functions than Xbox 360.
 
@@ -26,7 +27,7 @@ struct FindHandle : KernelObject
 
 	FindHandle() = default;
 
-	FindHandle(const std::string& directoryPath)
+	FindHandle(const std::string& path)
 	{
 		auto addDirectory = [&](const std::filesystem::path& directory)
 			{
@@ -40,7 +41,25 @@ struct FindHandle : KernelObject
 				}
 			};
 
-		addDirectory(std::filesystem::path(directoryPath));
+		std::string_view pathNoPrefix = path;
+		size_t index = pathNoPrefix.find(":\\");
+		if (index != std::string_view::npos)
+			pathNoPrefix.remove_prefix(index + 2);
+		std::string pathStr(pathNoPrefix);
+		std::replace(pathStr.begin(), pathStr.end(), '\\', '/');
+
+		for (size_t i = 0; ; i++)
+		{
+			auto* includeDirs = ModLoader::GetIncludeDirectories(i);
+			if (includeDirs == nullptr)
+				break;
+
+			for (auto& includeDir : *includeDirs)
+				addDirectory(includeDir / pathStr);
+		}
+
+		//addDirectory(FileSystem::ResolvePath(path, false));
+		addDirectory(std::filesystem::path(path));
 		iterator = searchResult.begin();
 	}
 
@@ -103,6 +122,20 @@ static const DriveMapping& GetDriveMapping(const std::string_view& letter)
 
 std::filesystem::path FileSystem::ResolvePath(const std::string_view& path, bool checkForMods)
 {
+
+	if (checkForMods)
+	{
+		std::filesystem::path resolvedPath = ModLoader::ResolvePath(path);
+
+		if (!resolvedPath.empty())
+		{
+			if (ModLoader::s_isLogTypeConsole)
+				LOGF_IMPL(Utility, "Mod Loader", "Loading file: \"{}\"", reinterpret_cast<const char*>(resolvedPath.u8string().c_str()));
+
+			return resolvedPath;
+		}
+	}
+
 	std::filesystem::path p(path);
 
 	auto colonPos = path.find(':');

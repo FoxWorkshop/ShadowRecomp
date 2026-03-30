@@ -20,6 +20,8 @@
 #include <timeapi.h>
 #endif
 #include <iostream>
+#include <filesystem>
+#include <mod/mod_loader.h>
 
 #if defined(_WIN32) && defined(SHADOW_RECOMP_D3D12)
 static std::array<std::string_view, 3> g_D3D12RequiredModules =
@@ -153,8 +155,8 @@ std::vector<float> ReadFloatPairs(const std::string& path)
 
 
 
-#include <filesystem>
-namespace fs = std::filesystem;
+
+
 int main(int argc, char* argv[])
 {
 #ifdef _WIN32
@@ -223,6 +225,9 @@ int main(int argc, char* argv[])
         os::process::ShowConsole();
 
     HostStartup();
+
+    ModLoader::Init();
+
     InitDpcData();
 
 
