@@ -7188,7 +7188,9 @@ void CopyTextureToGPU(GuestTexture* tex)
 	DWORD blockSize = 0;
 
 	if (bCompressed)
+	{
 		blockSize = format == X_D3DFMT_DXT1 ? 8 : 16;
+	}
 
 	for (int32_t face = D3DCUBEMAP_FACE_POSITIVE_X; face <= last_face; face++)
 	{
@@ -7230,15 +7232,21 @@ void CopyTextureToGPU(GuestTexture* tex)
 			uint32_t dstBpp = bConvertARGB ? 32 : XBFormatBitsPerPixel(format); // 32 bits if converting to ARGB
 			uint32_t rawDstRowPitch = (slice.width * dstBpp) / 8;
 
+			if (bCompressed) 
+			{
+				uint32_t blockCols = (slice.width + 3) / 4;
+				rawDstRowPitch = blockCols * blockSize;
+			}
+
 			slice.dstRowPitch = (rawDstRowPitch + PITCH_ALIGNMENT - 1) & ~(PITCH_ALIGNMENT - 1);
 			slice.dstOffset = curDstOffset;
 
-			curSrcOffset += mipSlicePitch;
 			uint32_t alignedSliceSize = (slice.dstRowPitch * slice.rowCount * slice.depth + PLACEMENT_ALIGNMENT - 1) & ~(PLACEMENT_ALIGNMENT - 1);
+
+			curSrcOffset += mipSlicePitch;	
 			curDstOffset += alignedSliceSize;
 		}
 	}
-
 
 	// allocate upload buffer with curDstOffset
 	auto uploadBuffer = g_device->createBuffer(RenderBufferDesc::UploadBuffer(curDstOffset));
@@ -7298,14 +7306,12 @@ void CopyTextureToGPU(GuestTexture* tex)
 
 			auto copyTextureRegion = [&](Slice& slice, uint32_t subresourceIndex)
 				{
-					uint32_t uploadRowPitchInTexels = slice.dstRowPitch / (bCompressed ? (blockSize) : (RenderFormatSize(tex->format)));
-
-					/**g_copyCommandList->copyTextureRegion(
-						RenderTextureCopyLocation::Subresource(tex->texture, subresourceIndex),
-						RenderTextureCopyLocation::PlacedFootprint(uploadBuffer.get(), tex->format, slice.width, slice.height, slice.depth, uploadRowPitchInTexels, slice.dstOffset));*/
+					uint32_t mipIndex = subresourceIndex % dwMipMapLevels;
+					uint32_t arrayIndex = subresourceIndex / dwMipMapLevels;
+					uint32_t uploadRowPitchInTexels = slice.dstRowPitch / RenderFormatSize(tex->format);
 
 					g_copyCommandList->copyTextureRegion(
-						RenderTextureCopyLocation::Subresource(tex->texture, subresourceIndex % dwMipMapLevels, subresourceIndex % dwMipMapLevels),
+						RenderTextureCopyLocation::Subresource(tex->texture, mipIndex, arrayIndex),
 						RenderTextureCopyLocation::PlacedFootprint(uploadBuffer.get(), tex->format, slice.width, slice.height, slice.depth, uploadRowPitchInTexels, slice.dstOffset));
 				};
 

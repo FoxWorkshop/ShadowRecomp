@@ -1,5 +1,4 @@
 /**
- * SADX Mod Loader
  * INI file parser.
  */
 
@@ -24,14 +23,14 @@ public:
 	const std::unordered_map<std::string, std::string>* data() const;
 
 	std::string getString(const std::string& key, const std::string& def = std::string()) const;
-	std::wstring getWString(const std::string& key, const std::wstring& def = std::wstring()) const;
+	//std::wstring getWString(const std::string& key, const std::wstring& def = std::wstring()) const;
 	bool getBool(const std::string& key, bool def = false) const;
 	int getIntRadix(const std::string& key, int radix, int def = 0) const;
 	int getInt(const std::string& key, int def = 0) const;
 	float getFloat(const std::string& key, float def = 0) const;
 
 	void setString(const std::string& key, const std::string& val);
-	void setWString(const std::string& key, const std::wstring& val);
+	//void setWString(const std::string& key, const std::wstring& val);
 	void setBool(const std::string& key, bool val);
 	void setIntRadix(const std::string& key, int radix, int val);
 	void setInt(const std::string& key, int val);
