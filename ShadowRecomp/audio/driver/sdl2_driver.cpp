@@ -121,7 +121,6 @@ private:
 
 	SourceFormat mSourceFormat;
 
-	float Calculate3DVolume();
 
 public:
 
@@ -143,7 +142,7 @@ public:
 	int SetFrequency(int lFrequency) override;
 	int SetBufferData(void* pvBufferData, int dwBufferBytes) override;
 	int SetLoopRegion(int dwLoopStartOffset, int dwLoopLength) override;
-
+	int GetCaps() const { return mCaps; }
 
 	void SetFormatTag(xpointer<WAVEFORMATEX> format);
 	void SetBufferKey(int32_t key);
@@ -151,6 +150,7 @@ public:
 		SDL_AudioFormat dstFormat, int dstChannels, int dstFreq);
 	void BakeResampledLoop();
 
+	float Calculate3DVolume();
 	int mSoundID = 0; // for debugging
 };
 
@@ -325,23 +325,16 @@ float SHTHR_SOUNDBUFFER_Impl::Calculate3DVolume()
 
 	float distance = sqrtf(posX * posX + posY * posY + posZ * posZ);
 
-	float distanceFactor = mParent->GetDistanceFactor();
-
-	float scaledMin = mMinDistance / distanceFactor;
-	float scaledMax = mMaxDistance / distanceFactor;
-
-	scaledMin = std::max(0.0001f, scaledMin); // just in case
-
-	// DirectSound inverse distance model
-	float dist_clamped = std::max(scaledMin, std::min(distance, scaledMax));
-
+	//float distanceFactor = mParent->GetDistanceFactor();
 	float rolloff = mParent->GetRolloffFactor();
 
+	// DirectSound inverse distance model
+	// float scaledDistance = distance * distanceFactor;
+	float dist_clamped = std::max(mMinDistance, std::min(distance, mMaxDistance));
+	float attenuation = mMinDistance / (mMinDistance + rolloff * (dist_clamped - mMinDistance));
 
-	float attenuation = scaledMin / (scaledMin + rolloff * (dist_clamped - scaledMin));
-
-	if (attenuation > 1.0f)
-		attenuation = 1.0f;
+	if (attenuation > 0.8f)
+		attenuation = 0.8f;
 
 	return attenuation;
 }
@@ -726,15 +719,6 @@ int32_t SHTHR_SOUNDBUFFER_Impl::Pull(unsigned char* data, int32_t size)
 	mResampleBuffer.resize(writesize);
 	SDL_AudioStreamGet(mAudioStream, mResampleBuffer.data(), writesize);
 
-	// Apply 3D volume if needed
-	if (mCaps & XTL_DSBCAPS_CTRL3D)
-	{
-		float volumeScale = Calculate3DVolume();
-		int16_t* samples = reinterpret_cast<int16_t*>(mResampleBuffer.data());
-		int sampleCount = writesize / sizeof(int16_t);
-		for (int i = 0; i < sampleCount; i++)
-			samples[i] = static_cast<int16_t>(samples[i] * volumeScale);
-	}
 
 	memcpy(data, mResampleBuffer.data(), writesize);
 	return writesize;
@@ -986,10 +970,11 @@ int SHTHR_SOUNDBUFFER_Impl::SetVolume(int lVolume)
 	float linear = powf(10.0f, db / 20.0f);  // dB to linear
 	mVolumeLinear = static_cast<int>(linear * SDL_MIX_MAXVOLUME);  // 0-128
 
+	const float volScale = this->GetCaps() & XTL_DSBCAPS_CTRL3D ? SFX_3DVOLUME_SCALE : SFX_VOLUME_SCALE;
 	if (this->isStreaming == false)
 	{
 		// SFX tend to be way too loud so we scale them in addition to the user config
-		mVolumeLinear = static_cast<int>(mVolumeLinear * SFX_VOLUME_SCALE * Config::EffectsVolume.Value);
+		mVolumeLinear = static_cast<int>(mVolumeLinear * volScale * Config::EffectsVolume.Value);
 	}
 
 	// Clamp
@@ -1072,13 +1057,20 @@ int SHTHR_SOUNDDEVICE_Impl::PullThreadFunc()
 			const int32_t read = queue->Pull(src_buf.data(), FILL_CHUNK_BYTES);
 			if (read > 0)
 			{
+
+				float vol3D = (queue->GetCaps() & XTL_DSBCAPS_CTRL3D)
+					? queue->Calculate3DVolume()
+					: 1.0f;
+				float finalVol = queue->GetVolumeLinear() * Config::MasterVolume.Value * vol3D;
+				finalVol = std::min(finalVol, (float)SDL_MIX_MAXVOLUME);
+
+
 				if (read < FILL_CHUNK_BYTES)
 					memset(src_buf.data() + read, mAudioSpec.silence,
 						FILL_CHUNK_BYTES - read);
 
-				SDL_MixAudioFormat(mix_buf.data(), src_buf.data(),
-					mFormat, FILL_CHUNK_BYTES,
-					queue->GetVolumeLinear() * Config::MasterVolume.Value);
+
+				SDL_MixAudioFormat(mix_buf.data(), src_buf.data(), mFormat, FILL_CHUNK_BYTES, (int)finalVol);
 			}
 		}
 
