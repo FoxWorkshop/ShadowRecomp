@@ -300,7 +300,7 @@ void UpdateMaterial(Material* pMaterial)
 	ffShaderState.Materials[0].Diffuse = pMaterial->Diffuse;
 	ffShaderState.Materials[0].Specular = pMaterial->Specular;
 	ffShaderState.Materials[0].Emissive = pMaterial->Emissive;
-	ffShaderState.Materials[0].Power = pMaterial->Power;
+	ffShaderState.Materials[0].Power.r = pMaterial->Power.r; //power is originally only a single float, but we have it as a float4 for easier packing into constant buffers.
 }
 
 void UpdateLightData(uint32_t index, X_D3DLIGHT8* pLight)
