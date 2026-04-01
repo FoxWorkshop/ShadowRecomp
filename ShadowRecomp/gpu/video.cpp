@@ -3011,7 +3011,7 @@ static void DrawProfiler()
 	if (!g_profilerVisible)
 		return;
 
-	ImFont* font = ImFontAtlasSnapshot::GetFont("FOT-SeuratPro-M.otf");
+	ImFont* font = ImGui::GetIO().Fonts->Fonts[0];
 	float defaultScale = font->Scale;
 	font->Scale = ImGui::GetDefaultFont()->FontSize / font->FontSize;
 	ImGui::PushFont(font);
