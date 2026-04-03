@@ -23,6 +23,8 @@ extern uint32_t g_VertexShader_Handle;
 #define X_D3DFORMAT_FORMAT_SHIFT          8
 #define X_D3DFORMAT_MIPMAP_MASK           0x000F0000      // # mipmap levels (always 1 for surfaces)
 #define X_D3DFORMAT_MIPMAP_SHIFT          16
+#define X_D3DFORMAT_DIMENSION_MASK        0x000000F0      // # of dimensions, must be 2 or 3
+#define X_D3DFORMAT_DIMENSION_SHIFT       4
 
 #define PHYSICAL_MAP_BASE                   0x80000000
 
@@ -1095,6 +1097,8 @@ const uint16_t HOST_D3DVS_CONSTREG_VREGDEFAULTS_SIZE = 16u;
 #define X_D3DSCM_RESERVED_CONSTANT_OFFSET_CORRECTED (X_D3DSCM_RESERVED_CONSTANT_OFFSET + X_D3DSCM_CORRECTION)
 
 #define HOST_USER_CONFIG HOST_D3DVS_CONSTREG_FOGINFO + 1
+
+constexpr int PSH_XBOX_CONSTANT_MAX = 30;
 
 void DrawPrimitiveUP(X_D3DPRIMITIVETYPE PrimitiveType, uint32_t VertexCount, void* pVertexStreamZeroData, uint32_t VertexStreamZeroStride);
 void DrawIndexedPrimitive(X_D3DPRIMITIVETYPE PrimitiveType, uint32_t VertexCount, int16_t* pIndexData);

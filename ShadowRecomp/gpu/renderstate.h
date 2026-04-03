@@ -1837,3 +1837,4 @@ void InitGuestRenderStatePointer(uint32_t* ptr);
 void UpdateAllRenderState();
 void SetRenderState(X_D3DRENDERSTATETYPE state, uint32_t value);
 void BuildRenderStateMappingTable();
+void* GetPixelShaderRenderStatePointer();

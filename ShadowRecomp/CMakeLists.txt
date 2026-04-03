@@ -104,6 +104,7 @@ set(SHADOW_RECOMP_GPU_CXX_SOURCES
     "gpu/video.cpp"
     "gpu/vertexshader.cpp"
     "gpu/vertexdeclaration.cpp"
+    "gpu/pixelshader.cpp"
     "gpu/pushbuffer.cpp"
     "gpu/swizzle.cpp"
     "gpu/FixedFunction.cpp"

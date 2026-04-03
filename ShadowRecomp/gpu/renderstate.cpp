@@ -225,6 +225,12 @@ void BuildRenderStateMappingTable()
 	}
 }
 
+void* GetPixelShaderRenderStatePointer()
+{
+	return &g_renderState[X_D3DRS_PS_FIRST];
+}
+
+
 bool GuestRenderStateExists(uint32_t State)
 {
 	if (g_RenderStateOffsets[State] >= 0) {

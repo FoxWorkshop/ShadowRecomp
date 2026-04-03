@@ -8,6 +8,7 @@
 
 #include "vertexdeclaration.h"
 #include "vertexshader.h"
+#include "pixelshader.h"
 #include "nv2a.h"
 #include "pushbuffer.h"
 #include "swizzle.h"
@@ -298,12 +299,14 @@ VertexShaderMode g_Xbox_VertexShaderMode = VertexShaderMode::FixedFunction;
 static float g_ZScale = 1.0f;
 DWORD g_Xbox_VertexShaderConstantMode = 1;
 
+GuestPixelShader* g_pXbox_PixelShader = nullptr;
+
 static uint32_t* g_currentPaletteData;
 
 //constants are variable send to the GPU
 static uint32_t g_vertexShaderConstants[HOST_D3DVS_CONSTREG_FULL * 4];
 static uint32_t g_vertexShaderConstantsFixed[HOST_D3DVS_CONSTREG_FULL * 4];
-static uint32_t g_pixelShaderConstants[0x380];
+static uint32_t g_pixelShaderConstants[PSH_XBOX_CONSTANT_MAX * 4];
 static SharedConstants g_sharedConstants; //TextureStage operation data, indice etc. Used with texture descriptor
 
 uint32_t vsh_constants[HOST_D3DVS_CONSTREG_FULL][4]; //xbox registers (192) + host registers (slot of 4 because one register = 4 bytes)
@@ -314,8 +317,8 @@ static uint64_t g_lastVertexShaderConstants; //used to check for update so we do
 uint32_t g_PixelShader;
 static uint64_t g_lastPixelShaderConstants;
 
-uint32_t psh_constants[30][4]; //xbox registers (192) + host registers (slot of 4 because one register = 4 bytes)
-bool psh_constants_dirty[30];
+uint32_t psh_constants[PSH_XBOX_CONSTANT_MAX][4]; // (slot of 4 because one register = 4 bytes)
+bool psh_constants_dirty[PSH_XBOX_CONSTANT_MAX];
 
 std::array<D3DMATRIX, X_D3DTS_MAX> g_Transforms;
 
@@ -323,6 +326,7 @@ std::array<D3DMATRIX, X_D3DTS_MAX> g_Transforms;
 static GuestTexture* g_textures[TexSlotMax];
 static RenderSamplerDesc g_samplerDescs[TexSlotMax];
 static TextureCombinerState g_sharedSamplerDescs[TexSlotMax];
+static GuestTexture* g_texturesPSDef[4];
 static bool g_scissorTestEnable = false;
 static RenderRect g_scissorRect;
 //static GuestBuffer* g_vertexBuffers[16];
@@ -2562,85 +2566,129 @@ static ShaderCacheEntry* FindShaderCacheEntry(XXH64_hash_t hash)
 	return nullptr; //findResult != end && findResult->hash == hash ? findResult : nullptr;
 }
 
+X_D3DRESOURCETYPE GetXboxTextureType(const X_D3DResource* pXboxResource);
 GuestShader* CreateShader(ResourceType resourceType)
 {
-	GuestShader* shader = FindShaderCacheEntryNew();
-	size_t hostHandle = (size_t)g_memory.Translate(g_VertexShader_Handle);
+	auto base = g_memory.base;
+	const bool isVertexShader = resourceType == ResourceType::VertexShader;
+	uint32_t psDefReg = 0;
+
+	if (isVertexShader == false && g_pXbox_PixelShader)
+	{
+		psDefReg = g_memory.MapVirtual(GetPixelShaderRenderStatePointer());
+	}
+
+	// todo implement proper shader caching into the exe
+	GuestShader* shader = isVertexShader ? FindShaderCacheEntryNew() : FindPixelShaderCacheEntryNew(psDefReg);
+
+	size_t hostVSHandle = (size_t)g_memory.Translate(g_VertexShader_Handle);
+
 	if (shader)
 	{
 		shader->AddRef();
 	}
 	else
 	{
-		//todo implement proper shader assignment
+		
 		/**size_t sizeShader = 0;
 		auto shaderData = CreateRecompiledShader(sizeShader);*/
 
-		uint64_t hash = GetVertexShaderKey();
-
 		shader = g_userHeap.AllocPhysical<GuestShader>(resourceType);
-		//printf("now use shader %x\n", hash);
 
-		if (hash == 0xb2b7a0a5e7d5805f)
+		if (resourceType == ResourceType::PixelShader)
 		{
-			shader->shader = CREATE_SHADER(R2D_vs0);
-		}
-		else if (hash == 0xcefa8ae484bff7a2)
-		{
-			shader->shader = CREATE_SHADER(R2D_vs1);
-		}
-		else if (hash == 0xcee36c8c99adc694)  //Shadow uses this shader
-		{
-			shader->shader = CREATE_SHADER(Rcharacters_vs0);
-		}
-		else if (hash == 0xdfae999de3ea6283)
-		{
-			shader->shader = CREATE_SHADER(Rcharacters_vs1);
-		}
-		else if (hash == 0x70f76babf348a2b8)
-		{
-			shader->shader = CREATE_SHADER(Reyedoom_vs);
-		}
-		else if (hash == 0xebec9b6d9de987da)
-		{
-			shader->shader = CREATE_SHADER(Rblack_bull_vs);
-		}
-		else if (hash == 0x15a6de0f9b750cb6) //used to draw sonk eyes and wrist
-		{
-			shader->shader = CREATE_SHADER(Rcharacters_vs2);
-		}
-		else if (hash == 0xb4688dd3697caa3b)
-		{
-			shader->shader = CREATE_SHADER(Rcharacters_vs3);
-		}
-		else if (hash == 0x20dcefa19e31eaf3) //Sonk's body uses this shader
-		{
-			shader->shader = CREATE_SHADER(Rcharacters_vs4);
-		}
-		else if (hash == 0x7fdce39d83a5ebbc)
-		{
-			shader->shader = CREATE_SHADER(Raura_hero_dark_body_vs);
-		}
-		else if (hash == 0xd7c5370023c4140d)
-		{
-			shader->shader = CREATE_SHADER(Raura_hero_dark_eye_vs);
-		}
-		else if (hash == 0x93adf9d6988519b4)
-		{
-			shader->shader = CREATE_SHADER(Rchaos_vs);
-		}
-		else if (hash == 0x651285052f420938)
-		{
-			shader->shader = CREATE_SHADER(Rshadow_event_vs);
+			size_t sizeShader = 0;
+
+			X_D3DPIXELSHADERDEF* pXboxPixelShaderDef = (X_D3DPIXELSHADERDEF*)(g_memory.Translate(psDefReg));
+			pixelShader_GuestInfo psdGuestInfo;
+			memset(&psdGuestInfo, 0, sizeof(psdGuestInfo));
+			psdGuestInfo.PSTextureModes = GetGuestRenderState(X_D3DRS_PSTEXTUREMODES);
+			psdGuestInfo.renderstateFogEnable = GetGuestRenderState(X_D3DRS_FOGENABLE);
+			psdGuestInfo.renderStateSpecularEnable = GetGuestRenderState(X_D3DRS_SPECULARENABLE);
+
+			for (int i = 0; i < 4; i++)
+			{
+				if (g_texturesPSDef[i])
+				{
+					int type = GetXboxTextureType((X_D3DResource*)g_memory.Translate((uint32_t)&g_texturesPSDef[i]->guestResource));
+					psdGuestInfo.ActiveTextureTypes[i] = type;
+				}
+			}
+
+			auto shaderData = CreateRecompiledPixelShader(pXboxPixelShaderDef, &psdGuestInfo, &sizeShader);
+			shader->shader = CREATE_RUNTIME_SHADER(shaderData, sizeShader);
+
+			uint64_t hash = GetPixelShaderKey(psDefReg);
+			UpdatePixelShaderCacheEntryNew(shader, hash);
 		}
 		else
 		{
-			size_t sizeShader = 0;
-			auto shaderData = CreateRecompiledShader(hostHandle, &sizeShader);
-			shader->shader = CREATE_RUNTIME_SHADER(shaderData, sizeShader);
-		}
 
-		UpdateShaderCacheEntryNew(shader, hash);
+			uint64_t hash = GetVertexShaderKey();
+
+			//printf("now use shader %x\n", hash);
+
+			if (hash == 0xb2b7a0a5e7d5805f)
+			{
+				shader->shader = CREATE_SHADER(R2D_vs0);
+			}
+			else if (hash == 0xcefa8ae484bff7a2)
+			{
+				shader->shader = CREATE_SHADER(R2D_vs1);
+			}
+			else if (hash == 0xcee36c8c99adc694)  //Shadow uses this shader
+			{
+				shader->shader = CREATE_SHADER(Rcharacters_vs0);
+			}
+			else if (hash == 0xdfae999de3ea6283)
+			{
+				shader->shader = CREATE_SHADER(Rcharacters_vs1);
+			}
+			else if (hash == 0x70f76babf348a2b8)
+			{
+				shader->shader = CREATE_SHADER(Reyedoom_vs);
+			}
+			else if (hash == 0xebec9b6d9de987da)
+			{
+				shader->shader = CREATE_SHADER(Rblack_bull_vs);
+			}
+			else if (hash == 0x15a6de0f9b750cb6) //used to draw sonk eyes and wrist
+			{
+				shader->shader = CREATE_SHADER(Rcharacters_vs2);
+			}
+			else if (hash == 0xb4688dd3697caa3b)
+			{
+				shader->shader = CREATE_SHADER(Rcharacters_vs3);
+			}
+			else if (hash == 0x20dcefa19e31eaf3) //Sonk's body uses this shader
+			{
+				shader->shader = CREATE_SHADER(Rcharacters_vs4);
+			}
+			else if (hash == 0x7fdce39d83a5ebbc)
+			{
+				shader->shader = CREATE_SHADER(Raura_hero_dark_body_vs);
+			}
+			else if (hash == 0xd7c5370023c4140d)
+			{
+				shader->shader = CREATE_SHADER(Raura_hero_dark_eye_vs);
+			}
+			else if (hash == 0x93adf9d6988519b4)
+			{
+				shader->shader = CREATE_SHADER(Rchaos_vs);
+			}
+			else if (hash == 0x651285052f420938)
+			{
+				shader->shader = CREATE_SHADER(Rshadow_event_vs);
+			}
+			else
+			{
+				size_t sizeShader = 0;
+				auto shaderData = CreateRecompiledShader(hostVSHandle, &sizeShader);
+				shader->shader = CREATE_RUNTIME_SHADER(shaderData, sizeShader);
+			}
+
+			UpdateShaderCacheEntryNew(shader, hash);
+		}
 	}
 
 	return shader;
@@ -2910,15 +2958,62 @@ int32_t CreatePixelShader(const uint32_t pPSDef, DWORD* pHandle)
 	return 0;
 }
 
-//todo check if we can pass a GuestShader or if we will have to do it differently
-static void SetPixelShader(GuestShader* pixelShader)
+// SetPixelShader
+X86_FUNC_IMPL(__imp__sub_3DC590);
+X86_FUNC(sub_3DC590) 
 {
+	auto Handle = X86_LOAD_U32(ctx.esp.u32 + 4);
+
+
+	__imp__sub_3DC590(ctx, base);
+
 	RenderCommand cmd;
 	cmd.type = RenderCommandType::SetPixelShader;
-	cmd.setPixelShader.shader = pixelShader;
-	cmd.setPixelShader.isFixed = pixelShader == nullptr;
+	g_pXbox_PixelShader = (GuestPixelShader*)g_memory.Translate(Handle);
+	if (Handle)
+	{
+		// Copy the Pixel Shader data to our RenderState handler (this includes values for pixel shader constants)
+		// This mirrors the fact that unpatched SetPixelShader does the same thing!
+
+		auto pXboxPixelShaderDef = X86_LOAD_U32(Handle + 0x8);
+		X_D3DPIXELSHADERDEF* pPSDef = (X_D3DPIXELSHADERDEF*)g_memory.Translate(pXboxPixelShaderDef);
+		memcpy(GetPixelShaderRenderStatePointer(), pPSDef, sizeof(X_D3DPIXELSHADERDEF) - 3 * sizeof(DWORD));
+		// Copy the PSDef.PSTextureModes field to it's dedicated slot, which lies outside the range of PixelShader render state slots
+		// Note : This seems to be what XDK's do as well. Needs verification.
+		SetGuestRenderState(X_D3DRS_PSTEXTUREMODES, pPSDef->PSTextureModes);
+
+		auto shader = CreateShader(ResourceType::PixelShader);
+
+		if (shader == nullptr)
+		{
+			return;
+		}
+		else
+		{
+			cmd.setPixelShader.shader = shader;
+		}
+	}
+	else
+	{
+		cmd.setPixelShader.shader = nullptr;
+	}
+
+	//SetGuestRenderState(X_D3DRS_PSTEXTUREMODES, 
+
+	cmd.setPixelShader.isFixed = Handle == 0;
 	g_renderQueue.enqueue(cmd);
 }
+
+//SetPixelShaderConstant
+X86_FUNC_IMPL(__imp__sub_3DC790);
+X86_FUNC(sub_3DC790)
+{
+	__imp__sub_3DC790(ctx, base);
+	UpdatePixelShaderConstant(psh_constants);
+
+}
+bool isNonFixedPS = false;
+
 
 static void ProcSetPixelShader(const RenderCommand& cmd)
 {
@@ -3010,7 +3105,7 @@ static void DrawProfiler()
 
 	if (!g_profilerVisible)
 		return;
-
+	
 	ImFont* font = ImGui::GetIO().Fonts->Fonts[0];
 	float defaultScale = font->Scale;
 	font->Scale = ImGui::GetDefaultFont()->FontSize / font->FontSize;
@@ -4733,7 +4828,7 @@ void SetTexture(uint32_t stage, GuestTexture* texture)
 	cmd.setTexture.index = stage;
 	cmd.setTexture.texture = texture;
 	cmd.setTexture.isFixed = g_Xbox_VertexShaderMode == VertexShaderMode::FixedFunction;
-
+	g_texturesPSDef[stage] = texture;
 	g_renderQueue.enqueue(cmd);
 }
 
@@ -5683,7 +5778,8 @@ static std::unique_ptr<RenderPipeline> CreateGraphicsPipeline(const PipelineStat
 		desc.vertexShader = GetOrLinkShader(pipelineState.vertexShader, pipelineState.specConstants);
 	}
 
-	desc.pixelShader = FixedFuncPS.get();//pipelineState.pixelShader != nullptr ? GetOrLinkShader(pipelineState.pixelShader, pipelineState.specConstants) : nullptr;
+
+	desc.pixelShader = pipelineState.isFixedFunctionPS ? FixedFuncPS.get() : GetOrLinkShader(pipelineState.pixelShader, pipelineState.specConstants);//pipelineState.pixelShader != nullptr ? GetOrLinkShader(pipelineState.pixelShader, pipelineState.specConstants) : nullptr;
 	desc.depthFunction = pipelineState.zFunc;
 	desc.depthEnabled = pipelineState.zEnable; //Xbox likes to enable ZEnable without a depth stencil
 	desc.depthWriteEnabled = pipelineState.zWriteEnable;
@@ -5951,6 +6047,27 @@ void* GetDataFromXboxResource(X_D3DResource* pXboxResource)
 	return (uint8_t*)pData;
 }
 
+inline int GetXboxPixelContainerDimensionCount(const X_D3DPixelContainer* pXboxPixelContainer)
+{
+	// Don't pass in unassigned Xbox pixel container
+	assert(pXboxPixelContainer != xbox::zeroptr);
+
+	return (X_D3DFORMAT)((pXboxPixelContainer->Format & X_D3DFORMAT_DIMENSION_MASK) >> X_D3DFORMAT_DIMENSION_SHIFT);
+}
+
+X_D3DRESOURCETYPE GetXboxTextureType(const X_D3DResource* pXboxResource)
+{
+	DWORD Format = ((X_D3DPixelContainer*)pXboxResource)->Format;
+
+	if (Format & X_D3DFORMAT_CUBEMAP)
+		return X_D3DRTYPE_CUBETEXTURE;
+
+	if (GetXboxPixelContainerDimensionCount((X_D3DPixelContainer*)pXboxResource) > 2)
+		return X_D3DRTYPE_VOLUMETEXTURE;
+
+	return X_D3DRTYPE_TEXTURE;
+}
+
 void UpdateUserConfigConstant(bool toggle)
 {
 	// upload user resolution to add HD resolution 
@@ -6064,9 +6181,14 @@ static void FlushRenderStateForMainThread(LocalRenderCommandQueue& queue)
 	hash = XXH3_64bits(&psh_constants[0][0], sizeof(psh_constants));
 	isDirty = g_lastPixelShaderConstants != hash;
 
-	if (isDirty) //TODO
+	if (isDirty) 
 	{
-
+		auto& cmd = queue.enqueue();
+		cmd.type = RenderCommandType::SetPixelShaderConstants;
+		cmd.setPixelShaderConstants.memory =
+			g_intermediaryUploadAllocator.allocate(&psh_constants[0][0], PSH_XBOX_CONSTANT_MAX * sizeof(float) * 4);
+		cmd.setPixelShaderConstants.index = 0;
+		cmd.setPixelShaderConstants.size = PSH_XBOX_CONSTANT_MAX;
 		g_lastPixelShaderConstants = hash;
 	}
 }
@@ -6956,14 +7078,17 @@ static void ProcSetVertexShaderConstants(const RenderCommand& cmd)
 	g_dirtyStates.vertexShaderConstants = true;
 }
 
-//TODO
+
 static void ProcSetPixelShaderConstants(const RenderCommand& cmd)
 {
-	/**auto& args = cmd.setPixelShaderConstants;
-	assert((args.index * sizeof(uint32_t) + args.size) <= sizeof(g_pixelShaderConstants));
+	auto& args = cmd.setPixelShaderConstants;
 
-	memcpy(&g_pixelShaderConstants[args.index], args.memory, args.size);
-	g_dirtyStates.pixelShaderConstants = true;*/
+	assert((args.index + args.size) * 4 <= PSH_XBOX_CONSTANT_MAX * 4);
+
+	int sizeToCopy = args.size * 4 * sizeof(float);
+	sizeToCopy = sizeToCopy;
+	memcpy(&g_pixelShaderConstants[args.index * 4], args.memory, args.size * 4 * sizeof(float));
+	g_dirtyStates.pixelShaderConstants = true;
 }
 
 
@@ -7414,24 +7539,10 @@ X86_FUNC(sub_2DFE20)
 
 	ctx.esp.u32 -= 4;
 
+	X_D3DRESOURCETYPE textureType = GetXboxTextureType((X_D3DResource*)texture);
 
 
-
-	if (usage)
-	{
-		if (texture->Size)
-		{
-			auto  v7 = ((texture->Size >> 12) & 0xFFF) + 1;
-			v7 = v7;
-		}
-		else
-		{
-			auto v7 = 1 << ((texture->Format) & 0xF);
-			v7 = v7;
-		}
-	}
-
-	auto newTex = CreateTexture(info->width, info->height, 1, level, usage, format, X_D3DRTYPE_TEXTURE);
+	auto newTex = CreateTexture(info->width, info->height, 1, level, usage, format, textureType);
 
 	newTex->guestResource.Common = texture->Common;
 	newTex->guestResource.Data = texture->Data;
@@ -7579,7 +7690,7 @@ static std::thread g_renderThread([]
 					//case RenderCommandType::SetScissorRect:                    ProcSetScissorRect(cmd); break;
 				case RenderCommandType::SetTextureStageState:                   ProcSetTextureStageState(cmd); break;
 				case RenderCommandType::SetVertexShaderConstants:          ProcSetVertexShaderConstants(cmd); break;
-					//case RenderCommandType::SetPixelShaderConstants:           ProcSetPixelShaderConstants(cmd); break;
+				case RenderCommandType::SetPixelShaderConstants:           ProcSetPixelShaderConstants(cmd); break;
 				case RenderCommandType::DrawPrimitive:                     ProcDrawPrimitive(cmd); break;
 				case RenderCommandType::DrawIndexedPrimitive:              ProcDrawIndexedPrimitive(cmd); break;
 				case RenderCommandType::DrawPrimitiveUP:                   ProcDrawPrimitiveUP(cmd); break;
@@ -7611,11 +7722,6 @@ GUEST_FUNCTION_HOOK_STDCALL(sub_3D1F00, LoadVertexShaderProgram);
 GUEST_FUNCTION_HOOK_STDCALL(sub_3D1EA0, LoadVertexShader);
 GUEST_FUNCTION_HOOK_FASTCALL(sub_3D1CE0, D3DDevice_SetVertexShaderConstant1Fast);
 GUEST_FUNCTION_HOOK_FASTCALL(sub_3D1D30, D3DDevice_SetVertexShaderConstantNotInlineFast);
-
-//pixel shader
-GUEST_FUNCTION_HOOK_STDCALL(sub_3DC520, CreatePixelShader);
-GUEST_FUNCTION_HOOK_STDCALL(sub_3DC590, SetPixelShader);
-GUEST_FUNCTION_HOOK_STDCALL(sub_3DC790, SetPixelShaderConstants);
 
 
 GUEST_FUNCTION_HOOK_STDCALL(sub_3D0680, D3DDevice_SetViewport);

@@ -437,7 +437,7 @@ const uint8_t* CreateRecompiledShader(size_t handle, size_t* outSize)
 	exportHLSLFile = true;
 #endif
 
-	auto pShaderOut = XSR_CreateRecompiledShader(handle, pTokens, &shaderSize, outSize, isvulkan, exportHLSLFile);
+	auto pShaderOut = XSR_CreateRecompiledVertexShader(handle, pTokens, &shaderSize, outSize, isvulkan, exportHLSLFile);
 	return pShaderOut;
 
 }
