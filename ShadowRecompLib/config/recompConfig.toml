@@ -678,6 +678,7 @@ functions = [
 	{ address = 0x12BB0, size = 0x11C }, #broken size	
 	{ address = 0x203970, size = 0x555 }, #broken size	
 	{ address = 0x1F50B0, size = 0x123 }, #broken size
+	{ address = 0x2369f0, size = 0x10 }, 
 ]
 
 banned_addresses = [
@@ -693,6 +694,7 @@ banned_addresses = [
 	{ start = 0x2DD6D3, end = 0x2DD716 }, # force XBOXDeviceSystemOpen to work due to a weird adapter mode check that fail	
 	{ start = 0x35E884, end = 0x35ED1F },	
 	{ start = 0x365DE0, end = 0x36629F }, # jmp table mid function
+	{ start = 0x362304, end = 0x36279F }, # data between two functions
 ]
 
 invalid_instructions = [
