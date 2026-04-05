@@ -2,6 +2,7 @@
 #include <kernel/kernel.h>
 #include <gpu/video.h>
 #include <cpu/guest_thread.h>
+#include <os/logger.h>
 
 
 // While OG Xbox has thread support, it was originally a mono-core console, meaning threads weren't actually running in parallel
@@ -160,10 +161,45 @@ X86_FUNC(sub_2D8470)
 /* --- CSD Node Race --- */
 
 
+struct CSDTransfoMatrixNode
+{
+	float xA1;
+	DWORD xA2;
+	BYTE gap8[4];
+	float yA1;
+	float yA2;
+	float float14;
+	uint32_t pdword18;
+	uint32_t pdword1C;
+};
+
+CSDTransfoMatrixNode* csdTransfoMatrixNodeSourcePtr = nullptr;
+
 //CSDPushNewNode
+static int lastThreadIDCSDNode = 0;
+static int countExtraSleepFailSafe = 0;
 X86_FUNC_IMPL(__imp__sub_2B4440);
 X86_FUNC(sub_2B4440)
 {
+	// hacky fix to prevent the CSD node transformation function to be called by two threads at the same time, 
+	// which can cause some random nodes to be corrupted and crash the game when it tries to read them.
+	// mutex sadly does not work
+	while (lastThreadIDCSDNode && GuestThread::GetCurrentThreadId() != lastThreadIDCSDNode)
+	{
+		std::this_thread::sleep_for(std::chrono::milliseconds(100));
+		countExtraSleepFailSafe++;
+
+		// this shouldn't be reached ever, tests show that it never sleep more than twice per loading, but you never know.
+		if (countExtraSleepFailSafe > 1000)
+		{
+			countExtraSleepFailSafe = 0;
+			break;
+		}
+	}
+
+	lastThreadIDCSDNode = GuestThread::GetCurrentThreadId();
+	csdTransfoMatrixNodeSourcePtr = (CSDTransfoMatrixNode*)g_memory.Translate(X86_LOAD_U32(0x559E94));
+
 	RtlEnterCriticalSection(&csdNodeLock);
 	__imp__sub_2B4440(ctx, base);
 	RtlLeaveCriticalSection(&csdNodeLock);
@@ -177,14 +213,42 @@ X86_FUNC(sub_2B3ED0)
 	RtlEnterCriticalSection(&csdNodeLock);
 	__imp__sub_2B3ED0(ctx, base);
 	RtlLeaveCriticalSection(&csdNodeLock);
+
+	lastThreadIDCSDNode = 0;
 }
 
-// just an attempt
-X86_FUNC_IMPL(__imp__sub_2B3F00);
-X86_FUNC(sub_2B3F00)
+
+// this function is where the crash originally happens
+// on top of the sleep added above, an extra failsafe is added here in case this wasn't enough
+// this will be used mostly for debugging purpose.
+X86_FUNC_IMPL(__imp__sub_2B39A0);
+X86_FUNC(sub_2B39A0)
 {
-	RtlEnterCriticalSection(&csdNodeLock);
-	__imp__sub_2B3F00(ctx, base);
-	RtlLeaveCriticalSection(&csdNodeLock);
+	uint32_t transfoNodeSource = X86_LOAD_U32(0x559e94);
+	uint32_t transfoNodeDest = X86_LOAD_U32(0x559e98);
+
+	if (transfoNodeSource != transfoNodeDest)
+	{
+		uint32_t transfoNodeDest1C = X86_LOAD_U32(transfoNodeDest + 0x1c);
+
+		if (transfoNodeDest1C)
+		{
+			uint32_t pword1C = X86_LOAD_U32(transfoNodeSource + 0x1c);
+			if (!pword1C)
+			{
+#ifdef _WIN32
+				__debugbreak();
+#endif
+				ctx.eax.u32 = transfoNodeSource;
+				LOGFN_ERROR("pword1C is null, skipping CSD node transformation\n");
+				ctx.AddEsp(1);
+				return;
+			}
+		}
+	}
+
+
+	__imp__sub_2B39A0(ctx, base);
+
 }
 
