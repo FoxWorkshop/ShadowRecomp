@@ -27,7 +27,7 @@ public:
 
     static SDL_Surface* GetIconSurface(void* pIconBmp, size_t iconSize);
     static void SetIcon(void* pIconBmp, size_t iconSize);
-    static void GameWindow::SetIcon(ELedAura mode);
+    static void SetIcon(ELedAura mode);
     static const char* GetTitle();
     static void SetTitle(const char* title = nullptr);
     static void SetTitleBarColour();

@@ -2613,8 +2613,8 @@ GuestShader* CreateShader(ResourceType resourceType)
 			{
 				if (g_texturesPSDef[i])
 				{
-					int type = GetXboxTextureType((X_D3DResource*)g_memory.Translate((uint32_t)&g_texturesPSDef[i]->guestResource));
-					psdGuestInfo.ActiveTextureTypes[i] = type;
+					unsigned long type = (unsigned long)GetXboxTextureType((X_D3DResource*)g_memory.Translate((size_t)&g_texturesPSDef[i]->guestResource));
+					psdGuestInfo.ActiveTextureTypes[i] = (uint32_t)type;
 				}
 			}
 
@@ -6047,7 +6047,7 @@ void* GetDataFromXboxResource(X_D3DResource* pXboxResource)
 
 	DWORD dwCommonType = GetXboxCommonResourceType(pXboxResource);
 	pData |= PHYSICAL_MAP_BASE;
-	return (uint8_t*)pData;
+	return (std::uint32_t*)pData;
 }
 
 inline int GetXboxPixelContainerDimensionCount(const X_D3DPixelContainer* pXboxPixelContainer)
