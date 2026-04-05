@@ -458,11 +458,13 @@ static std::unique_ptr<RenderDevice> g_device;
 
 static RenderDeviceCapabilities g_capabilities;
 
-static constexpr size_t NUM_FRAMES = 2;
+//static constexpr size_t NUM_FRAMES = 2;
+static constexpr size_t NUM_FRAMES = 1;
 static constexpr size_t NUM_QUERIES = 2;
 
 uint32_t g_frame = 0;
-static uint32_t g_nextFrame = 1;
+//static uint32_t g_nextFrame = 1;
+static uint32_t g_nextFrame = 0;
 
 static std::unique_ptr<RenderCommandQueue> g_queue;
 static std::unique_ptr<RenderCommandList> g_commandLists[NUM_FRAMES];
@@ -563,7 +565,8 @@ struct UploadAllocator
 	}
 };
 
-static UploadAllocator g_uploadAllocators[NUM_FRAMES];
+//static UploadAllocator g_uploadAllocators[NUM_FRAMES];
+static UploadAllocator g_uploadAllocators[2];
 
 struct IntermediaryUploadAllocator
 {
@@ -3545,11 +3548,11 @@ void SleepPrecise(std::chrono::steady_clock::time_point targetTime)
 	}
 }
 
-uint64_t g_frameFenceValues[NUM_FRAMES] = { 0, 0 };
+
 static int copyCount;
 static int g_drawPrimitiveUP_ID = 0;
 static bool g_presentRequest = false;
-static size_t countRenderQueue = 0;
+static size_t countRenderQueue = 0; 
 
 void Video::Present()
 
@@ -6805,7 +6808,16 @@ GuestBuffer* GetGuestVertexBufferIndexed(int i, uint32_t minIdx, uint32_t maxIdx
 //On Xbox, VertexCount = IndexCount, both are the same
 void DrawIndexedPrimitive(X_D3DPRIMITIVETYPE PrimitiveType, uint32_t VertexCount, int16_t* pIndexData)
 {
-
+#ifdef _DEBUG //this is a breakpoint spot for debugging the light issue with tails muzzle in circus park.
+	if (VertexCount == 45)
+	{
+		printf("");
+	}
+	if (VertexCount == 417)
+	{
+		printf("");
+	}
+#endif
 	Guard_Rendering();
 
 	//shadow = 2192 vertex = stride 24 (32 with conversion)
