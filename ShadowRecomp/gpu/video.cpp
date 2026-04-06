@@ -2613,7 +2613,7 @@ GuestShader* CreateShader(ResourceType resourceType)
 			{
 				if (g_texturesPSDef[i])
 				{
-					unsigned long type = (unsigned long)GetXboxTextureType((X_D3DResource*)g_memory.Translate((size_t)&g_texturesPSDef[i]->guestResource));
+					unsigned long type = (unsigned long)GetXboxTextureType((X_D3DResource*)((size_t)&g_texturesPSDef[i]->guestResource));
 					psdGuestInfo.ActiveTextureTypes[i] = (uint32_t)type;
 				}
 			}
