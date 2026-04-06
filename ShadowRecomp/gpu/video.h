@@ -1065,6 +1065,13 @@ struct RwTexture
 	int32_t refCount;
 };
 
+enum DrawCallCaller
+{
+	Others,
+	LoadingLogo,
+	CompositeRT,
+
+};
 // Xbox vertex shader constant modes
 #define X_D3DSCM_96CONSTANTS                  0x00 // Enables constants 0..95
 #define X_D3DSCM_192CONSTANTS                 0x01 // Enables constants -96..-1 on top of 0..95

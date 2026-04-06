@@ -458,7 +458,7 @@ static std::unique_ptr<RenderDevice> g_device;
 
 static RenderDeviceCapabilities g_capabilities;
 
-//static constexpr size_t NUM_FRAMES = 2;
+static constexpr size_t old_NUM_FRAMES = 2;
 static constexpr size_t NUM_FRAMES = 1;
 static constexpr size_t NUM_QUERIES = 2;
 
@@ -467,10 +467,10 @@ uint32_t g_frame = 0;
 static uint32_t g_nextFrame = 0;
 
 static std::unique_ptr<RenderCommandQueue> g_queue;
-static std::unique_ptr<RenderCommandList> g_commandLists[NUM_FRAMES];
-static std::unique_ptr<RenderCommandFence> g_commandFences[NUM_FRAMES];
-static std::unique_ptr<RenderQueryPool> g_queryPools[NUM_FRAMES];
-static bool g_commandListStates[NUM_FRAMES];
+static std::unique_ptr<RenderCommandList> g_commandLists[old_NUM_FRAMES];
+static std::unique_ptr<RenderCommandFence> g_commandFences[old_NUM_FRAMES];
+static std::unique_ptr<RenderQueryPool> g_queryPools[old_NUM_FRAMES];
+static bool g_commandListStates[old_NUM_FRAMES];
 
 static Mutex g_copyMutex;
 static std::unique_ptr<RenderCommandQueue> g_copyQueue;
@@ -483,8 +483,8 @@ static bool g_swapChainValid;
 
 static constexpr RenderFormat BACKBUFFER_FORMAT = RenderFormat::B8G8R8A8_UNORM;
 
-static std::unique_ptr<RenderCommandSemaphore> g_acquireSemaphores[NUM_FRAMES];
-static std::unique_ptr<RenderCommandSemaphore> g_renderSemaphores[NUM_FRAMES];
+static std::unique_ptr<RenderCommandSemaphore> g_acquireSemaphores[old_NUM_FRAMES];
+static std::unique_ptr<RenderCommandSemaphore> g_renderSemaphores[old_NUM_FRAMES];
 static uint32_t g_backBufferIndex;
 static std::unique_ptr<GuestSurface> g_backBufferHolder;
 static GuestSurface* g_backBuffer;
@@ -615,8 +615,8 @@ struct IntermediaryUploadAllocator
 
 static IntermediaryUploadAllocator g_intermediaryUploadAllocator;
 
-static std::vector<GuestResource*> g_tempResources[NUM_FRAMES];
-static std::vector<std::unique_ptr<RenderBuffer>> g_tempBuffers[NUM_FRAMES];
+static std::vector<GuestResource*> g_tempResources[old_NUM_FRAMES];
+static std::vector<std::unique_ptr<RenderBuffer>> g_tempBuffers[old_NUM_FRAMES];
 
 
 float GetRenderTargetHeight()
@@ -1070,6 +1070,8 @@ struct RenderCommand
 			uint32_t vertexStreamZeroStride;
 			bool isFixed;
 			uint32_t ID;
+			DrawCallCaller caller;
+			uint32_t threadID;
 		} drawPrimitiveUP;
 
 
@@ -3551,9 +3553,8 @@ void SleepPrecise(std::chrono::steady_clock::time_point targetTime)
 
 static int copyCount;
 static int g_drawPrimitiveUP_ID = 0;
-static bool g_presentRequest = false;
-static size_t countRenderQueue = 0; 
-
+bool PresentAllowed = true;
+extern bool aboutToDrawLoading;
 void Video::Present()
 
 {
@@ -6935,6 +6936,14 @@ void DrawPrimitiveUP(X_D3DPRIMITIVETYPE PrimitiveType, uint32_t VertexCount, voi
 	cmd.drawPrimitiveUP.vertexStreamZeroSize = VertexCount * VertexStreamZeroStride;
 	cmd.drawPrimitiveUP.vertexStreamZeroStride = VertexStreamZeroStride;
 	cmd.drawPrimitiveUP.isFixed = g_Xbox_VertexShaderMode == VertexShaderMode::FixedFunction;
+	cmd.drawPrimitiveUP.threadID = GuestThread::GetCurrentThreadId();
+
+	if (drawCompositeRT)
+		cmd.drawPrimitiveUP.caller = CompositeRT;
+	else if (aboutToDrawLoading)
+		cmd.drawPrimitiveUP.caller = LoadingLogo;
+	else
+		cmd.drawPrimitiveUP.caller = Others;
 
 	queue.submit();
 	//	printf("Game called Draw Primitive UP - ID: %d, thread id %d - g_frame=%u\n", g_drawPrimitiveUP_ID, GetCurrentThreadId(), g_frame);
@@ -7181,14 +7190,16 @@ void LogFloat4(const char* name, const float* values, int count = 1) {
 
 // Function to log packed flags (treating as uint32 for bit inspection)
 void LogPackedFlags(const char* name, const float* values, int count = 4) {
+#ifdef _DEBUG
 	printf("%s (as float):\n", name);
 	LogFloat4(name, values, count);
 
 	printf("%s (as uint32 bits):\n", name);
 	for (int i = 0; i < count * 4; i++) {
-		DWORD intValue = *(DWORD*)&values[i];
+		int intValue = *(int*)&values[i];
 		printf("  [%d]: 0x%08X\n", i, intValue);
 	}
+#endif
 }
 
 

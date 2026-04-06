@@ -39,7 +39,7 @@ DWORD GetStrideFromVertexDeclaration(HostVertexDeclaration* pVertexDeclaration)
 
 	return Stride;
 }
-
+bool drawCompositeRT = false;
 void HLE_draw_inline_array(X_D3DPRIMITIVETYPE primitiveMode, int32_t VertexCount, void* VertexData)
 {
 
@@ -53,7 +53,9 @@ void HLE_draw_inline_array(X_D3DPRIMITIVETYPE primitiveMode, int32_t VertexCount
 	DWORD dwVertexStride = GetStrideFromVertexDeclaration(XSR_HostGetVertexDeclaration((size_t)g_memory.Translate(g_VertexShader_Handle), g_Xbox_VertexShaderMode == VertexShaderMode::FixedFunction));
 	if (dwVertexStride > 0)
 	{
+		drawCompositeRT = true;
 		DrawPrimitiveUP(primitiveMode, VertexCount, VertexData, dwVertexStride);
+		drawCompositeRT = false;
 	}
 }
 

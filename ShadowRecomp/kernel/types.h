@@ -147,7 +147,7 @@ namespace xbox
 #define IN
 #define OUT
 #define OPTIONAL
-#define UNALIGNED
+
 
 // ******************************************************************
 // * KPROCESSOR_MODE
