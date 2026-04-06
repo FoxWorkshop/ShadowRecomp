@@ -31,6 +31,7 @@
 #include <shader/shader_cache.h>
 #include <ui/imgui_utils.h>
 #include <xxHashMap.h>
+#include <patches/multi_core_patches.h>
 
 
 
@@ -1736,8 +1737,8 @@ static std::unique_ptr<GuestShader> g_enhancedMotionBlurShader;
         g_vulkan ? RenderShaderFormat::SPIRV : RenderShaderFormat::DXIL)
 
 #define CREATE_RUNTIME_SHADER(data, size) \
-    g_device->createShader(data, size, "main", \ 
-g_vulkan ? RenderShaderFormat::SPIRV : RenderShaderFormat::DXIL)
+    g_device->createShader(data, size, "main", \
+	g_vulkan ? RenderShaderFormat::SPIRV : RenderShaderFormat::DXIL)
 
 #else
 
@@ -2594,7 +2595,7 @@ GuestShader* CreateShader(ResourceType resourceType)
 	}
 	else
 	{
-		
+
 		/**size_t sizeShader = 0;
 		auto shaderData = CreateRecompiledShader(sizeShader);*/
 
@@ -2965,7 +2966,7 @@ int32_t CreatePixelShader(const uint32_t pPSDef, DWORD* pHandle)
 
 // SetPixelShader
 X86_FUNC_IMPL(__imp__sub_3DC590);
-X86_FUNC(sub_3DC590) 
+X86_FUNC(sub_3DC590)
 {
 	auto Handle = X86_LOAD_U32(ctx.esp.u32 + 4);
 
@@ -3110,7 +3111,7 @@ static void DrawProfiler()
 
 	if (!g_profilerVisible)
 		return;
-	
+
 	ImFont* font = ImGui::GetIO().Fonts->Fonts[0];
 	float defaultScale = font->Scale;
 	font->Scale = ImGui::GetDefaultFont()->FontSize / font->FontSize;
@@ -3524,31 +3525,7 @@ void Video::WaitOnSwapChain()
 static bool g_shouldPrecompilePipelines;
 static std::atomic<bool> g_executedCommandList;
 std::chrono::steady_clock::time_point frameStartTime;
-
-void SleepPrecise(std::chrono::steady_clock::time_point targetTime)
-{
-	using namespace std::chrono;
-	// If we don't need to wait, return right away
-
-	// Try to sleep for as much of the wait as we can
-	// to save CPU usage / power
-	// We expect sleep to overshoot, so give ourselves some extra time
-	// Note currently we ask Windows to give us 1ms timer resolution
-	constexpr auto sleepThreshold = 2ms; // Minimum remaining time before we attempt to use sleep
-
-	auto sleepFor = (targetTime - sleepThreshold) - steady_clock::now();
-	auto sleepMs = duration_cast<milliseconds>(sleepFor).count();
-
-	// Sleep if required
-	if (sleepMs >= 0) {
-		Sleep((DWORD)sleepMs);
-	}
-
-	// Spin wait
-	while (steady_clock::now() < targetTime) {
-		;
-	}
-}
+static std::atomic<bool> presentExecuted(true);
 
 
 static int copyCount;
@@ -3556,11 +3533,7 @@ static int g_drawPrimitiveUP_ID = 0;
 bool PresentAllowed = true;
 extern bool aboutToDrawLoading;
 void Video::Present()
-
 {
-
-	g_presentRequest = true;
-
 
 	//printf("[GAME THREAD] Present thread id %d - g_frame=%u\n", GetCurrentThreadId(), g_frame);
 
@@ -3583,9 +3556,11 @@ void Video::Present()
 	}
 
 	//printf("[GAME THREAD] Enqueued ExecuteCommandList, waiting...\n");
+	presentExecuted = false;
 	g_executedCommandList.wait(false);
 	g_executedCommandList = false;
 	//printf("[GAME THREAD] ExecuteCommandList completed\n");
+
 
 	if (g_swapChainValid)
 	{
@@ -3599,7 +3574,7 @@ void Video::Present()
 		RenderCommandSemaphore* signalSemaphores[] = { g_renderSemaphores[g_frame].get() };
 		g_swapChainValid = g_swapChain->present(g_backBufferIndex, signalSemaphores, std::size(signalSemaphores));
 	}
-	g_presentRequest = false;
+	presentExecuted = true;
 
 	g_pendingWaitOnSwapChain = true;
 
@@ -3670,7 +3645,6 @@ void Video::Present()
 
 	g_presentProfiler.Reset();
 	//printf("[GAME THREAD] Present END - g_frame=%u\n", g_frame);
-
 }
 
 void Video::StartPipelinePrecompilation()
@@ -6048,7 +6022,7 @@ void* GetDataFromXboxResource(X_D3DResource* pXboxResource)
 
 	DWORD dwCommonType = GetXboxCommonResourceType(pXboxResource);
 	pData |= PHYSICAL_MAP_BASE;
-	return (std::uint32_t*)pData;
+	return (xbox::addr_xt*)pData;
 }
 
 inline int GetXboxPixelContainerDimensionCount(const X_D3DPixelContainer* pXboxPixelContainer)
@@ -6185,7 +6159,7 @@ static void FlushRenderStateForMainThread(LocalRenderCommandQueue& queue)
 	hash = XXH3_64bits(&psh_constants[0][0], sizeof(psh_constants));
 	isDirty = g_lastPixelShaderConstants != hash;
 
-	if (isDirty) 
+	if (isDirty)
 	{
 		auto& cmd = queue.enqueue();
 		cmd.type = RenderCommandType::SetPixelShaderConstants;
@@ -6699,7 +6673,7 @@ void DrawPrimitive(X_D3DPRIMITIVETYPE PrimitiveType, uint32_t StartVertex, uint3
 			else
 			{
 				const size_t originalSize = VertexCount * alignedStride;
-				vertexParticles = (uint8_t*)g_intermediaryUploadAllocator.allocate(VertexCount * alignedStride); 
+				vertexParticles = (uint8_t*)g_intermediaryUploadAllocator.allocate(VertexCount * alignedStride);
 				memcpy(vertexParticles, pXboxVertexData, originalSize);
 			}
 
@@ -6916,9 +6890,20 @@ static void ProcDrawIndexedPrimitive(const RenderCommand& cmd)
 	g_commandLists[g_frame]->drawIndexedInstanced(args.primCount, 1, args.startIndex, args.baseVertexIndex, 0);
 }
 extern bool captureNow;
+extern bool drawCompositeRT;
+
+
 //D3DDevice_DrawVerticesUP - used for 2D Stuff, does not require a vertex buffer (originally)
 void DrawPrimitiveUP(X_D3DPRIMITIVETYPE PrimitiveType, uint32_t VertexCount, void* pVertexStreamZeroData, uint32_t VertexStreamZeroStride)
 {
+	// dirty hack to attempt to fix barrier crash, 
+	// the crash happens when the main thread is trying to draw while the loading thread is calling present
+	// the render thread does not like getting new command queue while processing Present.
+	while (aboutToDrawLoading && GuestThread::GetCurrentThreadId() != GetLoadingThreadID())
+	{
+		std::this_thread::sleep_for(std::chrono::milliseconds(100));
+	}
+
 	Guard_Rendering();
 
 	LocalRenderCommandQueue queue;
@@ -7090,7 +7075,6 @@ static void ProcSetVertexShaderConstants(const RenderCommand& cmd)
 {
 	auto& args = cmd.setVertexShaderConstants;
 
-	//assert((args.index * sizeof(uint32_t) + args.size) <= sizeof(g_vertexShaderConstants));
 	assert((args.index + args.size) * 4 <= HOST_D3DVS_CONSTREG_FULL * 4);
 	if (args.isFixedFunc)
 		memcpy(&g_vertexShaderConstantsFixed[args.index * 4], args.memory, args.size * 4 * sizeof(float));
@@ -7380,7 +7364,7 @@ void CopyTextureToGPU(GuestTexture* tex)
 			uint32_t dstBpp = bConvertARGB ? 32 : XBFormatBitsPerPixel(format); // 32 bits if converting to ARGB
 			uint32_t rawDstRowPitch = (slice.width * dstBpp) / 8;
 
-			if (bCompressed) 
+			if (bCompressed)
 			{
 				uint32_t blockCols = (slice.width + 3) / 4;
 				rawDstRowPitch = blockCols * blockSize;
@@ -7391,7 +7375,7 @@ void CopyTextureToGPU(GuestTexture* tex)
 
 			uint32_t alignedSliceSize = (slice.dstRowPitch * slice.rowCount * slice.depth + PLACEMENT_ALIGNMENT - 1) & ~(PLACEMENT_ALIGNMENT - 1);
 
-			curSrcOffset += mipSlicePitch;	
+			curSrcOffset += mipSlicePitch;
 			curDstOffset += alignedSliceSize;
 		}
 	}
@@ -7691,7 +7675,6 @@ static std::thread g_renderThread([]
 			size_t count = g_renderQueue.wait_dequeue_bulk(commands, std::size(commands));
 			for (size_t i = 0; i < count; i++)
 			{
-				countRenderQueue = count;
 				auto& cmd = commands[i];
 				switch (cmd.type)
 				{

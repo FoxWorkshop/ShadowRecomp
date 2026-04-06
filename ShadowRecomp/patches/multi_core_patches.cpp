@@ -13,7 +13,7 @@
 
 static std::unordered_map<uint32_t, uint32_t> g_threadDicts;
 static std::mutex g_threadDictsMutex;
-
+static int loadingThreadID = 0;
 
 XRTL_CRITICAL_SECTION dirtyListLock;
 XRTL_CRITICAL_SECTION csdNodeLock;
@@ -241,6 +241,7 @@ X86_FUNC(sub_2B39A0)
 #endif
 				ctx.eax.u32 = transfoNodeSource;
 				LOGFN_ERROR("pword1C is null, skipping CSD node transformation\n");
+			
 				ctx.AddEsp(1);
 				return;
 			}
@@ -251,4 +252,17 @@ X86_FUNC(sub_2B39A0)
 	__imp__sub_2B39A0(ctx, base);
 
 }
+bool aboutToDrawLoading = false;
+X86_FUNC_IMPL(__imp__sub_59BB0);
+X86_FUNC(sub_59BB0)
+{
+	aboutToDrawLoading = true;
+	loadingThreadID = GuestThread::GetCurrentThreadId();
+	__imp__sub_59BB0(ctx, base);
+	aboutToDrawLoading = false;
+}
 
+int GetLoadingThreadID()
+{
+	return loadingThreadID;
+}
