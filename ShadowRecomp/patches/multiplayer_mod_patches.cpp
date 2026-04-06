@@ -2,9 +2,22 @@
 #include <kernel/function.h>
 
 // Uncomment the define below to enable 2P co-op in 1P mode.
-//#define Enable2PLite
+#define Enable2PLite
 
 #ifdef Enable2PLite
+
+
+// Skip 2P Intro Event by patching StageAction::Change - NOTE DANGEROUS!! Should be replaced later
+X86_FUNC_IMPL(__imp__sub_16DB80);
+X86_FUNC(sub_16DB80)
+{
+	auto thisAddr = ctx.ecx.u32;
+	auto stageAction = (int)GetHostParameter(2, CallConvention::Thiscall, ParameterType::Integer);
+	if (stageAction == 0xC) {
+		X86_STORE_U8(ctx.esp.u32 + 4, 0x3);
+	}
+	__imp__sub_16DB80(ctx, base);
+}
 
 // Patch the TBlock / Chunk to check P2 if P1 returns false
 X86_FUNC_IMPL(__imp__sub_12700);
@@ -19,7 +32,6 @@ X86_FUNC(sub_12700)
 		X86_STORE_U32(ctx.esp.u32 + 12, playerPosGuest);
 		__imp__sub_12700(ctx, base); // P2
 	}
-
 }
 
 //sub_226E50 // Skip all event loading
