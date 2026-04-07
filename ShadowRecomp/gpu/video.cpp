@@ -3882,8 +3882,7 @@ static RenderFormat ConvertFormat(X_D3DFORMAT format)
 	}
 }
 
-// This is needed because of how strict D3D12 on new Windows versions
-// Otherwise this can crash under specific windows 11 version with VS installed.
+// This is needed because uninitialized RT / depth can crash the game under specific windows version if (and only if) VS is installed.
 void DiscardInitRenderResource(GuestBaseTexture* texture, const RenderTextureFlags flags)
 {
 	if (flags == RenderTextureFlag::DEPTH_TARGET || flags == RenderTextureFlag::RENDER_TARGET)
