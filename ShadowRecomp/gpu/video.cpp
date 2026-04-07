@@ -3882,6 +3882,27 @@ static RenderFormat ConvertFormat(X_D3DFORMAT format)
 	}
 }
 
+// This is needed because of how strict D3D12 on new Windows versions
+// Otherwise this can crash under specific windows 11 version with VS installed.
+void DiscardInitRenderResource(GuestBaseTexture* texture, const RenderTextureFlags flags)
+{
+	if (flags == RenderTextureFlag::DEPTH_TARGET || flags == RenderTextureFlag::RENDER_TARGET)
+	{
+		auto targetLayout = (flags == RenderTextureFlag::DEPTH_TARGET)
+			? RenderTextureLayout::DEPTH_WRITE
+			: RenderTextureLayout::COLOR_WRITE;
+		AddBarrier(texture, targetLayout);
+		FlushBarriers();
+		auto& commandList = g_commandLists[g_frame];
+		commandList->discardTexture(texture->texture);
+		if (flags == RenderTextureFlag::DEPTH_TARGET)
+			AddBarrier(texture, RenderTextureLayout::DEPTH_READ);
+		else
+			AddBarrier(texture, RenderTextureLayout::SHADER_READ);
+		FlushBarriers();
+	}
+}
+
 //todo check if this is all correct
 static GuestTexture* CreateTexture(uint32_t width, uint32_t height, uint32_t depth, uint32_t levels, uint32_t usage, X_D3DFORMAT format, X_D3DRESOURCETYPE type)
 {
@@ -3947,6 +3968,8 @@ static GuestTexture* CreateTexture(uint32_t width, uint32_t height, uint32_t dep
 	texture->format = desc.format;
 	texture->viewDimension = viewDesc.dimension;
 	texture->descriptorIndex = g_textureDescriptorAllocator.allocate();
+
+	DiscardInitRenderResource(texture, desc.flags);
 
 	g_textureDescriptorSet->setTexture(texture->descriptorIndex, texture->texture, RenderTextureLayout::SHADER_READ, texture->textureView.get());
 
@@ -4127,6 +4150,10 @@ static GuestSurface* CreateSurface(uint32_t width, uint32_t height, X_D3DFORMAT 
 #ifdef _DEBUG 
 	surface->texture->setName(fmt::format("{} {:X}", desc.flags & RenderTextureFlag::RENDER_TARGET ? "Render Target" : "Depth Stencil", g_memory.MapVirtual(surface)));
 #endif
+
+
+	DiscardInitRenderResource(surface, desc.flags);
+	
 
 	surface->guestResource.Format = format;
 	return surface;
@@ -5322,7 +5349,7 @@ static void ProcClear(const RenderCommand& cmd)
 			SetFramebuffer(g_renderTarget, nullptr, true);
 		}
 
-
+		
 		commandList->clearColor(0, RenderColor(args.color[0], args.color[1], args.color[2], args.color[3]));
 	}
 
