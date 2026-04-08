@@ -2666,6 +2666,50 @@ GuestShader* CreateShader(ResourceType resourceType)
 			{
 				shader->shader = CREATE_SHADER(R2D_vs1);
 			}
+			else if (hash == 0xcee36c8c99adc694)  //Shadow uses this shader
+			{
+				shader->shader = CREATE_SHADER(Rcharacters_vs0);
+			}
+			else if (hash == 0xdfae999de3ea6283)
+			{
+				shader->shader = CREATE_SHADER(Rcharacters_vs1);
+			}
+			else if (hash == 0x70f76babf348a2b8)
+			{
+				shader->shader = CREATE_SHADER(Reyedoom_vs);
+			}
+			else if (hash == 0xebec9b6d9de987da)
+			{
+				shader->shader = CREATE_SHADER(Rblack_bull_vs);
+			}
+			else if (hash == 0x15a6de0f9b750cb6) //used to draw sonk eyes and wrist
+			{
+				shader->shader = CREATE_SHADER(Rcharacters_vs2);
+			}
+			else if (hash == 0xb4688dd3697caa3b)
+			{
+				shader->shader = CREATE_SHADER(Rcharacters_vs3);
+			}
+			else if (hash == 0x20dcefa19e31eaf3) //Sonk's body uses this shader
+			{
+				shader->shader = CREATE_SHADER(Rcharacters_vs4);
+			}
+			else if (hash == 0x7fdce39d83a5ebbc)
+			{
+				shader->shader = CREATE_SHADER(Raura_hero_dark_body_vs);
+			}
+			else if (hash == 0xd7c5370023c4140d)
+			{
+				shader->shader = CREATE_SHADER(Raura_hero_dark_eye_vs);
+			}
+			else if (hash == 0x93adf9d6988519b4)
+			{
+				shader->shader = CREATE_SHADER(Rchaos_vs);
+			}
+			else if (hash == 0x651285052f420938)
+			{
+				shader->shader = CREATE_SHADER(Rshadow_event_vs);
+			}
 			else
 			{
 				size_t sizeShader = 0;
