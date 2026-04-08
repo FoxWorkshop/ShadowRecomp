@@ -1778,6 +1778,25 @@ static void ExecuteCopyCommandList(const T& function)
 	g_copyQueue->waitForCommandFence(g_copyCommandFence.get());
 }
 
+// this new commandList is needed for the unitialized resource (RT / Depth) that need to be cleared before being used
+// To avoid race issues with the main command list, we use a separate command list and queue.
+static std::mutex g_initMutex;
+static std::unique_ptr<RenderCommandList> g_initCommandList;
+static std::unique_ptr<RenderCommandFence> g_initCommandFence;
+static std::unique_ptr<RenderCommandQueue> g_initQueue;
+
+
+template<typename T>
+static void ExecuteInitCommandList(const T& function)
+{
+	std::lock_guard lock(g_initMutex);
+	g_initCommandList->begin();
+	function();
+	g_initCommandList->end();
+	g_initQueue->executeCommandLists(g_initCommandList.get(), g_initCommandFence.get());
+	g_initQueue->waitForCommandFence(g_initCommandFence.get());
+}
+
 
 static constexpr uint32_t PITCH_ALIGNMENT = 0x100;
 static constexpr uint32_t PLACEMENT_ALIGNMENT = 0x200;
@@ -2285,6 +2304,11 @@ bool Video::CreateHostDevice(const char* sdlVideoDriver, bool graphicsApiRetry)
 	g_copyCommandList = g_copyQueue->createCommandList();
 	g_copyCommandFence = g_device->createCommandFence();
 
+	// used for unitial resource (RT / Depth) as explained above
+	g_initQueue = g_device->createCommandQueue(RenderCommandListType::DIRECT);
+	g_initCommandList = g_initQueue->createCommandList();
+	g_initCommandFence = g_device->createCommandFence();
+
 	uint32_t bufferCount = 2;
 
 	switch (Config::TripleBuffering)
@@ -2641,50 +2665,6 @@ GuestShader* CreateShader(ResourceType resourceType)
 			else if (hash == 0xcefa8ae484bff7a2)
 			{
 				shader->shader = CREATE_SHADER(R2D_vs1);
-			}
-			else if (hash == 0xcee36c8c99adc694)  //Shadow uses this shader
-			{
-				shader->shader = CREATE_SHADER(Rcharacters_vs0);
-			}
-			else if (hash == 0xdfae999de3ea6283)
-			{
-				shader->shader = CREATE_SHADER(Rcharacters_vs1);
-			}
-			else if (hash == 0x70f76babf348a2b8)
-			{
-				shader->shader = CREATE_SHADER(Reyedoom_vs);
-			}
-			else if (hash == 0xebec9b6d9de987da)
-			{
-				shader->shader = CREATE_SHADER(Rblack_bull_vs);
-			}
-			else if (hash == 0x15a6de0f9b750cb6) //used to draw sonk eyes and wrist
-			{
-				shader->shader = CREATE_SHADER(Rcharacters_vs2);
-			}
-			else if (hash == 0xb4688dd3697caa3b)
-			{
-				shader->shader = CREATE_SHADER(Rcharacters_vs3);
-			}
-			else if (hash == 0x20dcefa19e31eaf3) //Sonk's body uses this shader
-			{
-				shader->shader = CREATE_SHADER(Rcharacters_vs4);
-			}
-			else if (hash == 0x7fdce39d83a5ebbc)
-			{
-				shader->shader = CREATE_SHADER(Raura_hero_dark_body_vs);
-			}
-			else if (hash == 0xd7c5370023c4140d)
-			{
-				shader->shader = CREATE_SHADER(Raura_hero_dark_eye_vs);
-			}
-			else if (hash == 0x93adf9d6988519b4)
-			{
-				shader->shader = CREATE_SHADER(Rchaos_vs);
-			}
-			else if (hash == 0x651285052f420938)
-			{
-				shader->shader = CREATE_SHADER(Rshadow_event_vs);
 			}
 			else
 			{
@@ -3883,23 +3863,21 @@ static RenderFormat ConvertFormat(X_D3DFORMAT format)
 }
 
 // This is needed because uninitialized RT / depth can crash the game under specific windows version if (and only if) VS is installed.
-void DiscardInitRenderResource(GuestBaseTexture* texture, const RenderTextureFlags flags)
+void DiscardInitRenderResource(GuestBaseTexture* texture, const bool isRT)
 {
-	if (flags == RenderTextureFlag::DEPTH_TARGET || flags == RenderTextureFlag::RENDER_TARGET)
-	{
-		auto targetLayout = (flags == RenderTextureFlag::DEPTH_TARGET)
-			? RenderTextureLayout::DEPTH_WRITE
-			: RenderTextureLayout::COLOR_WRITE;
-		AddBarrier(texture, targetLayout);
-		FlushBarriers();
-		auto& commandList = g_commandLists[g_frame];
-		commandList->discardTexture(texture->texture);
-		if (flags == RenderTextureFlag::DEPTH_TARGET)
-			AddBarrier(texture, RenderTextureLayout::DEPTH_READ);
-		else
-			AddBarrier(texture, RenderTextureLayout::SHADER_READ);
-		FlushBarriers();
-	}
+
+	auto targetLayout = (isRT == false)
+		? RenderTextureLayout::DEPTH_WRITE
+		: RenderTextureLayout::COLOR_WRITE;
+
+	ExecuteInitCommandList([&]
+			{
+				g_initCommandList->barriers(RenderBarrierStage::GRAPHICS, RenderTextureBarrier(texture->texture, targetLayout));
+				g_initCommandList->discardTexture(texture->texture);
+				g_initCommandList->barriers(RenderBarrierStage::GRAPHICS, RenderTextureBarrier(texture->texture, RenderTextureLayout::SHADER_READ));
+			});
+	
+
 }
 
 //todo check if this is all correct
@@ -3968,7 +3946,10 @@ static GuestTexture* CreateTexture(uint32_t width, uint32_t height, uint32_t dep
 	texture->viewDimension = viewDesc.dimension;
 	texture->descriptorIndex = g_textureDescriptorAllocator.allocate();
 
-	DiscardInitRenderResource(texture, desc.flags);
+	if (desc.flags == RenderTextureFlag::DEPTH_TARGET || desc.flags == RenderTextureFlag::RENDER_TARGET)
+	{
+		DiscardInitRenderResource(texture, desc.flags == RenderTextureFlag::RENDER_TARGET);
+	}
 
 	g_textureDescriptorSet->setTexture(texture->descriptorIndex, texture->texture, RenderTextureLayout::SHADER_READ, texture->textureView.get());
 
@@ -4150,8 +4131,10 @@ static GuestSurface* CreateSurface(uint32_t width, uint32_t height, X_D3DFORMAT 
 	surface->texture->setName(fmt::format("{} {:X}", desc.flags & RenderTextureFlag::RENDER_TARGET ? "Render Target" : "Depth Stencil", g_memory.MapVirtual(surface)));
 #endif
 
-
-	DiscardInitRenderResource(surface, desc.flags);
+	if (desc.flags == RenderTextureFlag::DEPTH_TARGET || desc.flags == RenderTextureFlag::RENDER_TARGET)
+	{
+		DiscardInitRenderResource(surface, desc.flags == RenderTextureFlag::RENDER_TARGET);
+	}
 	
 
 	surface->guestResource.Format = format;

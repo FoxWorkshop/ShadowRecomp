@@ -113,7 +113,7 @@ GuestThreadContext::GuestThreadContext(GuestThreadParams params)
 
 	
 	unsigned EspAddr = g_memory.MapVirtual(stack_top);
-	auto sizeReserved = GenerateStackSize(EspAddr, params.tlsSize); //this is needed to enssure ESP start at the right place
+	auto sizeReserved = GenerateStackSize(EspAddr, params.tlsSize); //this is needed to ensure ESP start at the right place
 	EspAddr -= sizeReserved;
 
 	assert(stack_limit < stack_top);
@@ -173,8 +173,8 @@ GuestThreadContext::GuestThreadContext(GuestThreadParams params)
 
 	if (isHostThread == false)
 	{
-		printf("StackBase: 0x%08X, StackLimit: 0x%08X, StackSize: 0x%08X  NtTibStackBase: 0x%08X,  TlsData: 0x%08X\n",
-			eThread->Tcb.StackBase, eThread->Tcb.StackLimit, eThread->Tcb.StackBase - eThread->Tcb.StackLimit,  AdjustedStackBase, eThread->Tcb.TlsData);
+		/**printf("StackBase: 0x%08X, StackLimit: 0x%08X, StackSize: 0x%08X  NtTibStackBase: 0x%08X,  TlsData: 0x%08X\n",
+			eThread->Tcb.StackBase, eThread->Tcb.StackLimit, eThread->Tcb.StackBase - eThread->Tcb.StackLimit,  AdjustedStackBase, eThread->Tcb.TlsData);*/
 
 		int addr = g_memory.MapVirtual(thread) + 0x4;
 		auto base = g_memory.base;
