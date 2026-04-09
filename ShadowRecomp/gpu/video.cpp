@@ -3234,6 +3234,7 @@ static void DrawProfiler()
 
 		ImGui::NewLine();
 		ImGui::Checkbox("Show FPS", &Config::ShowFPS.Value);
+		ImGui::Checkbox("2P Lite", &Config::Enable2PLite.Value);
 		ImGui::NewLine();
 
 		if (ImGui::TreeNode("Device Names"))
