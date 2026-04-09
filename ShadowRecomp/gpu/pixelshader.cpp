@@ -144,9 +144,9 @@ void UpdatePixelShaderConstant(uint32_t(*psh_constants)[4])
 	fColor[PSH_XBOX_CONSTANT_FRONTFACE_FACTOR].r = frontfaceFactor;
 	float fogEnable = GetGuestRenderState(X_D3DRS_FOGENABLE) > 0;
 	const float fogTableMode = GetGuestRenderState(X_D3DRENDERSTATETYPE::X_D3DRS_FOGTABLEMODE);
-	const float fogDensity = GetGuestRenderState(X_D3DRENDERSTATETYPE::X_D3DRS_FOGDENSITY);
-	const float fogStart = GetGuestRenderState(X_D3DRENDERSTATETYPE::X_D3DRS_FOGSTART);
-	const float fogEnd = GetGuestRenderState(X_D3DRENDERSTATETYPE::X_D3DRS_FOGEND);
+	const float fogDensity = GetGuestRenderStateAsFloat(X_D3DRENDERSTATETYPE::X_D3DRS_FOGDENSITY);
+	const float fogStart = GetGuestRenderStateAsFloat(X_D3DRENDERSTATETYPE::X_D3DRS_FOGSTART);
+	const float fogEnd = GetGuestRenderStateAsFloat(X_D3DRENDERSTATETYPE::X_D3DRS_FOGEND);
 
 	fColor[HOST_D3DPS_CONSTREG_FOGINFO].r = fogTableMode;
 	fColor[HOST_D3DPS_CONSTREG_FOGINFO].g = fogDensity;
