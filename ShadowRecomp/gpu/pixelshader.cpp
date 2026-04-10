@@ -51,8 +51,8 @@ void UpdatePixelShaderCacheEntryNew(GuestShader* shader, const uint64_t key)
 GuestShader* FindPixelShaderCacheEntryNew(const uint32_t pXboxPixelShaderDef)
 {
 
-	auto VertexShaderKey = GetPixelShaderKey(pXboxPixelShaderDef);
-	auto it = pixelCache.find(VertexShaderKey);
+	auto PShaderKey = GetPixelShaderKey(pXboxPixelShaderDef);
+	auto it = pixelCache.find(PShaderKey);
 	if (it != pixelCache.end())
 	{
 		return it->second;
@@ -73,7 +73,7 @@ static void UnpackColor(DWORD color, D3DXCOLOR* fColor)
 void UpdatePixelShaderConstant(uint32_t(*psh_constants)[4])
 {
 	D3DXCOLOR fColor[PSH_XBOX_CONSTANT_MAX];
-
+	memset(fColor, 0, sizeof(fColor));
 	// PSH_XBOX_CONSTANT_C0..C15 are stored as-is in (and should thus be read from) the Xbox render state pixel shader constant slots
 	for (unsigned constant_nr = 0; constant_nr < 16; constant_nr++) 
 	{
@@ -142,6 +142,9 @@ void UpdatePixelShaderConstant(uint32_t(*psh_constants)[4])
 	}
 
 	fColor[PSH_XBOX_CONSTANT_FRONTFACE_FACTOR].r = frontfaceFactor;
+	fColor[PSH_XBOX_CONSTANT_FRONTFACE_FACTOR].g = 0;
+	fColor[PSH_XBOX_CONSTANT_FRONTFACE_FACTOR].b = 0;
+	fColor[PSH_XBOX_CONSTANT_FRONTFACE_FACTOR].a = 0;
 	float fogEnable = GetGuestRenderState(X_D3DRS_FOGENABLE) > 0;
 	const float fogTableMode = GetGuestRenderState(X_D3DRENDERSTATETYPE::X_D3DRS_FOGTABLEMODE);
 	const float fogDensity = GetGuestRenderStateAsFloat(X_D3DRENDERSTATETYPE::X_D3DRS_FOGDENSITY);
@@ -153,7 +156,9 @@ void UpdatePixelShaderConstant(uint32_t(*psh_constants)[4])
 	fColor[HOST_D3DPS_CONSTREG_FOGINFO].b = fogStart;
 	fColor[HOST_D3DPS_CONSTREG_FOGINFO].a = fogEnd;
 	fColor[PSH_XBOX_CONSTANT_FOGENABLE].r = fogEnable;
-
+	fColor[PSH_XBOX_CONSTANT_FOGENABLE].g = 0;
+	fColor[PSH_XBOX_CONSTANT_FOGENABLE].b = 0;
+	fColor[PSH_XBOX_CONSTANT_FOGENABLE].a = 0;
 
 	float* float_vsh_constants = (float*)&(psh_constants[0][0]);
 	memcpy(float_vsh_constants, fColor, PSH_XBOX_CONSTANT_MAX * sizeof(float) * 4);
