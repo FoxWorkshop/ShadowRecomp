@@ -22,7 +22,7 @@ struct Transforms
 {
     float4x4 View;
     float4x4 Projection;
-    float4x4 Texture[4]; // c8-c23 (4 matrices × 4 regs each)
+    float4x4 Texture[4]; // c8-c23 (4 matrices x 4 regs each)
     float4x4 WorldView[4];
     float4x4 WorldViewInverseTranspose[4];
 };
@@ -170,13 +170,29 @@ struct PushConstants
 
 [[vk::push_constant]] ConstantBuffer<PushConstants> g_PushConstants;
 
-float4x4 LoadMatrix(uint addr)
+float4x4 LoadMatrix(uint64_t addr)
 {
     float4 r0 = vk::RawBufferLoad<float4>(addr + 0);
     float4 r1 = vk::RawBufferLoad<float4>(addr + 16);
     float4 r2 = vk::RawBufferLoad<float4>(addr + 32);
     float4 r3 = vk::RawBufferLoad<float4>(addr + 48);
     return float4x4(r0,r1,r2,r3);
+}
+
+Fog LoadFog(uint64_t addr)
+{
+    float4 f0 = vk::RawBufferLoad<float4>(addr);
+    float4 f1 = vk::RawBufferLoad<float4>(addr + 16);
+    Fog f;
+    f.Enable = f0.x;
+    f.DepthMode = f0.y;
+    f.TableMode = f0.z;
+    f.Density = f0.w;
+    f.Start = f1.x;
+    f.End = f1.y;
+    f._pad0 = f1.z;
+    f._pad1 = f1.w;
+    return f;
 }
 
 #define REG(cN) ((cN) * 16)
@@ -204,11 +220,11 @@ float4x4 LoadMatrix(uint addr)
 #define vRegisterDefaultValues(i) vk::RawBufferLoad<float4>(g_PushConstants.VertexShaderConstants + 192*16 + (i)*16)
 #define vRegisterDefaultFlagsPacked(i) vk::RawBufferLoad<float4>(g_PushConstants.VertexShaderConstants + 208*16 + (i)*16)
 
-#define TransfoView vk::RawBufferLoad<float4x4>(g_PushConstants.VertexShaderConstants + V_STRUCT_OFFSET(0, 0))
-#define TransfoProj vk::RawBufferLoad<float4x4>(g_PushConstants.VertexShaderConstants + V_STRUCT_OFFSET(4, 0))
-#define TransfoTex(i) vk::RawBufferLoad<float4x4>(g_PushConstants.VertexShaderConstants + V_STRUCT_OFFSET(8, (i)*64))
-#define TransfoWorldView(i)   vk::RawBufferLoad<float4x4>(g_PushConstants.VertexShaderConstants + V_STRUCT_OFFSET(24, (i)*64))
-#define TransfoWorldViewIT(i) vk::RawBufferLoad<float4x4>(g_PushConstants.VertexShaderConstants + V_STRUCT_OFFSET(40, (i)*64))
+#define TransfoView LoadMatrix(g_PushConstants.VertexShaderConstants + V_STRUCT_OFFSET(0, 0))
+#define TransfoProj LoadMatrix(g_PushConstants.VertexShaderConstants + V_STRUCT_OFFSET(4, 0))
+#define TransfoTex(i) LoadMatrix(g_PushConstants.VertexShaderConstants + V_STRUCT_OFFSET(8, (i)*64))
+#define TransfoWorldView(i)   LoadMatrix(g_PushConstants.VertexShaderConstants + V_STRUCT_OFFSET(24, (i)*64))
+#define TransfoWorldViewIT(i) LoadMatrix(g_PushConstants.VertexShaderConstants + V_STRUCT_OFFSET(40, (i)*64))
 
 
 #define PSPointSize \
@@ -267,7 +283,7 @@ vk::RawBufferLoad<float4>(g_PushConstants.VertexShaderConstants + V_STRUCT_OFFSE
 #define ModeNormalizeNormals LOAD_FLOAT(119,2)
 
 
-#define fog vk::RawBufferLoad<Fog>(g_PushConstants.VertexShaderConstants + V_STRUCT_OFFSET(120,0))
+#define fog LoadFog(g_PushConstants.VertexShaderConstants + V_STRUCT_OFFSET(120,0))
 
 #define TexState_TransfoFlagsCount(i) \
 vk::RawBufferLoad<float>(g_PushConstants.VertexShaderConstants + REG(122) + (i)*16 + 0)
