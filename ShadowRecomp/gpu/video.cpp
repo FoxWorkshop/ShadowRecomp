@@ -2627,14 +2627,18 @@ GuestShader* CreateShader(ResourceType resourceType)
 
 		if (resourceType == ResourceType::PixelShader)
 		{
+			uint64_t hash = GetPixelShaderKey(psDefReg);
+
+
+
 			size_t sizeShader = 0;
 
 			X_D3DPIXELSHADERDEF* pXboxPixelShaderDef = (X_D3DPIXELSHADERDEF*)(g_memory.Translate(psDefReg));
 			pixelShader_GuestInfo psdGuestInfo;
 			memset(&psdGuestInfo, 0, sizeof(psdGuestInfo));
 			psdGuestInfo.PSTextureModes = GetGuestRenderState(X_D3DRS_PSTEXTUREMODES);
-			psdGuestInfo.renderstateFogEnable = GetGuestRenderState(X_D3DRS_FOGENABLE);
-			psdGuestInfo.renderStateSpecularEnable = GetGuestRenderState(X_D3DRS_SPECULARENABLE);
+				psdGuestInfo.renderstateFogEnable = GetGuestRenderState(X_D3DRS_FOGENABLE) > 0;
+				psdGuestInfo.renderStateSpecularEnable = GetGuestRenderState(X_D3DRS_SPECULARENABLE) > 0;
 
 			for (int i = 0; i < 4; i++)
 			{
