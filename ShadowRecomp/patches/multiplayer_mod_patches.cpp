@@ -1,20 +1,18 @@
 #include "global.h"
 #include <kernel/function.h>
-
-// Uncomment the define below to enable 2P co-op in 1P mode.
-#define Enable2PLite
-
-#ifdef Enable2PLite
-
+#include <user/config.h>
 
 // Skip 2P Intro Event by patching StageAction::Change - NOTE DANGEROUS!! Should be replaced later
 X86_FUNC_IMPL(__imp__sub_16DB80);
 X86_FUNC(sub_16DB80)
 {
-	auto thisAddr = ctx.ecx.u32;
-	auto stageAction = (int)GetHostParameter(2, CallConvention::Thiscall, ParameterType::Integer);
-	if (stageAction == 0xC) {
-		X86_STORE_U8(ctx.esp.u32 + 4, 0x3);
+	if (Config::Enable2PLite)
+	{
+		auto thisAddr = ctx.ecx.u32;
+		auto stageAction = (int)GetHostParameter(2, CallConvention::Thiscall, ParameterType::Integer);
+		if (stageAction == 0xC) {
+			X86_STORE_U8(ctx.esp.u32 + 4, 0x3);
+		}
 	}
 	__imp__sub_16DB80(ctx, base);
 }
@@ -26,26 +24,37 @@ X86_FUNC(sub_12700)
 	auto beforeCTX = ctx;
 	__imp__sub_12700(ctx, base); // P1
 
-	if (ctx.eax.u8_lo == 0 && playerPos) { // Note: Runs twice now in SP - when we migrate to static playerCount we can change this to exit with < 2
-		ctx = beforeCTX; // restore ctx to before original call, so we can call it again with new params
-		auto playerPosGuest = g_memory.MapVirtual(playerPos); // NOTE: HACK - playerPos is last Shadow allocated, which is P2 in the case of MP; But we should change this to be a proper grab later
-		X86_STORE_U32(ctx.esp.u32 + 12, playerPosGuest);
-		__imp__sub_12700(ctx, base); // P2
+	if (Config::Enable2PLite)
+	{
+		if (ctx.eax.u8_lo == 0 && playerPos) { // Note: Runs twice now in SP - when we migrate to static playerCount we can change this to exit with < 2
+			ctx = beforeCTX; // restore ctx to before original call, so we can call it again with new params
+			auto playerPosGuest = g_memory.MapVirtual(playerPos); // NOTE: HACK - playerPos is last Shadow allocated, which is P2 in the case of MP; But we should change this to be a proper grab later
+			X86_STORE_U32(ctx.esp.u32 + 12, playerPosGuest);
+			__imp__sub_12700(ctx, base); // P2
+		}
 	}
 }
 
-//sub_226E50 // Skip all event loading
+
+X86_FUNC_IMPL(__imp__sub_226E50);
+// sub_226E50 // Skip all event loading - Currently required for 2P Lite
 bool skipAllEventLoading(DWORD* this_, int* a2, int a3, char a4)
 {
-	return 0;
+	if (Config::Enable2PLite)
+	{
+		return 0;
+	}
+	auto ctx = GetX86Context();
+	auto base = g_memory.base;
+	__imp__sub_226E50(*ctx, base);
+	ctx->esp.u32 -= 12;
+	return ctx->eax.u8_lo;
 }
 GUEST_FUNCTION_HOOK_THISCALL(sub_226E50, skipAllEventLoading);
 
 
 // 2P Lite Stuff
 /*
-
-// 0x463088 = lethal highway gamemode (for testing)
 
 TODO: Probably store a global to get stageTable offset per load, that way we can access it anywhere without worrying about it, or the mode.
 As a bonus, we can get the 0/1 (boss or normal stage) value and use that as the 'restore' reference
@@ -72,6 +81,8 @@ As a bonus, we can get the 0/1 (boss or normal stage) value and use that as the 
 
 // Westopolis StageTable GameMode 0x462F98
 // 0x50 per table instance, 0-22 = sets 0100 through 0700 [no bosses]
+// 23 Stage Slots [0-23]
+// 17 Boss Slots [23-39] - Note, skip 39 because Devil Doom has special rules we need to account for
 // Final Haunt StageTable GameMode 0x463628
 auto stageTableGameMode = 0x462F98;
 
@@ -79,12 +90,12 @@ auto stageTableGameMode = 0x462F98;
 X86_FUNC_IMPL(__imp__sub_16FEF0);
 X86_FUNC(sub_16FEF0)
 {
-
-	for (int i = 0; i <= 22; i++) {
-		X86_STORE_U32(stageTableGameMode + (0x50 * i), 6);
-		//X86_STORE_U32(stageTableGameMode + (0x50 * i), 0);
+	if (Config::Enable2PLite)
+	{
+		for (int i = 0; i <= 22; i++) {
+			X86_STORE_U32(stageTableGameMode + (0x50 * i), 6);
+		}
 	}
-
 	__imp__sub_16FEF0(ctx, base);
 }
 
@@ -92,11 +103,12 @@ X86_FUNC(sub_16FEF0)
 X86_FUNC_IMPL(__imp__sub_170850);
 X86_FUNC(sub_170850)
 {
-
-	for (int i = 0; i <= 22; i++) {
-		X86_STORE_U32(stageTableGameMode + (0x50 * i), 6);
+	if (Config::Enable2PLite)
+	{
+		for (int i = 0; i <= 38; i++) {
+			X86_STORE_U32(stageTableGameMode + (0x50 * i), 6);
+		}
 	}
-
 	__imp__sub_170850(ctx, base);
 }
 
@@ -104,11 +116,15 @@ X86_FUNC(sub_170850)
 X86_FUNC_IMPL(__imp__sub_281C50);
 X86_FUNC(sub_281C50)
 {
-
-	for (int i = 0; i <= 22; i++) {
-		X86_STORE_U32(stageTableGameMode + (0x50 * i), 0);
+	if (Config::Enable2PLite)
+	{
+		for (int i = 0; i <= 22; i++) {
+			X86_STORE_U32(stageTableGameMode + (0x50 * i), 0);
+		}
+		for (int i = 23; i <= 38; i++) {
+			X86_STORE_U32(stageTableGameMode + (0x50 * i), 1);
+		}
 	}
-
 	__imp__sub_281C50(ctx, base);
 }
 
@@ -116,11 +132,12 @@ X86_FUNC(sub_281C50)
 X86_FUNC_IMPL(__imp__sub_281FE0);
 X86_FUNC(sub_281FE0)
 {
-
-	for (int i = 0; i <= 22; i++) {
-		X86_STORE_U32(stageTableGameMode + (0x50 * i), 6);
+	if (Config::Enable2PLite)
+	{
+		for (int i = 0; i <= 38; i++) {
+			X86_STORE_U32(stageTableGameMode + (0x50 * i), 6);
+		}
 	}
-
 	__imp__sub_281FE0(ctx, base);
 }
 
@@ -128,11 +145,12 @@ X86_FUNC(sub_281FE0)
 X86_FUNC_IMPL(__imp__sub_16F7E0);
 X86_FUNC(sub_16F7E0)
 {
-
-	for (int i = 0; i <= 22; i++) {
-		X86_STORE_U32(stageTableGameMode + (0x50 * i), 6);
+	if (Config::Enable2PLite)
+	{
+		for (int i = 0; i <= 38; i++) {
+			X86_STORE_U32(stageTableGameMode + (0x50 * i), 6);
+		}
 	}
-
 	__imp__sub_16F7E0(ctx, base);
 }
 
@@ -140,11 +158,12 @@ X86_FUNC(sub_16F7E0)
 X86_FUNC_IMPL(__imp__sub_238650);
 X86_FUNC(sub_238650)
 {
-
-	for (int i = 0; i <= 22; i++) {
-		X86_STORE_U32(stageTableGameMode + (0x50 * i), 6);
+	if (Config::Enable2PLite)
+	{
+		for (int i = 0; i <= 38; i++) {
+			X86_STORE_U32(stageTableGameMode + (0x50 * i), 6);
+		}
 	}
-
 	__imp__sub_238650(ctx, base);
 }
 
@@ -152,11 +171,15 @@ X86_FUNC(sub_238650)
 X86_FUNC_IMPL(__imp__sub_2385E0);
 X86_FUNC(sub_2385E0)
 {
-
-	for (int i = 0; i <= 22; i++) {
-		X86_STORE_U32(stageTableGameMode + (0x50 * i), 0);
+	if (Config::Enable2PLite)
+	{
+		for (int i = 0; i <= 22; i++) {
+			X86_STORE_U32(stageTableGameMode + (0x50 * i), 0);
+		}
+		for (int i = 23; i <= 38; i++) {
+			X86_STORE_U32(stageTableGameMode + (0x50 * i), 1);
+		}
 	}
-
 	__imp__sub_2385E0(ctx, base);
 }
 
@@ -164,11 +187,15 @@ X86_FUNC(sub_2385E0)
 X86_FUNC_IMPL(__imp__sub_16E0D0);
 X86_FUNC(sub_16E0D0)
 {
-
-	for (int i = 0; i <= 22; i++) {
-		X86_STORE_U32(stageTableGameMode + (0x50 * i), 0);
+	if (Config::Enable2PLite)
+	{
+		for (int i = 0; i <= 22; i++) {
+			X86_STORE_U32(stageTableGameMode + (0x50 * i), 0);
+		}
+		for (int i = 23; i <= 38; i++) {
+			X86_STORE_U32(stageTableGameMode + (0x50 * i), 1);
+		}
 	}
-
 	__imp__sub_16E0D0(ctx, base);
 }
 
@@ -176,9 +203,10 @@ X86_FUNC(sub_16E0D0)
 X86_FUNC_IMPL(__imp__sub_237DA0);
 X86_FUNC(sub_237DA0)
 {
-
-	X86_STORE_U8(0x54DDE2, 0); // Disable 2P_UI, SoundListener/RenderDist Flag for GoalClear
-
+	if (Config::Enable2PLite)
+	{
+		X86_STORE_U8(0x54DDE2, 0); // Disable 2P_UI, SoundListener/RenderDist Flag for GoalClear
+	}
 	__imp__sub_237DA0(ctx, base);
 }
 
@@ -187,5 +215,4 @@ X86_FUNC(sub_237DA0)
 // sub_5AAF0 + F2B
 // sub_238650 + 23D
 
-#endif
 // End 2P Lite Stuff
