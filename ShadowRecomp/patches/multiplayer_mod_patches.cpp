@@ -47,7 +47,7 @@ bool skipAllEventLoading(DWORD* this_, int* a2, int a3, char a4)
 	auto ctx = GetX86Context();
 	auto base = g_memory.base;
 	__imp__sub_226E50(*ctx, base);
-	ctx->esp.u32 -= 12;
+	ctx->esp.u32 -= 16;
 	return ctx->eax.u8_lo;
 }
 GUEST_FUNCTION_HOOK_THISCALL(sub_226E50, skipAllEventLoading);
