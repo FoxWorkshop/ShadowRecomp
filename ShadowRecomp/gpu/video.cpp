@@ -2617,12 +2617,7 @@ GuestShader* CreateShader(ResourceType resourceType)
 
 			shader = g_userHeap.AllocPhysical<GuestShader>(resourceType);
 
-			if (hash == 0xb2b7a0a5e7d5805f)
-				shader->shader = CREATE_SHADER(R2D_vs0);
-			else if (hash == 0xcefa8ae484bff7a2)
-				shader->shader = CREATE_SHADER(R2D_vs1);
-			else
-				shader->shaderCacheEntry = findCache;
+			shader->shaderCacheEntry = findCache;
 
 			findCache->guestShader = shader;
 		}
@@ -2643,53 +2638,55 @@ GuestShader* CreateShader(ResourceType resourceType)
 
 		size_t hostVSHandle = (size_t)g_memory.Translate(g_VertexShader_Handle);
 
-
-		shader = g_userHeap.AllocPhysical<GuestShader>(resourceType);
-
-		if (resourceType == ResourceType::PixelShader)
+		if (shader == nullptr)
 		{
-			size_t sizeShader = 0;
+			shader = g_userHeap.AllocPhysical<GuestShader>(resourceType);
 
-			X_D3DPIXELSHADERDEF* pXboxPixelShaderDef = (X_D3DPIXELSHADERDEF*)(g_memory.Translate(psDefReg));
-			pixelShader_GuestInfo psdGuestInfo;
-			memset(&psdGuestInfo, 0, sizeof(psdGuestInfo));
-			psdGuestInfo.PSTextureModes = GetGuestRenderState(X_D3DRS_PSTEXTUREMODES);
-			psdGuestInfo.renderstateFogEnable = GetGuestRenderState(X_D3DRS_FOGENABLE) > 0;
-			psdGuestInfo.renderStateSpecularEnable = GetGuestRenderState(X_D3DRS_SPECULARENABLE) > 0;
-
-			for (int i = 0; i < 4; i++)
+			if (resourceType == ResourceType::PixelShader)
 			{
-				if (g_texturesPSDef[i])
+				size_t sizeShader = 0;
+
+				X_D3DPIXELSHADERDEF* pXboxPixelShaderDef = (X_D3DPIXELSHADERDEF*)(g_memory.Translate(psDefReg));
+				pixelShader_GuestInfo psdGuestInfo;
+				memset(&psdGuestInfo, 0, sizeof(psdGuestInfo));
+				psdGuestInfo.PSTextureModes = GetGuestRenderState(X_D3DRS_PSTEXTUREMODES);
+				psdGuestInfo.renderstateFogEnable = GetGuestRenderState(X_D3DRS_FOGENABLE) > 0;
+				psdGuestInfo.renderStateSpecularEnable = GetGuestRenderState(X_D3DRS_SPECULARENABLE) > 0;
+
+				for (int i = 0; i < 4; i++)
 				{
-					unsigned long type = (unsigned long)GetXboxTextureType((X_D3DResource*)((size_t)&g_texturesPSDef[i]->guestResource));
-					psdGuestInfo.ActiveTextureTypes[i] = (uint32_t)type;
+					if (g_texturesPSDef[i])
+					{
+						unsigned long type = (unsigned long)GetXboxTextureType((X_D3DResource*)((size_t)&g_texturesPSDef[i]->guestResource));
+						psdGuestInfo.ActiveTextureTypes[i] = (uint32_t)type;
+					}
 				}
-			}
 
-			auto shaderData = CreateRecompiledPixelShader(pXboxPixelShaderDef, &psdGuestInfo, &sizeShader);
-			shader->shader = CREATE_RUNTIME_SHADER(shaderData, sizeShader);
+				auto shaderData = CreateRecompiledPixelShader(pXboxPixelShaderDef, &psdGuestInfo, &sizeShader);
+				shader->shader = CREATE_RUNTIME_SHADER(shaderData, sizeShader);
 
-			UpdatePixelShaderCacheEntryNew(shader, hash);
-		}
-		else
-		{
-
-			if (hash == 0xb2b7a0a5e7d5805f)
-			{
-				shader->shader = CREATE_SHADER(R2D_vs0);
-			}
-			else if (hash == 0xcefa8ae484bff7a2)
-			{
-				shader->shader = CREATE_SHADER(R2D_vs1);
+				UpdatePixelShaderCacheEntryNew(shader, hash);
 			}
 			else
 			{
-				size_t sizeShader = 0;
-				auto shaderData = CreateRecompiledShader(hostVSHandle, &sizeShader);
-				shader->shader = CREATE_RUNTIME_SHADER(shaderData, sizeShader);
-			}
 
-			UpdateShaderCacheEntryNew(shader, hash);
+				if (hash == 0xb2b7a0a5e7d5805f)
+				{
+					shader->shader = CREATE_SHADER(R2D_vs0);
+				}
+				else if (hash == 0xcefa8ae484bff7a2)
+				{
+					shader->shader = CREATE_SHADER(R2D_vs1);
+				}
+				else
+				{
+					size_t sizeShader = 0;
+					auto shaderData = CreateRecompiledShader(hostVSHandle, &sizeShader);
+					shader->shader = CREATE_RUNTIME_SHADER(shaderData, sizeShader);
+				}
+
+				UpdateShaderCacheEntryNew(shader, hash);
+			}
 		}
 	}
 
