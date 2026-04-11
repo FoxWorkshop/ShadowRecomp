@@ -78,17 +78,6 @@ bool LogVSConstants = false;
 
 #include "shader/R2D_vs0.hlsl.dxil.h"
 #include "shader/R2D_vs1.hlsl.dxil.h"
-#include "shader/Rcharacters_vs0.hlsl.dxil.h"
-#include "shader/Rcharacters_vs1.hlsl.dxil.h"
-#include "shader/Rcharacters_vs2.hlsl.dxil.h"
-#include "shader/Rcharacters_vs3.hlsl.dxil.h"
-#include "shader/Rcharacters_vs4.hlsl.dxil.h"
-#include "shader/Reyedoom_vs.hlsl.dxil.h"
-#include "shader/Rblack_bull_vs.hlsl.dxil.h"
-#include "shader/Raura_hero_dark_body_vs.hlsl.dxil.h"
-#include "shader/Raura_hero_dark_eye_vs.hlsl.dxil.h"
-#include "shader/Rshadow_event_vs.hlsl.dxil.h"
-#include "shader/Rchaos_vs.hlsl.dxil.h"
 #endif
 
 #include "shader/FixedFunctionVertexShader.hlsl.spirv.h"
@@ -116,17 +105,6 @@ bool LogVSConstants = false;
 
 #include "shader/R2D_vs0.hlsl.spirv.h"
 #include "shader/R2D_vs1.hlsl.spirv.h"
-#include "shader/Rcharacters_vs0.hlsl.spirv.h"
-#include "shader/Rcharacters_vs1.hlsl.spirv.h"
-#include "shader/Rcharacters_vs2.hlsl.spirv.h"
-#include "shader/Rcharacters_vs3.hlsl.spirv.h"
-#include "shader/Rcharacters_vs4.hlsl.spirv.h"
-#include "shader/Reyedoom_vs.hlsl.spirv.h"
-#include "shader/Rblack_bull_vs.hlsl.spirv.h"
-#include "shader/Raura_hero_dark_body_vs.hlsl.spirv.h"
-#include "shader/Raura_hero_dark_eye_vs.hlsl.spirv.h"
-#include "shader/Rshadow_event_vs.hlsl.spirv.h"
-#include "shader/Rchaos_vs.hlsl.spirv.h"
 #include <os/logger.h>
 #include <os/process.h>
 #include <ui/fader.h>
@@ -697,6 +675,25 @@ static void FlushBarriers()
 }
 
 static std::unique_ptr<uint8_t[]> g_shaderCache;
+static std::unique_ptr<uint8_t[]> g_buttonBcDiff;
+
+static void LoadEmbeddedResources()
+{
+	if (g_vulkan)
+	{
+		g_shaderCache = std::make_unique<uint8_t[]>(g_spirvCacheDecompressedSize);
+		ZSTD_decompress(g_shaderCache.get(), g_spirvCacheDecompressedSize, g_compressedSpirvCache, g_spirvCacheCompressedSize);
+	}
+#ifdef SHADOW_RECOMP_D3D12
+	else
+	{
+		g_shaderCache = std::make_unique<uint8_t[]>(g_dxilCacheDecompressedSize);
+		ZSTD_decompress(g_shaderCache.get(), g_dxilCacheDecompressedSize, g_compressedDxilCache, g_dxilCacheCompressedSize);
+	}
+#endif
+
+	//g_buttonBcDiff = decompressZstd(g_button_bc_diff, g_button_bc_diff_uncompressed_size);
+}
 
 static std::unique_ptr<RenderPipeline> g_gammaCorrectionPipeline;
 
@@ -2259,7 +2256,7 @@ bool Video::CreateHostDevice(const char* sdlVideoDriver, bool graphicsApiRetry)
 
 	g_capabilities = g_device->getCapabilities();
 
-	//    LoadEmbeddedResources();
+	 LoadEmbeddedResources();
 
 
 	constexpr uint64_t LowEndMemoryLimit = 2048ULL * 1024ULL * 1024ULL;
@@ -2584,16 +2581,16 @@ void UpdateHostVertexDeclaration(HostVertexDeclaration* pHostVertexDeclaration)
 	vsh_constants[HOST_D3DVS_CONSTREG_VREGDEFAULTS_FLAG_BASE][0] = vsh_constants[HOST_D3DVS_CONSTREG_VREGDEFAULTS_FLAG_BASE][0];
 }
 
-//TODO
+
 static ShaderCacheEntry* FindShaderCacheEntry(XXH64_hash_t hash)
 {
-	/**auto end = g_shaderCacheEntries + g_shaderCacheEntryCount;
+	auto end = g_shaderCacheEntries + g_shaderCacheEntryCount;
 	auto findResult = std::lower_bound(g_shaderCacheEntries, end, hash, [](ShaderCacheEntry& lhs, XXH64_hash_t rhs)
 		{
 			return lhs.hash < rhs;
-		});*/
+		});
 
-	return nullptr; //findResult != end && findResult->hash == hash ? findResult : nullptr;
+	return findResult != end && findResult->hash == hash ? findResult : nullptr;
 }
 
 X_D3DRESOURCETYPE GetXboxTextureType(const X_D3DResource* pXboxResource);
@@ -2608,58 +2605,74 @@ GuestShader* CreateShader(ResourceType resourceType)
 		psDefReg = g_memory.MapVirtual(GetPixelShaderRenderStatePointer());
 	}
 
-	// todo implement proper shader caching into the exe
-	GuestShader* shader = isVertexShader ? FindShaderCacheEntryNew() : FindPixelShaderCacheEntryNew(psDefReg);
+	uint64_t hash = psDefReg > 0 ? GetPixelShaderKey(psDefReg) : GetVertexShaderKey();
+	auto findCache = FindShaderCacheEntry(hash);
 
-	size_t hostVSHandle = (size_t)g_memory.Translate(g_VertexShader_Handle);
+	GuestShader* shader = nullptr;
+
+	if (findCache != nullptr)
+	{
+		if (findCache->guestShader == nullptr)
+		{
+
+			shader = g_userHeap.AllocPhysical<GuestShader>(resourceType);
+
+			if (hash == 0xb2b7a0a5e7d5805f)
+				shader->shader = CREATE_SHADER(R2D_vs0);
+			else if (hash == 0xcefa8ae484bff7a2)
+				shader->shader = CREATE_SHADER(R2D_vs1);
+			else
+				shader->shaderCacheEntry = findCache;
+
+			findCache->guestShader = shader;
+		}
+		else
+		{
+			shader = findCache->guestShader;
+		}
+	}
+
 
 	if (shader)
 	{
 		shader->AddRef();
 	}
-	else
+	else 	// old system, will be used if shader_cache.cpp is missing
 	{
+		shader = isVertexShader ? FindShaderCacheEntryNew() : FindPixelShaderCacheEntryNew(psDefReg);
 
-		/**size_t sizeShader = 0;
-		auto shaderData = CreateRecompiledShader(sizeShader);*/
+		size_t hostVSHandle = (size_t)g_memory.Translate(g_VertexShader_Handle);
+
 
 		shader = g_userHeap.AllocPhysical<GuestShader>(resourceType);
 
 		if (resourceType == ResourceType::PixelShader)
 		{
-			uint64_t hash = GetPixelShaderKey(psDefReg);
+			size_t sizeShader = 0;
 
+			X_D3DPIXELSHADERDEF* pXboxPixelShaderDef = (X_D3DPIXELSHADERDEF*)(g_memory.Translate(psDefReg));
+			pixelShader_GuestInfo psdGuestInfo;
+			memset(&psdGuestInfo, 0, sizeof(psdGuestInfo));
+			psdGuestInfo.PSTextureModes = GetGuestRenderState(X_D3DRS_PSTEXTUREMODES);
+			psdGuestInfo.renderstateFogEnable = GetGuestRenderState(X_D3DRS_FOGENABLE) > 0;
+			psdGuestInfo.renderStateSpecularEnable = GetGuestRenderState(X_D3DRS_SPECULARENABLE) > 0;
 
-
-				size_t sizeShader = 0;
-
-				X_D3DPIXELSHADERDEF* pXboxPixelShaderDef = (X_D3DPIXELSHADERDEF*)(g_memory.Translate(psDefReg));
-				pixelShader_GuestInfo psdGuestInfo;
-				memset(&psdGuestInfo, 0, sizeof(psdGuestInfo));
-				psdGuestInfo.PSTextureModes = GetGuestRenderState(X_D3DRS_PSTEXTUREMODES);
-				psdGuestInfo.renderstateFogEnable = GetGuestRenderState(X_D3DRS_FOGENABLE) > 0;
-				psdGuestInfo.renderStateSpecularEnable = GetGuestRenderState(X_D3DRS_SPECULARENABLE) > 0;
-
-				for (int i = 0; i < 4; i++)
+			for (int i = 0; i < 4; i++)
+			{
+				if (g_texturesPSDef[i])
 				{
-					if (g_texturesPSDef[i])
-					{
-						unsigned long type = (unsigned long)GetXboxTextureType((X_D3DResource*)((size_t)&g_texturesPSDef[i]->guestResource));
-						psdGuestInfo.ActiveTextureTypes[i] = (uint32_t)type;
-					}
+					unsigned long type = (unsigned long)GetXboxTextureType((X_D3DResource*)((size_t)&g_texturesPSDef[i]->guestResource));
+					psdGuestInfo.ActiveTextureTypes[i] = (uint32_t)type;
 				}
+			}
 
-				auto shaderData = CreateRecompiledPixelShader(pXboxPixelShaderDef, &psdGuestInfo, &sizeShader);
-				shader->shader = CREATE_RUNTIME_SHADER(shaderData, sizeShader);
+			auto shaderData = CreateRecompiledPixelShader(pXboxPixelShaderDef, &psdGuestInfo, &sizeShader);
+			shader->shader = CREATE_RUNTIME_SHADER(shaderData, sizeShader);
 
 			UpdatePixelShaderCacheEntryNew(shader, hash);
 		}
 		else
 		{
-
-			uint64_t hash = GetVertexShaderKey();
-
-			//printf("now use shader %x\n", hash);
 
 			if (hash == 0xb2b7a0a5e7d5805f)
 			{
@@ -3875,12 +3888,12 @@ void DiscardInitRenderResource(GuestBaseTexture* texture, const bool isRT)
 		: RenderTextureLayout::COLOR_WRITE;
 
 	ExecuteInitCommandList([&]
-			{
-				g_initCommandList->barriers(RenderBarrierStage::GRAPHICS, RenderTextureBarrier(texture->texture, targetLayout));
-				g_initCommandList->discardTexture(texture->texture);
-				g_initCommandList->barriers(RenderBarrierStage::GRAPHICS, RenderTextureBarrier(texture->texture, RenderTextureLayout::SHADER_READ));
-			});
-	
+		{
+			g_initCommandList->barriers(RenderBarrierStage::GRAPHICS, RenderTextureBarrier(texture->texture, targetLayout));
+			g_initCommandList->discardTexture(texture->texture);
+			g_initCommandList->barriers(RenderBarrierStage::GRAPHICS, RenderTextureBarrier(texture->texture, RenderTextureLayout::SHADER_READ));
+		});
+
 
 }
 
@@ -4139,7 +4152,7 @@ static GuestSurface* CreateSurface(uint32_t width, uint32_t height, X_D3DFORMAT 
 	{
 		DiscardInitRenderResource(surface, desc.flags == RenderTextureFlag::RENDER_TARGET);
 	}
-	
+
 
 	surface->guestResource.Format = format;
 	return surface;
@@ -5335,7 +5348,7 @@ static void ProcClear(const RenderCommand& cmd)
 			SetFramebuffer(g_renderTarget, nullptr, true);
 		}
 
-		
+
 		commandList->clearColor(0, RenderColor(args.color[0], args.color[1], args.color[2], args.color[3]));
 	}
 

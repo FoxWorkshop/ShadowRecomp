@@ -42,8 +42,17 @@ file(GLOB XBOX_RECOMP_SOURCES
     "${XBOX_RECOMP_ROOT}/*.cpp"
 )
 
+
+
+set(OPTIONAL_SOURCES "")
+if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/shader/shader_cache.cpp")
+    list(APPEND OPTIONAL_SOURCES "shader/shader_cache.cpp")
+endif()
+
 add_library(ShadowRecompLib 
     ${SHADOW_RECOMP_X86_RECOMPILED_SOURCES}
+    "shader/shader_cache.h"
+    ${OPTIONAL_SOURCES}
 )
 
 target_include_directories(ShadowRecompLib PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
