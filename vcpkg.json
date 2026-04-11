@@ -7,7 +7,8 @@
     },
     {
       "name": "directx12-agility",
-      "platform": "windows"
+      "platform": "windows",
+      "version>=": "1.619.0"
     },
     "directx-dxc",
     "freetype",
