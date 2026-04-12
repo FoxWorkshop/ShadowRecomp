@@ -23,6 +23,7 @@
 #include <filesystem>
 #include <mod/mod_loader.h>
 #include <preload_executable.h>
+#include <patches/unix_patches.h>
 
 #if defined(_WIN32) && defined(SHADOW_RECOMP_D3D12)
 static std::array<std::string_view, 3> g_D3D12RequiredModules =
@@ -255,6 +256,9 @@ int main(int argc, char* argv[])
         std::_Exit(1);
     }
 
+
+
+    PatchUnixStrings();
 
     //launch the Start function of the game
     isHostThread = true;

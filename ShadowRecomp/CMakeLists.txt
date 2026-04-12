@@ -135,6 +135,7 @@ set(SHADOW_RECOMP_PATCHES_CXX_SOURCES
     "patches/multiplayer_mod_patches.cpp"
     "patches/reloaded_mod_patches.cpp"
     "patches/titlescreen_patches.cpp"
+    "patches/unix_patches.cpp"
 )
 
 
