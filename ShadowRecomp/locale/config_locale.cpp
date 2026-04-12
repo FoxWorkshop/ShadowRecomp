@@ -622,3 +622,14 @@ CONFIG_DEFINE_ENUM_LOCALE(ETextureFiltering)
         }
     }
 };
+
+// Japanese Notes: This localization should include furigana.
+CONFIG_DEFINE_LOCALE(BloomIntensity)
+{
+    { ELanguage::English, { "Bloom Intensity", "Adjust the intensity of the bloom effect." } },
+    { ELanguage::Japanese, { "Bloom Intensity", "" } },
+    { ELanguage::German,   { "Bloom-Intensität", "Passe die Intensität des Bloom-Effekts an." } },
+    { ELanguage::French,   { "Intensité du bloom", "Réglez l'intensité de l'effet du bloom." } },
+    { ELanguage::Spanish,  { "Intensidad del bloom", "Ajusta la intensidad del efecto de bloom." } },
+    { ELanguage::Italian,  { "Intensità del bloom", "Regola l'intensità dell'effetto bloom." } }
+};

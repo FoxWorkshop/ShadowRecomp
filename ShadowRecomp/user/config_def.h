@@ -67,6 +67,7 @@ CONFIG_DEFINE_ENUM_LOCALISED("Video", EAntiAliasing, AntiAliasing, EAntiAliasing
 //CONFIG_DEFINE_LOCALISED("Video", bool, TransparencyAntiAliasing, true);
 CONFIG_DEFINE("Video", uint32_t, AnisotropicFiltering, 16);
 CONFIG_DEFINE_ENUM_LOCALISED("Video", ETextureFiltering, TextureFiltering, ETextureFiltering::Auto);
+CONFIG_DEFINE_LOCALISED("Video", float, BloomIntensity, 0.7f);
 
 //CONFIG_DEFINE_ENUM_LOCALISED("Video", EShadowResolution, ShadowResolution, EShadowResolution::x4096);
 
