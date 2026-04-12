@@ -49,7 +49,7 @@ void os::logger::Log(const std::string_view str, ELogType type, const char* func
 
 void os::logger::LogFile(const std::string_view str, std::filesystem::path fileName)
 {
-#ifdef _DEBUG
+#ifndef NDEBUG
     auto path_string = fileName.string();
     SetConsoleTextAttribute(g_hStandardOutput, FOREGROUND_YELLOW | FOREGROUND_INTENSITY);
     fmt::println("{} '{}'...", str, path_string);
