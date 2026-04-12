@@ -189,6 +189,7 @@ set(SHADOW_RECOMP_CXX_SOURCES
     "app.cpp"
     "main.cpp"
     "misc_impl.cpp"
+    "preload_executable.cpp"
     "sdl_listener.cpp"
     "stdafx.cpp"
     

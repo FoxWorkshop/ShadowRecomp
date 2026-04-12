@@ -22,6 +22,7 @@
 #include <iostream>
 #include <filesystem>
 #include <mod/mod_loader.h>
+#include <preload_executable.h>
 
 #if defined(_WIN32) && defined(SHADOW_RECOMP_D3D12)
 static std::array<std::string_view, 3> g_D3D12RequiredModules =
@@ -170,6 +171,10 @@ int main(int argc, char* argv[])
 
 
     os::logger::Init();
+
+    PreloadContext preloadContext;
+    preloadContext.PreloadExecutable();
+
     LOGN("Starting Shadow Recomp...");
 
     std::filesystem::path xbePath;
