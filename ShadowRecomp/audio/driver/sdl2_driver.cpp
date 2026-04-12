@@ -65,10 +65,6 @@ private:
 	std::mutex mutex;
 	SDL_AudioStream* mAudioStream = nullptr;
 	std::vector<Uint8> mResampleBuffer;
-	std::vector<Uint8> mBakedLoop; // sfx
-	std::vector<uint8_t> mBakedIntro; // ensure we won't skip sound effect intro for looping
-	int mBakedIntroPos = 0;
-	bool mIntroDone = false;
 
 	SHTHR_SOUNDDEVICE_Impl* mParent;
 	SDL_AudioCVT mAudioCVT;
@@ -148,7 +144,7 @@ public:
 	void SetBufferKey(int32_t key);
 	void RebuildStream(SDL_AudioFormat srcFormat, int srcChannels, int srcFreq,
 		SDL_AudioFormat dstFormat, int dstChannels, int dstFreq);
-	void BakeResampledLoop();
+	void StopSfxEarly();
 
 	float Calculate3DVolume();
 	int mSoundID = 0; // for debugging
@@ -163,7 +159,7 @@ private:
 	int PullThreadFunc();
 
 	// Tuning 
-	static constexpr int TARGET_QUEUE_BYTES = 8192; 
+	static constexpr int TARGET_QUEUE_BYTES = 8192;
 	static constexpr int FILL_CHUNK_BYTES = 2048;
 	static constexpr int SLEEP_FULL_MS = 5;
 	static constexpr int SLEEP_EMPTY_MS = 1;
@@ -547,87 +543,22 @@ int SHTHR_SOUNDBUFFER_Impl::SetLoopRegion(int dwLoopStartOffset, int dwLoopLengt
 	return 0;
 }
 
-// for sfx loop
-void SHTHR_SOUNDBUFFER_Impl::BakeResampledLoop()
+void SHTHR_SOUNDBUFFER_Impl::StopSfxEarly()
 {
-	if (!mLooping || mBuffer == nullptr) 
-		return;
-
-	int loopStart = mLoopLength > 0 ? mLoopStartOffset : 0;
-	int loopLen = mLoopLength > 0 ? mLoopLength : mBufferSize;
-	int bytesPerSample = SDL_AUDIO_BITSIZE(mFormat) / 8;
-	int srcSamples = loopLen / bytesPerSample;
-	int dstChannels = mParent->mChannelCount;
-
-	if (loopStart > 0)
+	if (!isStreaming && !mLooping && mWrittenSize <= 0)
 	{
-		SDL_AudioStream* introStream = SDL_NewAudioStream(
-			mFormat, mChannelCount, mFrequency,
-			mParent->mFormat, mParent->mChannelCount, mParent->mFrequency);
-
-		if (introStream)
-		{
-			SDL_AudioStreamPut(introStream, &mBuffer[0], loopStart);
-			SDL_AudioStreamFlush(introStream);
-			int introSize = SDL_AudioStreamAvailable(introStream);
-			mBakedIntro.resize(introSize);
-			SDL_AudioStreamGet(introStream, mBakedIntro.data(), introSize);
-			SDL_FreeAudioStream(introStream);
-		}
+		mPlay = false;
+		SDL_AudioStreamClear(mAudioStream);
 	}
-	else
-	{
-		mBakedIntro.clear();
-	}
-
-	// Bake with SDL_AudioStream first (handles resampling if needed)
-	SDL_AudioStream* bakeStream = SDL_NewAudioStream(
-		mFormat, mChannelCount, mFrequency,
-		mParent->mFormat, mParent->mChannelCount, mParent->mFrequency);
-
-	if (!bakeStream) 
-		return;
-
-	SDL_AudioStreamPut(bakeStream, &mBuffer[loopStart], loopLen);
-	SDL_AudioStreamFlush(bakeStream);
-	int outSize = SDL_AudioStreamAvailable(bakeStream);
-	mBakedLoop.resize(outSize);
-	SDL_AudioStreamGet(bakeStream, mBakedLoop.data(), outSize);
-	SDL_FreeAudioStream(bakeStream);
-
-	// Sound that loop does an annoying "click" when they loop
-	// We create a fadeout to silent it
-	constexpr int CROSSFADE_SAMPLES = 512;
-	int16_t* samples = reinterpret_cast<int16_t*>(mBakedLoop.data());
-	int totalSamples = outSize / sizeof(int16_t);
-	int crossSamples = CROSSFADE_SAMPLES * dstChannels;
-
-	if (totalSamples > crossSamples * 2)
-	{
-		for (int i = 0; i < crossSamples; i++)
-		{
-			float t = (float)i / (float)crossSamples; 
-
-			// Fade in: first N samples ramp up from silence
-			samples[i] = static_cast<int16_t>(samples[i] * t);
-
-			// Fade out: last N samples ramp down to silence
-			samples[totalSamples - crossSamples + i] =
-				static_cast<int16_t>(
-					samples[totalSamples - crossSamples + i] * (1.0f - t));
-		}
-	}
-
-	mBakedLoopPos = 0;
 }
 
 int32_t SHTHR_SOUNDBUFFER_Impl::Pull(unsigned char* data, int32_t size)
 {
-	mutex.lock();
-
-	if (!mPlay || !mBuffer || mWrittenSize <= 0 && this->isStreaming == false || !mAudioStream)
+	std::lock_guard<std::mutex> lock(mutex);
+	bool sfxEmpty = mWrittenSize <= 0 && this->isStreaming == false;
+	if (!mPlay || !mBuffer || sfxEmpty || !mAudioStream)
 	{
-		mutex.unlock();
+		StopSfxEarly();
 		return 0;
 	}
 
@@ -645,7 +576,7 @@ int32_t SHTHR_SOUNDBUFFER_Impl::Pull(unsigned char* data, int32_t size)
 
 	if (read_size <= 0)
 	{
-		mutex.unlock();
+		StopSfxEarly();
 		return 0;
 	}
 
@@ -673,7 +604,7 @@ int32_t SHTHR_SOUNDBUFFER_Impl::Pull(unsigned char* data, int32_t size)
 	}
 	mWrittenSize -= read_size;
 
-	if (mWrittenSize < 0) 
+	if (mWrittenSize < 0)
 		mWrittenSize = 0;
 
 	if (this->isStreaming == false)
@@ -705,7 +636,6 @@ int32_t SHTHR_SOUNDBUFFER_Impl::Pull(unsigned char* data, int32_t size)
 		}
 	}
 
-	mutex.unlock();
 
 	// Feed source data into the stream
 	SDL_AudioStreamPut(mAudioStream, mResampleBuffer.data(), read_size);
@@ -713,8 +643,12 @@ int32_t SHTHR_SOUNDBUFFER_Impl::Pull(unsigned char* data, int32_t size)
 	// Get converted output — SDL_AudioStream maintains filter state between calls
 	int available = SDL_AudioStreamAvailable(mAudioStream);
 	int writesize = std::min(size, available);
+
 	if (writesize <= 0)
+	{
+		StopSfxEarly();
 		return 0;
+	}
 
 	mResampleBuffer.resize(writesize);
 	SDL_AudioStreamGet(mAudioStream, mResampleBuffer.data(), writesize);
@@ -800,9 +734,9 @@ int SHTHR_SOUNDBUFFER_Impl::Lock(int dwOffset, int dwBytes, void** ppvAudioPtr1,
 		int offset = dwFlags & DSBLOCK_FROMWRITECURSOR ? mBufferWriteLoc : dwOffset;
 		int bytes = dwBytes;
 
-		if (bytes > mBufferSize) 
-		{ 
-			return DSERR_INVALIDPARAM; 
+		if (bytes > mBufferSize)
+		{
+			return DSERR_INVALIDPARAM;
 		}
 
 		if (offset + bytes > mBufferSize)
@@ -816,7 +750,7 @@ int SHTHR_SOUNDBUFFER_Impl::Lock(int dwOffset, int dwBytes, void** ppvAudioPtr1,
 				*pdwAudioBytes2 = bytes - remaining_size;
 			}
 			else
-			{ 
+			{
 
 				return DSERR_INVALIDPARAM;
 			}
@@ -828,9 +762,9 @@ int SHTHR_SOUNDBUFFER_Impl::Lock(int dwOffset, int dwBytes, void** ppvAudioPtr1,
 				*ppvAudioPtr1 = &mBuffer[offset];
 				*pdwAudioBytes1 = bytes;
 			}
-			else 
+			else
 			{
-				return DSERR_INVALIDPARAM; 
+				return DSERR_INVALIDPARAM;
 			}
 			if (ppvAudioPtr2 && pdwAudioBytes2)
 			{
@@ -866,7 +800,6 @@ int SHTHR_SOUNDBUFFER_Impl::Play(int dwReserved1, int dwPriority, uint32_t dwFla
 {
 	std::lock_guard<std::mutex> lock(mutex);
 
-
 	this->mPlay = true;
 	this->mPlayFlags = dwFlags;
 
@@ -894,9 +827,7 @@ int SHTHR_SOUNDBUFFER_Impl::Play(int dwReserved1, int dwPriority, uint32_t dwFla
 	if (dwFlags & X_DSBPLAY_LOOPING)
 	{
 		this->mLooping = true;
-		/**this->mBakedLoop.clear();
-		this->mBakedLoopPos = 0;
-		this->BakeResampledLoop();*/
+
 	}
 	else
 	{
@@ -909,9 +840,10 @@ int SHTHR_SOUNDBUFFER_Impl::Play(int dwReserved1, int dwPriority, uint32_t dwFla
 int SHTHR_SOUNDBUFFER_Impl::Stop()
 {
 	std::lock_guard<std::mutex> lock(mutex);
+	if (mAudioStream)
+		SDL_AudioStreamClear(mAudioStream);
 
 	mPlay = false;
-
 	return S_OK;
 }
 
@@ -922,29 +854,12 @@ int SHTHR_SOUNDBUFFER_Impl::StopEx(int64_t rtTimeStamp, uint32_t dwFlags)
 	if (mAudioStream)
 		SDL_AudioStreamClear(mAudioStream);
 
+	mPlay = false;
 
 	if (dwFlags > X_DSBSTOPEX_ALL)
 	{
 		return -1;
 	}
-
-	if (dwFlags == X_DSBSTOPEX_IMMEDIATE)
-	{
-		mPlay = false;
-	}
-	else if (dwFlags & X_DSBSTOPEX_ENVELOPE) //todo fadeout(?) Need to check if the game ever use that
-	{
-
-		if (dwFlags & X_DSBSTOPEX_RELEASEWAVEFORM) {
-			// Release from loop - play to end then stop
-			mLooping = false;
-		}
-		else {
-
-		}
-		mPlay = false;
-	}
-
 
 
 	return S_OK;
@@ -1194,7 +1109,7 @@ SHTHR_SOUNDDEVICE_Impl::SHTHR_SOUNDDEVICE_Impl()
 
 	SDL_AudioSpec desired{}, obtained{};
 	desired.freq = XAUDIO_SAMPLES_HZ;
-	desired.format = AUDIO_S16SYS; 
+	desired.format = AUDIO_S16SYS;
 	desired.channels = 2;
 	desired.samples = 2048;
 	desired.userdata = nullptr; // this;
