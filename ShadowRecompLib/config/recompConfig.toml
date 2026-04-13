@@ -679,6 +679,7 @@ functions = [
 	{ address = 0x203970, size = 0x555 }, #broken size	
 	{ address = 0x1F50B0, size = 0x123 }, #broken size
 	{ address = 0x2369f0, size = 0x10 }, 
+	{ address = 0x2367D0, size = 0x10 }, 
 ]
 
 banned_addresses = [
@@ -705,19 +706,8 @@ invalid_instructions = [
 	{ data = 0x2DD6BC, size = 2 }, # same as above	
 	{ data = 0x32107F, size = 13 }, # Remove XboxSignature flag thing on RenderState	
 	{ data = 0x3D2481, size = 13 }, # same as above	
-	{ data = 0x3260A3, size = 8 }, # bloom offset fix	
-	{ data = 0x325E44, size = 8 }, # bloom offset fix	
 ]
 
-push_patch = [
-	# bloom offset fix
-    { address = 0x325D61, value = 0x0 }, 
-    { address = 0x325D66, value = 0x0 }, 
-    { address = 0x325E22, value = 0x0 }, 
-    { address = 0x3260B1, value = 0x0 }, 
-    { address = 0x325FC5, value = 0x0 }, 
-    { address = 0x325FCA, value = 0x0 }, 
-]
 
 [[midasm_hook]]
 name = "UpdateSDLEventsMidAsmHook"

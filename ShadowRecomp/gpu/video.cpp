@@ -4235,8 +4235,8 @@ static void FlushViewport(const bool isFixed)
 	GetUpscaledRTResolution((uint32_t)width, (uint32_t)height, &newWidth, &newHeight);
 	width = newWidth;
 	height = newHeight;
-	viewport.x *= scaleX;
-	viewport.y *= scaleY;
+	viewport.x *= scaleX + 0.5f;
+	viewport.y *= scaleY + 0.5f;
 
 	if (isFixed == false)
 	{
@@ -4244,8 +4244,8 @@ static void FlushViewport(const bool isFixed)
 		height = (float)hostHeight;
 		viewport.minDepth = 0.0f;
 		viewport.maxDepth = 1.0f;
-		viewport.x = 0;
-		viewport.y = 0;
+		viewport.x = 0.5f;
+		viewport.y = 0.5f;
 	}
 
 	if (g_dirtyStates.viewport)
