@@ -43,8 +43,6 @@ constexpr size_t STACK_SIZE = 0x10000;
 constexpr size_t FX_SAVE_AREA_SIZE = sizeof(FX_SAVE_AREA);
 constexpr size_t KSTART_SWITCH_FRAME_SIZE = 24;
 
-size_t TOTAL_SIZE = KPCR_SIZE + FX_SAVE_AREA_SIZE + TLS_SIZE + STACK_SIZE + ETHREAD_R_SIZE + KSTART_SWITCH_FRAME_SIZE;
-
 bool isHostThread = false;
 
 std::string GetThreadName(uint32_t func)
@@ -97,10 +95,10 @@ GuestThreadContext::GuestThreadContext(GuestThreadParams params)
 	if (KernelStackSize <= 0)
 		KernelStackSize = STACK_SIZE;
 
-	TOTAL_SIZE = KPCR_SIZE + tlsSize + KernelStackSize + FX_SAVE_AREA_SIZE + KSTART_SWITCH_FRAME_SIZE + ETHREAD_R_SIZE;
+	const size_t totalSize = KPCR_SIZE + tlsSize + KernelStackSize + FX_SAVE_AREA_SIZE + KSTART_SWITCH_FRAME_SIZE + ETHREAD_R_SIZE;
 
 	assert(thread == nullptr);
-	thread = (uint8_t*)g_userHeap.Alloc(TOTAL_SIZE);
+	thread = (uint8_t*)g_userHeap.Alloc(totalSize);
 
 
 	ETHREAD_R* eThread = reinterpret_cast<ETHREAD_R*>(thread + KPCR_SIZE + tlsSize + KernelStackSize);
@@ -124,7 +122,7 @@ GuestThreadContext::GuestThreadContext(GuestThreadParams params)
 	assert(stack_top - stack_limit == KernelStackSize);
 
 
-	memset(thread, 0, TOTAL_SIZE);
+	memset(thread, 0, totalSize);
 	memset(eThread, 0, sizeof(ETHREAD_R));
 
 	// Set up memory regions

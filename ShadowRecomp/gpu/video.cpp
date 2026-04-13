@@ -3525,7 +3525,7 @@ static std::atomic<bool> presentExecuted(true);
 static int copyCount;
 static int g_drawPrimitiveUP_ID = 0;
 bool PresentAllowed = true;
-extern bool aboutToDrawLoading;
+extern std::atomic<bool> aboutToDrawLoading;
 void Video::Present()
 {
 

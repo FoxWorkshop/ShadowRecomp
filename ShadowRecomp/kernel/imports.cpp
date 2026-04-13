@@ -1204,7 +1204,7 @@ LONG PsCreateSystemThreadEx(
 	hKernelStackSize = RoundUp(hKernelStackSize, PAGE_SIZE);
 
 	uint32_t hostThreadId;
-	auto handle = GetKernelHandle(GuestThread::Start({ (uint32_t)StartRoutine, StartContext, 0, 0, TlsDataSize, hKernelStackSize }, &hostThreadId));
+	auto handle = GetKernelHandle(GuestThread::Start({ (uint32_t)StartRoutine, StartContext, 0, CreateSuspended ? 1u : 0u, TlsDataSize, hKernelStackSize }, &hostThreadId));
 	*ThreadHandle = handle;
 
 	return X_STATUS_SUCCESS;

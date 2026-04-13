@@ -13,7 +13,7 @@
 
 static std::unordered_map<uint32_t, uint32_t> g_threadDicts;
 static std::mutex g_threadDictsMutex;
-static int loadingThreadID = 0;
+static std::atomic<int> loadingThreadID{0};
 
 XRTL_CRITICAL_SECTION dirtyListLock;
 XRTL_CRITICAL_SECTION csdNodeLock;
@@ -78,9 +78,8 @@ void SetNewDictionaryThread(const uint32_t texDictionaryPtr)
 	g_threadDicts[GuestThread::GetCurrentThreadId()] = texDictionaryPtr;
 }
 
-uint32_t GetCurrentDictionaryThread()
+uint32_t GetCurrentDictionaryThreadUnsafe()
 {
-
 	auto it = g_threadDicts.find(GuestThread::GetCurrentThreadId());
 	if (it != g_threadDicts.end())
 	{
@@ -88,6 +87,12 @@ uint32_t GetCurrentDictionaryThread()
 	}
 
 	return 0;
+}
+
+uint32_t GetCurrentDictionaryThread()
+{
+	std::lock_guard<std::mutex> lock(g_threadDictsMutex);
+	return GetCurrentDictionaryThreadUnsafe();
 }
 
 
@@ -137,7 +142,7 @@ X86_FUNC(sub_2D8D80)
 	uint32_t textureModule = X86_LOAD_U32(0x55f634);
 	uint32_t DictBackup = X86_LOAD_U32(textureModule + 0x57de10);
 
-	auto thread = GetCurrentDictionaryThread();
+	auto thread = GetCurrentDictionaryThreadUnsafe();
 
 	if (thread && thread != DictBackup)
 		X86_STORE_U32(textureModule + 0x57de10, thread);
@@ -176,8 +181,8 @@ struct CSDTransfoMatrixNode
 CSDTransfoMatrixNode* csdTransfoMatrixNodeSourcePtr = nullptr;
 
 //CSDPushNewNode
-static int lastThreadIDCSDNode = 0;
-static int countExtraSleepFailSafe = 0;
+static std::atomic<int> lastThreadIDCSDNode{0};
+static std::atomic<int> countExtraSleepFailSafe{0};
 X86_FUNC_IMPL(__imp__sub_2B4440);
 X86_FUNC(sub_2B4440)
 {
@@ -251,7 +256,7 @@ X86_FUNC(sub_2B39A0)
 	__imp__sub_2B39A0(ctx, base);
 
 }
-bool aboutToDrawLoading = false;
+std::atomic<bool> aboutToDrawLoading{false};
 X86_FUNC_IMPL(__imp__sub_59BB0);
 X86_FUNC(sub_59BB0)
 {
