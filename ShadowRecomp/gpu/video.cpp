@@ -4235,8 +4235,12 @@ static void FlushViewport(const bool isFixed)
 	GetUpscaledRTResolution((uint32_t)width, (uint32_t)height, &newWidth, &newHeight);
 	width = newWidth;
 	height = newHeight;
-	viewport.x *= scaleX + 0.5f;
-	viewport.y *= scaleY + 0.5f;
+	viewport.x *= scaleX;
+	viewport.y *= scaleY;
+
+	// offset is needed for bloom, potentially whole game as well, even though we removed the Xbox 0.5 offset.
+	viewport.x += 0.5f;
+	viewport.y += 0.5f;
 
 	if (isFixed == false)
 	{
