@@ -5,7 +5,7 @@ static const uint32_t bloomAddr = 0x52E5C4;
 static bool isPatchEnabled = false;
 
 // change bloom intensity based on user's config.
-void PatchBloom(uint8_t* base)
+void PatchBloomIntensity(uint8_t* base)
 {
 	X86_STORE_F32(bloomAddr, Config::BloomIntensity);
 }
@@ -16,7 +16,7 @@ X86_FUNC(sub_C11C0)
 {
 	if (isPatchEnabled == false)
 	{
-		PatchBloom(base);
+		PatchBloomIntensity(base);
 		isPatchEnabled = true;
 	}
 
