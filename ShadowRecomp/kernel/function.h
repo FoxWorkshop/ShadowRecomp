@@ -489,6 +489,10 @@ inline uintptr_t GetHostParameter(int8_t paramID, CallConvention funcType = Call
 
             return (uintptr_t)g_memory.Translate(ptr);
         }
+        else if (ParamType == ParameterType::Float)
+        {
+            return (uintptr_t)X86_LOAD_F32(ctx->esp.u32 + (4 * (paramID - 1)));
+		}
         else
         {
             return (uintptr_t)X86_LOAD_U32(ctx->esp.u32 + (4 * (paramID - 1)));
