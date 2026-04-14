@@ -90,5 +90,6 @@ namespace input
     uint32_t SetState(uint32_t dwUserIndex, uint8_t* outPacket);
 }
 
-bool isPressedAnalogButton(const uint8_t index, bAnalogBtnE btn);
+
 bool IsInputAllowed();
+bool IsInputDeviceController();

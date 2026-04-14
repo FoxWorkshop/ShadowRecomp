@@ -5,19 +5,33 @@
 #include <app.h>
 #include <input/input.h>
 #include <sdl_listener.h>
+#include <exports.h>
+#include <input/padstate.h>
 
+constexpr double OVERLAY_CONTAINER_COMMON_MOTION_START = 0;
+constexpr double OVERLAY_CONTAINER_COMMON_MOTION_END = 11;
+constexpr double OVERLAY_CONTAINER_OUTRO_FADE_START = 0;
+constexpr double OVERLAY_CONTAINER_OUTRO_FADE_END = 4;
+constexpr double OVERLAY_CONTAINER_INTRO_FADE_START = 5;
+constexpr double OVERLAY_CONTAINER_INTRO_FADE_END = 9;
 
 static bool g_isAwaitingResult = false;
 static ImVec2 g_joypadAxis = {};
 static bool g_isAccepted;
 static bool g_isDeclined;
 static bool g_isClosing = false;
+static double g_time{};
 
 static double g_appearTime;
 static double g_controlsAppearTime;
 static bool g_isControlsVisible = false;
+static bool g_isControlsReady = false;
 static int g_selectedRowIndex;
 static int g_foregroundCount;
+
+static double g_rowSelectionTime;
+static int g_prevSelectedRowIndex;
+
 
 static ImFont* g_fntShadow;
 
@@ -29,290 +43,516 @@ int g_cancelButtonIndex;
 
 static bool g_upWasHeld;
 static bool g_downWasHeld;
+static bool g_leftWasHeld;
+static bool g_rightWasHeld;
+
+
 
 class SDLEventListenerForMessageWindow : public SDLEventListener
 {
 public:
-    bool OnSDLEvent(SDL_Event* event) override
-    {
-        if (App::s_isInit || !MessageWindow::s_isVisible || !IsInputAllowed())
-            return false;
+	bool OnSDLEvent(SDL_Event* event) override
+	{
+		if (App::s_isInit || !MessageWindow::s_isVisible || !IsInputAllowed())
+			return false;
 
-        constexpr float axisValueRange = 32767.0f;
-        constexpr float axisTapRange = 0.5f;
+		constexpr float axisValueRange = 32767.0f;
+		constexpr float axisTapRange = 0.5f;
 
-        ImVec2 tapDirection = {};
+		ImVec2 tapDirection = {};
 
-        switch (event->type)
-        {
-        case SDL_KEYDOWN:
-        {
-            switch (event->key.keysym.scancode)
-            {
-            case SDL_SCANCODE_UP:
-                g_joypadAxis.y = -1.0f;
-                break;
+		switch (event->type)
+		{
+		case SDL_KEYDOWN:
+		{
+			switch (event->key.keysym.scancode)
+			{
+			case SDL_SCANCODE_UP:
+				g_joypadAxis.y = -1.0f;
+				break;
 
-            case SDL_SCANCODE_DOWN:
-                g_joypadAxis.y = 1.0f;
-                break;
+			case SDL_SCANCODE_DOWN:
+				g_joypadAxis.y = 1.0f;
+				break;
 
-            case SDL_SCANCODE_RETURN:
-            case SDL_SCANCODE_KP_ENTER:
-                g_isAccepted = true;
-                break;
+			case SDL_SCANCODE_RETURN:
+			case SDL_SCANCODE_KP_ENTER:
+				g_isAccepted = true;
+				break;
 
-            case SDL_SCANCODE_ESCAPE:
-                g_isDeclined = true;
-                break;
-            }
+			case SDL_SCANCODE_ESCAPE:
+				g_isDeclined = true;
+				break;
+			}
 
-            break;
-        }
+			break;
+		}
 
-        case SDL_MOUSEBUTTONDOWN:
-        {
-            // Only accept left mouse button.
-            if (event->button.button != SDL_BUTTON_LEFT)
-                break;
+		case SDL_MOUSEBUTTONDOWN:
+		{
+			// Only accept left mouse button.
+			if (event->button.button != SDL_BUTTON_LEFT)
+				break;
 
-            // Only accept mouse buttons when an item is selected.
-            if (g_isControlsVisible && g_selectedRowIndex == -1)
-                break;
+			// Only accept mouse buttons when an item is selected.
+			if (g_isControlsVisible && g_selectedRowIndex == -1)
+				break;
 
-            g_isAccepted = true;
+			g_isAccepted = true;
 
-            break;
-        }
+			break;
+		}
 
-        case SDL_CONTROLLERBUTTONDOWN:
-        {
-            switch (event->cbutton.button)
-            {
-            case SDL_CONTROLLER_BUTTON_DPAD_UP:
-                g_joypadAxis = { 0.0f, -1.0f };
-                break;
+		case SDL_CONTROLLERBUTTONDOWN:
+		{
+			switch (event->cbutton.button)
+			{
+			case SDL_CONTROLLER_BUTTON_DPAD_UP:
+				g_joypadAxis = { 0.0f, -1.0f };
+				break;
 
-            case SDL_CONTROLLER_BUTTON_DPAD_DOWN:
-                g_joypadAxis = { 0.0f, 1.0f };
-                break;
+			case SDL_CONTROLLER_BUTTON_DPAD_DOWN:
+				g_joypadAxis = { 0.0f, 1.0f };
+				break;
 
-            case SDL_CONTROLLER_BUTTON_A:
-                g_isAccepted = true;
-                break;
+			case SDL_CONTROLLER_BUTTON_A:
+				g_isAccepted = true;
+				break;
 
-            case SDL_CONTROLLER_BUTTON_B:
-                g_isDeclined = true;
-                break;
-            }
+			case SDL_CONTROLLER_BUTTON_B:
+				g_isDeclined = true;
+				break;
+			}
 
-            break;
-        }
+			break;
+		}
 
-        case SDL_CONTROLLERAXISMOTION:
-        {
-            if (event->caxis.axis < 2)
-            {
-                float newAxisValue = event->caxis.value / axisValueRange;
-                bool sameDirection = (newAxisValue * g_joypadAxis[event->caxis.axis]) > 0.0f;
-                bool wasInRange = abs(g_joypadAxis[event->caxis.axis]) > axisTapRange;
-                bool isInRange = abs(newAxisValue) > axisTapRange;
+		case SDL_CONTROLLERAXISMOTION:
+		{
+			if (event->caxis.axis < 2)
+			{
+				float newAxisValue = event->caxis.value / axisValueRange;
+				bool sameDirection = (newAxisValue * g_joypadAxis[event->caxis.axis]) > 0.0f;
+				bool wasInRange = abs(g_joypadAxis[event->caxis.axis]) > axisTapRange;
+				bool isInRange = abs(newAxisValue) > axisTapRange;
 
-                if (sameDirection && !wasInRange && isInRange)
-                    tapDirection[event->caxis.axis] = newAxisValue;
+				if (sameDirection && !wasInRange && isInRange)
+					tapDirection[event->caxis.axis] = newAxisValue;
 
-                g_joypadAxis[event->caxis.axis] = newAxisValue;
-            }
+				g_joypadAxis[event->caxis.axis] = newAxisValue;
+			}
 
-            break;
-        }
-        }
+			break;
+		}
+		}
 
-        return false;
-    }
+		return false;
+	}
 }
 g_sdlEventListenerForMessageWindow;
 
-void DrawGameStyleMessageBox(const char* text, ImVec2 center, ImVec2 size)
+bool DrawContainer(float appearTime, ImVec2 centre, ImVec2 max, bool isForeground = true)
+{
+	auto drawList = ImGui::GetBackgroundDrawList();
+
+	ImVec2 _min = { centre.x - max.x, centre.y - max.y };
+	ImVec2 _max = { centre.x + max.x, centre.y + max.y };
+
+	// Expand/retract animation.
+	auto containerMotion = ComputeMotion(appearTime, OVERLAY_CONTAINER_COMMON_MOTION_START, OVERLAY_CONTAINER_COMMON_MOTION_END);
+
+	if (g_isClosing)
+	{
+		_min.x = Hermite(_min.x, centre.x, containerMotion);
+		_max.x = Hermite(_max.x, centre.x, containerMotion);
+		_min.y = Hermite(_min.y, centre.y, containerMotion);
+		_max.y = Hermite(_max.y, centre.y, containerMotion);
+	}
+	else
+	{
+		_min.x = Hermite(centre.x, _min.x, containerMotion);
+		_max.x = Hermite(centre.x, _max.x, containerMotion);
+		_min.y = Hermite(centre.y, _min.y, containerMotion);
+		_max.y = Hermite(centre.y, _max.y, containerMotion);
+	}
+
+	// Transparency fade animation.
+	auto colourMotion = g_isClosing
+		? ComputeMotion(appearTime, OVERLAY_CONTAINER_OUTRO_FADE_START, OVERLAY_CONTAINER_OUTRO_FADE_END)
+		: ComputeMotion(appearTime, OVERLAY_CONTAINER_INTRO_FADE_START, OVERLAY_CONTAINER_INTRO_FADE_END);
+
+	auto alpha = g_isClosing
+		? Lerp(1, 0, colourMotion)
+		: Lerp(0, 1, colourMotion);
+
+	if (!isForeground)
+		g_foregroundCount++;
+
+	if (isForeground)
+		drawList->AddRectFilled({ 0.0f, 0.0f }, ImGui::GetIO().DisplaySize, IM_COL32(0, 0, 0, 190 * (g_foregroundCount ? 1 : alpha)));
+
+	DrawPauseContainer(_min, _max, alpha);
+
+	if (containerMotion >= 1.0f && !g_isClosing)
+	{
+		drawList->PushClipRect(_min, _max);
+		return true;
+	}
+
+	return false;
+}
+
+void DrawMessageInWindow(const char* text, ImVec2 center, ImVec2 size)
+{
+	ImDrawList* dl = ImGui::GetBackgroundDrawList();
+	auto maxWidth = Scale(820);
+	auto fontSize = Scale(28);
+
+	const auto input = RemoveRubyAnnotations(g_text.c_str());
+	auto lines = Split(input.first.c_str(), g_fntShadow, fontSize, maxWidth);
+
+	for (auto& line : lines)
+	{
+		line = ReAddRubyAnnotations(line, input.second);
+	}
+
+	// Text centered inside
+
+	auto lineMargin = Config::Language != ELanguage::Japanese ? 5.0f : 5.5f;
+	auto textSize = MeasureCentredParagraph(g_fntShadow, fontSize, lineMargin, lines);
+	ImVec2 textPos = { center.x - textSize.x * 0.5f, center.y - textSize.y * 0.5f };
+	auto textMarginX = Scale(37);
+	auto textMarginY = Scale(45);
+
+	auto textX = center.x;
+	auto textY = center.y + Scale(3);
+
+	if (Config::Language == ELanguage::Japanese)
+	{
+		textMarginX -= Scale(2.5f);
+		textMarginY -= Scale(2.0f);
+
+		textY += Scale(lines.size() % 2 == 0 ? 1.5f : 8.0f);
+	}
+
+	if (App::s_isInit)
+		SetShaderModifier(IMGUI_SHADER_MODIFIER_LOW_QUALITY_TEXT);
+
+
+	DrawRubyAnnotatedText
+	(
+		g_fntShadow,
+		fontSize,
+		maxWidth,
+		{ textX, textY },
+		lineMargin,
+		g_text.c_str(),
+
+		[=](const char* str, ImVec2 pos)
+		{
+			DrawTextWithShadow(g_fntShadow, fontSize, pos, IM_COL32(255, 255, 255, 255), str, 3.f, 0.5f);
+		},
+		[=](const char* str, float size, ImVec2 pos)
+		{
+			// DrawTextWithShadow(g_fntShadow, size, pos, IM_COL32(255, 255, 255, 255), str, 3.f, 0.5f);
+		},
+
+		true
+		);
+
+	if (App::s_isInit)
+		SetShaderModifier(IMGUI_SHADER_MODIFIER_LOW_QUALITY_TEXT);
+
+	dl->PopClipRect();
+}
+
+void DrawButton(int rowIndex, float yOffset, float width, float height, std::string& text)
+{
+	auto drawList = ImGui::GetBackgroundDrawList();
+
+	auto clipRectMin = drawList->GetClipRectMin();
+	auto clipRectMax = drawList->GetClipRectMax();
+
+	auto totalButtons = (float)g_buttons.size();
+	auto padding = Scale(20.f);
+	auto totalWidth = width * totalButtons + padding * (totalButtons - 1);
+	// calculate offset for position
+	ImVec2 min = {
+	clipRectMin.x + ((clipRectMax.x - clipRectMin.x) - totalWidth) / 2  // center the whole group
+		+ rowIndex * (width + padding),                                   // offset per button
+	clipRectMax.y - height - yOffset
+	};
+	ImVec2 max = { min.x + width, min.y + height };
+
+	bool isSelected = rowIndex == g_selectedRowIndex;
+
+
+	auto fontSize = Scale(28);
+	auto textSize = g_fntShadow->CalcTextSizeA(fontSize, FLT_MAX, 0, text.c_str());
+
+	// Show low quality text in-game.
+	if (App::s_isInit)
+		SetShaderModifier(IMGUI_SHADER_MODIFIER_LOW_QUALITY_TEXT);
+
+	DrawTextWithShadow
+	(
+		g_fntShadow,
+		fontSize,
+		{ /* X */ min.x + ((max.x - min.x) - textSize.x) / 2, /* Y */ min.y + ((max.y - min.y) - textSize.y) / 2 },
+		isSelected ? IM_COL32(234, 234, 69, 255) : IM_COL32(255, 255, 255, 255),
+		text.c_str()
+	);
+
+	// Reset the shader modifier.
+	if (App::s_isInit)
+		SetShaderModifier(IMGUI_SHADER_MODIFIER_NONE);
+}
+
+void DrawGameStyleMessageBox(ImVec2 center, ImVec2 size)
 {
 
 
-    ImDrawList* dl = ImGui::GetForegroundDrawList();
+	ImDrawList* dl = ImGui::GetBackgroundDrawList();
 
-    ImVec2 min = { center.x - size.x * 0.5f, center.y - size.y * 0.5f };
-    ImVec2 max = { center.x + size.x * 0.5f, center.y + size.y * 0.5f };
+	ImVec2 min = { center.x - size.x * 0.5f, center.y - size.y * 0.5f };
+	ImVec2 max = { center.x + size.x * 0.5f, center.y + size.y * 0.5f };
 
-    // Background fill - dark blue
-    dl->AddRectFilled(min, max, IM_COL32(1, 1, 70, 220));
+	// Background fill - dark blue
+	dl->AddRectFilled(min, max, IM_COL32(1, 1, 70, 220));
 
-    // Outer border
-    dl->AddRect(min, max, IM_COL32(14, 14, 110, 255), 0.0f, 0, 2.0f);
+	// Outer border
+	dl->AddRect(min, max, IM_COL32(14, 14, 110, 255), 0.0f, 0, 2.0f);
 
-    // Inner border (inset by ~4px)
-    float inset = 4.0f;
-    ImVec2 innerMin = { min.x + inset, min.y + inset };
-    ImVec2 innerMax = { max.x - inset, max.y - inset };
-    dl->AddRect(innerMin, innerMax, IM_COL32(30, 60, 180, 255), 0.0f, 0, 1.0f);
+	// Inner border (inset by ~4px)
+	float inset = 4.0f;
+	ImVec2 innerMin = { min.x + inset, min.y + inset };
+	ImVec2 innerMax = { max.x - inset, max.y - inset };
+	dl->AddRect(innerMin, innerMax, IM_COL32(30, 60, 180, 255), 0.0f, 0, 1.0f);
 
-    // Corner accents - short lines in each corner
-    float cornerLen = 10.0f;
-    ImU32 cornerCol = IM_COL32(120, 160, 255, 255);
+	// Corner accents - short lines in each corner
+	float cornerLen = 10.0f;
+	ImU32 cornerCol = IM_COL32(120, 160, 255, 255);
 
-    // Top-left
-    dl->AddLine(min, { min.x + cornerLen, min.y }, cornerCol, 2.0f);
-    dl->AddLine(min, { min.x, min.y + cornerLen }, cornerCol, 2.0f);
-    // Top-right
-    dl->AddLine({ max.x, min.y }, { max.x - cornerLen, min.y }, cornerCol, 2.0f);
-    dl->AddLine({ max.x, min.y }, { max.x, min.y + cornerLen }, cornerCol, 2.0f);
-    // Bottom-left
-    dl->AddLine({ min.x, max.y }, { min.x + cornerLen, max.y }, cornerCol, 2.0f);
-    dl->AddLine({ min.x, max.y }, { min.x, max.y - cornerLen }, cornerCol, 2.0f);
-    // Bottom-right
-    dl->AddLine(max, { max.x - cornerLen, max.y }, cornerCol, 2.0f);
-    dl->AddLine(max, { max.x, max.y - cornerLen }, cornerCol, 2.0f);
+	// Top-left
+	dl->AddLine(min, { min.x + cornerLen, min.y }, cornerCol, 2.0f);
+	dl->AddLine(min, { min.x, min.y + cornerLen }, cornerCol, 2.0f);
+	// Top-right
+	dl->AddLine({ max.x, min.y }, { max.x - cornerLen, min.y }, cornerCol, 2.0f);
+	dl->AddLine({ max.x, min.y }, { max.x, min.y + cornerLen }, cornerCol, 2.0f);
+	// Bottom-left
+	dl->AddLine({ min.x, max.y }, { min.x + cornerLen, max.y }, cornerCol, 2.0f);
+	dl->AddLine({ min.x, max.y }, { min.x, max.y - cornerLen }, cornerCol, 2.0f);
+	// Bottom-right
+	dl->AddLine(max, { max.x - cornerLen, max.y }, cornerCol, 2.0f);
+	dl->AddLine(max, { max.x, max.y - cornerLen }, cornerCol, 2.0f);
 
-    auto maxWidth = Scale(820);
-    auto fontSize = Scale(28);
 
-    const auto input = RemoveRubyAnnotations(g_text.c_str());
-    auto lines = Split(input.first.c_str(), g_fntShadow, fontSize, maxWidth);
+	max.x += 1.f;
+	max.y += 1.f;
+	dl->PushClipRect(min, max);
 
-    for (auto& line : lines)
-    {
-        line = ReAddRubyAnnotations(line, input.second);
-    }
-
-    // Text centered inside
-
-    auto lineMargin = Config::Language != ELanguage::Japanese ? 5.0f : 5.5f;
-    auto textSize = MeasureCentredParagraph(g_fntShadow, fontSize, lineMargin, lines);
-    ImVec2 textPos = { center.x - textSize.x * 0.5f, center.y - textSize.y * 0.5f };
-    auto textMarginX = Scale(37);
-    auto textMarginY = Scale(45);
-
-    auto textX = center.x;
-    auto textY = center.y + Scale(3);
-
-    if (Config::Language == ELanguage::Japanese)
-    {
-        textMarginX -= Scale(2.5f);
-        textMarginY -= Scale(2.0f);
-
-        textY += Scale(lines.size() % 2 == 0 ? 1.5f : 8.0f);
-    }
-
-    if (App::s_isInit)
-        SetShaderModifier(IMGUI_SHADER_MODIFIER_LOW_QUALITY_TEXT);
-
-    max.x += 1.f;
-    max.y += 1.f;
-    dl->PushClipRect(min, max);
-
-    DrawRubyAnnotatedText
-    (
-        g_fntShadow,
-        fontSize,
-        maxWidth,
-        { textX, textY },
-        lineMargin,
-        g_text.c_str(),
-
-        [=](const char* str, ImVec2 pos)
-        {
-            DrawTextWithShadow(g_fntShadow, fontSize, pos, IM_COL32(255, 255, 255, 255), str);
-        },
-        [=](const char* str, float size, ImVec2 pos)
-        {
-            DrawTextWithShadow(g_fntShadow, size, pos, IM_COL32(255, 255, 255, 255), str, 1.5f, 1.5f);
-        },
-
-        true
-    );
-
-    if (App::s_isInit)
-        SetShaderModifier(IMGUI_SHADER_MODIFIER_LOW_QUALITY_TEXT);
-
-    dl->PopClipRect();
 }
 
 static void ResetSelection()
 {
-    /* Always use -1 for mouse input to prevent the selection
-       cursor from erroneously appearing where it shouldn't. */
-    g_selectedRowIndex = input::g_inputDevice == input::EInputDevice::Mouse
-        ? -1
-        : g_defaultButtonIndex;
+	/* Always use -1 for mouse input to prevent the selection
+	   cursor from erroneously appearing where it shouldn't. */
+	g_selectedRowIndex = input::g_inputDevice == input::EInputDevice::Mouse
+		? -1
+		: g_defaultButtonIndex;
 
-    g_upWasHeld = false;
-    g_downWasHeld = false;
-    g_joypadAxis = {};
-    g_isAccepted = false;
-    g_isDeclined = false;
+	g_upWasHeld = false;
+	g_downWasHeld = false;
+	g_joypadAxis = {};
+	g_isAccepted = false;
+	g_isDeclined = false;
 }
 
 bool MessageWindow::Open(std::string text, int* result, std::span<std::string> buttons, int defaultButtonIndex, int cancelButtonIndex)
 {
-    if (!g_isAwaitingResult && *result == -1)
-    {
-        s_isVisible = true;
-        g_isClosing = false;
-        g_isControlsVisible = false;
-        g_foregroundCount = 0;
-        g_appearTime = ImGui::GetTime();
-        g_controlsAppearTime = ImGui::GetTime();
+	if (!g_isAwaitingResult && *result == -1)
+	{
+		g_isControlsReady = false;
+		s_isVisible = true;
+		g_isClosing = false;
+		g_time = ImGui::GetTime();
+		g_isControlsVisible = false;
+		g_foregroundCount = 0;
+		g_appearTime = ImGui::GetTime();
+		g_controlsAppearTime = ImGui::GetTime();
 
-        g_text = text;
-        g_buttons = std::vector(buttons.begin(), buttons.end());
-        g_defaultButtonIndex = defaultButtonIndex;
-        g_cancelButtonIndex = cancelButtonIndex;
+		g_text = text;
+		g_buttons = std::vector(buttons.begin(), buttons.end());
+		g_defaultButtonIndex = defaultButtonIndex;
+		g_cancelButtonIndex = cancelButtonIndex;
 
-        ResetSelection();
+		ResetSelection();
 
-        //Game_PlaySound("sys_actstg_pausewinopen");
+		//Game_PlaySound("sys_actstg_pausewinopen");
 
-        g_isAwaitingResult = true;
-    }
+		g_isAwaitingResult = true;
+	}
 
-    *result = g_result;
+	*result = g_result;
 
-    // Returns true when the message window is closed.
-    return !g_isAwaitingResult;
+	// Returns true when the message window is closed.
+	return !g_isAwaitingResult;
 }
 
 void MessageWindow::Init()
 {
-    auto& io = ImGui::GetIO();
+	auto& io = ImGui::GetIO();
 
-    g_fntShadow = io.Fonts->Fonts[0];
+	g_fntShadow = io.Fonts->Fonts[0];
 }
 
 void MessageWindow::Draw()
 {
-    if (!s_isVisible)
-        return;
+	if (!s_isVisible)
+		return;
 
-    auto drawList = ImGui::GetBackgroundDrawList();
-    auto& res = ImGui::GetIO().DisplaySize;
+	if (g_isClosing && (ImGui::GetTime() - g_time) > (1.0 / 60.0) * 30.0)
+	{
+		g_isAwaitingResult = false;
+		s_isVisible = false;
+		return;
+	}
 
-    ImVec2 centre = { res.x / 2, res.y / 2 };
-    ImVec2 max = { res.x * 0.9f, res.y * 0.7f };
-    DrawGameStyleMessageBox(g_text.c_str(), centre, max);
+	// arbitrary wait to lock control for a bit to avoid early press until message is ready.
+	if (!g_isControlsReady && ImGui::GetTime() - g_time > (1.0 / 60.0) * 2.f)
+	{
+		g_isControlsReady = true;
+	}
+	else if (g_isControlsReady == false)
+	{
+		return;
+	}
+
+	auto isController = IsInputDeviceController();
+	auto isKeyboard = input::g_inputDevice == input::EInputDevice::Keyboard;
+
+	if (App::s_isInit)
+	{
+		// Always assume keyboard to prevent mouse from blocking control in-game.
+		isKeyboard = true;
+
+		if (auto pInputState = PJSPeripheral::GetControllerSlot(0))
+		{
+			pInputState = pInputState;
+
+			g_joypadAxis.x = -pInputState->leftX;
+
+			if (PJSPeripheral::IsJustPressed(0, PJSPeripheral::BTN_DPAD_LEFT))
+				g_joypadAxis.x = 1.0f;
+
+			if (PJSPeripheral::IsJustPressed(0, PJSPeripheral::BTN_DPAD_RIGHT))
+				g_joypadAxis.x = -1.0f;
+
+			g_isAccepted = PJSPeripheral::IsJustPressed(0, PJSPeripheral::BTN_A);
+			g_isDeclined = PJSPeripheral::IsJustPressed(0, PJSPeripheral::BTN_B);
+
+			if (isKeyboard)
+				g_isAccepted = g_isAccepted || PJSPeripheral::IsJustPressed(0, PJSPeripheral::BTN_START);
+		}
+	}
+	auto drawList = ImGui::GetBackgroundDrawList();
+	auto& res = ImGui::GetIO().DisplaySize;
+
+	ImVec2 centre = { res.x / 2, res.y / 2 };
+	ImVec2 max = { res.x * 0.9f, res.y * 0.7f };
+	DrawGameStyleMessageBox(centre, max);
+
+	centre = { res.x / 2, res.y / 2 * 0.8f };
+	DrawMessageInWindow(g_text.c_str(), centre, max);
+
+	if (isController || isKeyboard)
+	{
+
+		auto fontSize = Scale(28);
+		auto itemWidth = std::max(Scale(162), Scale(CalcWidestTextSize(g_fntShadow, fontSize, g_buttons)));
+		auto itemHeight = Scale(120);
+		auto windowMarginX = Scale(10);
+		auto windowMarginY = Scale(80);
+
+		ImVec2 controlsMax = { /* X */ itemWidth / 2 + windowMarginX, /* Y */ itemHeight / 2 * g_buttons.size() + windowMarginY };
+
+		auto rowCount = 0;
+
+		for (auto& button : g_buttons)
+			DrawButton(rowCount++, windowMarginY, itemWidth, itemHeight, button);
+
+		auto leftIsHeld = g_joypadAxis.x > 0.5f;
+		auto rightIsHeld = g_joypadAxis.x < -0.5f;
+		auto scrollLeft = !g_leftWasHeld && leftIsHeld;
+		auto scrollRight = !g_rightWasHeld && rightIsHeld;
+
+		auto prevSelectedRowIndex = g_selectedRowIndex;
+
+		if (scrollLeft)
+		{
+			if (g_selectedRowIndex > 0)
+				--g_selectedRowIndex;
+		}
+		else if (scrollRight)
+		{
+			if (g_selectedRowIndex < rowCount - 1)
+				++g_selectedRowIndex;
+		}
+
+		if (scrollLeft || scrollRight)
+		{
+			Game_PlaySound("cursor");
+			g_prevSelectedRowIndex = prevSelectedRowIndex;
+			g_joypadAxis.x = 0;
+		}
+
+		g_leftWasHeld = leftIsHeld;
+		g_rightWasHeld = rightIsHeld;
+
+		if (g_isDeclined)
+		{
+			g_selectedRowIndex = g_cancelButtonIndex;
+			Game_PlaySound("cancel");
+			MessageWindow::Close();
+			g_isDeclined = false;
+		}
+
+		else //installer wizard thing
+		{
+
+		}
+
+		if (g_selectedRowIndex != -1 && g_isAccepted && !g_isClosing)
+		{
+			g_result = g_selectedRowIndex;
+			if (g_selectedRowIndex != g_cancelButtonIndex)
+				Game_PlaySound("decide");
+			else
+				Game_PlaySound("cancel");
+			MessageWindow::Close();
+		}
+
+	}
+
+
 }
+
+
 
 
 void MessageWindow::Close()
 {
-    if (!g_isClosing)
-    {
-        g_appearTime = ImGui::GetTime();
-        g_controlsAppearTime = ImGui::GetTime();
-        g_isClosing = true;
-        g_isControlsVisible = false;
-        g_foregroundCount = 0;
-        g_isAwaitingResult = false;
+	if (!g_isClosing)
+	{
+		g_appearTime = ImGui::GetTime();
+		g_time = ImGui::GetTime();
+		g_controlsAppearTime = ImGui::GetTime();
+		g_isClosing = true;
+		g_isControlsVisible = false;
+		g_foregroundCount = 0;
+		g_isAwaitingResult = false;
 
-        //ButtonGuide::Close();
-    }
+		//ButtonGuide::Close();
+	}
 
-   // Game_PlaySound("sys_actstg_pausewinclose");
 }

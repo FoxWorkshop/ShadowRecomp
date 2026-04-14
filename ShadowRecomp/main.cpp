@@ -25,6 +25,7 @@
 #include <preload_executable.h>
 #include <patches/unix_patches.h>
 #include <patches/reloaded_mod_patches.h>
+#include <audio/embedded_player.h>
 
 #if defined(_WIN32) && defined(SHADOW_RECOMP_D3D12)
 static std::array<std::string_view, 3> g_D3D12RequiredModules =
@@ -232,6 +233,14 @@ int main(int argc, char* argv[])
         os::process::ShowConsole();
 
     HostStartup();
+
+     // to do installerwizzard
+    //if (runInstallerWizard)
+	//{
+
+        EmbeddedPlayer::Init();
+
+    //}
 
     ModLoader::Init();
 

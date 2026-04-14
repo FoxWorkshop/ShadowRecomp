@@ -118,6 +118,7 @@ set(SHADOW_RECOMP_GPU_CXX_SOURCES
 set(SHADOW_RECOMP_APU_CXX_SOURCES
     "audio/audio.cpp"
     "audio/driver/sdl2_driver.cpp"
+    "audio/embedded_player.cpp"
 )
 
 set(SHADOW_RECOMP_HID_CXX_SOURCES
@@ -188,6 +189,7 @@ set_source_files_properties(${SHADOW_RECOMP_THIRDPARTY_SOURCES} PROPERTIES SKIP_
 
 set(SHADOW_RECOMP_CXX_SOURCES
     "app.cpp"
+    "exports.cpp"
     "main.cpp"
     "misc_impl.cpp"
     "preload_executable.cpp"
@@ -417,3 +419,7 @@ BIN2C(TARGET_OBJ ShadowRecomp SOURCE_FILE "${RESOURCES_SOURCE_PATH}/images/game_
 
 ## Audio ##
 BIN2C(TARGET_OBJ ShadowRecomp SOURCE_FILE "${RESOURCES_SOURCE_PATH}/music/installer.ogg" DEST_FILE "${RESOURCES_OUTPUT_PATH}/music/installer.ogg" ARRAY_NAME "g_installer_music")
+BIN2C(TARGET_OBJ ShadowRecomp SOURCE_FILE "${RESOURCES_SOURCE_PATH}/sounds/sys_menu_ok.ogg" DEST_FILE "${RESOURCES_OUTPUT_PATH}/sounds/sys_menu_ok.ogg" ARRAY_NAME "g_sys_menu_ok")
+BIN2C(TARGET_OBJ ShadowRecomp SOURCE_FILE "${RESOURCES_SOURCE_PATH}/sounds/sys_menu_cursor.ogg" DEST_FILE "${RESOURCES_OUTPUT_PATH}/sounds/sys_menu_cursor.ogg" ARRAY_NAME "g_sys_menu_cursor")
+BIN2C(TARGET_OBJ ShadowRecomp SOURCE_FILE "${RESOURCES_SOURCE_PATH}/sounds/sys_menu_invalid.ogg" DEST_FILE "${RESOURCES_OUTPUT_PATH}/sounds/sys_menu_invalid.ogg" ARRAY_NAME "g_sys_menu_invalid")
+BIN2C(TARGET_OBJ ShadowRecomp SOURCE_FILE "${RESOURCES_SOURCE_PATH}/sounds/sys_menu_cancel.ogg" DEST_FILE "${RESOURCES_OUTPUT_PATH}/sounds/sys_menu_cancel.ogg" ARRAY_NAME "g_sys_menu_cancel")
