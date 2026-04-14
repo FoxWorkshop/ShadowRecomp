@@ -2,160 +2,183 @@
 #include <kernel/function.h>
 
 // Uncomment the define below to enable
-// #define EnableReloaded
+#define EnableReloaded
 
+void ReloadedValuePatches()
+{
 #ifdef EnableReloaded
+	auto base = g_memory.base;
 
-// 2P Unique Android JumpBall Colors
+	// Widescreen Hack (SP CAM/RENDER)
+	const uint32_t singlePlayerWidescreen = 0x4E5D6C;
+	X86_STORE_F32(singlePlayerWidescreen, 1.33333337306976f);
 
-// 3 Endings unlocks Last Story
+	// 2P Unique Android JumpBall Colors
 
-// Title always skippable
+	// 3 Endings unlocks Last Story
 
-// Missions Unlocked - Missions can always be switched, regardless if you've met the mission character or not.
+	// Title always skippable
 
-// Mission Focus
+	// Missions Unlocked - Missions can always be switched, regardless if you've met the mission character or not.
 
-// Life System Modifier
+	// Mission Focus
 
-// Music Update Ending Tracks and Lava Shelter Boss
+	// Life System Modifier
 
-// Expert Select
+	// Music Update Ending Tracks and Lava Shelter Boss
 
-// Expert Ending SFD Overrides
+	// Expert Select
 
-// Select Mode Shortcut
+	// Expert Ending SFD Overrides
 
-// Custom Autosave Colors
+	// Select Mode Shortcut
 
-// Ghost Red Rings (STG_CMN REDIRECT)
+	// Custom Autosave Colors
 
-// Respawn at last activated checkpoint
+	// Ghost Red Rings (STG_CMN REDIRECT)
 
-// Hold L to JumpDash instead of HomingAttack
+	// Respawn at last activated checkpoint
 
-// Disable Slide on B-press on ground and state extension
+	// Hold L to JumpDash instead of HomingAttack
 
-// No Tri-Jump Exit
+	// Disable Slide on B-press on ground and state extension
 
-// No Skidding
+	// No Tri-Jump Exit
 
-// GUNMech Physics Revamp
+	// No Skidding
 
-// Circuit Speed Control
+	// GUNMech Physics Revamp
 
-// Jump Ball Turn Speed
 
-// Chaos Blast Damage
+	// Circuit Speed Control
 
-// Jump Attack Friction
+	// Jump Ball Turn Speed
 
-// Light Dash ValidRing Angle
+	// Chaos Blast Damage
+	const uint32_t chaosBlastDamageAddr = 0x4EBE4C;
+	X86_STORE_F32(chaosBlastDamageAddr, 36.0f);
 
-// Homing Attack Speed
+	// Jump Attack Friction
 
-// Homing Attack Turn Strength
+	// Light Dash ValidRing Angle
 
-// Triangle Jump Recover Time
+	// Homing Attack Speed
 
-// Triangle Jump Speed
+	// Homing Attack Turn Strength
 
-// WallRun Speed
+	// Triangle Jump Recover Time
 
-// Walk Turn Speed
+	// Triangle Jump Speed
 
-// Heal Unit Explosion Hitbox Size
+	// WallRun Speed
 
-// Instant HealUnit / BombUnit Server Respawn Time
+	// Walk Turn Speed
 
-// Coaster/Zipline Fix Bad Collision
+	// Heal Unit Explosion Hitbox Size
 
-// Pulley Speed
+	// Instant HealUnit / BombUnit Server Respawn Time
 
-// Idle Chatter Tweak
+	// Coaster/Zipline Fix Bad Collision
 
-// Triple Spring Origin Shift
+	// Pulley Speed
 
-// Keep Melee Weapons when Mounting Vehicles
+	// Idle Chatter Tweak
 
-// Super AirSaucer
+	// Triple Spring Origin Shift
 
-// AirSaucer Replace Second Jump with Stomp
+	// Keep Melee Weapons when Mounting Vehicles
 
-// LightDash Transition Expansion [2P COMPAT]
+	// Super AirSaucer
+		//	RotSpeed 250 -> 8000
+	const uint32_t airSaucerRotSpeedAddr = 0x471B10;
+	X86_STORE_F32(airSaucerRotSpeedAddr, 8000.0f);
+		//	GroundSpeed 270 -> 540
+	const uint32_t airSaucerGroundSpeedAddr = 0x471AF4;
+	X86_STORE_F32(airSaucerGroundSpeedAddr, 540.0f);
+		//	AirSpeed 220 -> 440
+	const uint32_t airSaucerAirSpeedAddr = 0x471AE4;
+	X86_STORE_F32(airSaucerAirSpeedAddr, 440.0f);
+		//	JumpStrength 100 -> 200 [needs PUSH patch - inlined]
 
-// Global Lock-On Revamp
+	// AirSaucer Replace Second Jump with Stomp
 
-// EscapePlane Stat Adjustment
+	// LightDash Transition Expansion [2P COMPAT]
 
-// EggBalloon Stat Adjustment
+	// Global Lock-On Revamp
 
-// SolidCollision Triggers are GroundCollision
+	// EscapePlane Stat Adjustment
 
-// Time Bonus Penalty Always Active
+	// EggBalloon Stat Adjustment
 
-// Last Way & Devil Doom in Select Menu - CONSIDER EXTENDING / modifying visual with IMGUI?
+	// SolidCollision Triggers are GroundCollision
 
-// CarType Vehicles Revamp
+	// Time Bonus Penalty Always Active
 
-// Enemy AppearType WARP Faster Spawn
+	// Last Way & Devil Doom in Select Menu - CONSIDER EXTENDING / modifying visual with IMGUI?
 
-// Restore EggBreaker0411 Digitize Effect
+	// CarType Vehicles Revamp
 
-// The Last Way Inclusive Scoring
+	// Enemy AppearType WARP Faster Spawn
 
-// ElecCode Enemy Faster Movement Speed
+	// Restore EggBreaker0411 Digitize Effect
 
-// The Last Way idle lines
+	// The Last Way Inclusive Scoring
 
-// Cannon & Lock On Weapons No Knockback
+	// ElecCode Enemy Faster Movement Speed
 
-// Melee Weapon Core Revamp [2P COMPAT]
+	// The Last Way idle lines
 
-// Melee Ammo Adjustments
+	// Cannon & Lock On Weapons No Knockback
 
-// Select Mode cursor no reset
+	// Melee Weapon Core Revamp [2P COMPAT]
 
-// LightDash Exit State Change to Launched for Westopolis
+	// Melee Ammo Adjustments
 
-// Devil Doom Boss Has No Awake Music
+	// Select Mode cursor no reset
 
-// Light Dash ValidRing Distance
+	// LightDash Exit State Change to Launched for Westopolis
 
-// Slide Steer
+	// Devil Doom Boss Has No Awake Music
 
-// Slide Run Threshhold
+	// Light Dash Valid Ring Distance
+	// 80 -> 100
+	const uint32_t lightDashValidRingDistanceAddr = 0x4ECDFC; // NOTE: PROBABLY SHARED; TODO Instead should patch ctor read!!
+	X86_STORE_F32(lightDashValidRingDistanceAddr, 100.0f);
 
-// Spindash Startup Delay
+	// Slide Steer
 
-// Strafe Walk Speed
+	// Slide Run Threshhold
 
-// Red Slime Speed
+	// Spindash Startup Delay
 
-// Skippable Startup/Boot Logos
+	// Strafe Walk Speed
 
-// Beating Last Story unlocks Expert
+	// Red Slime Speed
 
-// Expert Ring Loss
+	// Skippable Startup/Boot Logos
 
-// Holdable Slide
+	// Beating Last Story unlocks Expert
 
-// Devil Doom is a Ranked Mission
+	// Expert Ring Loss
 
-// S Rank System - Overhaul?
+	// Holdable Slide
 
-// Fix Sliding on Steep Slopes
+	// Devil Doom is a Ranked Mission
 
-// Disable CarType Vehicle Drifting
+	// S Rank System - Overhaul?
 
-// EggPierrot Stage Fix
+	// Fix Sliding on Steep Slopes
 
-// SuperShadow Always Has Fully Charged Spears while ChaosPowers Active [2P COMPAT]
+	// Disable CarType Vehicle Drifting
 
-// LaserRifle Damage Adjustment
+	// EggPierrot Stage Fix
 
-// Slide State Extension - Bad Transition Bugfix
+	// SuperShadow Always Has Fully Charged Spears while ChaosPowers Active [2P COMPAT]
 
-// Disable Diablon Warp Player Function
+	// LaserRifle Damage Adjustment
 
+	// Slide State Extension - Bad Transition Bugfix
+
+	// Disable Diablon Warp Player Function
 #endif
+}
