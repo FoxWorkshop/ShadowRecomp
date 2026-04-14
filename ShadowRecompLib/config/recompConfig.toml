@@ -186,8 +186,7 @@ functions = [
 	{ address = 0x24FD90, size = 0x32 },  #missing		
 	{ address = 0x236700, size = 0x52 },  #missing			
 	{ address = 0x767B0, size = 0x93 },  #missing			
-	{ address = 0x75f50, size = 0x59 },  #missing			
-	{ address = 0x75f50, size = 0x59 },  #missing		
+	{ address = 0x75f50, size = 0x59 },  #missing				
 	
 	{ address = 0x000962c0, size = 0x40 }, #missing	
 	{ address = 0x00183900, size = 0x10 }, #missing	
@@ -707,7 +706,6 @@ invalid_instructions = [
 	{ data = 0x32107F, size = 13 }, # Remove XboxSignature flag thing on RenderState	
 	{ data = 0x3D2481, size = 13 }, # same as above	
 ]
-
 
 [[midasm_hook]]
 name = "UpdateSDLEventsMidAsmHook"
