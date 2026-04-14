@@ -708,6 +708,10 @@ invalid_instructions = [
 	{ data = 0x3D2481, size = 13 }, # same as above	
 ]
 
+push_patch = [
+	# Inlined Homing Attack Speed 1000f -> 2000f [Reloaded Phys]
+    { address = 0x74757, value = 0x44FA0000 },
+]
 
 [[midasm_hook]]
 name = "UpdateSDLEventsMidAsmHook"
