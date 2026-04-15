@@ -230,12 +230,13 @@ static void GuestThreadFunc(GuestThreadHandle* hThread)
 GuestThreadHandle::GuestThreadHandle(const GuestThreadParams& params)
 	: params(params), suspended((params.flags & 0x1) != 0), thread(GuestThreadFunc, this)
 {
-	printf("GuestThreadHandle(const GuestThreadParams& params): Function %08X\n", params.function);
+
 }
 
 GuestThreadHandle::~GuestThreadHandle()
 {
-	printf("Destructor: Thread %08X\n", params.function);
+
+	printf("Thread Destructor %08X\n", params.function);
 
 	if (thread.joinable())
 		thread.join();
@@ -266,11 +267,19 @@ GuestThreadHandle* GuestThread::Start(const GuestThreadParams& params, uint32_t*
 	{
 		*threadId = GetThreadId(hThread->thread.get_id());
 
-#ifdef _WIN32
 		std::string s = GetThreadName(params.function);
+
+#ifdef _WIN32
+
 		if (s != "")
 			GuestThread::SetThreadName(*threadId, s.c_str());
 #endif
+
+		if (s == "")
+			s = "Unknown Thread";
+
+
+		printf("Started thread %08X with ID %u (%s)\n", params.function, *threadId, s.c_str());
 	}
 
 
@@ -286,7 +295,7 @@ uint32_t GuestThread::GetCurrentThreadId()
 
 uint32_t GuestThread::Start(const GuestThreadParams& params)
 {
-	printf("GuestThread::Start(const GuestThreadParams& params), function: %08X\n", params.function);
+
 	//const auto procMask = (uint8_t)(params.flags >> 24);
 	GuestThreadContext ctx(params);
 
