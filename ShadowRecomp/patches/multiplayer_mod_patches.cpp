@@ -216,3 +216,44 @@ X86_FUNC(sub_237DA0)
 // sub_238650 + 23D
 
 // End 2P Lite Stuff
+
+// Level Geo Unrestrict
+//X86_FUNC_IMPL(__imp__sub_56E00);
+//// sub_56E00 // File list check
+//bool allowAnyFileLoad(char* str)
+//{
+//	return 1;
+//}
+//GUEST_FUNCTION_HOOK(sub_56E00, allowAnyFileLoad);
+
+
+
+// Collision BVH Stack Overflow Fix
+// Original sub_302E30 inner BVH stack lives on the host stack (~32 entries).
+// Large collision meshes create BVH trees deeper than 32 levels, silently
+// overflowing into other stack variables and crashing.
+// 
+// Redirects the BVH stack to a static guest memory buffer using mid-asm hooks.
+// [[midasm_hook]] entries at 0x303375 and 0x30392B
+
+static constexpr uint32_t COLL_BVH_BUF_ADDR = 0x80000000;
+
+void BVHStackRedirectInit(X86Register& ecx, X86Register& esi)
+{
+	auto base = g_memory.base;
+
+	float tNear = X86_LOAD_F32(ecx.u32 + 4);
+	float tFar = X86_LOAD_F32(ecx.u32 + 8);
+
+	X86_STORE_U32(COLL_BVH_BUF_ADDR + 0, 0x0000FF00);
+	X86_STORE_U32(COLL_BVH_BUF_ADDR + 4, COLL_BVH_BUF_ADDR);
+	X86_STORE_F32(COLL_BVH_BUF_ADDR + 8, tNear);
+	X86_STORE_F32(COLL_BVH_BUF_ADDR + 12, tFar);
+
+	esi.u32 = COLL_BVH_BUF_ADDR + 16;
+}
+
+void BVHStackRedirectCmp(X86Register& eax)
+{
+	eax.u32 = COLL_BVH_BUF_ADDR + 4;
+}

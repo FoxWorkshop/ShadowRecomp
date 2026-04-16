@@ -755,3 +755,17 @@ registers = ["r0"]
 name = "CreateSaveMetaMidAsmHook"
 address = 0x2AEE1C
 jump_address=0x2AEE22
+
+# BVH Stack Overflow Fix
+[[midasm_hook]]
+name = "BVHStackRedirectInit"
+address = 0x303375
+registers = ["r2", "r4"]
+jump_address = 0x303380
+
+[[midasm_hook]]
+name = "BVHStackRedirectCmp"
+address = 0x30392B
+registers = ["r0"]
+jump_address = 0x303932
+# End BVH Stack Overflow Fix
