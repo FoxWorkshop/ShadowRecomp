@@ -163,7 +163,7 @@ extern std::unique_ptr<NV2AState> m_nv2a_state;
 
 
 // GCC implementation of FFS
-static int ffs(int valu)
+static int nv2a_ffs(int valu)
 {
 	int bit;
 
@@ -176,7 +176,7 @@ static int ffs(int valu)
 	return bit;
 }
 
-#define GET_MASK(v, mask) (((v) & (mask)) >> (ffs(mask)-1))
+#define GET_MASK(v, mask) (((v) & (mask)) >> (nv2a_ffs(mask)-1))
 
 #define NV_PGRAPH_CTX_SWITCH1                            0x0000014C
 #define NV_PGRAPH_CTX_SWITCH1_GRCLASS                      0x000000FF

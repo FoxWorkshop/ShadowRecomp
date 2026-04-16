@@ -2426,6 +2426,7 @@ namespace xbox
 	// ******************************************************************
 	static void_xt WRITE_REGISTER_UCHAR(PVOID Address, uchar_xt Value)
 	{
+#ifdef _MSC_VER
 		__asm
 		{
 			mov edx, Address
@@ -2433,6 +2434,10 @@ namespace xbox
 			mov[edx], ah
 			lock or Address, edx
 		};
+#else
+		*(volatile uchar_xt*)Address = Value;
+		__asm__ __volatile__("" ::: "memory");
+#endif
 	}
 
 	// ******************************************************************
@@ -2446,6 +2451,7 @@ namespace xbox
 	// ******************************************************************
 	static void_xt WRITE_REGISTER_USHORT(PVOID Address, ushort_xt Value)
 	{
+#ifdef _MSC_VER
 		__asm
 		{
 			mov edx, Address
@@ -2453,6 +2459,10 @@ namespace xbox
 			mov[edx], ax
 			lock or Address, edx
 		};
+#else
+		*(volatile ushort_xt*)Address = Value;
+		__asm__ __volatile__("" ::: "memory");
+#endif
 	}
 
 	// ******************************************************************
@@ -2466,6 +2476,7 @@ namespace xbox
 	// ******************************************************************
 	static void_xt WRITE_REGISTER_ULONG(PVOID Address, ulong_xt Value)
 	{
+#ifdef _MSC_VER
 		__asm
 		{
 			mov edx, Address
@@ -2473,6 +2484,10 @@ namespace xbox
 			mov[edx], eax
 			lock or Address, edx
 		};
+#else
+		*(volatile ulong_xt*)Address = Value;
+		__asm__ __volatile__("" ::: "memory");
+#endif
 	}
 
 	// ******************************************************************

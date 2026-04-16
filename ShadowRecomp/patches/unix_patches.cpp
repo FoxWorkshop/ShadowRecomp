@@ -26,6 +26,25 @@ const uint32_t CsdfilesTwindoAddr = 0x477670;
 const uint32_t CsdfilesPauseP1Addr = 0x477620;
 const uint32_t CsdfilesPauseP2Addr = 0x47763C;
 const uint32_t CsdfilesPauseP0Addr = 0x477654;
+const uint32_t CsdfilesResultAddr = 0x478168;
+const uint32_t CsdfilesRoutedAddr = 0x464ACC;
+const uint32_t CsdfilesBcharaAddr = 0x454C7C;
+const uint32_t CsdfilesVharroAddr = 0x478504;
+const uint32_t CsdfilesEggbosAddr = 0x45696C;
+
+const uint32_t CsdfilesDoomEyeAddr = 0x47818C;
+const uint32_t CsdfilesEggmanAddr = 0x4781A4;
+const uint32_t CsdfilesCharmyAddr = 0x4781BC;
+const uint32_t CsdfilesMariaAddr = 0x4781D4;
+const uint32_t CsdfilesEspioAddr = 0x4781EC;
+const uint32_t CsdfilesVectorAddr = 0x478204;
+const uint32_t CsdfilesOmegaAddr = 0x47821C;
+const uint32_t CsdfilesRougeAddr = 0x478234;
+const uint32_t CsdfilesAmyAddr = 0x47824C;
+const uint32_t CsdfilesKnucklesAddr = 0x478260;
+const uint32_t CsdfilesMilesAddr = 0x47827C;
+const uint32_t CsdfilesSonicAddr = 0x478294;
+
 
 
 
@@ -50,5 +69,23 @@ void PatchUnixStrings()
 	X86_STORE_U8(CsdfilesPauseP0Addr, c);
 	X86_STORE_U8(CsdfilesPauseP1Addr, c);
 	X86_STORE_U8(CsdfilesPauseP2Addr, c);
+	X86_STORE_U8(CsdfilesResultAddr, c);
+	X86_STORE_U8(CsdfilesRoutedAddr, c);
+	X86_STORE_U8(CsdfilesBcharaAddr, c);
+	X86_STORE_U8(CsdfilesVharroAddr, c);
+	X86_STORE_U8(CsdfilesEggbosAddr, c);
+
+	X86_STORE_U8(CsdfilesDoomEyeAddr, c);
+	X86_STORE_U8(CsdfilesEggmanAddr, c);
+	X86_STORE_U8(CsdfilesCharmyAddr, c);
+	X86_STORE_U8(CsdfilesMariaAddr, c);
+	X86_STORE_U8(CsdfilesEspioAddr, c);
+	X86_STORE_U8(CsdfilesVectorAddr, c);
+	X86_STORE_U8(CsdfilesOmegaAddr, c);
+	X86_STORE_U8(CsdfilesRougeAddr, c);
+	X86_STORE_U8(CsdfilesAmyAddr, c);
+	X86_STORE_U8(CsdfilesKnucklesAddr, c);
+	X86_STORE_U8(CsdfilesMilesAddr, c);
+	X86_STORE_U8(CsdfilesSonicAddr, c);
 
 }

@@ -3525,7 +3525,7 @@ static std::atomic<bool> presentExecuted(true);
 static int copyCount;
 static int g_drawPrimitiveUP_ID = 0;
 bool PresentAllowed = true;
-extern bool aboutToDrawLoading;
+extern std::atomic<bool> aboutToDrawLoading;
 void Video::Present()
 {
 
@@ -6925,7 +6925,7 @@ extern bool drawCompositeRT;
 //D3DDevice_DrawVerticesUP - used for 2D Stuff, does not require a vertex buffer (originally)
 void DrawPrimitiveUP(X_D3DPRIMITIVETYPE PrimitiveType, uint32_t VertexCount, void* pVertexStreamZeroData, uint32_t VertexStreamZeroStride)
 {
-	// dirty hack to attempt to fix barrier crash, 
+	// dirty hack to attempt to fix barrier crash,
 	// the crash happens when the main thread is trying to draw while the loading thread is calling present
 	// the render thread does not like getting new command queue while processing Present.
 	while (aboutToDrawLoading && GuestThread::GetCurrentThreadId() != GetLoadingThreadID())
@@ -7560,7 +7560,7 @@ X86_FUNC(sub_2DFE20)
 {
 	RwRaster* info = (RwRaster*)g_memory.Translate(ctx.ecx.u32);
 	uint8_t level = X86_LOAD_U8(ctx.eax.u32 + 19);
-	int usage = LOBYTE(info->cType) == rwRASTERTYPECAMERATEXTURE ? 1 : 0;
+	int usage = (info->cType & 0xFF) == rwRASTERTYPECAMERATEXTURE ? 1 : 0;
 
 	if (usage)
 	{

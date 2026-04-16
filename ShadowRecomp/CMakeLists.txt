@@ -92,6 +92,9 @@ if (WIN32)
     )
 elseif (CMAKE_SYSTEM_NAME MATCHES "Linux")
     set(SHADOW_RECOMP_OS_CXX_SOURCES
+        "os/linux/logger_linux.cpp"
+        "os/linux/process_linux.cpp"
+        "os/linux/user_linux.cpp"
     )
 endif()
 
@@ -174,7 +177,12 @@ set(SHADOW_RECOMP_THIRDPARTY_SOURCES
 )
 
 
+if (NOT WIN32)
+    set(SHADOW_RECOMP_COMPAT_INCLUDE "${CMAKE_CURRENT_SOURCE_DIR}/compat")
+endif()
+
 set(SHADOW_RECOMP_THIRDPARTY_INCLUDES
+    ${SHADOW_RECOMP_COMPAT_INCLUDE}
     "${SHADOW_RECOMP_THIRDPARTY_ROOT}/concurrentqueue"
     "${SHADOW_RECOMP_THIRDPARTY_ROOT}/imgui"
     "${SHADOW_RECOMP_THIRDPARTY_ROOT}/implot"
@@ -348,6 +356,8 @@ if (CMAKE_SYSTEM_NAME MATCHES "Linux")
     find_package(X11 REQUIRED)
     target_include_directories(ShadowRecomp PRIVATE ${X11_INCLUDE_DIR})
     target_link_libraries(ShadowRecomp PRIVATE ${X11_LIBRARIES})
+    find_package(Freetype REQUIRED)
+    target_link_libraries(ShadowRecomp PRIVATE Freetype::Freetype)
 endif()
 
 target_precompile_headers(ShadowRecomp PUBLIC ${SHADOW_RECOMP_PRECOMPILED_HEADERS})
