@@ -46,12 +46,21 @@ void DrawBackground()
     auto& res = ImGui::GetIO().DisplaySize;
     auto drawList = ImGui::GetBackgroundDrawList();
 
-    // Full screen stretch
-    ImVec2 min = { g_aspectRatioOffsetX, g_aspectRatioOffsetY };
-    ImVec2 max = { res.x - g_aspectRatioOffsetX, res.y - g_aspectRatioOffsetY };
 
-    auto lightOffUVs = PIXELS_TO_UV_COORDS(512, 512, 0, 0, 512, 512);
-    drawList->AddImage(g_upTexOptions.get(), min, max, GET_UV_COORDS(lightOffUVs), IM_COL32(255, 255, 255, 255));
+
+    float borderPixels = 32.f; // Options BG has an extra black border at the bottom, we don't want that.
+    float uvMaxY = 1.0f - (borderPixels / 512.0f);
+
+    ImVec2 centre = { res.x / 2, res.y / 2  };
+    drawList->AddImage
+    (
+        g_upTexOptions.get(),
+        { 0.0f, 0.0f },
+        { res.x, res.y },
+        { 0, 0 },
+        { 1, uvMaxY },
+        IM_COL32(255, 255, 255, 255)
+    );
 }
 
 void OptionsMenu::Draw()

@@ -101,7 +101,6 @@ X86_FUNC(sub_28F720)
 X86_FUNC_IMPL(__imp__sub_28F200);
 X86_FUNC(sub_28F200)
 {
-	OptionsMenu::Draw();
 
 	ctx.esp.u32 += 4;
 	//__imp__sub_28F200(ctx, base);

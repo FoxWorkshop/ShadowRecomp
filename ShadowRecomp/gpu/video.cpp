@@ -109,6 +109,7 @@ bool LogVSConstants = false;
 #include <os/process.h>
 #include <ui/fader.h>
 #include <ui/message_window.h>
+#include <ui/options_menu.h>
 
 
 
@@ -3320,8 +3321,8 @@ static void DrawImGui()
 	ImGui::End();
 #endif
 
-	/**AchievementMenu::Draw();
 	OptionsMenu::Draw();
+	/**AchievementMenu::Draw();
 	AchievementOverlay::Draw();
 	InstallerWizard::Draw();
 
