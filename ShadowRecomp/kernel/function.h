@@ -6,10 +6,12 @@
 #include "xbox_types.h"
 #include "types.h"
 #include "heap.h"
+#ifdef _WIN32
 #include <winnt.h>
 #include <minwindef.h>
 #include <Windows.h>
 #include <windef.h>
+#endif
 #include <unordered_map>
 #include <type_traits>
 #include <cassert>

@@ -447,10 +447,10 @@ struct GuestSurface : GuestBaseTexture
 
 struct _D3DRECT
 {
-	LONG x1;
-	LONG y1;
-	LONG x2;
-	LONG y2;
+	int32_t x1;
+	int32_t y1;
+	int32_t x2;
+	int32_t y2;
 };
 
 // This is used to initialize the last vertex element in a vertex declaration
@@ -633,7 +633,7 @@ enum X_D3DTRANSFORMSTATETYPE {
 	X_D3DTS_FORCE_DWORD = 0x7FFFFFFF,
 };
 
-enum _D3DSWAPEFFECT : __int32
+enum _D3DSWAPEFFECT : int32_t
 {
 	D3DSWAPEFFECT_DISCARD = 0x1,
 	D3DSWAPEFFECT_FLIP = 0x2,
@@ -795,7 +795,7 @@ typedef enum _D3DVERTEXBLENDFLAGS
 #define X_D3DFVF_TEXTUREFORMAT3   0x001
 #define X_D3DFVF_TEXTUREFORMAT4   0x002
 
-enum _D3DBLEND : __int32
+enum _D3DBLEND : int32_t
 {
 	D3DBLEND_ZERO = 0x0,
 	D3DBLEND_ONE = 0x1,
@@ -815,7 +815,7 @@ enum _D3DBLEND : __int32
 	D3DBLEND_FORCE_DWORD = 0x7FFFFFFF,
 };
 
-enum _D3DBLENDOP : __int32
+enum _D3DBLENDOP : int32_t
 {
 	D3DBLENDOP_ADD = 0x8006,
 	D3DBLENDOP_SUBTRACT = 0x800A,
@@ -828,7 +828,7 @@ enum _D3DBLENDOP : __int32
 };
 
 //this seems to vary per game, likely because of the Xbox SDK version.
-enum X_D3DTEXTURESTAGESTATETYPE : __int32
+enum X_D3DTEXTURESTAGESTATETYPE : int32_t
 {
 	X_D3DTSS_ADDRESSU = 0,
 	X_D3DTSS_ADDRESSV = 1,
@@ -868,7 +868,7 @@ enum X_D3DTEXTURESTAGESTATETYPE : __int32
 	X_D3DTSS_FORCE_DWORD = 0x7FFFFFFF,
 };
 
-enum _D3DTEXTUREADDRESS : __int32
+enum _D3DTEXTUREADDRESS : int32_t
 {
 	D3DTADDRESS_WRAP = 0x1,
 	D3DTADDRESS_MIRROR = 0x2,

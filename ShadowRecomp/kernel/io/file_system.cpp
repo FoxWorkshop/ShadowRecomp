@@ -73,9 +73,9 @@ struct FindHandle : KernelObject
 		strncpy(lpFindFileData->cFileName, (const char*)(iterator->first.c_str()), sizeof(lpFindFileData->cFileName));
 		lpFindFileData->nFileSizeLow = (uint32_t(iterator->second.first));
 		lpFindFileData->nFileSizeHigh = (uint32_t(iterator->second.first >> 32U));
-		lpFindFileData->ftCreationTime = {};
-		lpFindFileData->ftLastAccessTime = {};
-		lpFindFileData->ftLastWriteTime = {};
+		memset(&lpFindFileData->ftCreationTime, 0, sizeof(lpFindFileData->ftCreationTime));
+		memset(&lpFindFileData->ftLastAccessTime, 0, sizeof(lpFindFileData->ftLastAccessTime));
+		memset(&lpFindFileData->ftLastWriteTime, 0, sizeof(lpFindFileData->ftLastWriteTime));
 	}
 };
 
@@ -168,7 +168,7 @@ std::filesystem::path FileSystem::ResolvePath(const std::string_view& path, bool
 
 			if (mapping.stripSegment && mapping.stripSegment(seg))
 			{
-				// Hex segment stripped — switch to save root
+				// Hex segment stripped â€” switch to save root
 				if (!rootResolved && !mapping.saveRoot.empty())
 				{
 					result = mapping.saveRoot;
@@ -187,7 +187,7 @@ std::filesystem::path FileSystem::ResolvePath(const std::string_view& path, bool
 	}
 	else 
 	{
-		// No drive letter — relative path, append to game folder
+		// No drive letter â€” relative path, append to game folder
 		result = MainGameFolder;
 		result /= std::string(path);
 	}

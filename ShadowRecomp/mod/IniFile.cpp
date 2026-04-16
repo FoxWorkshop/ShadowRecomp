@@ -21,6 +21,14 @@ using std::string;
 using std::unordered_map;
 using std::wstring;
 
+#ifndef _WIN32
+static std::string wstring_to_utf8(const std::wstring& wstr)
+{
+	std::wstring_convert<std::codecvt_utf8_utf16<wchar_t>> conv;
+	return conv.to_bytes(wstr);
+}
+#endif
+
 inline bool iequals(const std::string& a, const std::string& b)
 {
 	return std::equal(a.begin(), a.end(),

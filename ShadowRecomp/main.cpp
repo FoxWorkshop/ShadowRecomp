@@ -164,7 +164,13 @@ std::vector<float> ReadFloatPairs(const std::string& path)
 int main(int argc, char* argv[])
 {
 #ifdef _WIN32
+    //SetProcessAffinityMask(GetCurrentProcess(), 1);
     timeBeginPeriod(1);
+#elif defined(__linux__)
+    //cpu_set_t cpuset;
+    //CPU_ZERO(&cpuset);
+    //CPU_SET(0, &cpuset);
+    //sched_setaffinity(0, sizeof(cpuset), &cpuset);
 #endif
 
     os::process::CheckConsole();

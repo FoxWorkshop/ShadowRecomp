@@ -9,14 +9,16 @@
 #include <cstring>
 #ifdef _WIN32
 #include <windows.h>
-#endif 
 #include <intrin.h>
+#else
+#include <x86intrin.h>
+#endif
 
 struct KTHREAD_R
 {
 	/* 0x0/0 */ uint8_t header[16];
 	/* 0x10/16 */ int8_t MutantListHead[8];
-	/* 0x18/24 */ unsigned long KernelTime;
+	/* 0x18/24 */ uint32_t KernelTime;
 	/* 0x1C/28 */ uint32_t StackBase;
 	/* 0x20/32 */ uint32_t StackLimit;
 	/* 0x24/36 */ uint32_t KernelStack;
@@ -40,8 +42,6 @@ constexpr size_t TLS_SIZE = 0x2000;//0x1000;
 constexpr size_t STACK_SIZE = 0x10000;
 constexpr size_t FX_SAVE_AREA_SIZE = sizeof(FX_SAVE_AREA);
 constexpr size_t KSTART_SWITCH_FRAME_SIZE = 24;
-
-size_t TOTAL_SIZE = KPCR_SIZE + FX_SAVE_AREA_SIZE + TLS_SIZE + STACK_SIZE + ETHREAD_R_SIZE + KSTART_SWITCH_FRAME_SIZE;
 
 bool isHostThread = false;
 
@@ -95,10 +95,10 @@ GuestThreadContext::GuestThreadContext(GuestThreadParams params)
 	if (KernelStackSize <= 0)
 		KernelStackSize = STACK_SIZE;
 
-	TOTAL_SIZE = KPCR_SIZE + tlsSize + KernelStackSize + FX_SAVE_AREA_SIZE + KSTART_SWITCH_FRAME_SIZE + ETHREAD_R_SIZE;
+	const size_t totalSize = KPCR_SIZE + tlsSize + KernelStackSize + FX_SAVE_AREA_SIZE + KSTART_SWITCH_FRAME_SIZE + ETHREAD_R_SIZE;
 
 	assert(thread == nullptr);
-	thread = (uint8_t*)g_userHeap.Alloc(TOTAL_SIZE);
+	thread = (uint8_t*)g_userHeap.Alloc(totalSize);
 
 
 	ETHREAD_R* eThread = reinterpret_cast<ETHREAD_R*>(thread + KPCR_SIZE + tlsSize + KernelStackSize);
@@ -122,7 +122,7 @@ GuestThreadContext::GuestThreadContext(GuestThreadParams params)
 	assert(stack_top - stack_limit == KernelStackSize);
 
 
-	memset(thread, 0, TOTAL_SIZE);
+	memset(thread, 0, totalSize);
 	memset(eThread, 0, sizeof(ETHREAD_R));
 
 	// Set up memory regions
@@ -160,7 +160,7 @@ GuestThreadContext::GuestThreadContext(GuestThreadParams params)
 
 		uint32_t* TlsData = reinterpret_cast<xbox::addr_xt*>(newPtr);
 		
-		*TlsData = reinterpret_cast<uint32_t>(newPtr) + sizeof(uint32_t);
+		*TlsData = (uint32_t)((uintptr_t)newPtr + sizeof(uint32_t));
 		// Set the actual tls data from xbe.
 		TlsData += 1;
 		std::memcpy(TlsData, reinterpret_cast<xbox::PVOID>(m_TLS->dwDataStartAddr), RawTlsDataSize);
