@@ -85,7 +85,7 @@ X86_FUNC(sub_28F720)
 
 	if (menuMode == 0)
 	{
-		OptionsMenu::Init();
+
 		OptionsMenu::Open(false);
 		__imp__sub_28F720(ctx, base);
 	}

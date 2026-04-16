@@ -1842,8 +1842,9 @@ static void CreateImGuiBackend()
 	/**AchievementMenu::Init();
 	AchievementOverlay::Init();
 	ButtonGuide::Init();
-	OptionsMenu::Init();
+
 	InstallerWizard::Init();*/
+	OptionsMenu::Init();
 	MessageWindow::Init();
 
 
