@@ -4,6 +4,7 @@
 #include <app.h>
 #include <ui/message_window.h>
 #include <input/padstate.h>
+#include <ui/options_menu.h>
 
 static std::atomic<bool> g_faderBegun = false;
 
@@ -57,13 +58,12 @@ X86_FUNC(sub_292CF0)
 		ctx.esp.u32 += 4;
 }
 
-// This function controls the timer logic during title screen (maybe menu too?) 
+// This function controls the timer logic during title screen and menu
 // to prevent the game from trying to reset the title screen while we have the message open we block
 // the function until player close the message box
 X86_FUNC_IMPL(__imp__sub_17ED0);
 X86_FUNC(sub_17ED0)
 {
-
 	if (g_quitMessageOpen || !g_quitMessageResult)
 	{
 		ctx.eax.u8_lo = 0;
@@ -74,5 +74,36 @@ X86_FUNC(sub_17ED0)
 		__imp__sub_17ED0(ctx, base);
 	}
 
+}
+
+// Options logic
+X86_FUNC_IMPL(__imp__sub_28F720);
+X86_FUNC(sub_28F720)
+{
+	auto menuModeAddr = X86_LOAD_U32(ctx.ecx.u32 + 4);
+	auto menuMode = X86_LOAD_U32(menuModeAddr);
+
+	if (menuMode == 0)
+	{
+		OptionsMenu::Init();
+		OptionsMenu::Open(false);
+		__imp__sub_28F720(ctx, base);
+	}
+	else
+	{
+		ctx.esp.u32 += 4;
+	}
+
+
+}
+
+// Options rendering
+X86_FUNC_IMPL(__imp__sub_28F200);
+X86_FUNC(sub_28F200)
+{
+	OptionsMenu::Draw();
+
+	ctx.esp.u32 += 4;
+	//__imp__sub_28F200(ctx, base);
 
 }

@@ -106,6 +106,13 @@ enum class ETextureFiltering : uint32_t
     Linear
 };
 
+
+enum class EUIAlignmentMode : uint32_t
+{
+    Edge,
+    Centre
+};
+
 template<typename T, bool isHidden = false>
 class ConfigDef final : public IConfigDef
 {

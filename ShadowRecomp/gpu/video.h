@@ -5,6 +5,7 @@
 #define D3DCLEAR_TARGET  0x1
 #define D3DCLEAR_ZBUFFER 0x10
 
+#define LOAD_ZSTD_TEXTURE(name) LoadCustomTexture(decompressZstd(name, name##_uncompressed_size).get(), name##_uncompressed_size)
 
 constexpr DWORD X_D3DTS_STAGECOUNT = 4; // Dxbx addition
 extern uint32_t g_VertexShader_Handle;

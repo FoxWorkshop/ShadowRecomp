@@ -3983,6 +3983,8 @@ static bool LoadTexture(GuestTexture& texture, const uint8_t* data, size_t dataS
 
 	if (stbImage != nullptr)
 	{
+		texture.width = width;
+		texture.height = height;
 		texture.textureHolder = g_device->createTexture(RenderTextureDesc::Texture2D(width, height, 1, RenderFormat::R8G8B8A8_UNORM));
 		texture.texture = texture.textureHolder.get();
 		texture.viewDimension = RenderTextureViewDimension::TEXTURE_2D;
