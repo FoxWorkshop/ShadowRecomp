@@ -217,14 +217,38 @@ X86_FUNC(sub_237DA0)
 
 // End 2P Lite Stuff
 
-// Level Geo Unrestrict
+// Level Geo Unrestrict (For Custom Stages)
+// Note: This will break some stages, e.g. Egg Dealer (Black Comet) and if you die in a certain area in GUN Fortress.
+// This is because Sonic Team left visibility chunks pointing to old files... which are usually ignore due to this file restriction function.
 //X86_FUNC_IMPL(__imp__sub_56E00);
-//// sub_56E00 // File list check
-//bool allowAnyFileLoad(char* str)
+//X86_FUNC(sub_56E00)
 //{
-//	return 1;
+//	auto isDigit = [](char c) { return c >= '0' && c <= '9'; };
+//
+//	uint32_t strAddr = X86_LOAD_U32(ctx.esp.u32 + 4);
+//	const char* str = strAddr ? (const char*)(base + strAddr) : nullptr;
+//
+//	if (str)
+//	{
+//		for (const char* p = str; *p; p++)
+//		{
+//			if ((p[0] == 's' || p[0] == 'S') &&
+//				(p[1] == 't' || p[1] == 'T') &&
+//				(p[2] == 'g' || p[2] == 'G') &&
+//				isDigit(p[3]) && isDigit(p[4]) &&
+//				isDigit(p[5]) && isDigit(p[6]) &&
+//				p[7] == '_' &&
+//				isDigit(p[8]) && isDigit(p[9]))
+//			{
+//				ctx.eax.u32 = 1;
+//				ctx.esp.u32 += 4;
+//				return;
+//			}
+//		}
+//	}
+//
+//	__imp__sub_56E00(ctx, base);
 //}
-//GUEST_FUNCTION_HOOK(sub_56E00, allowAnyFileLoad);
 
 
 
