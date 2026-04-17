@@ -9,8 +9,22 @@
 static std::atomic<bool> g_faderBegun = false;
 
 bool g_quitMessageOpen = false;
+bool g_OptionsOpen = false;
 static int g_quitMessageResult = -1;
 static float g_timerAllowedToQuit = 0.f;
+static uint32_t g_optionsMode = 0;
+
+void SetOptionModeToFalse()
+{
+	g_OptionsOpen = false;
+	if (g_optionsMode)
+	{
+		auto base = g_memory.base;
+		X86_STORE_U32(g_optionsMode, 5);
+		g_optionsMode = 0;
+	}
+
+}
 
 static bool ProcessQuitMessage()
 {
@@ -80,21 +94,23 @@ X86_FUNC(sub_17ED0)
 X86_FUNC_IMPL(__imp__sub_28F720);
 X86_FUNC(sub_28F720)
 {
-	auto menuModeAddr = X86_LOAD_U32(ctx.ecx.u32 + 4);
-	auto menuMode = X86_LOAD_U32(menuModeAddr);
+	g_optionsMode = X86_LOAD_U32(ctx.ecx.u32 + 4);
+	auto menuMode = X86_LOAD_U32(g_optionsMode);
 
 	if (menuMode == 0)
 	{
-
 		OptionsMenu::Open(false);
+		g_OptionsOpen = true;
+		__imp__sub_28F720(ctx, base);
+	}
+	else if (g_OptionsOpen == false)
+	{
 		__imp__sub_28F720(ctx, base);
 	}
 	else
 	{
 		ctx.esp.u32 += 4;
 	}
-
-
 }
 
 // Options rendering
@@ -102,7 +118,15 @@ X86_FUNC_IMPL(__imp__sub_28F200);
 X86_FUNC(sub_28F200)
 {
 
-	ctx.esp.u32 += 4;
-	//__imp__sub_28F200(ctx, base);
+	if (g_OptionsOpen == false)
+	{
+		__imp__sub_28F200(ctx, base);
+	}
+	else
+	{
+
+		ctx.esp.u32 += 4;
+	}
+
 
 }

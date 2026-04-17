@@ -72,6 +72,17 @@ std::unordered_map<std::string_view, std::unordered_map<ELanguage, std::string>>
 		}
 	},
 	{
+		"Options_Desc_Category_System",
+		{
+			{ ELanguage::English,  "Adjust system settings." },
+			{ ELanguage::Japanese, "システムの設定を変更します" },
+			{ ELanguage::German,   "Verändere System-Einstellungen." },
+			{ ELanguage::French,   "Modifier les paramètres système." },
+			{ ELanguage::Spanish,  "Ajustar la configuración del sistema." },
+			{ ELanguage::Italian,  "Modifica le impostazioni di sistema." }
+		}
+	},
+	{
 		"Options_Category_Input",
 		{
 			{ ELanguage::English,  "INPUT" },
@@ -82,6 +93,7 @@ std::unordered_map<std::string_view, std::unordered_map<ELanguage, std::string>>
 			{ ELanguage::Italian,  "COMANDI" }
 		}
 	},
+
 	{
 		"Options_Desc_Category_Input",
 		{
@@ -157,6 +169,28 @@ std::unordered_map<std::string_view, std::unordered_map<ELanguage, std::string>>
 			{ ELanguage::French,   "Modifier les paramètres divers." },
 			{ ELanguage::Spanish,  "Ajustar la configuración diversa." },
 			{ ELanguage::Italian,  "Modifica le impostazioni varie." }
+		}
+	},
+	{
+		"Options_Category_Debug",
+		{
+			{ ELanguage::English,  "Debug settings" },
+			{ ELanguage::Japanese, "デバッグ設定" },
+			{ ELanguage::German,   "Debug-Einstellungen" },
+			{ ELanguage::French,   "Paramètres de débogage" },
+			{ ELanguage::Spanish,  "Configuración de depuración" },
+			{ ELanguage::Italian,  "Impostazioni debug" }
+		}
+			},
+	{
+		"Options_Desc_Category_Debug",
+		{
+			{ ELanguage::English,  "Adjust debug settings." },
+			{ ELanguage::Japanese, "デバッグの設定を変更します" },
+			{ ELanguage::German,   "Verändere Debug-Einstellungen." },
+			{ ELanguage::French,   "Modifier les paramètres de débogage." },
+			{ ELanguage::Spanish,  "Ajustar la configuración de depuración." },
+			{ ELanguage::Italian,  "Modifica le impostazioni debug." }
 		}
 	},
 	{

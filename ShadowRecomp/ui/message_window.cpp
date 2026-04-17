@@ -33,7 +33,7 @@ static double g_rowSelectionTime;
 static int g_prevSelectedRowIndex;
 
 
-static ImFont* g_fntShadow;
+static ImFont* g_fntSeurat;
 
 std::string g_text;
 int g_result;
@@ -209,7 +209,7 @@ void DrawMessageInWindow(const char* text, ImVec2 center, ImVec2 size)
 	auto fontSize = Scale(28);
 
 	const auto input = RemoveRubyAnnotations(g_text.c_str());
-	auto lines = Split(input.first.c_str(), g_fntShadow, fontSize, maxWidth);
+	auto lines = Split(input.first.c_str(), g_fntSeurat, fontSize, maxWidth);
 
 	for (auto& line : lines)
 	{
@@ -219,7 +219,7 @@ void DrawMessageInWindow(const char* text, ImVec2 center, ImVec2 size)
 	// Text centered inside
 
 	auto lineMargin = Config::Language != ELanguage::Japanese ? 5.0f : 5.5f;
-	auto textSize = MeasureCentredParagraph(g_fntShadow, fontSize, lineMargin, lines);
+	auto textSize = MeasureCentredParagraph(g_fntSeurat, fontSize, lineMargin, lines);
 	ImVec2 textPos = { center.x - textSize.x * 0.5f, center.y - textSize.y * 0.5f };
 	auto textMarginX = Scale(37);
 	auto textMarginY = Scale(45);
@@ -241,7 +241,7 @@ void DrawMessageInWindow(const char* text, ImVec2 center, ImVec2 size)
 
 	DrawRubyAnnotatedText
 	(
-		g_fntShadow,
+		g_fntSeurat,
 		fontSize,
 		maxWidth,
 		{ textX, textY },
@@ -250,11 +250,11 @@ void DrawMessageInWindow(const char* text, ImVec2 center, ImVec2 size)
 
 		[=](const char* str, ImVec2 pos)
 		{
-			DrawTextWithShadow(g_fntShadow, fontSize, pos, IM_COL32(255, 255, 255, 255), str, 3.f, 0.5f);
+			DrawTextWithShadow(g_fntSeurat, fontSize, pos, IM_COL32(255, 255, 255, 255), str, 3.f, 0.5f);
 		},
 		[=](const char* str, float size, ImVec2 pos)
 		{
-			// DrawTextWithShadow(g_fntShadow, size, pos, IM_COL32(255, 255, 255, 255), str, 3.f, 0.5f);
+			// DrawTextWithShadow(g_fntSeurat, size, pos, IM_COL32(255, 255, 255, 255), str, 3.f, 0.5f);
 		},
 
 		true
@@ -288,7 +288,7 @@ void DrawButton(int rowIndex, float yOffset, float width, float height, std::str
 
 
 	auto fontSize = Scale(28);
-	auto textSize = g_fntShadow->CalcTextSizeA(fontSize, FLT_MAX, 0, text.c_str());
+	auto textSize = g_fntSeurat->CalcTextSizeA(fontSize, FLT_MAX, 0, text.c_str());
 
 	// Show low quality text in-game.
 	if (App::s_isInit)
@@ -296,7 +296,7 @@ void DrawButton(int rowIndex, float yOffset, float width, float height, std::str
 
 	DrawTextWithShadow
 	(
-		g_fntShadow,
+		g_fntSeurat,
 		fontSize,
 		{ /* X */ min.x + ((max.x - min.x) - textSize.x) / 2, /* Y */ min.y + ((max.y - min.y) - textSize.y) / 2 },
 		isSelected ? IM_COL32(234, 234, 69, 255) : IM_COL32(255, 255, 255, 255),
@@ -403,7 +403,7 @@ void MessageWindow::Init()
 {
 	auto& io = ImGui::GetIO();
 
-	g_fntShadow = io.Fonts->Fonts[0];
+	g_fntSeurat = ImFontAtlasSnapshot::GetFont("FOT-SeuratPro-DB.otf");
 }
 
 void MessageWindow::Draw()
@@ -469,7 +469,7 @@ void MessageWindow::Draw()
 	{
 
 		auto fontSize = Scale(28);
-		auto itemWidth = std::max(Scale(162), Scale(CalcWidestTextSize(g_fntShadow, fontSize, g_buttons)));
+		auto itemWidth = std::max(Scale(162), Scale(CalcWidestTextSize(g_fntSeurat, fontSize, g_buttons)));
 		auto itemHeight = Scale(120);
 		auto windowMarginX = Scale(10);
 		auto windowMarginY = Scale(80);

@@ -11,6 +11,7 @@
 #include <res/images/common/Options2.png.h>
 #include <res/images/common/TitleBg.png.h>
 
+float g_fntSeuratSize = 0.0f;
 
 void InitImGuiUtils()
 {
@@ -19,7 +20,11 @@ void InitImGuiUtils()
     //g_texSelect = LOAD_ZSTD_TEXTURE(g_select);
 
     //g_upTexOptionsBG = LOAD_ZSTD_TEXTURE(g_options_bg);
+
+    g_fntSeuratSize = Scale(Config::Language == ELanguage::Japanese ? 19 : 18);
 }
+
+
 
 void SetGradient(const ImVec2& min, const ImVec2& max, ImU32 top, ImU32 bottom)
 {

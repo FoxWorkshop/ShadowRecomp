@@ -1114,3 +1114,5 @@ void UpdateVertexShader(uint32_t Handle);
 bool is_vulkan();
 
 extern std::unique_ptr<GuestTexture> LoadCustomTexture(const uint8_t* data, size_t dataSize, RenderComponentMapping componentMapping = RenderComponentMapping());
+
+extern void VideoConfigValueChangedCallback(class IConfigDef* config);

@@ -16,7 +16,9 @@
 #define BREATHE_MOTION(start, end, time, rate) Lerp(start, end, (sin((ImGui::GetTime() - time) * (2.0f * M_PI / rate)) + 1.0f) / 2.0f)
 
 constexpr float ANNOTATION_FONT_SIZE_MODIFIER = 0.6f;
+#define IM_COL32_WHITE_TRANS IM_COL32(255, 255, 255, 0)
 
+extern float g_fntSeuratSize;
 
 
 struct TextSegment {

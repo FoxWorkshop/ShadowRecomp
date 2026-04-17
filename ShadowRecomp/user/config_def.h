@@ -77,5 +77,6 @@ CONFIG_DEFINE_LOCALISED("Video", float, BloomIntensity, 0.7f);
 //CONFIG_DEFINE_ENUM_LOCALISED("Video", EUIAlignmentMode, UIAlignmentMode, EUIAlignmentMode::Edge);
 
 
+CONFIG_DEFINE_HIDDEN("Codes", bool, SkipIntroLogos, false);
 
 CONFIG_DEFINE("Update", time_t, LastChecked, 0);

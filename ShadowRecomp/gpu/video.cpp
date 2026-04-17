@@ -1833,9 +1833,10 @@ static void CreateImGuiBackend()
 	io.Fonts = ImFontAtlasSnapshot::Load();
 
 #else
-	//io.Fonts->AddFontFromFileTTF("font.ttc", 18.0f);
-	io.Fonts->AddFontDefault();
 	ImFontAtlasSnapshot::GenerateGlyphRanges();
+	ImFontAtlasSnapshot::GetFont("FOT-SeuratPro-DB.otf");
+	ImFontAtlasSnapshot::GetFont("DFPZongYiW5-B5.ttc");
+
 #endif
 
 	InitImGuiUtils();
@@ -1978,22 +1979,6 @@ static void CreateImGuiBackend()
 		fwrite(snapshot.data.data(), 1, snapshot.data.size(), file);
 		fclose(file);
 	}
-
-	/**ddspp::Header header;
-	ddspp::HeaderDXT10 headerDX10;
-	ddspp::encode_header(ddspp::R8G8B8A8_UNORM, width, height, 1, ddspp::Texture2D, 1, 1, header, headerDX10);
-
-	file = fopen("im_font_atlas.dds", "wb");
-	if (file)
-	{
-		fwrite(&ddspp::DDS_MAGIC, 4, 1, file);
-		fwrite(&header, sizeof(header), 1, file);
-		fwrite(&headerDX10, sizeof(headerDX10), 1, file);
-		fwrite(pixels, 4, width * height, file);
-		fclose(file);
-	}*/
-
-
 	uint8_t* pixelsCopy;
 	int atlasW = 0, atlasH = 0, bpp = 0;
 	io.Fonts->GetTexDataAsRGBA32(&pixelsCopy, &atlasW, &atlasH, &bpp);
@@ -3107,7 +3092,8 @@ static void DrawProfiler()
 	if (!g_profilerVisible)
 		return;
 
-	ImFont* font = ImGui::GetIO().Fonts->Fonts[0];
+	ImFont* font = ImFontAtlasSnapshot::GetFont("FOT-SeuratPro-DB.otf"); //ImGui::GetIO().Fonts->Fonts[0];
+
 	float defaultScale = font->Scale;
 	font->Scale = ImGui::GetDefaultFont()->FontSize / font->FontSize;
 	ImGui::PushFont(font);
@@ -3255,7 +3241,7 @@ static void DrawFPS()
 
 	auto fmt = fmt::format("FPS: {:.2f}", fps);
 	//auto font = ImFontAtlasSnapshot::GetFont("FOT-SeuratPro-M.otf");
-	auto font = ImGui::GetIO().Fonts->Fonts[0];
+	auto font = ImFontAtlasSnapshot::GetFont("FOT-SeuratPro-DB.otf");
 	auto fontSize = Scale(10);
 	auto textSize = font->CalcTextSizeA(fontSize, FLT_MAX, 0, fmt.c_str());
 
@@ -7693,6 +7679,17 @@ void D3D_BlockOnTime(int32_t a1, int32_t a2)
 	;
 }
 
+void VideoConfigValueChangedCallback(IConfigDef* config)
+{
+	// Config options that require internal resolution resize
+	g_needsResize |=
+		config == &Config::AspectRatio ||
+		config == &Config::ResolutionScale ||
+		config == &Config::AntiAliasing;
+
+	if (g_needsResize)
+		Video::ComputeViewportDimensions();
+}
 
 static std::thread g_renderThread([]
 	{
