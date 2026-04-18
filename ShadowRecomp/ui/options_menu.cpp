@@ -656,12 +656,46 @@ void DrawMenuListContainer(ImVec2 min, ImVec2 max)
     DrawOptions({ containerMin.x + optionsOffsetX, containerMin.y + optionsOffsetY }, { res.x, containerMax.y - optionsOffsetY });
 }
 
+
+void DrawDescription()
+{
+    auto drawList = ImGui::GetBackgroundDrawList();
+    auto& res = ImGui::GetIO().DisplaySize;
+
+    // First we calculate the position of the black bar of the menu BG
+    float barTexX = 74.0f;
+    float barTexY = 38.f;
+    float barTexH = 48.f;
+    float texHeight = 512.0f;
+
+    // Then we map to screen space proportionally
+    float barScreenX = (barTexX / texHeight) * res.x;
+    float barScreenY = (barTexY / texHeight) * res.y;
+    float barScreenH = (barTexH / texHeight) * res.y;
+
+    ImVec2 barMin = { barScreenX, barScreenY };
+    ImVec2 barMax = { res.x, barScreenY + barScreenH };
+
+    ImVec2 textPos = { res.x * 0.5f, barScreenY + barScreenH * 0.5f };
+
+
+    auto text = GetCategoryDescription((OptionsMenuCategory)g_categoryIndex);
+    auto textSize = g_fntSeurat->CalcTextSizeA(g_fntSeuratSize, FLT_MAX, 0.0f, text.c_str());
+
+
+    SetShaderModifier(IMGUI_SHADER_MODIFIER_LOW_QUALITY_TEXT);
+
+    drawList->AddText(g_fntSeurat, g_fntSeuratSize, textPos, IM_COL32(255, 255, 255, 255), text.c_str());
+
+    SetShaderModifier(IMGUI_SHADER_MODIFIER_NONE);
+
+}
+
 static void DrawCategories(ImVec2 min, ImVec2 max)
 {
     auto drawList = ImGui::GetBackgroundDrawList();
 
-    auto selectedUVs = PIXELS_TO_UV_COORDS(1024, 1024, 443, 524, 560, 47);
-    auto unselectedUVs = PIXELS_TO_UV_COORDS(1024, 1024, 443, 579, 560, 47);
+
     auto categoryWidth = Scale(560);
     auto categoryHeight = Scale(47);
 
@@ -720,6 +754,8 @@ static void DrawCategories(ImVec2 min, ImVec2 max)
 
         SetShaderModifier(IMGUI_SHADER_MODIFIER_NONE);
     }
+
+    DrawDescription();
 }
 
 void OptionsMenu::Draw()
