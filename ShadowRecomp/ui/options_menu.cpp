@@ -116,11 +116,18 @@ static void DrawOption
     auto clipRectMax = drawList->GetClipRectMax();
 
     auto optionMotionTime = 1.0f; // ComputeLinearMotion(g_categoryTime, 0, 5, OptionsMenu::s_state != OptionsMenuState::Idle);
-    auto optionColourMotion = ColourLerp(IM_COL32_WHITE_TRANS, isAccessible ? IM_COL32_WHITE : IM_COL32(137, 137, 137, 255), optionMotionTime);
+  
     auto optionHeight = Scale(56);
     auto offsetScroll = 0.0f;
 
     auto isMiddleRow = false;
+    // original offset from the container
+    auto optionsOffsetX = Scale(170);
+    auto optionsOffsetY = Scale(23);
+
+	// removing offset will make option draw right when the container starts, so we add an extra scale to make it fit inside.
+	min.x -= optionsOffsetX - Scale(10);
+	max.x -= Scale(10);
 
     // Only scroll if page has more than three items.
     /**if (g_optionCount > MAX_VISIBLE_ROWS)
@@ -170,32 +177,38 @@ static void DrawOption
 
     auto titleText = config->GetNameLocalised(Config::Language);
     auto titleTextSize = g_fntSeurat->CalcTextSizeA(g_fntSeuratSize, FLT_MAX, 0, titleText.c_str());
-
-    auto titleFadeRightScale = Scale(40);
-    auto titleFadeRightOffsetX = Scale(15);
-    auto scrollArrowOffsetX = clipRectMax.x - Scale(84); //- BlackBar::s_pillarboxWidth;
-
-    ImVec2 titlePos = { titleBgEdgeMin.x + Scale(51), titleBgEdgeMin.y + Scale(8) };
-    ImVec2 titleSafeAreaMin = { titleBgEdgeMax.x, titleBgEdgeMin.y };
-    ImVec2 titleSafeAreaMax = { scrollArrowOffsetX - titleFadeRightOffsetX, titleBgEdgeMax.y };
+    
+    ImVec2 titlePos = { titleBgEdgeMin.x, titleBgEdgeMin.y + Scale(8) };
 
 
     auto isTitleRightFade = !isMiddleRow && OptionsMenu::s_flowState == OptionsMenuFlowState::OptionCursor;
 
-    // Don't fade right side of title if it fits within the safe area.
-    if (titleSafeAreaMax.x - titleSafeAreaMin.x >= titleTextSize.x)
-        isTitleRightFade = false;
-
-    if (isTitleRightFade)
-    {
-        ImVec2 titleFadeRightMin = { titleSafeAreaMax.x - titleFadeRightScale, titleSafeAreaMin.y };
-        ImVec2 titleFadeRightMax = { titleFadeRightMin.x + titleFadeRightScale, titleSafeAreaMax.y };
-
-        //SetHorizontalGradient(titleFadeRightMin, titleFadeRightMax, IM_COL32_WHITE, IM_COL32_WHITE_TRANS);
-    }
 
     SetShaderModifier(IMGUI_SHADER_MODIFIER_LOW_QUALITY_TEXT);
+    
     drawList->AddText(g_fntSeurat, g_fntSeuratSize, titlePos, isSelected ? IM_COL32(234, 234, 69, 255) : IM_COL32(255, 255, 255, 255), titleText.c_str());
+    
+    /**DrawRubyAnnotatedText
+    (
+        g_fntSeurat,
+        g_fntSeuratSize,
+        max.x / 2,
+        titlePos,
+        5.f,
+        titleText.c_str(),
+
+        [=](const char* str, ImVec2 pos)
+        {
+            DrawTextWithShadow(g_fntSeurat, g_fntSeuratSize, pos, isSelected ? IM_COL32(234, 234, 69, 255) : IM_COL32(255, 255, 255, 255), str, 1.f, 0.5f);
+        },
+        [=](const char* str, float size, ImVec2 pos)
+        {
+            // DrawTextWithShadow(g_fntSeurat, size, pos, IM_COL32(255, 255, 255, 255), str, 3.f, 0.5f);
+        },
+
+        true
+        );*/
+
     SetShaderModifier(IMGUI_SHADER_MODIFIER_NONE);
 
 
@@ -357,9 +370,80 @@ static void DrawOption
         else
         {
             if (CheckAndDiscard(g_isAccepted))
-                Game_PlaySound("cannot_deside");
+                Game_PlaySound("cannot_decide");
         }
     }
+
+
+    std::string valueText;
+    bool isValueCentred = false;
+
+    if constexpr (std::is_same_v<T, float>)
+    {
+        valueText = fmt::format("{}%", int(round(config->Value * 100.0f)));
+    }
+    else if constexpr (std::is_same_v<T, int32_t>)
+    {
+        if (config == &Config::WindowSize)
+        {
+            if (Config::Fullscreen)
+            {
+                int displayW, displayH;
+
+                GameWindow::GetSizeInPixels(&displayW, &displayH);
+
+                valueText = fmt::format("{}x{}", displayW, displayH);
+            }
+            else
+            {
+                auto displayModes = GameWindow::GetDisplayModes();
+
+                if (config->Value >= 0 && config->Value < displayModes.size())
+                {
+                    auto& displayMode = displayModes[config->Value];
+
+                    valueText = fmt::format("{}x{}", displayMode.w, displayMode.h);
+                }
+                else
+                {
+                    valueText = fmt::format("{}x{}", GameWindow::s_width, GameWindow::s_height);
+                }
+            }
+
+            isValueCentred = true;
+        }
+        else if (config == &Config::Monitor)
+        {
+            valueText = fmt::format("{}", config->Value + 1);
+            isValueCentred = true;
+        }
+        else
+        {
+            valueText = fmt::format("{}", config->Value);
+
+            if (isSlider && config->Value >= valueMax)
+                valueText = Localise("Options_Value_Max");
+        }
+    }
+    else
+    {
+        valueText = config->GetValueLocalised(Config::Language);
+        isValueCentred = true;
+    }
+
+    // draw value
+    SetShaderModifier(IMGUI_SHADER_MODIFIER_LOW_QUALITY_TEXT);
+
+    auto optionTextSize = g_fntSeurat->CalcTextSizeA(g_fntSeuratSize, FLT_MAX, 0.0f, valueText.data());
+    auto valueTextSize = g_fntSeurat->CalcTextSizeA(g_fntSeuratSize, FLT_MAX, 0.0f, valueText.data());
+
+    ImVec2 valuePos = { titlePos.x + titleTextSize.x + Scale(20), titlePos.y};
+
+    // Align text to right side of the background.
+    /**if (!isValueCentred)
+        valuePos.x = titleTextSize.x + Scale(10);*/
+
+    drawList->AddText(g_fntSeurat, g_fntSeuratSize, valuePos, IM_COL32(255, 255, 255, 255), valueText.data());
 
     SetShaderModifier(IMGUI_SHADER_MODIFIER_NONE);
 }
@@ -606,8 +690,34 @@ static void DrawCategories(ImVec2 min, ImVec2 max)
         auto text = GetCategoryName((OptionsMenuCategory)i);
         auto textSize = g_fntSeurat->CalcTextSizeA(g_fntSeuratSize, FLT_MAX, 0.0f, text.c_str());
 
-        SetShaderModifier(IMGUI_SHADER_MODIFIER_LOW_QUALITY_TEXT);
+        /**SetShaderModifier(IMGUI_SHADER_MODIFIER_LOW_QUALITY_TEXT);
         drawList->AddText(g_fntSeurat, g_fntSeuratSize, { categoryMin.x + Scale(129), categoryMin.y + Scale(6) }, isCurrent ? IM_COL32(234, 234, 69, 255) : IM_COL32(255, 255, 255, 255), text.c_str());
+        SetShaderModifier(IMGUI_SHADER_MODIFIER_NONE);*/
+
+        SetShaderModifier(IMGUI_SHADER_MODIFIER_LOW_QUALITY_TEXT);
+
+
+        DrawRubyAnnotatedText
+        (
+            g_fntSeurat,
+            g_fntSeuratSize,
+            max.x / 2,
+            { categoryMin.x + Scale(129), categoryMin.y + Scale(6) },
+            5.f,
+            text.c_str(),
+
+            [=](const char* str, ImVec2 pos)
+            {
+                DrawTextWithShadow(g_fntSeurat, g_fntSeuratSize, pos, isCurrent ? IM_COL32(234, 234, 69, 255) : IM_COL32(255, 255, 255, 255), str, 1.f, 0.5f);
+            },
+            [=](const char* str, float size, ImVec2 pos)
+            {
+                // DrawTextWithShadow(g_fntSeurat, size, pos, IM_COL32(255, 255, 255, 255), str, 3.f, 0.5f);
+            },
+
+            true
+        );
+
         SetShaderModifier(IMGUI_SHADER_MODIFIER_NONE);
     }
 }
@@ -823,6 +933,7 @@ void OptionsMenu::Draw()
 
 void OptionsMenu::Open(bool isPause)
 {
+    InitImGuiUtils();
     g_stateTime = ImGui::GetTime();
     s_state = OptionsMenuState::Opening;
     s_isVisible = true;

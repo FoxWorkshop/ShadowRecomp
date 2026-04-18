@@ -1839,7 +1839,7 @@ static void CreateImGuiBackend()
 
 #endif
 
-	InitImGuiUtils();
+
 	/**AchievementMenu::Init();
 	AchievementOverlay::Init();
 	ButtonGuide::Init();
