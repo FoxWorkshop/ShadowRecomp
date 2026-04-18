@@ -443,7 +443,7 @@ static void DrawOption
     /**if (!isValueCentred)
         valuePos.x = titleTextSize.x + Scale(10);*/
 
-    drawList->AddText(g_fntSeurat, g_fntSeuratSize, valuePos, IM_COL32(255, 255, 255, 255), valueText.data());
+    drawList->AddText(g_fntSeurat, g_fntSeuratSize, valuePos, IM_COL32(255, 255, 255, isAccessible ? 255 : 127), valueText.data());
 
     SetShaderModifier(IMGUI_SHADER_MODIFIER_NONE);
 }
@@ -459,7 +459,7 @@ static void DrawOptions(ImVec2 min, ImVec2 max)
 
     switch ((OptionsMenuCategory)g_categoryIndex)
     {
-    case OptionsMenuCategory::System:
+    case OptionsMenuCategory::System:      
         DrawOption(rowCount++, &Config::Language, !OptionsMenu::s_isPause, min, max, cmnReason);
         DrawOption(rowCount++, &Config::VoiceLanguage, !OptionsMenu::s_isPause, min, max, cmnReason);
         DrawOption(rowCount++, &Config::Subtitles, true, min, max, nullptr);
