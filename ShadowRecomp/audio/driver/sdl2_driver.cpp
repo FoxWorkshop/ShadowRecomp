@@ -96,6 +96,7 @@ private:
 	int mVolume = 0;
 	int mVolumeLinear = 128;
 	int mPrevVolume = 0;
+	float mPrevVolumeUser = 1; 
 	bool mVolumeChangeFlag = false; // ensure we don't scale volume multiple times
 
 	DWORD mPlayFlags = 0;
@@ -808,14 +809,18 @@ int SHTHR_SOUNDBUFFER_Impl::Play(int dwReserved1, int dwPriority, uint32_t dwFla
 		if (PlayMusic)
 		{
 			this->mVolumeLinear *= Config::MusicVolume.Value;
+			this->mPrevVolumeUser = Config::MusicVolume.Value;
 			PlayMusic = false;
 		}
 		else // if TObjBGM::Play wasn't used, assume voice is requested
 		{
 			this->mVolumeLinear *= Config::VoicesVolume.Value;
+			this->mPrevVolumeUser = Config::VoicesVolume.Value;
 		}
 
 		mPrevVolume = this->mVolumeLinear;
+
+
 		mVolumeChangeFlag = true;
 	}
 
@@ -884,6 +889,7 @@ int SHTHR_SOUNDBUFFER_Impl::SetVolume(int lVolume)
 	float db = lVolume / 100.0f;  // Convert centibels to decibels
 	float linear = powf(10.0f, db / 20.0f);  // dB to linear
 	mVolumeLinear = static_cast<int>(linear * SDL_MIX_MAXVOLUME);  // 0-128
+
 
 	const float volScale = this->GetCaps() & XTL_DSBCAPS_CTRL3D ? SFX_3DVOLUME_SCALE : SFX_VOLUME_SCALE;
 	if (this->isStreaming == false)
@@ -977,6 +983,7 @@ int SHTHR_SOUNDDEVICE_Impl::PullThreadFunc()
 					? queue->Calculate3DVolume()
 					: 1.0f;
 				float finalVol = queue->GetVolumeLinear() * Config::MasterVolume.Value * vol3D;
+
 				finalVol = std::min(finalVol, (float)SDL_MIX_MAXVOLUME);
 
 
