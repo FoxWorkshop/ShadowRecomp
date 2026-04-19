@@ -1,5 +1,6 @@
 #include <gpu/video.h>
 #include <kernel/function.h>
+#include <user/config.h>
 
 // Patch out logs Artificial Chaos can spew (causes crashes)
 X86_FUNC(sub_37EBE6)
@@ -63,9 +64,9 @@ X86_FUNC(sub_41CD65)
 
 
 //todo implement as an option
-void SkipPartnerIntroMidAsmHook(X86Register& eax)
+bool SkipPartnerIntroMidAsmHook()
 {
-	eax.u32 = 1;
+	return !Config::EnablePartnerIntro;
 }
 
 // TODO: This is temporary, replace with a proper SaveData patch

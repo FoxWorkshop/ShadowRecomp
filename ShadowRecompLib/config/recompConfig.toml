@@ -734,7 +734,7 @@ registers = ["r0"]
 [[midasm_hook]]
 name = "SkipPartnerIntroMidAsmHook"
 address = 0xA5BA2
-registers = ["r0"]
+jump_address_on_true = 0xA5BE4
 
 [[midasm_hook]]
 name = "SelectModeUnlockCheckBypassMidAsmHook"
@@ -769,3 +769,4 @@ address = 0x30392B
 registers = ["r0"]
 jump_address = 0x303932
 # End BVH Stack Overflow Fix
+

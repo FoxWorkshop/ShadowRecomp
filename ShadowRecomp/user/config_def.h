@@ -6,6 +6,7 @@ CONFIG_DEFINE_ENUM_LOCALISED("System", EVoiceLanguage, VoiceLanguage, EVoiceLang
 CONFIG_DEFINE_LOCALISED("System", bool, Subtitles, true);
 CONFIG_DEFINE_LOCALISED("System", bool, Hints, true);
 CONFIG_DEFINE_LOCALISED("System", bool, AchievementNotifications, true);
+CONFIG_DEFINE_LOCALISED("System", bool, EnablePartnerIntro, true);
 CONFIG_DEFINE("System", bool, ShowConsole, false);
 
 
@@ -78,5 +79,7 @@ CONFIG_DEFINE_LOCALISED("Video", float, BloomIntensity, 0.7f);
 
 
 CONFIG_DEFINE_HIDDEN("Codes", bool, SkipIntroLogos, false);
+CONFIG_DEFINE_HIDDEN("Codes", bool, InfiniteLives, false);
+CONFIG_DEFINE_HIDDEN("Codes", bool, AllStagesUnlocked, false);
 
 CONFIG_DEFINE("Update", time_t, LastChecked, 0);

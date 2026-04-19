@@ -604,6 +604,7 @@ static void DrawOptions(ImVec2 min, ImVec2 max)
 		DrawOption(rowCount++, &Config::Language, !OptionsMenu::s_isPause, min, max, cmnReason);
 		DrawOption(rowCount++, &Config::VoiceLanguage, !OptionsMenu::s_isPause, min, max, cmnReason);
 		DrawOption(rowCount++, &Config::Subtitles, true, min, max, nullptr);
+		DrawOption(rowCount++, &Config::EnablePartnerIntro, true, min, max, nullptr);
 		DrawOption(rowCount++, &Config::Hints, true, min, max, nullptr);
 		DrawOption(rowCount++, &Config::AchievementNotifications, true, min, max, nullptr);
 		break;
@@ -616,6 +617,7 @@ static void DrawOptions(ImVec2 min, ImVec2 max)
 	case OptionsMenuCategory::Audio:
 		DrawOption(rowCount++, &Config::MasterVolume, true, min, max, nullptr);
 		DrawOption(rowCount++, &Config::MusicVolume, true, min, max, nullptr);
+		DrawOption(rowCount++, &Config::VoicesVolume, true, min, max, nullptr);
 		DrawOption(rowCount++, &Config::EffectsVolume, true, min, max, nullptr);
 		break;
 
@@ -645,8 +647,8 @@ static void DrawOptions(ImVec2 min, ImVec2 max)
 		DrawOption(rowCount++, &Config::VSync, true, min, max, nullptr);
 		DrawOption(rowCount++, &Config::FPS, true, min, max, nullptr, FPS_MIN, 120, FPS_MAX);
 		DrawOption(rowCount++, &Config::Brightness, true, min, max, nullptr);
-		DrawOption(rowCount++, &Config::AntiAliasing, false, min, max, devReason);                           // TODO: implement MSAA.          DrawOption(rowCount++, &Config::AntiAliasing, Config::AntiAliasing.InaccessibleValues.size() != 3, &Localise("Options_Desc_NotAvailableHardware"));
-
+		DrawOption(rowCount++, &Config::AntiAliasing, false, min, max, devReason); 		
+		DrawOption(rowCount++, &Config::BloomIntensity, true, min, max, nullptr);                
 
 		break;
 	}
