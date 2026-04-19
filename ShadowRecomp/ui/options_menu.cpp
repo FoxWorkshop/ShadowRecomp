@@ -19,7 +19,7 @@
 #include <exports.h>
 
 
-static constexpr int MAX_VISIBLE_ROWS = 3;
+static constexpr int MAX_VISIBLE_ROWS = 6;
 static IConfigDef* g_optionCurrent{};
 static bool g_optionCanReset{};
 
@@ -138,9 +138,10 @@ void DrawDescription(std::string s)
 
 	float barWidth = res.x - barScreenX;
 
+
 	ImVec2 textPos = {
 		barScreenX + barWidth * 0.5f - textSize.x * 0.5f,  // centered within bar bounds
-		barScreenY + barScreenH * 0.5f - textSize.y * 0.5f
+		barScreenY + barScreenH * 0.6f - textSize.y * 0.5f
 	};
 
 	SetShaderModifier(IMGUI_SHADER_MODIFIER_LOW_QUALITY_TEXT);
@@ -197,10 +198,10 @@ static void DrawOption
 			offsetScroll = -(g_optionCount - MAX_VISIBLE_ROWS) * optionHeight;
 			isMiddleRow = ((rowIndex - std::max(g_optionCount - MAX_VISIBLE_ROWS, 0)) % MAX_VISIBLE_ROWS) >= 1;
 		}
-		else if (g_optionIndex >= 5)
+		else if (g_optionIndex >= 1)
 		{
 			// Start scrolling from the middle item.
-			offsetScroll = -(g_optionIndex - 5) * optionHeight;
+			offsetScroll = -(g_optionIndex - 1) * optionHeight;
 		}
 	}
 	else
@@ -842,7 +843,8 @@ void DrawMenuListContainer(ImVec2 min, ImVec2 max)
 	ImVec2 minClipRect = { containerMin.x + optionsOffsetX, containerMin.y + optionsOffsetY };
 	ImVec2 maxClipRect = { res.x, containerMax.y - optionsOffsetY};
 	DrawOptions(minClipRect, maxClipRect, minOptions, maxOptions);
-	DrawDescription(optionDescription); // we draw option description separately so they don't get discard by the clip rect.
+	if (OptionsMenu::s_flowState == OptionsMenuFlowState::OptionCursor || OptionsMenu::s_flowState == OptionsMenuFlowState::OptionSelected)
+		DrawDescription(optionDescription); // we draw option description separately so they don't get discard by the clip rect.
 }
 
 
