@@ -637,7 +637,7 @@ CONFIG_DEFINE_LOCALE(BloomIntensity)
 // Japanese Notes: This localization should include furigana.
 CONFIG_DEFINE_LOCALE(EnablePartnerIntro)
 {
-    { ELanguage::English, { "Partner Intro", "Show partner's instruction when they are first met." } },
+    { ELanguage::English, { "Partner Intro", "Show partner's introduction when they are first met." } },
     { ELanguage::Japanese, { "", "" } },
     { ELanguage::German,   { "", "" } },
     { ELanguage::French,   { "Introduction du Partenaire", "Afficher l'introduction du partenaire lorsqu'il est rencontré pour la première fois." } },
