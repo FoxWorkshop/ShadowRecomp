@@ -3,6 +3,7 @@
 
 #include <gpu/video.h>
 #include <res/images/common/TitleBg.png.h>
+#include <res/images/common/Options.png.h>
 #include <res/images/common/Options2.png.h>
 #include <decompressor.h>
 #include <patches/aspect_ratio_patches.h>
@@ -25,6 +26,7 @@ static bool g_optionCanReset{};
 
 static std::unique_ptr<GuestTexture> g_upTexOptionsBG{};
 static std::unique_ptr<GuestTexture> g_upTexBGMenuList{};
+static std::unique_ptr<GuestTexture> g_upTexBGExtra{}; // flame, options logo, hud etc.
 static ImFont* g_fntSeurat;
 
 static int g_categoryIndex{ -1 };
@@ -824,6 +826,8 @@ void DrawBackground()
 	auto& res = ImGui::GetIO().DisplaySize;
 	auto drawList = ImGui::GetBackgroundDrawList();
 
+	ImVec2 min = { g_horzCentre + g_aspectRatioNarrowMargin, g_vertCentre };
+	ImVec2 max = { res.x - min.x, res.y - min.y };
 
 	float borderPixels = 32.f; // Options BG has an extra black border at the bottom, we don't want that.
 	float uvMaxY = 1.0f - (borderPixels / 512.0f);
@@ -838,6 +842,18 @@ void DrawBackground()
 		{ 1, uvMaxY },
 		IM_COL32(255, 255, 255, 255)
 	);
+
+	// draw Options Logo
+
+	auto optionsUVs = PIXELS_TO_UV_COORDS(512, 512, 0, 0, 147, 448);
+	auto optionsWidth = res.x * 0.16f;
+	auto optionsHeight = res.y * 0.96f;
+
+
+	ImVec2 optionsMin = { 0, min.y + Scale(10)};
+	ImVec2 optionsMax = { optionsMin.x + optionsWidth, optionsMin.y + optionsHeight };
+
+	drawList->AddImage(g_upTexBGExtra.get(), optionsMin, optionsMax, GET_UV_COORDS(optionsUVs), IM_COL32(255, 255, 255, 128));
 }
 
 void DrawMenuListContainer(ImVec2 min, ImVec2 max)
@@ -1191,5 +1207,6 @@ void OptionsMenu::Init()
 	optionDescription = "";
 	g_upTexOptionsBG = LOAD_ZSTD_TEXTURE(g_options_bg);
 	g_upTexBGMenuList = LOAD_ZSTD_TEXTURE(g_optionsIcons);
+	g_upTexBGExtra = LOAD_ZSTD_TEXTURE(g_optionsText);
 	g_fntSeurat = ImFontAtlasSnapshot::GetFont("FOT-SeuratPro-DB.otf");
 }
