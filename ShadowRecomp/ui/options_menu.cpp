@@ -115,6 +115,8 @@ void resetDescScroll()
 
 void DrawDescription(std::string s)
 {
+	std::replace(s.begin(), s.end(), '\n', ' '); 
+
 	auto drawList = ImGui::GetBackgroundDrawList();
 	auto& res = ImGui::GetIO().DisplaySize;
 
@@ -129,8 +131,10 @@ void DrawDescription(std::string s)
 	float barScreenY = (barTexY / texHeight) * res.y;
 	float barScreenH = (barTexH / texHeight) * res.y;
 
-	ImVec2 barMin = { barScreenX, barScreenY };
+	ImVec2 barMin = { barScreenX + Scale(32), barScreenY};
 	ImVec2 barMax = { res.x, barScreenY + barScreenH };
+
+	drawList->PushClipRect(barMin, barMax);
 
 
 	float fontSize = g_fntSeuratSize - 2.f;
@@ -144,12 +148,32 @@ void DrawDescription(std::string s)
 		barScreenY + barScreenH * 0.6f - textSize.y * 0.5f
 	};
 
+	float offsetScroll = 0.0f;
+	float totalWidth = 0.0f;
+	if (textSize.x > barWidth)
+	{
+		float gap = Scale(80.0f); // space between end and start of loop
+		totalWidth = textSize.x + gap;
+		float scrollSpeed = Scale(60.0f); // pixels per second
+		offsetScroll = fmod(ImGui::GetTime() * scrollSpeed, totalWidth);
+	}
+
+	textPos.x -= offsetScroll;
+
+
 	SetShaderModifier(IMGUI_SHADER_MODIFIER_LOW_QUALITY_TEXT);
 
 	drawList->AddText(g_fntSeurat, fontSize, textPos, IM_COL32(255, 255, 255, 255), s.c_str());
 
+	if (textSize.x > barWidth)
+	{
+		textPos.x += totalWidth;
+		drawList->AddText(g_fntSeurat, fontSize, textPos, IM_COL32(255, 255, 255, 255), s.c_str());
+	}
+
 	SetShaderModifier(IMGUI_SHADER_MODIFIER_NONE);
 
+	drawList->PopClipRect();
 }
 
 
