@@ -53,6 +53,14 @@ static bool g_isAccepted{};
 static bool g_isDeclined{};
 static bool g_isReset{};
 
+bool m_isDescScrolling{};
+bool m_isDescManualScrolling{};
+float m_descScrollOffset{};
+float m_descScrollTimer{};
+float m_descScrollDirection{ 1.0f };
+
+static std::string optionDescription = "";
+
 static std::string& GetCategoryName(OptionsMenuCategory category)
 {
 	switch (category)
@@ -92,6 +100,16 @@ static bool CheckAndDiscard(bool& value)
 	}
 
 	return false;
+}
+
+
+
+void resetDescScroll()
+{
+	m_isDescScrolling = false;
+	m_descScrollOffset = 0.0f;
+	m_descScrollTimer = 0.0f;
+	m_descScrollDirection = 1.0f;
 }
 
 
@@ -157,19 +175,19 @@ static void DrawOption
 	auto optionMotionTime = 1.0f; // ComputeLinearMotion(g_categoryTime, 0, 5, OptionsMenu::s_state != OptionsMenuState::Idle);
 
 	auto optionHeight = Scale(56);
-	auto offsetScroll = 0.0f;
+	float offsetScroll = 0.0f;
 
-	auto isMiddleRow = false;
+	bool isMiddleRow = false;
 	// original offset from the container
-	auto optionsOffsetX = Scale(170);
-	auto optionsOffsetY = Scale(23);
+	float optionsOffsetX = Scale(170);
+	float optionsOffsetY = Scale(23);
 
 	// removing offset will make option draw right when the container starts, so we add an extra scale to make it fit inside.
 	min.x -= optionsOffsetX - Scale(10);
 	max.x -= Scale(10);
 
-	// Only scroll if page has more than three items.
-	/**if (g_optionCount > MAX_VISIBLE_ROWS)
+	// Only scroll if page has more than 3 items.
+	if (g_optionCount > MAX_VISIBLE_ROWS)
 	{
 		isMiddleRow = ((rowIndex - std::max(g_optionIndex - 1, 0)) % MAX_VISIBLE_ROWS) >= 1;
 
@@ -179,13 +197,13 @@ static void DrawOption
 			offsetScroll = -(g_optionCount - MAX_VISIBLE_ROWS) * optionHeight;
 			isMiddleRow = ((rowIndex - std::max(g_optionCount - MAX_VISIBLE_ROWS, 0)) % MAX_VISIBLE_ROWS) >= 1;
 		}
-		else if (g_optionIndex >= 1)
+		else if (g_optionIndex >= 5)
 		{
 			// Start scrolling from the middle item.
-			offsetScroll = -(g_optionIndex - 1) * optionHeight;
+			offsetScroll = -(g_optionIndex - 5) * optionHeight;
 		}
 	}
-	else*/
+	else
 	{
 		isMiddleRow = rowIndex >= 1;
 	}
@@ -267,7 +285,7 @@ static void DrawOption
 
 		if (OptionsMenu::s_flowState == OptionsMenuFlowState::OptionCursor || OptionsMenu::s_flowState == OptionsMenuFlowState::OptionSelected)
 		{
-			DrawDescription(config->GetDescription(Config::Language));
+			optionDescription = config->GetDescription(Config::Language);
 		}
 	}
 
@@ -288,11 +306,13 @@ static void DrawOption
 				auto isLanguageOption = (ConfigDef<ELanguage>*)config == &Config::Language;
 				if (valueDescription.empty())
 				{
+					optionDescription = config->GetDescription(Config::Language);
+
 					//OptionsMenu::s_commonMenu.SetDescription(config->GetDescription(Config::Language), !isLanguageOption);
 				}
 				else
 				{
-					DrawDescription(valueDescription);
+					optionDescription = valueDescription;
 					//OptionsMenu::s_commonMenu.SetDescription(valueDescription, !isLanguageOption);
 				}
 			};
@@ -589,9 +609,12 @@ static void DrawOption
 	SetShaderModifier(IMGUI_SHADER_MODIFIER_NONE);
 }
 
-static void DrawOptions(ImVec2 min, ImVec2 max)
+static void DrawOptions(ImVec2 minClipRect, ImVec2 maxClipRect, ImVec2 min, ImVec2 max)
 {
 	auto drawList = ImGui::GetBackgroundDrawList();
+
+	drawList->PushClipRect(minClipRect, maxClipRect);
+
 	auto cmnReason = &Localise("Options_Desc_NotAvailable");
 	auto devReason = &Localise("Options_Desc_NotImplemented");
 	auto rowCount = 0;
@@ -678,7 +701,19 @@ static void DrawOptions(ImVec2 min, ImVec2 max)
 
 	g_optionCount = rowCount;
 
+	drawList->PopClipRect();
+
+	if (g_optionCount > MAX_VISIBLE_ROWS && OptionsMenu::s_flowState == OptionsMenuFlowState::OptionCursor)
+	{
+		ImVec2 scrollArrowsMin = { max.x -  Scale(84), min.y + Scale(12) };
+		ImVec2 scrollArrowsMax = { max.x, max.y - Scale(16) };
+
+		//DrawScrollArrows(scrollArrowsMin, scrollArrowsMax, Scale(20), g_scrollArrowsTime, g_optionIndex > 1, g_optionIndex < rowCount - 2);
+	}
+
 }
+
+
 
 static void ResetCategorySelection()
 {
@@ -796,10 +831,18 @@ void DrawMenuListContainer(ImVec2 min, ImVec2 max)
 
 	drawList->AddImage(g_upTexBGMenuList.get(), containerMin, containerMax, GET_UV_COORDS(containerUVs));
 
-	auto optionsOffsetX = Scale(170);
-	auto optionsOffsetY = Scale(23);
+	float optionsOffsetX = Scale(170);
+	float optionsOffsetY = Scale(23);
 
-	DrawOptions({ containerMin.x + optionsOffsetX, containerMin.y + optionsOffsetY }, { res.x, containerMax.y - optionsOffsetY });
+	ImVec2 minOptions = { containerMin.x + optionsOffsetX, containerMin.y + optionsOffsetY };
+	ImVec2 maxOptions = { res.x, containerMax.y - optionsOffsetY};
+
+	optionsOffsetX -= Scale(170);
+	//optionsOffsetY -= Scale(23);
+	ImVec2 minClipRect = { containerMin.x + optionsOffsetX, containerMin.y + optionsOffsetY };
+	ImVec2 maxClipRect = { res.x, containerMax.y - optionsOffsetY};
+	DrawOptions(minClipRect, maxClipRect, minOptions, maxOptions);
+	DrawDescription(optionDescription); // we draw option description separately so they don't get discard by the clip rect.
 }
 
 
@@ -1119,6 +1162,7 @@ bool OptionsMenu::CanClose()
 
 void OptionsMenu::Init()
 {
+	optionDescription = "";
 	g_upTexOptionsBG = LOAD_ZSTD_TEXTURE(g_options_bg);
 	g_upTexBGMenuList = LOAD_ZSTD_TEXTURE(g_optionsIcons);
 	g_fntSeurat = ImFontAtlasSnapshot::GetFont("FOT-SeuratPro-DB.otf");
