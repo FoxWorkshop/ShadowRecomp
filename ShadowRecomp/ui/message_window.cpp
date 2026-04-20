@@ -8,6 +8,7 @@
 #include <exports.h>
 #include <input/padstate.h>
 
+
 constexpr double OVERLAY_CONTAINER_COMMON_MOTION_START = 0;
 constexpr double OVERLAY_CONTAINER_COMMON_MOTION_END = 11;
 constexpr double OVERLAY_CONTAINER_OUTRO_FADE_START = 0;
@@ -45,6 +46,8 @@ static bool g_upWasHeld;
 static bool g_downWasHeld;
 static bool g_leftWasHeld;
 static bool g_rightWasHeld;
+static bool g_msgOnly = false;
+const float sclFontSize = 25.f;
 
 
 
@@ -206,7 +209,7 @@ void DrawMessageInWindow(const char* text, ImVec2 center, ImVec2 size)
 {
 	ImDrawList* dl = ImGui::GetBackgroundDrawList();
 	auto maxWidth = Scale(820);
-	auto fontSize = Scale(28);
+	auto fontSize = Scale(sclFontSize);
 
 	const auto input = RemoveRubyAnnotations(g_text.c_str());
 	auto lines = Split(input.first.c_str(), g_fntSeurat, fontSize, maxWidth);
@@ -220,7 +223,7 @@ void DrawMessageInWindow(const char* text, ImVec2 center, ImVec2 size)
 
 	auto lineMargin = Config::Language != ELanguage::Japanese ? 5.0f : 5.5f;
 	auto textSize = MeasureCentredParagraph(g_fntSeurat, fontSize, lineMargin, lines);
-	ImVec2 textPos = { center.x - textSize.x * 0.5f, center.y - textSize.y * 0.5f };
+
 	auto textMarginX = Scale(37);
 	auto textMarginY = Scale(45);
 
@@ -287,7 +290,7 @@ void DrawButton(int rowIndex, float yOffset, float width, float height, std::str
 	bool isSelected = rowIndex == g_selectedRowIndex;
 
 
-	auto fontSize = Scale(28);
+	auto fontSize = Scale(sclFontSize);
 	auto textSize = g_fntSeurat->CalcTextSizeA(fontSize, FLT_MAX, 0, text.c_str());
 
 	// Show low quality text in-game.
@@ -310,12 +313,21 @@ void DrawButton(int rowIndex, float yOffset, float width, float height, std::str
 
 void DrawGameStyleMessageBox(ImVec2 center, ImVec2 size)
 {
-
-
 	ImDrawList* dl = ImGui::GetBackgroundDrawList();
+
 
 	ImVec2 min = { center.x - size.x * 0.5f, center.y - size.y * 0.5f };
 	ImVec2 max = { center.x + size.x * 0.5f, center.y + size.y * 0.5f };
+
+	if (g_msgOnly)
+	{
+
+		max.x += 1.f;
+		max.y += 1.f;
+		dl->PushClipRect(min, max);
+		return;
+	}
+
 
 	// Background fill - dark blue
 	dl->AddRectFilled(min, max, IM_COL32(1, 1, 70, 220));
@@ -366,12 +378,14 @@ static void ResetSelection()
 	g_joypadAxis = {};
 	g_isAccepted = false;
 	g_isDeclined = false;
+	g_msgOnly = false;
 }
 
-bool MessageWindow::Open(std::string text, int* result, std::span<std::string> buttons, int defaultButtonIndex, int cancelButtonIndex)
+bool MessageWindow::Open(std::string text, int* result, std::span<std::string> buttons, int defaultButtonIndex, int cancelButtonIndex, bool msgOnly)
 {
 	if (!g_isAwaitingResult && *result == -1)
 	{
+
 		g_isControlsReady = false;
 		s_isVisible = true;
 		g_isClosing = false;
@@ -388,8 +402,7 @@ bool MessageWindow::Open(std::string text, int* result, std::span<std::string> b
 
 		ResetSelection();
 
-		//Game_PlaySound("sys_actstg_pausewinopen");
-
+		g_msgOnly = msgOnly;
 		g_isAwaitingResult = true;
 	}
 
@@ -460,6 +473,7 @@ void MessageWindow::Draw()
 
 	ImVec2 centre = { res.x / 2, res.y / 2 };
 	ImVec2 max = { res.x * 0.9f, res.y * 0.7f };
+
 	DrawGameStyleMessageBox(centre, max);
 
 	centre = { res.x / 2, res.y / 2 * 0.8f };
@@ -501,7 +515,8 @@ void MessageWindow::Draw()
 
 		if (scrollLeft || scrollRight)
 		{
-			Game_PlaySound("cursor");
+			if (g_msgOnly == false)
+				Game_PlaySound("cursor");
 			g_prevSelectedRowIndex = prevSelectedRowIndex;
 			g_joypadAxis.x = 0;
 		}
@@ -512,7 +527,8 @@ void MessageWindow::Draw()
 		if (g_isDeclined)
 		{
 			g_selectedRowIndex = g_cancelButtonIndex;
-			Game_PlaySound("cancel");
+			if (g_msgOnly == false)
+				Game_PlaySound("cancel");
 			MessageWindow::Close();
 			g_isDeclined = false;
 		}
@@ -525,10 +541,13 @@ void MessageWindow::Draw()
 		if (g_selectedRowIndex != -1 && g_isAccepted && !g_isClosing)
 		{
 			g_result = g_selectedRowIndex;
-			if (g_selectedRowIndex != g_cancelButtonIndex)
-				Game_PlaySound("decide");
-			else
-				Game_PlaySound("cancel");
+			if (g_msgOnly == false)
+			{
+				if (g_selectedRowIndex != g_cancelButtonIndex)
+					Game_PlaySound("decide");
+				else
+					Game_PlaySound("cancel");
+			}
 			MessageWindow::Close();
 		}
 

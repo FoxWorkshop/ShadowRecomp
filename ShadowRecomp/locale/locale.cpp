@@ -652,6 +652,34 @@ std::unordered_map<std::string_view, std::unordered_map<ELanguage, std::string>>
 		}
 	},
 	{
+		// Notes: message appears when creating a save file at the title screen.
+		// Note, the game exclusively use "Game Data" when referring to save file, please re use this for consistency.
+		// Japanese Notes: This localization should include furigana.
+		"Title_Message_CreateSave",
+		{
+			{ ELanguage::English,  "There is no Game Data on your PC.\nSHADOW THE HEDGEHOG\nsupports an autosave feature.\nDo you want to create Game Data on\nthis PC?" },
+			{ ELanguage::Japanese, "" },
+			{ ELanguage::German,   "" },
+			{ ELanguage::French,   "Pas de données de jeu sur ce PC.\nSHADOW THE HEDGEHOG\ndispose d'un système de sauvegarde automatique.\nCréer des données de jeu sur\nce PC?" },
+			{ ELanguage::Spanish,  "" },
+			{ ELanguage::Italian,  "" }
+		}
+	},
+	{
+		// Notes: message appears when creating a save file at the title screen.
+		// Note, the game exclusively use "Game Data" when referring to save file, please re use this for consistency.
+		// Japanese Notes: This localization should include furigana.
+		"Title_Message_CreateSaveFailed",
+		{
+			{ ELanguage::English,  "Start the game without creating\nGame Data.\nProgress of the game will not be saved." },
+			{ ELanguage::Japanese, "" },
+			{ ELanguage::German,   "" },
+			{ ELanguage::French,   "Démarrer le jeu sans créer de données du jeu.\nLa progression du jeu ne sera\npas sauvegardée." },
+			{ ELanguage::Spanish,  "" },
+			{ ELanguage::Italian,  "" }
+		}
+	},
+	{
 		// Notes: message appears when SYS-DATA is corrupted (mismatching file size) upon pressing start at the title screen.
 		// To make this occur, open the file in any editor and just remove a large chunk of data.
 		"Title_Message_SaveDataCorrupt",
@@ -790,6 +818,17 @@ std::unordered_map<std::string_view, std::unordered_map<ELanguage, std::string>>
 			{ ELanguage::French,   "Non" },
 			{ ELanguage::Spanish,  "No" },
 			{ ELanguage::Italian,  "No" }
+		}
+	},
+	{
+		"Common_Ok",
+		{
+			{ ELanguage::English,  "OK" },
+			{ ELanguage::Japanese, "OK" },
+			{ ELanguage::German,   "OK" },
+			{ ELanguage::French,   "OK" },
+			{ ELanguage::Spanish,  "OK" },
+			{ ELanguage::Italian,  "OK" }
 		}
 	},
 	{

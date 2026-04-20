@@ -770,3 +770,8 @@ registers = ["r0"]
 jump_address = 0x303932
 # End BVH Stack Overflow Fix
 
+[[midasm_hook]]
+name = "DrawAdvertiseMessageMidAsmHook"
+address = 0x2A60D8
+registers = ["r4"]
+jump_address_on_true = 0x2A62CF
