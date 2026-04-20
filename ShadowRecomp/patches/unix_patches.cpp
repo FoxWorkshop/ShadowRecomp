@@ -6,6 +6,8 @@
 enum ASCIITables : uint8_t
 {
 	c = 0x63, 
+	s = 0x73,
+	d = 0x64,
 	K = 0x4B, 
 };
 
@@ -49,6 +51,7 @@ const uint32_t CsdfilesBcharaBbullAddr = 0x45461C;
 const uint32_t CsdfilesBcharaFalconAddr = 0x454EC0;
 const uint32_t CsdfilesBcharaDoomAddr = 0x455244;
 const uint32_t CsdfilesBcharaEbreakerAddr = 0x4554BC;
+const uint32_t CsdfilesBcharaSanddAddr = 0x455928;
 const uint32_t CsdfilesBcharaDevdoomAddr = 0x456F60;
 const uint32_t CsdfilesMissionFailedAddr = 0x46EF9C;
 const uint32_t Csdfiles2pStartAddr = 0x470940;
@@ -108,6 +111,9 @@ void PatchUnixStrings()
 	X86_STORE_U8(CsdfilesBcharaFalconAddr, c);
 	X86_STORE_U8(CsdfilesBcharaDoomAddr, c);
 	X86_STORE_U8(CsdfilesBcharaEbreakerAddr, c);
+	X86_STORE_U8(CsdfilesBcharaSanddAddr, c);
+	X86_STORE_U8(CsdfilesBcharaSanddAddr + 1, s);
+	X86_STORE_U8(CsdfilesBcharaSanddAddr + 2, d);
 	X86_STORE_U8(CsdfilesBcharaDevdoomAddr, c);
 	X86_STORE_U8(CsdfilesMissionFailedAddr, c);
 	X86_STORE_U8(Csdfiles2pStartAddr, c);
