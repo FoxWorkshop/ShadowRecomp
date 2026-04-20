@@ -1,4 +1,4 @@
-﻿#include <user/config.h>
+#include <user/config.h>
 #include <locale/locale.h>
 
 /*
@@ -657,7 +657,7 @@ std::unordered_map<std::string_view, std::unordered_map<ELanguage, std::string>>
 		// Japanese Notes: This localization should include furigana.
 		"Title_Message_CreateSave",
 		{
-			{ ELanguage::English,  "There is no Game Data on your PC.\nSHADOW THE HEDGEHOG\nsupports an autosave feature.\nDo you want to create Game Data on\nthis PC?" },
+			{ ELanguage::English,  "There is no Game Data on your PC.\nSHADOW THE HEDGEHOG\nsupports an autosave feature.\nDo you want to create Game Data?" },
 			{ ELanguage::Japanese, "" },
 			{ ELanguage::German,   "" },
 			{ ELanguage::French,   "Pas de données de jeu sur ce PC.\nSHADOW THE HEDGEHOG\ndispose d'un système de sauvegarde automatique.\nCréer des données de jeu sur\nce PC?" },
