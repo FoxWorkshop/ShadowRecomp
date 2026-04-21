@@ -349,13 +349,10 @@ static void DrawOption
 				if (valueDescription.empty())
 				{
 					optionDescription = config->GetDescription(Config::Language);
-
-					//OptionsMenu::s_commonMenu.SetDescription(config->GetDescription(Config::Language), !isLanguageOption);
 				}
 				else
 				{
 					optionDescription = valueDescription;
-					//OptionsMenu::s_commonMenu.SetDescription(valueDescription, !isLanguageOption);
 				}
 			};
 
@@ -587,7 +584,19 @@ static void DrawOption
 
 	if constexpr (std::is_same_v<T, float>)
 	{
-		valueText = fmt::format("{}%", int(round(config->Value * 100.0f)));
+		if (config == &Config::ResolutionScale)
+		{
+			auto resScale = round(*(float*)config->GetValue() * 1000) / 1000;
+
+			valueText = fmt::format("{}x{}", 
+				(int)((float)Video::s_viewportWidth * resScale),
+				(int)((float)Video::s_viewportHeight * resScale));
+
+		}
+		else
+		{
+			valueText = fmt::format("{}%", int(round(config->Value * 100.0f)));
+		}
 
 	}
 	else if constexpr (std::is_same_v<T, int32_t>)
@@ -694,7 +703,7 @@ static void DrawOptions(ImVec2 minClipRect, ImVec2 maxClipRect, ImVec2 min, ImVe
 
 	case OptionsMenuCategory::Video:
 	{
-		bool canChangeResolution =  Config::Fullscreen == false;
+		bool canChangeResolution = Config::Fullscreen == false;
 
 
 		DrawOption(rowCount++, &Config::WindowSize, canChangeResolution, min, max, devReason, 0, 0, (int)GameWindow::GetDisplayModes().size() - 1, false);
@@ -704,7 +713,7 @@ static void DrawOptions(ImVec2 minClipRect, ImVec2 maxClipRect, ImVec2 min, ImVe
 		//     0, 0, (int)GameWindow::GetDisplayModes().size() - 1, false);
 
 		auto displayCount = GameWindow::GetDisplayCount();
-		auto canChangeMonitor = Config::Fullscreen&& displayCount > 1;
+		auto canChangeMonitor = Config::Fullscreen && displayCount > 1;
 		auto monitorReason = &Localise("Options_Desc_NotAvailableWindowed");
 
 
@@ -712,9 +721,9 @@ static void DrawOptions(ImVec2 minClipRect, ImVec2 maxClipRect, ImVec2 min, ImVe
 			monitorReason = &Localise("Options_Desc_NotAvailableHardware");
 
 		DrawOption(rowCount++, &Config::Monitor, canChangeMonitor, min, max, devReason, 0, 0, 1, false);
-		DrawOption(rowCount++, &Config::AspectRatio, true, min, max, devReason);                            
-		DrawOption(rowCount++, &Config::ResolutionScale, canChangeResolution, min, max, nullptr, 0.25f, 1.0f, 2.0f);                       
-		DrawOption(rowCount++, &Config::Fullscreen, true, min, max, devReason);            
+		DrawOption(rowCount++, &Config::AspectRatio, true, min, max, devReason);
+		DrawOption(rowCount++, &Config::ResolutionScale, canChangeResolution, min, max, nullptr, 0.25f, 1.0f, 2.0f);
+		DrawOption(rowCount++, &Config::Fullscreen, true, min, max, devReason);
 		DrawOption(rowCount++, &Config::VSync, true, min, max, nullptr);
 		DrawOption(rowCount++, &Config::FPS, true, min, max, nullptr, FPS_MIN, 120, FPS_MAX);
 		DrawOption(rowCount++, &Config::Brightness, true, min, max, nullptr);

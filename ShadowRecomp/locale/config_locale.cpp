@@ -457,12 +457,12 @@ CONFIG_DEFINE_ENUM_LOCALE(EAspectRatio)
 // Japanese Notes: This localization should include furigana.
 CONFIG_DEFINE_LOCALE(ResolutionScale)
 {
-    { ELanguage::English, { "Resolution Scale", "Adjust the internal resolution of the game.\n\n%dx%d" } },
-    { ELanguage::Japanese, { "[解像度:かいぞうど]スケール", "ゲームの\u200B[内部解像度:ないぶかいぞうど]を\u200B[調整:ちょうせい]できます\n\n%dx%d" } },
-    { ELanguage::German,   { "Rendering-Auflösung", "Passe die Auflösung der internen Darstellung an.\n\n%dx%d" } },
-    { ELanguage::French,   { "Échelle de rendu", "Modifie la résolution interne du jeu.\n\n%dx%d" } },
-    { ELanguage::Spanish,  { "Escala de resolución", "Ajusta la resolución interna del juego.\n\n%dx%d" } },
-    { ELanguage::Italian, { "Scala risoluzione", "Regola la risoluzione interna del gioco.\n\n%dx%d" } }
+    { ELanguage::English, { "Resolution Scale", "Adjust the internal resolution of the game.\n\n" } },
+    { ELanguage::Japanese, { "[解像度:かいぞうど]スケール", "ゲームの\u200B[内部解像度:ないぶかいぞうど]を\u200B[調整:ちょうせい]できます\n\n" } },
+    { ELanguage::German,   { "Rendering-Auflösung", "Passe die Auflösung der internen Darstellung an.\n\n" } },
+    { ELanguage::French,   { "Échelle de rendu", "Modifie la résolution interne du jeu.\n\n" } },
+    { ELanguage::Spanish,  { "Escala de resolución", "Ajusta la resolución interna del juego.\n\n" } },
+    { ELanguage::Italian, { "Scala risoluzione", "Regola la risoluzione interna del gioco.\n\n" } }
 };
 
 // Japanese Notes: This localization should include furigana.
