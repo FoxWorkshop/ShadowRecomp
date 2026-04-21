@@ -2,6 +2,10 @@
 #include <kernel/function.h>
 #include <user/config.h>
 
+// Uncomment the define below to enable
+// #define EnableMultiplayerMod
+
+#ifdef EnableMultiplayerMod
 // Skip 2P Intro Event by patching StageAction::Change - NOTE DANGEROUS!! Should be replaced later
 X86_FUNC_IMPL(__imp__sub_16DB80);
 X86_FUNC(sub_16DB80)
@@ -281,3 +285,5 @@ X86_FUNC(sub_237DA0)
 // {
 // 	eax.u32 = COLL_BVH_BUF_ADDR + 4;
 // }
+
+#endif
