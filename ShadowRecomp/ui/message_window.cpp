@@ -311,6 +311,7 @@ void DrawButton(int rowIndex, float yOffset, float width, float height, std::str
 		SetShaderModifier(IMGUI_SHADER_MODIFIER_NONE);
 }
 
+static float g_msgboxTime = 0.0f;
 void DrawGameStyleMessageBox(ImVec2 center, ImVec2 size)
 {
 	ImDrawList* dl = ImGui::GetBackgroundDrawList();
@@ -321,7 +322,6 @@ void DrawGameStyleMessageBox(ImVec2 center, ImVec2 size)
 
 	if (g_msgOnly)
 	{
-
 		max.x += 1.f;
 		max.y += 1.f;
 		dl->PushClipRect(min, max);
@@ -362,7 +362,6 @@ void DrawGameStyleMessageBox(ImVec2 center, ImVec2 size)
 	max.x += 1.f;
 	max.y += 1.f;
 	dl->PushClipRect(min, max);
-
 }
 
 static void ResetSelection()
@@ -424,7 +423,7 @@ void MessageWindow::Draw()
 	if (!s_isVisible)
 		return;
 
-	if (g_isClosing && (ImGui::GetTime() - g_time) > (1.0 / 60.0) * 30.0)
+	if (g_isClosing && (ImGui::GetTime() - g_time) > (1.0 / 60.0) * 15.f)
 	{
 		g_isAwaitingResult = false;
 		s_isVisible = false;

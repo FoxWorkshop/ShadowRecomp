@@ -710,7 +710,9 @@ static void DrawOptions(ImVec2 minClipRect, ImVec2 maxClipRect, ImVec2 min, ImVe
 		DrawOption(rowCount++, &Config::FPS, true, min, max, nullptr, FPS_MIN, 120, FPS_MAX);
 		DrawOption(rowCount++, &Config::Brightness, true, min, max, nullptr);
 		DrawOption(rowCount++, &Config::AntiAliasing, false, min, max, devReason); 		
-		DrawOption(rowCount++, &Config::BloomIntensity, true, min, max, nullptr);                
+		DrawOption(rowCount++, &Config::TextureFiltering, true, min, max, nullptr);
+		DrawOption(rowCount++, &Config::BloomIntensity, true, min, max, nullptr); 
+
 
 		break;
 	}
