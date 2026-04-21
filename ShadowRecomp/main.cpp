@@ -244,7 +244,7 @@ int main(int argc, char* argv[])
     //if (runInstallerWizard)
 	//{
 
-        EmbeddedPlayer::Init();
+       // EmbeddedPlayer::Init();
 
     //}
 
