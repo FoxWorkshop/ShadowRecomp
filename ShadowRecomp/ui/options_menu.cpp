@@ -65,6 +65,7 @@ float m_descScrollDirection{ 1.0f };
 
 
 static std::string optionDescription = "";
+static std::string optionValDescription = "";
 
 static std::string& GetCategoryName(OptionsMenuCategory category)
 {
@@ -147,7 +148,7 @@ void DrawDescription(std::string s)
 	float barScreenY = (barTexY / texHeight) * res.y;
 	float barScreenH = (barTexH / texHeight) * res.y;
 
-	ImVec2 barMin = { barScreenX + Scale(32), barScreenY };
+	ImVec2 barMin = { barScreenX + Scale(30), barScreenY };
 	ImVec2 barMax = { res.x, barScreenY + barScreenH };
 
 	drawList->PushClipRect(barMin, barMax);
@@ -160,13 +161,13 @@ void DrawDescription(std::string s)
 
 
 	ImVec2 textPos = {
-		barScreenX + barWidth * 0.5f - textSize.x * 0.5f,  // centered within bar bounds
+		barScreenX + barWidth * 0.5f - textSize.x * 0.5f + Scale(15.f),  // centered within bar bounds
 		barScreenY + barScreenH * 0.6f - textSize.y * 0.5f
 	};
 
 	float offsetScroll = 0.0f;
 	float totalWidth = 0.0f;
-	if (textSize.x > barWidth)
+	if (textSize.x > barWidth - Scale(55.f))
 	{
 		float gap = Scale(80.0f); // space between end and start of loop
 		totalWidth = textSize.x + gap;
@@ -181,7 +182,7 @@ void DrawDescription(std::string s)
 
 	drawList->AddText(g_fntSeurat, fontSize, textPos, IM_COL32(255, 255, 255, 255), s.c_str());
 
-	if (textSize.x > barWidth)
+	if (textSize.x > barWidth - Scale(55.f))
 	{
 		textPos.x += totalWidth;
 		drawList->AddText(g_fntSeurat, fontSize, textPos, IM_COL32(255, 255, 255, 255), s.c_str());
@@ -348,11 +349,11 @@ static void DrawOption
 				auto isLanguageOption = (ConfigDef<ELanguage>*)config == &Config::Language;
 				if (valueDescription.empty())
 				{
-					optionDescription = config->GetDescription(Config::Language);
+					optionValDescription = config->GetDescription(Config::Language);
 				}
 				else
 				{
-					optionDescription = valueDescription;
+					optionValDescription = valueDescription;
 				}
 			};
 
@@ -888,6 +889,65 @@ void DrawBackground()
 	drawList->AddImage(g_upTexBGExtra.get(), optionsMin, optionsMax, GET_UV_COORDS(optionsUVs), IM_COL32(255, 255, 255, 128));
 }
 
+void DrawAnimatedFire(ImVec2 min, ImVec2 max)
+{
+	auto* drawList = ImGui::GetBackgroundDrawList();
+	auto& res = ImGui::GetIO().DisplaySize;
+
+	constexpr int frameCount = 4;  // columns 
+	constexpr int rowCount = 4;   // rows 
+	constexpr float frameWidth = 128.f / frameCount;  
+	constexpr float frameHeight = 128.f / rowCount;
+
+
+	constexpr double fps = 24.f; 
+	int frame = (int)(ImGui::GetTime() * fps) % (frameCount * rowCount);
+
+	// Convert flat frame index to row/col
+	int col = frame % frameCount;
+	int row = frame / frameCount;
+
+	float x = 385 + col * frameWidth;
+	float y = row * frameHeight;
+
+	auto fireUVs = PIXELS_TO_UV_COORDS(512, 512, x, y, frameWidth, frameHeight);
+
+	SetShaderModifier(IMGUI_SHADER_MODIFIER_LOW_QUALITY_TEXT);
+
+
+	auto containerWidth = res.x * 0.2f;
+	float containerFinalX = res.x - frameWidth;
+	auto containerHeight = res.y * 0.2f;
+
+	// First we calculate the position of the flame of the menu BG
+	float barTexX = 440.f;
+	float barTexY = 340.f;
+	float barTexH = 30.f;
+	float texHeight = 512.0f;
+
+	// Then we map to screen space proportionally
+	float barScreenX = (barTexX / texHeight) * res.x;
+	float barScreenY = (barTexY / texHeight) * res.y;
+	float barScreenH = (barTexH / texHeight) * res.y;
+
+
+	float barWidth = res.x - barScreenX;
+
+
+	ImVec2 containerMin = {
+		barScreenX + barWidth * 0.5f,  // centered within bar bounds
+		barScreenY + barScreenH * 0.6f
+	};
+
+
+	ImVec2 containerMax = { barScreenX, barScreenH };
+
+
+	drawList->AddImage(g_upTexBGExtra.get(), containerMin, containerMax, GET_UV_COORDS(fireUVs), IM_COL32(255, 255, 255, 255));
+
+	SetShaderModifier(IMGUI_SHADER_MODIFIER_NONE);
+}
+
 void DrawMenuListContainer(ImVec2 min, ImVec2 max)
 {
 	auto* drawList = ImGui::GetBackgroundDrawList();
@@ -932,8 +992,12 @@ void DrawMenuListContainer(ImVec2 min, ImVec2 max)
 	ImVec2 minClipRect = { containerMin.x + optionsOffsetX, containerMin.y + optionsOffsetY };
 	ImVec2 maxClipRect = { res.x, containerMax.y - optionsOffsetY };
 	DrawOptions(minClipRect, maxClipRect, minOptions, maxOptions);
-	if ((OptionsMenu::s_flowState == OptionsMenuFlowState::OptionCursor || OptionsMenu::s_flowState == OptionsMenuFlowState::OptionSelected))
+	if (OptionsMenu::s_flowState == OptionsMenuFlowState::OptionCursor)
 		DrawDescription(optionDescription); // we draw option description separately so they don't get discard by the clip rect.
+	else if (OptionsMenu::s_flowState == OptionsMenuFlowState::OptionSelected)
+	{
+		DrawDescription(optionValDescription);
+	}
 }
 
 
@@ -1207,9 +1271,12 @@ void OptionsMenu::Draw()
 	}
 
 	DrawBackground();
+
 	auto& res = ImGui::GetIO().DisplaySize;
 	ImVec2 min = { g_horzCentre + g_aspectRatioNarrowMargin, g_vertCentre };
 	ImVec2 max = { res.x - min.x, res.y - min.y };
+
+//	DrawAnimatedFire(min, max);
 
 	if (t >= 0.8f)
 		DrawCategories(min, max);
@@ -1275,6 +1342,7 @@ bool OptionsMenu::CanClose()
 void OptionsMenu::Init()
 {
 	optionDescription = "";
+	optionValDescription = "";
 	g_upTexOptionsBG = LOAD_ZSTD_TEXTURE(g_options_bg);
 	g_upTexBGMenuList = LOAD_ZSTD_TEXTURE(g_optionsIcons);
 	g_upTexBGExtra = LOAD_ZSTD_TEXTURE(g_optionsText);
