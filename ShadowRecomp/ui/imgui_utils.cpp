@@ -168,14 +168,16 @@ float Scale(float size)
     return size * g_aspectRatioScale;
 }
 
-double ComputeLinearMotion(double duration, double offset, double total)
+double ComputeLinearMotion(double time, double offset, double total, bool reverse)
 {
-    return std::clamp((ImGui::GetTime() - duration - offset / 60.0) / total * 60.0, 0.0, 1.0);
+    auto result = std::clamp((ImGui::GetTime() - time - offset / 60.0) / total * 60.0, 0.0, 1.0);
+
+    return reverse ? 1.0 - result : result;
 }
 
-double ComputeMotion(double duration, double offset, double total)
+double ComputeMotion(double duration, double offset, double total, bool reverse)
 {
-    return sqrt(ComputeLinearMotion(duration, offset, total));
+    return sqrt(ComputeLinearMotion(duration, offset, total, reverse));
 }
 
 void DrawPauseContainer(ImVec2 min, ImVec2 max, float alpha)

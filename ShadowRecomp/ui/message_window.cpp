@@ -9,6 +9,7 @@
 #include <input/padstate.h>
 
 
+
 constexpr double OVERLAY_CONTAINER_COMMON_MOTION_START = 0;
 constexpr double OVERLAY_CONTAINER_COMMON_MOTION_END = 11;
 constexpr double OVERLAY_CONTAINER_OUTRO_FADE_START = 0;
@@ -154,56 +155,6 @@ public:
 }
 g_sdlEventListenerForMessageWindow;
 
-bool DrawContainer(float appearTime, ImVec2 centre, ImVec2 max, bool isForeground = true)
-{
-	auto drawList = ImGui::GetBackgroundDrawList();
-
-	ImVec2 _min = { centre.x - max.x, centre.y - max.y };
-	ImVec2 _max = { centre.x + max.x, centre.y + max.y };
-
-	// Expand/retract animation.
-	auto containerMotion = ComputeMotion(appearTime, OVERLAY_CONTAINER_COMMON_MOTION_START, OVERLAY_CONTAINER_COMMON_MOTION_END);
-
-	if (g_isClosing)
-	{
-		_min.x = Hermite(_min.x, centre.x, containerMotion);
-		_max.x = Hermite(_max.x, centre.x, containerMotion);
-		_min.y = Hermite(_min.y, centre.y, containerMotion);
-		_max.y = Hermite(_max.y, centre.y, containerMotion);
-	}
-	else
-	{
-		_min.x = Hermite(centre.x, _min.x, containerMotion);
-		_max.x = Hermite(centre.x, _max.x, containerMotion);
-		_min.y = Hermite(centre.y, _min.y, containerMotion);
-		_max.y = Hermite(centre.y, _max.y, containerMotion);
-	}
-
-	// Transparency fade animation.
-	auto colourMotion = g_isClosing
-		? ComputeMotion(appearTime, OVERLAY_CONTAINER_OUTRO_FADE_START, OVERLAY_CONTAINER_OUTRO_FADE_END)
-		: ComputeMotion(appearTime, OVERLAY_CONTAINER_INTRO_FADE_START, OVERLAY_CONTAINER_INTRO_FADE_END);
-
-	auto alpha = g_isClosing
-		? Lerp(1, 0, colourMotion)
-		: Lerp(0, 1, colourMotion);
-
-	if (!isForeground)
-		g_foregroundCount++;
-
-	if (isForeground)
-		drawList->AddRectFilled({ 0.0f, 0.0f }, ImGui::GetIO().DisplaySize, IM_COL32(0, 0, 0, 190 * (g_foregroundCount ? 1 : alpha)));
-
-	DrawPauseContainer(_min, _max, alpha);
-
-	if (containerMotion >= 1.0f && !g_isClosing)
-	{
-		drawList->PushClipRect(_min, _max);
-		return true;
-	}
-
-	return false;
-}
 
 void DrawMessageInWindow(const char* text, ImVec2 center, ImVec2 size)
 {

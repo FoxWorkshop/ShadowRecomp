@@ -18,6 +18,7 @@
 #include <user/config.h>
 #include <app.h>
 #include <exports.h>
+#include <ui/menu_common.h>
 
 
 static constexpr int MAX_VISIBLE_ROWS = 6;
@@ -40,8 +41,8 @@ static double g_flowStateTime{};
 static double g_lastIncrementTime{};
 static double g_lastTappedTime{};
 static double g_scrollArrowsTime{};
-
-
+static double g_containerAnimTime = 0.0;
+static double g_containerClosedAnimTime = 0.0;
 
 static bool g_up{};
 static bool g_upWasHeld{};
@@ -60,6 +61,7 @@ bool m_isDescManualScrolling{};
 float m_descScrollOffset{};
 float m_descScrollTimer{};
 float m_descScrollDirection{ 1.0f };
+
 
 static std::string optionDescription = "";
 
@@ -881,10 +883,27 @@ void DrawMenuListContainer(ImVec2 min, ImVec2 max)
 	auto containerOffsetX = Scale(1);
 	auto containerOffsetY = Scale(136);
 
-	ImVec2 containerMin = { max.x - containerWidth - containerOffsetX, min.y + containerOffsetY };
-	ImVec2 containerMax = { containerMin.x + containerWidth, containerMin.y + containerHeight };
+	// anim
+
+	// 1.0 = fully on screen, 0.0 = fully off screen
+	float t = OptionsMenu::s_state == OptionsMenuState::Closing ? (float)ComputeLinearMotion(g_containerClosedAnimTime, 0, 15, true) : (float)ComputeLinearMotion(g_containerAnimTime, 0, 15, false);
+
+
+	float containerFinalX = res.x - containerWidth;
+
+	// Start position is fully off screen to the right
+	float containerStartX = res.x;
+
+	// Interpolate between start and final
+	float containerCurrentX = containerStartX + (containerFinalX - containerStartX) * t;
+
+	ImVec2 containerMin = { containerCurrentX, min.y + containerOffsetY };
+	ImVec2 containerMax = { containerCurrentX + containerWidth, containerMin.y + containerHeight };
 
 	drawList->AddImage(g_upTexBGMenuList.get(), containerMin, containerMax, GET_UV_COORDS(containerUVs));
+
+	if (t < 1.f)
+		return;
 
 	float optionsOffsetX = Scale(170);
 	float optionsOffsetY = Scale(23);
@@ -982,11 +1001,20 @@ void OptionsMenu::Draw()
 	bool leftIsHeld = false;
 	bool rightIsHeld = false;
 
+	float t = (float)ComputeLinearMotion(g_containerAnimTime, 0, 15.f, false);
+	float tClosing = (float)ComputeLinearMotion(g_containerClosedAnimTime, 0, 30.f, true);
+
 	switch (s_state)
 	{
 	case OptionsMenuState::Opening:
-		//s_commonMenu.Open();
-		s_state = OptionsMenuState::Idle;
+	{
+
+
+		if (t > 0.8f)
+		{
+			s_state = OptionsMenuState::Idle;
+		}
+	}
 		break;
 
 	case OptionsMenuState::Idle:
@@ -1038,7 +1066,12 @@ void OptionsMenu::Draw()
 
 	case OptionsMenuState::Closing:
 	{
-		s_isVisible = false;
+
+		if (tClosing <= 0.2f)
+		{
+			GameMenuCommon::ResetNextMode();
+			s_isVisible = false;
+		}
 		break;
 	}
 	case OptionsMenuState::Restarting:
@@ -1162,7 +1195,9 @@ void OptionsMenu::Draw()
 	ImVec2 min = { g_horzCentre + g_aspectRatioNarrowMargin, g_vertCentre };
 	ImVec2 max = { res.x - min.x, res.y - min.y };
 
-	DrawCategories(min, max);
+	if (t >= 0.8f)
+		DrawCategories(min, max);
+
 	DrawMenuListContainer(min, max);
 
 
@@ -1184,6 +1219,8 @@ void OptionsMenu::Open(bool isPause)
 	InitImGuiUtils();
 	g_stateTime = ImGui::GetTime();
 	s_state = OptionsMenuState::Opening;
+	g_containerAnimTime = ImGui::GetTime();
+
 	s_isVisible = true;
 
 	ResetSelection();
@@ -1197,17 +1234,20 @@ void OptionsMenu::SetFlowState(OptionsMenuFlowState flowState)
 }
 
 // to do
-void SetOptionModeToFalse();
+
 void OptionsMenu::Close()
 {
 	if (s_state == OptionsMenuState::Closing)
 		return;
 
+	GameMenuCommon::ResetCurrentMode();
+
+
 	s_state = OptionsMenuState::Closing;
 	g_stateTime = ImGui::GetTime();
+	g_containerClosedAnimTime = ImGui::GetTime();
 	g_cursorArrowsTime = g_stateTime;
 
-	SetOptionModeToFalse();
 	Config::Save();
 }
 

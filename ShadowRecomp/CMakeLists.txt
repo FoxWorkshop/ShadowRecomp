@@ -155,6 +155,7 @@ set(SHADOW_RECOMP_UI_CXX_SOURCES
     "ui/fader.cpp"
     "ui/options_menu.cpp"
     "ui/message_window.cpp"
+    "ui/menu_common.cpp"
 )
 
 set(SHADOW_RECOMP_MOD_CXX_SOURCES

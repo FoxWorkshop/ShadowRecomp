@@ -5,26 +5,14 @@
 #include <ui/message_window.h>
 #include <input/padstate.h>
 #include <ui/options_menu.h>
+#include <ui/menu_common.h>
 
 static std::atomic<bool> g_faderBegun = false;
 
 bool g_quitMessageOpen = false;
-bool g_OptionsOpen = false;
 static int g_quitMessageResult = -1;
 static float g_timerAllowedToQuit = 0.f;
-static uint32_t g_optionsMode = 0;
 
-void SetOptionModeToFalse()
-{
-	g_OptionsOpen = false;
-	if (g_optionsMode)
-	{
-		auto base = g_memory.base;
-		X86_STORE_U32(g_optionsMode, 5);
-		g_optionsMode = 0;
-	}
-
-}
 
 static bool ProcessQuitMessage()
 {
@@ -36,7 +24,7 @@ static bool ProcessQuitMessage()
 	if (MessageWindow::Open(Localise("Title_Message_Quit"), &g_quitMessageResult, options, 0) == MSG_CLOSED)
 	{
 		g_timerAllowedToQuit = 0;
-		if (!g_quitMessageResult)
+		if (!g_quitMessageResult) // if user asked to quit, fade out and quit the game
 		{
 			Fader::FadeOut(1, []() { App::Exit(); });
 			g_faderBegun = true;
@@ -94,39 +82,38 @@ X86_FUNC(sub_17ED0)
 X86_FUNC_IMPL(__imp__sub_28F720);
 X86_FUNC(sub_28F720)
 {
-	g_optionsMode = X86_LOAD_U32(ctx.ecx.u32 + 4);
-	auto menuMode = X86_LOAD_U32(g_optionsMode);
+	GameMenuCommon::g_currentModeAddr = X86_LOAD_U32(ctx.ecx.u32 + 4);
+	auto menuMode = X86_LOAD_U32(GameMenuCommon::g_currentModeAddr);
+	auto subMode = X86_LOAD_U32(GameMenuCommon::g_currentModeAddr + 0x4);
 
-	if (menuMode == 0)
+	if (menuMode == 0) // if user requested options access, init our custom option menu
 	{
 		OptionsMenu::Open(false);
-		g_OptionsOpen = true;
+		GameMenuCommon::g_OptionsOpen = true;
 		__imp__sub_28F720(ctx, base);
 	}
-	else if (g_OptionsOpen == false)
+	else if (GameMenuCommon::g_OptionsOpen == false) // we are no longer in options mode, let original code logic run
 	{
 		__imp__sub_28F720(ctx, base);
 	}
 	else
 	{
-		ctx.esp.u32 += 4;
+		ctx.AddEsp(1); // prevent function to run while our custom option menu run
 	}
 }
 
-// Options rendering
+// Options rendering stubbed
 X86_FUNC_IMPL(__imp__sub_28F200);
 X86_FUNC(sub_28F200)
 {
+	ctx.AddEsp(1);
+}
 
-	if (g_OptionsOpen == false)
-	{
-		__imp__sub_28F200(ctx, base);
-	}
-	else
-	{
+// get next mode to force it to 0 when we quit options 
+X86_FUNC_IMPL(__imp__sub_28E770);
+X86_FUNC(sub_28E770)
+{
+	GameMenuCommon::g_nextModeAddr = ctx.ecx.u32 + 0x20;
 
-		ctx.esp.u32 += 4;
-	}
-
-
+	__imp__sub_28E770(ctx, base);
 }
