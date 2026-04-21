@@ -13,6 +13,11 @@
 
 float g_fntSeuratSize = 0.0f;
 
+void UpdateFontSize()
+{
+    g_fntSeuratSize = Scale(Config::Language == ELanguage::Japanese ? 19 : 18);
+}
+
 void InitImGuiUtils()
 {
    // g_texGeneralWindow = LOAD_ZSTD_TEXTURE(g_general_window);
@@ -21,9 +26,10 @@ void InitImGuiUtils()
 
     //g_upTexOptionsBG = LOAD_ZSTD_TEXTURE(g_options_bg);
 
-    g_fntSeuratSize = Scale(Config::Language == ELanguage::Japanese ? 19 : 18);
-    g_fntSeuratSize = g_fntSeuratSize;
+    UpdateFontSize();
 }
+
+
 
 
 

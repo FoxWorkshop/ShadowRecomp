@@ -268,7 +268,7 @@ int main(int argc, char* argv[])
 
     if (!Video::CreateHostDevice(sdlVideoDriver, graphicsApiRetry))
     {
-        SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_ERROR, GameWindow::GetTitle(), "Backend Graphics error", GameWindow::s_pWindow);
+        SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_ERROR, GameWindow::GetTitle(), Localise("Video_BackendError").c_str(), GameWindow::s_pWindow);
         std::_Exit(1);
     }
 

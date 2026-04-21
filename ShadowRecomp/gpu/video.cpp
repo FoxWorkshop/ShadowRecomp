@@ -2016,6 +2016,23 @@ static void CheckSwapChain()
 	g_backBuffer->height = Video::s_viewportHeight;
 }
 
+
+// This is needed because uninitialized RT / depth can crash the game under specific windows version if (and only if) VS is installed.
+void DiscardInitRenderResource(GuestBaseTexture* texture, const bool isRT)
+{
+
+	auto targetLayout = (isRT == false)
+		? RenderTextureLayout::DEPTH_WRITE
+		: RenderTextureLayout::COLOR_WRITE;
+
+	ExecuteInitCommandList([&]
+		{
+			g_initCommandList->barriers(RenderBarrierStage::GRAPHICS, RenderTextureBarrier(texture->texture, targetLayout));
+			g_initCommandList->discardTexture(texture->texture);
+			g_initCommandList->barriers(RenderBarrierStage::GRAPHICS, RenderTextureBarrier(texture->texture, RenderTextureLayout::SHADER_READ));
+		});
+}
+
 static void BeginCommandList()
 {
 	g_renderTarget = g_backBuffer;
@@ -2045,6 +2062,13 @@ static void BeginCommandList()
 				Video::WaitForGPU(); // Fine to wait for GPU, this'll only happen during resize.
 
 				g_intermediaryBackBufferTexture = g_device->createTexture(RenderTextureDesc::Texture2D(width, height, 1, BACKBUFFER_FORMAT, RenderTextureFlag::RENDER_TARGET));
+			
+				ExecuteInitCommandList([&] // Discard texture, this is needed, see the function DiscardInitRenderResource for more info. 
+					{
+						g_initCommandList->barriers(RenderBarrierStage::GRAPHICS, RenderTextureBarrier(g_intermediaryBackBufferTexture.get(), RenderTextureLayout::COLOR_WRITE));
+						g_initCommandList->discardTexture(g_intermediaryBackBufferTexture.get());
+						g_initCommandList->barriers(RenderBarrierStage::GRAPHICS, RenderTextureBarrier(g_intermediaryBackBufferTexture.get(), RenderTextureLayout::SHADER_READ));
+					});
 				g_textureDescriptorSet->setTexture(g_intermediaryBackBufferTextureDescriptorIndex, g_intermediaryBackBufferTexture.get(), RenderTextureLayout::SHADER_READ);
 
 				g_intermediaryBackBufferTextureWidth = width;
@@ -3864,23 +3888,6 @@ static RenderFormat ConvertFormat(X_D3DFORMAT format)
 	}
 }
 
-// This is needed because uninitialized RT / depth can crash the game under specific windows version if (and only if) VS is installed.
-void DiscardInitRenderResource(GuestBaseTexture* texture, const bool isRT)
-{
-
-	auto targetLayout = (isRT == false)
-		? RenderTextureLayout::DEPTH_WRITE
-		: RenderTextureLayout::COLOR_WRITE;
-
-	ExecuteInitCommandList([&]
-		{
-			g_initCommandList->barriers(RenderBarrierStage::GRAPHICS, RenderTextureBarrier(texture->texture, targetLayout));
-			g_initCommandList->discardTexture(texture->texture);
-			g_initCommandList->barriers(RenderBarrierStage::GRAPHICS, RenderTextureBarrier(texture->texture, RenderTextureLayout::SHADER_READ));
-		});
-
-
-}
 
 //todo check if this is all correct
 static GuestTexture* CreateTexture(uint32_t width, uint32_t height, uint32_t depth, uint32_t levels, uint32_t usage, X_D3DFORMAT format, X_D3DRESOURCETYPE type)

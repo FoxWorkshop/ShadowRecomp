@@ -10,6 +10,7 @@
 #include <shellscalingapi.h>
 #endif
 #include <os/logger.h>
+#include "imgui_utils.h"
 
 //Original code from Unleashed Recomp
 
@@ -278,10 +279,10 @@ void GameWindow::SetIcon(ELedAura mode)
 
 const char* GameWindow::GetTitle()
 {
-    /**if (Config::UseOfficialTitleOnTitleBar)
+    if (Config::UseOfficialTitleOnTitleBar)
     {
         return "SHADOW THE HEDGEHOG(TM)";
-    }*/
+    }
 
     return "Shadow Recompiled";
 }
@@ -331,6 +332,7 @@ bool GameWindow::SetFullscreen(bool isEnabled)
         SetIcon((ELedAura)GameWindow::s_Icon);
         SetDimensions(Config::WindowWidth, Config::WindowHeight, Config::WindowX, Config::WindowY);
     }
+
 
     return isEnabled;
 }

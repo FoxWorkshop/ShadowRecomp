@@ -316,7 +316,7 @@ static void DrawOption
 		if (OptionsMenu::s_flowState == OptionsMenuFlowState::OptionCursor)
 		{
 
-			;			g_optionCurrent = config;
+			g_optionCurrent = config;
 			g_optionCanReset = isAccessible && config->GetName().find("Language") == std::string::npos && (void*)config != (void*)&Config::WindowSize;
 		}
 		else
@@ -694,17 +694,17 @@ static void DrawOptions(ImVec2 minClipRect, ImVec2 maxClipRect, ImVec2 min, ImVe
 
 	case OptionsMenuCategory::Video:
 	{
-		bool canChangeResolution = false; // Config::Fullscreen == false;
+		bool canChangeResolution =  Config::Fullscreen == false;
 
 
-		DrawOption(rowCount++, &Config::WindowSize, canChangeResolution, min, max, devReason, 0, 0, 1, false);
+		DrawOption(rowCount++, &Config::WindowSize, canChangeResolution, min, max, devReason, 0, 0, (int)GameWindow::GetDisplayModes().size() - 1, false);
 
 		// DrawOption(rowCount++, &Config::WindowSize, !Config::Fullscreen,
 		//     &Localise("Options_Desc_NotAvailableFullscreen"),
 		//     0, 0, (int)GameWindow::GetDisplayModes().size() - 1, false);
 
 		auto displayCount = GameWindow::GetDisplayCount();
-		auto canChangeMonitor = false;// Config::Fullscreen&& displayCount > 1;
+		auto canChangeMonitor = Config::Fullscreen&& displayCount > 1;
 		auto monitorReason = &Localise("Options_Desc_NotAvailableWindowed");
 
 
@@ -712,9 +712,9 @@ static void DrawOptions(ImVec2 minClipRect, ImVec2 maxClipRect, ImVec2 min, ImVe
 			monitorReason = &Localise("Options_Desc_NotAvailableHardware");
 
 		DrawOption(rowCount++, &Config::Monitor, canChangeMonitor, min, max, devReason, 0, 0, 1, false);
-		DrawOption(rowCount++, &Config::AspectRatio, false, min, max, devReason);                            // TODO: implement buffer resize. DrawOption(rowCount++, &Config::AspectRatio, true);
-		DrawOption(rowCount++, &Config::ResolutionScale, canChangeResolution, min, max, devReason);                        // TODO: implement buffer resize. DrawOption(rowCount++, &Config::ResolutionScale, true, nullptr, 0.25f, 1.0f, 2.0f);
-		DrawOption(rowCount++, &Config::Fullscreen, false, min, max, devReason);                             // TODO: implement buffer resize. DrawOption(rowCount++, &Config::Fullscreen, true);
+		DrawOption(rowCount++, &Config::AspectRatio, true, min, max, devReason);                            
+		DrawOption(rowCount++, &Config::ResolutionScale, canChangeResolution, min, max, nullptr, 0.25f, 1.0f, 2.0f);                       
+		DrawOption(rowCount++, &Config::Fullscreen, true, min, max, devReason);            
 		DrawOption(rowCount++, &Config::VSync, true, min, max, nullptr);
 		DrawOption(rowCount++, &Config::FPS, true, min, max, nullptr, FPS_MIN, 120, FPS_MAX);
 		DrawOption(rowCount++, &Config::Brightness, true, min, max, nullptr);

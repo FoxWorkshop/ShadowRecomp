@@ -1,6 +1,7 @@
 #include <kernel/function.h>
 #include <patches/aspect_ratio_patches.h>
 #include <gpu/video.h>
+#include <ui/imgui_utils.h>
 
 bool readyToDebugConstant = false;
 #define widthMin 640.f
@@ -49,6 +50,7 @@ void AspectRatioPatches::ComputeOffsets()
 	g_aspectRatioNarrowMargin = std::lerp(50.0f, 0.0f, g_aspectRatioNarrowScale);
 	g_horzCentre = g_aspectRatioOffsetX + 640.0f * (1.0f - g_aspectRatioGameplayScale) * g_aspectRatioScale;
 	g_vertCentre = g_aspectRatioOffsetY + 360.0f * (1.0f - g_aspectRatioGameplayScale) * g_aspectRatioScale;
+	UpdateFontSize();
 }
 
 void PatchResolutionCapMidAsmHook(X86Register& eax)
