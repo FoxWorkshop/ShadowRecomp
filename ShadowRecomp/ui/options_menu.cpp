@@ -117,7 +117,18 @@ void resetDescScroll()
 
 void DrawDescription(std::string s)
 {
+	static std::string prevText;
+	static double scrollStartTime = 0.0;
+	constexpr double scrollDelay = 0.5; // seconds to wait before scrolling
+	double elapsed = ImGui::GetTime() - scrollStartTime;
+
 	std::replace(s.begin(), s.end(), '\n', ' '); 
+
+	if (prevText != s)
+	{
+		prevText = s;
+		scrollStartTime = ImGui::GetTime() + scrollDelay;
+	}
 
 	auto drawList = ImGui::GetBackgroundDrawList();
 	auto& res = ImGui::GetIO().DisplaySize;
@@ -156,8 +167,8 @@ void DrawDescription(std::string s)
 	{
 		float gap = Scale(80.0f); // space between end and start of loop
 		totalWidth = textSize.x + gap;
-		float scrollSpeed = Scale(60.0f); // pixels per second
-		offsetScroll = fmod(ImGui::GetTime() * scrollSpeed, totalWidth);
+		float scrollSpeed = Scale(70.0f); // pixels per second
+		offsetScroll = elapsed > 0.0 ? fmod(elapsed * scrollSpeed, totalWidth) : 0.0f;
 	}
 
 	textPos.x -= offsetScroll;
@@ -240,6 +251,7 @@ static void DrawOption
 	auto isSelected = isCurrent && OptionsMenu::s_flowState == OptionsMenuFlowState::OptionSelected;
 	auto isHover = isCurrent && OptionsMenu::s_flowState == OptionsMenuFlowState::OptionCursor;
 	bool isHoverOrSelected = isSelected || isHover;
+
 	constexpr bool isSliderType = std::is_same_v<T, float> || std::is_same_v<T, int>;
 
 	auto bgEdgeUVs = PIXELS_TO_UV_COORDS(256, 256, 1, 0, 51, 45);
@@ -883,7 +895,7 @@ void DrawMenuListContainer(ImVec2 min, ImVec2 max)
 	ImVec2 minClipRect = { containerMin.x + optionsOffsetX, containerMin.y + optionsOffsetY };
 	ImVec2 maxClipRect = { res.x, containerMax.y - optionsOffsetY};
 	DrawOptions(minClipRect, maxClipRect, minOptions, maxOptions);
-	if (OptionsMenu::s_flowState == OptionsMenuFlowState::OptionCursor || OptionsMenu::s_flowState == OptionsMenuFlowState::OptionSelected)
+	if ((OptionsMenu::s_flowState == OptionsMenuFlowState::OptionCursor || OptionsMenu::s_flowState == OptionsMenuFlowState::OptionSelected))
 		DrawDescription(optionDescription); // we draw option description separately so they don't get discard by the clip rect.
 }
 
