@@ -98,7 +98,7 @@ X86_FUNC(sub_28F720)
 	}
 	else
 	{
-		ctx.AddEsp(1); // prevent function to run while our custom option menu run
+		ctx.AddEsp(1); // prevent original function to run while our custom option menu run
 	}
 }
 

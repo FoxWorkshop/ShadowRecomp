@@ -1,12 +1,13 @@
 #include <ui/options_menu.h>
 #include <locale/locale.h>
-
+#include <kernel/memory.h>
 #include <gpu/video.h>
 #include <res/images/common/TitleBg.png.h>
 #include <res/images/common/Options.png.h>
 #include <res/images/common/Options2.png.h>
 #include <decompressor.h>
 #include <patches/aspect_ratio_patches.h>
+#include <patches/bloom_patches.h>
 
 #include "imgui_utils.h"
 #include <gpu/imgui/imgui_snapshot.h>
@@ -124,7 +125,7 @@ void DrawDescription(std::string s)
 	constexpr double scrollDelay = 0.5; // seconds to wait before scrolling
 	double elapsed = ImGui::GetTime() - scrollStartTime;
 
-	std::replace(s.begin(), s.end(), '\n', ' '); 
+	std::replace(s.begin(), s.end(), '\n', ' ');
 
 	if (prevText != s)
 	{
@@ -146,7 +147,7 @@ void DrawDescription(std::string s)
 	float barScreenY = (barTexY / texHeight) * res.y;
 	float barScreenH = (barTexH / texHeight) * res.y;
 
-	ImVec2 barMin = { barScreenX + Scale(32), barScreenY};
+	ImVec2 barMin = { barScreenX + Scale(32), barScreenY };
 	ImVec2 barMax = { res.x, barScreenY + barScreenH };
 
 	drawList->PushClipRect(barMin, barMax);
@@ -315,7 +316,7 @@ static void DrawOption
 		if (OptionsMenu::s_flowState == OptionsMenuFlowState::OptionCursor)
 		{
 
-;			g_optionCurrent = config;
+			;			g_optionCurrent = config;
 			g_optionCanReset = isAccessible && config->GetName().find("Language") == std::string::npos && (void*)config != (void*)&Config::WindowSize;
 		}
 		else
@@ -531,6 +532,11 @@ static void DrawOption
 								config->Value -= 0.01f;
 							else if (increment)
 								config->Value += 0.01f;
+
+							if (config == &Config::BloomIntensity)
+							{
+								PatchBloomIntensity(g_memory.base);
+							}
 						}
 
 						if (fastIncrement)
@@ -582,6 +588,7 @@ static void DrawOption
 	if constexpr (std::is_same_v<T, float>)
 	{
 		valueText = fmt::format("{}%", int(round(config->Value * 100.0f)));
+
 	}
 	else if constexpr (std::is_same_v<T, int32_t>)
 	{
@@ -711,9 +718,9 @@ static void DrawOptions(ImVec2 minClipRect, ImVec2 maxClipRect, ImVec2 min, ImVe
 		DrawOption(rowCount++, &Config::VSync, true, min, max, nullptr);
 		DrawOption(rowCount++, &Config::FPS, true, min, max, nullptr, FPS_MIN, 120, FPS_MAX);
 		DrawOption(rowCount++, &Config::Brightness, true, min, max, nullptr);
-		DrawOption(rowCount++, &Config::AntiAliasing, false, min, max, devReason); 		
+		DrawOption(rowCount++, &Config::AntiAliasing, false, min, max, devReason);
 		DrawOption(rowCount++, &Config::TextureFiltering, true, min, max, nullptr);
-		DrawOption(rowCount++, &Config::BloomIntensity, true, min, max, nullptr); 
+		DrawOption(rowCount++, &Config::BloomIntensity, true, min, max, nullptr);
 
 
 		break;
@@ -748,7 +755,7 @@ static void DrawOptions(ImVec2 minClipRect, ImVec2 maxClipRect, ImVec2 min, ImVe
 
 	if (g_optionCount > MAX_VISIBLE_ROWS && OptionsMenu::s_flowState == OptionsMenuFlowState::OptionCursor)
 	{
-		ImVec2 scrollArrowsMin = { max.x -  Scale(84), min.y + Scale(12) };
+		ImVec2 scrollArrowsMin = { max.x - Scale(84), min.y + Scale(12) };
 		ImVec2 scrollArrowsMax = { max.x, max.y - Scale(16) };
 
 		//DrawScrollArrows(scrollArrowsMin, scrollArrowsMax, Scale(20), g_scrollArrowsTime, g_optionIndex > 1, g_optionIndex < rowCount - 2);
@@ -866,7 +873,7 @@ void DrawBackground()
 	auto optionsHeight = res.y * 0.96f;
 
 
-	ImVec2 optionsMin = { 0, min.y + Scale(10)};
+	ImVec2 optionsMin = { 0, min.y + Scale(10) };
 	ImVec2 optionsMax = { optionsMin.x + optionsWidth, optionsMin.y + optionsHeight };
 
 	drawList->AddImage(g_upTexBGExtra.get(), optionsMin, optionsMax, GET_UV_COORDS(optionsUVs), IM_COL32(255, 255, 255, 128));
@@ -909,12 +916,12 @@ void DrawMenuListContainer(ImVec2 min, ImVec2 max)
 	float optionsOffsetY = Scale(23);
 
 	ImVec2 minOptions = { containerMin.x + optionsOffsetX, containerMin.y + optionsOffsetY };
-	ImVec2 maxOptions = { res.x, containerMax.y - optionsOffsetY};
+	ImVec2 maxOptions = { res.x, containerMax.y - optionsOffsetY };
 
 	optionsOffsetX -= Scale(170);
 	//optionsOffsetY -= Scale(23);
 	ImVec2 minClipRect = { containerMin.x + optionsOffsetX, containerMin.y + optionsOffsetY };
-	ImVec2 maxClipRect = { res.x, containerMax.y - optionsOffsetY};
+	ImVec2 maxClipRect = { res.x, containerMax.y - optionsOffsetY };
 	DrawOptions(minClipRect, maxClipRect, minOptions, maxOptions);
 	if ((OptionsMenu::s_flowState == OptionsMenuFlowState::OptionCursor || OptionsMenu::s_flowState == OptionsMenuFlowState::OptionSelected))
 		DrawDescription(optionDescription); // we draw option description separately so they don't get discard by the clip rect.
@@ -1015,7 +1022,7 @@ void OptionsMenu::Draw()
 			s_state = OptionsMenuState::Idle;
 		}
 	}
-		break;
+	break;
 
 	case OptionsMenuState::Idle:
 	{
