@@ -2,7 +2,7 @@
 #include <kernel/function.h>
 
 // Uncomment the define below to enable
-#define EnableReloaded
+//#define EnableReloaded
 
 void ReloadedValuePatches()
 {
