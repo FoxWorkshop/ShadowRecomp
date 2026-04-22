@@ -2,6 +2,10 @@
 #include <kernel/function.h>
 #include <user/config.h>
 
+// Uncomment the define below to enable
+// #define EnableMultiplayerMod
+
+#ifdef EnableMultiplayerMod
 // Skip 2P Intro Event by patching StageAction::Change - NOTE DANGEROUS!! Should be replaced later
 X86_FUNC_IMPL(__imp__sub_16DB80);
 X86_FUNC(sub_16DB80)
@@ -217,14 +221,38 @@ X86_FUNC(sub_237DA0)
 
 // End 2P Lite Stuff
 
-// Level Geo Unrestrict
+// Level Geo Unrestrict (For Custom Stages)
+// Note: This will break some stages, e.g. Egg Dealer (Black Comet) and if you die in a certain area in GUN Fortress.
+// This is because Sonic Team left visibility chunks pointing to old files... which are usually ignore due to this file restriction function.
 //X86_FUNC_IMPL(__imp__sub_56E00);
-//// sub_56E00 // File list check
-//bool allowAnyFileLoad(char* str)
+//X86_FUNC(sub_56E00)
 //{
-//	return 1;
+//	auto isDigit = [](char c) { return c >= '0' && c <= '9'; };
+//
+//	uint32_t strAddr = X86_LOAD_U32(ctx.esp.u32 + 4);
+//	const char* str = strAddr ? (const char*)(base + strAddr) : nullptr;
+//
+//	if (str)
+//	{
+//		for (const char* p = str; *p; p++)
+//		{
+//			if ((p[0] == 's' || p[0] == 'S') &&
+//				(p[1] == 't' || p[1] == 'T') &&
+//				(p[2] == 'g' || p[2] == 'G') &&
+//				isDigit(p[3]) && isDigit(p[4]) &&
+//				isDigit(p[5]) && isDigit(p[6]) &&
+//				p[7] == '_' &&
+//				isDigit(p[8]) && isDigit(p[9]))
+//			{
+//				ctx.eax.u32 = 1;
+//				ctx.esp.u32 += 4;
+//				return;
+//			}
+//		}
+//	}
+//
+//	__imp__sub_56E00(ctx, base);
 //}
-//GUEST_FUNCTION_HOOK(sub_56E00, allowAnyFileLoad);
 
 
 
@@ -236,24 +264,26 @@ X86_FUNC(sub_237DA0)
 // Redirects the BVH stack to a static guest memory buffer using mid-asm hooks.
 // [[midasm_hook]] entries at 0x303375 and 0x30392B
 
-static constexpr uint32_t COLL_BVH_BUF_ADDR = 0x80000000;
+// static constexpr uint32_t COLL_BVH_BUF_ADDR = 0x80000000;
+//
+// void BVHStackRedirectInit(X86Register& ecx, X86Register& esi)
+// {
+// 	auto base = g_memory.base;
+//
+// 	float tNear = X86_LOAD_F32(ecx.u32 + 4);
+// 	float tFar = X86_LOAD_F32(ecx.u32 + 8);
+//
+// 	X86_STORE_U32(COLL_BVH_BUF_ADDR + 0, 0x0000FF00);
+// 	X86_STORE_U32(COLL_BVH_BUF_ADDR + 4, COLL_BVH_BUF_ADDR);
+// 	X86_STORE_F32(COLL_BVH_BUF_ADDR + 8, tNear);
+// 	X86_STORE_F32(COLL_BVH_BUF_ADDR + 12, tFar);
+//
+// 	esi.u32 = COLL_BVH_BUF_ADDR + 16;
+// }
+//
+// void BVHStackRedirectCmp(X86Register& eax)
+// {
+// 	eax.u32 = COLL_BVH_BUF_ADDR + 4;
+// }
 
-void BVHStackRedirectInit(X86Register& ecx, X86Register& esi)
-{
-	auto base = g_memory.base;
-
-	float tNear = X86_LOAD_F32(ecx.u32 + 4);
-	float tFar = X86_LOAD_F32(ecx.u32 + 8);
-
-	X86_STORE_U32(COLL_BVH_BUF_ADDR + 0, 0x0000FF00);
-	X86_STORE_U32(COLL_BVH_BUF_ADDR + 4, COLL_BVH_BUF_ADDR);
-	X86_STORE_F32(COLL_BVH_BUF_ADDR + 8, tNear);
-	X86_STORE_F32(COLL_BVH_BUF_ADDR + 12, tFar);
-
-	esi.u32 = COLL_BVH_BUF_ADDR + 16;
-}
-
-void BVHStackRedirectCmp(X86Register& eax)
-{
-	eax.u32 = COLL_BVH_BUF_ADDR + 4;
-}
+#endif

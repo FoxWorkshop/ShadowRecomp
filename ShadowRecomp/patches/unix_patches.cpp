@@ -6,6 +6,8 @@
 enum ASCIITables : uint8_t
 {
 	c = 0x63, 
+	s = 0x73,
+	d = 0x64,
 	K = 0x4B, 
 };
 
@@ -44,6 +46,23 @@ const uint32_t CsdfilesAmyAddr = 0x47824C;
 const uint32_t CsdfilesKnucklesAddr = 0x478260;
 const uint32_t CsdfilesMilesAddr = 0x47827C;
 const uint32_t CsdfilesSonicAddr = 0x478294;
+
+const uint32_t CsdfilesBcharaBbullAddr = 0x45461C;
+const uint32_t CsdfilesBcharaFalconAddr = 0x454EC0;
+const uint32_t CsdfilesBcharaDoomAddr = 0x455244;
+const uint32_t CsdfilesBcharaEbreakerAddr = 0x4554BC;
+const uint32_t CsdfilesBcharaSanddAddr = 0x455928;
+const uint32_t CsdfilesBcharaDevdoomAddr = 0x456F60;
+const uint32_t CsdfilesMissionFailedAddr = 0x46EF9C;
+const uint32_t Csdfiles2pStartAddr = 0x470940;
+const uint32_t Csdfiles2pStarAddr = 0x477478;
+const uint32_t CsdfilesMediamenuAddr = 0x4788C8;
+const uint32_t CsdfilesMediaromTitleAddr = 0x4788EC;
+const uint32_t CsdfilesTestromStgselAddr = 0x47892C;
+const uint32_t CsdfilesTestromStgselTxdAddr = 0x478944;
+const uint32_t CsdfilesTestromTitleAddr = 0x478984;
+const uint32_t CsdfilesTestromTitleTxdAddr = 0x47899C;
+const uint32_t CsdfilesTgsTitleAddr = 0x478A28;
 
 
 
@@ -88,4 +107,22 @@ void PatchUnixStrings()
 	X86_STORE_U8(CsdfilesMilesAddr, c);
 	X86_STORE_U8(CsdfilesSonicAddr, c);
 
+	X86_STORE_U8(CsdfilesBcharaBbullAddr, c);
+	X86_STORE_U8(CsdfilesBcharaFalconAddr, c);
+	X86_STORE_U8(CsdfilesBcharaDoomAddr, c);
+	X86_STORE_U8(CsdfilesBcharaEbreakerAddr, c);
+	X86_STORE_U8(CsdfilesBcharaSanddAddr, c);
+	X86_STORE_U8(CsdfilesBcharaSanddAddr + 1, s);
+	X86_STORE_U8(CsdfilesBcharaSanddAddr + 2, d);
+	X86_STORE_U8(CsdfilesBcharaDevdoomAddr, c);
+	X86_STORE_U8(CsdfilesMissionFailedAddr, c);
+	X86_STORE_U8(Csdfiles2pStartAddr, c);
+	X86_STORE_U8(Csdfiles2pStarAddr, c);
+	X86_STORE_U8(CsdfilesMediamenuAddr, c);
+	X86_STORE_U8(CsdfilesMediaromTitleAddr, c);
+	X86_STORE_U8(CsdfilesTestromStgselAddr, c);
+	X86_STORE_U8(CsdfilesTestromStgselTxdAddr, c);
+	X86_STORE_U8(CsdfilesTestromTitleAddr, c);
+	X86_STORE_U8(CsdfilesTestromTitleTxdAddr, c);
+	X86_STORE_U8(CsdfilesTgsTitleAddr, c);
 }
