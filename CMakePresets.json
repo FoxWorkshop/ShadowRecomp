@@ -42,8 +42,8 @@
       }
     },
     {
-      "name": "x64-Clang-RelWithDebInfo-Aggressive", //x64-Clang-RelWithDebInfo
-      "displayName": "RelWithDebInfo (Release Optimization)", //RelWithDebInfo
+      "name": "x64-Clang-RelWithDebInfo-Aggressive",
+      "displayName": "RelWithDebInfo (Release Optimization)",
       "inherits": "x64-Clang-Debug",
       "cacheVariables": {
         "CMAKE_BUILD_TYPE": "RelWithDebInfo",
