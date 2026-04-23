@@ -159,8 +159,7 @@ std::vector<float> ReadFloatPairs(const std::string& path)
 }
 
 
-
-
+bool QuickBootConfig = false;
 
 int main(int argc, char* argv[])
 {
@@ -200,10 +199,11 @@ int main(int argc, char* argv[])
     for (uint32_t i = 1; i < argc; i++)
     {
         forceInstaller = forceInstaller || (strcmp(argv[i], "--install") == 0);
-        forceDLCInstaller = forceDLCInstaller || (strcmp(argv[i], "--install-dlc") == 0);
         useDefaultWorkingDirectory = useDefaultWorkingDirectory || (strcmp(argv[i], "--use-cwd") == 0);
         forceInstallationCheck = forceInstallationCheck || (strcmp(argv[i], "--install-check") == 0);
         graphicsApiRetry = graphicsApiRetry || (strcmp(argv[i], "--graphics-api-retry") == 0);
+        QuickBootConfig = (strcmp(argv[i], "--quickboot") == 0);
+
 
         if (strcmp(argv[i], "--sdl-video-driver") == 0)
         {

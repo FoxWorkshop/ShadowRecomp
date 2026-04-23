@@ -10,6 +10,15 @@ enum class ELanguage : uint32_t
     Italian
 };
 
+
+
+enum class EVoiceLanguage : uint32_t
+{
+    Japanese,
+    English
+};
+
+
 inline std::string g_localeMissing = "<missing string>";
 
 extern std::unordered_map<std::string_view, std::unordered_map<ELanguage, std::string>> g_locale;

@@ -1149,6 +1149,7 @@ void OptionsMenu::Draw()
 
 		if (tClosing <= 0.2f)
 		{
+
 			GameMenuCommon::ResetNextMode();
 			s_isVisible = false;
 		}
@@ -1161,7 +1162,7 @@ void OptionsMenu::Draw()
 		static int s_restartMessageResult = -1;
 
 		auto message = Localise("Options_Message_Restart");
-		std::array<std::string, 2> options = { Localise("Common_Yes"), Localise("Common_No") };
+		std::array<std::string, 1> options = { Localise("Common_Ok") };
 
 		if (!s_restartPromptOpened)
 		{
@@ -1181,7 +1182,7 @@ void OptionsMenu::Draw()
 		{
 			if (s_restartMessageResult == 0)
 			{
-				Fader::FadeOut(1, []() { App::Restart({ "--use-cwd --skip-logos" }); });
+				Fader::FadeOut(1, []() { App::Restart({ "--quickboot" }); });
 				s_restartFaderBegun = true;
 			}
 			else
@@ -1234,11 +1235,13 @@ void OptionsMenu::Draw()
 			g_stateTime = ImGui::GetTime();
 			g_categoryTime = g_stateTime;
 
-			/**if (IsRestartRequired())
+			s_isRestartRequired = (int)Config::VoiceLanguage.Value != (int)App::s_voiceLanguage;
+
+			if (OptionsMenu::s_isRestartRequired)
 			{
 				s_state = OptionsMenuState::Restarting;
 			}
-			else*/
+			else
 			{
 				Close();
 			}
@@ -1330,6 +1333,7 @@ void OptionsMenu::Close()
 	g_stateTime = ImGui::GetTime();
 	g_containerClosedAnimTime = ImGui::GetTime();
 	g_cursorArrowsTime = g_stateTime;
+
 
 	Config::Save();
 }

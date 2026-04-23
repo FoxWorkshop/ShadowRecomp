@@ -63,6 +63,7 @@ X86_FUNC(sub_11AD0)
 {
 	App::s_isInit = true;
 	App::s_language = Config::Language;
+	App::s_voiceLanguage = Config::VoiceLanguage;
 
 	Registry::Save();
 

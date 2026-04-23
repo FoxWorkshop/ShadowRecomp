@@ -39,13 +39,6 @@ public:
 extern std::vector<IConfigDef*> g_configDefinitions;
 
 
-
-enum class EVoiceLanguage : uint32_t
-{
-    Japanese,
-    English
-};
-
 enum class ECameraRotationMode : uint32_t
 {
     Normal,
