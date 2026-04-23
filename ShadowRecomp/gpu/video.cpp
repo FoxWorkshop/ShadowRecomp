@@ -1,4 +1,4 @@
-﻿#include "video.h"
+#include "video.h"
 
 #include "imgui/imgui_common.h"
 #include "imgui/imgui_snapshot.h"
@@ -693,6 +693,34 @@ static void LoadEmbeddedResources()
 #endif
 
 	//g_buttonBcDiff = decompressZstd(g_button_bc_diff, g_button_bc_diff_uncompressed_size);
+}
+
+static void PrecompileShaders()
+{
+	for (size_t i = 0; i < g_shaderCacheEntryCount; i++)
+	{
+		auto& entry = g_shaderCacheEntries[i];
+
+		GuestShader* guestShader = g_userHeap.AllocPhysical<GuestShader>(ResourceType::VertexShader);
+		guestShader->shaderCacheEntry = &entry;
+		entry.guestShader = guestShader;
+
+		if (g_vulkan)
+		{
+			auto compressedSpirvData = g_shaderCache.get() + entry.spirvOffset;
+			std::vector<uint8_t> decoded(smolv::GetDecodedBufferSize(compressedSpirvData, entry.spirvSize));
+			bool result = smolv::Decode(compressedSpirvData, entry.spirvSize, decoded.data(), decoded.size());
+			assert(result);
+			guestShader->shader = g_device->createShader(decoded.data(), decoded.size(), "main", RenderShaderFormat::SPIRV);
+		}
+#ifdef SHADOW_RECOMP_D3D12
+		else
+		{
+			guestShader->shader = g_device->createShader(
+				g_shaderCache.get() + entry.dxilOffset, entry.dxilSize, "main", RenderShaderFormat::DXIL);
+		}
+#endif
+	}
 }
 
 static std::unique_ptr<RenderPipeline> g_gammaCorrectionPipeline;
@@ -2257,7 +2285,7 @@ bool Video::CreateHostDevice(const char* sdlVideoDriver, bool graphicsApiRetry)
 	g_capabilities = g_device->getCapabilities();
 
 	 LoadEmbeddedResources();
-
+	 PrecompileShaders();
 
 	constexpr uint64_t LowEndMemoryLimit = 2048ULL * 1024ULL * 1024ULL;
 	RenderDeviceDescription deviceDescription = g_device->getDescription();
