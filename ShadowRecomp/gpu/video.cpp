@@ -698,6 +698,8 @@ static void LoadEmbeddedResources()
 
 static void PrecompileShaders()
 {
+	printf("Precompiling shaders...\n");
+
 	for (size_t i = 0; i < g_shaderCacheEntryCount; i++)
 	{
 		auto& entry = g_shaderCacheEntries[i];

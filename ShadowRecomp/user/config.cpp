@@ -750,6 +750,23 @@ void Config::CreateCallbacks()
         };
 
 
+    Config::Language.Callback = [](ConfigDef<ELanguage>* def)
+        {
+            int32_t value = (int32_t)def->Value;
+            if (value < 0 || value > 5)
+                value = (int32_t)ELanguage::English;
+
+            MainThreadDispatcher::Get().Post([value]()
+                {
+                    auto base = g_memory.base;
+
+                    X86_STORE_U32(0x54DD88, value);
+                    X86_STORE_U32(0x541504, value);
+                });
+        };
+
+
+
 }
 
 void Config::Load()
