@@ -9,7 +9,7 @@
 > This recompilation is still under active development, expect bugs and crashes.
 
 Shadow Recompiled is an unofficial PC port of the original Xbox version of Shadow The Hedgehog (2005) created through the process of static recompilation.
-The port currently only work on Windows since it uses DirectX 12. Support for Linux is planned through Vulkan.
+The port supports Windows and Linux.
 
 **This project does not include any game assets. You must provide the files from your own legally acquired copy of the game to install or build Shadow Recompiled.**
 
@@ -51,7 +51,7 @@ This project does not plan to support any more platforms other than Windows and 
 ### Shadow Recompiled
 - [Sora](https://github.com/Sora-yx): Creator and Developer of the recompilation, as well as the developer of technologies created for it such as XboxRecomp.
 
-- [Dreamsyntax](https://github.com/dreamsyntax): Help with Shadow knowledge as well as testing Recomp, also author of [Shadow Reloaded](https://github.com/FoxWorkshop/ShadowReloaded).
+- [dreamsyntax](https://github.com/dreamsyntax): Help with Shadow knowledge as well as testing Recomp, linux compatibility, multiplayer input, also author of [Shadow Reloaded](https://github.com/ShadowTheHedgehogHacking/ShadowReloaded).
 
 - [DonutStopGaming](https://github.com/DonutStopGaming): Help with understanding RenderWare and finding Shadow functions.
 
@@ -59,12 +59,12 @@ This project does not plan to support any more platforms other than Windows and 
 
 ### Special Thanks
 
-- CXBX-Reloaded Development Team: This project would not have been possible without the [CXBX emulator](https://github.com/Cxbx-Reloaded/Cxbx-Reloaded). Nearly every aspect of the development was guided by referencing CXBX's research on the original Xbox, specially the graphics part.
+- CXBX-Reloaded Development Team: This project would not have been possible without the [CXBX emulator](https://github.com/Cxbx-Reloaded/Cxbx-Reloaded). Nearly every aspect of the development was guided by referencing CXBX's research on the original Xbox, especially the graphics part.
 
 - Unleashed Recompiled Development Team: Created much of the ground work that made all of this possible and sped up development time considerably.
 
 - Skyth: Provided help to understand how Recompilation works, also the author of the original graphics pipeline code which was (mostly) reused here.
 
-- Darío: Creator of the graphics hardware abstraction layer plume, used by the project's graphics backend.
+- Darío: Creator of the graphics hardware abstraction layer [plume](https://github.com/renderbag/plume), used by the project's graphics backend.
 
 - MattKC: Useful explanation of Xbox's Push Buffers system on [his blog with Reburn3.](https://forum.mattkc.com/viewtopic.php?t=154)

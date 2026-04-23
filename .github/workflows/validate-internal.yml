@@ -1,0 +1,10 @@
+name: validate-internal
+on:
+  push:
+    branches:
+      - master
+jobs:
+  build-flatpak:
+    if: github.event_name == 'push' || github.repository == github.event.pull_request.head.repo.full_name
+    uses: ./.github/workflows/build-flatpak.yml
+    secrets: inherit

@@ -1,4 +1,4 @@
-﻿project("ShadowRecomp")
+project("ShadowRecomp")
 
 if (WIN32)
     option(SHADOW_RECOMP_D3D12 "Add D3D12 support for rendering" ON)
@@ -271,6 +271,12 @@ else()
     add_executable(ShadowRecomp ${SHADOW_RECOMP_CXX_SOURCES})
 endif()
 
+if (SHADOW_RECOMP_FLATPAK)
+    target_compile_definitions(ShadowRecomp PRIVATE
+        "GAME_INSTALL_DIRECTORY=\"/var/data\""
+    )
+endif()
+
 if (SHADOW_RECOMP_D3D12)
     find_package(directx-headers CONFIG REQUIRED)
     find_package(directx12-agility CONFIG REQUIRED)
@@ -360,6 +366,12 @@ if (CMAKE_SYSTEM_NAME MATCHES "Linux")
     target_link_libraries(ShadowRecomp PRIVATE ${X11_LIBRARIES})
     find_package(Freetype REQUIRED)
     target_link_libraries(ShadowRecomp PRIVATE Freetype::Freetype)
+
+    set_target_properties(ShadowRecomp PROPERTIES BUILD_RPATH "$ORIGIN")
+    add_custom_command(TARGET ShadowRecomp POST_BUILD
+        COMMAND ${CMAKE_COMMAND} -E copy $<TARGET_PROPERTY:Microsoft::DirectXShaderCompiler,IMPORTED_LOCATION> $<TARGET_FILE_DIR:ShadowRecomp>
+        COMMAND_EXPAND_LISTS
+    )
 endif()
 
 target_precompile_headers(ShadowRecomp PUBLIC ${SHADOW_RECOMP_PRECOMPILED_HEADERS})

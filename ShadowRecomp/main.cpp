@@ -66,6 +66,7 @@ uint32_t LoadXbeModule(const std::filesystem::path& path)
 
     if (module.empty())
     {
+        printf("Failed to load XBE file, please make sure game files are present.\n");
         assert("Failed to load XBE file, please make sure game files are present." && false);
         return 0;
     }
