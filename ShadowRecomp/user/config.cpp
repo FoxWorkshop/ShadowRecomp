@@ -753,7 +753,7 @@ void Config::CreateCallbacks()
     Config::Language.Callback = [](ConfigDef<ELanguage>* def)
         {
             int32_t value = (int32_t)def->Value;
-            if (value < 0 || value > 5)
+            if (value < 0 || value > 6)
                 value = (int32_t)ELanguage::English;
 
             MainThreadDispatcher::Get().Post([value]()
