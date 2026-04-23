@@ -93,11 +93,13 @@ struct Video
 	static inline uint32_t s_viewportHeight;
 
 	static bool CreateHostDevice(const char* sdlVideoDriver, bool graphicsApiRetry);
+	static void PrecompileShadersAndPipelines();
 	static void Present();
 	static void StartPipelinePrecompilation();
 	static void WaitOnSwapChain();
 	static void WaitForGPU();
 	static void ComputeViewportDimensions();
+	static void Shutdown();
 };
 
 
@@ -484,6 +486,7 @@ struct GuestShader : GuestResource
 	Mutex mutex;
 	std::unique_ptr<RenderShader> shader;
 	struct ShaderCacheEntry* shaderCacheEntry = nullptr;
+	uint64_t runtimeHash = 0;
 	ankerl::unordered_dense::map<uint32_t, std::unique_ptr<RenderShader>> linkedShaders;
 #ifdef SHADOW_RECOMP_D3D12
 	std::vector<ComPtr<IDxcBlob>> shaderBlobs;

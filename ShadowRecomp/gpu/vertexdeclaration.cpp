@@ -374,3 +374,10 @@ GuestVertexDeclaration* CreateVertexDeclarationWithoutAddRef(D3DVERTEXELEMENT9* 
 	//vertexDeclaration->uniqueID = ++uniqueIDG;
 	return vertexDeclaration;
 }
+
+GuestVertexDeclaration* FindVertexDeclarationByHash(uint64_t hash)
+{
+	std::lock_guard lock(g_vertexDeclarationMutex);
+	auto it = g_vertexDeclarations.find(hash);
+	return it != g_vertexDeclarations.end() ? it->second : nullptr;
+}
