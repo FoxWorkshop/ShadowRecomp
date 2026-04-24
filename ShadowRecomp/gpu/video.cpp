@@ -2048,7 +2048,7 @@ static void CheckSwapChain()
 
 
 // This is needed because uninitialized RT / depth can crash the game under specific windows version if (and only if) VS is installed.
-void DiscardInitRenderResource(GuestBaseTexture* texture, const bool isRT)
+void DiscardInitRenderResource(RenderTexture* texture, const bool isRT)
 {
 
 	auto targetLayout = (isRT == false)
@@ -2057,9 +2057,9 @@ void DiscardInitRenderResource(GuestBaseTexture* texture, const bool isRT)
 
 	ExecuteInitCommandList([&]
 		{
-			g_initCommandList->barriers(RenderBarrierStage::GRAPHICS, RenderTextureBarrier(texture->texture, targetLayout));
-			g_initCommandList->discardTexture(texture->texture);
-			g_initCommandList->barriers(RenderBarrierStage::GRAPHICS, RenderTextureBarrier(texture->texture, RenderTextureLayout::SHADER_READ));
+			g_initCommandList->barriers(RenderBarrierStage::GRAPHICS, RenderTextureBarrier(texture, targetLayout));
+			g_initCommandList->discardTexture(texture);
+			g_initCommandList->barriers(RenderBarrierStage::GRAPHICS, RenderTextureBarrier(texture, RenderTextureLayout::SHADER_READ));
 		});
 }
 
@@ -2092,13 +2092,14 @@ static void BeginCommandList()
 				Video::WaitForGPU(); // Fine to wait for GPU, this'll only happen during resize.
 
 				g_intermediaryBackBufferTexture = g_device->createTexture(RenderTextureDesc::Texture2D(width, height, 1, BACKBUFFER_FORMAT, RenderTextureFlag::RENDER_TARGET));
-			
+
 				ExecuteInitCommandList([&] // Discard texture, this is needed, see the function DiscardInitRenderResource for more info. 
 					{
 						g_initCommandList->barriers(RenderBarrierStage::GRAPHICS, RenderTextureBarrier(g_intermediaryBackBufferTexture.get(), RenderTextureLayout::COLOR_WRITE));
 						g_initCommandList->discardTexture(g_intermediaryBackBufferTexture.get());
 						g_initCommandList->barriers(RenderBarrierStage::GRAPHICS, RenderTextureBarrier(g_intermediaryBackBufferTexture.get(), RenderTextureLayout::SHADER_READ));
 					});
+
 				g_textureDescriptorSet->setTexture(g_intermediaryBackBufferTextureDescriptorIndex, g_intermediaryBackBufferTexture.get(), RenderTextureLayout::SHADER_READ);
 
 				g_intermediaryBackBufferTextureWidth = width;
@@ -2297,8 +2298,8 @@ bool Video::CreateHostDevice(const char* sdlVideoDriver, bool graphicsApiRetry)
 
 	g_capabilities = g_device->getCapabilities();
 
-	 LoadEmbeddedResources();
-	 PrecompileShaders();
+	LoadEmbeddedResources();
+	PrecompileShaders();
 
 	constexpr uint64_t LowEndMemoryLimit = 2048ULL * 1024ULL * 1024ULL;
 	RenderDeviceDescription deviceDescription = g_device->getDescription();
@@ -2525,6 +2526,7 @@ bool Video::CreateHostDevice(const char* sdlVideoDriver, bool graphicsApiRetry)
 	g_backBuffer->format = BACKBUFFER_FORMAT;
 	g_backBuffer->textureHolder = g_device->createTexture(RenderTextureDesc::Texture2D(1, 1, 1, BACKBUFFER_FORMAT, RenderTextureFlag::RENDER_TARGET));
 
+	DiscardInitRenderResource(g_backBuffer->textureHolder.get(), true);
 	Video::ComputeViewportDimensions();
 	CheckSwapChain();
 	BeginCommandList();
@@ -3987,7 +3989,7 @@ static GuestTexture* CreateTexture(uint32_t width, uint32_t height, uint32_t dep
 
 	if (desc.flags == RenderTextureFlag::DEPTH_TARGET || desc.flags == RenderTextureFlag::RENDER_TARGET)
 	{
-		DiscardInitRenderResource(texture, desc.flags == RenderTextureFlag::RENDER_TARGET);
+		DiscardInitRenderResource(texture->texture, desc.flags == RenderTextureFlag::RENDER_TARGET);
 	}
 
 	g_textureDescriptorSet->setTexture(texture->descriptorIndex, texture->texture, RenderTextureLayout::SHADER_READ, texture->textureView.get());
@@ -4174,7 +4176,7 @@ static GuestSurface* CreateSurface(uint32_t width, uint32_t height, X_D3DFORMAT 
 
 	if (desc.flags == RenderTextureFlag::DEPTH_TARGET || desc.flags == RenderTextureFlag::RENDER_TARGET)
 	{
-		DiscardInitRenderResource(surface, desc.flags == RenderTextureFlag::RENDER_TARGET);
+		DiscardInitRenderResource(surface->texture, desc.flags == RenderTextureFlag::RENDER_TARGET);
 	}
 
 
