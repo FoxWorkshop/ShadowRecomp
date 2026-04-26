@@ -645,7 +645,7 @@ int32_t SHTHR_SOUNDBUFFER_Impl::Pull(unsigned char* data, int32_t size)
 	int available = SDL_AudioStreamAvailable(mAudioStream);
 	int writesize = std::min(size, available);
 
-	if (writesize <= 0)
+	if (writesize <= 0 && this->isStreaming == false)
 	{
 		StopSfxEarly();
 		return 0;
