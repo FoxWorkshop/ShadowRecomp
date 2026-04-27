@@ -233,6 +233,7 @@ void GameWindow::Update()
     if (m_isResizing)
     {
         SetTitle();
+        g_pendingSurfaceResizeFlag = true;
         m_isResizing = false;
     }
 

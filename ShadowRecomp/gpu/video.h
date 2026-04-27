@@ -9,6 +9,7 @@
 
 constexpr DWORD X_D3DTS_STAGECOUNT = 4; // Dxbx addition
 extern uint32_t g_VertexShader_Handle;
+extern std::atomic<bool> g_pendingSurfaceResizeFlag;
 
 // Xbox vertex shader counts
 #define X_VSH_MAX_ATTRIBUTES          16
@@ -391,6 +392,7 @@ struct GuestBaseTexture : GuestResource
 	RenderFormat format = RenderFormat::UNKNOWN;
 	uint32_t descriptorIndex = 0;
 	RenderTextureLayout layout = RenderTextureLayout::UNKNOWN;
+	bool wasResized = false;
 
 	GuestBaseTexture(ResourceType type) : GuestResource(type)
 	{

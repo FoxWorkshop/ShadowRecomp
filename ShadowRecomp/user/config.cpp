@@ -2,6 +2,7 @@
 #include <os/logger.h>
 #include <ui/game_window.h>
 #include <user/paths.h>
+#include <gpu/video.h>
 
 std::vector<IConfigDef*> g_configDefinitions;
 
@@ -722,7 +723,9 @@ void Config::CreateCallbacks()
                     auto& mode = displayModes[value];
                     auto centre = SDL_WINDOWPOS_CENTERED_DISPLAY(GameWindow::GetDisplay());
                     GameWindow::SetDimensions(mode.w, mode.h, centre, centre);
+                    g_pendingSurfaceResizeFlag = true;
                 });
+  
         };
 
     Config::Monitor.Callback = [](ConfigDef<int32_t>* def)
@@ -741,12 +744,20 @@ void Config::CreateCallbacks()
                 {
                     GameWindow::SetFullscreen(value);
                     GameWindow::SetDisplay(Config::Monitor);
+                    g_pendingSurfaceResizeFlag = true;
                 });
+
         };
 
     Config::ResolutionScale.Callback = [](ConfigDef<float>* def)
         {
             def->Value = std::clamp(def->Value, 0.25f, 2.0f);
+            g_pendingSurfaceResizeFlag = true;
+        };
+
+    Config::AspectRatio.Callback = [](ConfigDef<EAspectRatio>* def)
+        {
+            g_pendingSurfaceResizeFlag = true;
         };
 
 
