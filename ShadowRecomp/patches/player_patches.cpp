@@ -4,8 +4,31 @@
 #include <sdl_events.h>
 #include "global.h"
 
-PlayerShadow* playerPtr = nullptr;
-RwV3d* playerPos = nullptr;
+PlayerShadow* playerPtr[4] = {};
+RwV3d* playerPos[4] = {};
+static uint32_t s_playerSlotIndex = 0;
+
+void TeleportPlayersToP1()
+{
+	static bool s_f5Held = false;
+	bool f5 = SDL_GetKeyboardState(nullptr)[SDL_SCANCODE_F5] != 0;
+	if (f5 && !s_f5Held && playerPos[0])
+	{
+		float x = playerPos[0]->x;
+		float y = playerPos[0]->y;
+		float z = playerPos[0]->z;
+		for (uint32_t i = 1; i < g_multiplayerPlayerCount; i++)
+		{
+			if (playerPos[i])
+			{
+				playerPos[i]->x = x;
+				playerPos[i]->y = y;
+				playerPos[i]->z = z;
+			}
+		}
+	}
+	s_f5Held = f5;
+}
 
 //Awake Set Chaos Control / Blast mode
 X86_FUNC_IMPL(__imp__sub_8E690);
@@ -31,14 +54,16 @@ X86_FUNC(sub_96AD0)
 {
 	auto playerAddr = ctx.ecx.u32;
 	__imp__sub_96AD0(ctx, base);
-	playerPtr = (PlayerShadow*)X86_LOAD_U32(playerAddr);
-	playerPos = (RwV3d*)g_memory.Translate(playerAddr + 4);
+	uint32_t slot = s_playerSlotIndex;
+	playerPtr[slot] = (PlayerShadow*)X86_LOAD_U32(playerAddr);
+	playerPos[slot] = (RwV3d*)g_memory.Translate(playerAddr + 4);
+	s_playerSlotIndex = (slot + 1) % 4;
 #ifdef _DEBUG
-	printf("Last Shadow Pointer %llx\n", (intptr_t)playerPtr);
-	printf("Last Shadow Pos Ptr %llx\n", (intptr_t)playerPos);
-	printf("Last Shadow Pos x Ptr %llx\n", (intptr_t)&playerPos->x);
-	printf("Last Shadow Pos y Ptr %llx\n", (intptr_t)&playerPos->y);
-	printf("Last Shadow Pos z Ptr %llx\n", (intptr_t)&playerPos->z);
+	printf("Player Slot %u Pointer %llx\n", slot, (intptr_t)playerPtr[slot]);
+	printf("Player Slot %u Pos Ptr %llx\n", slot, (intptr_t)playerPos[slot]);
+	printf("Last Shadow Pos x Ptr %llx\n", (intptr_t)&playerPos[slot]->x);
+	printf("Last Shadow Pos y Ptr %llx\n", (intptr_t)&playerPos[slot]->y);
+	printf("Last Shadow Pos z Ptr %llx\n", (intptr_t)&playerPos[slot]->z);
 #endif
 }
 
@@ -51,12 +76,13 @@ X86_FUNC(sub_90D10)
 	auto mode = X86_LOAD_U16(a2Addr + 4);
 	__imp__sub_90D10(ctx, base);
 
+	TeleportPlayersToP1();
 
-	if (playerPos && !oncePos && mode == 2)
+	if (playerPos[0] && !oncePos && mode == 2)
 	{
-		/**playerPos->x = 6.004902;
-		playerPos->y = -494.980072;
-		playerPos->z = -411.312012;
+		/**playerPos[0]->x = 6.004902;
+		playerPos[0]->y = -494.980072;
+		playerPos[0]->z = -411.312012;
 		oncePos = true;*/
 	}
 }

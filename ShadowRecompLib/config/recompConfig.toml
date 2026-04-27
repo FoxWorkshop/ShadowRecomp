@@ -859,3 +859,183 @@ address = 0x23C877
 [[midasm_hook]]
 name = "PatchDisableHudMidAsmHook"
 address = 0x23CCE3
+
+# Extended Multiplayer
+[[midasm_hook]]
+name = "ExtendedMultiplayerCameraAttachMidAsmHook"
+address = 0x165047
+registers = ["r0"]
+jump_address_on_true = 0x165049
+jump_address_on_false = 0x165085
+
+[[midasm_hook]]
+name = "ExtendedMultiplayerPlayerSpawnMidAsmHook"
+address = 0x16F842
+registers = ["r0"]
+jump_address_on_true = 0x16F854
+jump_address_on_false = 0x16F844
+
+[[midasm_hook]]
+name = "ExtendedMultiplayerCameraAllocationLoopMidAsmHook"
+address = 0x2A763
+registers = ["r5"]
+jump_address_on_true = 0x2A6A0
+jump_address_on_false = 0x2A769
+
+[[midasm_hook]]
+name = "ExtendedMultiplayerExtraSpawnMidAsmHook"
+address = 0x16F891
+registers = ["r7"]
+jump_address_on_true = 0x16F882
+
+[[midasm_hook]]
+name = "ExtendedMultiplayerExtraSpawnRedirectMidAsmHook"
+address = 0x16F887
+registers = ["r7"]
+jump_address_on_true = 0x16F891
+
+[[midasm_hook]]
+name = "ExtendedMultiplayerPlayerPositionIDOverrideMidAsmHook"
+address = 0x16F6F3
+registers = ["r0"]
+
+[[midasm_hook]]
+name = "ExtendedMultiplayerPlayerPositionIDOverrideMidAsmHook"
+address = 0x16F71F
+registers = ["r0"]
+
+[[midasm_hook]]
+name = "ExtendedMultiplayerPlayerPositionIDOverrideMidAsmHook"
+address = 0x16F733
+registers = ["r3"]
+
+[[midasm_hook]]
+name = "ExtendedMultiplayerPlayerPositionLoopMidAsmHook"
+address = 0x16F739
+jump_address_on_true = 0x16F6DA
+
+[[midasm_hook]]
+name = "AssignPadPlayerIdSaveMidAsmHook"
+address = 0x91AEA
+registers = ["r2"]
+
+[[midasm_hook]]
+name = "AssignPadPlayerIdOverrideMidAsmHook"
+address = 0x91B0F
+registers = ["r3"]
+
+[[midasm_hook]]
+name = "PADBoundsCheckMidAsmHook"
+address = 0x91AF7
+registers = ["r0"]
+jump_address_on_false = 0x91AF9
+
+[[midasm_hook]]
+name = "ViewportDivMidAsmHook"
+address = 0x3CC76F
+registers = ["r0"]
+jump_address_on_true = 0x3CC771
+
+[[midasm_hook]]
+name = "ViewportDivMidAsmHook"
+address = 0x3CC78F
+registers = ["r2"]
+jump_address_on_true = 0x3CC791
+
+[[midasm_hook]]
+name = "ViewportDivMidAsmHook"
+address = 0x3CC868
+registers = ["r0"]
+jump_address_on_true = 0x3CC86A
+
+[[midasm_hook]]
+name = "ViewportDivMidAsmHook"
+address = 0x3CC87E
+registers = ["r2"]
+jump_address_on_true = 0x3CC880
+
+[[midasm_hook]]
+name = "ViewportExtendedPlayerCalcOverrideMidAsmHook"
+address = 0x3CC92B
+
+[[midasm_hook]]
+name = "CameraAttachSetupMidAsmHook"
+address = 0x165049
+registers = ["r6"]
+jump_address_on_true = 0x165050
+
+[[midasm_hook]]
+name = "CameraAttachPlayerIdMidAsmHook"
+address = 0x165063
+registers = ["r7"]
+jump_address_on_true = 0x165065
+
+[[midasm_hook]]
+name = "CameraAttachLoopMidAsmHook"
+address = 0x16508C
+jump_address_on_true = 0x165049
+
+[[midasm_hook]]
+name = "PlayerPostManagerLoopMidAsmHook"
+address = 0x95E96
+registers = ["r0"]
+jump_address_on_true = 0x958B0
+jump_address_on_false = 0x95E9C
+
+[[midasm_hook]]
+name = "SplitscreenTypeInitializeUnpauseMidAsmHook"
+address = 0x2386CF
+registers = ["r0"]
+jump_address_on_true = 0x2386D1
+jump_address_on_false = 0x23872C
+
+[[midasm_hook]]
+name = "RenderDivSaveThisMidAsmHook"
+address = 0x5B745
+registers = ["r5"]
+
+[[midasm_hook]]
+name = "RenderDivExtraPassMidAsmHook"
+address = 0x5B77A
+registers = ["r5"]
+jump_address_on_true = 0x5B739
+
+[[midasm_hook]]
+name = "RenderDivCameraLookupMidAsmHook"
+address = 0x5B76B
+registers = ["r0"]
+jump_address_on_true = 0x5B772
+
+[[midasm_hook]]
+name = "RenderDivPlayerOverrideMidAsmHook"
+address = 0x5B74C
+registers = ["r7"]
+jump_address_on_true = 0x5B74E
+
+[[midasm_hook]]
+name = "RenderDivCameraTargetOverrideMidAsmHook"
+address = 0x5B756
+jump_address_on_true = 0x5B760
+# End Extended Multiplayer
+
+# ItemIconManagerLoopCreation
+[[midasm_hook]]
+name = "ItemIconManagerLoopPushCountMidAsmHook"
+address = 0x28A690
+registers = ["r7"]
+jump_address_on_true = 0x28A692
+
+[[midasm_hook]]
+name = "ItemIconManagerLoopCountMidAsmHook"
+address = 0x28A846
+registers = ["r0"]
+jump_address_on_true = 0x28A710
+jump_address_on_false = 0x28A84C
+# End ItemIconManagerLoopCreation
+
+# Add_To_Score nullsub
+[[midasm_hook]]
+name = "AddToScoreNullMidAsmHook"
+address = 0x22D630
+jump_address = 0x22D699
+# End Add_To_Score nullsub

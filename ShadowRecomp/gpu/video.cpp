@@ -4115,7 +4115,7 @@ static void DrawProfiler()
 
 			ImGui::Checkbox("Show FPS", &Config::ShowFPS.Value);
 			ImGui::SameLine();
-			ImGui::Checkbox("2P Lite", &Config::Enable2PLite.Value);
+			ImGui::Checkbox("Extended Multiplayer", &Config::ExtendedMultiplayer.Value);
 		}
 
 		if (g_userHeap.heap != nullptr && g_userHeap.physicalHeap != nullptr)
