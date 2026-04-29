@@ -157,13 +157,61 @@ void ModLoader::Init()
 		modGameDir = modDirStr;
 
 		bool commonDirExist = false;
+		bool includeDirExist = false;
+
 		if (std::filesystem::exists(modGameDir))
 		{
 			modinf.commonDir = modGameDir;
 			commonDirExist = true;
 		}
+
+		if (ini_mod->hasGroup("Config"))
+		{
+			int dirCount = ini_mod->getInt("Config", "IncludeDirCount", 0);
+			if (dirCount > 0)
+			{
+				std::filesystem::path configPath = modDir / "config.ini";
+
+				if (std::filesystem::exists(configPath))
+				{
+					// Process from config.ini
+					std::unique_ptr<IniFile> configini = std::make_unique<IniFile>(configPath);
+
+					for (uint16_t d = 0; d < dirCount; d++)
+					{
+						// Retrieves defaults from mod.ini
+						std::string dirStr = "IncludeDir" + std::to_string(d);
+						std::string incDirPath = ini_mod->getString("Config", dirStr);
+
+						// Loop through all groups in the config ini to check if the current IncludeDir key is present.
+						for (auto group = configini->begin(); group != configini->end(); group++)
+						{
+							// If the corresponding IncludeDir key is found, update the paths with the config ini info.
+							if (group->second->hasKey(dirStr))
+							{
+								incDirPath = group->second->getString(dirStr);
+								LOGF_IMPL(Utility, "Mod Loader", "Mod {} use config folder {}", reinterpret_cast<const char*>(mod_nameA.c_str()), reinterpret_cast<const char*>(incDirPath.c_str()));
+								includeDirExist = true;
+								break;
+							}
+						}
+
+						if (includeDirExist)
+						{
+							std::filesystem::path modConfigGameDir = modDir / incDirPath / "game";
+							std::string modDirStr = modConfigGameDir.string();
+							std::replace(modDirStr.begin(), modDirStr.end(), '\\', '/');
+							modConfigGameDir = modDirStr;
+							modinf.includeDirs.push_back(modConfigGameDir);
+						}
+	
+					}
+				}
+			}
+
+		}
 		
-		if (commonDirExist)
+		if (commonDirExist || includeDirExist)
 		{
 			g_mods.push_back(modinf);
 		}
