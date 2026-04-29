@@ -49,9 +49,9 @@ This project does not plan to support any more platforms other than Windows and 
 ## Credits
 
 ### Shadow Recompiled
-- [Sora](https://github.com/Sora-yx): Creator and Developer of the recompilation, as well as the developer of technologies created for it such as XboxRecomp.
+- [Sora](https://github.com/Sora-yx): Creator and Lead Developer of the recompilation, as well as the developer of technologies created for it such as [XboxRecomp](https://github.com/FoxWorkshop/XboxRecomp) and [XShaderRecomp](https://github.com/FoxWorkshop/XShaderRecomp).
 
-- [dreamsyntax](https://github.com/dreamsyntax): Help with Shadow knowledge as well as testing Recomp, linux compatibility, multiplayer input, also author of [Shadow Reloaded](https://github.com/ShadowTheHedgehogHacking/ShadowReloaded).
+- [dreamsyntax](https://github.com/dreamsyntax): Second Developer, added linux and keyboard compatibility, provided multiplayer input and fixed various bugs. Also helped with Shadow knowledge and author of [Shadow Reloaded](https://github.com/ShadowTheHedgehogHacking/ShadowReloaded).
 
 - [DonutStopGaming](https://github.com/DonutStopGaming): Help with understanding RenderWare and finding Shadow functions.
 
@@ -63,8 +63,10 @@ This project does not plan to support any more platforms other than Windows and 
 
 - Unleashed Recompiled Development Team: Created much of the ground work that made all of this possible and sped up development time considerably.
 
-- Skyth: Provided help to understand how Recompilation works, also the author of the original graphics pipeline code which was (mostly) reused here.
+- [Skyth](https://github.com/blueskythlikesclouds): Provided help to understand how Recompilation works, also the author of the original graphics pipeline code which was (mostly) reused here.
 
-- Darío: Creator of the graphics hardware abstraction layer [plume](https://github.com/renderbag/plume), used by the project's graphics backend.
+- [Darío](https://github.com/DarioSamo): Creator of the graphics hardware abstraction layer [plume](https://github.com/renderbag/plume), used by the project's graphics backend.
 
 - MattKC: Useful explanation of Xbox's Push Buffers system on [his blog with Reburn3.](https://forum.mattkc.com/viewtopic.php?t=154)
+
+- [ocornut](https://github.com/ocornut): Creator of Dear ImGui, which is used as the backbone of the custom menus.
