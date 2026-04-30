@@ -13,24 +13,26 @@
 
 static std::unordered_map<uint32_t, uint32_t> g_threadDicts;
 static std::mutex g_threadDictsMutex;
-static std::atomic<int> loadingThreadID{0};
+static std::atomic<int> loadingThreadID{ 0 };
 
 XRTL_CRITICAL_SECTION dirtyListLock;
 XRTL_CRITICAL_SECTION csdNodeLock;
+XRTL_CRITICAL_SECTION texDictionaryLink; // for the link list in RwTexture different issue than CurrentDictionary
 void InitPatchesLoadingCriticalSection()
 {
 	RtlInitializeCriticalSection(&dirtyListLock);
 	RtlInitializeCriticalSection(&csdNodeLock);
+	RtlInitializeCriticalSection(&texDictionaryLink);
 }
 
 /* --- RwFrame Dirty link list race ---
 
- When the loading thread is running, two threads are updating the dirty link list (dword_57DEBC) which can create a race issue 
+ When the loading thread is running, two threads are updating the dirty link list (dword_57DEBC) which can create a race issue
  and corrupt some random RwFrames which will eventually crash the game.
  we can fix that by adding mutex to prevent the race.
  */
 
-// RwFrameUpdateObject
+ // RwFrameUpdateObject
 X86_FUNC_IMPL(__imp__sub_2E1300);
 X86_FUNC(sub_2E1300)
 {
@@ -67,8 +69,8 @@ X86_FUNC(sub_2EC720)
 
  Multiple threads can change the current texture dictionary from RW
  If thread B changes the dictionary right when thread A is about to call RwTexDictionaryFindNamedTexture, it will
- make thread A not find the texture it asked, which will eventually result to the game not 
- applying some textures. We can fix this by creating one global dictionary list per thread and give the intended one to the game 
+ make thread A not find the texture it asked, which will eventually result to the game not
+ applying some textures. We can fix this by creating one global dictionary list per thread and give the intended one to the game
  when it requests it.
  */
 
@@ -155,6 +157,44 @@ X86_FUNC(sub_2D8D80)
 		X86_STORE_U32(textureModule + 0x57de10, DictBackup);
 }
 
+// TextureAnnihilate 
+// this one is very rare, let's try a mutex but no clue if that will work
+// This is different than two thread trying to set the current dictionary,
+// Instead this is the link list from RwTexture
+X86_FUNC_IMPL(__imp__sub_2D7FD0);
+X86_FUNC(sub_2D7FD0)
+{
+	auto ptr = ctx.esi.u32;
+	bool valid = false;
+	if (ptr)
+	{
+		auto dict = X86_LOAD_U32(ptr + 4);
+		if (dict)
+		{
+			RtlEnterCriticalSection(&texDictionaryLink);
+			valid = true;
+		}
+	}
+
+	__imp__sub_2D7FD0(ctx, base);
+
+	if (valid)
+	{
+		RtlLeaveCriticalSection(&texDictionaryLink);
+	}
+}
+
+// RwTexDictionaryAddTexture  
+X86_FUNC_IMPL(__imp__sub_2D83C0);
+X86_FUNC(sub_2D83C0)
+{
+	RtlEnterCriticalSection(&texDictionaryLink);
+	__imp__sub_2D83C0(ctx, base);
+	RtlLeaveCriticalSection(&texDictionaryLink);
+}
+
+
+
 
 // RwTextureRead
 X86_FUNC_IMPL(__imp__sub_2D8470);
@@ -181,8 +221,8 @@ struct CSDTransfoMatrixNode
 CSDTransfoMatrixNode* csdTransfoMatrixNodeSourcePtr = nullptr;
 
 //CSDPushNewNode
-static std::atomic<int> lastThreadIDCSDNode{0};
-static std::atomic<int> countExtraSleepFailSafe{0};
+static std::atomic<int> lastThreadIDCSDNode{ 0 };
+static std::atomic<int> countExtraSleepFailSafe{ 0 };
 X86_FUNC_IMPL(__imp__sub_2B4440);
 X86_FUNC(sub_2B4440)
 {
@@ -256,7 +296,7 @@ X86_FUNC(sub_2B39A0)
 	__imp__sub_2B39A0(ctx, base);
 
 }
-std::atomic<bool> aboutToDrawLoading{false};
+std::atomic<bool> aboutToDrawLoading{ false };
 X86_FUNC_IMPL(__imp__sub_59BB0);
 X86_FUNC(sub_59BB0)
 {
