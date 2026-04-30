@@ -4390,10 +4390,9 @@ static void FlushViewport(const bool isFixed)
 	float width = (float)std::min(viewport.width, (DWORD)hostWidth - viewport.x);
 	float height = (float)std::min(viewport.height, (DWORD)hostHeight - viewport.y);
 
-	uint32_t newWidth, newHeight;
-	GetUpscaledSurfaceResolution((uint32_t)width, (uint32_t)height, &newWidth, &newHeight);
-	width = newWidth;
-	height = newHeight;
+
+	width *= scaleX;
+	height *= scaleY;
 	viewport.x *= scaleX;
 	viewport.y *= scaleY;
 
@@ -4425,15 +4424,11 @@ static void FlushViewport(const bool isFixed)
 
 	if (g_dirtyStates.scissorRect)
 	{
-		uint32_t newScisWidth, newScisHeight;
-		GetUpscaledSurfaceResolution((uint32_t)backupVP.width, (uint32_t)backupVP.height, &newScisWidth, &newScisHeight);
-		backupVP.width = newScisWidth;
-		backupVP.height = newScisHeight;
 		RenderRect scissorRect;
-		int32_t left = (int32_t)backupVP.x * scaleX;
-		int32_t top = (int32_t)backupVP.y * scaleY;
-		int32_t right = left + (int32_t)(backupVP.width);
-		int32_t bottom = top + (int32_t)(backupVP.height);
+		int32_t left = (int32_t)(backupVP.x * scaleX);
+		int32_t top = (int32_t)(backupVP.y * scaleY);
+		int32_t right = left + (int32_t)(backupVP.width * scaleX);
+		int32_t bottom = top + (int32_t)(backupVP.height * scaleY);
 
 		if (isFixed)
 		{
