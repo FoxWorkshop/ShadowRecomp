@@ -684,22 +684,25 @@ static void DrawOptions(ImVec2 minClipRect, ImVec2 maxClipRect, ImVec2 min, ImVe
 	case OptionsMenuCategory::System:
 		DrawOption(rowCount++, &Config::Language, !OptionsMenu::s_isPause, min, max, cmnReason);
 		DrawOption(rowCount++, &Config::VoiceLanguage, !OptionsMenu::s_isPause, min, max, cmnReason);
-		DrawOption(rowCount++, &Config::Subtitles, true, min, max, nullptr);
-		DrawOption(rowCount++, &Config::EnablePartnerIntro, true, min, max, nullptr);
-		DrawOption(rowCount++, &Config::Hints, true, min, max, nullptr);
-		DrawOption(rowCount++, &Config::AchievementNotifications, true, min, max, nullptr);
+		DrawOption(rowCount++, &Config::Subtitles, true, min, max);
+		DrawOption(rowCount++, &Config::EnablePartnerIntro, true, min, max);
+		DrawOption(rowCount++, &Config::Hints, true, min, max);
+		DrawOption(rowCount++, &Config::AchievementNotifications, true, min, max);
 		break;
 
 	case OptionsMenuCategory::Input:
-		DrawOption(rowCount++, &Config::AllowBackgroundInput, true, min, max, nullptr);
+		DrawOption(rowCount++, &Config::HorizontalCamera, true, min, max);
+		DrawOption(rowCount++, &Config::VerticalCamera, true, min, max);
+		DrawOption(rowCount++, &Config::Vibration, true, min, max);
+		DrawOption(rowCount++, &Config::AllowBackgroundInput, true, min, max);
 		DrawOption(rowCount++, &Config::ControllerIcons, !OptionsMenu::s_isPause, min, max, cmnReason);
 		break;
 
 	case OptionsMenuCategory::Audio:
-		DrawOption(rowCount++, &Config::MasterVolume, true, min, max, nullptr);
-		DrawOption(rowCount++, &Config::MusicVolume, true, min, max, nullptr);
-		DrawOption(rowCount++, &Config::VoicesVolume, true, min, max, nullptr);
-		DrawOption(rowCount++, &Config::EffectsVolume, true, min, max, nullptr);
+		DrawOption(rowCount++, &Config::MasterVolume, true, min, max);
+		DrawOption(rowCount++, &Config::MusicVolume, true, min, max);
+		DrawOption(rowCount++, &Config::VoicesVolume, true, min, max);
+		DrawOption(rowCount++, &Config::EffectsVolume, true, min, max);
 		break;
 
 	case OptionsMenuCategory::Video:

@@ -218,6 +218,17 @@ CONFIG_DEFINE_ENUM_LOCALE(EControllerIcons)
 };
 
 // Japanese Notes: This localization should include furigana.
+CONFIG_DEFINE_LOCALE(HorizontalCamera)
+{
+    { ELanguage::English, { "Horizontal Camera", "Change how the camera moves left and right." } },
+    { ELanguage::Japanese, { "カメラの[左右:さゆう]", "カメラ[左右:さゆう]の\u200B[動:うご]く[方向:ほうこう]を\u200B[選択:せんたく]できます" } },
+    { ELanguage::German,   { "Horizontale Kamera", "Ändere wie sich die Kamera nach links und rechts bewegt." } },
+    { ELanguage::French,   { "Caméra horizontale", "Modifie la rotation horizontale de la caméra." } },
+    { ELanguage::Spanish,  { "Cámara horizontal", "Cambia cómo se mueve la camara hacia la izquierda y la derecha." } },
+    { ELanguage::Italian,  { "Telecamera orizzontale", "Modifica come la telecamera si muove da sinistra a destra." } }
+};
+
+// Japanese Notes: This localization should include furigana.
 CONFIG_DEFINE_LOCALE(VerticalCamera)
 {
     { ELanguage::English, { "Vertical Camera", "Change how the camera moves up and down." } },
@@ -273,6 +284,8 @@ CONFIG_DEFINE_ENUM_LOCALE(ECameraRotationMode)
         }
     }
 };
+
+
 
 // Japanese Notes: This localization should include furigana.
 CONFIG_DEFINE_LOCALE(Vibration)
