@@ -7128,6 +7128,12 @@ extern bool readyToDebug;
 
 static void ProcDrawPrimitiveUP(const RenderCommand& cmd)
 {
+	// this is needed to avoid random startup crash if window is set to maximize and 
+	// a resize is requested while rt are doing a composite using DrawPrimitiveUP
+	if (g_pendingSurfaceResizeFlag)
+	{
+		return;
+	}
 
 	const auto& args = cmd.drawPrimitiveUP;
 
