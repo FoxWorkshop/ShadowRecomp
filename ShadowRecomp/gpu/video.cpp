@@ -2071,11 +2071,11 @@ void GetUpscaledSurfaceResolution(uint32_t widthOrigin, uint32_t heightOrigin, u
 	float percent = (float)widthOrigin / 640.f;
 
 	auto res = percent * Video::s_viewportWidth * Config::ResolutionScale;
-	*widthOut = res;
+	*widthOut = std::max((uint32_t)res, widthOrigin);
 
 	percent = (float)heightOrigin / 480.f;
 	res = percent * Video::s_viewportHeight * Config::ResolutionScale;
-	*heightOut = res;
+	*heightOut = std::max((uint32_t)res, heightOrigin);
 }
 
 // This is needed because uninitialized RT / depth can crash the game under specific windows version if (and only if) VS is installed.
