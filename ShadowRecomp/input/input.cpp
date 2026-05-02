@@ -553,42 +553,6 @@ uint32_t input::SetState(uint32_t dwUserIndex, XboxVibrationPacket* outPacket)
 }
 
 
-
-struct _XPP_DEVICE_TYPE
-{
-	uint32_t CurrentConnected;
-	uint32_t ChangeConnected;
-	uint32_t PreviousConnected;
-};
-
-typedef enum class _XBOX_INPUT_DEVICE : int {
-	DEVICE_INVALID = -1,
-	MS_CONTROLLER_DUKE,
-	MS_CONTROLLER_S,
-	LIGHTGUN,
-	STEERING_WHEEL,
-	MEMORY_UNIT,
-	IR_DONGLE,
-	STEEL_BATTALION_CONTROLLER,
-	ARCADE_STICK,
-	DEVICE_MAX,
-	// Devices with the HW_ prefix (= hardware) indicate a real xbox device. Always add these after DEVICE_MAX
-	HW_STEEL_BATTALION_CONTROLLER,
-	HW_XBOX_CONTROLLER,
-}
-XBOX_INPUT_DEVICE;
-
-struct DeviceState {
-	std::string port;
-	int port_idx;
-	XBOX_INPUT_DEVICE type;
-	bool bPendingRemoval;
-	bool bSignaled;
-	char info[56];
-	uint32_t padding[2];
-};
-
-
 HANDLE XInputOpen(int* a1, int a2)
 {
 	auto base = g_memory.base;
@@ -612,12 +576,3 @@ HANDLE XInputOpen(int* a1, int a2)
 GUEST_FUNCTION_HOOK_STDCALL(sub_4248A6, input::GetState);
 GUEST_FUNCTION_HOOK_STDCALL(sub_424919, input::SetState);
 GUEST_FUNCTION_HOOK_STDCALL(sub_2AAC20, XInputOpen);
-
-//GUEST_FUNCTION_HOOK_STDCALL(sub_423D43, XInitDevices);
-//GUEST_FUNCTION_HOOK_STDCALL(sub_423B38, sub_423B38_r);
-//GUEST_FUNCTION_HOOK_FASTCALL(sub_423E70, IsGamePadInValide);
-//GUEST_FUNCTION_HOOK_THISCALL(sub_423E39, IUsbInit_GetMaxDeviceTypeCount);
-
-//GUEST_FUNCTION_HOOK(sub_424276, sub_424276_r);
-//GUEST_FUNCTION_HOOK_THISCALL(sub_4241C7, sub_4241C7_r);
-
