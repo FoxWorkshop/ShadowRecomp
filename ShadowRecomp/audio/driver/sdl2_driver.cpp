@@ -529,6 +529,12 @@ int SHTHR_SOUNDBUFFER_Impl::SetLoopRegion(int dwLoopStartOffset, int dwLoopLengt
 {
 	std::lock_guard<std::mutex> lock(mutex);
 
+	if (mSourceFormat == SOURCE_FORMAT_ADPCM_XBOX)
+	{
+		dwLoopStartOffset = DSoundBufferGetPCMBufferSize(mG_flags, dwLoopStartOffset);
+		dwLoopLength = DSoundBufferGetPCMBufferSize(mG_flags, dwLoopLength);
+	}
+
 	if (dwLoopStartOffset < 0 || dwLoopStartOffset >= mBufferSize) {
 		return -1;
 	}
