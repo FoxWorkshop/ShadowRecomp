@@ -110,6 +110,7 @@ bool LogVSConstants = false;
 #include <ui/fader.h>
 #include <ui/message_window.h>
 #include <ui/options_menu.h>
+#include <ui/button_guide.h>
 
 
 
@@ -1889,10 +1890,12 @@ static void CreateImGuiBackend()
 
 
 	/**AchievementMenu::Init();
-	AchievementOverlay::Init();
-	ButtonGuide::Init();
+	AchievementOverlay::Init();*/
 
-	InstallerWizard::Init();*/
+
+
+	ButtonGuide::Init();
+	//InstallerWizard::Init();
 	OptionsMenu::Init();
 	MessageWindow::Init();
 
@@ -3494,11 +3497,11 @@ static void DrawImGui()
 	OptionsMenu::Draw();
 	/**AchievementMenu::Draw();
 	AchievementOverlay::Draw();
-	InstallerWizard::Draw();
+	InstallerWizard::Draw();*/
 
 	ButtonGuide::Draw();
 
-	BlackBar::Draw();*/
+	//BlackBar::Draw();
 	MessageWindow::Draw();
 	Fader::Draw();
 

@@ -5,6 +5,7 @@
 #include <res/images/common/TitleBg.png.h>
 #include <res/images/common/Options.png.h>
 #include <res/images/common/Options2.png.h>
+#include <res/images/common/gamemenu.png.h>
 #include <decompressor.h>
 #include <patches/aspect_ratio_patches.h>
 #include <patches/bloom_patches.h>
@@ -20,6 +21,7 @@
 #include <app.h>
 #include <exports.h>
 #include <ui/menu_common.h>
+#include <ui/button_guide.h>
 
 
 static constexpr int MAX_VISIBLE_ROWS = 6;
@@ -28,7 +30,8 @@ static bool g_optionCanReset{};
 
 static std::unique_ptr<GuestTexture> g_upTexOptionsBG{};
 static std::unique_ptr<GuestTexture> g_upTexBGMenuList{};
-static std::unique_ptr<GuestTexture> g_upTexBGExtra{}; // flame, options logo, hud etc.
+static std::unique_ptr<GuestTexture> g_upTexBGOptions{}; // flame, options logo, hud etc.
+static std::unique_ptr<GuestTexture> g_upTexGameMenuText{}; // select, exit text etc.
 static ImFont* g_fntSeurat;
 
 static int g_categoryIndex{ -1 };
@@ -56,6 +59,8 @@ static bool g_rightWasHeld{};
 static bool g_isAccepted{};
 static bool g_isDeclined{};
 static bool g_isReset{};
+static bool g_canReset = false;
+static bool g_isControlsVisible = false;
 
 bool m_isDescScrolling{};
 bool m_isDescManualScrolling{};
@@ -889,7 +894,7 @@ void DrawBackground()
 	ImVec2 optionsMin = { 0, min.y + Scale(10) };
 	ImVec2 optionsMax = { optionsMin.x + optionsWidth, optionsMin.y + optionsHeight };
 
-	drawList->AddImage(g_upTexBGExtra.get(), optionsMin, optionsMax, GET_UV_COORDS(optionsUVs), IM_COL32(255, 255, 255, 128));
+	drawList->AddImage(g_upTexBGOptions.get(), optionsMin, optionsMax, GET_UV_COORDS(optionsUVs), IM_COL32(255, 255, 255, 128));
 }
 
 void DrawAnimatedFire(ImVec2 min, ImVec2 max)
@@ -946,7 +951,7 @@ void DrawAnimatedFire(ImVec2 min, ImVec2 max)
 	ImVec2 containerMax = { barScreenX, barScreenH };
 
 
-	drawList->AddImage(g_upTexBGExtra.get(), containerMin, containerMax, GET_UV_COORDS(fireUVs), IM_COL32(255, 255, 255, 255));
+	drawList->AddImage(g_upTexBGOptions.get(), containerMin, containerMax, GET_UV_COORDS(fireUVs), IM_COL32(255, 255, 255, 255));
 
 	SetShaderModifier(IMGUI_SHADER_MODIFIER_NONE);
 }
@@ -1003,6 +1008,11 @@ void DrawMenuListContainer(ImVec2 min, ImVec2 max)
 	}
 }
 
+static void DrawControllerIcons(ImVec2 min, ImVec2 max)
+{
+
+
+}
 
 
 static void DrawCategories(ImVec2 min, ImVec2 max)
@@ -1071,6 +1081,8 @@ static void DrawCategories(ImVec2 min, ImVec2 max)
 
 	if (OptionsMenu::s_flowState == OptionsMenuFlowState::CategoryCursor)
 		DrawDescription(GetCategoryDescription((OptionsMenuCategory)g_categoryIndex));
+
+	DrawControllerIcons(min, max);
 }
 
 void OptionsMenu::Draw()
@@ -1285,10 +1297,12 @@ void OptionsMenu::Draw()
 //	DrawAnimatedFire(min, max);
 
 	if (t >= 0.8f)
+	{ 
 		DrawCategories(min, max);
+		g_isControlsVisible = true;
+	}
 
 	DrawMenuListContainer(min, max);
-
 
 	g_up = false;
 	g_upWasHeld = upIsHeld;
@@ -1314,6 +1328,19 @@ void OptionsMenu::Open(bool isPause)
 
 	ResetSelection();
 
+	std::array<Button, 3> buttons =
+	{
+		//Button("Common_Switch", 115.0f, EButtonIcon::LBRB, EButtonAlignment::Left, &g_isControlsVisible),
+		Button("Common_Back", 115.0f, EButtonIcon::Y, EButtonAlignment::Left, &g_isControlsVisible),
+		Button("Common_Reset", 150.0f, EButtonIcon::X, EButtonAlignment::Right, &g_canReset),
+		Button("Common_Select", 125.0f, EButtonIcon::A, EButtonAlignment::Right, &g_isControlsVisible),
+
+
+	};
+
+	ButtonGuide::Open(buttons);
+	ButtonGuide::SetSideMargins(100);
+
 }
 
 void OptionsMenu::SetFlowState(OptionsMenuFlowState flowState)
@@ -1336,7 +1363,7 @@ void OptionsMenu::Close()
 	g_stateTime = ImGui::GetTime();
 	g_containerClosedAnimTime = ImGui::GetTime();
 	g_cursorArrowsTime = g_stateTime;
-
+	ButtonGuide::Close();
 
 	Config::Save();
 }
@@ -1352,6 +1379,7 @@ void OptionsMenu::Init()
 	optionValDescription = "";
 	g_upTexOptionsBG = LOAD_ZSTD_TEXTURE(g_options_bg);
 	g_upTexBGMenuList = LOAD_ZSTD_TEXTURE(g_optionsIcons);
-	g_upTexBGExtra = LOAD_ZSTD_TEXTURE(g_optionsText);
+	g_upTexBGOptions = LOAD_ZSTD_TEXTURE(g_optionsText);
+
 	g_fntSeurat = ImFontAtlasSnapshot::GetFont("FOT-SeuratPro-DB.otf");
 }
