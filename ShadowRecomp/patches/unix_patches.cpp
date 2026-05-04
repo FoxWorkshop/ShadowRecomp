@@ -9,6 +9,7 @@ enum ASCIITables : uint8_t
 	s = 0x73,
 	d = 0x64,
 	K = 0x4B, 
+	X = 0x58,
 };
 
 const uint32_t enemyBkChaosDataAddr = 0x458234;
@@ -63,6 +64,7 @@ const uint32_t CsdfilesTestromStgselTxdAddr = 0x478944;
 const uint32_t CsdfilesTestromTitleAddr = 0x478984;
 const uint32_t CsdfilesTestromTitleTxdAddr = 0x47899C;
 const uint32_t CsdfilesTgsTitleAddr = 0x478A28;
+const uint32_t SoundBankFormatAddr = 0x473555;
 
 
 
@@ -125,4 +127,5 @@ void PatchUnixStrings()
 	X86_STORE_U8(CsdfilesTestromTitleAddr, c);
 	X86_STORE_U8(CsdfilesTestromTitleTxdAddr, c);
 	X86_STORE_U8(CsdfilesTgsTitleAddr, c);
+	X86_STORE_U8(SoundBankFormatAddr, X);
 }
