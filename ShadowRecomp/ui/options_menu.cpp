@@ -58,6 +58,7 @@ static bool g_right{};
 static bool g_rightWasHeld{};
 static bool g_isAccepted{};
 static bool g_isDeclined{};
+static bool g_isLeaving{};
 static bool g_isReset{};
 static bool g_canReset = false;
 static bool g_isControlsVisible = false;
@@ -319,7 +320,7 @@ static void DrawOption
 
 	if (isCurrent)
 	{
-		if (OptionsMenu::s_flowState == OptionsMenuFlowState::OptionCursor)
+		if (OptionsMenu::s_flowState == OptionsMenuFlowState::OptionCursor || OptionsMenu::s_flowState == OptionsMenuFlowState::OptionSelected)
 		{
 
 			g_optionCurrent = config;
@@ -441,6 +442,7 @@ static void DrawOption
 
 			if (isSelected)
 			{
+
 				auto increment = g_right;
 				auto decrement = g_left;
 
@@ -573,6 +575,11 @@ static void DrawOption
 					if ((increment || decrement) && config->Callback)
 						config->Callback(config);
 				}
+
+				/**g_canReset = g_isControlsVisible &&
+					g_optionCurrent->GetName().find("Language") == std::string::npos &&
+					g_optionCurrent != &Config::WindowSize &&
+					isAccessible;*/
 			}
 
 
@@ -1150,6 +1157,9 @@ void OptionsMenu::Draw()
 				if (PJSPeripheral::IsJustPressed(0, PJSPeripheral::BTN_B))
 					g_isDeclined = true;
 
+				if (PJSPeripheral::IsJustPressed(0, PJSPeripheral::BTN_Y))
+					g_isLeaving = true;
+
 				if (PJSPeripheral::IsJustPressed(0, PJSPeripheral::BTN_X))
 					g_isReset = true;
 			}
@@ -1243,7 +1253,7 @@ void OptionsMenu::Draw()
 			g_scrollArrowsTime = g_cursorArrowsTime;
 		}
 
-		if (CheckAndDiscard(g_isDeclined))
+		if (CheckAndDiscard(g_isDeclined) || CheckAndDiscard(g_isLeaving))
 		{
 			Game_PlaySound("cancel");
 
@@ -1261,6 +1271,7 @@ void OptionsMenu::Draw()
 				Close();
 			}
 		}
+
 
 		break;
 	}
@@ -1315,6 +1326,7 @@ void OptionsMenu::Draw()
 	g_isAccepted = false;
 	g_isDeclined = false;
 	g_isReset = false;
+	g_isLeaving = false;
 }
 
 void OptionsMenu::Open(bool isPause)
