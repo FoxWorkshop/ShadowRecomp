@@ -117,6 +117,9 @@ public:
 		pad.sThumbRY = (int16_t)std::clamp(-(int32_t)SDL_GameControllerGetAxis(controller, SDL_CONTROLLER_AXIS_RIGHTY),
 			(int32_t)-32768, (int32_t)INT16_MAX);
 
+		if (Config::HorizontalCamera.Value == ECameraRotationMode::Reverse)
+			pad.sThumbRX = (int16_t)std::clamp(-(int32_t)pad.sThumbRX, (int32_t)-32768, (int32_t)INT16_MAX);
+
 		int16_t leftTrig = SDL_GameControllerGetAxis(controller, SDL_CONTROLLER_AXIS_TRIGGERLEFT);
 		int16_t rightTrig = SDL_GameControllerGetAxis(controller, SDL_CONTROLLER_AXIS_TRIGGERRIGHT);
 		pad.bAnalogButtons[Buttons_LT] = (uint8_t)std::clamp(leftTrig / 128, 0, 255);

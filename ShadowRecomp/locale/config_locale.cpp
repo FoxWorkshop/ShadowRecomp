@@ -228,16 +228,6 @@ CONFIG_DEFINE_LOCALE(HorizontalCamera)
     { ELanguage::Italian,  { "Telecamera orizzontale", "Modifica come la telecamera si muove da sinistra a destra." } }
 };
 
-// Japanese Notes: This localization should include furigana.
-CONFIG_DEFINE_LOCALE(VerticalCamera)
-{
-    { ELanguage::English, { "Vertical Camera", "Change how the camera moves up and down." } },
-    { ELanguage::Japanese, { "カメラの[上下:じょうげ]", "カメラ[上下:じょうげ]の\u200B[動:うご]く[方向:ほうこう]を\u200B[選択:せんたく]できます" } },
-    { ELanguage::German,   { "Vertikale Kamera", "Ändere wie sich die Kamera nach oben und unten bewegt." } },
-    { ELanguage::French,   { "Caméra verticale", "Modifie la rotation verticale de la caméra." } },
-    { ELanguage::Spanish, { "Cámara vertical", "Cambia cómo se mueve la camara hacia arriba y abajo." } },
-    { ELanguage::Italian,  { "Telecamera verticale", "Modifica come la telecamera si muove su e giù." } }
-};
 
 CONFIG_DEFINE_ENUM_LOCALE(ECameraRotationMode)
 {
