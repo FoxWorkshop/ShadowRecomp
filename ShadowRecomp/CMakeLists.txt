@@ -150,6 +150,10 @@ set(SHADOW_RECOMP_USER_CXX_SOURCES
     "user/paths.cpp"
 )
 
+set(SHADOW_RECOMP_INSTALL_CXX_SOURCES
+    "install/xiso_extract.cpp"
+)
+
 set(SHADOW_RECOMP_UI_CXX_SOURCES
     "ui/game_window.cpp"
     "ui/imgui_utils.cpp"
@@ -158,6 +162,7 @@ set(SHADOW_RECOMP_UI_CXX_SOURCES
     "ui/options_menu.cpp"
     "ui/message_window.cpp"
     "ui/menu_common.cpp"
+    "ui/installer_wizard.cpp"
 )
 
 set(SHADOW_RECOMP_MOD_CXX_SOURCES
@@ -219,6 +224,7 @@ set(SHADOW_RECOMP_CXX_SOURCES
     ${SHADOW_RECOMP_UI_CXX_SOURCES}
     ${SHADOW_RECOMP_USER_CXX_SOURCES}
     ${SHADOW_RECOMP_MOD_CXX_SOURCES}
+    ${SHADOW_RECOMP_INSTALL_CXX_SOURCES}
     ${SHADOW_RECOMP_THIRDPARTY_SOURCES}
 )
 
@@ -291,6 +297,7 @@ endif()
 
 #find_package(directx-dxc REQUIRED)
 find_package(CURL REQUIRED)
+find_package(nfd REQUIRED)
 
 include(FetchContent)
 
@@ -352,6 +359,7 @@ target_link_libraries(ShadowRecomp PRIVATE
     plume
     XShaderRecompLib
     nlohmann_json::nlohmann_json
+    nfd::nfd
 )
 
 

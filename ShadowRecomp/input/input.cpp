@@ -394,7 +394,8 @@ int Input_OnSDLEvent(void*, SDL_Event* event)
 		{
 			if (abs(event->caxis.value) > 8000)
 			{
-				SDL_ShowCursor(SDL_DISABLE);
+				if (!GameWindow::s_isFullscreenCursorVisible)
+					SDL_ShowCursor(SDL_DISABLE);
 				SetControllerInputDevice(controller);
 			}
 
@@ -402,7 +403,8 @@ int Input_OnSDLEvent(void*, SDL_Event* event)
 		}
 		else
 		{
-			SDL_ShowCursor(SDL_DISABLE);
+			if (!GameWindow::s_isFullscreenCursorVisible)
+				SDL_ShowCursor(SDL_DISABLE);
 			SetControllerInputDevice(controller);
 
 			controller->Poll();

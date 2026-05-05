@@ -30,6 +30,7 @@
 #include <memory>
 #include <shader/shader_cache.h>
 #include <ui/imgui_utils.h>
+#include <ui/installer_wizard.h>
 #include <xxHashMap.h>
 #include <patches/multi_core_patches.h>
 
@@ -2410,7 +2411,7 @@ bool Video::CreateHostDevice(const char* sdlVideoDriver, bool graphicsApiRetry)
 	g_capabilities = g_device->getCapabilities();
 
 	LoadEmbeddedResources();
-	PrecompileShaders();
+	// PrecompileShaders(); // Temp disabled due until pipeline cache implemented properly
 
 	constexpr uint64_t LowEndMemoryLimit = 2048ULL * 1024ULL * 1024ULL;
 	RenderDeviceDescription deviceDescription = g_device->getDescription();
@@ -3477,11 +3478,12 @@ static void DrawImGui()
 
 	OptionsMenu::Draw();
 	/**AchievementMenu::Draw();
-	AchievementOverlay::Draw();
-	InstallerWizard::Draw();*/
+	AchievementOverlay::Draw();*/
 
 	ButtonGuide::Draw();
 
+
+	InstallerWizard::Draw();
 	//BlackBar::Draw();
 	MessageWindow::Draw();
 	Fader::Draw();
