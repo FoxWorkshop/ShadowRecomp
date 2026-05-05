@@ -65,6 +65,7 @@ private:
 	std::mutex mutex;
 	SDL_AudioStream* mAudioStream = nullptr;
 	std::vector<Uint8> mResampleBuffer;
+	std::vector<Uint8> mOutputBuffer;
 
 	SHTHR_SOUNDDEVICE_Impl* mParent;
 	SDL_AudioCVT mAudioCVT;
@@ -586,36 +587,46 @@ int32_t SHTHR_SOUNDBUFFER_Impl::Pull(unsigned char* data, int32_t size)
 		return 0;
 	}
 
+	int actualRead = read_size;
+
 	if (this->isStreaming == false && mLooping && mLoopLength > 0)
 	{
 		int loopEnd = mLoopStartOffset + mLoopLength;
 		mResampleBuffer.resize(read_size);
-		int copied = 0;
 		int srcPos = mBufferReadLoc;
+		int distToEnd = loopEnd - srcPos;
 
-		while (copied < read_size)
+		if (distToEnd <= 0)
 		{
-			int distToEnd = loopEnd - srcPos;
-			int chunk = (distToEnd > 0) ? std::min(read_size - copied, distToEnd) : 0;
+			srcPos = mLoopStartOffset;
+			distToEnd = mLoopLength;
+		}
 
-			if (chunk > 0)
+		if (read_size <= distToEnd)
+		{
+			memcpy(mResampleBuffer.data(), &mBuffer[srcPos], read_size);
+			mBufferReadLoc = srcPos + read_size;
+		}
+		else
+		{
+			int copied = 0;
+			while (copied < read_size)
 			{
+				distToEnd = loopEnd - srcPos;
+				if (distToEnd <= 0)
+				{
+					srcPos = mLoopStartOffset;
+					distToEnd = mLoopLength;
+				}
+
+				int chunk = std::min(read_size - copied, distToEnd);
 				memcpy(mResampleBuffer.data() + copied, &mBuffer[srcPos], chunk);
 				copied += chunk;
 				srcPos += chunk;
 			}
-
-			if (srcPos >= loopEnd && copied < read_size)
-			{
-				srcPos = mLoopStartOffset;
-			}
-			else
-			{
-				break;
-			}
+			mBufferReadLoc = srcPos;
 		}
 
-		mBufferReadLoc = srcPos;
 		mWrittenSize = mLoopLength;
 	}
 	else
@@ -656,11 +667,8 @@ int32_t SHTHR_SOUNDBUFFER_Impl::Pull(unsigned char* data, int32_t size)
 		}
 	}
 
+	SDL_AudioStreamPut(mAudioStream, mResampleBuffer.data(), actualRead);
 
-	// Feed source data into the stream
-	SDL_AudioStreamPut(mAudioStream, mResampleBuffer.data(), read_size);
-
-	// Get converted output — SDL_AudioStream maintains filter state between calls
 	int available = SDL_AudioStreamAvailable(mAudioStream);
 	int writesize = std::min(size, available);
 
@@ -670,11 +678,10 @@ int32_t SHTHR_SOUNDBUFFER_Impl::Pull(unsigned char* data, int32_t size)
 		return 0;
 	}
 
-	mResampleBuffer.resize(writesize);
-	SDL_AudioStreamGet(mAudioStream, mResampleBuffer.data(), writesize);
+	mOutputBuffer.resize(writesize);
+	SDL_AudioStreamGet(mAudioStream, mOutputBuffer.data(), writesize);
 
-
-	memcpy(data, mResampleBuffer.data(), writesize);
+	memcpy(data, mOutputBuffer.data(), writesize);
 	return writesize;
 }
 
@@ -823,14 +830,14 @@ int SHTHR_SOUNDBUFFER_Impl::Play(int dwReserved1, int dwPriority, uint32_t dwFla
 	this->mPlay = true;
 	this->mPlayFlags = dwFlags;
 
-	if (!mVolumeChangeFlag || mPrevVolume != this->mVolumeLinear) // since the game can re use the same buffer, make sure to not scale volume multiple times
+	if (!mVolumeChangeFlag || mPrevVolume != this->mVolumeLinear)
 	{
 		if (PlayMusic)
 		{
 			this->mVolumeLinear *= Config::MusicVolume.Value;
 			PlayMusic = false;
 		}
-		else // if TObjBGM::Play wasn't used, assume voice is requested
+		else
 		{
 			this->mVolumeLinear *= Config::VoicesVolume.Value;
 		}
@@ -840,14 +847,15 @@ int SHTHR_SOUNDBUFFER_Impl::Play(int dwReserved1, int dwPriority, uint32_t dwFla
 	}
 
 	if ((dwFlags & X_DSBPLAY_FROMSTART)) {
-
+		mBufferReadLoc = 0;
+		if (mAudioStream)
+			SDL_AudioStreamClear(mAudioStream);
 		this->mPlayFlags &= ~X_DSBPLAY_FROMSTART;
 	}
 
 	if (dwFlags & X_DSBPLAY_LOOPING)
 	{
 		this->mLooping = true;
-
 	}
 	else
 	{
