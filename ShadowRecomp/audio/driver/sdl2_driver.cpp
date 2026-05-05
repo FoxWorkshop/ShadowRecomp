@@ -589,52 +589,66 @@ int32_t SHTHR_SOUNDBUFFER_Impl::Pull(unsigned char* data, int32_t size)
 	if (this->isStreaming == false && mLooping && mLoopLength > 0)
 	{
 		int loopEnd = mLoopStartOffset + mLoopLength;
-		int distToLoopEnd = loopEnd - mBufferReadLoc;
-		if (distToLoopEnd > 0 && read_size > distToLoopEnd)
-			read_size = distToLoopEnd;
-	}
+		mResampleBuffer.resize(read_size);
+		int copied = 0;
+		int srcPos = mBufferReadLoc;
 
-	// Copy from ring buffer into a temp staging buffer
-	mResampleBuffer.resize(read_size);
-	if (mBufferReadLoc + read_size >= mBufferSize)
-	{
-		int remaining = mBufferSize - mBufferReadLoc;
-		memcpy(mResampleBuffer.data(), &mBuffer[mBufferReadLoc], remaining);
-		mBufferReadLoc = (read_size - remaining) % mBufferSize;
-		memcpy(mResampleBuffer.data() + remaining, &mBuffer[0], mBufferReadLoc);
+		while (copied < read_size)
+		{
+			int distToEnd = loopEnd - srcPos;
+			int chunk = (distToEnd > 0) ? std::min(read_size - copied, distToEnd) : 0;
+
+			if (chunk > 0)
+			{
+				memcpy(mResampleBuffer.data() + copied, &mBuffer[srcPos], chunk);
+				copied += chunk;
+				srcPos += chunk;
+			}
+
+			if (srcPos >= loopEnd && copied < read_size)
+			{
+				srcPos = mLoopStartOffset;
+			}
+			else
+			{
+				break;
+			}
+		}
+
+		mBufferReadLoc = srcPos;
+		mWrittenSize = mLoopLength;
 	}
 	else
 	{
-		memcpy(mResampleBuffer.data(), &mBuffer[mBufferReadLoc], read_size);
-		mBufferReadLoc += read_size;
-	}
-	mWrittenSize -= read_size;
-
-	if (mWrittenSize < 0)
-		mWrittenSize = 0;
-
-	if (this->isStreaming == false)
-	{
-		if (mLooping && mLoopLength > 0)
+		mResampleBuffer.resize(read_size);
+		if (mBufferReadLoc + read_size >= mBufferSize)
 		{
-			int loopEnd = mLoopStartOffset + mLoopLength;
-			if (mBufferReadLoc >= loopEnd)
-			{
-				mBufferReadLoc = mLoopStartOffset + (mBufferReadLoc - loopEnd);
-				mWrittenSize = mLoopLength; // reset to loop region size
-			}
-		}
-		else if (mLooping && mLoopLength == 0)
-		{
-			if (mBufferReadLoc >= mBufferSize)
-			{
-				mBufferReadLoc %= mBufferSize;
-				mWrittenSize = mBufferSize; // reset to full buffer size
-			}
+			int remaining = mBufferSize - mBufferReadLoc;
+			memcpy(mResampleBuffer.data(), &mBuffer[mBufferReadLoc], remaining);
+			mBufferReadLoc = (read_size - remaining) % mBufferSize;
+			memcpy(mResampleBuffer.data() + remaining, &mBuffer[0], mBufferReadLoc);
 		}
 		else
 		{
-			if (mWrittenSize <= 0)
+			memcpy(mResampleBuffer.data(), &mBuffer[mBufferReadLoc], read_size);
+			mBufferReadLoc += read_size;
+		}
+		mWrittenSize -= read_size;
+
+		if (mWrittenSize < 0)
+			mWrittenSize = 0;
+
+		if (this->isStreaming == false)
+		{
+			if (mLooping && mLoopLength == 0)
+			{
+				if (mBufferReadLoc >= mBufferSize)
+				{
+					mBufferReadLoc %= mBufferSize;
+					mWrittenSize = mBufferSize;
+				}
+			}
+			else if (mWrittenSize <= 0)
 			{
 				mPlay = false;
 				SDL_AudioStreamClear(mAudioStream);

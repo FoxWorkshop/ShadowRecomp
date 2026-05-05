@@ -158,10 +158,6 @@ std::vector<float> ReadFloatPairs(const std::string& path)
     return dataFloat;
 }
 
-
-
-
-
 int main(int argc, char* argv[])
 {
 #ifdef _WIN32
