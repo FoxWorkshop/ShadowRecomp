@@ -673,8 +673,10 @@ PullResult SHTHR_SOUNDBUFFER_Impl::Pull(unsigned char* data, int32_t size)
 		SDL_AudioStreamClear(mAudioStream);
 	}
 
+	// Feed source data into the stream
 	SDL_AudioStreamPut(mAudioStream, mResampleBuffer.data(), actualRead);
 
+	// Get converted output — SDL_AudioStream maintains filter state between calls
 	int available = SDL_AudioStreamAvailable(mAudioStream);
 	int writesize = std::min(size, available);
 
@@ -847,14 +849,14 @@ int SHTHR_SOUNDBUFFER_Impl::Play(int dwReserved1, int dwPriority, uint32_t dwFla
 	this->mPlay = true;
 	this->mPlayFlags = dwFlags;
 
-	if (!mVolumeChangeFlag || mPrevVolume != this->mVolumeLinear)
+	if (!mVolumeChangeFlag || mPrevVolume != this->mVolumeLinear) // since the game can re use the same buffer, make sure to not scale volume multiple times
 	{
 		if (PlayMusic)
 		{
 			this->mVolumeLinear *= Config::MusicVolume.Value;
 			PlayMusic = false;
 		}
-		else
+		else // if TObjBGM::Play wasn't used, assume voice is requested
 		{
 			this->mVolumeLinear *= Config::VoicesVolume.Value;
 		}
