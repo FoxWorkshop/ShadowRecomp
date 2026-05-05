@@ -124,7 +124,7 @@ public:
 	SHTHR_SOUNDBUFFER_Impl(SHTHR_SOUNDDEVICE_Impl* parent, X_DSBUFFERDESC* desc);
 	~SHTHR_SOUNDBUFFER_Impl();
 
-	int32_t Pull(unsigned char* data, int32_t size);
+	PullResult Pull(unsigned char* data, int32_t size);
 	int GetStatus(uint32_t* pdwStatus) override;
 	int GetCurrentPosition(int* pdwCurrentPlayCursor, int* pdwCurrentWriteCursor) override;
 	int SetCurrentPosition(DWORD dwNewPosition) override;
@@ -501,6 +501,7 @@ int SHTHR_SOUNDBUFFER_Impl::SetBufferData(void* pvBufferData, int dwBufferBytes)
 	mLoopStartOffset = 0;
 	mLoopLength = 0;
 	mWrittenSize = pcmSize;
+	isStreaming = false;
 
 	this->RebuildStream(mFormat, mChannelCount, mFrequency, mParent->mFormat, mParent->mChannelCount, mParent->mFrequency);
 
@@ -552,21 +553,25 @@ int SHTHR_SOUNDBUFFER_Impl::SetLoopRegion(int dwLoopStartOffset, int dwLoopLengt
 
 void SHTHR_SOUNDBUFFER_Impl::StopSfxEarly()
 {
-	if (!isStreaming && !mLooping && mWrittenSize <= 0)
+	if (!mLooping && mWrittenSize <= 0)
 	{
 		mPlay = false;
-		SDL_AudioStreamClear(mAudioStream);
+		if (mAudioStream)
+			SDL_AudioStreamClear(mAudioStream);
 	}
 }
 
-int32_t SHTHR_SOUNDBUFFER_Impl::Pull(unsigned char* data, int32_t size)
+PullResult SHTHR_SOUNDBUFFER_Impl::Pull(unsigned char* data, int32_t size)
 {
 	std::lock_guard<std::mutex> lock(mutex);
-	bool sfxEmpty = mWrittenSize <= 0 && this->isStreaming == false;
+
+	PullResult result;
+
+	bool sfxEmpty = mWrittenSize <= 0 && !mLooping;
 	if (!mPlay || !mBuffer || sfxEmpty || !mAudioStream)
 	{
 		StopSfxEarly();
-		return 0;
+		return result;
 	}
 
 
@@ -584,7 +589,7 @@ int32_t SHTHR_SOUNDBUFFER_Impl::Pull(unsigned char* data, int32_t size)
 	if (read_size <= 0)
 	{
 		StopSfxEarly();
-		return 0;
+		return result;
 	}
 
 	int actualRead = read_size;
@@ -659,12 +664,13 @@ int32_t SHTHR_SOUNDBUFFER_Impl::Pull(unsigned char* data, int32_t size)
 					mWrittenSize = mBufferSize;
 				}
 			}
-			else if (mWrittenSize <= 0)
-			{
-				mPlay = false;
-				SDL_AudioStreamClear(mAudioStream);
-			}
 		}
+	}
+
+	if (!mLooping && mWrittenSize <= 0)
+	{
+		mPlay = false;
+		SDL_AudioStreamClear(mAudioStream);
 	}
 
 	SDL_AudioStreamPut(mAudioStream, mResampleBuffer.data(), actualRead);
@@ -675,18 +681,27 @@ int32_t SHTHR_SOUNDBUFFER_Impl::Pull(unsigned char* data, int32_t size)
 	if (writesize <= 0)
 	{
 		StopSfxEarly();
-		return 0;
+		return result;
 	}
 
 	mOutputBuffer.resize(writesize);
 	SDL_AudioStreamGet(mAudioStream, mOutputBuffer.data(), writesize);
 
 	memcpy(data, mOutputBuffer.data(), writesize);
-	return writesize;
+
+	result.bytesRead = writesize;
+
+	float vol3D = (mCaps & XTL_DSBCAPS_CTRL3D)
+		? Calculate3DVolume()
+		: 1.0f;
+	result.mixVolume = mVolumeLinear * vol3D;
+
+	return result;
 }
 
 int SHTHR_SOUNDBUFFER_Impl::GetStatus(uint32_t* pdwStatus)
 {
+	std::lock_guard<std::mutex> lock(mutex);
 	int status = 0;
 
 	if (mLooping)
@@ -711,6 +726,8 @@ int SHTHR_SOUNDBUFFER_Impl::GetStatus(uint32_t* pdwStatus)
 
 int SHTHR_SOUNDBUFFER_Impl::GetCurrentPosition(int* pdwCurrentPlayCursor, int* pdwCurrentWriteCursor)
 {
+	std::lock_guard<std::mutex> lock(mutex);
+
 	if (pdwCurrentPlayCursor)
 	{
 
@@ -859,7 +876,12 @@ int SHTHR_SOUNDBUFFER_Impl::Play(int dwReserved1, int dwPriority, uint32_t dwFla
 	}
 	else
 	{
+		this->mLooping = false;
 		mBufferReadLoc = 0;
+		if (!isStreaming)
+		{
+			mWrittenSize = mBufferSize;
+		}
 	}
 
 	return S_OK;
@@ -997,20 +1019,16 @@ int SHTHR_SOUNDDEVICE_Impl::PullThreadFunc()
 		std::lock_guard<std::mutex> lk(mutex);
 		for (auto& queue : mAudioQueues)
 		{
-			const int32_t read = queue->Pull(src_buf.data(), FILL_CHUNK_BYTES);
-			if (read > 0)
+			auto result = queue->Pull(src_buf.data(), FILL_CHUNK_BYTES);
+			if (result.bytesRead > 0)
 			{
-
-				float vol3D = (queue->GetCaps() & XTL_DSBCAPS_CTRL3D)
-					? queue->Calculate3DVolume()
-					: 1.0f;
-				float finalVol = queue->GetVolumeLinear() * Config::MasterVolume.Value * vol3D;
+			float finalVol = result.mixVolume * Config::MasterVolume.Value;
 				finalVol = std::min(finalVol, (float)SDL_MIX_MAXVOLUME);
 
 
-				if (read < FILL_CHUNK_BYTES)
-					memset(src_buf.data() + read, mAudioSpec.silence,
-						FILL_CHUNK_BYTES - read);
+				if (result.bytesRead < FILL_CHUNK_BYTES)
+					memset(src_buf.data() + result.bytesRead, mAudioSpec.silence,
+						FILL_CHUNK_BYTES - result.bytesRead);
 
 
 				SDL_MixAudioFormat(mix_buf.data(), src_buf.data(), mFormat, FILL_CHUNK_BYTES, (int)finalVol);
@@ -1096,14 +1114,15 @@ void SHTHR_SOUNDDEVICE_Impl::AudioCallback(Uint8* stream, int32_t len)
 
 	for (auto& queue : mAudioQueues)
 	{
-		int32_t readsize = queue->Pull(&read_buffer[0], len);
-		if (readsize > 0)
+		auto result = queue->Pull(&read_buffer[0], len);
+		if (result.bytesRead > 0)
 		{
-			if (readsize < len)
+			if (result.bytesRead < len)
 			{
-				memset(&read_buffer[readsize], mAudioSpec.silence, len - readsize);
+				memset(&read_buffer[result.bytesRead], mAudioSpec.silence, len - result.bytesRead);
 			}
-			SDL_MixAudioFormat(stream, &read_buffer[0], mFormat, len, queue->GetVolumeLinear() * Config::MasterVolume.Value);
+			float finalVol = result.mixVolume * Config::MasterVolume.Value;
+			SDL_MixAudioFormat(stream, &read_buffer[0], mFormat, len, (int)finalVol);
 		}
 	}
 	mutex.unlock();

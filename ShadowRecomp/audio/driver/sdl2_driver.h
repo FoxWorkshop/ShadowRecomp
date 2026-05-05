@@ -37,6 +37,11 @@ public:
 };
 
 
+struct PullResult {
+    int32_t bytesRead = 0;
+    float mixVolume = 0.0f;
+};
+
 class SHTHR_SOUNDBUFFER : public Interface
 {
 public:
