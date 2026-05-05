@@ -775,3 +775,7 @@ name = "DrawAdvertiseMessageMidAsmHook"
 address = 0x2A60D8
 registers = ["r4"]
 jump_address_on_true = 0x2A62CF
+
+[[midasm_hook]]
+name = "DisableMessageMidAsmHook"
+address = 0x595CA
