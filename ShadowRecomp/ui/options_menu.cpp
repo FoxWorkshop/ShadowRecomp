@@ -60,7 +60,6 @@ static bool g_isAccepted{};
 static bool g_isDeclined{};
 static bool g_isLeaving{};
 static bool g_isReset{};
-static bool g_canReset = false;
 static bool g_isControlsVisible = false;
 
 bool m_isDescScrolling{};
@@ -320,10 +319,11 @@ static void DrawOption
 
 	if (isCurrent)
 	{
-		if (OptionsMenu::s_flowState == OptionsMenuFlowState::OptionCursor || OptionsMenu::s_flowState == OptionsMenuFlowState::OptionSelected)
+		if ( OptionsMenu::s_flowState == OptionsMenuFlowState::OptionSelected)
 		{
 
 			g_optionCurrent = config;
+
 			g_optionCanReset = isAccessible && config->GetName().find("Language") == std::string::npos && (void*)config != (void*)&Config::WindowSize;
 		}
 		else
@@ -576,10 +576,6 @@ static void DrawOption
 						config->Callback(config);
 				}
 
-				/**g_canReset = g_isControlsVisible &&
-					g_optionCurrent->GetName().find("Language") == std::string::npos &&
-					g_optionCurrent != &Config::WindowSize &&
-					isAccessible;*/
 			}
 
 
@@ -1344,7 +1340,7 @@ void OptionsMenu::Open(bool isPause)
 	{
 		//Button("Common_Switch", 115.0f, EButtonIcon::LBRB, EButtonAlignment::Left, &g_isControlsVisible),
 		Button("Common_Back", 115.0f, EButtonIcon::Y, EButtonAlignment::Left, &g_isControlsVisible),
-		Button("Common_Reset", 150.0f, EButtonIcon::X, EButtonAlignment::Right, &g_canReset),
+		Button("Common_Reset", 100.0f, EButtonIcon::X, EButtonAlignment::Left, &g_optionCanReset),
 		Button("Common_Select", 125.0f, EButtonIcon::A, EButtonAlignment::Right, &g_isControlsVisible),
 
 

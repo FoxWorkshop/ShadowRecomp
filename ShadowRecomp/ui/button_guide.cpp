@@ -21,7 +21,7 @@ std::unique_ptr<GuestTexture> g_upKBMIcons;
 
 static std::vector<Button> g_buttons;
 
-#define widthC 45
+#define widthC 40
 #define heightC 30
 std::unordered_map<EButtonIcon, float> g_iconWidths =
 {
