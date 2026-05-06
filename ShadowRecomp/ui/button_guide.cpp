@@ -192,7 +192,7 @@ void ButtonGuide::Draw()
     auto drawList = ImGui::GetBackgroundDrawList();
     auto& res = ImGui::GetIO().DisplaySize;
 
-    ImVec2 regionMin = { g_aspectRatioOffsetX + Scale(g_sideMargins), g_aspectRatioOffsetY * 2.0f + Scale(480.f - 65.0f) };
+    ImVec2 regionMin = { res.x * 0.1f, g_aspectRatioOffsetY * 2.0f + Scale(480.f - 65.0f)};
     ImVec2 regionMax = { g_aspectRatioOffsetX + Scale(640.f - g_sideMargins), g_aspectRatioOffsetY * 2.0f + Scale(480.f) };
 
     auto textMarginX = Scale(21.25f);
@@ -229,7 +229,7 @@ void ButtonGuide::Draw()
         DrawGuide(&offsetLeft, regionMin, regionMax, btn.Icon, btn.Alignment, iconMin, iconMax, btn.FontQuality, textWidth, maxWidth, textScale, fontSize, str);
     }
 
-    regionMin = { res.x * 0.5f + Scale(g_sideMargins), g_aspectRatioOffsetY * 2.0f + Scale(480.f - 65.0f) };
+    regionMin = { res.x * 0.6f, g_aspectRatioOffsetY * 2.0f + Scale(480.f - 65.0f) };
     regionMax = { res.x * 0.85f, g_aspectRatioOffsetY * 2.0f + Scale(480.f) };
 
     // Draw right aligned icons.
@@ -250,8 +250,7 @@ void ButtonGuide::Draw()
         auto maxWidth = btn.MaxWidth == FLT_MAX ? textWidth : Scale(btn.MaxWidth);
         auto textScale = std::min(1.0f, maxWidth / textWidth);
 
-        offsetRight -= Scale(35.f);
-
+  
         if (i < g_buttons.size() - 1)
             offsetRight += maxWidth + iconWidth + textMarginX;
       
