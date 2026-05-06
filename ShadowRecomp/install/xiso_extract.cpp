@@ -42,8 +42,9 @@ namespace XisoExtract
     // Supports both the Redump and XISO of NTSC-U Shadow the Hedgehog Xbox
     static constexpr XXH128_hash_t VALID_HASHES[] =
     {
-        { 0x9c8f38553b205287ull, 0x3a005d5c8fb7a469ull },
-        { 0xcab29d6db63896eaull, 0xe837382596ad70d4ull },
+        { 0x9c8f38553b205287ull, 0x3a005d5c8fb7a469ull }, // xiso (compression type 1)
+        { 0x4ae5f651a1621674ull, 0xcecc1a9464da8d30ull }, // xiso (compression type 2)
+        { 0xcab29d6db63896eaull, 0xe837382596ad70d4ull }, // redump
     };
 
     struct Entry
