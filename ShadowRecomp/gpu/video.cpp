@@ -7089,9 +7089,16 @@ void DrawPrimitiveUP(X_D3DPRIMITIVETYPE PrimitiveType, uint32_t VertexCount, voi
 	// dirty hack to attempt to fix barrier crash,
 	// the crash happens when the main thread is trying to draw while the loading thread is calling present
 	// the render thread does not like getting new command queue while processing Present.
+	static int failSafeCounter = 0;
 	while (aboutToDrawLoading && GuestThread::GetCurrentThreadId() != GetLoadingThreadID())
 	{
-		std::this_thread::sleep_for(std::chrono::milliseconds(100));
+		std::this_thread::sleep_for(std::chrono::milliseconds(16));
+
+		if (++failSafeCounter > 200)
+		{
+			failSafeCounter = 0;
+			break;
+		}
 	}
 
 
