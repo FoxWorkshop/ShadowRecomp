@@ -876,16 +876,10 @@ struct DerivedVertexBuffer
 std::unordered_map<GuestBuffer*, std::vector<DerivedVertexBuffer>> VBsList;
 std::vector<GuestResource*> g_tempUnreadyResource; // store VB that weren't ready to be deleted
 
-static ankerl::unordered_dense::set<GuestBaseTexture*> g_pendingSurfaceTextureResize; // used to re create texture during resolution changes for both RT and Stencil
-static ankerl::unordered_dense::set<GuestSurface*> g_pendingSurfaceResize; // used to clear framebuffer of depth stencil and RT
-Mutex g_pendingSurfaceResizeMutex; // the mutex is needed to avoid race issue when multiple thread are trying to access the vector that contains the surfaces.
-std::atomic<bool> g_pendingSurfaceResizeFlag = false; // flag used to trigger RT and Stencil recreation.
-
 //todo figure out this
 static void DestructTempResources()
 {
 	bool valid = false;
-	std::lock_guard lock(g_pendingSurfaceResizeMutex);
 
 	for (auto resource : g_tempResources[g_frame])
 	{
@@ -2112,7 +2106,7 @@ void RecreateGuestSurfaceTexture(GuestBaseTexture* tex, bool isRT)
 			g_initCommandList->discardTexture(tex->textureHolder.get());
 
 			RenderFramebufferDesc fbDesc;
-	
+
 			if (isRT == true)
 			{
 				fbDesc.colorAttachments = const_cast<const RenderTexture**>(&tex->texture);
@@ -2121,7 +2115,7 @@ void RecreateGuestSurfaceTexture(GuestBaseTexture* tex, bool isRT)
 			else
 			{
 				fbDesc.depthAttachment = tex->textureHolder.get();
-				
+
 			}
 
 			auto tempFB = g_device->createFramebuffer(fbDesc);
@@ -2164,44 +2158,8 @@ static void BeginCommandList()
 		uint32_t height = Video::s_viewportHeight;
 
 		bool usingIntermediaryTexture = (width != g_swapChain->getWidth()) || (height != g_swapChain->getHeight()) ||
-			(abs(Config::Brightness.Value - 0.5f) > 0.001f) || g_pendingSurfaceResizeFlag;
+			(abs(Config::Brightness.Value - 0.5f) > 0.001f);
 
-		// if user requested resolution changes or resized window manually
-		// we have to re create all RT and stencil since the game don't do that automatically
-
-		if (g_pendingSurfaceResizeFlag)
-		{
-			Video::WaitForGPU();  // Fine to wait for GPU, this'll only happen during resize / resolution changes.
-
-			std::lock_guard lock(g_pendingSurfaceResizeMutex); // protect from race issue
-
-			for (auto& surface : g_pendingSurfaceResize) // first browse every collected RT and Depth stencil that are currently used, clear their framebuffer and re create their texture.
-			{
-				g_barrierMap.erase(surface->texture);
-				surface->wasResized = true;
-				surface->framebuffers.clear();
-				RecreateGuestSurfaceTexture(surface, surface->format != RenderFormat::D32_FLOAT);
-			}
-
-			for (auto& tex : g_pendingSurfaceTextureResize) // then, we also remake textures from RT that aren't currently used 
-			{
-				if (tex->wasResized) // the texture was already remade from the loop above we can safely skip it
-					continue;
-
-				g_barrierMap.erase(tex->texture);
-				tex->wasResized = false;
-				RecreateGuestSurfaceTexture(tex, tex->format != RenderFormat::D32_FLOAT);
-			}
-
-			// finally reset all the dirty flags
-
-			for (auto& surface : g_pendingSurfaceResize) 
-			{
-				surface->wasResized = false;
-			}
-
-			g_pendingSurfaceResizeFlag = false;
-		}
 
 		if (usingIntermediaryTexture)
 		{
@@ -4104,9 +4062,7 @@ static GuestTexture* CreateTexture(uint32_t width, uint32_t height, uint32_t dep
 
 	if (isStencil || isRT)
 	{
-		std::lock_guard lock(g_pendingSurfaceResizeMutex);
 		DiscardInitRenderResource(texture->texture, isRT);
-		g_pendingSurfaceTextureResize.emplace(texture);
 	}
 
 
@@ -4244,9 +4200,6 @@ static GuestBuffer* CreateIndexBuffer(uint32_t IndexCount, X_D3DFORMAT format)
 
 static GuestSurface* CreateSurface(uint32_t width, uint32_t height, X_D3DFORMAT format, bool formatSet = false)
 {
-
-	std::lock_guard lock(g_pendingSurfaceResizeMutex);
-
 	uint32_t ogWidth, ogHeight;
 	ogWidth = width;
 	ogHeight = height;
@@ -4298,9 +4251,6 @@ static GuestSurface* CreateSurface(uint32_t width, uint32_t height, X_D3DFORMAT 
 
 	DiscardInitRenderResource(surface->texture, isRT);
 
-	g_pendingSurfaceResize.emplace(surface);
-	g_pendingSurfaceTextureResize.emplace(surface);
-
 	surface->guestResource.Format = format;
 	return surface;
 }
@@ -4308,10 +4258,6 @@ static GuestSurface* CreateSurface(uint32_t width, uint32_t height, X_D3DFORMAT 
 static std::vector<GuestSurface*> g_surfaceCache;
 static GuestSurface* GetSurfaceLevel(GuestTexture* texture, int32_t level, X_D3DFORMAT Format)
 {
-
-
-	std::lock_guard lock(g_pendingSurfaceResizeMutex);
-
 	uint32_t mipWidth = std::max(1u, texture->width >> level);
 	uint32_t mipHeight = std::max(1u, texture->height >> level);
 
@@ -4332,7 +4278,6 @@ static GuestSurface* GetSurfaceLevel(GuestTexture* texture, int32_t level, X_D3D
 
 	surface->guestResource.Format = Format;
 	surface->layout = texture->layout;
-	g_pendingSurfaceResize.emplace(surface);
 
 	return surface;
 }
@@ -4565,20 +4510,6 @@ static int desCount = 0;
 X86_FUNC_IMPL(__imp__sub_3D5DB0);
 static void DestructResource(GuestResource* resource)
 {
-	if (resource && (resource->type == ResourceType::RenderTarget || resource->type == ResourceType::DepthStencil))
-	{
-		std::lock_guard lock(g_pendingSurfaceResizeMutex);
-
-		if (g_pendingSurfaceResizeFlag)
-		{
-			g_tempUnreadyResource.push_back(resource); //we can store the resource to delete it later
-			return;
-		}
-
-		auto surface = static_cast<GuestSurface*>(resource);
-		g_pendingSurfaceResize.erase(surface);
-		g_pendingSurfaceTextureResize.erase(surface);
-	}
 	RenderCommand cmd;
 	cmd.type = RenderCommandType::DestructResource;
 
@@ -7141,13 +7072,6 @@ extern bool readyToDebug;
 
 static void ProcDrawPrimitiveUP(const RenderCommand& cmd)
 {
-	// this is needed to avoid random startup crash if window is set to maximize and 
-	// a resize is requested while rt are doing a composite using DrawPrimitiveUP
-	if (g_pendingSurfaceResizeFlag)
-	{
-		return;
-	}
-
 	const auto& args = cmd.drawPrimitiveUP;
 
 	//	printf("RenderThread is now treating DrawPrimitiveUP ID %d - g_frame=%u\n", args.ID, g_frame);

@@ -1255,7 +1255,7 @@ void OptionsMenu::Draw()
 			g_stateTime = ImGui::GetTime();
 			g_categoryTime = g_stateTime;
 
-			s_isRestartRequired = (int)Config::VoiceLanguage.Value != (int)App::s_voiceLanguage;
+			s_isRestartRequired = IsRestartRequired();
 
 			if (OptionsMenu::s_isRestartRequired)
 			{
@@ -1333,6 +1333,11 @@ void OptionsMenu::Open(bool isPause)
 
 	s_isVisible = true;
 
+	// Update stored values for config definitions
+	// to check if their values have changed later.
+	for (auto& def : g_configDefinitions)
+		def->UpdateStore();
+
 	ResetSelection();
 
 	std::array<Button, 3> buttons =
@@ -1348,6 +1353,20 @@ void OptionsMenu::Open(bool isPause)
 	ButtonGuide::Open(buttons);
 	ButtonGuide::SetSideMargins(100);
 
+}
+
+bool OptionsMenu::IsRestartRequired()
+{
+	if (!s_isVisible)
+		return false;
+
+	for (auto& def : g_configDefinitions)
+	{
+		if (def->RequiresRestart() && def->IsValueChanged())
+			return true;
+	}
+
+	return false;
 }
 
 void OptionsMenu::SetFlowState(OptionsMenuFlowState flowState)

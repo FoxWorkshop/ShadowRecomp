@@ -43,6 +43,7 @@ public:
     static void Open(bool isPause = false);
     static void Close();
 
+    static bool IsRestartRequired();
     static void SetFlowState(OptionsMenuFlowState flowState);
 
     static bool CanClose();
