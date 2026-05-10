@@ -234,8 +234,8 @@ X86_FUNC(sub_2B4440)
 		std::this_thread::sleep_for(std::chrono::milliseconds(100));
 		countExtraSleepFailSafe++;
 
-		// this shouldn't be reached ever, tests show that it never sleep more than twice per loading, but you never know.
-		if (countExtraSleepFailSafe > 1000)
+		// this can actually be reached, but it's rare
+		if (countExtraSleepFailSafe > 50)
 		{
 			countExtraSleepFailSafe = 0;
 			break;
