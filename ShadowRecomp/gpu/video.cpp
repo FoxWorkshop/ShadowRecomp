@@ -943,19 +943,12 @@ static void DestructTempResources()
 
 			const auto surface = reinterpret_cast<GuestSurface*>(resource);
 
-			if (g_pendingSurfaceResizeFlag)
-			{
-				g_tempUnreadyResource.push_back(resource); //we can store the resource to delete it later
-				continue;
-			}
-
 			if (surface->descriptorIndex != NULL)
 			{
 				g_textureDescriptorSet->setTexture(surface->descriptorIndex, nullptr, {});
 				g_textureDescriptorAllocator.free(surface->descriptorIndex);
 			}
 
-			g_pendingSurfaceResize.erase(surface);
 			surface->~GuestSurface();
 
 			valid = true;
@@ -4572,10 +4565,20 @@ static int desCount = 0;
 X86_FUNC_IMPL(__imp__sub_3D5DB0);
 static void DestructResource(GuestResource* resource)
 {
-	auto ctx = GetX86Context();
-	auto base = g_memory.base;
+	if (resource && resource->type == ResourceType::RenderTarget || resource->type == ResourceType::DepthStencil)
+	{
+		std::lock_guard lock(g_pendingSurfaceResizeMutex);
 
+		if (g_pendingSurfaceResizeFlag)
+		{
+			g_tempUnreadyResource.push_back(resource); //we can store the resource to delete it later
+			return;
+		}
 
+		auto surface = static_cast<GuestSurface*>(resource);
+		g_pendingSurfaceResize.erase(surface);
+		g_pendingSurfaceTextureResize.erase(surface);
+	}
 	RenderCommand cmd;
 	cmd.type = RenderCommandType::DestructResource;
 
