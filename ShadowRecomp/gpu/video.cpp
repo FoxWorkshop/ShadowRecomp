@@ -4565,7 +4565,7 @@ static int desCount = 0;
 X86_FUNC_IMPL(__imp__sub_3D5DB0);
 static void DestructResource(GuestResource* resource)
 {
-	if (resource && resource->type == ResourceType::RenderTarget || resource->type == ResourceType::DepthStencil)
+	if (resource && (resource->type == ResourceType::RenderTarget || resource->type == ResourceType::DepthStencil))
 	{
 		std::lock_guard lock(g_pendingSurfaceResizeMutex);
 
