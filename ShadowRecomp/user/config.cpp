@@ -727,6 +727,8 @@ void Config::CreateCallbacks()
             // Try matching the current window size with a known configuration.
             if (def->Value < 0)
                 def->Value = GameWindow::FindNearestDisplayMode();
+
+
         };
 
     Config::WindowSize.ApplyCallback = [](ConfigDef<int32_t>* def)
@@ -744,7 +746,11 @@ void Config::CreateCallbacks()
                     auto& mode = displayModes[value];
                     auto centre = SDL_WINDOWPOS_CENTERED_DISPLAY(GameWindow::GetDisplay());
                     GameWindow::SetDimensions(mode.w, mode.h, centre, centre);
+                    if (App::s_isInit)
+                        g_pendingSurfaceResizeFlag = true;
                 });
+
+
   
         };
 
@@ -764,6 +770,8 @@ void Config::CreateCallbacks()
                 {
                     GameWindow::SetFullscreen(value);
                     GameWindow::SetDisplay(Config::Monitor);
+                    if (App::s_isInit)
+                        g_pendingSurfaceResizeFlag = true;
                 });
         };
 

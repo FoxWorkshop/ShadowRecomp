@@ -875,6 +875,7 @@ struct DerivedVertexBuffer
 
 std::unordered_map<GuestBuffer*, std::vector<DerivedVertexBuffer>> VBsList;
 std::vector<GuestResource*> g_tempUnreadyResource; // store VB that weren't ready to be deleted
+std::atomic<bool> g_pendingSurfaceResizeFlag = false; // flag used to trigger RT and Stencil recreation.
 
 //todo figure out this
 static void DestructTempResources()
@@ -2058,6 +2059,11 @@ static void CheckSwapChain()
 // we can adapt the math to match this behaviour with user's resolution
 void GetUpscaledSurfaceResolution(uint32_t widthOrigin, uint32_t heightOrigin, uint32_t* widthOut, uint32_t* heightOut)
 {
+	while (App::s_isInit == false && g_pendingSurfaceResizeFlag)
+	{
+		std::this_thread::sleep_for(std::chrono::milliseconds(16));
+	}
+
 	float percent = (float)widthOrigin / 640.f;
 
 	auto res = percent * Video::s_viewportWidth * Config::ResolutionScale;
@@ -2158,7 +2164,7 @@ static void BeginCommandList()
 		uint32_t height = Video::s_viewportHeight;
 
 		bool usingIntermediaryTexture = (width != g_swapChain->getWidth()) || (height != g_swapChain->getHeight()) ||
-			(abs(Config::Brightness.Value - 0.5f) > 0.001f);
+			(abs(Config::Brightness.Value - 0.5f) > 0.001f) || g_pendingSurfaceResizeFlag;
 
 
 		if (usingIntermediaryTexture)
@@ -2190,11 +2196,13 @@ static void BeginCommandList()
 			}
 
 			g_backBuffer->texture = g_intermediaryBackBufferTexture.get();
+			g_pendingSurfaceResizeFlag = false;
 		}
 		else
 		{
 			g_backBuffer->texture = g_swapChain->getTexture(g_backBufferIndex);
 		}
+
 	}
 	else
 	{
@@ -4004,6 +4012,7 @@ static GuestTexture* CreateTexture(uint32_t width, uint32_t height, uint32_t dep
 
 	if (usage == 1) //will be RenderTarget
 	{
+
 		uint32_t newWidth, newHeight;
 		GetUpscaledSurfaceResolution(width, height, &newWidth, &newHeight);
 		width = newWidth;

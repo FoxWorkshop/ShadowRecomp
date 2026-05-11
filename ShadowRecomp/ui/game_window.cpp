@@ -233,6 +233,7 @@ void GameWindow::Update()
     if (m_isResizing)
     {
         SetTitle();
+        g_pendingSurfaceResizeFlag = true;
         m_isResizing = false;
     }
 
@@ -417,9 +418,6 @@ void GameWindow::ResetDimensions()
 uint32_t GameWindow::GetWindowFlags()
 {
     uint32_t flags = SDL_WINDOW_HIDDEN | SDL_WINDOW_RESIZABLE | SDL_WINDOW_ALLOW_HIGHDPI;
-
-    if (Config::WindowState == EWindowState::Maximised)
-        flags |= SDL_WINDOW_MAXIMIZED;
 
     if (Config::Fullscreen)
         flags |= SDL_WINDOW_FULLSCREEN_DESKTOP;
