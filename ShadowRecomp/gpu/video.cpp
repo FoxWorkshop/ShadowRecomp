@@ -2062,16 +2062,22 @@ static void CheckSwapChain()
 
 // since the game has RT that don't always match full resolution (example 512x512 instead of 640x480)
 // we can adapt the math to match this behaviour with user's resolution
-void GetUpscaledSurfaceResolution(uint32_t widthOrigin, uint32_t heightOrigin, uint32_t* widthOut, uint32_t* heightOut)
+void GetUpscaledSurfaceResolution(uint32_t widthOrigin, uint32_t heightOrigin,
+	uint32_t* widthOut, uint32_t* heightOut)
 {
-	float percent = (float)widthOrigin / 640.f;
+	float percentW = (float)widthOrigin / 640.f;
+	float percentH = (float)heightOrigin / 480.f;
+	float resW = percentW * Video::s_viewportWidth * Config::ResolutionScale;
+	float resH = percentH * Video::s_viewportHeight * Config::ResolutionScale;
 
-	auto res = percent * Video::s_viewportWidth * Config::ResolutionScale;
-	*widthOut = std::max((uint32_t)res, widthOrigin);
+	printf("percent: %.6f x %.6f, viewport: %dx%d, scale: %.3f, res: %.6f x %.6f\n",
+		percentW, percentH,
+		Video::s_viewportWidth, Video::s_viewportHeight,
+		Config::ResolutionScale.Value,
+		resW, resH);
 
-	percent = (float)heightOrigin / 480.f;
-	res = percent * Video::s_viewportHeight * Config::ResolutionScale;
-	*heightOut = std::max((uint32_t)res, heightOrigin);
+	*widthOut = std::max((uint32_t)resW, widthOrigin);
+	*heightOut = std::max((uint32_t)resH, heightOrigin);
 }
 
 // This is needed because uninitialized RT / depth can crash the game under specific windows version if (and only if) VS is installed.
@@ -2143,9 +2149,15 @@ void RecreateGuestSurfaceTexture(GuestBaseTexture* tex, bool isRT)
 	tex->height = newHeight;
 
 	if (!isRT)
+	{
 		g_textureDescriptorSet->setTexture(tex->descriptorIndex, tex->textureHolder.get(), RenderTextureLayout::DEPTH_WRITE, tex->textureView.get());
+		AddBarrier(tex, RenderTextureLayout::DEPTH_READ);
+	}
 	else
+	{
 		g_textureDescriptorSet->setTexture(tex->descriptorIndex, tex->texture, RenderTextureLayout::SHADER_READ);
+		AddBarrier(tex, RenderTextureLayout::SHADER_READ);
+	}
 }
 
 static void BeginCommandList()
@@ -2175,7 +2187,13 @@ static void BeginCommandList()
 			}
 
 			if (g_pendingStencilResize)
+			{
+				g_barrierMap.erase(g_pendingStencilResize->texture);
+				g_pendingStencilResize->framebuffers.clear();
 				RecreateGuestSurfaceTexture(g_pendingStencilResize, false);
+			}
+
+			g_pendingSurfaceResizeFlag = false;
 		}
 
 		if (usingIntermediaryTexture)
@@ -2207,7 +2225,6 @@ static void BeginCommandList()
 			}
 
 			g_backBuffer->texture = g_intermediaryBackBufferTexture.get();
-			g_pendingSurfaceResizeFlag = false;
 		}
 		else
 		{
