@@ -144,7 +144,7 @@ struct PipelineState
 	bool isFixedFunctionPS = false;
 	VertexShaderMode vertexShaderType;
 	GuestVertexDeclaration* vertexDeclaration = nullptr;
-	bool zEnable = true;
+	bool zEnable = false;
 	bool zWriteEnable = true;
 	bool stencilEnable = false;
 	RenderBlend srcBlend = RenderBlend::ONE;
@@ -884,6 +884,7 @@ static void DestructTempResources()
 
 	for (auto resource : g_tempResources[g_frame])
 	{
+		valid = false;
 
 		switch (resource->type)
 		{
@@ -894,13 +895,14 @@ static void DestructTempResources()
 
 			if (texture->mappedMemory != nullptr)
 				g_userHeap.Free(texture->mappedMemory);
-
+			
 			g_textureDescriptorAllocator.free(texture->descriptorIndex);
-
+			
 			if (texture->patchedTexture != nullptr)
 				g_textureDescriptorAllocator.free(texture->patchedTexture->descriptorIndex);
-
+			
 			texture->~GuestTexture();*/
+			valid = false;
 			break;
 		}
 
@@ -971,6 +973,8 @@ static void DestructTempResources()
 
 static ankerl::unordered_dense::set<GuestSurface*> g_pendingSurfaceCopies;
 static ankerl::unordered_dense::set<GuestSurface*> g_pendingMsaaResolves;
+static ankerl::unordered_dense::set<GuestTexture*> g_pendingTextureResizes;
+static GuestSurface* g_pendingStencilResize = nullptr; // the game only use one stencil
 
 
 enum class RenderCommandType
@@ -1452,6 +1456,7 @@ static void ProcSetRenderState(const RenderCommand& cmd)
 	case X_D3DRS_ZENABLE:
 	{
 		SetDirtyValue(g_dirtyStates.pipelineState, g_pipelineState.zEnable, value != 0);
+		SetDirtyValue(g_dirtyStates.pipelineState, g_pipelineState.stencilEnable, value != 0);
 		g_dirtyStates.renderTargetAndDepthStencil |= g_dirtyStates.pipelineState;
 		break;
 	}
@@ -2059,11 +2064,6 @@ static void CheckSwapChain()
 // we can adapt the math to match this behaviour with user's resolution
 void GetUpscaledSurfaceResolution(uint32_t widthOrigin, uint32_t heightOrigin, uint32_t* widthOut, uint32_t* heightOut)
 {
-	while (App::s_isInit == false && g_pendingSurfaceResizeFlag)
-	{
-		std::this_thread::sleep_for(std::chrono::milliseconds(16));
-	}
-
 	float percent = (float)widthOrigin / 640.f;
 
 	auto res = percent * Video::s_viewportWidth * Config::ResolutionScale;
@@ -2166,6 +2166,17 @@ static void BeginCommandList()
 		bool usingIntermediaryTexture = (width != g_swapChain->getWidth()) || (height != g_swapChain->getHeight()) ||
 			(abs(Config::Brightness.Value - 0.5f) > 0.001f) || g_pendingSurfaceResizeFlag;
 
+		if (g_pendingSurfaceResizeFlag)
+		{
+			for (auto& g_tex : g_pendingTextureResizes)
+			{
+				g_barrierMap.erase(g_tex->texture);
+				RecreateGuestSurfaceTexture(g_tex, g_tex->isRenderTarget);
+			}
+
+			if (g_pendingStencilResize)
+				RecreateGuestSurfaceTexture(g_pendingStencilResize, false);
+		}
 
 		if (usingIntermediaryTexture)
 		{
@@ -4012,11 +4023,11 @@ static GuestTexture* CreateTexture(uint32_t width, uint32_t height, uint32_t dep
 
 	if (usage == 1) //will be RenderTarget
 	{
-
 		uint32_t newWidth, newHeight;
 		GetUpscaledSurfaceResolution(width, height, &newWidth, &newHeight);
 		width = newWidth;
 		height = newHeight;
+		g_pendingTextureResizes.insert(texture);
 	}
 
 
@@ -4036,7 +4047,7 @@ static GuestTexture* CreateTexture(uint32_t width, uint32_t height, uint32_t dep
 		desc.flags = RenderTextureFlag::NONE;
 
 
-	texture->isRenderTarget = desc.flags == RenderTextureFlag::RENDER_TARGET;
+	texture->isRenderTarget = (desc.flags & RenderTextureFlag::RENDER_TARGET) != 0;
 
 	texture->textureHolder = g_device->createTexture(desc);
 	texture->texture = texture->textureHolder.get();
@@ -4209,6 +4220,8 @@ static GuestBuffer* CreateIndexBuffer(uint32_t IndexCount, X_D3DFORMAT format)
 
 static GuestSurface* CreateSurface(uint32_t width, uint32_t height, X_D3DFORMAT format, bool formatSet = false)
 {
+	auto ogFormat = formatSet ? (plume::RenderFormat)format : ConvertFormat(format);
+	auto isStencil = ogFormat == DepthStencilFormat;
 	uint32_t ogWidth, ogHeight;
 	ogWidth = width;
 	ogHeight = height;
@@ -4216,6 +4229,7 @@ static GuestSurface* CreateSurface(uint32_t width, uint32_t height, X_D3DFORMAT 
 	uint32_t newWidth, newHeight;
 
 	GetUpscaledSurfaceResolution(width, height, &newWidth, &newHeight);
+
 	width = newWidth;
 	height = newHeight;
 
@@ -4227,7 +4241,7 @@ static GuestSurface* CreateSurface(uint32_t width, uint32_t height, X_D3DFORMAT 
 	desc.mipLevels = 1;
 	desc.arraySize = 1;
 	desc.multisampling.sampleCount = RenderSampleCount::COUNT_1; //todo add as an option(?)
-	desc.format = formatSet ? (plume::RenderFormat)format : ConvertFormat(format);
+	desc.format = ogFormat;
 	desc.flags = desc.format == DepthStencilFormat ? RenderTextureFlag::DEPTH_TARGET : RenderTextureFlag::RENDER_TARGET;
 
 	auto surface = g_userHeap.AllocPhysical<GuestSurface>(desc.format == DepthStencilFormat ?
@@ -4261,6 +4275,7 @@ static GuestSurface* CreateSurface(uint32_t width, uint32_t height, X_D3DFORMAT 
 	DiscardInitRenderResource(surface->texture, isRT);
 
 	surface->guestResource.Format = format;
+	g_pendingStencilResize = surface;
 	return surface;
 }
 
@@ -4478,7 +4493,6 @@ X_D3DFORMAT MapToLinearD3DFORMAT(X_D3DFORMAT a1)
 
 X86_FUNC_IMPL(__imp__sub_3DDAB0); //CreateDevice
 
-GuestViewport* g_viewportPtr = nullptr;
 int32_t Direct3D_CreateDevice_r(int32_t Adapter, int32_t DeviceType, int32_t hFocusWindow, char Flags, X_D3DPRESENT_PARAMETERS* pPresentationParameters, uint32_t* device)
 {
 	LOG_UTILITY("CREATE GUEST D3D DEVICE!");
@@ -4511,19 +4525,22 @@ int32_t Direct3D_CreateDevice_r(int32_t Adapter, int32_t DeviceType, int32_t hFo
 	__imp__sub_3DDAB0(*ctx, base);
 	ctx->esp.u32 -= 28; //readjust esp because of calling original function
 
-	g_viewportPtr = (GuestViewport*)g_memory.Translate(0x3E0A20 + 0xE0);
-	g_viewportPtr = g_viewportPtr;
 	return 0; //success
 }
 static int desCount = 0;
-X86_FUNC_IMPL(__imp__sub_3D5DB0);
-static void DestructResource(GuestResource* resource)
+
+
+void AddDestructResource(GuestResource* ressource)
 {
 	RenderCommand cmd;
 	cmd.type = RenderCommandType::DestructResource;
-
-	cmd.destructResource.resource = resource;
+	cmd.destructResource.resource = ressource;
 	g_renderQueue.enqueue(cmd);
+}
+
+static void DestructResource(GuestResource* resource)
+{
+	AddDestructResource(resource);
 	desCount++;
 }
 
@@ -4533,6 +4550,23 @@ static void ProcDestructResource(const RenderCommand& cmd)
 	const auto& args = cmd.destructResource;
 	g_tempResources[g_frame].push_back(args.resource);
 }
+
+
+void DestructResourceMidAsmHook(X86Register& esi)
+{
+	if (esi.u32 == 0)
+		return;
+
+
+	auto resource = (GuestResource*)g_memory.Translate(esi.u32);
+
+	if (resource->type == ResourceType::Texture)
+	{
+		const auto texture = reinterpret_cast<GuestTexture*>(resource);
+		g_pendingTextureResizes.erase(texture);
+	}
+}
+
 
 X_D3DFORMAT GetXboxPixelContainerFormat(const uint32_t XboxPixelContainer_Format)
 {
@@ -7081,6 +7115,14 @@ extern bool readyToDebug;
 
 static void ProcDrawPrimitiveUP(const RenderCommand& cmd)
 {
+
+	// this is needed to avoid random crash if a resize is requested while 
+	// rt are doing a composite using DrawPrimitiveUP
+	if (g_pendingSurfaceResizeFlag)
+	{
+		return;
+	}
+
 	const auto& args = cmd.drawPrimitiveUP;
 
 	//	printf("RenderThread is now treating DrawPrimitiveUP ID %d - g_frame=%u\n", args.ID, g_frame);
@@ -7254,13 +7296,6 @@ X86_FUNC(sub_3D5F10)
 	}
 }
 
-void AddDestructResource(GuestResource* ressource)
-{
-	RenderCommand cmd;
-	cmd.type = RenderCommandType::DestructResource;
-	cmd.destructResource.resource = ressource;
-	g_renderQueue.enqueue(cmd);
-}
 
 //Free Vertex Buffer
 X86_FUNC_IMPL(__imp__sub_2E6140);
@@ -7673,35 +7708,30 @@ X86_FUNC(sub_2DFE20)
 {
 	RwRaster* info = (RwRaster*)g_memory.Translate(ctx.ecx.u32);
 	uint8_t level = X86_LOAD_U8(ctx.eax.u32 + 19);
-	int usage = (info->cType & 0xFF) == rwRASTERTYPECAMERATEXTURE ? 1 : 0;
+	const uint32_t usage = (info->cType & 0xFF) == rwRASTERTYPECAMERATEXTURE ? 1 : 0;
 
-	if (usage)
-	{
-		info = info;
-	}
 
 	X_D3DFORMAT format = (X_D3DFORMAT)ctx.esi.u32;
 	__imp__sub_2DFE20(ctx, base);
 
-	//RwRaster* rwM = (RwRaster*)g_memory.Translate(second);
-	XD3DResource* texture = (XD3DResource*)(g_memory.Translate(ctx.eax.u32));
+	if (ctx.eax.u32 != 0)
+	{
+		//RwRaster* rwM = (RwRaster*)g_memory.Translate(second);
+		XD3DResource* texture = (XD3DResource*)(g_memory.Translate(ctx.eax.u32));
 
-	ctx.esp.u32 -= 4;
+		X_D3DRESOURCETYPE textureType = GetXboxTextureType((X_D3DResource*)texture);
 
-	X_D3DRESOURCETYPE textureType = GetXboxTextureType((X_D3DResource*)texture);
+		auto newTex = CreateTexture(info->width, info->height, 1, level, usage, format, textureType);
 
+		newTex->guestResource.Common = texture->Common;
+		newTex->guestResource.Data = texture->Data;
+		newTex->guestResource.Format = texture->Format;
+		newTex->guestResource.Lock = texture->Lock;
+		newTex->guestResource.Size = texture->Size;
 
-
-	auto newTex = CreateTexture(info->width, info->height, 1, level, usage, format, textureType);
-
-	newTex->guestResource.Common = texture->Common;
-	newTex->guestResource.Data = texture->Data;
-	newTex->guestResource.Format = texture->Format;
-	newTex->guestResource.Lock = texture->Lock;
-	newTex->guestResource.Size = texture->Size;
-	g_userHeap.Free(g_memory.Translate(ctx.eax.u32)); // free the original texture memory as it's not needed anymore 
-	ctx.eax.u32 = g_memory.MapVirtual(newTex);
-	ctx.esp.u32 += 4;
+		g_userHeap.Free(g_memory.Translate(ctx.eax.u32)); // free the original texture memory as it's not needed anymore 
+		ctx.eax.u32 = g_memory.MapVirtual(newTex);
+	}
 }
 
 //CreateStandAloneSurface

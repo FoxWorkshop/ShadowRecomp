@@ -779,3 +779,8 @@ jump_address_on_true = 0x2A62CF
 [[midasm_hook]]
 name = "DisableMessageMidAsmHook"
 address = 0x595CA
+
+[[midasm_hook]]
+name = "DestructResourceMidAsmHook"
+address = 0x2E0562
+registers = ["r4"]
