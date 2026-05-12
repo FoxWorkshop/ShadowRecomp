@@ -7691,6 +7691,7 @@ X86_FUNC(sub_2DFE20)
 	X_D3DRESOURCETYPE textureType = GetXboxTextureType((X_D3DResource*)texture);
 
 
+
 	auto newTex = CreateTexture(info->width, info->height, 1, level, usage, format, textureType);
 
 	newTex->guestResource.Common = texture->Common;
@@ -7698,6 +7699,7 @@ X86_FUNC(sub_2DFE20)
 	newTex->guestResource.Format = texture->Format;
 	newTex->guestResource.Lock = texture->Lock;
 	newTex->guestResource.Size = texture->Size;
+	g_userHeap.Free(g_memory.Translate(ctx.eax.u32)); // free the original texture memory as it's not needed anymore 
 	ctx.eax.u32 = g_memory.MapVirtual(newTex);
 	ctx.esp.u32 += 4;
 }
