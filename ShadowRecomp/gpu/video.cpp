@@ -2070,12 +2070,6 @@ void GetUpscaledSurfaceResolution(uint32_t widthOrigin, uint32_t heightOrigin,
 	float resW = percentW * Video::s_viewportWidth * Config::ResolutionScale;
 	float resH = percentH * Video::s_viewportHeight * Config::ResolutionScale;
 
-	printf("percent: %.6f x %.6f, viewport: %dx%d, scale: %.3f, res: %.6f x %.6f\n",
-		percentW, percentH,
-		Video::s_viewportWidth, Video::s_viewportHeight,
-		Config::ResolutionScale.Value,
-		resW, resH);
-
 	*widthOut = std::max((uint32_t)resW, widthOrigin);
 	*heightOut = std::max((uint32_t)resH, heightOrigin);
 }
