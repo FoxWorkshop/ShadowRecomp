@@ -392,36 +392,24 @@ std::unordered_map<std::string_view, std::unordered_map<ELanguage, std::string>>
 		// Japanese Notes: This localization should include furigana.
 		"Installer_Page_Introduction",
 		{
-			{ ELanguage::English,  "Welcome to\Shadow Recompiled!\n\nYou'll need an Xbox copy\nof Shadow The Hedgehog in order to proceed with the installation." },
+			{ ELanguage::English,  "Welcome to\nShadow Recompiled!\n\nYou'll need an Xbox copy\nof Shadow The Hedgehog in order to proceed with the installation." },
 			{ ELanguage::Japanese, "Shadow Recompiledへようこそ！\nインストールには\n[北米版:ほくべいばん]またはEU[版:ばん]のXbox[用:よう]\n「SHADOW THE HEDGEHOG」が[必要:ひつよう]です" },
-			{ ELanguage::German,   "Willkommen zu\Shadow Recompiled!\nEs wird eine Xbox 360 Kopie von Shadow The Hedgehog benötigt um mit der Installation fortfahren zu können." },
-			{ ELanguage::French,   "Bienvenue sur\Shadow Recompiled !\n\nVous aurez besoin d'une copie de Shadow The Hedgehog pour Xbox\npour procéder à l'installation." },
-			{ ELanguage::Spanish,  "¡Bienvenido a\Shadow Recompiled!\n\nNecesitas una copia de\nShadow The Hedgehog de Xbox\npara continuar con la instalación." },
-			{ ELanguage::Italian,  "Benvenuto a\Shadow Recompiled!\n\nDovrai avere una copia di\nShadow The Hedgehog per la Xbox\nper proseguire con l'installazione." }
+			{ ELanguage::German,   "Willkommen zu\nShadow Recompiled!\nEs wird eine Xbox Kopie von Shadow The Hedgehog benötigt um mit der Installation fortfahren zu können." },
+			{ ELanguage::French,   "Bienvenue sur\nShadow Recompiled !\n\nVous aurez besoin d'une copie de Shadow The Hedgehog pour Xbox\npour procéder à l'installation." },
+			{ ELanguage::Spanish,  "¡Bienvenido a\nShadow Recompiled!\n\nNecesitas una copia de\nShadow The Hedgehog de Xbox\npara continuar con la instalación." },
+			{ ELanguage::Italian,  "Benvenuto a\nShadow Recompiled!\n\nDovrai avere una copia di\nShadow The Hedgehog per la Xbox\nper proseguire con l'installazione." }
 		}
 	},
 	{
 		// Japanese Notes: This localization should include furigana.
-		"Installer_Page_SelectGameAndUpdate",
+		"Installer_Page_SelectGame",
 		{
-			{ ELanguage::English,  "Add the sources for the game and its title update." },
-			{ ELanguage::Japanese, "ゲームのソースとタイトルアップデート\nを[追加:ついか]" },
-			{ ELanguage::German,   "Füge die Quellen für das Spiel und dessen Update hinzu." },
-			{ ELanguage::French,   "Ajouter les fichiers du jeu ainsi que ses mises à jour." },
-			{ ELanguage::Spanish,  "Añade las fuentes para el juego y su actualización." },
-			{ ELanguage::Italian,  "Aggiungi le fonti per il gioco e per il suo file d'aggiornamento." }
-		}
-	},
-	{
-		// Japanese Notes: This localization should include furigana.
-		"Installer_Page_SelectDLC",
-		{
-			{ ELanguage::English,  "Add the sources for the DLC." },
-			{ ELanguage::Japanese, "DLCのソースを[追加:ついか]" },
-			{ ELanguage::German,   "Füge die Quellen für die Erweiterungen des Spiels hinzu." },
-			{ ELanguage::French,   "Ajouter les fichiers pour les DLCs." },
-			{ ELanguage::Spanish,  "Añade las fuentes para el DLC." },
-			{ ELanguage::Italian,  "Aggiungi le fonti per i DLC." }
+			{ ELanguage::English,  "Add the sources for the game." },
+			{ ELanguage::Japanese, "ゲームのソースを[追加:ついか]" },
+			{ ELanguage::German,   "Füge die Quellen für das Spiel hinzu." },
+			{ ELanguage::French,   "Ajouter les fichiers du jeu." },
+			{ ELanguage::Spanish,  "Añade las fuentes para el juego." },
+			{ ELanguage::Italian,  "Aggiungi le fonti per il gioco." }
 		}
 	},
 	{
@@ -434,6 +422,18 @@ std::unordered_map<std::string_view, std::unordered_map<ELanguage, std::string>>
 			{ ELanguage::French,   "Le contenu sera installé dans le même dossier que le programme.\n" },
 			{ ELanguage::Spanish,  "El contenido será instalado a la carpeta del programa.\n\n" },
 			{ ELanguage::Italian,  "Il contenuto verrà installato nella cartella di questo programma.\n\n" }
+		}
+	},
+	{
+		// Japanese Notes: This localization should include furigana.
+		"Installer_Page_Verifying",
+		{
+			{ ELanguage::English,  "Please wait while the disc image is being verified..." },
+			{ ELanguage::Japanese, "ディスクイメージの検証[中:ちゅう]はお[待:ま]ち\nください" },
+			{ ELanguage::German,   "Bitte warten. Das Disc-Image wird überprüft..." },
+			{ ELanguage::French,   "Veuillez patienter pendant la vérification de l'image du disque..." },
+			{ ELanguage::Spanish,  "Por favor, espera mientras se verifica la imagen del disco... " },
+			{ ELanguage::Italian,  "Attendi mentre l'immagine del disco viene verificata... " }
 		}
 	},
 	{
@@ -591,12 +591,12 @@ std::unordered_map<std::string_view, std::unordered_map<ELanguage, std::string>>
 		// Japanese Notes: This localization should include furigana.
 		"Installer_Message_FilePickerTutorial",
 		{
-			{ ELanguage::English,  "Select a digital dump with\ncontent from the game.\n\nThese files can be obtained from\nyour Xbox 360 hard drive by\nfollowing the instructions on\nthe GitHub page.\n\nFor choosing a folder with extracted\nand unmodified game files, use\nthe \"Add Folder\" option instead." },
-			{ ELanguage::Japanese, "ゲームのコンテンツを[含:ふく]む デジタルダンプを[選択:せんたく]してください\n\nこれらのファイルは GitHubページの[指示:しじ]に[従:したが]って\nXbox 360ハードドライブから[取得:しゅとく]できます\n\n[抽出:ちゅうしゅつ]された[変更:へんこう]されていない\nゲームファイルを[含:ふく]むフォルダーを[選択:せんたく]するには\n[代:か]わりに「フォルダの[追加:ついか]」オプションを[使用:しよう]してください" },
-			{ ELanguage::German,   "Wähle einen digitalen Dump von dem Spiel.\n\nDie Dateien können über die Festplatte deiner\nXbox 360 erlangt werden.\nFolge hierfür den Anweisungen auf der GitHub Seite.\n\nUm einen Ordner mit unmodifizierten Spieldateien auszuwählen, benutze die \"Ordner Hinzufügen\" Option stattdessen." },
-			{ ELanguage::French,   "Sélectionnez une copie\ndématérialisée avec le contenu du\njeu de base.\n\nCes fichiers peuvent être obtenus\nà partir du disque dur de votre\nXbox 360 en suivant les\ninstructions de la page GitHub.\n\nPour choisir un dossier contenant\nles fichiers de jeu extraits et\nnon modifiés, utilisez plutôt\nl'option \"Ajouter un dossier\"." },
-			{ ELanguage::Spanish,  "Selecciona una copia digital\ncon contenido del juego.\n\nPuedes obtener los archivos\nde tu disco duro de Xbox 360\nsiguiendo las instrucciones de\nla página de GitHub.\n\nPara elegir una carpeta con\narchivos extraídos sin modificar,\nutiliza la opción \"Añadir Carpeta\"." },
-			{ ELanguage::Italian,  "Seleziona una copia digitale\ncon i contenuti del gioco.\n\nQuesti file possono essere ottenuti\ndall'hard drive della tua Xbox 360\nseguendo le istruzioni\nsulla pagina GitHub.\n\nPer selezionare una cartella\ncon file estratti e non modificati\nusa l'opzione \"Aggiungi cartella\"." }
+			{ ELanguage::English,  "Select a digital dump with\ncontent from the game.\n\nThese files can be obtained from\nyour Xbox hard drive by\nfollowing the instructions on\nthe GitHub page.\n\nFor choosing a folder with extracted\nand unmodified game files, use\nthe \"Add Folder\" option instead." },
+			{ ELanguage::Japanese, "ゲームのコンテンツを[含:ふく]む デジタルダンプを[選択:せんたく]してください\n\nこれらのファイルは GitHubページの[指示:しじ]に[従:したが]って\nXboxハードドライブから[取得:しゅとく]できます\n\n[抽出:ちゅうしゅつ]された[変更:へんこう]されていない\nゲームファイルを[含:ふく]むフォルダーを[選択:せんたく]するには\n[代:か]わりに「フォルダの[追加:ついか]」オプションを[使用:しよう]してください" },
+			{ ELanguage::German,   "Wähle einen digitalen Dump von dem Spiel.\n\nDie Dateien können über die Festplatte deiner\nXbox erlangt werden.\nFolge hierfür den Anweisungen auf der GitHub Seite.\n\nUm einen Ordner mit unmodifizierten Spieldateien auszuwählen, benutze die \"Ordner Hinzufügen\" Option stattdessen." },
+			{ ELanguage::French,   "Sélectionnez une copie\ndématérialisée avec le contenu du\njeu de base.\n\nCes fichiers peuvent être obtenus\nà partir du disque dur de votre\nXbox en suivant les\ninstructions de la page GitHub.\n\nPour choisir un dossier contenant\nles fichiers de jeu extraits et\nnon modifiés, utilisez plutôt\nl'option \"Ajouter un dossier\"." },
+			{ ELanguage::Spanish,  "Selecciona una copia digital\ncon contenido del juego.\n\nPuedes obtener los archivos\nde tu disco duro de Xbox\nsiguiendo las instrucciones de\nla página de GitHub.\n\nPara elegir una carpeta con\narchivos extraídos sin modificar,\nutiliza la opción \"Añadir Carpeta\"." },
+			{ ELanguage::Italian,  "Seleziona una copia digitale\ncon i contenuti del gioco.\n\nQuesti file possono essere ottenuti\ndall'hard drive della tua Xbox\nseguendo le istruzioni\nsulla pagina GitHub.\n\nPer selezionare una cartella\ncon file estratti e non modificati\nusa l'opzione \"Aggiungi cartella\"." }
 		}
 	},
 	{
@@ -604,12 +604,12 @@ std::unordered_map<std::string_view, std::unordered_map<ELanguage, std::string>>
 		// Japanese Notes: This localization should include furigana.
 		"Installer_Message_FolderPickerTutorial",
 		{
-			{ ELanguage::English,  "Select a folder that contains the\nunmodified files that have been\nextracted from the game.\n\nThese files can be obtained from\nyour Xbox 360 hard drive by\nfollowing the instructions on\nthe GitHub page.\n\nFor choosing a digital dump,\nuse the \"Add Files\" option instead." },
-			{ ELanguage::Japanese, "ゲームから[抽出:ちゅうしゅつ]された[変更:へんこう]されていない\nファイルを含むフォルダを[選択:せんたく]してください\n\nこれらのファイルは GitHubページの[指示:しじ]に[従:したが]って\nXbox 360ハードドライブから[取得:しゅとく]できます\n\nデジタルダンプを[選択:せんたく]するには\n[代:か]わりに「ファイルの[追加:ついか]」オプションを[使用:しよう]してください" },
-			{ ELanguage::German,   "Wähle einen Ordner, der unmodifizierte Dateien, die vom Spiel extrahiert wurden enthält.\n\nDie Dateien können über die Festplatte deiner\nXbox 360 erlangt werden.\nFolge hierfür den Anweisungen auf der GitHub Seite.\n\nUm einen digitalen Dump auszuwählen, benutze die \"Datei Hinzufügen\" Option stattdessen." },
-			{ ELanguage::French,   "Sélectionnez un dossier contenant\nles fichiers extraits du jeu de\nbase.\n\nCes fichiers peuvent être obtenus\nà partir du disque dur de votre\nXbox 360 en suivant les\ninstructions de la page GitHub.\n\nPour choisir une copie\ndématérialisée, utilisez plutôt\nl'option \"Ajouter des fichiers\"." },
-			{ ELanguage::Spanish,  "Selecciona una carpeta que\ncontenga los archivos sin\nmodificar extraídos del juego.\n\nPuedes obtener los archivos\nde tu disco duro de Xbox 360\nsiguiendo las instrucciones de\nla página de GitHub.\n\nPara elegir una copia digital,\nutiliza la opción \"Añadir Archivos\"." },
-			{ ELanguage::Italian,  "Seleziona una cartella che contiene\ni file non modificati che sono stati\nestratti dal gioco.\n\nQuesti file possono essere ottenuti\ndall'hard drive della tua Xbox 360\nseguendo le istruzioni\nsulla pagina GitHub.\n\nPer selezionare una copia digitale\nusa l'opzione \"Aggiungi file\"." }
+			{ ELanguage::English,  "Select a folder that contains the\nunmodified files that have been\nextracted from the game.\n\nThese files can be obtained from\nyour Xbox hard drive by\nfollowing the instructions on\nthe GitHub page.\n\nFor choosing a digital dump,\nuse the \"Add Files\" option instead." },
+			{ ELanguage::Japanese, "ゲームから[抽出:ちゅうしゅつ]された[変更:へんこう]されていない\nファイルを含むフォルダを[選択:せんたく]してください\n\nこれらのファイルは GitHubページの[指示:しじ]に[従:したが]って\nXboxハードドライブから[取得:しゅとく]できます\n\nデジタルダンプを[選択:せんたく]するには\n[代:か]わりに「ファイルの[追加:ついか]」オプションを[使用:しよう]してください" },
+			{ ELanguage::German,   "Wähle einen Ordner, der unmodifizierte Dateien, die vom Spiel extrahiert wurden enthält.\n\nDie Dateien können über die Festplatte deiner\nXbox erlangt werden.\nFolge hierfür den Anweisungen auf der GitHub Seite.\n\nUm einen digitalen Dump auszuwählen, benutze die \"Datei Hinzufügen\" Option stattdessen." },
+			{ ELanguage::French,   "Sélectionnez un dossier contenant\nles fichiers extraits du jeu de\nbase.\n\nCes fichiers peuvent être obtenus\nà partir du disque dur de votre\nXbox en suivant les\ninstructions de la page GitHub.\n\nPour choisir une copie\ndématérialisée, utilisez plutôt\nl'option \"Ajouter des fichiers\"." },
+			{ ELanguage::Spanish,  "Selecciona una carpeta que\ncontenga los archivos sin\nmodificar extraídos del juego.\n\nPuedes obtener los archivos\nde tu disco duro de Xbox\nsiguiendo las instrucciones de\nla página de GitHub.\n\nPara elegir una copia digital,\nutiliza la opción \"Añadir Archivos\"." },
+			{ ELanguage::Italian,  "Seleziona una cartella che contiene\ni file non modificati che sono stati\nestratti dal gioco.\n\nQuesti file possono essere ottenuti\ndall'hard drive della tua Xbox\nseguendo le istruzioni\nsulla pagina GitHub.\n\nPer selezionare una copia digitale\nusa l'opzione \"Aggiungi file\"." }
 		}
 	},
 	{
@@ -906,6 +906,28 @@ std::unordered_map<std::string_view, std::unordered_map<ELanguage, std::string>>
 			{ ELanguage::French,   "Changer" },
 			{ ELanguage::Spanish,  "Cambiar" },
 			{ ELanguage::Italian,  "Cambia" }
+		}
+	},
+	{
+		"Common_File",
+		{
+			{ ELanguage::English,  "File" },
+			{ ELanguage::Japanese, "ファイル" },
+			{ ELanguage::German,   "Datei" },
+			{ ELanguage::French,   "Fichier" },
+			{ ELanguage::Spanish,  "Archivo" },
+			{ ELanguage::Italian,  "File" }
+		}
+	},
+	{
+		"Common_Install",
+		{
+			{ ELanguage::English,  "Install" },
+			{ ELanguage::Japanese, "インストール" },
+			{ ELanguage::German,   "Installieren" },
+			{ ELanguage::French,   "Installer" },
+			{ ELanguage::Spanish,  "Instalar" },
+			{ ELanguage::Italian,  "Installa" }
 		}
 	}
 };
