@@ -2108,6 +2108,9 @@ static void BeginCommandList()
 
 	g_backBuffer->layout = RenderTextureLayout::UNKNOWN;
 
+	// Below is commented out as it was causing Stage1 textures to render as null for a few frames under certain camera angles
+	// See https://github.com/FoxWorkshop/ShadowRecomp/issues/31
+	/*
 	for (size_t i = 0; i < 16; i++)
 	{
 		g_sharedConstants.texture2DIndices[i] = TEXTURE_DESCRIPTOR_NULL_TEXTURE_2D;
@@ -2116,7 +2119,8 @@ static void BeginCommandList()
 	}
 
 	memset(g_textures, 0, sizeof(g_textures));
-
+	*/
+	
 	/**if (Config::GITextureFiltering == EGITextureFiltering::Bicubic)
 		g_pipelineState.specConstants |= SPEC_CONSTANT_BICUBIC_GI_FILTER;
 	else*/
