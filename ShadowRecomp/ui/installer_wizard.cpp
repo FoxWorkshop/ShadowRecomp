@@ -66,6 +66,10 @@ static constexpr double CONTAINER_INNER_DURATION = 15.0;
 static constexpr double ALL_ANIMATIONS_FULL_DURATION = CONTAINER_INNER_TIME + CONTAINER_INNER_DURATION;
 static constexpr double QUITTING_EXTRA_DURATION = 60.0;
 
+static constexpr float fontSize = 24.0f;
+static constexpr float smallFontSize = 16.0f;
+static constexpr float descFontSize = 20.0f;
+
 constexpr float CONTAINER_X = 253.0f;
 constexpr float CONTAINER_Y = 100.f;
 constexpr float CONTAINER_WIDTH = 526.5f;
@@ -365,6 +369,74 @@ static void DrawLanguagePicker()
 
 }
 
+static void DrawNextButton(ImVec2 &panelMin, ImVec2 &panelMax)
+{
+
+	auto& io = ImGui::GetIO();	
+	auto drawList = ImGui::GetBackgroundDrawList();
+	auto& displaySize = io.DisplaySize;
+	auto* font = ImGui::GetFont();
+
+	float nextBtnWidth = 100;
+	float nextBtnHeight = 36;
+	float nextBtnX = panelMax.x - nextBtnWidth - Scale(10);
+	float nextBtnY = panelMax.y - nextBtnHeight - Scale(10);
+
+	bool nextHovered = false;
+	if (io.MousePos.x >= nextBtnX && io.MousePos.x <= nextBtnX + nextBtnWidth &&
+		io.MousePos.y >= nextBtnY && io.MousePos.y <= nextBtnY + nextBtnHeight)
+	{
+		nextHovered = true;
+	}
+
+	ImU32 nextColor = nextHovered ? IM_COL32(0, 128, 0, 255) : IM_COL32(0, 108, 0, 255);
+	drawList->AddRectFilled(ImVec2(nextBtnX, nextBtnY), ImVec2(nextBtnX + nextBtnWidth, nextBtnY + nextBtnHeight), nextColor, 6.0f);
+
+	auto nextText = Localise("Common_Next").c_str();
+	auto nextSize = font->CalcTextSizeA(smallFontSize, FLT_MAX, 0, nextText);
+	drawList->AddText(font, smallFontSize, ImVec2(nextBtnX + (nextBtnWidth - nextSize.x) * 0.5f, nextBtnY + 9), IM_COL32(255, 200, 200, 255), nextText);
+
+	if (nextHovered && io.MouseClicked[0])
+	{
+		g_currentPage = (WizardPage)((int)g_currentPage + 1);
+	}
+
+}
+
+static void DrawPrevButton(ImVec2 &panelMin, ImVec2 &panelMax)
+{
+
+	auto& io = ImGui::GetIO();	
+	auto drawList = ImGui::GetBackgroundDrawList();
+	auto& displaySize = io.DisplaySize;
+	auto* font = ImGui::GetFont();
+
+	float prevBtnWidth = 100;
+	float prevBtnHeight = 36;
+	float prevBtnX = panelMin.x + Scale(10);
+	float prevBtnY = panelMax.y - prevBtnHeight - Scale(10);
+
+	bool prevHovered = false;
+	if (io.MousePos.x >= prevBtnX && io.MousePos.x <= prevBtnX + prevBtnWidth &&
+		io.MousePos.y >= prevBtnY && io.MousePos.y <= prevBtnY + prevBtnHeight)
+	{
+		prevHovered = true;
+	}
+
+	ImU32 prevColor = prevHovered ? IM_COL32(235, 0, 0, 255) : IM_COL32(200, 0, 0, 255);
+	drawList->AddRectFilled(ImVec2(prevBtnX, prevBtnY), ImVec2(prevBtnX + prevBtnWidth, prevBtnY + prevBtnHeight), prevColor, 6.0f);
+
+	auto prevText = Localise("Common_Back").c_str();
+	auto prevSize = font->CalcTextSizeA(smallFontSize, FLT_MAX, 0, prevText);
+	drawList->AddText(font, smallFontSize, ImVec2(prevBtnX + (prevBtnWidth - prevSize.x) * 0.5f, prevBtnY + 9), IM_COL32(255, 200, 200, 255), prevText);
+
+	if (prevHovered && io.MouseClicked[0])
+	{
+		g_currentPage = (WizardPage)((int)g_currentPage - 1);
+	}
+
+}
+
 void InstallerWizard::Init()
 {
 }
@@ -382,9 +454,7 @@ void InstallerWizard::Draw()
 	drawList->AddRectFilled(ImVec2(0, 0), displaySize, IM_COL32(20, 20, 30, 255));
 
 	auto* font = ImGui::GetFont();
-	float fontSize = 24.0f;
-	float smallFontSize = 16.0f;
-	float descFontSize = 20.0f;
+
 
 	float centerX = displaySize.x * 0.5f;
 	float centerY = displaySize.y * 0.5f;
@@ -424,13 +494,15 @@ void InstallerWizard::Draw()
 	case WizardPage::SelectLanguage:
 	{
 
-		DrawLanguagePicker();
+		//DrawLanguagePicker();
+
+
+		DrawNextButton(panelMin, panelMax);
 
 		float quitBtnWidth = 100;
 		float quitBtnHeight = 36;
-		float quitBtnX = panelMax.x - quitBtnWidth - 20;
-		float quitBtnY = panelMax.y - quitBtnHeight - 25;
-
+		float quitBtnX = panelMin.x + Scale(10);
+		float quitBtnY = panelMax.y - quitBtnHeight - Scale(10);
 		bool quitHovered = false;
 		if (io.MousePos.x >= quitBtnX && io.MousePos.x <= quitBtnX + quitBtnWidth &&
 			io.MousePos.y >= quitBtnY && io.MousePos.y <= quitBtnY + quitBtnHeight)
@@ -455,32 +527,8 @@ void InstallerWizard::Draw()
 	break;
 	case WizardPage::Introduction:
 	{
-
-		float okBtnWidth = 100;
-		float okBtnHeight = 36;
-		float okBtnX = panelMax.x - okBtnWidth - 20;
-		float okBtnY = panelMax.y - okBtnHeight - 25;
-
-		bool okHovered = false;
-		if (io.MousePos.x >= okBtnX && io.MousePos.x <= okBtnX + okBtnWidth &&
-			io.MousePos.y >= okBtnY && io.MousePos.y <= okBtnY + okBtnHeight)
-		{
-			okHovered = true;
-		}
-
-		ImU32 okColor = okHovered ? IM_COL32(140, 50, 50, 255) : IM_COL32(100, 30, 30, 255);
-		drawList->AddRectFilled(ImVec2(okBtnX, okBtnY), ImVec2(okBtnX + okBtnWidth, okBtnY + okBtnHeight), okColor, 6.0f);
-
-		auto okText = Localise("Common_Ok").c_str();
-		auto okSize = font->CalcTextSizeA(smallFontSize, FLT_MAX, 0, okText);
-		drawList->AddText(font, smallFontSize, ImVec2(okBtnX + (okBtnWidth - okSize.x) * 0.5f, okBtnY + 9), IM_COL32(255, 200, 200, 255), okText);
-
-		if (okHovered && io.MouseClicked[0])
-		{
-			g_currentPage = WizardPage::SelectISO;
-
-		}
-
+		DrawPrevButton(panelMin, panelMax);
+		DrawNextButton(panelMin, panelMax);
 
 	}
 	break;
@@ -567,7 +615,7 @@ void InstallerWizard::Draw()
 			}
 		}
 
-
+		DrawPrevButton(panelMin, panelMax);
 	}
 	break;
 	case WizardPage::Installing:
@@ -751,7 +799,7 @@ void InstallerWizard::Shutdown()
 		g_installerThread->join();
 	g_installerThread.reset();
 
-	g_currentPage = WizardPage::Introduction;
+	g_currentPage = WizardPage::SelectLanguage;
 	g_isoPath.clear();
 	g_statusMessage.clear();
 	g_installerFinished.store(false);
@@ -763,7 +811,7 @@ bool InstallerWizard::Run(std::filesystem::path installPath)
 {
 	g_installPath = installPath / "game";
 	g_isQuitting = false;
-	g_currentPage = WizardPage::Introduction;
+	g_currentPage = WizardPage::SelectLanguage;
 
 	EmbeddedPlayer::Init();
 	NFD_Init();
