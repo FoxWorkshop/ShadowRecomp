@@ -1889,7 +1889,7 @@ static void CreateImGuiBackend()
 
 
 	ButtonGuide::Init();
-	//InstallerWizard::Init();
+	InstallerWizard::Init();
 	OptionsMenu::Init();
 	MessageWindow::Init();
 

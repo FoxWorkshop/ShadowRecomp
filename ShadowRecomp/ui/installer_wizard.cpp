@@ -16,6 +16,8 @@
 #include <chrono>
 #include <exports.h>
 #include <patches/aspect_ratio_patches.h>
+#include <gpu/imgui/imgui_snapshot.h>
+
 
 enum class WizardPage
 {
@@ -42,6 +44,7 @@ enum ButtonColumn
 	ButtonColumnRight
 };
 
+static ImFont* g_fntSeurat;
 static constexpr double SCANLINES_ANIMATION_TIME = 0.0;
 static constexpr double SCANLINES_ANIMATION_DURATION = 15.0;
 
@@ -271,7 +274,7 @@ static void DrawButton(ImVec2 min, ImVec2 max, const char* buttonText, bool sour
 
 	DrawButtonContainer(min, max, baser, baseg, alpha);
 
-	ImFont* font = ImGui::GetFont();
+	ImFont* font = g_fntSeurat;
 	float size = Scale(sourceButton ? 12.5f : 16.0f);
 	float squashRatio;
 	ImVec2 textSize = ComputeTextSize(font, buttonText, size, squashRatio, Scale(maxTextWidth));
@@ -375,7 +378,7 @@ static void DrawNextButton(ImVec2 &panelMin, ImVec2 &panelMax)
 	auto& io = ImGui::GetIO();	
 	auto drawList = ImGui::GetBackgroundDrawList();
 	auto& displaySize = io.DisplaySize;
-	auto* font = ImGui::GetFont();
+	auto* font = g_fntSeurat;
 
 	float nextBtnWidth = 100;
 	float nextBtnHeight = 36;
@@ -409,7 +412,7 @@ static void DrawPrevButton(ImVec2 &panelMin, ImVec2 &panelMax)
 	auto& io = ImGui::GetIO();	
 	auto drawList = ImGui::GetBackgroundDrawList();
 	auto& displaySize = io.DisplaySize;
-	auto* font = ImGui::GetFont();
+	auto* font = g_fntSeurat;
 
 	float prevBtnWidth = 100;
 	float prevBtnHeight = 36;
@@ -439,6 +442,7 @@ static void DrawPrevButton(ImVec2 &panelMin, ImVec2 &panelMax)
 
 void InstallerWizard::Init()
 {
+	g_fntSeurat = ImFontAtlasSnapshot::GetFont("FOT-SeuratPro-DB.otf");
 }
 
 void InstallerWizard::Draw()
@@ -453,7 +457,7 @@ void InstallerWizard::Draw()
 
 	drawList->AddRectFilled(ImVec2(0, 0), displaySize, IM_COL32(20, 20, 30, 255));
 
-	auto* font = ImGui::GetFont();
+	auto* font = g_fntSeurat;
 
 
 	float centerX = displaySize.x * 0.5f;
