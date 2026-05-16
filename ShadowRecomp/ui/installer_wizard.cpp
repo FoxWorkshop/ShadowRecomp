@@ -64,16 +64,16 @@ static constexpr double CONTAINER_OUTER_TIME = SCANLINES_ANIMATION_DURATION + CO
 static constexpr double CONTAINER_OUTER_DURATION = 23.0;
 
 static constexpr double CONTAINER_INNER_TIME = SCANLINES_ANIMATION_DURATION + CONTAINER_LINE_ANIMATION_DURATION + 8.0;
-static constexpr double CONTAINER_INNER_DURATION = 15.0;
+static constexpr double CONTAINER_INNER_DURATION = 10.f;
 
 static constexpr double ALL_ANIMATIONS_FULL_DURATION = CONTAINER_INNER_TIME + CONTAINER_INNER_DURATION;
 static constexpr double QUITTING_EXTRA_DURATION = 60.0;
 
-static constexpr float fontSize = 24.0f;
-static constexpr float smallFontSize = 16.0f;
-static constexpr float descFontSize = 20.0f;
+static float fontSize = 24.0f;
+static float smallFontSize = 16.0f;
+static float descFontSize = 20.0f;
 
-constexpr float CONTAINER_X = 253.0f;
+constexpr float CONTAINER_X = 153.0f;
 constexpr float CONTAINER_Y = 100.f;
 constexpr float CONTAINER_WIDTH = 526.5f;
 constexpr float CONTAINER_HEIGHT = 246.0f;
@@ -88,6 +88,7 @@ constexpr float BUTTON_TEXT_GAP = 28.0f;
 
 static double g_appearTime = 0.0;
 static double g_disappearTime = DBL_MAX;
+
 
 static WizardPage g_currentPage = WizardPage::SelectLanguage;
 static std::string g_currentMessagePrompt = "";
@@ -248,9 +249,17 @@ static ImVec2 ComputeTextSize(ImFont* font, const char* text, float size, float&
 
 	return textSize;
 }
-static void DrawButton(ImVec2 min, ImVec2 max, const char* buttonText, bool sourceButton, bool buttonEnabled, bool& buttonPressed, float maxTextWidth = FLT_MAX, bool makeDefault = false)
+
+static int g_selectedBtn = -1;
+static void DrawButton(ImVec2 min, ImVec2 max, const char* buttonText, bool sourceButton, int i, bool buttonEnabled, bool& buttonPressed, float maxTextWidth = FLT_MAX, bool makeDefault = false)
 {
 	buttonPressed = false;
+
+	if (i == 0 && g_selectedBtn == -1)
+	{
+		buttonPressed = true;
+		buttonEnabled = true;
+	}
 
 	auto& res = ImGui::GetIO().DisplaySize;
 	auto drawList = ImGui::GetBackgroundDrawList();
@@ -259,18 +268,27 @@ static void DrawButton(ImVec2 min, ImVec2 max, const char* buttonText, bool sour
 	{
 		alpha *= 0.5f;
 	}
+	auto& io = ImGui::GetIO();
+	bool btnHovered = false;
+
+	if (io.MousePos.x >= min.x && io.MousePos.x <= max.x &&
+		io.MousePos.y >= min.y && io.MousePos.y <= max.y)
+	{
+		btnHovered = true;
+
+	}
+
+
+	if (btnHovered && io.MouseClicked[0])
+	{
+		Game_PlaySound("cursor");
+		buttonPressed = true;
+		g_selectedBtn = i;
+	}
 
 	int baser = 0;
 	int baseg = 0;
-	if (g_currentMessagePrompt.empty() && !g_currentPickerVisible && !sourceButton && buttonEnabled && (alpha >= 1.0f))
-	{
-		bool cursorOnButton = PushCursorRect(min, max, buttonPressed, makeDefault);
-		if (cursorOnButton)
-		{
-			baser = 48;
-			baseg = 32;
-		}
-	}
+
 
 	DrawButtonContainer(min, max, baser, baseg, alpha);
 
@@ -289,29 +307,25 @@ static void DrawButton(ImVec2 min, ImVec2 max, const char* buttonText, bool sour
 
 	SetOrigin({ min.x + textSize.x / 2.0f, min.y });
 	SetScale({ squashRatio, 1.0f });
-	SetGradient
-	(
-		min,
-		{ min.x + textSize.x, min.y + textSize.y },
-		IM_COL32(baser + 192, 255, 0, 255),
-		IM_COL32(baser + 128, baseg + 170, 0, 255)
-	);
+
+
 
 	DrawTextWithOutline
 	(
 		font,
 		size,
 		min,
-		IM_COL32(255, 255, 255, 255 * alpha),
+		buttonPressed || btnHovered || buttonEnabled ? IM_COL32(255, 255, 255, 255) : IM_COL32(102, 0, 0, 255),
 		buttonText,
 		4,
-		IM_COL32(baser, baseg, 0, 255 * alpha)
+		IM_COL32(baser, baseg, 0, 255)
 	);
 
 	ResetGradient();
 	SetScale({ 1.0f, 1.0f });
 	SetOrigin({ 0.0f, 0.0f });
 }
+
 
 static void InstallerThread()
 {
@@ -359,17 +373,11 @@ static void DrawLanguagePicker()
 		ImVec2 min = { minX, g_aspectRatioOffsetY + Scale(CONTAINER_Y + CONTAINER_HEIGHT - CONTAINER_BUTTON_GAP - BUTTON_HEIGHT - minusY) };
 		ImVec2 max = { maxX, g_aspectRatioOffsetY + Scale(CONTAINER_Y + CONTAINER_HEIGHT - CONTAINER_BUTTON_GAP - minusY) };
 
-		auto lightSize = Scale(14);
-
-		DrawButton(min, max, LANGUAGE_TEXT[i], false, true, buttonPressed, FLT_MAX, LANGUAGE_ENUM[i] == ELanguage::English);
-		// DrawToggleLight({ min.x + lightSize, min.y + ((max.y - min.y) - lightSize) / 2 + Scale(1) }, Config::Language == LANGUAGE_ENUM[i], alphaMotion);
+		DrawButton(min, max, LANGUAGE_TEXT[i], false, i, i == g_selectedBtn, buttonPressed, FLT_MAX, LANGUAGE_ENUM[i] == ELanguage::English);
 
 		if (buttonPressed)
 			Config::Language = LANGUAGE_ENUM[i];
 	}
-
-
-
 }
 
 static void DrawNextButton(ImVec2 &panelMin, ImVec2 &panelMax)
@@ -401,6 +409,7 @@ static void DrawNextButton(ImVec2 &panelMin, ImVec2 &panelMax)
 
 	if (nextHovered && io.MouseClicked[0])
 	{
+		Game_PlaySound("decide");
 		g_currentPage = (WizardPage)((int)g_currentPage + 1);
 	}
 
@@ -435,6 +444,7 @@ static void DrawPrevButton(ImVec2 &panelMin, ImVec2 &panelMax)
 
 	if (prevHovered && io.MouseClicked[0])
 	{
+		Game_PlaySound("decide");
 		g_currentPage = (WizardPage)((int)g_currentPage - 1);
 	}
 
@@ -458,12 +468,15 @@ void InstallerWizard::Draw()
 	drawList->AddRectFilled(ImVec2(0, 0), displaySize, IM_COL32(20, 20, 30, 255));
 
 	auto* font = g_fntSeurat;
+	smallFontSize = 14.f;
+	fontSize = Scale(16.0f);
+	descFontSize = Scale(14.0f);
 
 
 	float centerX = displaySize.x * 0.5f;
 	float centerY = displaySize.y * 0.5f;
-	float panelWidth = 600.0f + Scale(15.0f);
-	float panelHeight = 400.0f + Scale(15.0f);
+	float panelWidth = displaySize.x * 0.7f;
+	float panelHeight = displaySize.y * 0.6f;
 	float panelX = centerX - panelWidth * 0.5f;
 	float panelY = displaySize.y * 0.5f - panelHeight * 0.5f;
 
@@ -487,7 +500,6 @@ void InstallerWizard::Draw()
 
 	if (g_currentPage != WizardPage::Installing)
 	{
-		auto instrSize = font->CalcTextSizeA(descFontSize, panelWidth - 40, 0, descriptionText);
 		drawList->AddText(font, descFontSize, ImVec2(panelX + 20, contentY), IM_COL32(200, 200, 200, 255), descriptionText, nullptr, panelWidth - 40);
 	}
 
@@ -498,7 +510,7 @@ void InstallerWizard::Draw()
 	case WizardPage::SelectLanguage:
 	{
 
-		//DrawLanguagePicker();
+		DrawLanguagePicker();
 
 
 		DrawNextButton(panelMin, panelMax);
@@ -576,6 +588,7 @@ void InstallerWizard::Draw()
 
 		if (btnHovered && io.MouseClicked[0])
 		{
+			Game_PlaySound("cursor");
 			g_browseClicked = true;
 		}
 
@@ -610,6 +623,7 @@ void InstallerWizard::Draw()
 
 			if (nextHovered && io.MouseClicked[0])
 			{
+				Game_PlaySound("decide");
 				g_currentPage = WizardPage::Installing;
 				g_installerFinished.store(false);
 				g_installerFailed.store(false);
@@ -718,6 +732,7 @@ void InstallerWizard::Draw()
 
 		if (playHovered && io.MouseClicked[0])
 		{
+			Game_PlaySound("decide");
 			s_isVisible = false;
 		}
 
