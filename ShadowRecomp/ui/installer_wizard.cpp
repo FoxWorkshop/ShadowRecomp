@@ -79,8 +79,7 @@ constexpr float CONTAINER_WIDTH = 526.5f;
 constexpr float CONTAINER_HEIGHT = 246.0f;
 constexpr float SIDE_CONTAINER_WIDTH = CONTAINER_WIDTH / 2.0f;
 
-constexpr float BOTTOM_X_GAP = 4.0f;
-constexpr float BOTTOM_Y_GAP = 5.0f;
+
 constexpr float CONTAINER_BUTTON_WIDTH = 250.0f;
 constexpr float CONTAINER_BUTTON_GAP = 9.0f;
 constexpr float BUTTON_HEIGHT = 22.0f;
@@ -88,7 +87,7 @@ constexpr float BUTTON_TEXT_GAP = 28.0f;
 
 static double g_appearTime = 0.0;
 static double g_disappearTime = DBL_MAX;
-
+static int g_selectedBtn = -1;
 
 static WizardPage g_currentPage = WizardPage::SelectLanguage;
 static std::string g_currentMessagePrompt = "";
@@ -217,24 +216,34 @@ static void DrawButtonContainer(ImVec2 min, ImVec2 max, int baser, int baseg, fl
 }
 
 
-static void ComputeButtonColumnCoordinates(ButtonColumn buttonColumn, float& minX, float& maxX)
+static void ComputeButtonColumnCoordinates(ButtonColumn buttonColumn, ImVec2 panelMin, ImVec2 panelMax,
+	float& minX, float& maxX)
 {
+
+	float panelWidth = panelMax.x - panelMin.x;
+
+	// Scale button width proportionally to panel, with a cap so it
+	// doesn't get absurdly wide on large panels.
+	float buttonWidth = std::min(panelWidth * 0.38f, Scale(CONTAINER_BUTTON_WIDTH));
+	float gap = panelWidth * 0.04f; // ~4% margin from edges
+
 	switch (buttonColumn)
 	{
 	case ButtonColumnLeft:
-		minX = g_aspectRatioOffsetX + Scale(CONTAINER_X + CONTAINER_BUTTON_GAP);
-		maxX = g_aspectRatioOffsetX + Scale(CONTAINER_X + CONTAINER_BUTTON_GAP + CONTAINER_BUTTON_WIDTH);
+		minX = panelMin.x + gap;
+		maxX = panelMin.x + gap + buttonWidth;
 		break;
 	case ButtonColumnMiddle:
-		minX = g_aspectRatioOffsetX + Scale(CONTAINER_X + CONTAINER_WIDTH / 2.0f - CONTAINER_BUTTON_WIDTH / 2.0f);
-		maxX = g_aspectRatioOffsetX + Scale(CONTAINER_X + CONTAINER_WIDTH / 2.0f + CONTAINER_BUTTON_WIDTH / 2.0f);
+		minX = panelMin.x + panelWidth * 0.5f - buttonWidth * 0.5f;
+		maxX = panelMin.x + panelWidth * 0.5f + buttonWidth * 0.5f;
 		break;
 	case ButtonColumnRight:
-		minX = g_aspectRatioOffsetX + Scale(CONTAINER_X + CONTAINER_WIDTH - CONTAINER_BUTTON_GAP - CONTAINER_BUTTON_WIDTH);
-		maxX = g_aspectRatioOffsetX + Scale(CONTAINER_X + CONTAINER_WIDTH - CONTAINER_BUTTON_GAP);
+		minX = panelMax.x - gap - buttonWidth;
+		maxX = panelMax.x - gap;
 		break;
 	}
 }
+
 static ImVec2 ComputeTextSize(ImFont* font, const char* text, float size, float& squashRatio, float maxTextWidth = FLT_MAX)
 {
 	ImVec2 textSize = font->CalcTextSizeA(size, FLT_MAX, 0.0f, text);
@@ -250,7 +259,7 @@ static ImVec2 ComputeTextSize(ImFont* font, const char* text, float size, float&
 	return textSize;
 }
 
-static int g_selectedBtn = -1;
+
 static void DrawButton(ImVec2 min, ImVec2 max, const char* buttonText, bool sourceButton, int i, bool buttonEnabled, bool& buttonPressed, float maxTextWidth = FLT_MAX, bool makeDefault = false)
 {
 	buttonPressed = false;
@@ -357,23 +366,42 @@ static void InstallerThread()
 	g_installerFinished.store(true);
 }
 
-static void DrawLanguagePicker()
+static void DrawLanguagePicker(ImVec2 panelMin, ImVec2 panelMax)
 {
 	bool buttonPressed = false;
 
-	float alphaMotion = ComputeMotionInstaller(g_appearTime, g_disappearTime, CONTAINER_INNER_TIME, CONTAINER_INNER_DURATION);
-	float minX, maxX;
+	float panelWidth = panelMax.x - panelMin.x;
+	float panelHeight = panelMax.y - panelMin.y;
 
+	float buttonWidth = std::min(panelWidth * 0.38f, Scale(CONTAINER_BUTTON_WIDTH));
+	float buttonH = Scale(BUTTON_HEIGHT);
+	float gap = panelWidth * 0.08f;
+
+
+	float bottomMargin = panelHeight * 0.25f;
+	float rowStride = buttonH + Scale(CONTAINER_BUTTON_GAP);
+
+	float leftMinX = panelMin.x + gap;
+	float leftMaxX = leftMinX + buttonWidth;
+	float rightMinX = panelMax.x - gap - buttonWidth;
+	float rightMaxX = panelMax.x - gap;
 
 	for (int i = 0; i < 6; i++)
 	{
-		ComputeButtonColumnCoordinates((i < 3) ? ButtonColumnLeft : ButtonColumnRight, minX, maxX);
+		float minX = (i < 3) ? leftMinX : rightMinX;
+		float maxX = (i < 3) ? leftMaxX : rightMaxX;
 
-		float minusY = (CONTAINER_BUTTON_GAP + BUTTON_HEIGHT) * (float(i % 3));
-		ImVec2 min = { minX, g_aspectRatioOffsetY + Scale(CONTAINER_Y + CONTAINER_HEIGHT - CONTAINER_BUTTON_GAP - BUTTON_HEIGHT - minusY) };
-		ImVec2 max = { maxX, g_aspectRatioOffsetY + Scale(CONTAINER_Y + CONTAINER_HEIGHT - CONTAINER_BUTTON_GAP - minusY) };
 
-		DrawButton(min, max, LANGUAGE_TEXT[i], false, i, i == g_selectedBtn, buttonPressed, FLT_MAX, LANGUAGE_ENUM[i] == ELanguage::English);
+		float minusY = rowStride * float(i % 3);
+		float btnMaxY = panelMax.y - bottomMargin - minusY;
+		float btnMinY = btnMaxY - buttonH;
+
+		ImVec2 min = { minX, btnMinY };
+		ImVec2 max = { maxX, btnMaxY };
+
+		DrawButton(min, max, LANGUAGE_TEXT[i], false, i,
+			i == g_selectedBtn, buttonPressed, FLT_MAX,
+			LANGUAGE_ENUM[i] == ELanguage::English);
 
 		if (buttonPressed)
 			Config::Language = LANGUAGE_ENUM[i];
@@ -510,7 +538,7 @@ void InstallerWizard::Draw()
 	case WizardPage::SelectLanguage:
 	{
 
-		DrawLanguagePicker();
+		DrawLanguagePicker(panelMin, panelMax);
 
 
 		DrawNextButton(panelMin, panelMax);
