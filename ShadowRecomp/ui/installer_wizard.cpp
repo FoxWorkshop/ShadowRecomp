@@ -126,7 +126,6 @@ static std::string& GetWizardText(WizardPage page)
 	case WizardPage::SelectISO: return Localise("Installer_Page_SelectGame");
 	case WizardPage::Installing: return Localise("Installer_Page_Installing");
 	case WizardPage::InstallSucceeded: return Localise("Installer_Page_InstallSucceeded");
-	case WizardPage::InstallFailed: return Localise("Installer_Page_InstallFailed");
 	}
 
 	return g_localeMissing;
@@ -497,9 +496,7 @@ void InstallerWizard::Draw()
 	drawList->AddRectFilled(ImVec2(0, 0), displaySize, IM_COL32(20, 20, 30, 255));
 
 	auto* font = g_fntSeurat;
-	smallFontSize = 14.f;
-	fontSize = Scale(16.0f);
-	descFontSize = Scale(14.0f);
+
 
 
 	float centerX = displaySize.x * 0.5f;
@@ -508,6 +505,13 @@ void InstallerWizard::Draw()
 	float panelHeight = displaySize.y * 0.6f;
 	float panelX = centerX - panelWidth * 0.5f;
 	float panelY = displaySize.y * 0.5f - panelHeight * 0.5f;
+
+	float baseFontSize = std::floor(std::min(panelWidth, panelHeight) / 22.0f);
+	fontSize = baseFontSize;
+	descFontSize = std::floor(baseFontSize);
+	smallFontSize = std::floor(baseFontSize * 0.80f);
+
+
 
 	ImVec2 panelMin(panelX, panelY);
 	ImVec2 panelMax(panelX + panelWidth, panelY + panelHeight);
@@ -518,21 +522,17 @@ void InstallerWizard::Draw()
 	auto titleText = "Shadow the Hedgehog Recompiled - Setup";
 	auto titleSize = font->CalcTextSizeA(fontSize + 2.f, FLT_MAX, 0, titleText);
 	float titleX = centerX - titleSize.x * 0.5f;
-	drawList->AddText(font, fontSize + 2.f, ImVec2(titleX, panelY + 25), IM_COL32(220, 220, 255, 255), titleText);
+	drawList->AddText(font, fontSize, ImVec2(titleX, panelY + 25), IM_COL32(220, 220, 255, 255), titleText);
 
 	float contentY = panelY + 80;
 
 	char descriptionText[512];
-	//char requiredSpaceText[128];
-	//char availableSpaceText[128];
 	strncpy(descriptionText, GetWizardText(g_currentPage).c_str(), sizeof(descriptionText) - 1);
 
-	if (g_currentPage != WizardPage::Installing)
+	if (g_currentPage != WizardPage::Installing && g_currentPage != WizardPage::InstallFailed)
 	{
 		drawList->AddText(font, descFontSize, ImVec2(panelX + 20, contentY), IM_COL32(200, 200, 200, 255), descriptionText, nullptr, panelWidth - 40);
 	}
-
-
 
 	switch (g_currentPage)
 	{
@@ -632,8 +632,8 @@ void InstallerWizard::Draw()
 		{
 			float nextBtnWidth = 160;
 			float nextBtnHeight = 40;
-			float nextBtnX = centerX - nextBtnWidth * 0.5f;
-			float nextBtnY = panelMax.y - nextBtnHeight - 25;
+			float nextBtnX = panelMax.x - nextBtnWidth - Scale(10);
+			float nextBtnY = panelMax.y - nextBtnHeight - Scale(10);
 
 			bool nextHovered = false;
 			if (io.MousePos.x >= nextBtnX && io.MousePos.x <= nextBtnX + nextBtnWidth &&
@@ -773,7 +773,7 @@ void InstallerWizard::Draw()
 		contentY += 50;
 
 		const char* errorMsg = g_installerErrorMessage.empty() ? Localise("Installer_Page_InstallFailed").c_str() : g_installerErrorMessage.c_str();
-		drawList->AddText(font, smallFontSize, ImVec2(panelX + 20, contentY), IM_COL32(255, 180, 180, 255), errorMsg, nullptr, panelWidth - 40);
+		drawList->AddText(font, descFontSize, ImVec2(panelX + 20, contentY), IM_COL32(255, 180, 180, 255), errorMsg, nullptr, panelWidth - 40);
 
 		float retryBtnWidth = 120;
 		float retryBtnHeight = 40;
