@@ -71,7 +71,7 @@ static constexpr double QUITTING_EXTRA_DURATION = 60.0;
 
 static float fontSize = 24.0f;
 static float smallFontSize = 16.0f;
-static float descFontSize = 20.0f;
+static float descFontSize = 18.0f;
 
 constexpr float CONTAINER_X = 153.0f;
 constexpr float CONTAINER_Y = 100.f;
@@ -264,7 +264,8 @@ static void DrawButton(ImVec2 min, ImVec2 max, const char* buttonText, bool sour
 {
 	buttonPressed = false;
 
-	if (i == 0 && g_selectedBtn == -1)
+	// default to english
+	if (i == 2 && g_selectedBtn == -1)
 	{
 		buttonPressed = true;
 		buttonEnabled = true;
@@ -324,7 +325,7 @@ static void DrawButton(ImVec2 min, ImVec2 max, const char* buttonText, bool sour
 		font,
 		size,
 		min,
-		buttonPressed || btnHovered || buttonEnabled ? IM_COL32(255, 255, 255, 255) : IM_COL32(102, 0, 0, 255),
+		buttonPressed || btnHovered || buttonEnabled ? IM_COL32(255, 255, 255, 255) : IM_COL32(122, 0, 0, 255),
 		buttonText,
 		4,
 		IM_COL32(baser, baseg, 0, 255)
@@ -431,7 +432,7 @@ static void DrawNextButton(ImVec2 &panelMin, ImVec2 &panelMax)
 	ImU32 nextColor = nextHovered ? IM_COL32(0, 128, 0, 255) : IM_COL32(0, 108, 0, 255);
 	drawList->AddRectFilled(ImVec2(nextBtnX, nextBtnY), ImVec2(nextBtnX + nextBtnWidth, nextBtnY + nextBtnHeight), nextColor, 6.0f);
 
-	auto nextText = Localise("Common_Next").c_str();
+	auto nextText = Localise("Installer_Button_Next").c_str();
 	auto nextSize = font->CalcTextSizeA(smallFontSize, FLT_MAX, 0, nextText);
 	drawList->AddText(font, smallFontSize, ImVec2(nextBtnX + (nextBtnWidth - nextSize.x) * 0.5f, nextBtnY + 9), IM_COL32(255, 200, 200, 255), nextText);
 
@@ -503,7 +504,7 @@ void InstallerWizard::Draw()
 
 	float centerX = displaySize.x * 0.5f;
 	float centerY = displaySize.y * 0.5f;
-	float panelWidth = displaySize.x * 0.7f;
+	float panelWidth = displaySize.x * 0.6f;
 	float panelHeight = displaySize.y * 0.6f;
 	float panelX = centerX - panelWidth * 0.5f;
 	float panelY = displaySize.y * 0.5f - panelHeight * 0.5f;
@@ -515,9 +516,9 @@ void InstallerWizard::Draw()
 	drawList->AddRect(panelMin, panelMax, IM_COL32(80, 80, 120, 255), 8.0f, 0, 1.0f);
 
 	auto titleText = "Shadow the Hedgehog Recompiled - Setup";
-	auto titleSize = font->CalcTextSizeA(fontSize, FLT_MAX, 0, titleText);
+	auto titleSize = font->CalcTextSizeA(fontSize + 2.f, FLT_MAX, 0, titleText);
 	float titleX = centerX - titleSize.x * 0.5f;
-	drawList->AddText(font, fontSize, ImVec2(titleX, panelY + 25), IM_COL32(220, 220, 255, 255), titleText);
+	drawList->AddText(font, fontSize + 2.f, ImVec2(titleX, panelY + 25), IM_COL32(220, 220, 255, 255), titleText);
 
 	float contentY = panelY + 80;
 
@@ -573,7 +574,6 @@ void InstallerWizard::Draw()
 	{
 		DrawPrevButton(panelMin, panelMax);
 		DrawNextButton(panelMin, panelMax);
-
 	}
 	break;
 	case WizardPage::SelectISO:
@@ -589,7 +589,7 @@ void InstallerWizard::Draw()
 		drawList->AddRectFilled(inputMin, inputMax, IM_COL32(40, 40, 60, 255), 4.0f);
 		drawList->AddRect(inputMin, inputMax, IM_COL32(100, 100, 140, 255), 4.0f, 0, 1.0f);
 
-		const char* displayPath = g_isoPath.empty() ? "No file selected..." : g_isoPath.c_str();
+		const char* displayPath = g_isoPath.empty() ? Localise("Installer_Page_NoFileSelected").c_str() : g_isoPath.c_str();
 		if (strlen(displayPath) > 60)
 		{
 			displayPath = displayPath + strlen(displayPath) - 60;
@@ -610,7 +610,7 @@ void InstallerWizard::Draw()
 
 		ImU32 btnColor = btnHovered ? IM_COL32(80, 80, 140, 255) : IM_COL32(60, 60, 100, 255);
 		drawList->AddRectFilled(ImVec2(btnX, btnY), ImVec2(btnX + btnWidth, btnY + btnHeight), btnColor, 4.0f);
-		auto browseText = "Browse...";
+		auto browseText = Localise("Installer_Header_Browse").c_str();
 		auto browseSize = font->CalcTextSizeA(smallFontSize, FLT_MAX, 0, browseText);
 		drawList->AddText(font, smallFontSize, ImVec2(btnX + (btnWidth - browseSize.x) * 0.5f, btnY + 7), IM_COL32(220, 220, 255, 255), browseText);
 
@@ -646,8 +646,8 @@ void InstallerWizard::Draw()
 			drawList->AddRectFilled(ImVec2(nextBtnX, nextBtnY), ImVec2(nextBtnX + nextBtnWidth, nextBtnY + nextBtnHeight), nextColor, 6.0f);
 
 			auto nextText = Localise("Common_Install").c_str();
-			auto nextSize = font->CalcTextSizeA(fontSize, FLT_MAX, 0, nextText);
-			drawList->AddText(font, fontSize, ImVec2(nextBtnX + (nextBtnWidth - nextSize.x) * 0.5f, nextBtnY + 8), IM_COL32(220, 255, 220, 255), nextText);
+			auto nextSize = font->CalcTextSizeA(smallFontSize, FLT_MAX, 0, nextText);
+			drawList->AddText(font, smallFontSize + 4.f, ImVec2(nextBtnX + (nextBtnWidth - nextSize.x) * 0.5f, nextBtnY + 8), IM_COL32(220, 255, 220, 255), nextText);
 
 			if (nextHovered && io.MouseClicked[0])
 			{
@@ -670,7 +670,7 @@ void InstallerWizard::Draw()
 		const char* headerText = (phase == XisoExtract::Phase::Hashing)
 			? Localise("Installer_Page_Verifying").c_str()
 			: Localise("Installer_Page_Installing").c_str();
-		drawList->AddText(font, smallFontSize, ImVec2(panelX + 20, contentY), IM_COL32(220, 220, 255, 255), headerText);
+		drawList->AddText(font, descFontSize, ImVec2(panelX + 20, contentY), IM_COL32(220, 220, 255, 255), headerText);
 
 		contentY += 50;
 
@@ -754,7 +754,7 @@ void InstallerWizard::Draw()
 		ImU32 playColor = playHovered ? IM_COL32(50, 180, 50, 255) : IM_COL32(30, 140, 30, 255);
 		drawList->AddRectFilled(ImVec2(playBtnX, playBtnY), ImVec2(playBtnX + playBtnWidth, playBtnY + playBtnHeight), playColor, 8.0f);
 
-		auto playText = "Play Game";
+		auto playText = Localise("Installer_Button_PlayGame").c_str();
 		auto playSize = font->CalcTextSizeA(fontSize, FLT_MAX, 0, playText);
 		drawList->AddText(font, fontSize, ImVec2(playBtnX + (playBtnWidth - playSize.x) * 0.5f, playBtnY + 12), IM_COL32(220, 255, 220, 255), playText);
 

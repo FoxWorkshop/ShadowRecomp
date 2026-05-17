@@ -377,6 +377,17 @@ std::unordered_map<std::string_view, std::unordered_map<ELanguage, std::string>>
 		}
 	},
 	{
+		"Installer_Header_Browse",
+		{
+			{ ELanguage::English,  "BROWSE" },
+			{ ELanguage::Japanese, "ブラウズ" },
+			{ ELanguage::German,   "DURCHSUCHEN" },
+			{ ELanguage::French,   "PARCOURIR" },
+			{ ELanguage::Spanish,  "EXPLORAR" },
+			{ ELanguage::Italian,  "ESPLORA" },
+		}
+	},
+	{
 		// Japanese Notes: This localization should include furigana.
 		"Installer_Page_SelectLanguage",
 		{
@@ -410,6 +421,18 @@ std::unordered_map<std::string_view, std::unordered_map<ELanguage, std::string>>
 			{ ELanguage::French,   "Ajouter les fichiers du jeu." },
 			{ ELanguage::Spanish,  "Añade las fuentes para el juego." },
 			{ ELanguage::Italian,  "Aggiungi le fonti per il gioco." }
+		}
+	},
+	{
+		// Japanese Notes: This localization should include furigana.
+		"Installer_Page_NoFileSelected",
+		{
+			{ ELanguage::English,  "No file selected..." },
+			{ ELanguage::Japanese, "ファイルが選択されていません..." },
+			{ ELanguage::German,   "Keine Datei ausgewählt..." },
+			{ ELanguage::French,   "Aucun fichier sélectionné..." },
+			{ ELanguage::Spanish,  "Ningún archivo seleccionado..." },
+			{ ELanguage::Italian,  "Nessun file selezionato..." }
 		}
 	},
 	{
@@ -519,7 +542,7 @@ std::unordered_map<std::string_view, std::unordered_map<ELanguage, std::string>>
 		}
 	},
 	{
-		"Installer_Button_Next",
+		"Installer_Button_Next", // back already exist in common
 		{
 			{ ELanguage::English,  "NEXT" },
 			{ ELanguage::Japanese, "次へ" },
@@ -560,6 +583,17 @@ std::unordered_map<std::string_view, std::unordered_map<ELanguage, std::string>>
 			{ ELanguage::French,   "AJOUTER DES FICHIERS" },
 			{ ELanguage::Spanish,  "AÑADIR ARCHIVOS" },
 			{ ELanguage::Italian,  "AGGIUNGI FILE" }
+		}
+	},
+	{
+		"Installer_Button_PlayGame",
+		{
+			{ ELanguage::English,  "PLAY GAME" },
+			{ ELanguage::Japanese, "ゲームを開始" },
+			{ ELanguage::German,   "SPIEL STARTEN" },
+			{ ELanguage::French,   "JOUER" },
+			{ ELanguage::Spanish,  "JUGAR" },
+			{ ELanguage::Italian,  "GIOCARE" }
 		}
 	},
 	{
@@ -829,17 +863,6 @@ std::unordered_map<std::string_view, std::unordered_map<ELanguage, std::string>>
 			{ ELanguage::French,   "OK" },
 			{ ELanguage::Spanish,  "OK" },
 			{ ELanguage::Italian,  "OK" }
-		}
-	},
-	{
-		"Common_Next",
-		{
-			{ ELanguage::English,  "Next" },
-			{ ELanguage::Japanese, "次へ" },
-			{ ELanguage::German,   "Weiter" },
-			{ ELanguage::French,   "Suivant" },
-			{ ELanguage::Spanish, "Siguiente" },
-			{ ELanguage::Italian,  "Avanti" }
 		}
 	},
 	{
