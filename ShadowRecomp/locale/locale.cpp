@@ -610,14 +610,14 @@ std::unordered_map<std::string_view, std::unordered_map<ELanguage, std::string>>
 	{
 		// Notes: message appears when using the "Add Files" option and choosing any file that is not an Xbox game dump.
 		// Japanese Notes: This localization should include furigana.
-		"Installer_Message_InvalidFilesList",
+		"Installer_Message_InvalidFileSelected",
 		{
-			{ ELanguage::English,  "The following selected files are invalid:" },
-			{ ELanguage::Japanese, "[選択:せんたく]した[次:つぎ]のファイルは[無効:むこう]です：" },
-			{ ELanguage::German,   "Die folgenden Dateien sind ungültig:" },
-			{ ELanguage::French,   "Les fichiers suivants ne sont pas valides :" },
-			{ ELanguage::Spanish,  "Los siguientes archivos no son válidos:" },
-			{ ELanguage::Italian,  "I seguenti file non sono validi:" }
+			{ ELanguage::English,  "The selected file is not a valid Shadow the Hedgehog Xbox ISO.\nPlease provide a valid ISO file." },
+			{ ELanguage::Japanese, "" },
+			{ ELanguage::German,   "" },
+			{ ELanguage::French,   "Le fichier sélectionné n'est pas une image valide de Shadow the Hedgehog pour Xbox.\nVeuillez fournir un fichier ISO valide." },
+			{ ELanguage::Spanish,  "" },
+			{ ELanguage::Italian,  "" }
 		}
 	},
 	{

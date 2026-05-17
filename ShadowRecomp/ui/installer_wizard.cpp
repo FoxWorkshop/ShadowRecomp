@@ -361,7 +361,7 @@ static void InstallerThread()
 	if (!success)
 	{
 		g_installerFailed.store(true);
-		g_installerErrorMessage = "The selected file is not a valid Shadow the Hedgehog Xbox ISO. Only specific known disc images are supported.";
+		g_installerErrorMessage = Localise("Installer_Message_InvalidFileSelected");
 	}
 
 	g_installerFinished.store(true);
@@ -769,9 +769,6 @@ void InstallerWizard::Draw()
 
 	case WizardPage::InstallFailed:
 	{
-		auto failText = "Installation Failed";
-		auto failSize = font->CalcTextSizeA(fontSize, FLT_MAX, 0, failText);
-		drawList->AddText(font, fontSize, ImVec2(centerX - failSize.x * 0.5f, contentY), IM_COL32(255, 100, 100, 255), failText);
 
 		contentY += 50;
 
@@ -793,7 +790,7 @@ void InstallerWizard::Draw()
 		ImU32 retryColor = retryHovered ? IM_COL32(80, 80, 140, 255) : IM_COL32(60, 60, 100, 255);
 		drawList->AddRectFilled(ImVec2(retryBtnX, retryBtnY), ImVec2(retryBtnX + retryBtnWidth, retryBtnY + retryBtnHeight), retryColor, 6.0f);
 
-		auto retryText = "Retry";
+		auto retryText = Localise("Installer_Button_Retry").c_str();
 		auto retrySize = font->CalcTextSizeA(smallFontSize, FLT_MAX, 0, retryText);
 		drawList->AddText(font, smallFontSize, ImVec2(retryBtnX + (retryBtnWidth - retrySize.x) * 0.5f, retryBtnY + 10), IM_COL32(220, 220, 255, 255), retryText);
 
@@ -825,7 +822,7 @@ void InstallerWizard::Draw()
 		ImU32 quitColor = quitHovered ? IM_COL32(140, 50, 50, 255) : IM_COL32(100, 30, 30, 255);
 		drawList->AddRectFilled(ImVec2(quitBtnX, quitBtnY), ImVec2(quitBtnX + quitBtnWidth, quitBtnY + quitBtnHeight), quitColor, 6.0f);
 
-		auto quitText = "Quit";
+		auto quitText = Localise("Common_Quit").c_str();
 		auto quitSize = font->CalcTextSizeA(smallFontSize, FLT_MAX, 0, quitText);
 		drawList->AddText(font, smallFontSize, ImVec2(quitBtnX + (quitBtnWidth - quitSize.x) * 0.5f, quitBtnY + 10), IM_COL32(255, 200, 200, 255), quitText);
 
