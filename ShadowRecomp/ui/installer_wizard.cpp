@@ -690,8 +690,8 @@ void InstallerWizard::Draw()
 		float barX = panelX + 20;
 		float barWidth = panelWidth - 40;
 		float barHeight = 24;
-		ImVec2 barMin(barX, contentY);
-		ImVec2 barMax(barX + barWidth, contentY + barHeight);
+		ImVec2 barMin(barX, centerY);
+		ImVec2 barMax(barX + barWidth, centerY + barHeight);
 
 		float target = g_installerProgressTarget.load();
 		g_installerProgress += (target - g_installerProgress) * 0.1f;
@@ -703,14 +703,14 @@ void InstallerWizard::Draw()
 		float fillWidth = barWidth * std::min(g_installerProgress, 1.0f);
 		if (fillWidth > 0)
 		{
-			ImVec2 fillMax(barX + fillWidth, contentY + barHeight);
+			ImVec2 fillMax(barX + fillWidth, centerY + barHeight);
 			drawList->AddRectFilled(barMin, fillMax, IM_COL32(50, 150, 50, 255), 4.0f);
 		}
 
 		char percentText[32];
 		snprintf(percentText, sizeof(percentText), "%.1f%%", g_installerProgress * 100.0f);
 		auto percentSize = font->CalcTextSizeA(smallFontSize, FLT_MAX, 0, percentText);
-		drawList->AddText(font, smallFontSize, ImVec2(barX + (barWidth - percentSize.x) * 0.5f, contentY + 3), IM_COL32(255, 255, 255, 255), percentText);
+		drawList->AddText(font, smallFontSize, ImVec2(barX + (barWidth - percentSize.x) * 0.5f, centerY + 3), IM_COL32(255, 255, 255, 255), percentText);
 
 		contentY += barHeight + 20;
 
