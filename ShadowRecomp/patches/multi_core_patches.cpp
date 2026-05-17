@@ -256,6 +256,7 @@ X86_FUNC(sub_2B39A0)
 	__imp__sub_2B39A0(ctx, base);
 
 }
+
 std::atomic<bool> aboutToDrawLoading{false};
 X86_FUNC_IMPL(__imp__sub_59BB0);
 X86_FUNC(sub_59BB0)
@@ -264,6 +265,21 @@ X86_FUNC(sub_59BB0)
 	loadingThreadID = GuestThread::GetCurrentThreadId();
 	__imp__sub_59BB0(ctx, base);
 	aboutToDrawLoading = false;
+}
+
+// attempt to fix a rare FMV crash when skipping them (Multi-threads race too)
+X86_FUNC_IMPL(__imp__sub_34AB40);
+X86_FUNC(sub_34AB40)
+{
+	auto a1 = X86_LOAD_U32(ctx.esp.u32 + 4);
+
+	if (!a1)
+	{
+		ctx.esp.u32 += 4;
+		return;
+	}
+
+	__imp__sub_34AB40(ctx, base);
 }
 
 int GetLoadingThreadID()
