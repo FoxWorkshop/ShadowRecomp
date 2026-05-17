@@ -740,8 +740,8 @@ void InstallerWizard::Draw()
 		drawList->AddText(font, fontSize, ImVec2(centerX - foxSize.x * 0.5f, centerY - foxSize.y), IM_COL32(220, 255, 220, 255), foxDev);
 
 
-		float playBtnWidth = 200;
-		float playBtnHeight = 48;
+		float playBtnWidth = 250;
+		float playBtnHeight = 58;
 		float playBtnX = centerX - playBtnWidth * 0.5f;
 		float playBtnY = centerY + playBtnHeight * 0.5f;
 
@@ -755,8 +755,8 @@ void InstallerWizard::Draw()
 		drawList->AddRectFilled(ImVec2(playBtnX, playBtnY), ImVec2(playBtnX + playBtnWidth, playBtnY + playBtnHeight), playColor, 8.0f);
 
 		auto playText = Localise("Installer_Button_PlayGame").c_str();
-		auto playSize = font->CalcTextSizeA(fontSize, FLT_MAX, 0, playText);
-		drawList->AddText(font, fontSize, ImVec2(playBtnX + (playBtnWidth - playSize.x) * 0.5f, playBtnY + 12), IM_COL32(220, 255, 220, 255), playText);
+		auto playSize = font->CalcTextSizeA(descFontSize, FLT_MAX, 0, playText);
+		drawList->AddText(font, descFontSize, ImVec2(playBtnX + (playBtnWidth - playSize.x) * 0.5f, playBtnY + 12), IM_COL32(220, 255, 220, 255), playText);
 
 		if (playHovered && io.MouseClicked[0])
 		{
