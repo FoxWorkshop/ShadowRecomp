@@ -772,7 +772,7 @@ void InstallerWizard::Draw()
 
 		contentY += 50;
 
-		const char* errorMsg = g_installerErrorMessage.empty() ? "An unknown error occurred." : g_installerErrorMessage.c_str();
+		const char* errorMsg = g_installerErrorMessage.empty() ? Localise("Installer_Page_InstallFailed").c_str() : g_installerErrorMessage.c_str();
 		drawList->AddText(font, smallFontSize, ImVec2(panelX + 20, contentY), IM_COL32(255, 180, 180, 255), errorMsg, nullptr, panelWidth - 40);
 
 		float retryBtnWidth = 120;

@@ -487,12 +487,12 @@ std::unordered_map<std::string_view, std::unordered_map<ELanguage, std::string>>
 		// Japanese Notes: This localization should include furigana.
 		"Installer_Page_InstallFailed",
 		{
-			{ ELanguage::English,  "Installation failed.\n\nError: " },
+			{ ELanguage::English,  "Installation failed.\n\nAn unknown error occurred." },
 			{ ELanguage::Japanese, "インストールに[失敗:しっぱい]しました\n\nエラー： " },
-			{ ELanguage::German,   "Installation fehlgeschlagen.\n\nFehler: " },
-			{ ELanguage::French,   "L'installation a échoué.\n\nErreur : " },
-			{ ELanguage::Spanish,  "La instalación falló.\n\nError: " },
-			{ ELanguage::Italian,  "Installazione fallita.\n\nErrore: " }
+			{ ELanguage::German,   "Installation fehlgeschlagen.\n\nEin unbekannter Fehler ist aufgetreten." },
+			{ ELanguage::French,   "L'installation a échoué.\n\nUne erreur inconnue est survenue." },
+			{ ELanguage::Spanish,  "La instalación falló.\n\nOcurrió un error desconocido." },
+			{ ELanguage::Italian,  "Installazione fallita.\n\nSi è verificato un errore sconosciuto." }
 		}
 	},
 	{
