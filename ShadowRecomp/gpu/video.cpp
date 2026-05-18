@@ -941,6 +941,12 @@ static void DestructTempResources()
 
 			const auto surface = reinterpret_cast<GuestSurface*>(resource);
 
+			if (surface->parentTexture != nullptr)
+			{
+				auto& vec = surface->parentTexture->surfaceRTs;
+				vec.erase(std::remove(vec.begin(), vec.end(), surface), vec.end());
+			}
+
 			if (surface->descriptorIndex != NULL)
 			{
 				g_textureDescriptorSet->setTexture(surface->descriptorIndex, nullptr, {});
@@ -2178,7 +2184,27 @@ static void BeginCommandList()
 			for (auto& g_tex : g_pendingTextureResizes)
 			{
 				g_barrierMap.erase(g_tex->texture);
+
+				if (g_tex->isRenderTarget)
+				{
+					for (auto* s : g_tex->surfaceRTs)
+					{
+						s->framebuffers.clear();
+						s->texture = nullptr;
+					}
+				}
+
 				RecreateGuestSurfaceTexture(g_tex, g_tex->isRenderTarget);
+
+				if (g_tex->isRenderTarget)
+				{
+					for (auto* s : g_tex->surfaceRTs)
+					{
+						s->texture = g_tex->texture;
+						s->width = g_tex->width;
+						s->height = g_tex->height;
+					}
+				}
 			}
 
 			if (g_pendingStencilResize)
@@ -4320,6 +4346,9 @@ static GuestSurface* GetSurfaceLevel(GuestTexture* texture, int32_t level, X_D3D
 	surface->guestResource.Format = Format;
 	surface->layout = texture->layout;
 
+	surface->parentTexture = texture;
+	texture->surfaceRTs.push_back(surface);
+
 	return surface;
 }
 
@@ -4577,7 +4606,7 @@ void DestructResourceMidAsmHook(X86Register& esi)
 
 	auto resource = (GuestResource*)g_memory.Translate(esi.u32);
 
-	if (resource->type == ResourceType::Texture)
+	if (resource->type == ResourceType::Texture || resource->type == ResourceType::VolumeTexture)
 	{
 		const auto texture = reinterpret_cast<GuestTexture*>(resource);
 		g_pendingTextureResizes.erase(texture);

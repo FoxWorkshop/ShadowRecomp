@@ -410,7 +410,7 @@ struct GuestTexture : GuestBaseTexture
 	std::unique_ptr<GuestTexture> patchedTexture;
 	std::unique_ptr<GuestTexture> recreatedCubeMapTexture;
 	struct GuestSurface* sourceSurface = nullptr;
-	struct GuestSurface* surfaceRT = nullptr;
+	std::vector<struct GuestSurface*> surfaceRTs;
 	bool isRenderTarget = false;
 };
 
@@ -445,6 +445,7 @@ struct GuestSurface : GuestBaseTexture
 	ankerl::unordered_dense::map<const RenderTexture*, std::unique_ptr<RenderFramebuffer>> framebuffers;
 	RenderSampleCounts sampleCount = RenderSampleCount::COUNT_1;
 	ankerl::unordered_dense::set<GuestTexture*> destinationTextures;
+	GuestTexture* parentTexture = nullptr;
 };
 
 struct _D3DRECT
