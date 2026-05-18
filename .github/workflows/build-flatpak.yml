@@ -24,6 +24,9 @@ jobs:
           submodules: recursive
           token: ${{ secrets.ASSET_REPO_TOKEN }}
 
+      - name: Fetch vcpkg baseline
+        run: git -C thirdparty/vcpkg fetch --depth=1 origin c3867e714dd3a51c272826eea77267876517ed99
+
       - name: Checkout Private Repository
         uses: actions/checkout@v6
         with:
