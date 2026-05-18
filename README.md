@@ -30,13 +30,13 @@ Before reporting any issues, check if they are listed [here](https://github.com/
 ## FAQ
 
 > [!CAUTION]
-> Do not download builds of Shadow Recompiled from anywhere but our [Releases](https://github.com/FoxWorkshop/ShadowRecomp/releases/latest) page.
+> Do not download builds of Shadow Recompiled from anywhere but our [Releases](https://github.com/FoxWorkshop/ShadowRecomp/releases) page.
 >
 > **We will never distribute builds on other websites, via Discord servers or via third-party update tools.**
 
-### Can I install the game with a Gamecube / PS2 copy?
+### Can I install the game using a GameCube / PlayStation 2 version?
 
-**You cannot use the files from the Gamecube and PlayStation 2 version of the game.** Supporting these files would require an entirely new recompilation to handle all the differences.
+**You cannot use the files from the GameCube or PlayStation 2 version of the game.** Supporting these files would require an entirely new recompilation to handle all the differences.
 
 ### What other platforms will be supported?
 

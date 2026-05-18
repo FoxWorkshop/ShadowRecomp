@@ -17,9 +17,7 @@ Copy the file `default.xbe` from the game and place it inside `./ShadowRecompLib
 This file is located in the game's root directory.
 
 > [!TIP]
-> It is recommended that you install the game using [an existing Shadow Recompiled release](https://github.com/FoxWorkshop/ShadowRecomp/releases/latest) to acquire these files, otherwise you'll need to rely on third-party tools to extract them.
->
-> Using the Shadow Recompiled installation wizard will also ensure that these files are compatible with each other so that they can be used with the build environment.
+> It is recommended that you install the game using [an existing Shadow Recompiled release](https://github.com/FoxWorkshop/ShadowRecomp/releases) to acquire this file, otherwise you'll need to rely on third-party tools to extract it.
 
 ## 3. Install Dependencies
 
