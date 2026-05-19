@@ -52,9 +52,13 @@ std::tuple<std::tuple<ImVec2, ImVec2>, GuestTexture*> GetButtonIcon(EButtonIcon 
 
     const bool isAuto = Config::ControllerIcons.Value == EControllerIcons::Auto;
     const bool isGC = Config::ControllerIcons.Value == EControllerIcons::Gamecube;
-    const bool isPS2 = Config::ControllerIcons.Value == EControllerIcons::PlayStation2 || isAuto && input::g_inputDeviceController == input::EInputDevice::PlayStation;
-    const bool isXbox = Config::ControllerIcons.Value == EControllerIcons::Xbox || isAuto && input::g_inputDeviceController == input::EInputDevice::Xbox;
+    bool isXbox = Config::ControllerIcons.Value == EControllerIcons::Xbox || isAuto && input::g_inputDeviceController == input::EInputDevice::Xbox;
 
+    if (isAuto && input::g_inputDeviceController == input::EInputDevice::Unknown)
+    {
+        // Default to Xbox icons if no controller is detected, as they are more universally recognised.
+        isXbox = true;
+	}
 
     auto xOffsetCmn = 0;
     auto yOffsetBtnY = 88;
