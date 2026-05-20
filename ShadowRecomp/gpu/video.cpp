@@ -616,22 +616,14 @@ bool is_vulkan()
 }
 
 
-static std::thread::id g_renderingThreadId = std::this_thread::get_id();
+static std::thread::id g_presentThreadId = std::this_thread::get_id();
 static std::atomic<bool> g_readyForCommands;
 
+//experimental hack to see if this fix the random race issue in the loading thread
 void Guard_Rendering()
 {
-	if (g_renderingThreadId == std::this_thread::get_id())
-		return;
-
 	g_readyForCommands.wait(false);
-	bool expected = true;
-	while (!g_readyForCommands.compare_exchange_strong(expected, false))
-	{
-		expected = true;
-		g_readyForCommands.wait(false);
-	}
-	g_renderingThreadId = std::this_thread::get_id();
+	g_presentThreadId = std::this_thread::get_id();
 }
 
 static ankerl::unordered_dense::map<RenderTexture*, RenderTextureLayout> g_barrierMap;
@@ -2297,7 +2289,6 @@ static void BeginCommandList()
 	commandList->setGraphicsDescriptorSet(g_textureDescriptorSet.get(), 2); //texture cube
 	commandList->setGraphicsDescriptorSet(g_samplerDescriptorSet.get(), 3); //sampler
 
-	g_renderingThreadId = std::thread::id();
 	g_readyForCommands = true;
 	g_readyForCommands.notify_one();
 }
@@ -3727,7 +3718,7 @@ void Video::Present()
 
 	//printf("[GAME THREAD] Present thread id %d - g_frame=%u\n", GetCurrentThreadId(), g_frame);
 
-	Guard_Rendering();
+	g_readyForCommands = false;
 
 	RenderCommand cmd;
 	cmd.type = RenderCommandType::ExecutePendingCopyRectsCommands;
