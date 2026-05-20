@@ -106,7 +106,14 @@ X86_FUNC(sub_28F720)
 X86_FUNC_IMPL(__imp__sub_28F200);
 X86_FUNC(sub_28F200)
 {
-	ctx.AddEsp(1);
+	if (GameMenuCommon::g_LegacyOptions)
+	{
+		__imp__sub_28F200(ctx, base);
+	}
+	else
+	{
+		ctx.AddEsp(1);
+	}
 }
 
 // get next mode to force it to 0 when we quit options 

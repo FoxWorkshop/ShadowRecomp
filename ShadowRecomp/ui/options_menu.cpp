@@ -293,33 +293,12 @@ static void DrawOption
 
 	drawList->AddText(g_fntSeurat, g_fntSeuratSize, titlePos, isHoverOrSelected ? IM_COL32(234, 234, 69, 255) : IM_COL32(255, 255, 255, 255), titleText.c_str());
 
-	/**DrawRubyAnnotatedText
-	(
-		g_fntSeurat,
-		g_fntSeuratSize,
-		max.x / 2,
-		titlePos,
-		5.f,
-		titleText.c_str(),
-
-		[=](const char* str, ImVec2 pos)
-		{
-			DrawTextWithShadow(g_fntSeurat, g_fntSeuratSize, pos, isHover ? IM_COL32(234, 234, 69, 255) : IM_COL32(255, 255, 255, 255), str, 1.f, 0.5f);
-		},
-		[=](const char* str, float size, ImVec2 pos)
-		{
-			// DrawTextWithShadow(g_fntSeurat, size, pos, IM_COL32(255, 255, 255, 255), str, 3.f, 0.5f);
-		},
-
-		true
-		);*/
-
 	SetShaderModifier(IMGUI_SHADER_MODIFIER_NONE);
 
 
 	if (isCurrent)
 	{
-		if ( OptionsMenu::s_flowState == OptionsMenuFlowState::OptionSelected)
+		if (OptionsMenu::s_flowState == OptionsMenuFlowState::OptionSelected)
 		{
 
 			g_optionCurrent = config;
@@ -338,13 +317,6 @@ static void DrawOption
 		}
 	}
 
-
-
-	/*
-	....
-	.....
-
-	*/
 
 
 	if (isCurrent)
@@ -597,7 +569,7 @@ static void DrawOption
 		{
 			auto resScale = round(*(float*)config->GetValue() * 1000) / 1000;
 
-			valueText = fmt::format("{}x{}", 
+			valueText = fmt::format("{}x{}",
 				(int)((float)Video::s_viewportWidth * resScale),
 				(int)((float)Video::s_viewportHeight * resScale));
 
@@ -674,6 +646,130 @@ static void DrawOption
 
 	SetShaderModifier(IMGUI_SHADER_MODIFIER_NONE);
 }
+
+static void DrawGoToLegacyOption
+(
+	int rowIndex,
+	ImVec2 min,
+	ImVec2 max
+)
+{
+	auto drawList = ImGui::GetBackgroundDrawList();
+	auto clipRectMin = drawList->GetClipRectMin();
+	auto clipRectMax = drawList->GetClipRectMax();
+
+	auto optionMotionTime = 1.0f; // ComputeLinearMotion(g_categoryTime, 0, 5, OptionsMenu::s_state != OptionsMenuState::Idle);
+
+	auto optionHeight = Scale(56);
+	float offsetScroll = 0.0f;
+
+	bool isMiddleRow = false;
+	// original offset from the container
+	float optionsOffsetX = Scale(170);
+	float optionsOffsetY = Scale(23);
+
+	// removing offset will make option draw right when the container starts, so we add an extra scale to make it fit inside.
+	min.x -= optionsOffsetX - Scale(10);
+	max.x -= Scale(10);
+
+	// Only scroll if page has more than 3 items.
+	if (g_optionCount > MAX_VISIBLE_ROWS)
+	{
+		isMiddleRow = ((rowIndex - std::max(g_optionIndex - 1, 0)) % MAX_VISIBLE_ROWS) >= 1;
+
+		if (g_optionIndex >= g_optionCount - (MAX_VISIBLE_ROWS - 1))
+		{
+			// Stop scrolling near bottom to use cursor instead.
+			offsetScroll = -(g_optionCount - MAX_VISIBLE_ROWS) * optionHeight;
+			isMiddleRow = ((rowIndex - std::max(g_optionCount - MAX_VISIBLE_ROWS, 0)) % MAX_VISIBLE_ROWS) >= 1;
+		}
+		else if (g_optionIndex >= 1)
+		{
+			// Start scrolling from the middle item.
+			offsetScroll = -(g_optionIndex - 1) * optionHeight;
+		}
+	}
+	else
+	{
+		isMiddleRow = rowIndex >= 1;
+	}
+
+	auto offsetY = optionHeight * rowIndex + offsetScroll;
+	auto isCurrent = g_optionIndex == rowIndex;
+	auto isSelected = isCurrent && OptionsMenu::s_flowState == OptionsMenuFlowState::OptionSelected;
+	auto isHover = isCurrent && OptionsMenu::s_flowState == OptionsMenuFlowState::OptionCursor;
+	bool isHoverOrSelected = isSelected || isHover;
+
+	auto bgEdgeUVs = PIXELS_TO_UV_COORDS(256, 256, 1, 0, 51, 45);
+	auto bgStretchUVs = PIXELS_TO_UV_COORDS(256, 256, 51, 0, 51, 45);
+	auto bgWidth = Scale(50);
+	auto bgHeight = Scale(45);
+
+	ImVec2 titleBgEdgeMin = { min.x, min.y + offsetY };
+	ImVec2 titleBgEdgeMax = { titleBgEdgeMin.x + bgWidth, titleBgEdgeMin.y + bgHeight };
+	ImVec2 titleBgStretchMin = { titleBgEdgeMax.x, titleBgEdgeMin.y };
+	ImVec2 titleBgStretchMax = { max.x, max.y };
+	ImVec2 titleBgFadeMin = { titleBgStretchMax.x - Scale(300), titleBgStretchMax.y };
+	ImVec2 titleBgFadeMax = titleBgStretchMax;
+
+
+	auto titleText = Localise("Options_Name_LegacyMenu");
+	auto titleTextSize = g_fntSeurat->CalcTextSizeA(g_fntSeuratSize, FLT_MAX, 0, titleText.c_str());
+
+	ImVec2 titlePos = { titleBgEdgeMin.x, titleBgEdgeMin.y + Scale(8) };
+
+
+	auto isTitleRightFade = !isMiddleRow && OptionsMenu::s_flowState == OptionsMenuFlowState::OptionCursor;
+
+
+	SetShaderModifier(IMGUI_SHADER_MODIFIER_LOW_QUALITY_TEXT);
+
+	drawList->AddText(g_fntSeurat, g_fntSeuratSize, titlePos, isHoverOrSelected ? IM_COL32(234, 234, 69, 255) : IM_COL32(255, 255, 255, 255), titleText.c_str());
+
+	SetShaderModifier(IMGUI_SHADER_MODIFIER_NONE);
+
+
+	if (isCurrent)
+	{
+
+		if (OptionsMenu::s_flowState == OptionsMenuFlowState::OptionCursor || OptionsMenu::s_flowState == OptionsMenuFlowState::OptionSelected)
+		{
+			optionDescription = Localise("Options_Desc_LegacyMenu");
+		}
+	}
+
+
+	if (isCurrent)
+	{
+		if (CheckAndDiscard(g_isAccepted))
+		{
+			Game_PlaySound("decide");
+
+
+			OptionsMenu::SetFlowState(OptionsMenuFlowState::CategoryCursor);
+			isSelected = true;
+			GameMenuCommon::g_LegacyOptions = true;
+			OptionsMenu::s_GoToLegacyMenu = true;
+		}
+		else if (CheckAndDiscard(g_isDeclined))
+		{
+			Game_PlaySound("cancel");
+
+			OptionsMenu::SetFlowState(OptionsMenuFlowState::OptionCursor);
+
+			isSelected = false;
+		}
+
+	}
+	else
+	{
+		if (CheckAndDiscard(g_isAccepted))
+			Game_PlaySound("cannot_decide");
+	}
+
+	SetShaderModifier(IMGUI_SHADER_MODIFIER_NONE);
+}
+
 
 static void DrawOptions(ImVec2 minClipRect, ImVec2 maxClipRect, ImVec2 min, ImVec2 max)
 {
@@ -762,7 +858,11 @@ static void DrawOptions(ImVec2 minClipRect, ImVec2 maxClipRect, ImVec2 min, ImVe
 	}
 	case OptionsMenuCategory::Misc:
 	{
+		DrawGoToLegacyOption(rowCount++, min, max);
+		if (CheckAndDiscard(g_isAccepted))
+		{
 
+		}
 	}
 
 	}
@@ -906,11 +1006,11 @@ void DrawAnimatedFire(ImVec2 min, ImVec2 max)
 
 	constexpr int frameCount = 4;  // columns 
 	constexpr int rowCount = 4;   // rows 
-	constexpr float frameWidth = 128.f / frameCount;  
+	constexpr float frameWidth = 128.f / frameCount;
 	constexpr float frameHeight = 128.f / rowCount;
 
 
-	constexpr double fps = 24.f; 
+	constexpr double fps = 24.f;
 	int frame = (int)(ImGui::GetTime() * fps) % (frameCount * rowCount);
 
 	// Convert flat frame index to row/col
@@ -1106,6 +1206,7 @@ void OptionsMenu::Draw()
 	case OptionsMenuState::Opening:
 	{
 
+		GameMenuCommon::g_LegacyOptions = false;
 
 		if (t > 0.8f)
 		{
@@ -1169,8 +1270,16 @@ void OptionsMenu::Draw()
 
 		if (tClosing <= 0.2f)
 		{
+			if (GameMenuCommon::g_LegacyOptions == false)
+			{
 
-			GameMenuCommon::ResetNextMode();
+				GameMenuCommon::ResetNextMode();
+			}
+			else
+			{
+				GameMenuCommon::g_OptionsOpen = false;
+			}
+
 			s_isVisible = false;
 		}
 		break;
@@ -1248,9 +1357,10 @@ void OptionsMenu::Draw()
 			g_scrollArrowsTime = g_cursorArrowsTime;
 		}
 
-		if (CheckAndDiscard(g_isDeclined) || CheckAndDiscard(g_isLeaving))
+		if (CheckAndDiscard(g_isDeclined) || CheckAndDiscard(g_isLeaving) || OptionsMenu::s_GoToLegacyMenu == true)
 		{
-			Game_PlaySound("cancel");
+			if (OptionsMenu::s_GoToLegacyMenu == false)
+				Game_PlaySound("cancel");
 
 			g_stateTime = ImGui::GetTime();
 			g_categoryTime = g_stateTime;
@@ -1267,7 +1377,7 @@ void OptionsMenu::Draw()
 			}
 		}
 
-
+		OptionsMenu::s_GoToLegacyMenu = false;
 		break;
 	}
 
@@ -1300,10 +1410,10 @@ void OptionsMenu::Draw()
 	ImVec2 min = { g_horzCentre + g_aspectRatioNarrowMargin, g_vertCentre };
 	ImVec2 max = { res.x - min.x, res.y - min.y };
 
-//	DrawAnimatedFire(min, max);
+	//	DrawAnimatedFire(min, max);
 
 	if (t >= 0.8f)
-	{ 
+	{
 		DrawCategories(min, max);
 		g_isControlsVisible = true;
 	}
@@ -1332,7 +1442,7 @@ void OptionsMenu::Open(bool isPause)
 	g_containerAnimTime = ImGui::GetTime();
 
 	s_isVisible = true;
-
+	s_GoToLegacyMenu = false;
 	// Update stored values for config definitions
 	// to check if their values have changed later.
 	for (auto& def : g_configDefinitions)
@@ -1382,7 +1492,14 @@ void OptionsMenu::Close()
 	if (s_state == OptionsMenuState::Closing)
 		return;
 
-	GameMenuCommon::ResetCurrentMode();
+	if (GameMenuCommon::g_LegacyOptions == false)
+	{
+		GameMenuCommon::ResetCurrentMode();
+	}
+	else
+	{
+		GameMenuCommon::g_nextModeAddr = 0;
+	}
 
 
 	s_state = OptionsMenuState::Closing;

@@ -206,6 +206,30 @@ std::unordered_map<std::string_view, std::unordered_map<ELanguage, std::string>>
 		}
 	},
 	{
+		"Options_Name_LegacyMenu",
+		{
+			{ ELanguage::English,  "Legacy Options" },
+			{ ELanguage::Japanese, "レガシーオプション" },
+			{ ELanguage::German,   "Legacy-Optionen" },
+			{ ELanguage::French,   "Options Héritées" },
+			{ ELanguage::Spanish,  "Opciones Heredadas" },
+			{ ELanguage::Italian,  "Opzioni	Legacy" }
+		}
+	},
+	{
+		// Japanese Notes: This localization should include furigana.
+		"Options_Desc_LegacyMenu",
+		{
+			{ ELanguage::English,  "Go to Legacy Options" },
+			{ ELanguage::Japanese, "レガシーオプションに移動" },
+			{ ELanguage::German,   "Legacy-Optionen aufrufen" },
+			{ ELanguage::French,   "Aller aux options Héritées" },
+			{ ELanguage::Spanish,  "Ir a las opciones Heredadas" },
+			{ ELanguage::Italian,  "Vai alle opzioni Legacy" }
+		}
+	},
+
+	{
 		"Options_Name_WindowSize",
 		{
 			{ ELanguage::English,  "Window Size" },
