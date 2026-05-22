@@ -96,9 +96,8 @@ private:
 
 	int mVolume = 0;
 	int mVolumeLinear = 128;
-	int mPrevVolume = 0;
-	float mPrevVolumeUser = 1; 
-	bool mVolumeChangeFlag = false; // ensure we don't scale volume multiple times
+	float mPrevVolumeUser = 1.f;
+	bool mForceUpdateVolume = false;
 
 	DWORD mPlayFlags = 0;
 	DWORD mG_flags;
@@ -119,6 +118,14 @@ private:
 
 	SourceFormat mSourceFormat;
 
+	enum SourceType {
+		SOURCE_TYPE_SFX,
+		SOURCE_TYPE_MUSIC,
+		SOURCE_TYPE_VOICES
+	};
+
+	SourceType mSourceType;
+
 
 public:
 
@@ -135,6 +142,7 @@ public:
 	int Stop() override;
 	int StopEx(int64_t rtTimeStamp, uint32_t dwFlags) override;
 	int SetVolume(int lVolume) override;
+	void CalcVolumeLinear() override;
 	int GetVolumeLinear() const { return mVolumeLinear; }
 
 	int SetFrequency(int lFrequency) override;
@@ -230,7 +238,7 @@ void SHTHR_SOUNDBUFFER_Impl::SetFormatTag(xpointer<WAVEFORMATEX> format)
 				this->mFormat = AUDIO_S32;
 				break;
 			}
-
+			mSourceType = SOURCE_TYPE_SFX;
 			break;
 		case WAVE_FORMAT_XBOX_ADPCM:
 			this->mG_flags |= DSE_FLAG_XADPCM;
@@ -336,7 +344,6 @@ float SHTHR_SOUNDBUFFER_Impl::Calculate3DVolume()
 
 	return attenuation;
 }
-
 
 SHTHR_SOUNDBUFFER_Impl::SHTHR_SOUNDBUFFER_Impl(SHTHR_SOUNDDEVICE_Impl* parent, X_DSBUFFERDESC* desc) : mParent(parent)
 {
@@ -694,9 +701,44 @@ PullResult SHTHR_SOUNDBUFFER_Impl::Pull(unsigned char* data, int32_t size)
 
 	result.bytesRead = writesize;
 
+
+
 	float vol3D = (mCaps & XTL_DSBCAPS_CTRL3D)
 		? Calculate3DVolume()
 		: 1.0f;
+
+
+	// if user changed volume settings (sfx already get set with the set volume function)
+
+	if (this->isStreaming)
+	{
+	
+		if (this->mSourceType == SOURCE_TYPE_MUSIC)
+		{
+
+			if (Config::MusicVolume.Value != this->mPrevVolumeUser || mForceUpdateVolume)
+			{
+				CalcVolumeLinear(); // reset volume to its original value so new settings can be apply properly
+				this->mVolumeLinear *= Config::MusicVolume.Value;
+				this->mPrevVolumeUser = Config::MusicVolume.Value;
+				mForceUpdateVolume = false;
+			}
+		}
+		else
+		{
+			if (Config::VoicesVolume.Value != this->mPrevVolumeUser || mForceUpdateVolume)
+			{
+				CalcVolumeLinear(); // reset volume to its original value so new settings can be apply properly
+				this->mVolumeLinear *= Config::VoicesVolume.Value;
+				this->mPrevVolumeUser = Config::VoicesVolume.Value;
+				mForceUpdateVolume = false;
+			}
+		}
+
+
+	}
+
+
 	result.mixVolume = mVolumeLinear * vol3D;
 
 	return result;
@@ -850,25 +892,23 @@ int SHTHR_SOUNDBUFFER_Impl::Play(int dwReserved1, int dwPriority, uint32_t dwFla
 	this->mPlay = true;
 	this->mPlayFlags = dwFlags;
 
-	if (!mVolumeChangeFlag || mPrevVolume != this->mVolumeLinear) // since the game can re use the same buffer, make sure to not scale volume multiple times
+	// this is a fragile solution needed for dynamic volume change
+	// but this is the best I have until we figure out properly how to identify voice and music 
+	if (this->isStreaming)
 	{
 		if (PlayMusic)
 		{
-			this->mVolumeLinear *= Config::MusicVolume.Value;
-			this->mPrevVolumeUser = Config::MusicVolume.Value;
+			mSourceType = SOURCE_TYPE_MUSIC;
 			PlayMusic = false;
+			mForceUpdateVolume = true; // because the game re use same buffer for different sound / music always fire a volume update once.
 		}
-		else // if TObjBGM::Play wasn't used, assume voice is requested
+		else if (mSourceType != SOURCE_TYPE_MUSIC)
 		{
-			this->mVolumeLinear *= Config::VoicesVolume.Value;
-			this->mPrevVolumeUser = Config::VoicesVolume.Value;
+			mSourceType = SOURCE_TYPE_VOICES;
+			mForceUpdateVolume = true;
 		}
-
-		mPrevVolume = this->mVolumeLinear;
-
-
-		mVolumeChangeFlag = true;
 	}
+
 
 	if ((dwFlags & X_DSBPLAY_FROMSTART)) {
 		mBufferReadLoc = 0;
@@ -936,12 +976,18 @@ int SHTHR_SOUNDBUFFER_Impl::SetVolume(int lVolume)
 
 	mVolume = lVolume;
 
+	CalcVolumeLinear();
+
+	return S_OK;
+}
+
+void SHTHR_SOUNDBUFFER_Impl::CalcVolumeLinear()
+{
 	// Convert decibels to linear (0-128 for SDL)
 	// Formula: linear = 128 * 10^(dB/2000)
-	float db = lVolume / 100.0f;  // Convert centibels to decibels
+	float db = mVolume / 100.0f;  // Convert centibels to decibels
 	float linear = powf(10.0f, db / 20.0f);  // dB to linear
 	mVolumeLinear = static_cast<int>(linear * SDL_MIX_MAXVOLUME);  // 0-128
-
 
 	const float volScale = this->GetCaps() & XTL_DSBCAPS_CTRL3D ? SFX_3DVOLUME_SCALE : SFX_VOLUME_SCALE;
 	if (this->isStreaming == false)
@@ -956,8 +1002,6 @@ int SHTHR_SOUNDBUFFER_Impl::SetVolume(int lVolume)
 
 	if (mVolumeLinear > SDL_MIX_MAXVOLUME)
 		mVolumeLinear = SDL_MIX_MAXVOLUME;
-
-	return S_OK;
 }
 
 int SHTHR_SOUNDBUFFER_Impl::SetFrequency(int lFrequency)
@@ -1185,12 +1229,6 @@ SHTHR_SOUNDDEVICE_Impl::SHTHR_SOUNDDEVICE_Impl()
 		LOGFN_UTILITY("Init SDL2 Audio ok\n");
 	}
 }
-
-
-//thread audio can be deleted after
-int adxm_vsyncThread = -1;
-static int adxm_fsThread = -1;
-static int adxm_mwidlThread = -1;
 
 
 
