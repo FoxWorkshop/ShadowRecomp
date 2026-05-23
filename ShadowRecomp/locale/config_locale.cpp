@@ -218,15 +218,16 @@ CONFIG_DEFINE_ENUM_LOCALE(EControllerIcons)
 };
 
 // Japanese Notes: This localization should include furigana.
-CONFIG_DEFINE_LOCALE(VerticalCamera)
+CONFIG_DEFINE_LOCALE(HorizontalCamera)
 {
-    { ELanguage::English, { "Vertical Camera", "Change how the camera moves up and down." } },
-    { ELanguage::Japanese, { "カメラの[上下:じょうげ]", "カメラ[上下:じょうげ]の\u200B[動:うご]く[方向:ほうこう]を\u200B[選択:せんたく]できます" } },
-    { ELanguage::German,   { "Vertikale Kamera", "Ändere wie sich die Kamera nach oben und unten bewegt." } },
-    { ELanguage::French,   { "Caméra verticale", "Modifie la rotation verticale de la caméra." } },
-    { ELanguage::Spanish, { "Cámara vertical", "Cambia cómo se mueve la camara hacia arriba y abajo." } },
-    { ELanguage::Italian,  { "Telecamera verticale", "Modifica come la telecamera si muove su e giù." } }
+    { ELanguage::English, { "Horizontal Camera", "Change how the camera moves left and right." } },
+    { ELanguage::Japanese, { "カメラの[左右:さゆう]", "カメラ[左右:さゆう]の\u200B[動:うご]く[方向:ほうこう]を\u200B[選択:せんたく]できます" } },
+    { ELanguage::German,   { "Horizontale Kamera", "Ändere wie sich die Kamera nach links und rechts bewegt." } },
+    { ELanguage::French,   { "Caméra horizontale", "Modifie la rotation horizontale de la caméra." } },
+    { ELanguage::Spanish,  { "Cámara horizontal", "Cambia cómo se mueve la camara hacia la izquierda y la derecha." } },
+    { ELanguage::Italian,  { "Telecamera orizzontale", "Modifica come la telecamera si muove da sinistra a destra." } }
 };
+
 
 CONFIG_DEFINE_ENUM_LOCALE(ECameraRotationMode)
 {
@@ -273,6 +274,8 @@ CONFIG_DEFINE_ENUM_LOCALE(ECameraRotationMode)
         }
     }
 };
+
+
 
 // Japanese Notes: This localization should include furigana.
 CONFIG_DEFINE_LOCALE(Vibration)
@@ -332,12 +335,12 @@ CONFIG_DEFINE_LOCALE(EffectsVolume)
 // Japanese Notes: This localization should include furigana.
 CONFIG_DEFINE_LOCALE(VoicesVolume)
 {
-    { ELanguage::English, { "Voices Volume", "Adjust the volume for sound effects." } },
-    { ELanguage::Japanese, { "Voices Volume", "Adjust the volume for sound effects." } },
-    { ELanguage::German,   { "Voices Volume", "Adjust the volume for sound effects." } },
+    { ELanguage::English, { "Voices Volume", "Adjust the volume for the voices." } },
+    { ELanguage::Japanese, { "ボイスボリューム", "ボイスボリュームの\u200B[大:おお]きさを\u200B[調整:ちょうせい]できます" } },
+    { ELanguage::German,   { "Stimmenlautstärke", "Passe die Lautstärke der Stimmen an." } },
     { ELanguage::French,   { "Volume des voix", "Réglage du volume des voix." } },
-    { ELanguage::Spanish,  { "Voices Volume", "Adjust the volume for sound effects." } },
-    { ELanguage::Italian,  { "Voices Volume", "Adjust the volume for sound effects." } },
+    { ELanguage::Spanish,  { "Volumen de voces", "Ajusta el volumen de las voces." } },
+    { ELanguage::Italian,  { "Volume delle voci", "Regola il volume delle voci." } },
 };
 
 // Japanese Notes: This localization should include furigana.

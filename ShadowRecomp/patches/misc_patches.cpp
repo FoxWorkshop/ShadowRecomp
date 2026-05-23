@@ -123,3 +123,22 @@ X86_FUNC(sub_2D82E0)
 	}
 	__imp__sub_2D82E0(ctx, base);
 }
+
+static bool shouldSkipMessage = false;
+X86_FUNC_IMPL(__imp__sub_1E5A0);
+X86_FUNC(sub_1E5A0)
+{
+	if (shouldSkipMessage)
+	{
+		ctx.esp.u32 += 12 + 4;
+		shouldSkipMessage = false;
+		return;
+	}
+
+	__imp__sub_1E5A0(ctx, base);
+}
+
+void DisableMessageMidAsmHook()
+{
+	shouldSkipMessage = Config::Subtitles.Value == 0;
+}

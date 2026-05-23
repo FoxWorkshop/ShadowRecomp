@@ -11,7 +11,8 @@
     },
     "directx-dxc",
     "freetype",
-    "curl"
+    "curl",
+    "nativefiledialog-extended"
   ],
   "vcpkg-configuration": {
     "overlay-triplets": [

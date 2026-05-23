@@ -17,10 +17,12 @@ static std::atomic<int> loadingThreadID{0};
 
 XRTL_CRITICAL_SECTION dirtyListLock;
 XRTL_CRITICAL_SECTION csdNodeLock;
+XRTL_CRITICAL_SECTION fmvPtrDataLock;
 void InitPatchesLoadingCriticalSection()
 {
 	RtlInitializeCriticalSection(&dirtyListLock);
 	RtlInitializeCriticalSection(&csdNodeLock);
+	RtlInitializeCriticalSection(&fmvPtrDataLock);
 }
 
 /* --- RwFrame Dirty link list race ---
@@ -256,6 +258,7 @@ X86_FUNC(sub_2B39A0)
 	__imp__sub_2B39A0(ctx, base);
 
 }
+
 std::atomic<bool> aboutToDrawLoading{false};
 X86_FUNC_IMPL(__imp__sub_59BB0);
 X86_FUNC(sub_59BB0)
@@ -264,6 +267,47 @@ X86_FUNC(sub_59BB0)
 	loadingThreadID = GuestThread::GetCurrentThreadId();
 	__imp__sub_59BB0(ctx, base);
 	aboutToDrawLoading = false;
+}
+
+// attempt to fix a rare FMV crash when skipping them (Multi-threads race too)
+X86_FUNC_IMPL(__imp__sub_34AB40);
+X86_FUNC(sub_34AB40)
+{
+	RtlEnterCriticalSection(&fmvPtrDataLock);
+
+	auto a1 = X86_LOAD_U32(ctx.esp.u32 + 4);
+
+	if (!a1)
+	{
+		ctx.esp.u32 += 4;
+		RtlLeaveCriticalSection(&fmvPtrDataLock);
+		return;
+	}
+
+	__imp__sub_34AB40(ctx, base);
+
+	RtlLeaveCriticalSection(&fmvPtrDataLock);
+}
+
+// part 2 
+// MWSFSVR_IsMwsstStatError
+X86_FUNC_IMPL(__imp__sub_34C140);
+X86_FUNC(sub_34C140)
+{
+	RtlEnterCriticalSection(&fmvPtrDataLock);
+
+	auto a1 = X86_LOAD_U32(ctx.esp.u32 + 4);
+
+	if (!a1)
+	{
+		ctx.esp.u32 += 4;
+		RtlLeaveCriticalSection(&fmvPtrDataLock);
+		return;
+	}
+
+	__imp__sub_34C140(ctx, base);
+
+	RtlLeaveCriticalSection(&fmvPtrDataLock);
 }
 
 int GetLoadingThreadID()

@@ -37,11 +37,15 @@ typedef struct _XINPUT_GAMEPAD_OG
     int16_t  sThumbRY;
 } XINPUT_GAMEPAD_OG;
 
-typedef struct _XINPUT_VIBRATION
+struct XboxVibrationPacket
 {
-    int16_t                                wLeftMotorSpeed;
-    int16_t                                wRightMotorSpeed;
-} XINPUT_VIBRATION, * PXINPUT_VIBRATION;
+    uint8_t  pad[64];       
+    uint8_t  commandByte;   
+    uint8_t  seqByte;   
+    uint16_t wLeftMotorSpeed;  
+    uint16_t wRightMotorSpeed; 
+};
+
 
 struct XINPUT_STATE
 {
@@ -87,7 +91,7 @@ namespace input
     void Init();
 
     uint32_t GetState(uint32_t dwUserIndex, XINPUT_STATE* pState);
-    uint32_t SetState(uint32_t dwUserIndex, uint8_t* outPacket);
+    uint32_t SetState(uint32_t dwUserIndex, XboxVibrationPacket* outPacket);
 }
 
 

@@ -139,6 +139,7 @@ set(SHADOW_RECOMP_PATCHES_CXX_SOURCES
     "patches/misc_patches.cpp"
     "patches/multiplayer_mod_patches.cpp"
     "patches/reloaded_mod_patches.cpp"
+    "patches/objects_patches.cpp"
     "patches/titlescreen_patches.cpp"
     "patches/unix_patches.cpp"
 )
@@ -150,13 +151,19 @@ set(SHADOW_RECOMP_USER_CXX_SOURCES
     "user/paths.cpp"
 )
 
+set(SHADOW_RECOMP_INSTALL_CXX_SOURCES
+    "install/xiso_extract.cpp"
+)
+
 set(SHADOW_RECOMP_UI_CXX_SOURCES
     "ui/game_window.cpp"
     "ui/imgui_utils.cpp"
+    "ui/button_guide.cpp"
     "ui/fader.cpp"
     "ui/options_menu.cpp"
     "ui/message_window.cpp"
     "ui/menu_common.cpp"
+    "ui/installer_wizard.cpp"
 )
 
 set(SHADOW_RECOMP_MOD_CXX_SOURCES
@@ -218,6 +225,7 @@ set(SHADOW_RECOMP_CXX_SOURCES
     ${SHADOW_RECOMP_UI_CXX_SOURCES}
     ${SHADOW_RECOMP_USER_CXX_SOURCES}
     ${SHADOW_RECOMP_MOD_CXX_SOURCES}
+    ${SHADOW_RECOMP_INSTALL_CXX_SOURCES}
     ${SHADOW_RECOMP_THIRDPARTY_SOURCES}
 )
 
@@ -290,6 +298,7 @@ endif()
 
 #find_package(directx-dxc REQUIRED)
 find_package(CURL REQUIRED)
+find_package(nfd REQUIRED)
 
 include(FetchContent)
 
@@ -351,6 +360,7 @@ target_link_libraries(ShadowRecomp PRIVATE
     plume
     XShaderRecompLib
     nlohmann_json::nlohmann_json
+    nfd::nfd
 )
 
 
@@ -438,15 +448,16 @@ set(RESOURCES_OUTPUT_PATH "${PROJECT_SOURCE_DIR}/res")
 ## Miscellaneous ##
 BIN2C(TARGET_OBJ ShadowRecomp SOURCE_FILE "${RESOURCES_SOURCE_PATH}/font/im_font_atlas.bin" DEST_FILE "${RESOURCES_OUTPUT_PATH}/font/im_font_atlas.bin" ARRAY_NAME "g_im_font_atlas" COMPRESSION_TYPE "zstd")
 BIN2C(TARGET_OBJ ShadowRecomp SOURCE_FILE "${RESOURCES_SOURCE_PATH}/font/im_font_atlas.png" DEST_FILE "${RESOURCES_OUTPUT_PATH}/font/im_font_atlas.png" ARRAY_NAME "g_im_font_atlas_texture" COMPRESSION_TYPE "zstd")
-BIN2C(TARGET_OBJ ShadowRecomp SOURCE_FILE "${RESOURCES_SOURCE_PATH}/images/common/gamemenu.png" DEST_FILE "${RESOURCES_OUTPUT_PATH}/images/common/gamemenu.png" ARRAY_NAME "g_controller" COMPRESSION_TYPE "zstd")
+BIN2C(TARGET_OBJ ShadowRecomp SOURCE_FILE "${RESOURCES_SOURCE_PATH}/images/common/gamemenu.png" DEST_FILE "${RESOURCES_OUTPUT_PATH}/images/common/gamemenu.png" ARRAY_NAME "g_gameMenuText" COMPRESSION_TYPE "zstd")
 BIN2C(TARGET_OBJ ShadowRecomp SOURCE_FILE "${RESOURCES_SOURCE_PATH}/images/common/Options.png" DEST_FILE "${RESOURCES_OUTPUT_PATH}/images/common/Options.png" ARRAY_NAME "g_optionsText" COMPRESSION_TYPE "zstd")
 BIN2C(TARGET_OBJ ShadowRecomp SOURCE_FILE "${RESOURCES_SOURCE_PATH}/images/common/Options2.png" DEST_FILE "${RESOURCES_OUTPUT_PATH}/images/common/Options2.png" ARRAY_NAME "g_optionsIcons" COMPRESSION_TYPE "zstd")
 BIN2C(TARGET_OBJ ShadowRecomp SOURCE_FILE "${RESOURCES_SOURCE_PATH}/images/common/TitleBg.png" DEST_FILE "${RESOURCES_OUTPUT_PATH}/images/common/TitleBg.png" ARRAY_NAME "g_options_bg" COMPRESSION_TYPE "zstd")
+BIN2C(TARGET_OBJ ShadowRecomp SOURCE_FILE "${RESOURCES_SOURCE_PATH}/images/common/controllerBtn.png" DEST_FILE "${RESOURCES_OUTPUT_PATH}/images/common/controllerBtn.png" ARRAY_NAME "g_controller" COMPRESSION_TYPE "zstd")
 
 ## Game Icon ##
 BIN2C(TARGET_OBJ ShadowRecomp SOURCE_FILE "${RESOURCES_SOURCE_PATH}/images/game_icon.bmp" DEST_FILE "${RESOURCES_OUTPUT_PATH}/images/game_icon.bmp" ARRAY_NAME "g_game_icon")
 
-## Audio ##
+## Audio #
 BIN2C(TARGET_OBJ ShadowRecomp SOURCE_FILE "${RESOURCES_SOURCE_PATH}/music/installer.ogg" DEST_FILE "${RESOURCES_OUTPUT_PATH}/music/installer.ogg" ARRAY_NAME "g_installer_music")
 BIN2C(TARGET_OBJ ShadowRecomp SOURCE_FILE "${RESOURCES_SOURCE_PATH}/sounds/sys_menu_ok.ogg" DEST_FILE "${RESOURCES_OUTPUT_PATH}/sounds/sys_menu_ok.ogg" ARRAY_NAME "g_sys_menu_ok")
 BIN2C(TARGET_OBJ ShadowRecomp SOURCE_FILE "${RESOURCES_SOURCE_PATH}/sounds/sys_menu_cursor.ogg" DEST_FILE "${RESOURCES_OUTPUT_PATH}/sounds/sys_menu_cursor.ogg" ARRAY_NAME "g_sys_menu_cursor")

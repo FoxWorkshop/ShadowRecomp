@@ -1,74 +1,74 @@
 // This file gets included in both config.h and config.cpp, with their own macros changing
 // the preprocessed output. The header is only going to have the declarations this way.
 
-CONFIG_DEFINE_ENUM_LOCALISED("System", ELanguage, Language, ELanguage::English);
-CONFIG_DEFINE_ENUM_LOCALISED("System", EVoiceLanguage, VoiceLanguage, EVoiceLanguage::English);
-CONFIG_DEFINE_LOCALISED("System", bool, Subtitles, true);
-CONFIG_DEFINE_LOCALISED("System", bool, Hints, true);
-CONFIG_DEFINE_LOCALISED("System", bool, AchievementNotifications, true);
-CONFIG_DEFINE_LOCALISED("System", bool, EnablePartnerIntro, true);
-CONFIG_DEFINE("System", bool, ShowConsole, false);
+CONFIG_DEFINE_ENUM_LOCALISED("System", ELanguage, Language, ELanguage::English, true);
+CONFIG_DEFINE_ENUM_LOCALISED("System", EVoiceLanguage, VoiceLanguage, EVoiceLanguage::English, true);
+CONFIG_DEFINE_LOCALISED("System", bool, Subtitles, true, false);
+CONFIG_DEFINE_LOCALISED("System", bool, Hints, true, false);
+CONFIG_DEFINE_LOCALISED("System", bool, AchievementNotifications, true, false);
+CONFIG_DEFINE_LOCALISED("System", bool, EnablePartnerIntro, true, false);
+CONFIG_DEFINE("System", bool, ShowConsole, false, false);
 
+CONFIG_DEFINE_ENUM_LOCALISED("Input", ECameraRotationMode, HorizontalCamera, ECameraRotationMode::Normal, false);
+CONFIG_DEFINE_LOCALISED("Input", bool, Vibration, true, false);
+CONFIG_DEFINE_LOCALISED("Input", bool, AllowBackgroundInput, false, false);
+CONFIG_DEFINE_ENUM_LOCALISED("Input", EControllerIcons, ControllerIcons, EControllerIcons::Auto, false);
 
-CONFIG_DEFINE_LOCALISED("Input", bool, Vibration, true);
-CONFIG_DEFINE_LOCALISED("Input", bool, AllowBackgroundInput, false);
-CONFIG_DEFINE_ENUM_LOCALISED("Input", EControllerIcons, ControllerIcons, EControllerIcons::Auto);
+CONFIG_DEFINE_ENUM("Bindings", SDL_Scancode, Key_A, SDL_SCANCODE_X, false);
+CONFIG_DEFINE_ENUM("Bindings", SDL_Scancode, Key_B, SDL_SCANCODE_C, false);
+CONFIG_DEFINE_ENUM("Bindings", SDL_Scancode, Key_X, SDL_SCANCODE_Z, false);
+CONFIG_DEFINE_ENUM("Bindings", SDL_Scancode, Key_Y, SDL_SCANCODE_S, false);
+CONFIG_DEFINE_ENUM("Bindings", SDL_Scancode, Key_DPadUp, SDL_SCANCODE_UNKNOWN, false);
+CONFIG_DEFINE_ENUM("Bindings", SDL_Scancode, Key_DPadDown, SDL_SCANCODE_UNKNOWN, false);
+CONFIG_DEFINE_ENUM("Bindings", SDL_Scancode, Key_DPadLeft, SDL_SCANCODE_UNKNOWN, false);
+CONFIG_DEFINE_ENUM("Bindings", SDL_Scancode, Key_DPadRight, SDL_SCANCODE_UNKNOWN, false);
+CONFIG_DEFINE_ENUM("Bindings", SDL_Scancode, Key_Start, SDL_SCANCODE_RETURN, false);
+CONFIG_DEFINE_ENUM("Bindings", SDL_Scancode, Key_Back, SDL_SCANCODE_BACKSPACE, false);
+CONFIG_DEFINE_ENUM("Bindings", SDL_Scancode, Key_LeftTrigger, SDL_SCANCODE_D, false);
+CONFIG_DEFINE_ENUM("Bindings", SDL_Scancode, Key_RightTrigger, SDL_SCANCODE_F, false);
+CONFIG_DEFINE_ENUM("Bindings", SDL_Scancode, Key_LeftBumper, SDL_SCANCODE_Q, false);
+CONFIG_DEFINE_ENUM("Bindings", SDL_Scancode, Key_RightBumper, SDL_SCANCODE_W, false);
+CONFIG_DEFINE_ENUM("Bindings", SDL_Scancode, Key_LeftStickUp, SDL_SCANCODE_UP, false);
+CONFIG_DEFINE_ENUM("Bindings", SDL_Scancode, Key_LeftStickDown, SDL_SCANCODE_DOWN, false);
+CONFIG_DEFINE_ENUM("Bindings", SDL_Scancode, Key_LeftStickLeft, SDL_SCANCODE_LEFT, false);
+CONFIG_DEFINE_ENUM("Bindings", SDL_Scancode, Key_LeftStickRight, SDL_SCANCODE_RIGHT, false);
+CONFIG_DEFINE_ENUM("Bindings", SDL_Scancode, Key_RightStickUp, SDL_SCANCODE_UNKNOWN, false);
+CONFIG_DEFINE_ENUM("Bindings", SDL_Scancode, Key_RightStickDown, SDL_SCANCODE_UNKNOWN, false);
+CONFIG_DEFINE_ENUM("Bindings", SDL_Scancode, Key_RightStickLeft, SDL_SCANCODE_UNKNOWN, false);
+CONFIG_DEFINE_ENUM("Bindings", SDL_Scancode, Key_RightStickRight, SDL_SCANCODE_UNKNOWN, false);
 
-CONFIG_DEFINE_ENUM("Bindings", SDL_Scancode, Key_A, SDL_SCANCODE_X);
-CONFIG_DEFINE_ENUM("Bindings", SDL_Scancode, Key_B, SDL_SCANCODE_C);
-CONFIG_DEFINE_ENUM("Bindings", SDL_Scancode, Key_X, SDL_SCANCODE_Z);
-CONFIG_DEFINE_ENUM("Bindings", SDL_Scancode, Key_Y, SDL_SCANCODE_S);
-CONFIG_DEFINE_ENUM("Bindings", SDL_Scancode, Key_DPadUp, SDL_SCANCODE_UNKNOWN);
-CONFIG_DEFINE_ENUM("Bindings", SDL_Scancode, Key_DPadDown, SDL_SCANCODE_UNKNOWN);
-CONFIG_DEFINE_ENUM("Bindings", SDL_Scancode, Key_DPadLeft, SDL_SCANCODE_UNKNOWN);
-CONFIG_DEFINE_ENUM("Bindings", SDL_Scancode, Key_DPadRight, SDL_SCANCODE_UNKNOWN);
-CONFIG_DEFINE_ENUM("Bindings", SDL_Scancode, Key_Start, SDL_SCANCODE_RETURN);
-CONFIG_DEFINE_ENUM("Bindings", SDL_Scancode, Key_Back, SDL_SCANCODE_BACKSPACE);
-CONFIG_DEFINE_ENUM("Bindings", SDL_Scancode, Key_LeftTrigger, SDL_SCANCODE_D);
-CONFIG_DEFINE_ENUM("Bindings", SDL_Scancode, Key_RightTrigger, SDL_SCANCODE_F);
-CONFIG_DEFINE_ENUM("Bindings", SDL_Scancode, Key_LeftBumper, SDL_SCANCODE_Q);
-CONFIG_DEFINE_ENUM("Bindings", SDL_Scancode, Key_RightBumper, SDL_SCANCODE_W);
-CONFIG_DEFINE_ENUM("Bindings", SDL_Scancode, Key_LeftStickUp, SDL_SCANCODE_UP);
-CONFIG_DEFINE_ENUM("Bindings", SDL_Scancode, Key_LeftStickDown, SDL_SCANCODE_DOWN);
-CONFIG_DEFINE_ENUM("Bindings", SDL_Scancode, Key_LeftStickLeft, SDL_SCANCODE_LEFT);
-CONFIG_DEFINE_ENUM("Bindings", SDL_Scancode, Key_LeftStickRight, SDL_SCANCODE_RIGHT);
-CONFIG_DEFINE_ENUM("Bindings", SDL_Scancode, Key_RightStickUp, SDL_SCANCODE_UNKNOWN);
-CONFIG_DEFINE_ENUM("Bindings", SDL_Scancode, Key_RightStickDown, SDL_SCANCODE_UNKNOWN);
-CONFIG_DEFINE_ENUM("Bindings", SDL_Scancode, Key_RightStickLeft, SDL_SCANCODE_UNKNOWN);
-CONFIG_DEFINE_ENUM("Bindings", SDL_Scancode, Key_RightStickRight, SDL_SCANCODE_UNKNOWN);
-
-CONFIG_DEFINE_LOCALISED("Audio", float, MasterVolume, 1.0f);
-CONFIG_DEFINE_LOCALISED("Audio", float, MusicVolume, 1.0f);
-CONFIG_DEFINE_LOCALISED("Audio", float, EffectsVolume, 0.5f);
-CONFIG_DEFINE_LOCALISED("Audio", float, VoicesVolume, 1.0f);
+CONFIG_DEFINE_LOCALISED("Audio", float, MasterVolume, 1.0f, false);
+CONFIG_DEFINE_LOCALISED("Audio", float, MusicVolume, 1.0f, false);
+CONFIG_DEFINE_LOCALISED("Audio", float, EffectsVolume, 0.5f, false);
+CONFIG_DEFINE_LOCALISED("Audio", float, VoicesVolume, 1.0f, false);
 //CONFIG_DEFINE_ENUM_LOCALISED("Audio", EChannelConfiguration, ChannelConfiguration, EChannelConfiguration::Stereo);
 //CONFIG_DEFINE_LOCALISED("Audio", bool, MusicAttenuation, false);
 
 
-CONFIG_DEFINE("Video", std::string, GraphicsDevice, "");
-CONFIG_DEFINE_ENUM("Video", EGraphicsAPI, GraphicsAPI, EGraphicsAPI::Auto);
-CONFIG_DEFINE("Video", int32_t, WindowX, WINDOWPOS_CENTRED);
-CONFIG_DEFINE("Video", int32_t, WindowY, WINDOWPOS_CENTRED);
-CONFIG_DEFINE_LOCALISED("Video", int32_t, WindowSize, -1);
-CONFIG_DEFINE("Video", int32_t, WindowWidth, 640);
-CONFIG_DEFINE("Video", int32_t, WindowHeight, 480);
-CONFIG_DEFINE_ENUM("Video", EWindowState, WindowState, EWindowState::Normal);
-CONFIG_DEFINE_LOCALISED("Video", int32_t, Monitor, 0);
-CONFIG_DEFINE_ENUM_LOCALISED("Video", EAspectRatio, AspectRatio, EAspectRatio::Auto);
-CONFIG_DEFINE_LOCALISED("Video", float, ResolutionScale, 1.0f);
-CONFIG_DEFINE_LOCALISED("Video", bool, Fullscreen, true);
-CONFIG_DEFINE_LOCALISED("Video", bool, VSync, true);
-CONFIG_DEFINE_ENUM("Video", ETripleBuffering, TripleBuffering, ETripleBuffering::Auto);
-CONFIG_DEFINE_LOCALISED("Video", int32_t, FPS, 60);
-CONFIG_DEFINE("Video", bool, ShowFPS, false);
-CONFIG_DEFINE("Video", bool, Enable2PLite, false);
-CONFIG_DEFINE("Video", uint32_t, MaxFrameLatency, 2);
-CONFIG_DEFINE_LOCALISED("Video", float, Brightness, 0.5f);
-CONFIG_DEFINE_ENUM_LOCALISED("Video", EAntiAliasing, AntiAliasing, EAntiAliasing::MSAA4x);
+CONFIG_DEFINE("Video", std::string, GraphicsDevice, "", true);
+CONFIG_DEFINE_ENUM("Video", EGraphicsAPI, GraphicsAPI, EGraphicsAPI::Auto, true);
+CONFIG_DEFINE("Video", int32_t, WindowX, WINDOWPOS_CENTRED, false);
+CONFIG_DEFINE("Video", int32_t, WindowY, WINDOWPOS_CENTRED, false);
+CONFIG_DEFINE_LOCALISED("Video", int32_t, WindowSize, -1, true);
+CONFIG_DEFINE("Video", int32_t, WindowWidth, 640, false);
+CONFIG_DEFINE("Video", int32_t, WindowHeight, 480, false);
+CONFIG_DEFINE_ENUM("Video", EWindowState, WindowState, EWindowState::Normal, false);
+CONFIG_DEFINE_LOCALISED("Video", int32_t, Monitor, 0, false);
+CONFIG_DEFINE_ENUM_LOCALISED("Video", EAspectRatio, AspectRatio, EAspectRatio::Auto, false);
+CONFIG_DEFINE_LOCALISED("Video", float, ResolutionScale, 1.0f, false);
+CONFIG_DEFINE_LOCALISED("Video", bool, Fullscreen, true, false);
+CONFIG_DEFINE_LOCALISED("Video", bool, VSync, true, false);
+CONFIG_DEFINE_ENUM("Video", ETripleBuffering, TripleBuffering, ETripleBuffering::Auto, false);
+CONFIG_DEFINE_LOCALISED("Video", int32_t, FPS, 60, false);
+CONFIG_DEFINE("Video", bool, ShowFPS, false, false);
+CONFIG_DEFINE("Video", bool, Enable2PLite, false, false);
+CONFIG_DEFINE("Video", uint32_t, MaxFrameLatency, 2, false);
+CONFIG_DEFINE_LOCALISED("Video", float, Brightness, 0.5f, false);
+CONFIG_DEFINE_ENUM_LOCALISED("Video", EAntiAliasing, AntiAliasing, EAntiAliasing::MSAA4x, false);
 //CONFIG_DEFINE_LOCALISED("Video", bool, TransparencyAntiAliasing, true);
-CONFIG_DEFINE("Video", uint32_t, AnisotropicFiltering, 16);
-CONFIG_DEFINE_ENUM_LOCALISED("Video", ETextureFiltering, TextureFiltering, ETextureFiltering::Auto);
-CONFIG_DEFINE_LOCALISED("Video", float, BloomIntensity, 0.7f);
+CONFIG_DEFINE("Video", uint32_t, AnisotropicFiltering, 16, false);
+CONFIG_DEFINE_ENUM_LOCALISED("Video", ETextureFiltering, TextureFiltering, ETextureFiltering::Auto, false);
+CONFIG_DEFINE_LOCALISED("Video", float, BloomIntensity, 0.7f, false);
 
 //CONFIG_DEFINE_ENUM_LOCALISED("Video", EShadowResolution, ShadowResolution, EShadowResolution::x4096);
 
@@ -78,9 +78,9 @@ CONFIG_DEFINE_LOCALISED("Video", float, BloomIntensity, 0.7f);
 //CONFIG_DEFINE_ENUM_LOCALISED("Video", EUIAlignmentMode, UIAlignmentMode, EUIAlignmentMode::Edge);
 
 
-CONFIG_DEFINE_HIDDEN("Codes", bool, SkipIntroLogos, false);
-CONFIG_DEFINE_HIDDEN("Codes", bool, InfiniteLives, false);
-CONFIG_DEFINE_HIDDEN("Codes", bool, AllStagesUnlocked, false);
-CONFIG_DEFINE_HIDDEN("Codes", bool, UseOfficialTitleOnTitleBar, false);
+CONFIG_DEFINE_HIDDEN("Codes", bool, SkipIntroLogos, false, false);
+CONFIG_DEFINE_HIDDEN("Codes", bool, InfiniteLives, false, false);
+CONFIG_DEFINE_HIDDEN("Codes", bool, AllStagesUnlocked, false, false);
+CONFIG_DEFINE_HIDDEN("Codes", bool, UseOfficialTitleOnTitleBar, false, false);
 
-CONFIG_DEFINE("Update", time_t, LastChecked, 0);
+CONFIG_DEFINE("Update", time_t, LastChecked, 0, false);

@@ -160,7 +160,7 @@ void _rpSkinXboxSetMaterialColor(int32_t a1addr, int32_t a2)
 	{
 		g_VSConstants[0] = r;
 		g_VSConstants[1] = g;
-		g_VSConstants[2] = g;
+		g_VSConstants[2] = b;
 	}
 	else
 	{

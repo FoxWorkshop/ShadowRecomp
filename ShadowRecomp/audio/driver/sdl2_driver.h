@@ -37,6 +37,11 @@ public:
 };
 
 
+struct PullResult {
+    int32_t bytesRead = 0;
+    float mixVolume = 0.0f;
+};
+
 class SHTHR_SOUNDBUFFER : public Interface
 {
 public:
@@ -52,6 +57,7 @@ public:
 	virtual int Stop() PURE;
 	virtual int StopEx(int64_t rtTimeStamp, uint32_t dwFlags) PURE;
 	virtual int SetVolume(int lVolume) PURE;
+	virtual void CalcVolumeLinear() PURE;
 	virtual int SetFrequency(int lFrequency) PURE;
 	virtual int SetBufferData(void* pvBufferData, int dwBufferBytes) PURE;
 	virtual int SetLoopRegion(int dwLoopStartOffset, int dwLoopLength) PURE;

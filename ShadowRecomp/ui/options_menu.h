@@ -36,6 +36,7 @@ public:
     static inline bool s_isPause = false;
     static inline bool s_isRestartRequired = false;
     static inline bool s_isDebugUnlocked = false;
+    static inline bool s_GoToLegacyMenu = false;
 
 
     static void Init();
@@ -43,6 +44,7 @@ public:
     static void Open(bool isPause = false);
     static void Close();
 
+    static bool IsRestartRequired();
     static void SetFlowState(OptionsMenuFlowState flowState);
 
     static bool CanClose();

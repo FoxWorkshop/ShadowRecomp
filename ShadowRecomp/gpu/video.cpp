@@ -30,6 +30,7 @@
 #include <memory>
 #include <shader/shader_cache.h>
 #include <ui/imgui_utils.h>
+#include <ui/installer_wizard.h>
 #include <xxHashMap.h>
 #include <patches/multi_core_patches.h>
 
@@ -110,6 +111,7 @@ bool LogVSConstants = false;
 #include <ui/fader.h>
 #include <ui/message_window.h>
 #include <ui/options_menu.h>
+#include <ui/button_guide.h>
 
 
 
@@ -143,7 +145,7 @@ struct PipelineState
 	bool isFixedFunctionPS = false;
 	VertexShaderMode vertexShaderType;
 	GuestVertexDeclaration* vertexDeclaration = nullptr;
-	bool zEnable = true;
+	bool zEnable = false;
 	bool zWriteEnable = true;
 	bool stencilEnable = false;
 	RenderBlend srcBlend = RenderBlend::ONE;
@@ -874,20 +876,16 @@ struct DerivedVertexBuffer
 
 std::unordered_map<GuestBuffer*, std::vector<DerivedVertexBuffer>> VBsList;
 std::vector<GuestResource*> g_tempUnreadyResource; // store VB that weren't ready to be deleted
-
-static ankerl::unordered_dense::set<GuestBaseTexture*> g_pendingSurfaceTextureResize; // used to re create texture during resolution changes for both RT and Stencil
-static ankerl::unordered_dense::set<GuestSurface*> g_pendingSurfaceResize; // used to clear framebuffer of depth stencil and RT
-Mutex g_pendingSurfaceResizeMutex; // the mutex is needed to avoid race issue when multiple thread are trying to access the vector that contains the surfaces.
 std::atomic<bool> g_pendingSurfaceResizeFlag = false; // flag used to trigger RT and Stencil recreation.
 
 //todo figure out this
 static void DestructTempResources()
 {
 	bool valid = false;
-	std::lock_guard lock(g_pendingSurfaceResizeMutex);
 
 	for (auto resource : g_tempResources[g_frame])
 	{
+		valid = false;
 
 		switch (resource->type)
 		{
@@ -898,13 +896,14 @@ static void DestructTempResources()
 
 			if (texture->mappedMemory != nullptr)
 				g_userHeap.Free(texture->mappedMemory);
-
+			
 			g_textureDescriptorAllocator.free(texture->descriptorIndex);
-
+			
 			if (texture->patchedTexture != nullptr)
 				g_textureDescriptorAllocator.free(texture->patchedTexture->descriptorIndex);
-
+			
 			texture->~GuestTexture();*/
+			valid = false;
 			break;
 		}
 
@@ -942,10 +941,10 @@ static void DestructTempResources()
 
 			const auto surface = reinterpret_cast<GuestSurface*>(resource);
 
-			if (g_pendingSurfaceResizeFlag)
+			if (surface->parentTexture != nullptr)
 			{
-				g_tempUnreadyResource.push_back(resource); //we can store the resource to delete it later
-				continue;
+				auto& vec = surface->parentTexture->surfaceRTs;
+				vec.erase(std::remove(vec.begin(), vec.end(), surface), vec.end());
 			}
 
 			if (surface->descriptorIndex != NULL)
@@ -954,7 +953,6 @@ static void DestructTempResources()
 				g_textureDescriptorAllocator.free(surface->descriptorIndex);
 			}
 
-			g_pendingSurfaceResize.erase(surface);
 			surface->~GuestSurface();
 
 			valid = true;
@@ -982,6 +980,8 @@ static void DestructTempResources()
 
 static ankerl::unordered_dense::set<GuestSurface*> g_pendingSurfaceCopies;
 static ankerl::unordered_dense::set<GuestSurface*> g_pendingMsaaResolves;
+static ankerl::unordered_dense::set<GuestTexture*> g_pendingTextureResizes;
+static GuestSurface* g_pendingStencilResize = nullptr; // the game only use one stencil
 
 
 enum class RenderCommandType
@@ -1463,6 +1463,7 @@ static void ProcSetRenderState(const RenderCommand& cmd)
 	case X_D3DRS_ZENABLE:
 	{
 		SetDirtyValue(g_dirtyStates.pipelineState, g_pipelineState.zEnable, value != 0);
+		SetDirtyValue(g_dirtyStates.pipelineState, g_pipelineState.stencilEnable, value != 0);
 		g_dirtyStates.renderTargetAndDepthStencil |= g_dirtyStates.pipelineState;
 		break;
 	}
@@ -1889,10 +1890,12 @@ static void CreateImGuiBackend()
 
 
 	/**AchievementMenu::Init();
-	AchievementOverlay::Init();
-	ButtonGuide::Init();
+	AchievementOverlay::Init();*/
 
-	InstallerWizard::Init();*/
+
+
+	ButtonGuide::Init();
+	InstallerWizard::Init();
 	OptionsMenu::Init();
 	MessageWindow::Init();
 
@@ -2066,16 +2069,16 @@ static void CheckSwapChain()
 
 // since the game has RT that don't always match full resolution (example 512x512 instead of 640x480)
 // we can adapt the math to match this behaviour with user's resolution
-void GetUpscaledSurfaceResolution(uint32_t widthOrigin, uint32_t heightOrigin, uint32_t* widthOut, uint32_t* heightOut)
+void GetUpscaledSurfaceResolution(uint32_t widthOrigin, uint32_t heightOrigin,
+	uint32_t* widthOut, uint32_t* heightOut)
 {
-	float percent = (float)widthOrigin / 640.f;
+	float percentW = (float)widthOrigin / 640.f;
+	float percentH = (float)heightOrigin / 480.f;
+	float resW = percentW * Video::s_viewportWidth * Config::ResolutionScale;
+	float resH = percentH * Video::s_viewportHeight * Config::ResolutionScale;
 
-	auto res = percent * Video::s_viewportWidth * Config::ResolutionScale;
-	*widthOut = res;
-
-	percent = (float)heightOrigin / 480.f;
-	res = percent * Video::s_viewportHeight * Config::ResolutionScale;
-	*heightOut = res;
+	*widthOut = std::max((uint32_t)resW, widthOrigin);
+	*heightOut = std::max((uint32_t)resH, heightOrigin);
 }
 
 // This is needed because uninitialized RT / depth can crash the game under specific windows version if (and only if) VS is installed.
@@ -2116,7 +2119,7 @@ void RecreateGuestSurfaceTexture(GuestBaseTexture* tex, bool isRT)
 			g_initCommandList->discardTexture(tex->textureHolder.get());
 
 			RenderFramebufferDesc fbDesc;
-	
+
 			if (isRT == true)
 			{
 				fbDesc.colorAttachments = const_cast<const RenderTexture**>(&tex->texture);
@@ -2125,7 +2128,7 @@ void RecreateGuestSurfaceTexture(GuestBaseTexture* tex, bool isRT)
 			else
 			{
 				fbDesc.depthAttachment = tex->textureHolder.get();
-				
+
 			}
 
 			auto tempFB = g_device->createFramebuffer(fbDesc);
@@ -2147,9 +2150,15 @@ void RecreateGuestSurfaceTexture(GuestBaseTexture* tex, bool isRT)
 	tex->height = newHeight;
 
 	if (!isRT)
+	{
 		g_textureDescriptorSet->setTexture(tex->descriptorIndex, tex->textureHolder.get(), RenderTextureLayout::DEPTH_WRITE, tex->textureView.get());
+		AddBarrier(tex, RenderTextureLayout::DEPTH_READ);
+	}
 	else
+	{
 		g_textureDescriptorSet->setTexture(tex->descriptorIndex, tex->texture, RenderTextureLayout::SHADER_READ);
+		AddBarrier(tex, RenderTextureLayout::SHADER_READ);
+	}
 }
 
 static void BeginCommandList()
@@ -2170,38 +2179,39 @@ static void BeginCommandList()
 		bool usingIntermediaryTexture = (width != g_swapChain->getWidth()) || (height != g_swapChain->getHeight()) ||
 			(abs(Config::Brightness.Value - 0.5f) > 0.001f) || g_pendingSurfaceResizeFlag;
 
-		// if user requested resolution changes or resized window manually
-		// we have to re create all RT and stencil since the game don't do that automatically
-
 		if (g_pendingSurfaceResizeFlag)
 		{
-			Video::WaitForGPU();  // Fine to wait for GPU, this'll only happen during resize / resolution changes.
-
-			std::lock_guard lock(g_pendingSurfaceResizeMutex); // protect from race issue
-
-			for (auto& surface : g_pendingSurfaceResize) // first browse every collected RT and Depth stencil that are currently used, clear their framebuffer and re create their texture.
+			for (auto& g_tex : g_pendingTextureResizes)
 			{
-				g_barrierMap.erase(surface->texture);
-				surface->wasResized = true;
-				surface->framebuffers.clear();
-				RecreateGuestSurfaceTexture(surface, surface->format != RenderFormat::D32_FLOAT);
+				g_barrierMap.erase(g_tex->texture);
+
+				if (g_tex->isRenderTarget)
+				{
+					for (auto* s : g_tex->surfaceRTs)
+					{
+						s->framebuffers.clear();
+						s->texture = nullptr;
+					}
+				}
+
+				RecreateGuestSurfaceTexture(g_tex, g_tex->isRenderTarget);
+
+				if (g_tex->isRenderTarget)
+				{
+					for (auto* s : g_tex->surfaceRTs)
+					{
+						s->texture = g_tex->texture;
+						s->width = g_tex->width;
+						s->height = g_tex->height;
+					}
+				}
 			}
 
-			for (auto& tex : g_pendingSurfaceTextureResize) // then, we also remake textures from RT that aren't currently used 
+			if (g_pendingStencilResize)
 			{
-				if (tex->wasResized) // the texture was already remade from the loop above we can safely skip it
-					continue;
-
-				g_barrierMap.erase(tex->texture);
-				tex->wasResized = false;
-				RecreateGuestSurfaceTexture(tex, tex->format != RenderFormat::D32_FLOAT);
-			}
-
-			// finally reset all the dirty flags
-
-			for (auto& surface : g_pendingSurfaceResize) 
-			{
-				surface->wasResized = false;
+				g_barrierMap.erase(g_pendingStencilResize->texture);
+				g_pendingStencilResize->framebuffers.clear();
+				RecreateGuestSurfaceTexture(g_pendingStencilResize, false);
 			}
 
 			g_pendingSurfaceResizeFlag = false;
@@ -2241,6 +2251,7 @@ static void BeginCommandList()
 		{
 			g_backBuffer->texture = g_swapChain->getTexture(g_backBufferIndex);
 		}
+
 	}
 	else
 	{
@@ -2249,6 +2260,9 @@ static void BeginCommandList()
 
 	g_backBuffer->layout = RenderTextureLayout::UNKNOWN;
 
+	// Below is commented out as it was causing Stage1 textures to render as null for a few frames under certain camera angles
+	// See https://github.com/FoxWorkshop/ShadowRecomp/issues/31
+	/*
 	for (size_t i = 0; i < 16; i++)
 	{
 		g_sharedConstants.texture2DIndices[i] = TEXTURE_DESCRIPTOR_NULL_TEXTURE_2D;
@@ -2257,7 +2271,8 @@ static void BeginCommandList()
 	}
 
 	memset(g_textures, 0, sizeof(g_textures));
-
+	*/
+	
 	/**if (Config::GITextureFiltering == EGITextureFiltering::Bicubic)
 		g_pipelineState.specConstants |= SPEC_CONSTANT_BICUBIC_GI_FILTER;
 	else*/
@@ -2426,7 +2441,7 @@ bool Video::CreateHostDevice(const char* sdlVideoDriver, bool graphicsApiRetry)
 	g_capabilities = g_device->getCapabilities();
 
 	LoadEmbeddedResources();
-	PrecompileShaders();
+	// PrecompileShaders(); // Temp disabled due until pipeline cache implemented properly
 
 	constexpr uint64_t LowEndMemoryLimit = 2048ULL * 1024ULL * 1024ULL;
 	RenderDeviceDescription deviceDescription = g_device->getDescription();
@@ -3493,12 +3508,13 @@ static void DrawImGui()
 
 	OptionsMenu::Draw();
 	/**AchievementMenu::Draw();
-	AchievementOverlay::Draw();
-	InstallerWizard::Draw();
+	AchievementOverlay::Draw();*/
 
 	ButtonGuide::Draw();
 
-	BlackBar::Draw();*/
+
+	InstallerWizard::Draw();
+	//BlackBar::Draw();
 	MessageWindow::Draw();
 	Fader::Draw();
 
@@ -4054,6 +4070,7 @@ static GuestTexture* CreateTexture(uint32_t width, uint32_t height, uint32_t dep
 		GetUpscaledSurfaceResolution(width, height, &newWidth, &newHeight);
 		width = newWidth;
 		height = newHeight;
+		g_pendingTextureResizes.insert(texture);
 	}
 
 
@@ -4073,7 +4090,7 @@ static GuestTexture* CreateTexture(uint32_t width, uint32_t height, uint32_t dep
 		desc.flags = RenderTextureFlag::NONE;
 
 
-	texture->isRenderTarget = desc.flags == RenderTextureFlag::RENDER_TARGET;
+	texture->isRenderTarget = (desc.flags & RenderTextureFlag::RENDER_TARGET) != 0;
 
 	texture->textureHolder = g_device->createTexture(desc);
 	texture->texture = texture->textureHolder.get();
@@ -4108,9 +4125,7 @@ static GuestTexture* CreateTexture(uint32_t width, uint32_t height, uint32_t dep
 
 	if (isStencil || isRT)
 	{
-		std::lock_guard lock(g_pendingSurfaceResizeMutex);
 		DiscardInitRenderResource(texture->texture, isRT);
-		g_pendingSurfaceTextureResize.emplace(texture);
 	}
 
 
@@ -4248,9 +4263,8 @@ static GuestBuffer* CreateIndexBuffer(uint32_t IndexCount, X_D3DFORMAT format)
 
 static GuestSurface* CreateSurface(uint32_t width, uint32_t height, X_D3DFORMAT format, bool formatSet = false)
 {
-
-	std::lock_guard lock(g_pendingSurfaceResizeMutex);
-
+	auto ogFormat = formatSet ? (plume::RenderFormat)format : ConvertFormat(format);
+	auto isStencil = ogFormat == DepthStencilFormat;
 	uint32_t ogWidth, ogHeight;
 	ogWidth = width;
 	ogHeight = height;
@@ -4258,6 +4272,7 @@ static GuestSurface* CreateSurface(uint32_t width, uint32_t height, X_D3DFORMAT 
 	uint32_t newWidth, newHeight;
 
 	GetUpscaledSurfaceResolution(width, height, &newWidth, &newHeight);
+
 	width = newWidth;
 	height = newHeight;
 
@@ -4269,7 +4284,7 @@ static GuestSurface* CreateSurface(uint32_t width, uint32_t height, X_D3DFORMAT 
 	desc.mipLevels = 1;
 	desc.arraySize = 1;
 	desc.multisampling.sampleCount = RenderSampleCount::COUNT_1; //todo add as an option(?)
-	desc.format = formatSet ? (plume::RenderFormat)format : ConvertFormat(format);
+	desc.format = ogFormat;
 	desc.flags = desc.format == DepthStencilFormat ? RenderTextureFlag::DEPTH_TARGET : RenderTextureFlag::RENDER_TARGET;
 
 	auto surface = g_userHeap.AllocPhysical<GuestSurface>(desc.format == DepthStencilFormat ?
@@ -4302,20 +4317,14 @@ static GuestSurface* CreateSurface(uint32_t width, uint32_t height, X_D3DFORMAT 
 
 	DiscardInitRenderResource(surface->texture, isRT);
 
-	g_pendingSurfaceResize.emplace(surface);
-	g_pendingSurfaceTextureResize.emplace(surface);
-
 	surface->guestResource.Format = format;
+	g_pendingStencilResize = surface;
 	return surface;
 }
 
 static std::vector<GuestSurface*> g_surfaceCache;
 static GuestSurface* GetSurfaceLevel(GuestTexture* texture, int32_t level, X_D3DFORMAT Format)
 {
-
-
-	std::lock_guard lock(g_pendingSurfaceResizeMutex);
-
 	uint32_t mipWidth = std::max(1u, texture->width >> level);
 	uint32_t mipHeight = std::max(1u, texture->height >> level);
 
@@ -4336,7 +4345,9 @@ static GuestSurface* GetSurfaceLevel(GuestTexture* texture, int32_t level, X_D3D
 
 	surface->guestResource.Format = Format;
 	surface->layout = texture->layout;
-	g_pendingSurfaceResize.emplace(surface);
+
+	surface->parentTexture = texture;
+	texture->surfaceRTs.push_back(surface);
 
 	return surface;
 }
@@ -4390,10 +4401,9 @@ static void FlushViewport(const bool isFixed)
 	float width = (float)std::min(viewport.width, (DWORD)hostWidth - viewport.x);
 	float height = (float)std::min(viewport.height, (DWORD)hostHeight - viewport.y);
 
-	uint32_t newWidth, newHeight;
-	GetUpscaledSurfaceResolution((uint32_t)width, (uint32_t)height, &newWidth, &newHeight);
-	width = newWidth;
-	height = newHeight;
+
+	width *= scaleX;
+	height *= scaleY;
 	viewport.x *= scaleX;
 	viewport.y *= scaleY;
 
@@ -4425,15 +4435,11 @@ static void FlushViewport(const bool isFixed)
 
 	if (g_dirtyStates.scissorRect)
 	{
-		uint32_t newScisWidth, newScisHeight;
-		GetUpscaledSurfaceResolution((uint32_t)backupVP.width, (uint32_t)backupVP.height, &newScisWidth, &newScisHeight);
-		backupVP.width = newScisWidth;
-		backupVP.height = newScisHeight;
 		RenderRect scissorRect;
-		int32_t left = (int32_t)backupVP.x * scaleX;
-		int32_t top = (int32_t)backupVP.y * scaleY;
-		int32_t right = left + (int32_t)(backupVP.width);
-		int32_t bottom = top + (int32_t)(backupVP.height);
+		int32_t left = (int32_t)(backupVP.x * scaleX);
+		int32_t top = (int32_t)(backupVP.y * scaleY);
+		int32_t right = left + (int32_t)(backupVP.width * scaleX);
+		int32_t bottom = top + (int32_t)(backupVP.height * scaleY);
 
 		if (isFixed)
 		{
@@ -4533,7 +4539,6 @@ X_D3DFORMAT MapToLinearD3DFORMAT(X_D3DFORMAT a1)
 
 X86_FUNC_IMPL(__imp__sub_3DDAB0); //CreateDevice
 
-GuestViewport* g_viewportPtr = nullptr;
 int32_t Direct3D_CreateDevice_r(int32_t Adapter, int32_t DeviceType, int32_t hFocusWindow, char Flags, X_D3DPRESENT_PARAMETERS* pPresentationParameters, uint32_t* device)
 {
 	LOG_UTILITY("CREATE GUEST D3D DEVICE!");
@@ -4566,23 +4571,22 @@ int32_t Direct3D_CreateDevice_r(int32_t Adapter, int32_t DeviceType, int32_t hFo
 	__imp__sub_3DDAB0(*ctx, base);
 	ctx->esp.u32 -= 28; //readjust esp because of calling original function
 
-	g_viewportPtr = (GuestViewport*)g_memory.Translate(0x3E0A20 + 0xE0);
-	g_viewportPtr = g_viewportPtr;
 	return 0; //success
 }
 static int desCount = 0;
-X86_FUNC_IMPL(__imp__sub_3D5DB0);
-static void DestructResource(GuestResource* resource)
+
+
+void AddDestructResource(GuestResource* ressource)
 {
-	auto ctx = GetX86Context();
-	auto base = g_memory.base;
-
-
 	RenderCommand cmd;
 	cmd.type = RenderCommandType::DestructResource;
-
-	cmd.destructResource.resource = resource;
+	cmd.destructResource.resource = ressource;
 	g_renderQueue.enqueue(cmd);
+}
+
+static void DestructResource(GuestResource* resource)
+{
+	AddDestructResource(resource);
 	desCount++;
 }
 
@@ -4592,6 +4596,23 @@ static void ProcDestructResource(const RenderCommand& cmd)
 	const auto& args = cmd.destructResource;
 	g_tempResources[g_frame].push_back(args.resource);
 }
+
+
+void DestructResourceMidAsmHook(X86Register& esi)
+{
+	if (esi.u32 == 0)
+		return;
+
+
+	auto resource = (GuestResource*)g_memory.Translate(esi.u32);
+
+	if (resource->type == ResourceType::Texture || resource->type == ResourceType::VolumeTexture)
+	{
+		const auto texture = reinterpret_cast<GuestTexture*>(resource);
+		g_pendingTextureResizes.erase(texture);
+	}
+}
+
 
 X_D3DFORMAT GetXboxPixelContainerFormat(const uint32_t XboxPixelContainer_Format)
 {
@@ -4795,7 +4816,7 @@ static void ProcUnlockTextureRect(const RenderCommand& cmd)
 }
 
 // This function is needed for ADX and FMV decoding, as they rely on the VBlank timing to update their buffers.
-// For now we just fake vblank with a precise sleep, this seems to work good enough. 
+// We fake vblank with a hybrid sleep + spin-wait to maintain precise timing across platforms.
 void BlockUntilVerticalBlank()
 {
 	using namespace std::chrono;
@@ -4808,11 +4829,15 @@ void BlockUntilVerticalBlank()
 
 	if (lastCall != steady_clock::time_point{})
 	{
-		auto elapsed = now - lastCall;
-		auto remaining = VBLANK_DURATION - elapsed;
+		auto target = lastCall + VBLANK_DURATION;
+		auto remaining = target - now;
 		if (remaining > microseconds(500))
 		{
-			std::this_thread::sleep_for(remaining);
+			auto sleepDur = duration_cast<milliseconds>(remaining - 2ms);
+			if (sleepDur > 0ms)
+				std::this_thread::sleep_for(sleepDur);
+			while (steady_clock::now() < target)
+				std::this_thread::yield();
 		}
 	}
 
@@ -5148,8 +5173,11 @@ static void ProcSetRenderTarget(const RenderCommand& cmd)
 	SetDirtyValue(g_dirtyStates.pipelineState, g_pipelineState.sampleCount, args.renderTarget != nullptr ? args.renderTarget->sampleCount : RenderSampleCount::COUNT_1);
 
 
-	// When alpha to coverage is enabled, update the alpha test mode as it's dependent on sample count.
-	SetAlphaTestMode((g_pipelineState.specConstants & (SPEC_CONSTANT_ALPHA_TEST | SPEC_CONSTANT_ALPHA_TO_COVERAGE)) != 0);
+	// TODO: We can probably scrap this if dropping MSAA
+	// Original line: When alpha to coverage is enabled, update the alpha test mode as it's dependent on sample count.
+	// We disabled this for Shadow - specConstants never has SPEC_CONSTANT_ALPHA_TEST set (line 1372 is commented out),
+	// so this always calls SetAlphaTestMode(false), silently disabling alpha test mid-frame. This broke Elevator transparency at certain camera angles
+	// SetAlphaTestMode((g_pipelineState.specConstants & (SPEC_CONSTANT_ALPHA_TEST | SPEC_CONSTANT_ALPHA_TO_COVERAGE)) != 0);
 }
 
 static void ProcSetDepthStencilSurface(const RenderCommand& cmd)
@@ -7091,9 +7119,16 @@ void DrawPrimitiveUP(X_D3DPRIMITIVETYPE PrimitiveType, uint32_t VertexCount, voi
 	// dirty hack to attempt to fix barrier crash,
 	// the crash happens when the main thread is trying to draw while the loading thread is calling present
 	// the render thread does not like getting new command queue while processing Present.
+	static int failSafeCounter = 0;
 	while (aboutToDrawLoading && GuestThread::GetCurrentThreadId() != GetLoadingThreadID())
 	{
-		std::this_thread::sleep_for(std::chrono::milliseconds(100));
+		std::this_thread::sleep_for(std::chrono::milliseconds(16));
+
+		if (++failSafeCounter > 200)
+		{
+			failSafeCounter = 0;
+			break;
+		}
 	}
 
 
@@ -7133,6 +7168,13 @@ extern bool readyToDebug;
 
 static void ProcDrawPrimitiveUP(const RenderCommand& cmd)
 {
+
+	// this is needed to avoid random crash if a resize is requested while 
+	// rt are doing a composite using DrawPrimitiveUP
+	if (g_pendingSurfaceResizeFlag)
+	{
+		return;
+	}
 
 	const auto& args = cmd.drawPrimitiveUP;
 
@@ -7307,13 +7349,6 @@ X86_FUNC(sub_3D5F10)
 	}
 }
 
-void AddDestructResource(GuestResource* ressource)
-{
-	RenderCommand cmd;
-	cmd.type = RenderCommandType::DestructResource;
-	cmd.destructResource.resource = ressource;
-	g_renderQueue.enqueue(cmd);
-}
 
 //Free Vertex Buffer
 X86_FUNC_IMPL(__imp__sub_2E6140);
@@ -7726,33 +7761,30 @@ X86_FUNC(sub_2DFE20)
 {
 	RwRaster* info = (RwRaster*)g_memory.Translate(ctx.ecx.u32);
 	uint8_t level = X86_LOAD_U8(ctx.eax.u32 + 19);
-	int usage = (info->cType & 0xFF) == rwRASTERTYPECAMERATEXTURE ? 1 : 0;
+	const uint32_t usage = (info->cType & 0xFF) == rwRASTERTYPECAMERATEXTURE ? 1 : 0;
 
-	if (usage)
-	{
-		info = info;
-	}
 
 	X_D3DFORMAT format = (X_D3DFORMAT)ctx.esi.u32;
 	__imp__sub_2DFE20(ctx, base);
 
-	//RwRaster* rwM = (RwRaster*)g_memory.Translate(second);
-	XD3DResource* texture = (XD3DResource*)(g_memory.Translate(ctx.eax.u32));
+	if (ctx.eax.u32 != 0)
+	{
+		//RwRaster* rwM = (RwRaster*)g_memory.Translate(second);
+		XD3DResource* texture = (XD3DResource*)(g_memory.Translate(ctx.eax.u32));
 
-	ctx.esp.u32 -= 4;
+		X_D3DRESOURCETYPE textureType = GetXboxTextureType((X_D3DResource*)texture);
 
-	X_D3DRESOURCETYPE textureType = GetXboxTextureType((X_D3DResource*)texture);
+		auto newTex = CreateTexture(info->width, info->height, 1, level, usage, format, textureType);
 
+		newTex->guestResource.Common = texture->Common;
+		newTex->guestResource.Data = texture->Data;
+		newTex->guestResource.Format = texture->Format;
+		newTex->guestResource.Lock = texture->Lock;
+		newTex->guestResource.Size = texture->Size;
 
-	auto newTex = CreateTexture(info->width, info->height, 1, level, usage, format, textureType);
-
-	newTex->guestResource.Common = texture->Common;
-	newTex->guestResource.Data = texture->Data;
-	newTex->guestResource.Format = texture->Format;
-	newTex->guestResource.Lock = texture->Lock;
-	newTex->guestResource.Size = texture->Size;
-	ctx.eax.u32 = g_memory.MapVirtual(newTex);
-	ctx.esp.u32 += 4;
+		g_userHeap.Free(g_memory.Translate(ctx.eax.u32)); // free the original texture memory as it's not needed anymore 
+		ctx.eax.u32 = g_memory.MapVirtual(newTex);
+	}
 }
 
 //CreateStandAloneSurface
@@ -7862,6 +7894,11 @@ void VideoConfigValueChangedCallback(IConfigDef* config)
 		config == &Config::AspectRatio ||
 		config == &Config::ResolutionScale ||
 		config == &Config::AntiAliasing;
+
+	if (config == &Config::ResolutionScale)
+	{
+		g_pendingSurfaceResizeFlag = true;
+	}
 
 	if (g_needsResize)
 	{
