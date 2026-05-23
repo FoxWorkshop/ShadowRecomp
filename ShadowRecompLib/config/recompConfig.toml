@@ -777,8 +777,6 @@ registers = ["r4"]
 jump_address_on_true = 0x2A62CF
 
 [[midasm_hook]]
-name = "SetFramerateMidAsmHook"
-address = 0x572BD
 name = "DisableMessageMidAsmHook"
 address = 0x595CA
 
@@ -786,3 +784,7 @@ address = 0x595CA
 name = "DestructResourceMidAsmHook"
 address = 0x2E0562
 registers = ["r4"]
+
+[[midasm_hook]]
+name = "SetFramerateMidAsmHook"
+address = 0x572BD
