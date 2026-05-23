@@ -4816,7 +4816,7 @@ static void ProcUnlockTextureRect(const RenderCommand& cmd)
 }
 
 // This function is needed for ADX and FMV decoding, as they rely on the VBlank timing to update their buffers.
-// For now we just fake vblank with a precise sleep, this seems to work good enough. 
+// We fake vblank with a hybrid sleep + spin-wait to maintain precise timing across platforms.
 void BlockUntilVerticalBlank()
 {
 	using namespace std::chrono;
@@ -4829,11 +4829,15 @@ void BlockUntilVerticalBlank()
 
 	if (lastCall != steady_clock::time_point{})
 	{
-		auto elapsed = now - lastCall;
-		auto remaining = VBLANK_DURATION - elapsed;
+		auto target = lastCall + VBLANK_DURATION;
+		auto remaining = target - now;
 		if (remaining > microseconds(500))
 		{
-			std::this_thread::sleep_for(remaining);
+			auto sleepDur = duration_cast<milliseconds>(remaining - 2ms);
+			if (sleepDur > 0ms)
+				std::this_thread::sleep_for(sleepDur);
+			while (steady_clock::now() < target)
+				std::this_thread::yield();
 		}
 	}
 
