@@ -199,6 +199,34 @@ void DrawDescription(std::string s)
 }
 
 
+//Returns truncated string with ellipsis if it exceeds maxWidth
+static std::string TruncateTextWithEllipsis(ImFont* font, float fontSize, const std::string& text, float maxWidth)
+{
+	auto fullSize = font->CalcTextSizeA(fontSize, FLT_MAX, 0.0f, text.c_str());
+	if (fullSize.x <= maxWidth)
+		return text;
+
+	const std::string ellipsis = "...";
+	auto ellipsisSize = font->CalcTextSizeA(fontSize, FLT_MAX, 0.0f, ellipsis.c_str());
+	float budget = maxWidth - ellipsisSize.x;
+
+	std::string result;
+	result.reserve(text.size());
+	for (size_t i = 0; i < text.size(); )
+	{
+		// Advance by one UTF-8 codepoint
+		unsigned char c = (unsigned char)text[i];
+		size_t charLen = (c < 0x80) ? 1 : (c < 0xE0) ? 2 : (c < 0xF0) ? 3 : 4;
+		std::string candidate = result + text.substr(i, charLen);
+		auto candidateSize = font->CalcTextSizeA(fontSize, FLT_MAX, 0.0f, candidate.c_str());
+		if (candidateSize.x > budget)
+			break;
+		result = std::move(candidate);
+		i += charLen;
+	}
+	return result + ellipsis;
+}
+
 template <typename T, bool isHidden = false>
 static void DrawOption
 (
@@ -569,7 +597,7 @@ static void DrawOption
 		{
 			auto resScale = round(*(float*)config->GetValue() * 1000) / 1000;
 
-			valueText = fmt::format("{}x{}",
+			valueText = fmt::format("{}% - ({}x{})", round(resScale * 100),
 				(int)((float)Video::s_viewportWidth * resScale),
 				(int)((float)Video::s_viewportHeight * resScale));
 
@@ -629,22 +657,68 @@ static void DrawOption
 		isValueCentred = true;
 	}
 
-	// draw value
+	// Draw value
+
+	float valueAreaStart = titlePos.x + titleTextSize.x + Scale(20);
+	float valueAreaEnd = clipRectMax.x - Scale(10);   // leave a small right margin
+	float valueAreaWidth = valueAreaEnd - valueAreaStart;
+
 	SetShaderModifier(IMGUI_SHADER_MODIFIER_LOW_QUALITY_TEXT);
 
-	auto optionTextSize = g_fntSeurat->CalcTextSizeA(g_fntSeuratSize, FLT_MAX, 0.0f, valueText.data());
-	auto valueTextSize = g_fntSeurat->CalcTextSizeA(g_fntSeuratSize, FLT_MAX, 0.0f, valueText.data());
+	if (valueAreaWidth > 0.0f)
+	{
+		auto rawValueSize = g_fntSeurat->CalcTextSizeA(g_fntSeuratSize, FLT_MAX, 0.0f, valueText.data());
+		bool overflows = rawValueSize.x > valueAreaWidth;
 
-	ImVec2 valuePos = { titlePos.x + titleTextSize.x + Scale(20), titlePos.y };
+		ImVec2 valuePos = { valueAreaStart, titlePos.y };
 
-	// Align text to right side of the background.
-	/**if (!isValueCentred)
-		valuePos.x = titleTextSize.x + Scale(10);*/
+		if (overflows && isHover)
+		{
+			// Marquee scroll: slide the text left over time, then snap back
+			static double s_marqueeStartTime = 0.0;
+			static int s_marqueeRow = -1;
 
+			if (s_marqueeRow != rowIndex)
+			{
+				s_marqueeRow = rowIndex;
+				s_marqueeStartTime = ImGui::GetTime();
+			}
 
-	drawList->AddText(g_fntSeurat, g_fntSeuratSize, valuePos, IM_COL32(255, 255, 255, isAccessible ? 255 : 127), valueText.data());
+			constexpr double PAUSE_BEFORE = 1.0;   // seconds of pause before scrolling
+			constexpr double PAUSE_AFTER = 0.75;  // seconds of pause once fully scrolled
+			constexpr double SCROLL_SPEED = 40.0;  // pixels per second (pre-scale)
+			const float  overflow = rawValueSize.x - valueAreaWidth;
+			const float  scaledSpeed = (float)(Scale(1) * SCROLL_SPEED);
+			const double scrollDur = overflow / scaledSpeed;
+			const double cycleDur = PAUSE_BEFORE + scrollDur + PAUSE_AFTER;
 
-	SetShaderModifier(IMGUI_SHADER_MODIFIER_NONE);
+			double elapsed = std::fmod(ImGui::GetTime() - s_marqueeStartTime, cycleDur);
+			float  scrollX = 0.0f;
+
+			if (elapsed > PAUSE_BEFORE && elapsed < PAUSE_BEFORE + scrollDur)
+				scrollX = (float)((elapsed - PAUSE_BEFORE) * scaledSpeed);
+			else if (elapsed >= PAUSE_BEFORE + scrollDur)
+				scrollX = overflow;
+
+			// we can use clip rect so the text can't bleed into the title area or off the right edge
+			drawList->PushClipRect({ valueAreaStart, clipRectMin.y }, { valueAreaEnd, clipRectMax.y }, true);
+			valuePos.x -= scrollX;
+			drawList->AddText(g_fntSeurat, g_fntSeuratSize, valuePos,
+				IM_COL32(255, 255, 255, 255), valueText.data());
+			drawList->PopClipRect();
+		}
+		else
+		{
+			// selected or doesn't fit fine: truncate with ellipsis if needed
+			std::string displayText = overflows
+				? TruncateTextWithEllipsis(g_fntSeurat, g_fntSeuratSize, valueText, valueAreaWidth)
+				: valueText;
+
+			drawList->AddText(g_fntSeurat, g_fntSeuratSize, valuePos,
+				IM_COL32(255, 255, 255, isAccessible ? 255 : 127), displayText.data());
+		}
+	}
+
 }
 
 static void DrawGoToLegacyOption
@@ -724,7 +798,7 @@ static void DrawGoToLegacyOption
 
 	SetShaderModifier(IMGUI_SHADER_MODIFIER_LOW_QUALITY_TEXT);
 
-	drawList->AddText(g_fntSeurat, g_fntSeuratSize, titlePos, isHoverOrSelected ? IM_COL32(234, 234, 69, 255) : IM_COL32(255, 255, 255, 255), titleText.c_str());
+	drawList->AddText(g_fntSeurat, g_fntSeuratSize - 2.f, titlePos, isHoverOrSelected ? IM_COL32(234, 234, 69, 255) : IM_COL32(255, 255, 255, 255), titleText.c_str());
 
 	SetShaderModifier(IMGUI_SHADER_MODIFIER_NONE);
 
