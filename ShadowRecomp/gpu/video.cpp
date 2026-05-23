@@ -7895,6 +7895,11 @@ void VideoConfigValueChangedCallback(IConfigDef* config)
 		config == &Config::ResolutionScale ||
 		config == &Config::AntiAliasing;
 
+	if (config == &Config::ResolutionScale)
+	{
+		g_pendingSurfaceResizeFlag = true;
+	}
+
 	if (g_needsResize)
 	{
 		Video::ComputeViewportDimensions();
