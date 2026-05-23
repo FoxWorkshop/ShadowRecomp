@@ -944,7 +944,9 @@ static void DestructTempResources()
 			if (surface->parentTexture != nullptr)
 			{
 				auto& vec = surface->parentTexture->surfaceRTs;
-				vec.erase(std::remove(vec.begin(), vec.end(), surface), vec.end());
+				auto it = std::find(vec.begin(), vec.end(), surface);
+				if (it != vec.end())   
+					vec.erase(it);
 			}
 
 			if (surface->descriptorIndex != NULL)
