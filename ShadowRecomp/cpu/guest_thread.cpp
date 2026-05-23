@@ -233,10 +233,16 @@ GuestThreadHandle::GuestThreadHandle(const GuestThreadParams& params)
 
 }
 
+static uint32_t GetThreadId(const std::thread::id& id)
+{
+	return *reinterpret_cast<const uint32_t*>(&id);
+}
+
 GuestThreadHandle::~GuestThreadHandle()
 {
-
-	printf("Thread Destructor %08X\n", params.function);
+	auto id = GetThreadId(this->thread.get_id());
+	std::string s = GetThreadName(params.function);
+	printf("Destroy thread %08X with ID %u (%s)\n", params.function, id, s.c_str());
 
 	if (thread.joinable())
 		thread.join();
@@ -253,10 +259,7 @@ uint32_t GuestThreadHandle::Wait(uint32_t timeout)
 	return STATUS_WAIT_0;
 }
 
-static uint32_t GetThreadId(const std::thread::id& id)
-{
-	return *reinterpret_cast<const uint32_t*>(&id);
-}
+
 
 GuestThreadHandle* GuestThread::Start(const GuestThreadParams& params, uint32_t* threadId)
 {

@@ -618,8 +618,32 @@ bool is_vulkan()
 
 static std::thread::id g_presentThreadId = std::this_thread::get_id();
 static std::atomic<bool> g_readyForCommands;
+static std::atomic<bool> g_commandListOpen{false};
+static std::atomic<bool> g_inPresent{false};
+extern std::atomic<bool> aboutToDrawLoading;
 
-//experimental hack to see if this fix the random race issue in the loading thread
+static void WaitForPresentDuringLoading()
+{
+	if (!aboutToDrawLoading || GuestThread::GetCurrentThreadId() == GetLoadingThreadID())
+		return;
+
+	int spins = 0;
+	while (g_inPresent.load())
+	{
+		if (spins == 0)
+			printf("[Draw] WaitForPresentDuringLoading: loading thread is in Present, waiting...\n");
+		std::this_thread::sleep_for(std::chrono::milliseconds(1));
+		if (++spins > 500)
+		{
+			printf("[Draw] WaitForPresentDuringLoading: waited 500ms, proceeding anyway\n");
+			break;
+		}
+	}
+	if (spins != 0) {
+		printf("[Draw] WaitForPresentDuringLoading: resumed after %dms\n", spins);
+	}
+}
+
 void Guard_Rendering()
 {
 	g_readyForCommands.wait(false);
@@ -896,12 +920,12 @@ static void DestructTempResources()
 
 			if (texture->mappedMemory != nullptr)
 				g_userHeap.Free(texture->mappedMemory);
-			
+
 			g_textureDescriptorAllocator.free(texture->descriptorIndex);
-			
+
 			if (texture->patchedTexture != nullptr)
 				g_textureDescriptorAllocator.free(texture->patchedTexture->descriptorIndex);
-			
+
 			texture->~GuestTexture();*/
 			valid = false;
 			break;
@@ -2279,7 +2303,7 @@ static void BeginCommandList()
 
 	memset(g_textures, 0, sizeof(g_textures));
 	*/
-	
+
 	/**if (Config::GITextureFiltering == EGITextureFiltering::Bicubic)
 		g_pipelineState.specConstants |= SPEC_CONSTANT_BICUBIC_GI_FILTER;
 	else*/
@@ -2296,8 +2320,9 @@ static void BeginCommandList()
 	commandList->setGraphicsDescriptorSet(g_textureDescriptorSet.get(), 2); //texture cube
 	commandList->setGraphicsDescriptorSet(g_samplerDescriptorSet.get(), 3); //sampler
 
+	g_commandListOpen = true;
 	g_readyForCommands = true;
-	g_readyForCommands.notify_one();
+	g_readyForCommands.notify_all();
 }
 
 static GuestBuffer* CreateVertexBuffer(uint32_t length);
@@ -3722,10 +3747,9 @@ bool PresentAllowed = true;
 extern std::atomic<bool> aboutToDrawLoading;
 void Video::Present()
 {
-
-	//printf("[GAME THREAD] Present thread id %d - g_frame=%u\n", GetCurrentThreadId(), g_frame);
-
-	g_readyForCommands = false;
+	bool expected = false;
+	if (!g_inPresent.compare_exchange_strong(expected, true))
+		return;
 
 	RenderCommand cmd;
 	cmd.type = RenderCommandType::ExecutePendingCopyRectsCommands;
@@ -3736,42 +3760,25 @@ void Video::Present()
 	cmd.type = RenderCommandType::ExecuteCommandList;
 	g_renderQueue.enqueue(cmd);
 
-
 	if (g_shouldPrecompilePipelines)
 	{
-		//EnqueuePipelineTask(PipelineTaskType::PrecompilePipelines, {});
 		g_shouldPrecompilePipelines = false;
 	}
 
-	//printf("[GAME THREAD] Enqueued ExecuteCommandList, waiting...\n");
 	presentExecuted = false;
 	g_executedCommandList.wait(false);
 	g_executedCommandList = false;
-	//printf("[GAME THREAD] ExecuteCommandList completed\n");
-
 
 	if (g_swapChainValid)
 	{
-		if (g_pendingWaitOnSwapChain && g_capabilities.presentWait)
-		{
-			g_presentWaitProfiler.Begin();
-			g_swapChain->wait(); // Never gonna happen outside loading threads as explained above.
-			g_presentWaitProfiler.End();
-		}
-
 		RenderCommandSemaphore* signalSemaphores[] = { g_renderSemaphores[g_frame].get() };
 		g_swapChainValid = g_swapChain->present(g_backBufferIndex, signalSemaphores, std::size(signalSemaphores));
 	}
 	presentExecuted = true;
 
-	g_pendingWaitOnSwapChain = true;
-
 	uint32_t oldFrame = g_frame;
 	g_frame = g_nextFrame;
 	g_nextFrame = (g_frame + 1) % NUM_FRAMES;
-
-	//printf("[GAME THREAD] SWITCHED FRAME: %u -> %u\n", oldFrame, g_frame);
-
 
 	if (g_commandListStates[g_frame])
 	{
@@ -3780,7 +3787,6 @@ void Video::Present()
 		g_frameFenceProfiler.End();
 		g_commandListStates[g_frame] = false;
 
-		// Update the GPU profiler with the results from the timestamps of the frame.
 		g_queryPools[g_frame]->queryResults();
 		const uint64_t* frameTimestamps = g_queryPools[g_frame]->getResults();
 		g_gpuFrameProfiler.Set(double(frameTimestamps[1] - frameTimestamps[0]) / 1000000.0);
@@ -3788,27 +3794,39 @@ void Video::Present()
 
 	g_dirtyStates = DirtyStates(true);
 
-
-
 	g_uploadAllocators[g_frame].reset();
 	g_intermediaryUploadAllocator.reset();
-	/**g_triangleFanIndexData.reset();*/
 	g_quadIndexData.reset();
 
 	CheckSwapChain();
 
+	g_readyForCommands = false;
+
 	cmd.type = RenderCommandType::BeginCommandList;
 	g_renderQueue.enqueue(cmd);
 
-	/**auto targetRefreshRate = 60.0f;
-	auto frameMs = (1000.0 / targetRefreshRate) * 1.0f;
-	auto targetDuration = std::chrono::duration_cast<std::chrono::steady_clock::duration>(std::chrono::duration<double, std::milli>(frameMs));
-	auto targetTimestamp = frameStartTime + targetDuration;
-	SleepPrecise(targetTimestamp);*/
+	g_readyForCommands.wait(false);
+
+	g_inPresent = false;
+
+	g_pendingWaitOnSwapChain = false;
 
 	frameStartTime = std::chrono::steady_clock::now();
 
-	if (Config::FPS >= FPS_MIN && Config::FPS < FPS_MAX)
+	if (aboutToDrawLoading && GuestThread::GetCurrentThreadId() == GetLoadingThreadID())
+	{
+		static bool loggedOnce = false;
+		if (!loggedOnce)
+		{
+			printf("[Present] Loading thread frame limiter active (16ms pacing)\n");
+			loggedOnce = true;
+		}
+		auto elapsed = std::chrono::steady_clock::now() - frameStartTime;
+		auto targetDuration = std::chrono::milliseconds(16);
+		if (elapsed < targetDuration)
+			std::this_thread::sleep_for(targetDuration - elapsed);
+	}
+	else if (Config::FPS >= FPS_MIN && Config::FPS < FPS_MAX)
 	{
 		using namespace std::chrono_literals;
 
@@ -3832,7 +3850,6 @@ void Video::Present()
 	}
 
 	g_presentProfiler.Reset();
-	//printf("[GAME THREAD] Present END - g_frame=%u\n", g_frame);
 }
 
 void Video::StartPipelinePrecompilation()
@@ -3852,6 +3869,8 @@ static void SetRootDescriptor(const UploadAllocation& allocation, size_t index)
 
 static void ProcExecuteCommandList(const RenderCommand& cmd)
 {
+	g_commandListOpen = false;
+
 	if (g_swapChainValid)
 	{
 		auto swapChainTexture = g_swapChain->getTexture(g_backBufferIndex);
@@ -6857,6 +6876,7 @@ uint8_t* ApplyVertexPatch(uint8_t* vertexData, const uint8_t indexStream, const 
 bool reUsedVertex = false;
 void DrawPrimitive(X_D3DPRIMITIVETYPE PrimitiveType, uint32_t StartVertex, uint32_t VertexCount)
 {
+	WaitForPresentDuringLoading();
 
 	Guard_Rendering();
 
@@ -7008,6 +7028,8 @@ GuestBuffer* GetGuestVertexBufferIndexed(int i, uint32_t minIdx, uint32_t maxIdx
 //On Xbox, VertexCount = IndexCount, both are the same
 void DrawIndexedPrimitive(X_D3DPRIMITIVETYPE PrimitiveType, uint32_t VertexCount, int16_t* pIndexData)
 {
+	WaitForPresentDuringLoading();
+
 #ifdef _DEBUG //this is a breakpoint spot for debugging the light issue with tails muzzle in circus park.
 	if (VertexCount == 45)
 	{
@@ -7119,29 +7141,18 @@ static void ProcDrawIndexedPrimitive(const RenderCommand& cmd)
 extern bool captureNow;
 extern bool drawCompositeRT;
 
-
-//D3DDevice_DrawVerticesUP - used for 2D Stuff, does not require a vertex buffer (originally)
 void DrawPrimitiveUP(X_D3DPRIMITIVETYPE PrimitiveType, uint32_t VertexCount, void* pVertexStreamZeroData, uint32_t VertexStreamZeroStride)
 {
-	// dirty hack to attempt to fix barrier crash,
-	// the crash happens when the main thread is trying to draw while the loading thread is calling present
-	// the render thread does not like getting new command queue while processing Present.
-	static int failSafeCounter = 0;
-	while (aboutToDrawLoading && GuestThread::GetCurrentThreadId() != GetLoadingThreadID())
-	{
-		std::this_thread::sleep_for(std::chrono::milliseconds(16));
+	WaitForPresentDuringLoading();
 
-		if (++failSafeCounter > 200)
-		{
-			failSafeCounter = 0;
-			break;
-		}
-	}
+	DrawCallCaller callerDebugger = Others;
 
+	if (drawCompositeRT)
+		callerDebugger = CompositeRT;
+	else if (aboutToDrawLoading)
+		callerDebugger = LoadingLogo;
 
 	Guard_Rendering();
-
-
 
 	LocalRenderCommandQueue queue;
 	FlushRenderStateForMainThread(queue);
@@ -7159,13 +7170,7 @@ void DrawPrimitiveUP(X_D3DPRIMITIVETYPE PrimitiveType, uint32_t VertexCount, voi
 	cmd.drawPrimitiveUP.vertexStreamZeroStride = VertexStreamZeroStride;
 	cmd.drawPrimitiveUP.isFixed = g_Xbox_VertexShaderMode == VertexShaderMode::FixedFunction;
 	cmd.drawPrimitiveUP.threadID = GuestThread::GetCurrentThreadId();
-
-	if (drawCompositeRT)
-		cmd.drawPrimitiveUP.caller = CompositeRT;
-	else if (aboutToDrawLoading)
-		cmd.drawPrimitiveUP.caller = LoadingLogo;
-	else
-		cmd.drawPrimitiveUP.caller = Others;
+	cmd.drawPrimitiveUP.caller = callerDebugger;
 
 	queue.submit();
 	//	printf("Game called Draw Primitive UP - ID: %d, thread id %d - g_frame=%u\n", g_drawPrimitiveUP_ID, GetCurrentThreadId(), g_frame);
@@ -7175,9 +7180,6 @@ extern bool readyToDebug;
 
 static void ProcDrawPrimitiveUP(const RenderCommand& cmd)
 {
-
-	// this is needed to avoid random crash if a resize is requested while 
-	// rt are doing a composite using DrawPrimitiveUP
 	if (g_pendingSurfaceResizeFlag)
 	{
 		return;
@@ -7925,7 +7927,7 @@ static std::thread g_renderThread([]
 		GuestThread::SetThreadName(GetCurrentThreadId(), "Render Thread");
 #endif
 
-		RenderCommand commands[30]; //update when adding missing stuff
+		RenderCommand commands[30];
 
 		while (true)
 		{
@@ -7933,38 +7935,46 @@ static std::thread g_renderThread([]
 			for (size_t i = 0; i < count; i++)
 			{
 				auto& cmd = commands[i];
+
 				switch (cmd.type)
 				{
-				case RenderCommandType::SetRenderState:                    ProcSetRenderState(cmd); break;
 				case RenderCommandType::DestructResource:                  ProcDestructResource(cmd); break;
 				case RenderCommandType::UnlockTextureRect:                 ProcUnlockTextureRect(cmd); break;
 				case RenderCommandType::UnlockBuffer16:                    ProcUnlockBuffer16(cmd); break;
 				case RenderCommandType::UnlockBuffer32:                    ProcUnlockBuffer32(cmd); break;
-				case RenderCommandType::DrawImGui:                         ProcDrawImGui(cmd); break;
 				case RenderCommandType::ExecuteCommandList:                ProcExecuteCommandList(cmd); break;
 				case RenderCommandType::BeginCommandList:                  ProcBeginCommandList(cmd); break;
-					//case RenderCommandType::StretchRect:                       ProcStretchRect(cmd); break;
-				case RenderCommandType::SetRenderTarget:                   ProcSetRenderTarget(cmd); break;
-				case RenderCommandType::SetDepthStencilSurface:            ProcSetDepthStencilSurface(cmd); break;
-				case RenderCommandType::ExecutePendingCopyRectsCommands: ProcExecutePendingCopyRectsCommands(cmd); break;
-				case RenderCommandType::Clear:                             ProcClear(cmd); break;
-				case RenderCommandType::SetViewport:                       ProcSetViewport(cmd); break;
-				case RenderCommandType::SetTexture:                        ProcSetTexture(cmd); break;
-					//case RenderCommandType::SetScissorRect:                    ProcSetScissorRect(cmd); break;
-				case RenderCommandType::SetTextureStageState:                   ProcSetTextureStageState(cmd); break;
-				case RenderCommandType::SetVertexShaderConstants:          ProcSetVertexShaderConstants(cmd); break;
-				case RenderCommandType::SetPixelShaderConstants:           ProcSetPixelShaderConstants(cmd); break;
-				case RenderCommandType::DrawPrimitive:                     ProcDrawPrimitive(cmd); break;
-				case RenderCommandType::DrawIndexedPrimitive:              ProcDrawIndexedPrimitive(cmd); break;
-				case RenderCommandType::DrawPrimitiveUP:                   ProcDrawPrimitiveUP(cmd); break;
-				case RenderCommandType::SetVertexDeclaration:              ProcSetVertexDeclaration(cmd); break;
-				case RenderCommandType::SetVertexShader:                   ProcSetVertexShader(cmd); break;
-				case RenderCommandType::SetStreamSource:                   ProcSetStreamSource(cmd); break;
-				case RenderCommandType::SetIndices:                        ProcSetIndices(cmd); break;
-				case RenderCommandType::SetPixelShader:                    ProcSetPixelShader(cmd); break;
-
 				default:
-					assert(false && "Unrecognized render command type.");
+					if (!g_commandListOpen)
+					{
+						printf("[RenderThread] Skipping stale command (type=%d) - command list closed\n", (int)cmd.type);
+						break;
+					}
+					switch (cmd.type)
+					{
+					case RenderCommandType::SetRenderState:                ProcSetRenderState(cmd); break;
+					case RenderCommandType::DrawImGui:                     ProcDrawImGui(cmd); break;
+					case RenderCommandType::SetRenderTarget:               ProcSetRenderTarget(cmd); break;
+					case RenderCommandType::SetDepthStencilSurface:        ProcSetDepthStencilSurface(cmd); break;
+					case RenderCommandType::ExecutePendingCopyRectsCommands: ProcExecutePendingCopyRectsCommands(cmd); break;
+					case RenderCommandType::Clear:                         ProcClear(cmd); break;
+					case RenderCommandType::SetViewport:                   ProcSetViewport(cmd); break;
+					case RenderCommandType::SetTexture:                    ProcSetTexture(cmd); break;
+					case RenderCommandType::SetTextureStageState:          ProcSetTextureStageState(cmd); break;
+					case RenderCommandType::SetVertexShaderConstants:      ProcSetVertexShaderConstants(cmd); break;
+					case RenderCommandType::SetPixelShaderConstants:       ProcSetPixelShaderConstants(cmd); break;
+					case RenderCommandType::DrawPrimitive:                 ProcDrawPrimitive(cmd); break;
+					case RenderCommandType::DrawIndexedPrimitive:          ProcDrawIndexedPrimitive(cmd); break;
+					case RenderCommandType::DrawPrimitiveUP:               ProcDrawPrimitiveUP(cmd); break;
+					case RenderCommandType::SetVertexDeclaration:          ProcSetVertexDeclaration(cmd); break;
+					case RenderCommandType::SetVertexShader:               ProcSetVertexShader(cmd); break;
+					case RenderCommandType::SetStreamSource:               ProcSetStreamSource(cmd); break;
+					case RenderCommandType::SetIndices:                    ProcSetIndices(cmd); break;
+					case RenderCommandType::SetPixelShader:                ProcSetPixelShader(cmd); break;
+					default:
+						assert(false && "Unrecognized render command type.");
+						break;
+					}
 					break;
 				}
 			}
