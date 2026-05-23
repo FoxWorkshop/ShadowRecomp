@@ -5173,8 +5173,11 @@ static void ProcSetRenderTarget(const RenderCommand& cmd)
 	SetDirtyValue(g_dirtyStates.pipelineState, g_pipelineState.sampleCount, args.renderTarget != nullptr ? args.renderTarget->sampleCount : RenderSampleCount::COUNT_1);
 
 
-	// When alpha to coverage is enabled, update the alpha test mode as it's dependent on sample count.
-	SetAlphaTestMode((g_pipelineState.specConstants & (SPEC_CONSTANT_ALPHA_TEST | SPEC_CONSTANT_ALPHA_TO_COVERAGE)) != 0);
+	// TODO: We can probably scrap this if dropping MSAA
+	// Original line: When alpha to coverage is enabled, update the alpha test mode as it's dependent on sample count.
+	// We disabled this for Shadow - specConstants never has SPEC_CONSTANT_ALPHA_TEST set (line 1372 is commented out),
+	// so this always calls SetAlphaTestMode(false), silently disabling alpha test mid-frame. This broke Elevator transparency at certain camera angles
+	// SetAlphaTestMode((g_pipelineState.specConstants & (SPEC_CONSTANT_ALPHA_TEST | SPEC_CONSTANT_ALPHA_TO_COVERAGE)) != 0);
 }
 
 static void ProcSetDepthStencilSurface(const RenderCommand& cmd)
