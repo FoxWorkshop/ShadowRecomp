@@ -1150,7 +1150,7 @@ LONG NtSuspendThread(GuestThreadHandle* ThreadHandle, uint32_t* PreviousSuspendC
 	assert(ThreadHandle != GetKernelObject(CURRENT_THREAD_HANDLE) && ThreadHandle->thread.get_id() == std::this_thread::get_id());
 
 	ThreadHandle->suspended = true;
-	// ThreadHandle->suspended.wait(true); - Removed for causing rare hang with infinite loading (no side effects observed so far)
+	ThreadHandle->suspended.wait(true);
 
 	return S_OK;
 }
