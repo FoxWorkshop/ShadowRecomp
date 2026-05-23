@@ -133,6 +133,7 @@ set(SHADOW_RECOMP_PATCHES_CXX_SOURCES
     "patches/bloom_patches.cpp"
     "patches/multi_core_patches.cpp"
     "patches/aspect_ratio_patches.cpp"
+    "patches/fps_patches.cpp"
     "patches/prompt_patches.cpp"
     "patches/player_patches.cpp"
     "patches/misc_patches.cpp"
