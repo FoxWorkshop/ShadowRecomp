@@ -7732,7 +7732,7 @@ X86_FUNC(sub_2DF870)
 	__imp__sub_2DF870(ctx, base);
 }
 
-// XGSwizzleRect - This is the final step where texture are ready for Xbox to use, we can upload safely here.
+// XGSwizzleRect - This is the final step where texture are ready for Xbox to use, we can upload safely here. (Used during FMV.)
 X86_FUNC_IMPL(__imp__sub_40B363);
 X86_FUNC(sub_40B363)
 {
@@ -7802,21 +7802,26 @@ X86_FUNC(sub_3DA0A0)
 
 	X_D3DSurface* surface = (X_D3DSurface*)(g_memory.Translate(ctx.eax.u32));
 
-	auto newSurface = CreateSurface(Width, Height, Format);
+	if (surface)
+	{
+		auto newSurface = CreateSurface(Width, Height, Format);
 
-	newSurface->guestResource.Common = surface->Common;
-	newSurface->guestResource.Data = surface->Data;
-	newSurface->guestResource.Format = surface->Format;
-	newSurface->guestResource.Lock = surface->Lock;
-	newSurface->guestResource.Size = surface->Size;
-	newSurface->padding = surface->Parent;
-	ctx.eax.u32 = g_memory.MapVirtual(newSurface);
+		newSurface->guestResource.Common = surface->Common;
+		newSurface->guestResource.Data = surface->Data;
+		newSurface->guestResource.Format = surface->Format;
+		newSurface->guestResource.Lock = surface->Lock;
+		newSurface->guestResource.Size = surface->Size;
+		newSurface->padding = surface->Parent;
+		g_userHeap.Free(g_memory.Translate(ctx.eax.u32)); // free the original surface memory as it's not needed anymore
+		ctx.eax.u32 = g_memory.MapVirtual(newSurface);
+	}
 
 	ctx.esp.u32 += 4;
 }
 
+// left over debugging
+
 //CreateVertexBuffer 
-//todo store guest VB to detect when they are free to also free the host ones!!!!
 X86_FUNC_IMPL(__imp__sub_2E6750);
 X86_FUNC(sub_2E6750)
 {
@@ -7960,13 +7965,11 @@ static std::thread g_renderThread([]
 	});
 
 
-//=============== DONE =========
+
 GUEST_FUNCTION_HOOK_STDCALL(sub_3DDAB0, Direct3D_CreateDevice_r);
 GUEST_FUNCTION_HOOK_STDCALL(sub_3DD950, SetResolution);
-//GUEST_FUNCTION_HOOK_STDCALL(sub_3D5FE0, LockVertexBuffer);
 
 //vertex shader
-//GUEST_FUNCTION_HOOK_STDCALL(sub_3D1BA0, CreateVertexShader);
 GUEST_FUNCTION_HOOK_STDCALL(sub_3D2280, SetVertexShader);
 GUEST_FUNCTION_HOOK_STDCALL(sub_3D1F70, SelectVertexShader);
 GUEST_FUNCTION_HOOK_STDCALL(sub_3D1F00, LoadVertexShaderProgram);
@@ -7984,8 +7987,6 @@ GUEST_FUNCTION_HOOK_FASTCALL(sub_3D2420, D3DDevice_SetRenderState_Simple);
 
 //Resource
 GUEST_FUNCTION_HOOK_STDCALL(sub_3DD710, CreateTexture_); //not used for 2D stuff at least.
-//GUEST_FUNCTION_HOOK_STDCALL(sub_3DD7C0, GetSurfaceLevel);
-//GUEST_FUNCTION_HOOK_STDCALL(sub_3DA0A0, CreateStandAloneSurface); //DepthStencilSurface
 GUEST_FUNCTION_HOOK_STDCALL(sub_3DA010, CreateSurfaceOfTexture);
 GUEST_FUNCTION_HOOK_STDCALL(sub_3D0CD0, SetTexture);
 GUEST_FUNCTION_HOOK_STDCALL(sub_3D0040, D3DDevice_SetRenderTarget);
@@ -8012,21 +8013,17 @@ GUEST_FUNCTION_HOOK_STDCALL(sub_3D4760, D3DDevice_EndPush);
 GUEST_FUNCTION_HOOK(sub_3CFE70, BlockUntilVerticalBlank);
 
 
-
 //texture stuff
 //GUEST_FUNCTION_HOOK_STDCALL(sub_3D2E90, D3DDevice_SetTextureStageStateNotInline);
 
 //GUEST_FUNCTION_HOOK_STDCALL(sub_3CFCD0, D3DDevice_SetTransform);
 
 
-//		 === UNCONFIRMED STUB == TODO CHECK IF THEY ARE ALL CORRECT
-GUEST_FUNCTION_HOOK_STDCALL(sub_3DD8B0, D3D_GetAdapterModeCount);
-GUEST_FUNCTION_HOOK_STDCALL(sub_3D0F40, D3D_SetTileNoWait);
-
-
-//				==== STUB CONFIRMED ====
+//			==== STUB  ====
 GUEST_FUNCTION_HOOK(sub_3D3240, D3D_CommonSetDebugRegisters);
 GUEST_FUNCTION_HOOK(sub_3D0F10, D3Device_IsBusy);
 GUEST_FUNCTION_HOOK_STDCALL(sub_3D4720, D3DDevice_IsFencePending);
 GUEST_FUNCTION_HOOK_STDCALL(sub_3D5F60, D3DResource_BlockUntilNotBusy);
 GUEST_FUNCTION_HOOK_STDCALL(sub_3D4950, D3D_BlockOnTime);
+GUEST_FUNCTION_HOOK_STDCALL(sub_3DD8B0, D3D_GetAdapterModeCount);
+GUEST_FUNCTION_HOOK_STDCALL(sub_3D0F40, D3D_SetTileNoWait);
