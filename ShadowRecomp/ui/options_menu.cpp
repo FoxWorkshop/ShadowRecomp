@@ -1322,7 +1322,7 @@ void OptionsMenu::Draw()
 				if (PJSPeripheral::IsJustPressed(0, PJSPeripheral::BTN_A) || PJSPeripheral::IsJustPressed(0, PJSPeripheral::BTN_START))
 					g_isAccepted = true;
 
-				if (PJSPeripheral::IsJustPressed(0, PJSPeripheral::BTN_B))
+				if (PJSPeripheral::IsJustPressed(0, PJSPeripheral::BTN_B) || PJSPeripheral::IsJustPressed(0, PJSPeripheral::BTN_Y))
 					g_isDeclined = true;
 
 				if (PJSPeripheral::IsJustPressed(0, PJSPeripheral::BTN_Y))
