@@ -46,6 +46,7 @@ const uint32_t g_RenderStateAddr = 0x3E0780;
 const uint32_t g_cameraAddr = 0x540C40;
 
 bool LogVSConstants = false;
+static bool useLowSpec = false;
 
 #define DepthStencilFormat RenderFormat::D32_FLOAT
 
@@ -2224,8 +2225,9 @@ static void BeginCommandList()
 						s->texture = nullptr;
 					}
 				}
-
+			
 				RecreateGuestSurfaceTexture(g_tex, g_tex->isRenderTarget);
+				
 
 				if (g_tex->isRenderTarget)
 				{
@@ -2238,7 +2240,7 @@ static void BeginCommandList()
 				}
 			}
 
-			if (g_pendingStencilResize)
+			if (g_pendingStencilResize && useLowSpec)
 			{
 				g_barrierMap.erase(g_pendingStencilResize->texture);
 				g_pendingStencilResize->framebuffers.clear();
@@ -2323,6 +2325,33 @@ static void BeginCommandList()
 	g_commandListOpen = true;
 	g_readyForCommands = true;
 	g_readyForCommands.notify_all();
+}
+
+template<typename T>
+static void ApplyLowEndDefault(ConfigDef<T>& configDef, T newDefault, bool& changed)
+{
+	if (configDef.IsDefaultValue() && !configDef.IsLoadedFromConfig)
+	{
+		configDef = newDefault;
+		changed = true;
+	}
+
+	configDef.DefaultValue = newDefault;
+}
+
+static void ApplyLowEndDefaults()
+{
+	bool changed = false;
+
+	ApplyLowEndDefault(Config::AntiAliasing, EAntiAliasing::MSAA2x, changed);
+	//ApplyLowEndDefault(Config::TextureFiltering, ETextureFiltering::Nearest, changed);
+
+	useLowSpec = true;
+	if (changed)
+	{
+
+		Config::Save();
+	}
 }
 
 static GuestBuffer* CreateVertexBuffer(uint32_t length);
@@ -2473,7 +2502,6 @@ bool Video::CreateHostDevice(const char* sdlVideoDriver, bool graphicsApiRetry)
 	g_capabilities = g_device->getCapabilities();
 
 	LoadEmbeddedResources();
-	// PrecompileShaders(); // Temp disabled due until pipeline cache implemented properly
 
 	constexpr uint64_t LowEndMemoryLimit = 2048ULL * 1024ULL * 1024ULL;
 	RenderDeviceDescription deviceDescription = g_device->getDescription();
@@ -2484,8 +2512,10 @@ bool Video::CreateHostDevice(const char* sdlVideoDriver, bool graphicsApiRetry)
 	{
 		// Switch to low end defaults if a non-discrete GPU was detected or a low amount of VRAM was detected.
 		// Checking for UMA on D3D12 seems to be a reliable way to detect integrated GPUs.
-	//	ApplyLowEndDefaults();
+		ApplyLowEndDefaults();
 	}
+	// PrecompileShaders(); // Temp disabled due until pipeline cache implemented properly
+
 
 	const RenderSampleCounts colourSampleCount = g_device->getSampleCountsSupported(RenderFormat::R16G16B16A16_FLOAT);
 	const RenderSampleCounts depthSampleCount = g_device->getSampleCountsSupported(DepthStencilFormat);
@@ -4292,6 +4322,7 @@ static GuestBuffer* CreateIndexBuffer(uint32_t IndexCount, X_D3DFORMAT format)
 
 static GuestSurface* CreateSurface(uint32_t width, uint32_t height, X_D3DFORMAT format, bool formatSet = false)
 {
+
 	auto ogFormat = formatSet ? (plume::RenderFormat)format : ConvertFormat(format);
 	auto isStencil = ogFormat == DepthStencilFormat;
 	uint32_t ogWidth, ogHeight;
@@ -4300,10 +4331,19 @@ static GuestSurface* CreateSurface(uint32_t width, uint32_t height, X_D3DFORMAT 
 
 	uint32_t newWidth, newHeight;
 
-	GetUpscaledSurfaceResolution(width, height, &newWidth, &newHeight);
+	if (useLowSpec)
+	{
+		GetUpscaledSurfaceResolution(width, height, &newWidth, &newHeight);
+	}
+	else
+	{
+		newWidth = 4096;
+		newHeight = 4096;
+	}
 
 	width = newWidth;
 	height = newHeight;
+
 
 	RenderTextureDesc desc;
 	desc.dimension = RenderTextureDimension::TEXTURE_2D;
