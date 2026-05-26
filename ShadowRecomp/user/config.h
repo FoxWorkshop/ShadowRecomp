@@ -99,7 +99,6 @@ enum class EAntiAliasing : uint32_t
 enum class ETextureFiltering : uint32_t
 {
     Auto,
-    Nearest,
     Linear
 };
 

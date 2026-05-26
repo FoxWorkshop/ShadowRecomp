@@ -7285,12 +7285,6 @@ static void ProcSetTextureStageState(const RenderCommand& cmd)
 		magFilter = RenderFilter::LINEAR;
 		minFilter = RenderFilter::LINEAR;
 	}
-	else if (Config::TextureFiltering == ETextureFiltering::Nearest)
-	{
-		mipFilter = RenderFilter::NEAREST;
-		magFilter = RenderFilter::NEAREST;
-		minFilter = RenderFilter::NEAREST;
-	}
 
 
 	bool anisotropyEnabled = Config::AnisotropicFiltering > 0 && mipFilter == RenderFilter::LINEAR;
