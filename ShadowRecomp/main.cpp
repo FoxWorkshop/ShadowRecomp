@@ -26,6 +26,7 @@
 #include <patches/unix_patches.h>
 #include <patches/reloaded_mod_patches.h>
 #include <audio/embedded_player.h>
+#include <ui/installer_wizard.h>
 
 #if defined(_WIN32) && defined(SHADOW_RECOMP_D3D12)
 static std::array<std::string_view, 3> g_D3D12RequiredModules =
@@ -158,6 +159,9 @@ std::vector<float> ReadFloatPairs(const std::string& path)
     return dataFloat;
 }
 
+
+bool QuickBootConfig = false;
+
 int main(int argc, char* argv[])
 {
 #ifdef _WIN32
@@ -187,7 +191,6 @@ int main(int argc, char* argv[])
     xbePath = GameExecutable;
 
     bool forceInstaller = false;
-    bool forceDLCInstaller = false;
     bool useDefaultWorkingDirectory = false;
     bool forceInstallationCheck = false;
     bool graphicsApiRetry = false;
@@ -196,10 +199,11 @@ int main(int argc, char* argv[])
     for (uint32_t i = 1; i < argc; i++)
     {
         forceInstaller = forceInstaller || (strcmp(argv[i], "--install") == 0);
-        forceDLCInstaller = forceDLCInstaller || (strcmp(argv[i], "--install-dlc") == 0);
         useDefaultWorkingDirectory = useDefaultWorkingDirectory || (strcmp(argv[i], "--use-cwd") == 0);
         forceInstallationCheck = forceInstallationCheck || (strcmp(argv[i], "--install-check") == 0);
         graphicsApiRetry = graphicsApiRetry || (strcmp(argv[i], "--graphics-api-retry") == 0);
+        QuickBootConfig = (strcmp(argv[i], "--quickboot") == 0);
+
 
         if (strcmp(argv[i], "--sdl-video-driver") == 0)
         {
@@ -219,6 +223,32 @@ int main(int argc, char* argv[])
 
     Config::Load();
 
+    bool isGameInstalled = std::filesystem::exists(GameExecutable);
+    bool runInstallerWizard = forceInstaller || !isGameInstalled;
+
+    if (forceInstallationCheck)
+    {
+        if (isGameInstalled)
+            printf("Installation check passed.\n");
+        else
+            printf("Installation check failed. Game files not found.\n");
+        return isGameInstalled ? 0 : 1;
+    }
+
+    if (runInstallerWizard)
+    {
+        if (!Video::CreateHostDevice(sdlVideoDriver, graphicsApiRetry))
+        {
+            SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_ERROR, GameWindow::GetTitle(), Localise("Video_BackendError").c_str(), GameWindow::s_pWindow);
+            std::_Exit(1);
+        }
+
+        if (!InstallerWizard::Run(GetGamePath()))
+        {
+            std::_Exit(0);
+        }
+    }
+
 #if defined(_WIN32) && defined(SHADOW_RECOMP_D3D12)
     for (auto& dll : g_D3D12RequiredModules)
     {
@@ -237,14 +267,6 @@ int main(int argc, char* argv[])
 
     HostStartup();
 
-     // to do installerwizzard
-    //if (runInstallerWizard)
-	//{
-
-        EmbeddedPlayer::Init();
-
-    //}
-
     ModLoader::Init();
 
     InitDpcData();
@@ -252,21 +274,32 @@ int main(int argc, char* argv[])
 
     NV2ADevice_Init();
 
-    //Create "interrupt events" thread, a loop will check and fire guest function stored from KeConnectInterrupt
-   // std::thread eventsThread(system_events_launch);
+    // Create "interrupt events" thread, a loop will check and fire guest function stored from KeConnectInterrupt
+    //std::thread eventsThread(system_events_launch);
 
-    //Create DPC Routine thread, a loop will check and fire guest function stored from KeInsertQueueDpc
+    // Create DPC Routine thread, a loop will check and fire guest function stored from KeInsertQueueDpc
     //std::thread dpcThread(dpc_launch);
 
     //init mutex for Loading thread patch
     InitPatchesLoadingCriticalSection();
+
+    isGameInstalled = std::filesystem::exists(GameExecutable);
+    if (!isGameInstalled)
+    {
+        SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_ERROR, GameWindow::GetTitle(), "Game files not found. Please reinstall.", GameWindow::s_pWindow);
+        std::_Exit(1);
+    }
+
+    xbePath = GameExecutable;
     uint32_t entry = LoadXbeModule(xbePath);
 
-
-    if (!Video::CreateHostDevice(sdlVideoDriver, graphicsApiRetry))
+    if (!runInstallerWizard)
     {
-        SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_ERROR, GameWindow::GetTitle(), "Backend Graphics error", GameWindow::s_pWindow);
-        std::_Exit(1);
+        if (!Video::CreateHostDevice(sdlVideoDriver, graphicsApiRetry))
+        {
+            SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_ERROR, GameWindow::GetTitle(), Localise("Video_BackendError").c_str(), GameWindow::s_pWindow);
+            std::_Exit(1);
+        }
     }
 
 

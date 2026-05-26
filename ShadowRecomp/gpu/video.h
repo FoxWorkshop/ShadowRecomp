@@ -5,9 +5,11 @@
 #define D3DCLEAR_TARGET  0x1
 #define D3DCLEAR_ZBUFFER 0x10
 
+#define LOAD_ZSTD_TEXTURE(name) LoadCustomTexture(decompressZstd(name, name##_uncompressed_size).get(), name##_uncompressed_size)
 
 constexpr DWORD X_D3DTS_STAGECOUNT = 4; // Dxbx addition
 extern uint32_t g_VertexShader_Handle;
+extern std::atomic<bool> g_pendingSurfaceResizeFlag;
 
 // Xbox vertex shader counts
 #define X_VSH_MAX_ATTRIBUTES          16
@@ -390,6 +392,7 @@ struct GuestBaseTexture : GuestResource
 	RenderFormat format = RenderFormat::UNKNOWN;
 	uint32_t descriptorIndex = 0;
 	RenderTextureLayout layout = RenderTextureLayout::UNKNOWN;
+	bool wasResized = false;
 
 	GuestBaseTexture(ResourceType type) : GuestResource(type)
 	{
@@ -407,7 +410,7 @@ struct GuestTexture : GuestBaseTexture
 	std::unique_ptr<GuestTexture> patchedTexture;
 	std::unique_ptr<GuestTexture> recreatedCubeMapTexture;
 	struct GuestSurface* sourceSurface = nullptr;
-	struct GuestSurface* surfaceRT = nullptr;
+	std::vector<struct GuestSurface*> surfaceRTs;
 	bool isRenderTarget = false;
 };
 
@@ -442,6 +445,7 @@ struct GuestSurface : GuestBaseTexture
 	ankerl::unordered_dense::map<const RenderTexture*, std::unique_ptr<RenderFramebuffer>> framebuffers;
 	RenderSampleCounts sampleCount = RenderSampleCount::COUNT_1;
 	ankerl::unordered_dense::set<GuestTexture*> destinationTextures;
+	GuestTexture* parentTexture = nullptr;
 };
 
 struct _D3DRECT
@@ -1113,3 +1117,5 @@ void UpdateVertexShader(uint32_t Handle);
 bool is_vulkan();
 
 extern std::unique_ptr<GuestTexture> LoadCustomTexture(const uint8_t* data, size_t dataSize, RenderComponentMapping componentMapping = RenderComponentMapping());
+
+extern void VideoConfigValueChangedCallback(class IConfigDef* config);

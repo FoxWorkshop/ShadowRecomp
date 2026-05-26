@@ -22,6 +22,8 @@ enum class EmbeddedSound
     Count
 };
 
+
+
 struct EmbeddedSoundData
 {
     Mix_Chunk* chunk{};
@@ -37,6 +39,7 @@ static const std::unordered_map<std::string_view, EmbeddedSound> g_embeddedSound
     { "cancel", EmbeddedSound::CancelDecide },
     { "cannot_decide", EmbeddedSound::CannotDecide },
 };
+
 
 static size_t g_channelIndex;
 

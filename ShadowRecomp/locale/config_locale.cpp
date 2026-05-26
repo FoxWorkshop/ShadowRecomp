@@ -218,15 +218,16 @@ CONFIG_DEFINE_ENUM_LOCALE(EControllerIcons)
 };
 
 // Japanese Notes: This localization should include furigana.
-CONFIG_DEFINE_LOCALE(VerticalCamera)
+CONFIG_DEFINE_LOCALE(HorizontalCamera)
 {
-    { ELanguage::English, { "Vertical Camera", "Change how the camera moves up and down." } },
-    { ELanguage::Japanese, { "カメラの[上下:じょうげ]", "カメラ[上下:じょうげ]の\u200B[動:うご]く[方向:ほうこう]を\u200B[選択:せんたく]できます" } },
-    { ELanguage::German,   { "Vertikale Kamera", "Ändere wie sich die Kamera nach oben und unten bewegt." } },
-    { ELanguage::French,   { "Caméra verticale", "Modifie la rotation verticale de la caméra." } },
-    { ELanguage::Spanish, { "Cámara vertical", "Cambia cómo se mueve la camara hacia arriba y abajo." } },
-    { ELanguage::Italian,  { "Telecamera verticale", "Modifica come la telecamera si muove su e giù." } }
+    { ELanguage::English, { "Horizontal Camera", "Change how the camera moves left and right." } },
+    { ELanguage::Japanese, { "カメラの[左右:さゆう]", "カメラ[左右:さゆう]の\u200B[動:うご]く[方向:ほうこう]を\u200B[選択:せんたく]できます" } },
+    { ELanguage::German,   { "Horizontale Kamera", "Ändere wie sich die Kamera nach links und rechts bewegt." } },
+    { ELanguage::French,   { "Caméra horizontale", "Modifie la rotation horizontale de la caméra." } },
+    { ELanguage::Spanish,  { "Cámara horizontal", "Cambia cómo se mueve la camara hacia la izquierda y la derecha." } },
+    { ELanguage::Italian,  { "Telecamera orizzontale", "Modifica come la telecamera si muove da sinistra a destra." } }
 };
+
 
 CONFIG_DEFINE_ENUM_LOCALE(ECameraRotationMode)
 {
@@ -273,6 +274,8 @@ CONFIG_DEFINE_ENUM_LOCALE(ECameraRotationMode)
         }
     }
 };
+
+
 
 // Japanese Notes: This localization should include furigana.
 CONFIG_DEFINE_LOCALE(Vibration)
@@ -332,12 +335,12 @@ CONFIG_DEFINE_LOCALE(EffectsVolume)
 // Japanese Notes: This localization should include furigana.
 CONFIG_DEFINE_LOCALE(VoicesVolume)
 {
-    { ELanguage::English, { "Voices Volume", "Adjust the volume for sound effects." } },
-    { ELanguage::Japanese, { "Voices Volume", "Adjust the volume for sound effects." } },
-    { ELanguage::German,   { "Voices Volume", "Adjust the volume for sound effects." } },
+    { ELanguage::English, { "Voices Volume", "Adjust the volume for the voices." } },
+    { ELanguage::Japanese, { "ボイスボリューム", "ボイスボリュームの\u200B[大:おお]きさを\u200B[調整:ちょうせい]できます" } },
+    { ELanguage::German,   { "Stimmenlautstärke", "Passe die Lautstärke der Stimmen an." } },
     { ELanguage::French,   { "Volume des voix", "Réglage du volume des voix." } },
-    { ELanguage::Spanish,  { "Voices Volume", "Adjust the volume for sound effects." } },
-    { ELanguage::Italian,  { "Voices Volume", "Adjust the volume for sound effects." } },
+    { ELanguage::Spanish,  { "Volumen de voces", "Ajusta el volumen de las voces." } },
+    { ELanguage::Italian,  { "Volume delle voci", "Regola il volume delle voci." } },
 };
 
 // Japanese Notes: This localization should include furigana.
@@ -457,12 +460,12 @@ CONFIG_DEFINE_ENUM_LOCALE(EAspectRatio)
 // Japanese Notes: This localization should include furigana.
 CONFIG_DEFINE_LOCALE(ResolutionScale)
 {
-    { ELanguage::English, { "Resolution Scale", "Adjust the internal resolution of the game.\n\n%dx%d" } },
-    { ELanguage::Japanese, { "[解像度:かいぞうど]スケール", "ゲームの\u200B[内部解像度:ないぶかいぞうど]を\u200B[調整:ちょうせい]できます\n\n%dx%d" } },
-    { ELanguage::German,   { "Rendering-Auflösung", "Passe die Auflösung der internen Darstellung an.\n\n%dx%d" } },
-    { ELanguage::French,   { "Échelle de rendu", "Modifie la résolution interne du jeu.\n\n%dx%d" } },
-    { ELanguage::Spanish,  { "Escala de resolución", "Ajusta la resolución interna del juego.\n\n%dx%d" } },
-    { ELanguage::Italian, { "Scala risoluzione", "Regola la risoluzione interna del gioco.\n\n%dx%d" } }
+    { ELanguage::English, { "Resolution Scale", "Adjust the internal resolution of the game.\n\n" } },
+    { ELanguage::Japanese, { "[解像度:かいぞうど]スケール", "ゲームの\u200B[内部解像度:ないぶかいぞうど]を\u200B[調整:ちょうせい]できます\n\n" } },
+    { ELanguage::German,   { "Rendering-Auflösung", "Passe die Auflösung der internen Darstellung an.\n\n" } },
+    { ELanguage::French,   { "Échelle de rendu", "Modifie la résolution interne du jeu.\n\n" } },
+    { ELanguage::Spanish,  { "Escala de resolución", "Ajusta la resolución interna del juego.\n\n" } },
+    { ELanguage::Italian, { "Scala risoluzione", "Regola la risoluzione interna del gioco.\n\n" } }
 };
 
 // Japanese Notes: This localization should include furigana.
@@ -632,4 +635,73 @@ CONFIG_DEFINE_LOCALE(BloomIntensity)
     { ELanguage::French,   { "Intensité du bloom", "Réglez l'intensité de l'effet du bloom." } },
     { ELanguage::Spanish,  { "Intensidad del bloom", "Ajusta la intensidad del efecto de bloom." } },
     { ELanguage::Italian,  { "Intensità del bloom", "Regola l'intensità dell'effetto bloom." } }
+};
+
+// Japanese Notes: This localization should include furigana.
+CONFIG_DEFINE_LOCALE(EnablePartnerIntro)
+{
+    { ELanguage::English, { "Partner Intro", "Show partner's introduction when they are first met." } },
+    { ELanguage::Japanese, { "", "" } },
+    { ELanguage::German,   { "", "" } },
+    { ELanguage::French,   { "Introduction du Partenaire", "Afficher l'introduction du partenaire lorsqu'il est rencontré pour la première fois." } },
+    { ELanguage::Spanish,  { "", "" } },
+    { ELanguage::Italian,  { "", "" } }
+};
+
+// Japanese Notes: This localization should include furigana.
+CONFIG_DEFINE_LOCALE(UIAlignmentMode)
+{
+    { ELanguage::English, { "UI Alignment Mode", "Change how the UI aligns with the display." } },
+    { ELanguage::Japanese, { "UIアライメントモード", "UIとディスプレイの\u200B[配置:はいち]を\u200B[変更:へんこう]できます" } },
+    { ELanguage::German,   { "Benutzeroberflächenausrichtung", "Verändere wie die Benutzeroberfläche sich mit dem Bildschirm ausrichtet." } },
+    { ELanguage::French,   { "Alignement de l'IU", "Modifie l'alignement de l'interface utilisateur sur l'écran." } },
+    { ELanguage::Spanish,  { "Modo de alineamiento de UI", "Cambia la alineación de la interfaz de usuario con la pantalla." } },
+    { ELanguage::Italian,  { "Modalità allineamento interfaccia", "Modifica come l'interfaccia si allinea con lo schermo." } }
+};
+
+// Japanese Notes: This localization should include furigana in its description.
+CONFIG_DEFINE_ENUM_LOCALE(EUIAlignmentMode)
+{
+    {
+        ELanguage::English,
+        {
+            { EUIAlignmentMode::Edge,    { "EDGE", "Edge: the UI will align with the edges of the display." } },
+            { EUIAlignmentMode::Centre,  { "CENTER", "Center: the UI will align with the center of the display." } }
+        }
+    },
+    {
+        ELanguage::Japanese,
+        {
+            { EUIAlignmentMode::Edge,    { "エッジ", "エッジ: UIがディスプレイの\u200B[端:はし]に\u200B[揃:そろ]います" } },
+            { EUIAlignmentMode::Centre,  { "センター", "センター: UIがディスプレイの\u200B[中央:ちゅうおう]に\u200B[揃:そろ]います" } },
+        }
+    },
+    {
+        ELanguage::German,
+        {
+            { EUIAlignmentMode::Edge,    { "RAND", "Rand: Die Benutzeroberfläche richtet sich zum Rand des Bildschirms aus." } },
+            { EUIAlignmentMode::Centre,  { "MITTE", "Mitte: Die Benutzeroberfläche richtet sich zur Mitte des Bildschirms aus." } }
+        }
+    },
+    {
+        ELanguage::French,
+        {
+            { EUIAlignmentMode::Edge,    { "BORD", "Bord : l'interface utilisateur sera alignée sur les bords de l'écran." } },
+            { EUIAlignmentMode::Centre,  { "CENTRÉE", "Centrée : l'interface utilisateur sera alignée sur le centre de l'écran." } },
+        }
+    },
+    {
+        ELanguage::Spanish,
+        {
+            { EUIAlignmentMode::Edge,    { "BORDE", "Borde: la interfaz de usuario se alineará con los bordes de la pantalla." } },
+            { EUIAlignmentMode::Centre,  { "CENTRO", "Centro: la interfaz de usuario se alineará con el centro de la pantalla." } },
+        }
+    },
+    {
+        ELanguage::Italian,
+        {
+            { EUIAlignmentMode::Edge,    { "BORDI", "Bordi: l'interfaccia si allineerà con i bordi dello schermo." } },
+            { EUIAlignmentMode::Centre,  { "CENTRO", "Centro: l'interfaccia si allineerà con il centro dello schermo." } }
+        }
+    }
 };

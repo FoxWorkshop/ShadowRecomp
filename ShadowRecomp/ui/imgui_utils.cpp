@@ -3,23 +3,35 @@
 #include <app.h>
 #include <user/config.h>
 #include <map>
-/*#include <decompressor.h>
+#include <decompressor.h>
 #include <version.h>
 
-/#include <res/images/common/general_window.dds.h>
-#include <res/images/common/light.dds.h>
-#include <res/images/common/select.dds.h>*/
+#include <res/images/common/gamemenu.png.h>
+#include <res/images/common/Options.png.h>
+#include <res/images/common/Options2.png.h>
+#include <res/images/common/TitleBg.png.h>
 
-std::unique_ptr<GuestTexture> g_texGeneralWindow;
-std::unique_ptr<GuestTexture> g_texLight;
-std::unique_ptr<GuestTexture> g_texSelect;
+float g_fntSeuratSize = 0.0f;
+
+void UpdateFontSize()
+{
+    g_fntSeuratSize = Scale(Config::Language == ELanguage::Japanese ? 19 : 18);
+}
 
 void InitImGuiUtils()
 {
    // g_texGeneralWindow = LOAD_ZSTD_TEXTURE(g_general_window);
     //g_texLight = LOAD_ZSTD_TEXTURE(g_light);
     //g_texSelect = LOAD_ZSTD_TEXTURE(g_select);
+
+    //g_upTexOptionsBG = LOAD_ZSTD_TEXTURE(g_options_bg);
+
+    UpdateFontSize();
 }
+
+
+
+
 
 void SetGradient(const ImVec2& min, const ImVec2& max, ImU32 top, ImU32 bottom)
 {
@@ -162,14 +174,16 @@ float Scale(float size)
     return size * g_aspectRatioScale;
 }
 
-double ComputeLinearMotion(double duration, double offset, double total)
+double ComputeLinearMotion(double time, double offset, double total, bool reverse)
 {
-    return std::clamp((ImGui::GetTime() - duration - offset / 60.0) / total * 60.0, 0.0, 1.0);
+    auto result = std::clamp((ImGui::GetTime() - time - offset / 60.0) / total * 60.0, 0.0, 1.0);
+
+    return reverse ? 1.0 - result : result;
 }
 
-double ComputeMotion(double duration, double offset, double total)
+double ComputeMotion(double duration, double offset, double total, bool reverse)
 {
-    return sqrt(ComputeLinearMotion(duration, offset, total));
+    return sqrt(ComputeLinearMotion(duration, offset, total, reverse));
 }
 
 void DrawPauseContainer(ImVec2 min, ImVec2 max, float alpha)
@@ -192,7 +206,7 @@ void DrawPauseContainer(ImVec2 min, ImVec2 max, float alpha)
 
     auto colour = IM_COL32(255, 255, 255, 255 * alpha);
 
-    drawList->AddImage(g_texGeneralWindow.get(), min, { min.x + commonWidth, min.y + commonHeight }, GET_UV_COORDS(tl), colour);
+    /**drawList->AddImage(g_texGeneralWindow.get(), min, {min.x + commonWidth, min.y + commonHeight}, GET_UV_COORDS(tl), colour);
     drawList->AddImage(g_texGeneralWindow.get(), { min.x + commonWidth, min.y }, { max.x - commonWidth, min.y + commonHeight }, GET_UV_COORDS(tc), colour);
     drawList->AddImage(g_texGeneralWindow.get(), { max.x - commonWidth, min.y }, { max.x, min.y + commonHeight }, GET_UV_COORDS(tr), colour);
     drawList->AddImage(g_texGeneralWindow.get(), { min.x, min.y + commonHeight }, { min.x + commonWidth, max.y - commonHeight }, GET_UV_COORDS(cl), colour);
@@ -200,7 +214,7 @@ void DrawPauseContainer(ImVec2 min, ImVec2 max, float alpha)
     drawList->AddImage(g_texGeneralWindow.get(), { max.x - commonWidth, min.y + commonHeight }, { max.x, max.y - commonHeight }, GET_UV_COORDS(cr), colour);
     drawList->AddImage(g_texGeneralWindow.get(), { min.x, max.y - commonHeight }, { min.x + commonWidth, max.y + bottomHeight }, GET_UV_COORDS(bl), colour);
     drawList->AddImage(g_texGeneralWindow.get(), { min.x + commonWidth, max.y - commonHeight }, { max.x - commonWidth, max.y + bottomHeight }, GET_UV_COORDS(bc), colour);
-    drawList->AddImage(g_texGeneralWindow.get(), { max.x - commonWidth, max.y - commonHeight }, { max.x, max.y + bottomHeight }, GET_UV_COORDS(br), colour);
+    drawList->AddImage(g_texGeneralWindow.get(), { max.x - commonWidth, max.y - commonHeight }, { max.x, max.y + bottomHeight }, GET_UV_COORDS(br), colour);*/
 }
 
 void DrawPauseHeaderContainer(ImVec2 min, ImVec2 max, float alpha)
@@ -215,9 +229,9 @@ void DrawPauseHeaderContainer(ImVec2 min, ImVec2 max, float alpha)
 
     auto colour = IM_COL32(255, 255, 255, 255 * alpha);
 
-    drawList->AddImage(g_texGeneralWindow.get(), min, { min.x + commonWidth, max.y }, GET_UV_COORDS(left), colour);
+   /** drawList->AddImage(g_texGeneralWindow.get(), min, {min.x + commonWidth, max.y}, GET_UV_COORDS(left), colour);
     drawList->AddImage(g_texGeneralWindow.get(), { min.x + commonWidth, min.y }, { max.x - commonWidth, max.y }, GET_UV_COORDS(centre), colour);
-    drawList->AddImage(g_texGeneralWindow.get(), { max.x - commonWidth, min.y }, max, GET_UV_COORDS(right), colour);
+    drawList->AddImage(g_texGeneralWindow.get(), { max.x - commonWidth, min.y }, max, GET_UV_COORDS(right), colour);*/
 }
 
 void DrawTextBasic(const ImFont* font, float fontSize, const ImVec2& pos, ImU32 colour, const char* text)
@@ -785,82 +799,6 @@ void DrawVersionString(const ImFont* font, const ImU32 col)
     drawList->AddText(font, fontSize, { res.x - textSize.x - textMargin, res.y - textSize.y - textMargin }, col, g_versionString);*/
 }
 
-void DrawSelectionContainer(ImVec2 min, ImVec2 max, bool fadeTop)
-{
-    auto drawList = ImGui::GetBackgroundDrawList();
-
-    static auto breatheStart = ImGui::GetTime();
-    auto alpha = BREATHE_MOTION(1.0f, 0.55f, breatheStart, 0.92f);
-    auto colour = IM_COL32(255, 255, 255, 255 * alpha);
-    auto commonWidth = Scale(11);
-    auto commonHeight = Scale(24);
-
-    if (fadeTop)
-    {
-        auto left = PIXELS_TO_UV_COORDS(64, 64, 0, 0, 11, 50);
-        auto centre = PIXELS_TO_UV_COORDS(64, 64, 11, 0, 8, 50);
-        auto right = PIXELS_TO_UV_COORDS(64, 64, 19, 0, 11, 50);
-
-        drawList->AddImage(g_texSelect.get(), min, { min.x + commonWidth, max.y }, GET_UV_COORDS(left), colour);
-        drawList->AddImage(g_texSelect.get(), { min.x + commonWidth, min.y }, { max.x - commonWidth, max.y }, GET_UV_COORDS(centre), colour);
-        drawList->AddImage(g_texSelect.get(), { max.x - commonWidth, min.y }, max, GET_UV_COORDS(right), colour);
-
-        return;
-    }
-
-    auto tl = PIXELS_TO_UV_COORDS(64, 64, 34, 0, 11, 24);
-    auto tc = PIXELS_TO_UV_COORDS(64, 64, 45, 0, 8, 24);
-    auto tr = PIXELS_TO_UV_COORDS(64, 64, 53, 0, 11, 24);
-    auto cl = PIXELS_TO_UV_COORDS(64, 64, 34, 24, 11, 2);
-    auto cc = PIXELS_TO_UV_COORDS(64, 64, 45, 24, 8, 2);
-    auto cr = PIXELS_TO_UV_COORDS(64, 64, 53, 24, 11, 2);
-    auto bl = PIXELS_TO_UV_COORDS(64, 64, 34, 26, 11, 24);
-    auto bc = PIXELS_TO_UV_COORDS(64, 64, 45, 26, 8, 24);
-    auto br = PIXELS_TO_UV_COORDS(64, 64, 53, 26, 11, 24);
-
-    drawList->AddImage(g_texSelect.get(), min, { min.x + commonWidth, min.y + commonHeight }, GET_UV_COORDS(tl), colour);
-    drawList->AddImage(g_texSelect.get(), { min.x + commonWidth, min.y }, { max.x - commonWidth, min.y + commonHeight }, GET_UV_COORDS(tc), colour);
-    drawList->AddImage(g_texSelect.get(), { max.x - commonWidth, min.y }, { max.x, min.y + commonHeight }, GET_UV_COORDS(tr), colour);
-    drawList->AddImage(g_texSelect.get(), { min.x, min.y + commonHeight }, { min.x + commonWidth, max.y - commonHeight }, GET_UV_COORDS(cl), colour);
-    drawList->AddImage(g_texSelect.get(), { min.x + commonWidth, min.y + commonHeight }, { max.x - commonWidth, max.y - commonHeight }, GET_UV_COORDS(cc), colour);
-    drawList->AddImage(g_texSelect.get(), { max.x - commonWidth, min.y + commonHeight }, { max.x, max.y - commonHeight }, GET_UV_COORDS(cr), colour);
-    drawList->AddImage(g_texSelect.get(), { min.x, max.y - commonHeight }, { min.x + commonWidth, max.y }, GET_UV_COORDS(bl), colour);
-    drawList->AddImage(g_texSelect.get(), { min.x + commonWidth, max.y - commonHeight }, { max.x - commonWidth, max.y }, GET_UV_COORDS(bc), colour);
-    drawList->AddImage(g_texSelect.get(), { max.x - commonWidth, max.y - commonHeight }, { max.x, max.y }, GET_UV_COORDS(br), colour);
-}
-
-void DrawToggleLight(ImVec2 pos, bool isEnabled, float alpha)
-{
-    auto drawList = ImGui::GetBackgroundDrawList();
-    auto lightSize = Scale(14);
-    auto lightCol = IM_COL32(255, 255, 255, 255 * alpha);
-
-    ImVec2 min = { pos.x, pos.y };
-    ImVec2 max = { min.x + lightSize, min.y + lightSize };
-
-    if (isEnabled)
-    {
-        auto lightGlowSize = Scale(24);
-        auto lightGlowUVs = PIXELS_TO_UV_COORDS(64, 64, 31, 31, 32, 32);
-
-        ImVec2 lightGlowMin = { min.x - (lightGlowSize / 2) + Scale(2), min.y - lightGlowSize / 2 };
-        ImVec2 lightGlowMax = { min.x + lightGlowSize, min.y + lightGlowSize };
-
-        SetAdditive(true);
-        drawList->AddImage(g_texLight.get(), lightGlowMin, lightGlowMax, GET_UV_COORDS(lightGlowUVs), IM_COL32(255, 255, 0, 127 * alpha));
-        SetAdditive(false);
-
-        auto lightOnUVs = PIXELS_TO_UV_COORDS(64, 64, 14, 0, 14, 14);
-
-        drawList->AddImage(g_texLight.get(), min, max, GET_UV_COORDS(lightOnUVs), lightCol);
-    }
-    else
-    {
-        auto lightOffUVs = PIXELS_TO_UV_COORDS(64, 64, 0, 0, 14, 14);
-
-        drawList->AddImage(g_texLight.get(), min, max, GET_UV_COORDS(lightOffUVs), lightCol);
-    }
-}
 
 // Taken from ImGui because we need to modify to break for '\u200B\ too
 // Simple word-wrapping for English, not full-featured. Please submit failing cases!

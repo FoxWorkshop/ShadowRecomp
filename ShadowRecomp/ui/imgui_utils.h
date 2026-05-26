@@ -16,10 +16,10 @@
 #define BREATHE_MOTION(start, end, time, rate) Lerp(start, end, (sin((ImGui::GetTime() - time) * (2.0f * M_PI / rate)) + 1.0f) / 2.0f)
 
 constexpr float ANNOTATION_FONT_SIZE_MODIFIER = 0.6f;
+#define IM_COL32_WHITE_TRANS IM_COL32(255, 255, 255, 0)
 
-extern std::unique_ptr<GuestTexture> g_texGeneralWindow;
-extern std::unique_ptr<GuestTexture> g_texLight;
-extern std::unique_ptr<GuestTexture> g_texSelect;
+extern float g_fntSeuratSize;
+
 
 struct TextSegment {
     bool annotated;
@@ -33,6 +33,7 @@ struct Paragraph {
 };
 
 void InitImGuiUtils();
+void UpdateFontSize();
 
 void SetGradient(const ImVec2& min, const ImVec2& max, ImU32 top, ImU32 bottom);
 void SetGradient(const ImVec2& min, const ImVec2& max, ImU32 topLeft, ImU32 topRight, ImU32 bottomRight, ImU32 bottomLeft);
@@ -54,8 +55,8 @@ void ResetProceduralOrigin();
 void SetAdditive(bool enabled);
 void ResetAdditive();
 float Scale(float size);
-double ComputeLinearMotion(double duration, double offset, double total);
-double ComputeMotion(double duration, double offset, double total);
+double ComputeLinearMotion(double time, double offset, double total, bool reverse);
+double ComputeMotion(double duration, double offset, double total, bool reverse);
 void DrawPauseContainer(ImVec2 min, ImVec2 max, float alpha = 1);
 void DrawTextBasic(const ImFont* font, float fontSize, const ImVec2& pos, ImU32 colour, const char* text);
 void DrawPauseHeaderContainer(ImVec2 min, ImVec2 max, float alpha = 1);

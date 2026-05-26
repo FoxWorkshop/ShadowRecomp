@@ -63,6 +63,7 @@ X86_FUNC(sub_11AD0)
 {
 	App::s_isInit = true;
 	App::s_language = Config::Language;
+	App::s_voiceLanguage = Config::VoiceLanguage;
 
 	Registry::Save();
 
@@ -88,9 +89,10 @@ void UpdateSDLEventsMidAsmHook()
 {
 	while (!shouldQuit)
 	{
-		//fix unresponsive window
+		// fix unresponsive window
 		if (std::this_thread::get_id() == g_mainThreadId)
 		{
+			MainThreadDispatcher::Get().Flush(); // This runs the callbacks needed from user's config
 			SDL_PumpEvents();
 			SDL_FlushEvents(SDL_FIRSTEVENT, SDL_LASTEVENT);
 			GameWindow::Update();

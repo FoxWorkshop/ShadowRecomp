@@ -127,10 +127,26 @@ struct ArgTranslator
     {
         if (cc == Thiscall)
         {
-            if (arg == 0) { ctx.ecx.u32 = value; return; }
+            if (arg == 0) 
+            { ctx.ecx.u32 = value; return; }
+
 
             const uint32_t stack_ptr = ctx.esp.u32;
             *reinterpret_cast<uint32_t*>(base + stack_ptr + ((arg - 1) * 4)) = value;
+            return;
+        }
+
+        if (cc == Fastcall)
+        {
+            if (arg == 0) 
+            { ctx.ecx.u32 = value; return; }
+
+            if (arg == 1) 
+            { ctx.edx.u32 = value; return; }
+
+
+            const uint32_t stack_ptr = ctx.esp.u32;
+            *reinterpret_cast<uint32_t*>(base + stack_ptr + ((arg - 2) * 4)) = value;
             return;
         }
 
@@ -179,10 +195,24 @@ struct ArgTranslator
     {
         if (cc == Thiscall)
         {
-            if (arg == 0) { ctx.ecx.u32 = value; return; }
+            if (arg == 0) 
+            { ctx.ecx.u32 = value; return; }
 
             const uint32_t stack_ptr = ctx.esp.u32;
             *reinterpret_cast<float*>(base + stack_ptr + ((arg - 1) * 4)) = value;
+            return;
+        }
+
+        if (cc == Fastcall)
+        {
+            if (arg == 0) 
+            { ctx.ecx.u32 = value; return; }
+
+            if (arg == 1) 
+            { ctx.edx.u32 = value; return; }
+
+            const uint32_t stack_ptr = ctx.esp.u32;
+            *reinterpret_cast<float*>(base + stack_ptr + ((arg - 2) * 4)) = value;
             return;
         }
 
@@ -222,24 +252,24 @@ struct ArgTranslator
     }
 
     template<typename T>
-    static std::enable_if_t<!std::is_pointer_v<T>, void> SetValue(X86Context& ctx, uint8_t* base, size_t idx, T value) noexcept
+    static std::enable_if_t<!std::is_pointer_v<T>, void> SetValue(X86Context& ctx, uint8_t* base, size_t idx, T value, CallConvention cc = CallConvention::Cdecl) noexcept
     {
         if constexpr (std::is_null_pointer_v<T>)
         {
-            SetIntegerArgumentValue(ctx, base, idx, 0);
+            SetIntegerArgumentValue(ctx, base, idx, 0, cc);
         }
         else if constexpr (std::is_pointer_v<T>)
         {
-            SetIntegerArgumentValue(ctx, base, idx, g_memory.MapVirtual(value));
+            SetIntegerArgumentValue(ctx, base, idx, g_memory.MapVirtual(value), cc);
         }
         else
         {
-            SetIntegerArgumentValue(ctx, base, idx, static_cast<uint32_t>(value));
+            SetIntegerArgumentValue(ctx, base, idx, static_cast<uint32_t>(value), cc);
         }
     }
 
     template<typename T>
-    static std::enable_if_t<std::is_pointer_v<T>, void> SetValue(X86Context& ctx, uint8_t* base, size_t idx, T value) noexcept
+    static std::enable_if_t<std::is_pointer_v<T>, void> SetValue(X86Context& ctx, uint8_t* base, size_t idx, T value, CallConvention cc = CallConvention::Cdecl) noexcept
     {
         const auto v = g_memory.MapVirtual((void*)value);
         if (!v)
@@ -247,7 +277,7 @@ struct ArgTranslator
             return;
         }
 
-        SetValue(ctx, base, idx, v);
+        SetValue(ctx, base, idx, v, cc);
     }
 };
 
@@ -325,18 +355,23 @@ std::enable_if_t<(I < sizeof...(TArgs)), void>
 }
 
 
-template <auto Func, CallConvention CC, int I = 0, typename ...TArgs>
-std::enable_if_t<(I >= sizeof...(TArgs)), void> _translate_args_to_guest(X86Context& ctx, uint8_t* base, std::tuple<TArgs...>& tpl) noexcept
+
+template <CallConvention CC, int I = 0, typename ...TArgs>
+std::enable_if_t<(I >= sizeof...(TArgs)), void>
+_translate_args_to_guest(X86Context& ctx, uint8_t* base, std::tuple<TArgs...>& tpl) noexcept
 {
 }
 
-template <auto Func, CallConvention CC, int I = 0, typename ...TArgs>
-std::enable_if_t<(I < sizeof...(TArgs)), void> _translate_args_to_guest(X86Context& ctx, uint8_t* base, std::tuple<TArgs...>& tpl) noexcept
+template <CallConvention CC, int I = 0, typename ...TArgs>
+std::enable_if_t<(I < sizeof...(TArgs)), void>
+    _translate_args_to_guest(X86Context& ctx, uint8_t* base, std::tuple<TArgs...>& tpl) noexcept
 {
     using T = std::tuple_element_t<I, std::remove_reference_t<decltype(tpl)>>;
-    ArgTranslator::SetValue<T>(ctx, base, GatherFunctionArguments(std::tuple<TArgs...>{})[I].ordinal, std::get<I>(tpl));
-
-    _translate_args_to_guest<Func, CC, I + 1>(ctx, base, tpl);
+    ArgTranslator::SetValue<T>(ctx, base,
+        GatherFunctionArguments(std::tuple<TArgs...>{})[I].ordinal,
+        std::get<I>(tpl), 
+        CC);
+    _translate_args_to_guest<CC, I + 1>(ctx, base, tpl);
 }
 
 //Function to handle translation from host (C++) to guest (x86)
@@ -391,7 +426,8 @@ X86_FUNC(HostToGuestFunction)
 }
 
 // Function to call from guest (x86) to host (C++)
-template<typename T, typename TFunction, typename... TArgs>
+template<typename T, CallConvention CC = CallConvention::Cdecl,
+    typename TFunction, typename... TArgs>
 T GuestToHostFunction(const TFunction& func, TArgs&&... argv)
 {
     auto args = std::make_tuple(std::forward<TArgs>(argv)...);
@@ -403,9 +439,10 @@ T GuestToHostFunction(const TFunction& func, TArgs&&... argv)
     // Copy other necessary registers
 
     // Set up the arguments
-    _translate_args_to_guest(newCtx, g_memory.base, args);
+    _translate_args_to_guest<CC>(newCtx, g_memory.base, args);
 
     SetX86Context(newCtx);
+    newCtx.esp.u32 -= 4; //adjust esp for CALL instruction
 
     if constexpr (std::is_function_v<TFunction>)
         func(newCtx, g_memory.base);

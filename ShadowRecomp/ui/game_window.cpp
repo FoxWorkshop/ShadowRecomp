@@ -10,6 +10,7 @@
 #include <shellscalingapi.h>
 #endif
 #include <os/logger.h>
+#include "imgui_utils.h"
 
 //Original code from Unleashed Recomp
 
@@ -232,6 +233,7 @@ void GameWindow::Update()
     if (m_isResizing)
     {
         SetTitle();
+        g_pendingSurfaceResizeFlag = true;
         m_isResizing = false;
     }
 
@@ -278,10 +280,10 @@ void GameWindow::SetIcon(ELedAura mode)
 
 const char* GameWindow::GetTitle()
 {
-    /**if (Config::UseOfficialTitleOnTitleBar)
+    if (Config::UseOfficialTitleOnTitleBar)
     {
         return "SHADOW THE HEDGEHOG(TM)";
-    }*/
+    }
 
     return "Shadow Recompiled";
 }
@@ -331,6 +333,7 @@ bool GameWindow::SetFullscreen(bool isEnabled)
         SetIcon((ELedAura)GameWindow::s_Icon);
         SetDimensions(Config::WindowWidth, Config::WindowHeight, Config::WindowX, Config::WindowY);
     }
+
 
     return isEnabled;
 }
@@ -415,9 +418,6 @@ void GameWindow::ResetDimensions()
 uint32_t GameWindow::GetWindowFlags()
 {
     uint32_t flags = SDL_WINDOW_HIDDEN | SDL_WINDOW_RESIZABLE | SDL_WINDOW_ALLOW_HIGHDPI;
-
-    if (Config::WindowState == EWindowState::Maximised)
-        flags |= SDL_WINDOW_MAXIMIZED;
 
     if (Config::Fullscreen)
         flags |= SDL_WINDOW_FULLSCREEN_DESKTOP;

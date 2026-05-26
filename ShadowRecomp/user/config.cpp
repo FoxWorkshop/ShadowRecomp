@@ -2,6 +2,7 @@
 #include <os/logger.h>
 #include <ui/game_window.h>
 #include <user/paths.h>
+#include <gpu/video.h>
 
 std::vector<IConfigDef*> g_configDefinitions;
 
@@ -18,6 +19,11 @@ CONFIG_DEFINE_ENUM_TEMPLATE(ELanguage)
     { "Italian",  ELanguage::Italian }
 };
 
+CONFIG_DEFINE_ENUM_TEMPLATE(ECameraRotationMode)
+{
+    { "Normal", ECameraRotationMode::Normal },
+    { "Reverse", ECameraRotationMode::Reverse },
+};
 
 CONFIG_DEFINE_ENUM_TEMPLATE(EControllerIcons)
 {
@@ -333,47 +339,47 @@ CONFIG_DEFINE_ENUM_TEMPLATE(ETextureFiltering)
 
 
 #undef  CONFIG_DEFINE
-#define CONFIG_DEFINE(section, type, name, defaultValue) \
-    ConfigDef<type> Config::name{section, #name, defaultValue};
+#define CONFIG_DEFINE(section, type, name, defaultValue, requiresRestart) \
+    ConfigDef<type> Config::name{section, #name, defaultValue, requiresRestart};
 
 #undef  CONFIG_DEFINE_HIDDEN
-#define CONFIG_DEFINE_HIDDEN(section, type, name, defaultValue) \
-    ConfigDef<type, true> Config::name{section, #name, defaultValue};
+#define CONFIG_DEFINE_HIDDEN(section, type, name, defaultValue, requiresRestart) \
+    ConfigDef<type, true> Config::name{section, #name, defaultValue, requiresRestart};
 
 #undef  CONFIG_DEFINE_LOCALISED
-#define CONFIG_DEFINE_LOCALISED(section, type, name, defaultValue) \
+#define CONFIG_DEFINE_LOCALISED(section, type, name, defaultValue, requiresRestart) \
     extern CONFIG_LOCALE g_##name##_locale; \
-    ConfigDef<type> Config::name{section, #name, &g_##name##_locale, defaultValue};
+    ConfigDef<type> Config::name{section, #name, &g_##name##_locale, defaultValue, requiresRestart};
 
 #undef  CONFIG_DEFINE_ENUM
-#define CONFIG_DEFINE_ENUM(section, type, name, defaultValue) \
-    ConfigDef<type> Config::name{section, #name, defaultValue, &g_##type##_template};
+#define CONFIG_DEFINE_ENUM(section, type, name, defaultValue, requiresRestart) \
+    ConfigDef<type> Config::name{section, #name, defaultValue, requiresRestart, &g_##type##_template};
 
 #undef  CONFIG_DEFINE_ENUM_LOCALISED
-#define CONFIG_DEFINE_ENUM_LOCALISED(section, type, name, defaultValue) \
+#define CONFIG_DEFINE_ENUM_LOCALISED(section, type, name, defaultValue, requiresRestart) \
     extern CONFIG_LOCALE g_##name##_locale; \
     extern CONFIG_ENUM_LOCALE(type) g_##type##_locale; \
-    ConfigDef<type> Config::name{section, #name, &g_##name##_locale, defaultValue, &g_##type##_template, &g_##type##_locale};
+    ConfigDef<type> Config::name{section, #name, &g_##name##_locale, defaultValue, requiresRestart, &g_##type##_template, &g_##type##_locale};
 
 #include "config_def.h"
 
 // CONFIG_DEFINE
 template<typename T, bool isHidden>
-ConfigDef<T, isHidden>::ConfigDef(std::string section, std::string name, T defaultValue) : Section(section), Name(name), DefaultValue(defaultValue)
+ConfigDef<T, isHidden>::ConfigDef(std::string section, std::string name, T defaultValue, bool requiresRestart) : Section(section), Name(name), DefaultValue(defaultValue), IsRestartRequired(requiresRestart)
 {
     g_configDefinitions.emplace_back(this);
 }
 
 // CONFIG_DEFINE_LOCALISED
 template<typename T, bool isHidden>
-ConfigDef<T, isHidden>::ConfigDef(std::string section, std::string name, CONFIG_LOCALE* nameLocale, T defaultValue) : Section(section), Name(name), Locale(nameLocale), DefaultValue(defaultValue)
+ConfigDef<T, isHidden>::ConfigDef(std::string section, std::string name, CONFIG_LOCALE* nameLocale, T defaultValue, bool requiresRestart) : Section(section), Name(name), Locale(nameLocale), DefaultValue(defaultValue), IsRestartRequired(requiresRestart)
 {
     g_configDefinitions.emplace_back(this);
 }
 
 // CONFIG_DEFINE_ENUM
 template<typename T, bool isHidden>
-ConfigDef<T, isHidden>::ConfigDef(std::string section, std::string name, T defaultValue, std::unordered_map<std::string, T>* enumTemplate) : Section(section), Name(name), DefaultValue(defaultValue), EnumTemplate(enumTemplate)
+ConfigDef<T, isHidden>::ConfigDef(std::string section, std::string name, T defaultValue, bool requiresRestart, std::unordered_map<std::string, T>* enumTemplate) : Section(section), Name(name), DefaultValue(defaultValue), IsRestartRequired(requiresRestart), EnumTemplate(enumTemplate)
 {
     for (const auto& pair : *EnumTemplate)
         EnumTemplateReverse[pair.second] = pair.first;
@@ -383,7 +389,7 @@ ConfigDef<T, isHidden>::ConfigDef(std::string section, std::string name, T defau
 
 // CONFIG_DEFINE_ENUM_LOCALISED
 template<typename T, bool isHidden>
-ConfigDef<T, isHidden>::ConfigDef(std::string section, std::string name, CONFIG_LOCALE* nameLocale, T defaultValue, std::unordered_map<std::string, T>* enumTemplate, CONFIG_ENUM_LOCALE(T)* enumLocale) : Section(section), Name(name), Locale(nameLocale), DefaultValue(defaultValue), EnumTemplate(enumTemplate), EnumLocale(enumLocale)
+ConfigDef<T, isHidden>::ConfigDef(std::string section, std::string name, CONFIG_LOCALE* nameLocale, T defaultValue, bool requiresRestart, std::unordered_map<std::string, T>* enumTemplate, CONFIG_ENUM_LOCALE(T)* enumLocale) : Section(section), Name(name), Locale(nameLocale), DefaultValue(defaultValue), IsRestartRequired(requiresRestart), EnumTemplate(enumTemplate), EnumLocale(enumLocale)
 {
     for (const auto& pair : *EnumTemplate)
         EnumTemplateReverse[pair.second] = pair.first;
@@ -692,7 +698,23 @@ void ConfigDef<T, isHidden>::SnapToNearestAccessibleValue(bool searchUp)
     }
 }
 
+template<typename T, bool isHidden>
+bool ConfigDef<T, isHidden>::RequiresRestart()
+{
+    return IsRestartRequired;
+}
 
+template<typename T, bool isHidden>
+void ConfigDef<T, isHidden>::UpdateStore()
+{
+    m_storedValue = Value;
+}
+
+template<typename T, bool isHidden>
+bool ConfigDef<T, isHidden>::IsValueChanged()
+{
+    return m_storedValue != Value;
+}
 std::filesystem::path Config::GetConfigPath()
 {
     return GetUserPath() / "config.toml";
@@ -705,6 +727,8 @@ void Config::CreateCallbacks()
             // Try matching the current window size with a known configuration.
             if (def->Value < 0)
                 def->Value = GameWindow::FindNearestDisplayMode();
+
+
         };
 
     Config::WindowSize.ApplyCallback = [](ConfigDef<int32_t>* def)
@@ -715,27 +739,69 @@ void Config::CreateCallbacks()
             if (def->Value >= displayModes.size())
                 def->Value = displayModes.size() - 1;
 
-            auto& mode = displayModes[def->Value];
-            auto centre = SDL_WINDOWPOS_CENTERED_DISPLAY(GameWindow::GetDisplay());
+            int32_t value = def->Value;
+            MainThreadDispatcher::Get().Post([value]()
+                {
+                    auto displayModes = GameWindow::GetDisplayModes();
+                    auto& mode = displayModes[value];
+                    auto centre = SDL_WINDOWPOS_CENTERED_DISPLAY(GameWindow::GetDisplay());
+                    GameWindow::SetDimensions(mode.w, mode.h, centre, centre);
+                    if (App::s_isInit)
+                        g_pendingSurfaceResizeFlag = true;
+                });
 
-            GameWindow::SetDimensions(mode.w, mode.h, centre, centre);
+
+  
         };
 
     Config::Monitor.Callback = [](ConfigDef<int32_t>* def)
         {
-            GameWindow::SetDisplay(def->Value);
+            int32_t value = def->Value;
+            MainThreadDispatcher::Get().Post([value]()
+                {
+                    GameWindow::SetDisplay(value);
+                });
         };
 
     Config::Fullscreen.Callback = [](ConfigDef<bool>* def)
         {
-            GameWindow::SetFullscreen(def->Value);
-            GameWindow::SetDisplay(Config::Monitor);
+            bool value = def->Value;
+            MainThreadDispatcher::Get().Post([value]()
+                {
+                    GameWindow::SetFullscreen(value);
+                    GameWindow::SetDisplay(Config::Monitor);
+                    if (App::s_isInit)
+                        g_pendingSurfaceResizeFlag = true;
+                });
         };
 
     Config::ResolutionScale.Callback = [](ConfigDef<float>* def)
         {
             def->Value = std::clamp(def->Value, 0.25f, 2.0f);
         };
+
+    Config::AspectRatio.Callback = [](ConfigDef<EAspectRatio>* def)
+        {;
+        };
+
+
+    Config::Language.Callback = [](ConfigDef<ELanguage>* def)
+        {
+            int32_t value = (int32_t)def->Value;
+            if (value < 0 || value > 6)
+                value = (int32_t)ELanguage::English;
+
+            MainThreadDispatcher::Get().Post([value]()
+                {
+                    auto base = g_memory.base;
+
+                    X86_STORE_U32(0x54DD88, value);
+                    X86_STORE_U32(0x541504, value);
+                });
+        };
+
+
+
 }
 
 void Config::Load()

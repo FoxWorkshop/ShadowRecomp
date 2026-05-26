@@ -59,7 +59,9 @@ This project does not plan to support any more platforms other than Windows and 
 
 ### Special Thanks
 
-- CXBX-Reloaded Development Team: This project would not have been possible without the [CXBX emulator](https://github.com/Cxbx-Reloaded/Cxbx-Reloaded). Nearly every aspect of the development was guided by referencing CXBX's research on the original Xbox, especially the graphics part.
+- CXBX-Reloaded Development Team: This project would not have been possible without the [CXBX emulator](https://github.com/Cxbx-Reloaded/Cxbx-Reloaded-legacy). Nearly every aspect of the development was guided by referencing CXBX's research on the original Xbox, especially the graphics part.
+
+- [extract-xiso](https://github.com/XboxDev/extract-xiso): extract-xiso devs (in@fishtank.com and other extract-xiso contributors) for core extraction in the installer.
 
 - Unleashed Recompiled Development Team: Created much of the ground work that made all of this possible and sped up development time considerably.
 

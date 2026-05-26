@@ -112,10 +112,13 @@ public:
 		pad.sThumbLY = (int16_t)std::clamp(-(int32_t)SDL_GameControllerGetAxis(controller, SDL_CONTROLLER_AXIS_LEFTY),
 			(int32_t)-32768, (int32_t)INT16_MAX); //clamp here, fix the int16 overflow with negative angle, this fix "press up" not working
 
-		
+
 		pad.sThumbRX = SDL_GameControllerGetAxis(controller, SDL_CONTROLLER_AXIS_RIGHTX);
 		pad.sThumbRY = (int16_t)std::clamp(-(int32_t)SDL_GameControllerGetAxis(controller, SDL_CONTROLLER_AXIS_RIGHTY),
 			(int32_t)-32768, (int32_t)INT16_MAX);
+
+		if (Config::HorizontalCamera.Value == ECameraRotationMode::Reverse)
+			pad.sThumbRX = (int16_t)std::clamp(-(int32_t)pad.sThumbRX, (int32_t)-32768, (int32_t)INT16_MAX);
 
 		int16_t leftTrig = SDL_GameControllerGetAxis(controller, SDL_CONTROLLER_AXIS_TRIGGERLEFT);
 		int16_t rightTrig = SDL_GameControllerGetAxis(controller, SDL_CONTROLLER_AXIS_TRIGGERRIGHT);
@@ -152,13 +155,12 @@ public:
 
 	}
 
-	void SetVibration(const uint8_t strength)
+	void SetVibration(const XboxVibrationPacket& vibration)
 	{
 		if (!CanPoll())
 			return;
 
-
-		SDL_GameControllerRumble(controller, strength * 256, strength * 256, VIBRATION_TIMEOUT_MS);
+		SDL_GameControllerRumble(controller, vibration.wLeftMotorSpeed, vibration.wRightMotorSpeed, VIBRATION_TIMEOUT_MS);
 	}
 
 	void SetLED(const uint8_t r, const uint8_t g, const uint8_t b) const
@@ -173,88 +175,88 @@ Controller* g_activeController;
 class KeyboardController
 {
 public:
-    _XINPUT_GAMEPAD_OG state{};
+	_XINPUT_GAMEPAD_OG state{};
 
-    static constexpr int16_t STICK_MAX = 32767;
-    static constexpr int16_t STICK_MIN = -32768;
+	static constexpr int16_t STICK_MAX = 32767;
+	static constexpr int16_t STICK_MIN = -32768;
 
-    void Poll()
-    {
-        const uint8_t* keystate = SDL_GetKeyboardState(nullptr);
+	void Poll()
+	{
+		const uint8_t* keystate = SDL_GetKeyboardState(nullptr);
 
-        state.wButtons = 0;
+		state.wButtons = 0;
 
-        if (keystate[Config::Key_LeftStickUp])    
+		if (keystate[Config::Key_LeftStickUp])
 			state.sThumbLY = STICK_MAX;
-        else if (keystate[Config::Key_LeftStickDown])
+		else if (keystate[Config::Key_LeftStickDown])
 			state.sThumbLY = STICK_MIN;
-        else 
+		else
 			state.sThumbLY = 0;
 
-        if (keystate[Config::Key_LeftStickLeft])  
+		if (keystate[Config::Key_LeftStickLeft])
 			state.sThumbLX = STICK_MIN;
-        else if (keystate[Config::Key_LeftStickRight])
+		else if (keystate[Config::Key_LeftStickRight])
 			state.sThumbLX = STICK_MAX;
-        else 
+		else
 			state.sThumbLX = 0;
 
-        if (keystate[SDL_SCANCODE_I])    
+		if (keystate[SDL_SCANCODE_I])
 			state.sThumbRY = STICK_MAX;
-        else if (keystate[SDL_SCANCODE_K])  
+		else if (keystate[SDL_SCANCODE_K])
 			state.sThumbRY = STICK_MIN;
-        else 
+		else
 			state.sThumbRY = 0;
 
-        if (keystate[SDL_SCANCODE_J])  
+		if (keystate[SDL_SCANCODE_J])
 			state.sThumbRX = STICK_MIN;
-        else if (keystate[SDL_SCANCODE_L]) 
+		else if (keystate[SDL_SCANCODE_L])
 			state.sThumbRX = STICK_MAX;
-        else 
+		else
 			state.sThumbRX = 0;
 
-        if (keystate[Config::Key_Start])
+		if (keystate[Config::Key_Start])
 			state.wButtons |= XINPUT_GAMEPAD_START;
 
-        if (keystate[Config::Key_Y])
+		if (keystate[Config::Key_Y])
 			state.bAnalogButtons[Buttons_Y] = 0xFF;
-        else 
+		else
 			state.bAnalogButtons[Buttons_Y] = 0;
 
-        if (keystate[Config::Key_B])
+		if (keystate[Config::Key_B])
 			state.bAnalogButtons[Buttons_B] = 0xFF;
-        else 
+		else
 			state.bAnalogButtons[Buttons_B] = 0;
 
-        if (keystate[Config::Key_A])
+		if (keystate[Config::Key_A])
 			state.bAnalogButtons[Buttons_A] = 0xFF;
-        else 
+		else
 			state.bAnalogButtons[Buttons_A] = 0;
 
-        if (keystate[Config::Key_X])
+		if (keystate[Config::Key_X])
 			state.bAnalogButtons[Buttons_X] = 0xFF;
-        else 
+		else
 			state.bAnalogButtons[Buttons_X] = 0;
 
-        if (keystate[Config::Key_LeftBumper])
+		if (keystate[Config::Key_LeftBumper])
 			state.bAnalogButtons[Buttons_White] = 0xFF;
-        else 
+		else
 			state.bAnalogButtons[Buttons_White] = 0;
 
-        if (keystate[Config::Key_RightBumper]) 
+		if (keystate[Config::Key_RightBumper])
 			state.bAnalogButtons[Buttons_Black] = 0xFF;
-        else 
+		else
 			state.bAnalogButtons[Buttons_Black] = 0;
 
-        if (keystate[Config::Key_LeftTrigger])
+		if (keystate[Config::Key_LeftTrigger])
 			state.bAnalogButtons[Buttons_LT] = 0xFF;
-        else 
+		else
 			state.bAnalogButtons[Buttons_LT] = 0;
 
-        if (keystate[Config::Key_RightTrigger]) 
+		if (keystate[Config::Key_RightTrigger])
 			state.bAnalogButtons[Buttons_RT] = 0xFF;
-        else 
+		else
 			state.bAnalogButtons[Buttons_RT] = 0;
-    }
+	}
 };
 
 KeyboardController g_keyboardController;
@@ -392,7 +394,8 @@ int Input_OnSDLEvent(void*, SDL_Event* event)
 		{
 			if (abs(event->caxis.value) > 8000)
 			{
-				SDL_ShowCursor(SDL_DISABLE);
+				if (!GameWindow::s_isFullscreenCursorVisible)
+					SDL_ShowCursor(SDL_DISABLE);
 				SetControllerInputDevice(controller);
 			}
 
@@ -400,7 +403,8 @@ int Input_OnSDLEvent(void*, SDL_Event* event)
 		}
 		else
 		{
-			SDL_ShowCursor(SDL_DISABLE);
+			if (!GameWindow::s_isFullscreenCursorVisible)
+				SDL_ShowCursor(SDL_DISABLE);
 			SetControllerInputDevice(controller);
 
 			controller->Poll();
@@ -431,8 +435,8 @@ int Input_OnSDLEvent(void*, SDL_Event* event)
 		if (event->window.event == SDL_WINDOWEVENT_FOCUS_LOST)
 		{
 			// Stop vibrating controllers on focus lost.
-			/**for (auto& controller : g_controllers)
-				controller.SetVibration({ 0, 0 });*/
+			for (auto& controller : g_controllers)
+				controller.SetVibration({ 0, 0 });
 
 		}
 
@@ -536,55 +540,22 @@ uint32_t input::GetState(uint32_t dwUserIndex, XINPUT_STATE* pState)
 }
 
 
-uint32_t input::SetState(uint32_t dwUserIndex, uint8_t* outPacket)
+uint32_t input::SetState(uint32_t dwUserIndex, XboxVibrationPacket* outPacket)
 {
-	if (!outPacket)
-		return ERROR_BAD_ARGUMENTS;
+	if (!outPacket || !Config::Vibration.Value)
+		return ERROR_SUCCESS;
 
 	if (!g_activeController)
 		return ERROR_DEVICE_NOT_CONNECTED;
 
-
-	//g_activeController->SetVibration(strength);
+	auto* packet = reinterpret_cast<XboxVibrationPacket*>(outPacket);
+	if (g_controllers[dwUserIndex - 1].controller)
+	{
+		g_controllers[dwUserIndex - 1].SetVibration(*outPacket);
+	}
 
 	return ERROR_SUCCESS;
 }
-
-
-
-struct _XPP_DEVICE_TYPE
-{
-	uint32_t CurrentConnected;
-	uint32_t ChangeConnected;
-	uint32_t PreviousConnected;
-};
-
-typedef enum class _XBOX_INPUT_DEVICE : int {
-	DEVICE_INVALID = -1,
-	MS_CONTROLLER_DUKE,
-	MS_CONTROLLER_S,
-	LIGHTGUN,
-	STEERING_WHEEL,
-	MEMORY_UNIT,
-	IR_DONGLE,
-	STEEL_BATTALION_CONTROLLER,
-	ARCADE_STICK,
-	DEVICE_MAX,
-	// Devices with the HW_ prefix (= hardware) indicate a real xbox device. Always add these after DEVICE_MAX
-	HW_STEEL_BATTALION_CONTROLLER,
-	HW_XBOX_CONTROLLER,
-}
-XBOX_INPUT_DEVICE;
-
-struct DeviceState {
-	std::string port;
-	int port_idx;
-	XBOX_INPUT_DEVICE type;
-	bool bPendingRemoval;
-	bool bSignaled;
-	char info[56];
-	uint32_t padding[2];
-};
 
 
 HANDLE XInputOpen(int* a1, int a2)
@@ -610,12 +581,3 @@ HANDLE XInputOpen(int* a1, int a2)
 GUEST_FUNCTION_HOOK_STDCALL(sub_4248A6, input::GetState);
 GUEST_FUNCTION_HOOK_STDCALL(sub_424919, input::SetState);
 GUEST_FUNCTION_HOOK_STDCALL(sub_2AAC20, XInputOpen);
-
-//GUEST_FUNCTION_HOOK_STDCALL(sub_423D43, XInitDevices);
-//GUEST_FUNCTION_HOOK_STDCALL(sub_423B38, sub_423B38_r);
-//GUEST_FUNCTION_HOOK_FASTCALL(sub_423E70, IsGamePadInValide);
-//GUEST_FUNCTION_HOOK_THISCALL(sub_423E39, IUsbInit_GetMaxDeviceTypeCount);
-
-//GUEST_FUNCTION_HOOK(sub_424276, sub_424276_r);
-//GUEST_FUNCTION_HOOK_THISCALL(sub_4241C7, sub_4241C7_r);
-

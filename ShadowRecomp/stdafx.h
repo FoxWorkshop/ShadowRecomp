@@ -343,6 +343,7 @@ inline void OutputDebugStringA(const char* s) { printf("%s", s); }
 #include "framework.h"
 #include "mutex.h"
 #include "include/xshader_api.h"
+#include "thread_dispatcher.h"
 
 #ifndef _WIN32
 #include <sys/mman.h>

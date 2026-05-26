@@ -8,6 +8,8 @@
 #include <exports.h>
 #include <input/padstate.h>
 
+
+
 constexpr double OVERLAY_CONTAINER_COMMON_MOTION_START = 0;
 constexpr double OVERLAY_CONTAINER_COMMON_MOTION_END = 11;
 constexpr double OVERLAY_CONTAINER_OUTRO_FADE_START = 0;
@@ -33,7 +35,7 @@ static double g_rowSelectionTime;
 static int g_prevSelectedRowIndex;
 
 
-static ImFont* g_fntShadow;
+static ImFont* g_fntSeurat;
 
 std::string g_text;
 int g_result;
@@ -45,6 +47,8 @@ static bool g_upWasHeld;
 static bool g_downWasHeld;
 static bool g_leftWasHeld;
 static bool g_rightWasHeld;
+static bool g_msgOnly = false;
+const float sclFontSize = 25.f;
 
 
 
@@ -151,65 +155,15 @@ public:
 }
 g_sdlEventListenerForMessageWindow;
 
-bool DrawContainer(float appearTime, ImVec2 centre, ImVec2 max, bool isForeground = true)
-{
-	auto drawList = ImGui::GetBackgroundDrawList();
-
-	ImVec2 _min = { centre.x - max.x, centre.y - max.y };
-	ImVec2 _max = { centre.x + max.x, centre.y + max.y };
-
-	// Expand/retract animation.
-	auto containerMotion = ComputeMotion(appearTime, OVERLAY_CONTAINER_COMMON_MOTION_START, OVERLAY_CONTAINER_COMMON_MOTION_END);
-
-	if (g_isClosing)
-	{
-		_min.x = Hermite(_min.x, centre.x, containerMotion);
-		_max.x = Hermite(_max.x, centre.x, containerMotion);
-		_min.y = Hermite(_min.y, centre.y, containerMotion);
-		_max.y = Hermite(_max.y, centre.y, containerMotion);
-	}
-	else
-	{
-		_min.x = Hermite(centre.x, _min.x, containerMotion);
-		_max.x = Hermite(centre.x, _max.x, containerMotion);
-		_min.y = Hermite(centre.y, _min.y, containerMotion);
-		_max.y = Hermite(centre.y, _max.y, containerMotion);
-	}
-
-	// Transparency fade animation.
-	auto colourMotion = g_isClosing
-		? ComputeMotion(appearTime, OVERLAY_CONTAINER_OUTRO_FADE_START, OVERLAY_CONTAINER_OUTRO_FADE_END)
-		: ComputeMotion(appearTime, OVERLAY_CONTAINER_INTRO_FADE_START, OVERLAY_CONTAINER_INTRO_FADE_END);
-
-	auto alpha = g_isClosing
-		? Lerp(1, 0, colourMotion)
-		: Lerp(0, 1, colourMotion);
-
-	if (!isForeground)
-		g_foregroundCount++;
-
-	if (isForeground)
-		drawList->AddRectFilled({ 0.0f, 0.0f }, ImGui::GetIO().DisplaySize, IM_COL32(0, 0, 0, 190 * (g_foregroundCount ? 1 : alpha)));
-
-	DrawPauseContainer(_min, _max, alpha);
-
-	if (containerMotion >= 1.0f && !g_isClosing)
-	{
-		drawList->PushClipRect(_min, _max);
-		return true;
-	}
-
-	return false;
-}
 
 void DrawMessageInWindow(const char* text, ImVec2 center, ImVec2 size)
 {
 	ImDrawList* dl = ImGui::GetBackgroundDrawList();
 	auto maxWidth = Scale(820);
-	auto fontSize = Scale(28);
+	auto fontSize = Scale(sclFontSize);
 
 	const auto input = RemoveRubyAnnotations(g_text.c_str());
-	auto lines = Split(input.first.c_str(), g_fntShadow, fontSize, maxWidth);
+	auto lines = Split(input.first.c_str(), g_fntSeurat, fontSize, maxWidth);
 
 	for (auto& line : lines)
 	{
@@ -219,8 +173,8 @@ void DrawMessageInWindow(const char* text, ImVec2 center, ImVec2 size)
 	// Text centered inside
 
 	auto lineMargin = Config::Language != ELanguage::Japanese ? 5.0f : 5.5f;
-	auto textSize = MeasureCentredParagraph(g_fntShadow, fontSize, lineMargin, lines);
-	ImVec2 textPos = { center.x - textSize.x * 0.5f, center.y - textSize.y * 0.5f };
+	auto textSize = MeasureCentredParagraph(g_fntSeurat, fontSize, lineMargin, lines);
+
 	auto textMarginX = Scale(37);
 	auto textMarginY = Scale(45);
 
@@ -241,7 +195,7 @@ void DrawMessageInWindow(const char* text, ImVec2 center, ImVec2 size)
 
 	DrawRubyAnnotatedText
 	(
-		g_fntShadow,
+		g_fntSeurat,
 		fontSize,
 		maxWidth,
 		{ textX, textY },
@@ -250,11 +204,11 @@ void DrawMessageInWindow(const char* text, ImVec2 center, ImVec2 size)
 
 		[=](const char* str, ImVec2 pos)
 		{
-			DrawTextWithShadow(g_fntShadow, fontSize, pos, IM_COL32(255, 255, 255, 255), str, 3.f, 0.5f);
+			DrawTextWithShadow(g_fntSeurat, fontSize, pos, IM_COL32(255, 255, 255, 255), str, 3.f, 0.5f);
 		},
 		[=](const char* str, float size, ImVec2 pos)
 		{
-			// DrawTextWithShadow(g_fntShadow, size, pos, IM_COL32(255, 255, 255, 255), str, 3.f, 0.5f);
+			// DrawTextWithShadow(g_fntSeurat, size, pos, IM_COL32(255, 255, 255, 255), str, 3.f, 0.5f);
 		},
 
 		true
@@ -287,8 +241,8 @@ void DrawButton(int rowIndex, float yOffset, float width, float height, std::str
 	bool isSelected = rowIndex == g_selectedRowIndex;
 
 
-	auto fontSize = Scale(28);
-	auto textSize = g_fntShadow->CalcTextSizeA(fontSize, FLT_MAX, 0, text.c_str());
+	auto fontSize = Scale(sclFontSize);
+	auto textSize = g_fntSeurat->CalcTextSizeA(fontSize, FLT_MAX, 0, text.c_str());
 
 	// Show low quality text in-game.
 	if (App::s_isInit)
@@ -296,7 +250,7 @@ void DrawButton(int rowIndex, float yOffset, float width, float height, std::str
 
 	DrawTextWithShadow
 	(
-		g_fntShadow,
+		g_fntSeurat,
 		fontSize,
 		{ /* X */ min.x + ((max.x - min.x) - textSize.x) / 2, /* Y */ min.y + ((max.y - min.y) - textSize.y) / 2 },
 		isSelected ? IM_COL32(234, 234, 69, 255) : IM_COL32(255, 255, 255, 255),
@@ -308,14 +262,23 @@ void DrawButton(int rowIndex, float yOffset, float width, float height, std::str
 		SetShaderModifier(IMGUI_SHADER_MODIFIER_NONE);
 }
 
+static float g_msgboxTime = 0.0f;
 void DrawGameStyleMessageBox(ImVec2 center, ImVec2 size)
 {
-
-
 	ImDrawList* dl = ImGui::GetBackgroundDrawList();
+
 
 	ImVec2 min = { center.x - size.x * 0.5f, center.y - size.y * 0.5f };
 	ImVec2 max = { center.x + size.x * 0.5f, center.y + size.y * 0.5f };
+
+	if (g_msgOnly)
+	{
+		max.x += 1.f;
+		max.y += 1.f;
+		dl->PushClipRect(min, max);
+		return;
+	}
+
 
 	// Background fill - dark blue
 	dl->AddRectFilled(min, max, IM_COL32(1, 1, 70, 220));
@@ -350,7 +313,6 @@ void DrawGameStyleMessageBox(ImVec2 center, ImVec2 size)
 	max.x += 1.f;
 	max.y += 1.f;
 	dl->PushClipRect(min, max);
-
 }
 
 static void ResetSelection()
@@ -366,12 +328,14 @@ static void ResetSelection()
 	g_joypadAxis = {};
 	g_isAccepted = false;
 	g_isDeclined = false;
+	g_msgOnly = false;
 }
 
-bool MessageWindow::Open(std::string text, int* result, std::span<std::string> buttons, int defaultButtonIndex, int cancelButtonIndex)
+bool MessageWindow::Open(std::string text, int* result, std::span<std::string> buttons, int defaultButtonIndex, int cancelButtonIndex, bool msgOnly)
 {
 	if (!g_isAwaitingResult && *result == -1)
 	{
+
 		g_isControlsReady = false;
 		s_isVisible = true;
 		g_isClosing = false;
@@ -388,8 +352,7 @@ bool MessageWindow::Open(std::string text, int* result, std::span<std::string> b
 
 		ResetSelection();
 
-		//Game_PlaySound("sys_actstg_pausewinopen");
-
+		g_msgOnly = msgOnly;
 		g_isAwaitingResult = true;
 	}
 
@@ -403,7 +366,7 @@ void MessageWindow::Init()
 {
 	auto& io = ImGui::GetIO();
 
-	g_fntShadow = io.Fonts->Fonts[0];
+	g_fntSeurat = ImFontAtlasSnapshot::GetFont("FOT-SeuratPro-DB.otf");
 }
 
 void MessageWindow::Draw()
@@ -411,7 +374,7 @@ void MessageWindow::Draw()
 	if (!s_isVisible)
 		return;
 
-	if (g_isClosing && (ImGui::GetTime() - g_time) > (1.0 / 60.0) * 30.0)
+	if (g_isClosing && (ImGui::GetTime() - g_time) > (1.0 / 60.0) * 15.f)
 	{
 		g_isAwaitingResult = false;
 		s_isVisible = false;
@@ -460,6 +423,7 @@ void MessageWindow::Draw()
 
 	ImVec2 centre = { res.x / 2, res.y / 2 };
 	ImVec2 max = { res.x * 0.9f, res.y * 0.7f };
+
 	DrawGameStyleMessageBox(centre, max);
 
 	centre = { res.x / 2, res.y / 2 * 0.8f };
@@ -469,7 +433,7 @@ void MessageWindow::Draw()
 	{
 
 		auto fontSize = Scale(28);
-		auto itemWidth = std::max(Scale(162), Scale(CalcWidestTextSize(g_fntShadow, fontSize, g_buttons)));
+		auto itemWidth = std::max(Scale(162), Scale(CalcWidestTextSize(g_fntSeurat, fontSize, g_buttons)));
 		auto itemHeight = Scale(120);
 		auto windowMarginX = Scale(10);
 		auto windowMarginY = Scale(80);
@@ -501,7 +465,8 @@ void MessageWindow::Draw()
 
 		if (scrollLeft || scrollRight)
 		{
-			Game_PlaySound("cursor");
+			if (g_msgOnly == false)
+				Game_PlaySound("cursor");
 			g_prevSelectedRowIndex = prevSelectedRowIndex;
 			g_joypadAxis.x = 0;
 		}
@@ -512,7 +477,8 @@ void MessageWindow::Draw()
 		if (g_isDeclined)
 		{
 			g_selectedRowIndex = g_cancelButtonIndex;
-			Game_PlaySound("cancel");
+			if (g_msgOnly == false)
+				Game_PlaySound("cancel");
 			MessageWindow::Close();
 			g_isDeclined = false;
 		}
@@ -525,10 +491,13 @@ void MessageWindow::Draw()
 		if (g_selectedRowIndex != -1 && g_isAccepted && !g_isClosing)
 		{
 			g_result = g_selectedRowIndex;
-			if (g_selectedRowIndex != g_cancelButtonIndex)
-				Game_PlaySound("decide");
-			else
-				Game_PlaySound("cancel");
+			if (g_msgOnly == false)
+			{
+				if (g_selectedRowIndex != g_cancelButtonIndex)
+					Game_PlaySound("decide");
+				else
+					Game_PlaySound("cancel");
+			}
 			MessageWindow::Close();
 		}
 

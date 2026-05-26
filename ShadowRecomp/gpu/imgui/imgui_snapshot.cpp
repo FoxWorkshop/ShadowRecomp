@@ -204,5 +204,5 @@ ImFont* ImFontAtlasSnapshot::GetFont(const char* name)
     assert(false && "Unable to locate equivalent font in the atlas file.");
 #endif
 
-    return fontAtlas->AddFontFromFileTTF(name, 24.0f, nullptr, g_glyphRanges.data());
+    return fontAtlas->AddFontFromFileTTF(name, 18.0f, nullptr, g_glyphRanges.data());
 }

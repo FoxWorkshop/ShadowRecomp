@@ -1,5 +1,6 @@
 #include <gpu/video.h>
 #include <kernel/function.h>
+#include <user/config.h>
 
 // Patch out logs Artificial Chaos can spew (causes crashes)
 X86_FUNC(sub_37EBE6)
@@ -63,9 +64,9 @@ X86_FUNC(sub_41CD65)
 
 
 //todo implement as an option
-void SkipPartnerIntroMidAsmHook(X86Register& eax)
+bool SkipPartnerIntroMidAsmHook()
 {
-	eax.u32 = 1;
+	return !Config::EnablePartnerIntro;
 }
 
 // TODO: This is temporary, replace with a proper SaveData patch
@@ -107,4 +108,37 @@ X86_FUNC(sub_28AF30)
 	auto thisAddr = ctx.ecx.u32;
 	__imp__sub_28AF30(ctx, base);
 	X86_STORE_U32(0x5356E8, 1); // PAD2 locked to XInput PORT 2
+}
+
+bool foundTex = false;
+//RwSetTextureName debugging left over, can be useful to track a texture pointer and find where it's used
+X86_FUNC_IMPL(__imp__sub_2D82E0);
+X86_FUNC(sub_2D82E0)
+{
+	char* str = (char*)GetHostParameter(2, CallConvention::Cdecl, ParameterType::Pointer);
+	std::string s = str;
+	if (s.find("pause_main") != std::string::npos)
+	{
+		foundTex = true;
+	}
+	__imp__sub_2D82E0(ctx, base);
+}
+
+static bool shouldSkipMessage = false;
+X86_FUNC_IMPL(__imp__sub_1E5A0);
+X86_FUNC(sub_1E5A0)
+{
+	if (shouldSkipMessage)
+	{
+		ctx.esp.u32 += 12 + 4;
+		shouldSkipMessage = false;
+		return;
+	}
+
+	__imp__sub_1E5A0(ctx, base);
+}
+
+void DisableMessageMidAsmHook()
+{
+	shouldSkipMessage = Config::Subtitles.Value == 0;
 }

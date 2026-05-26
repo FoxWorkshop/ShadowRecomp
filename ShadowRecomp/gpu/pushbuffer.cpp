@@ -40,6 +40,7 @@ DWORD GetStrideFromVertexDeclaration(HostVertexDeclaration* pVertexDeclaration)
 	return Stride;
 }
 bool drawCompositeRT = false;
+// this is to handle the composite for merging RT, this is mandatory to have anything rendering in-game post title screen.
 void HLE_draw_inline_array(X_D3DPRIMITIVETYPE primitiveMode, int32_t VertexCount, void* VertexData)
 {
 
@@ -159,7 +160,7 @@ void _rpSkinXboxSetMaterialColor(int32_t a1addr, int32_t a2)
 	{
 		g_VSConstants[0] = r;
 		g_VSConstants[1] = g;
-		g_VSConstants[2] = g;
+		g_VSConstants[2] = b;
 	}
 	else
 	{
