@@ -172,11 +172,16 @@ void DrawDescription(std::string s)
 
 	float offsetScroll = 0.0f;
 	float totalWidth = 0.0f;
-	if (textSize.x > barWidth - Scale(55.f))
+	bool isScrolling = textSize.x > barWidth - Scale(55.f);
+
+	if (isScrolling)
 	{
-		float gap = Scale(80.0f); // space between end and start of loop
+		float gap = Scale(80.0f);
 		totalWidth = textSize.x + gap;
-		float scrollSpeed = Scale(70.0f); // pixels per second
+		float scrollSpeed = Scale(70.0f);
+
+		// Anchor to left edge of the bar so scroll always starts at beginning of text
+		textPos.x = barMin.x + Scale(15.f);
 		offsetScroll = elapsed > 0.0 ? fmod(elapsed * scrollSpeed, totalWidth) : 0.0f;
 	}
 
@@ -187,10 +192,11 @@ void DrawDescription(std::string s)
 
 	drawList->AddText(g_fntSeurat, fontSize, textPos, IM_COL32(255, 255, 255, 255), s.c_str());
 
-	if (textSize.x > barWidth - Scale(55.f))
+	if (isScrolling)
 	{
-		textPos.x += totalWidth;
-		drawList->AddText(g_fntSeurat, fontSize, textPos, IM_COL32(255, 255, 255, 255), s.c_str());
+		// Draw the looping copy trailing behind
+		ImVec2 loopPos = { textPos.x + totalWidth, textPos.y };
+		drawList->AddText(g_fntSeurat, fontSize, loopPos, IM_COL32(255, 255, 255, 255), s.c_str());
 	}
 
 	SetShaderModifier(IMGUI_SHADER_MODIFIER_NONE);
