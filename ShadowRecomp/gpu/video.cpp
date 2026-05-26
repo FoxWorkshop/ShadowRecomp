@@ -3798,8 +3798,11 @@ void Video::Present()
 	g_intermediaryUploadAllocator.reset();
 	g_quadIndexData.reset();
 
-	CheckSwapChain();
 
+	if (g_vulkan && g_pendingWaitOnSwapChain && g_capabilities.presentWait)
+		g_swapChain->wait();
+
+	CheckSwapChain();
 	g_readyForCommands = false;
 
 	cmd.type = RenderCommandType::BeginCommandList;
