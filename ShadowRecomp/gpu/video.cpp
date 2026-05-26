@@ -943,10 +943,15 @@ static void DestructTempResources()
 
 			if (surface->parentTexture != nullptr)
 			{
-				auto& vec = surface->parentTexture->surfaceRTs;
-				auto it = std::find(vec.begin(), vec.end(), surface);
-				if (it != vec.end())   
-					vec.erase(it);
+				const auto parent = surface->parentTexture;
+				if (parent->type == ResourceType::Texture || parent->type == ResourceType::VolumeTexture)
+				{
+					auto& vec = parent->surfaceRTs;
+					auto it = std::find(vec.begin(), vec.end(), surface);
+					if (it != vec.end())
+						vec.erase(it);
+				}
+				surface->parentTexture = nullptr;
 			}
 
 			if (surface->descriptorIndex != NULL)
