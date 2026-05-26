@@ -235,7 +235,7 @@ void ButtonGuide::Draw()
 
     regionMin = { res.x * 0.6f, g_aspectRatioOffsetY * 2.0f + Scale(480.f - 65.0f) };
     regionMax = { res.x * 0.88f, g_aspectRatioOffsetY * 2.0f + Scale(480.f) };
-
+    
     // Draw right aligned icons.
     for (int i = g_buttons.size() - 1; i >= 0; i--)
     {

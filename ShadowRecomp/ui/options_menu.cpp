@@ -24,7 +24,7 @@
 #include <ui/button_guide.h>
 
 
-static constexpr int MAX_VISIBLE_ROWS = 6;
+static constexpr int MAX_VISIBLE_ROWS = 5;
 static IConfigDef* g_optionCurrent{};
 static bool g_optionCanReset{};
 
@@ -1184,12 +1184,6 @@ void DrawMenuListContainer(ImVec2 min, ImVec2 max)
 	}
 }
 
-static void DrawControllerIcons(ImVec2 min, ImVec2 max)
-{
-
-
-}
-
 
 static void DrawCategories(ImVec2 min, ImVec2 max)
 {
@@ -1257,8 +1251,6 @@ static void DrawCategories(ImVec2 min, ImVec2 max)
 
 	if (OptionsMenu::s_flowState == OptionsMenuFlowState::CategoryCursor)
 		DrawDescription(GetCategoryDescription((OptionsMenuCategory)g_categoryIndex));
-
-	DrawControllerIcons(min, max);
 }
 
 void OptionsMenu::Draw()
