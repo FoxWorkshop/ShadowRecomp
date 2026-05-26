@@ -333,7 +333,6 @@ CONFIG_DEFINE_ENUM_TEMPLATE(EAntiAliasing)
 CONFIG_DEFINE_ENUM_TEMPLATE(ETextureFiltering)
 {
     { "Auto", ETextureFiltering::Auto },
-    { "Nearest",  ETextureFiltering::Nearest },
     { "Linear",  ETextureFiltering::Linear }
 };
 

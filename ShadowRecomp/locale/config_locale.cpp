@@ -580,7 +580,6 @@ CONFIG_DEFINE_ENUM_LOCALE(ETextureFiltering)
         ELanguage::English,
         {
             { ETextureFiltering::Auto, { "AUTO", "" } },
-            { ETextureFiltering::Nearest,  { "NEAREST", "" } },
             { ETextureFiltering::Linear,  { "LINEAR", "" } }
         }
     },
@@ -588,7 +587,6 @@ CONFIG_DEFINE_ENUM_LOCALE(ETextureFiltering)
         ELanguage::Japanese,
         {
             { ETextureFiltering::Auto, { "AUTO", "" } },
-            { ETextureFiltering::Nearest,  { "NEAREST", "" } },
             { ETextureFiltering::Linear,  { "LINEAR", "" } }
         }
     },
@@ -596,7 +594,6 @@ CONFIG_DEFINE_ENUM_LOCALE(ETextureFiltering)
         ELanguage::German,
         {
             { ETextureFiltering::Auto, { "AUTO", "" } },
-            { ETextureFiltering::Nearest,  { "NEAREST", "" } },
             { ETextureFiltering::Linear,  { "LINEAR", "" } }
         }
     },
@@ -604,7 +601,6 @@ CONFIG_DEFINE_ENUM_LOCALE(ETextureFiltering)
         ELanguage::French,
         {
             { ETextureFiltering::Auto, { "AUTO", "" } },
-            { ETextureFiltering::Nearest,  { "LE PLUS PROCHE", "" } },
             { ETextureFiltering::Linear,  { "LINÉAIRE", "" } }
         }
     },
@@ -612,7 +608,6 @@ CONFIG_DEFINE_ENUM_LOCALE(ETextureFiltering)
         ELanguage::Spanish,
         {
             { ETextureFiltering::Auto, { "AUTO", "" } },
-            { ETextureFiltering::Nearest,  { "NEAREST", "" } },
             { ETextureFiltering::Linear,  { "LINEAR", "" } }
         }
     },
@@ -620,7 +615,6 @@ CONFIG_DEFINE_ENUM_LOCALE(ETextureFiltering)
         ELanguage::Italian,
         {
             { ETextureFiltering::Auto, { "AUTO", "" } },
-            { ETextureFiltering::Nearest,  { "NEAREST", "" } },
             { ETextureFiltering::Linear,  { "LINEAR", "" } }
         }
     }
