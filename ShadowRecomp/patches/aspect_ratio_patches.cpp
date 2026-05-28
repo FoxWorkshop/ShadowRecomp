@@ -2,10 +2,22 @@
 #include <patches/aspect_ratio_patches.h>
 #include <gpu/video.h>
 #include <ui/imgui_utils.h>
+#include <user/config.h>
+#include <api/CSD/csd.h>
+#include <os/logger.h>
 
 bool readyToDebugConstant = false;
 #define widthMin 640.f
 #define heightMin 480.f
+
+static Mutex g_pathMutex;
+static std::map<const void*, XXH64_hash_t> g_paths;
+
+static XXH64_hash_t HashStr(const std::string_view& value)
+{
+	return XXH3_64bits(value.data(), value.size());
+}
+
 
 static float ComputeScale(float aspectRatio)
 {
@@ -56,6 +68,138 @@ void AspectRatioPatches::ComputeOffsets()
 void PatchResolutionCapMidAsmHook(X86Register& eax)
 {
 
+}
+
+
+static void EmplacePath(const void* key, const std::string_view& value)
+{
+	std::lock_guard lock(g_pathMutex);
+
+	g_paths.emplace(key, HashStr(value));
+}
+
+
+std::string SanitizeName(const char* str)
+{
+	if (!str) return "";
+	std::string result(str);
+	for (char& c : result)
+	{
+		if ((unsigned char)c > 127)
+			c = '_';
+	}
+	return result;
+}
+
+void TraverseCast(CSDScene* scene, uint32_t castNodeIndex, CSDCastNode* castNode, uint32_t castIndex, const std::string& parentPath)
+{
+
+	if (castIndex == ~0)
+		return;
+
+	auto& pCastLink = castNode->pCastLinks[castIndex];
+
+	TraverseCast(scene, castNodeIndex, castNode, pCastLink.SiblingCastIndex, parentPath);
+
+	std::string path = SanitizeName(parentPath.c_str());
+
+	for (size_t i = 0; i < scene->CastCount; i++)
+	{
+		auto& index = scene->pCastIndices[i];
+		if (index.CastNodeIndex == castNodeIndex && index.CastIndex == castIndex)
+		{
+			path += index.pCastName;
+			break;
+		}
+	}
+
+	EmplacePath(castNode->pCasts[castIndex].get(), path);
+
+	if (castNode->RootCastIndex == castIndex)
+		EmplacePath(castNode, path);
+
+	path += "/";
+
+
+	std::string fixedpath = SanitizeName(path.c_str());
+
+	TraverseCast(scene, castNodeIndex, castNode, castNode->pCastLinks[castIndex].ChildCastIndex, fixedpath);
+
+	LOGFN_UTILITY("CSD hierarchy: {}", fixedpath);
+}
+
+void TraverseScene(CSDScene* scene, std::string path)
+{
+	EmplacePath(scene, path);
+	path += "/";
+
+	for (size_t i = 0; i < scene->CastNodeCount; i++)
+	{
+		auto& castNode = scene->pCastNodes[i];
+		TraverseCast(scene, i, &castNode, castNode.RootCastIndex, path);
+	}
+}
+
+void TraverseSceneNode(CSDSceneNode* node, const std::string& path)
+{
+	EmplacePath(node, path);
+	std::string basePath = path + "/";
+
+	for (uint32_t i = 0; i < node->SceneCount; ++i)
+	{
+		auto& idx = node->pSceneIndices[i];
+		void* scene = (void*)node->pScenes[idx.SceneIndex];
+
+		std::string scenePath = basePath + idx.pSceneName.get();
+		TraverseScene(node->pScenes[idx.SceneIndex], scenePath);
+	}
+
+
+	for (uint32_t j = 0; j < node->SceneNodeCount; ++j)
+	{
+		auto& idx = node->pSceneNodeIndices[j];
+		CSDSceneNode* child = &node->pSceneNodes[idx.SceneNodeIndex];
+		std::string childPath = basePath + idx.pSceneNodeName.get();
+		TraverseSceneNode(child, childPath);
+	}
+}
+
+// CSD_LOADER
+X86_FUNC_IMPL(__imp__sub_2B47C0);
+X86_FUNC(sub_2B47C0)
+{
+	void* thisPtr = (void*)GetHostParameter(1, CallConvention::Thiscall, ParameterType::Pointer);
+	char* path = (char*)GetHostParameter(2, CallConvention::Thiscall, ParameterType::Pointer);
+
+	__imp__sub_2B47C0(ctx, base);
+
+	if (!thisPtr || !path)
+		return;
+
+
+	static const char* s_languages[6] =
+	{
+		"_JP",
+		"_EN",
+		"_GE",
+		"_FR",
+		"_SP",
+		"_IT"
+	};
+
+	std::string str = path;
+
+	auto pSuffix = s_languages[(int)Config::Language.Value];
+
+	auto addrNodePtr = X86_LOAD_U32((uint32_t)thisPtr + 8);
+
+	auto resPtr = X86_LOAD_U32(addrNodePtr);
+	CSDSceneNode* nodePtr = (CSDSceneNode*)(base + resPtr);
+
+	if (nodePtr)
+	{
+		TraverseSceneNode(nodePtr, path);
+	}
 }
 
 const uint32_t GuestDevicePtrAddr = 0x3E0A18;
