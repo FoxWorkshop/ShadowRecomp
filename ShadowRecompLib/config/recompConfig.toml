@@ -788,3 +788,19 @@ registers = ["r4"]
 [[midasm_hook]]
 name = "SetFramerateMidAsmHook"
 address = 0x572BD
+
+[[midasm_hook]]
+name = "RenderCsdCastNodeMidAsmHook"
+address = 0x38B576
+registers = ["r0"]
+
+[[midasm_hook]]
+name = "RenderCsdCastMidAsmHook"
+address = 0x38B57B
+registers = ["r4"]
+
+[[midasm_hook]]
+name = "CPlatformRWDrawPrimitive2DMidAsmHook"
+address = 0x2B2C46
+registers = ["r2"]
+jump_address_on_true = 0x2B2C4C

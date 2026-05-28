@@ -3,8 +3,10 @@
 #include <gpu/video.h>
 #include <ui/imgui_utils.h>
 #include <user/config.h>
+#include <ui/game_window.h>
 #include <api/CSD/csd.h>
 #include <os/logger.h>
+#include <app.h>
 
 bool readyToDebugConstant = false;
 #define widthMin 640.f
@@ -12,6 +14,9 @@ bool readyToDebugConstant = false;
 
 static Mutex g_pathMutex;
 static std::map<const void*, XXH64_hash_t> g_paths;
+static std::optional<CsdModifier> g_sceneModifier{};
+static std::optional<CsdModifier> g_castNodeModifier{};
+static std::optional<CsdModifier> g_castModifier{};
 
 static XXH64_hash_t HashStr(const std::string_view& value)
 {
@@ -70,11 +75,21 @@ void PatchResolutionCapMidAsmHook(X86Register& eax)
 
 }
 
+std::string NormalizeCSDPath(std::string& path)
+{
+	std::replace(path.begin(), path.end(), '\\', '/');
+
+	auto pos = path.find("csdFiles");
+
+	if (pos != std::string::npos)
+		return path.substr(pos);
+
+	return path;
+}
 
 static void EmplacePath(const void* key, const std::string_view& value)
 {
 	std::lock_guard lock(g_pathMutex);
-
 	g_paths.emplace(key, HashStr(value));
 }
 
@@ -102,6 +117,7 @@ void TraverseCast(CSDScene* scene, uint32_t castNodeIndex, CSDCastNode* castNode
 	TraverseCast(scene, castNodeIndex, castNode, pCastLink.SiblingCastIndex, parentPath);
 
 	std::string path = SanitizeName(parentPath.c_str());
+	path = NormalizeCSDPath(path);
 
 	for (size_t i = 0; i < scene->CastCount; i++)
 	{
@@ -125,25 +141,31 @@ void TraverseCast(CSDScene* scene, uint32_t castNodeIndex, CSDCastNode* castNode
 
 	TraverseCast(scene, castNodeIndex, castNode, castNode->pCastLinks[castIndex].ChildCastIndex, fixedpath);
 
-	LOGFN_UTILITY("CSD hierarchy: {}", fixedpath);
+	//LOGFN_UTILITY("CSD hierarchy: {}", fixedpath);
 }
 
 void TraverseScene(CSDScene* scene, std::string path)
 {
-	EmplacePath(scene, path);
-	path += "/";
+	std::string pathFixed = SanitizeName(path.c_str());
+	pathFixed = NormalizeCSDPath(pathFixed);
+	EmplacePath(scene, pathFixed);
+
+	pathFixed += "/";
 
 	for (size_t i = 0; i < scene->CastNodeCount; i++)
 	{
 		auto& castNode = scene->pCastNodes[i];
-		TraverseCast(scene, i, &castNode, castNode.RootCastIndex, path);
+		TraverseCast(scene, i, &castNode, castNode.RootCastIndex, pathFixed);
 	}
 }
 
 void TraverseSceneNode(CSDSceneNode* node, const std::string& path)
 {
-	EmplacePath(node, path);
-	std::string basePath = path + "/";
+	std::string pathFixed = SanitizeName(path.c_str());
+	pathFixed = NormalizeCSDPath(pathFixed);
+
+	EmplacePath(node, pathFixed);
+	std::string basePath = pathFixed + "/";
 
 	for (uint32_t i = 0; i < node->SceneCount; ++i)
 	{
@@ -202,6 +224,75 @@ X86_FUNC(sub_2B47C0)
 	}
 }
 
+// Chao::CSD::Scene::Render
+X86_FUNC_IMPL(__imp__sub_38B5E0);
+X86_FUNC(sub_38B5E0)
+{
+	auto pSceneAddr = X86_LOAD_U32(ctx.esp.u32 + 4);
+	auto pScene = (CSDScene*)(base + pSceneAddr);
+
+	g_sceneModifier = FindCsdModifier(pSceneAddr);
+
+	
+	__imp__sub_38B5E0(ctx, base);
+}
+
+void RenderCsdCastNodeMidAsmHook(X86Register& rEax)
+{
+	g_castNodeModifier = FindCsdModifier(rEax.u32);
+}
+
+void RenderCsdCastMidAsmHook(X86Register& rEsi)
+{
+	g_castModifier = FindCsdModifier(rEsi.u32);
+}
+
+bool Draw(X86Context& ctx, uint8_t* base, X86Func* original, uint32_t stride)
+{
+	CsdModifier modifier{};
+
+	auto vpWidth = float(Video::s_viewportWidth);
+	auto vpHeight = float(Video::s_viewportHeight);
+
+	if (g_castModifier.has_value())
+	{
+		modifier = g_castModifier.value();
+	}
+	else if (g_castNodeModifier.has_value())
+	{
+		modifier = g_castNodeModifier.value();
+	}
+	else if (g_sceneModifier.has_value())
+	{
+		modifier = g_sceneModifier.value();
+	}
+
+
+	// Remove all flags if the aspect ratio is above 16:9.
+	if ((modifier.Flags & CSD_MODIFIER_ULTRAWIDE_ONLY) != 0 && g_aspectRatio <= WIDE_ASPECT_RATIO)
+		modifier.Flags &= (~modifier.Flags) | CSD_MODIFIER_ULTRAWIDE_ONLY;
+
+	// Remove all flags if the aspect ratio is below 16:9.
+	if ((modifier.Flags & CSD_MODIFIER_NARROW_ONLY) != 0 && g_aspectRatio >= WIDE_ASPECT_RATIO)
+		modifier.Flags &= (~modifier.Flags) | CSD_MODIFIER_NARROW_ONLY;
+
+	if ((modifier.Flags & CSD_SKIP) != 0)
+	{
+		// Skip drawing this cast.
+		return false;
+	}
+
+	return true;
+}
+
+bool CPlatformRWDrawPrimitive2DMidAsmHook(X86Register& rEcx)
+{
+	// ecx = vertex stride
+	auto ctx = GetX86Context();
+	auto base = g_memory.base;
+	return Draw(*ctx, base, nullptr, 24) == false;
+}
+
 const uint32_t GuestDevicePtrAddr = 0x3E0A18;
 //GetViewportOffsetAndScale
 X86_FUNC_IMPL(__imp__sub_3D24B0);
@@ -237,51 +328,44 @@ X86_FUNC(sub_3D24B0)
 	}
 }
 
+// -------------- CSD MODIFIERS --------------- //
 
-//draw CSD element, this patches HUD to implement 16:9 support
-// this handle title screen, menu and basic hud in game, but not all of it
-X86_FUNC_IMPL(__imp__sub_38B5E0);
-X86_FUNC(sub_38B5E0)
+const xxHashMap<CsdModifier> g_csdModifiers =
 {
+	// pause
+	{ HashStr("csdFiles/pause/pause.xncp/Pause/PauseText"), { CSD_SKIP } },
+	/**{HashStr("csdFiles/pause/pause.xncp/Pause/PauseText/resume/"), {CSD_SKIP}},
+	{ HashStr("csdFiles/pause/pause.xncp/Pause/PauseText/restart/"), { CSD_SKIP } },
+	{ HashStr("csdFiles/pause/pause.xncp/Pause/PauseText/quit/"), { CSD_SKIP } },
+	{ HashStr("csdFiles/pause/pause.xncp/Pause/PauseText/nresume/"), { CSD_SKIP } },
+	{ HashStr("csdFiles/pause/pause.xncp/Pause/PauseText/nrestart/"), { CSD_SKIP } },
+	{ HashStr("csdFiles/pause/pause.xncp/Pause/PauseText/nquit/"), { CSD_SKIP } },
+	{ HashStr("csdFiles/pause/pause.xncp/Pause/PauseText/nresume2/"), { CSD_SKIP } },
+	{ HashStr("csdFiles/pause/pause.xncp/Pause/PauseText/nquit2/"), { CSD_SKIP } },*/
 
-	UpdateUserConfigConstant(true);
-	__imp__sub_38B5E0(ctx, base);
-	UpdateUserConfigConstant(false);
-}
+};
 
-//draw rest of the hud
-X86_FUNC_IMPL(__imp__sub_281550);
-X86_FUNC(sub_281550)
+std::optional<CsdModifier> FindCsdModifier(uint32_t data)
 {
+	XXH64_hash_t path;
+	{
+		std::lock_guard lock(g_pathMutex);
 
-	UpdateUserConfigConstant(true);
-	__imp__sub_281550(ctx, base);
-	UpdateUserConfigConstant(false);
+		auto findResult = g_paths.find(g_memory.Translate(data));
+
+		if (findResult == g_paths.end())
+			return {};
+
+		path = findResult->second;
+	}
+
+	auto findResult = g_csdModifiers.find(path);
+
+	if (findResult != g_csdModifiers.end())
+		return findResult->second;
+
+	return {};
 }
-
-
-// menu / goal ring fadeout fix
-
-X86_FUNC_IMPL(__imp__sub_19730);
-X86_FUNC(sub_19730)
-{
-
-	UpdateUserConfigConstant(true);
-	__imp__sub_19730(ctx, base);
-	UpdateUserConfigConstant(false);
-}
-
-
-// patch background size for message
-X86_FUNC_IMPL(__imp__sub_2A57E0);
-X86_FUNC(sub_2A57E0)
-{
-
-	UpdateUserConfigConstant(true);
-	__imp__sub_2A57E0(ctx, base);
-	UpdateUserConfigConstant(false);
-}
-
 
 // remove the infamous half-pixel offset issue 
 // see https://microsoft.github.io/DirectX-Specs/d3d/archive/D3D11_3_FunctionalSpec.htm#3.3.1%20Pixel%20Coordinate%20System
