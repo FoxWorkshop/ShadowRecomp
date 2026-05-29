@@ -8,6 +8,7 @@
 #include <os/logger.h>
 #include <app.h>
 #include <ui/options_menu.h>
+#include "pause_patches.h"
 
 bool readyToDebugConstant = false;
 bool s_pauseTextRemoved = false;
@@ -287,7 +288,8 @@ bool Draw(X86Context& ctx, uint8_t* base, X86Func* original, uint32_t stride)
 
 	if ((modifier.Flags & CSD_SKIP) != 0 || ((modifier.Flags & CSD_HIDE_PAUSE) != 0 && OptionsMenu::s_isVisible))
 	{
-		
+		TogglePauseCSD((modifier.Flags & CSD_HIDE_PAUSE) != 0);
+		TogglePauseBossCSD((modifier.Flags & CSD_PAUSE_BOSS) != 0);
 		// Skip drawing this cast.
 		return false;
 	}
@@ -343,10 +345,8 @@ X86_FUNC(sub_3D24B0)
 const xxHashMap<CsdModifier> g_csdModifiers =
 {
 	// pause
-	{ HashStr("csdFiles/pause/pause.xncp/Pause/PauseText"), { CSD_SKIP } },
-	{ HashStr("csdFiles/pause/pause.xncp/Pause"), { CSD_HIDE_PAUSE } }, // used to hide pause if options is open
-
-
+	{ HashStr("csdFiles/pause/pause.xncp/Pause/PauseText"), { CSD_SKIP | CSD_HIDE_PAUSE } },
+	{ HashStr("csdFiles/pause/pauseBoss.xncp/Pause/PauseText"), { CSD_SKIP | CSD_HIDE_PAUSE | CSD_PAUSE_BOSS } },
 };
 
 std::optional<CsdModifier> FindCsdModifier(uint32_t data)

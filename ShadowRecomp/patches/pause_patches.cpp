@@ -36,6 +36,8 @@ enum PauseSelection : uint8_t
 	SelQuit
 };
 
+static bool g_pauseCSD = false; // ensure our CSD patch worked
+static bool g_pauseBoss = false; // CSD pause for boss is different and require pos adjust
 static std::unique_ptr<GuestTexture> g_TexPauseText00{};
 static std::unique_ptr<GuestTexture> g_TexPauseText01{};
 static ImFont* g_fntDFPZong;
@@ -58,6 +60,16 @@ static bool g_right{};
 static bool g_rightWasHeld{};
 static bool g_isAccepted{};
 static bool g_inputAllowed = false;
+
+void TogglePauseCSD(bool toggle)
+{
+	g_pauseCSD = toggle;
+}
+
+void TogglePauseBossCSD(bool toggle)
+{
+	g_pauseBoss = toggle;
+}
 
 std::unordered_map<ELanguage, uint8_t> pauseTexMap =
 {
@@ -115,7 +127,7 @@ static float ScaleY(float vHeight, float displayHeight) { return (vHeight / 480.
 
 void DrawPauseText()
 {
-	if (s_isVisible == false)
+	if (s_isVisible == false || g_pauseCSD == false) // ensure our CSD patch worked so we can draw pause text safely
 		return;
 
 
@@ -227,7 +239,7 @@ void DrawPauseText()
 
 	auto uvs = PIXELS_TO_UV_COORDS(256, 256, 0, offsetY * pauseTexMap.find(Config::Language.Value)->second, 100, 27);
 	float virtualItemSpacing = 20.0f; // pixels in 640x480 space
-	float virtualStartY = 125.f;
+	float virtualStartY = g_pauseBoss ? 200.f : 125.f;
 
 	// convert to screen space, centered horizontally
 
