@@ -20,6 +20,7 @@ void App::Restart(std::vector<std::string> restartArgs)
 
 void App::Exit()
 {
+	Video::Shutdown();
 	AudioShutDown();
 	Config::Save();
 

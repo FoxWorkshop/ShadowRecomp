@@ -307,6 +307,8 @@ int main(int argc, char* argv[])
 
 
 
+    Video::PrecompileShadersAndPipelines();
+
     PatchUnixStrings();
     ReloadedValuePatches();
     PausePatchesInit();
