@@ -4439,7 +4439,7 @@ void Video::Present()
 	g_quadIndexData.reset();
 
 
-	if (g_vulkan && g_pendingWaitOnSwapChain && g_capabilities.presentWait)
+	if (g_vulkan && g_capabilities.presentWait)
 		g_swapChain->wait();
 
 	CheckSwapChain();
