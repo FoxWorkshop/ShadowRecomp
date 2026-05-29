@@ -1,3 +1,3 @@
+#pragma once
 
-
-void PatchBloomIntensity(uint8_t* base);
+void BloomConfigValueChangedCallback(IConfigDef* config);

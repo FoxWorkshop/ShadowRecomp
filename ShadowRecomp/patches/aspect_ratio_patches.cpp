@@ -7,6 +7,7 @@
 #include <api/CSD/csd.h>
 #include <os/logger.h>
 #include <app.h>
+#include <ui/options_menu.h>
 
 bool readyToDebugConstant = false;
 bool s_pauseTextRemoved = false;
@@ -91,6 +92,7 @@ std::string NormalizeCSDPath(std::string& path)
 static void EmplacePath(const void* key, const std::string_view& value)
 {
 	std::lock_guard lock(g_pathMutex);
+	printf("Emplace %s\n", value.data());
 	g_paths.emplace(key, HashStr(value));
 }
 
@@ -219,12 +221,15 @@ X86_FUNC(sub_2B47C0)
 
 	auto addrNodePtr = X86_LOAD_U32((uint32_t)thisPtr + 8);
 
-	auto resPtr = X86_LOAD_U32(addrNodePtr);
-	CSDSceneNode* nodePtr = (CSDSceneNode*)(base + resPtr);
-
-	if (nodePtr)
+	if (addrNodePtr)
 	{
-		TraverseSceneNode(nodePtr, path);
+		auto resPtr = X86_LOAD_U32(addrNodePtr);
+		CSDSceneNode* nodePtr = (CSDSceneNode*)(base + resPtr);
+
+		if (nodePtr)
+		{
+			TraverseSceneNode(nodePtr, path);
+		}
 	}
 }
 
@@ -280,7 +285,7 @@ bool Draw(X86Context& ctx, uint8_t* base, X86Func* original, uint32_t stride)
 	if ((modifier.Flags & CSD_MODIFIER_NARROW_ONLY) != 0 && g_aspectRatio >= WIDE_ASPECT_RATIO)
 		modifier.Flags &= (~modifier.Flags) | CSD_MODIFIER_NARROW_ONLY;
 
-	if ((modifier.Flags & CSD_SKIP) != 0)
+	if ((modifier.Flags & CSD_SKIP) != 0 || ((modifier.Flags & CSD_HIDE_PAUSE) != 0 && OptionsMenu::s_isVisible))
 	{
 		
 		// Skip drawing this cast.
@@ -339,16 +344,8 @@ const xxHashMap<CsdModifier> g_csdModifiers =
 {
 	// pause
 	{ HashStr("csdFiles/pause/pause.xncp/Pause/PauseText"), { CSD_SKIP } },
-	//{ HashStr("csdFiles/pause/pause.xncp/Pause/Pause/Null_pause/bottom"), { CSD_SKIP } },
-	//{ HashStr("csdFiles/pause/pause.xncp/Pause/Pause/Null_pause/bg"), { CSD_SKIP } },
-	/**{HashStr("csdFiles/pause/pause.xncp/Pause/PauseText/resume/"), {CSD_SKIP}},
-	{ HashStr("csdFiles/pause/pause.xncp/Pause/PauseText/restart/"), { CSD_SKIP } },
-	{ HashStr("csdFiles/pause/pause.xncp/Pause/PauseText/quit/"), { CSD_SKIP } },
-	{ HashStr("csdFiles/pause/pause.xncp/Pause/PauseText/nresume/"), { CSD_SKIP } },
-	{ HashStr("csdFiles/pause/pause.xncp/Pause/PauseText/nrestart/"), { CSD_SKIP } },
-	{ HashStr("csdFiles/pause/pause.xncp/Pause/PauseText/nquit/"), { CSD_SKIP } },
-	{ HashStr("csdFiles/pause/pause.xncp/Pause/PauseText/nresume2/"), { CSD_SKIP } },
-	{ HashStr("csdFiles/pause/pause.xncp/Pause/PauseText/nquit2/"), { CSD_SKIP } },*/
+	{ HashStr("csdFiles/pause/pause.xncp/Pause"), { CSD_HIDE_PAUSE } }, // used to hide pause if options is open
+
 
 };
 

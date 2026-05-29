@@ -28,6 +28,7 @@
 #include <audio/embedded_player.h>
 #include <ui/installer_wizard.h>
 #include <patches/pause_patches.h>
+#include <patches/bloom_patches.h>
 
 #if defined(_WIN32) && defined(SHADOW_RECOMP_D3D12)
 static std::array<std::string_view, 3> g_D3D12RequiredModules =
@@ -284,6 +285,7 @@ int main(int argc, char* argv[])
     //init mutex for Loading thread patch
     InitPatchesLoadingCriticalSection();
 
+
     isGameInstalled = std::filesystem::exists(GameExecutable);
     if (!isGameInstalled)
     {
@@ -308,6 +310,7 @@ int main(int argc, char* argv[])
     PatchUnixStrings();
     ReloadedValuePatches();
     PausePatchesInit();
+    BloomConfigValueChangedCallback(&Config::BloomIntensity);
 
     //launch the Start function of the game
     isHostThread = true;

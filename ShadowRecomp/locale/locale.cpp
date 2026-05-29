@@ -344,6 +344,58 @@ std::unordered_map<std::string_view, std::unordered_map<ELanguage, std::string>>
 		}
 	},
 	{
+		// Notes: text in pause menu during gameplay
+		// Japanese Notes: This localization should include furigana.
+		"Pause_Menu_Continue",
+		{
+			{ ELanguage::English,  "resume" },
+			{ ELanguage::Japanese, "" },
+			{ ELanguage::German,   "weiter" },
+			{ ELanguage::French,   "reprendre" },
+			{ ELanguage::Spanish,  "continuar" },
+			{ ELanguage::Italian,  "continua" }
+		}
+	},
+	{
+		// Notes: text in pause menu during gameplay
+		// Japanese Notes: This localization should include furigana.
+		"Pause_Menu_Restart",
+		{
+			{ ELanguage::English,  "restart" },
+			{ ELanguage::Japanese, "" },
+			{ ELanguage::German,   "neustart" },
+			{ ELanguage::French,   "redémarrer" },
+			{ ELanguage::Spanish,  "volver a empezar" },
+			{ ELanguage::Italian,  "ricomincia" }
+		}
+	},
+	{
+		// Notes: text in pause menu during gameplay
+		// Japanese Notes: This localization should include furigana.
+		"Pause_Menu_Options",
+		{
+			{ ELanguage::English,  "options" },
+			{ ELanguage::Japanese, "オプション" },
+			{ ELanguage::German,   "optionen" },
+			{ ELanguage::French,   "options" },
+			{ ELanguage::Spanish,  "opciones" },
+			{ ELanguage::Italian,  "opzioni" }
+		}
+	},
+	{
+		// Notes: text in pause menu during gameplay
+		// Japanese Notes: This localization should include furigana.
+		"Pause_Menu_Quit",
+		{
+			{ ELanguage::English,  "quit" },
+			{ ELanguage::Japanese, "やめる" },
+			{ ELanguage::German,   "beenden" },
+			{ ELanguage::French,   "quitter" },
+			{ ELanguage::Spanish,  "abandonar" },
+			{ ELanguage::Italian,  "abbandona" }
+		}
+	},
+	{
 		// Notes: used for the button guide at the pause menu.
 		"Achievements_Name",
 		{

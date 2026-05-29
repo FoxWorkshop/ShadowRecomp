@@ -544,11 +544,6 @@ static void DrawOption
 								config->Value -= 0.01f;
 							else if (increment)
 								config->Value += 0.01f;
-
-							if (config == &Config::BloomIntensity)
-							{
-								PatchBloomIntensity(g_memory.base);
-							}
 						}
 
 						if (fastIncrement)
@@ -574,6 +569,11 @@ static void DrawOption
 
 						config->Value = !config->Value;
 					}
+				}
+
+				if (config->Value != s_oldValue)
+				{
+					BloomConfigValueChangedCallback(config);
 				}
 
 				// Run standard callback if there's no callback on apply.
@@ -1064,7 +1064,7 @@ void DrawBackground()
 		{ res.x, res.y },
 		{ 0, 0 },
 		{ 1, uvMaxY },
-		IM_COL32(255, 255, 255, OptionsMenu::s_isPause ? 127 : 255)
+		IM_COL32(255, 255, 255, OptionsMenu::s_isPause ? 180 : 255)
 	);
 
 	// draw Options Logo

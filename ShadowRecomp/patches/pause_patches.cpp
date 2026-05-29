@@ -38,6 +38,7 @@ enum PauseSelection : uint8_t
 
 static std::unique_ptr<GuestTexture> g_TexPauseText00{};
 static std::unique_ptr<GuestTexture> g_TexPauseText01{};
+static ImFont* g_fntDFPZong;
 
 static inline bool s_isVisible = false;
 static inline bool s_quitRequest = false;
@@ -46,6 +47,7 @@ static inline bool s_quitOptionsRequest = false;
 static int8_t s_index = 0;
 static const uint8_t g_optionCount = 4;
 static uint32_t g_pauseModeAddr = 0;
+static uint32_t g_CursorModeAddr = 0;
 static bool g_up{};
 static bool g_upWasHeld{};
 static bool g_down{};
@@ -79,6 +81,35 @@ ImVec2 VirtualToScreen(float vx, float vy, ImVec2 displaySize)
 	};
 }
 
+void AddTextWithOutline(ImDrawList* drawList, ImFont* font, float fontSize,
+	ImVec2 pos, ImU32 textColor, ImU32 outlineColor,
+	const char* text, float outlineSize = 2.0f)
+{
+	// two passes for thicker outline
+	for (float thickness = 1.0f; thickness <= outlineSize; thickness += 1.0f)
+	{
+		for (int dx = -1; dx <= 1; dx++)
+		{
+			for (int dy = -1; dy <= 1; dy++)
+			{
+				if (dx == 0 && dy == 0) continue;
+				drawList->AddText(font, fontSize,
+					ImVec2(pos.x + dx * thickness, pos.y + dy * thickness),
+					outlineColor, text);
+			}
+		}
+	}
+	drawList->AddText(font, fontSize, pos, textColor, text);
+}
+
+void AddTextCentered(ImDrawList* drawList, ImFont* font, float fontSize,
+	float centerX, float y, ImU32 textColor, ImU32 outlineColor,
+	const char* text)
+{
+	ImVec2 textSize = font->CalcTextSizeA(fontSize, FLT_MAX, 0.0f, text);
+	ImVec2 pos = { centerX - textSize.x / 2.0f, y };
+	AddTextWithOutline(drawList, font, fontSize, pos, textColor, outlineColor, text);
+}
 static float ScaleX(float vWidth, float displayWidth) { return (vWidth / 640.0f) * displayWidth; }
 static float ScaleY(float vHeight, float displayHeight) { return (vHeight / 480.0f) * displayHeight; }
 
@@ -129,49 +160,56 @@ void DrawPauseText()
 	}
 
 
-
+	auto base = g_memory.base;
 	auto scrollUp = g_up;
 	auto scrollDown = g_down;
+
 	if (g_inputAllowed && !s_OptionsRequest)
 	{
 		if (scrollUp)
 		{
 			--s_index;
+	
 
 			if (s_index < SelContinue)
 			{
-				Game_PlaySound("cursor");
 				s_index = g_optionCount - 1;
-			}
-			else if (s_index == SelOptions)
-			{
 				Game_PlaySound("cursor");
 			}
+	
 		}
 		else if (scrollDown)
 		{
 			++s_index;
 
+		
+
 			if (s_index == SelQuit)
 			{
 				Game_PlaySound("cursor");
 			}
-			else if (s_index >= g_optionCount)
+
+			if (s_index >= g_optionCount)
 			{
-				Game_PlaySound("cursor");
 				s_index = SelContinue;
+				Game_PlaySound("cursor");
 			}
 		}
-		else if (g_isAccepted && s_index == SelQuit)
-		{
 
-			s_quitRequest = true;
-		}
-		else if (g_isAccepted && s_index == SelOptions)
+		if (g_isAccepted)
 		{
-			Game_PlaySound("decide");
-			s_OptionsRequest = true;
+			switch (s_index)
+			{
+			case SelOptions:
+				Game_PlaySound("decide");
+				s_OptionsRequest = true;
+				break;
+			case SelQuit:
+				s_quitRequest = true;
+				break;
+			}
 		}
+
 	}
 
 
@@ -192,50 +230,29 @@ void DrawPauseText()
 	float virtualStartY = 125.f;
 
 	// convert to screen space, centered horizontally
-	float screenW = ScaleX(vWidth, res.x);
-	float screenH = ScaleY(vHeight, res.y);
+
 	float screenY = VirtualToScreen(0, virtualStartY, res).y;
 
-	ImVec2 itemMin = { screenCentre.x - screenW / 2.0f, screenY };
-	ImVec2 itemMax = { itemMin.x + screenW, itemMin.y + screenH };
 
-	drawList->AddImage(g_TexPauseText00.get(), itemMin, itemMax,
-		GET_UV_COORDS(uvs), IM_COL32(s_index == SelContinue ? 255 : 127, s_index == SelContinue ? 255 : 127, s_index == SelContinue ? 255 : 127, 255));
+	const char* menuItems[] = { Localise("Pause_Menu_Continue").c_str(), 
+		Localise("Pause_Menu_Restart").c_str(), Localise("Pause_Menu_Options").c_str(),
+		Localise("Pause_Menu_Quit").c_str()
+	};
+	float startY = screenY;
+	float spacing = ScaleY(20.0f, res.y);
 
-	// Restart 
-	screenY = VirtualToScreen(0, virtualStartY + 25.f, res).y;
-
-	vWidth = 130.0f;
-	screenW = ScaleX(vWidth, res.x);
-	itemMin = { screenCentre.x - screenW / 2.0f, screenY };
-	itemMax = { itemMin.x + screenW, itemMin.y + screenH };
-
-	drawList->AddImage(g_TexPauseText01.get(), itemMin, itemMax,
-		GET_UV_COORDS(uvs), IM_COL32(s_index == SelRestart ? 255 : 127, s_index == SelRestart ? 255 : 127, s_index == SelRestart ? 255 : 127, 255));
-
-	// Options
-
-	uint32_t uvLanguagePos =  pauseTexMap.find(Config::Language.Value)->second;
-	uvs = PIXELS_TO_UV_COORDS(256, 256, 159, offsetY * uvLanguagePos, 100, 27);
-	screenY = VirtualToScreen(0, virtualStartY + 50.f, res).y;
-
-	screenW = ScaleX(vWidth, res.x);
-	itemMin = { screenCentre.x - screenW / 2.0f, screenY };
-	itemMax = { itemMin.x + screenW, itemMin.y + screenH };
-
-	drawList->AddImage(g_TexPauseText00.get(), itemMin, itemMax,
-		GET_UV_COORDS(uvs), IM_COL32(s_index == SelOptions ? 255 : 127, s_index == SelOptions ? 255 : 127, s_index == SelOptions ? 255 : 127, 255));
-
-	// Quit
-
-	screenY = VirtualToScreen(0, virtualStartY + 75.f, res).y;
-
-	itemMin = { screenCentre.x - screenW / 2.0f, screenY };
-	itemMax = { itemMin.x + screenW, itemMin.y + screenH };
-
-	drawList->AddImage(g_TexPauseText01.get(), itemMin, itemMax,
-		GET_UV_COORDS(uvs), IM_COL32(s_index == SelQuit ? 255 : 127 , s_index == SelQuit ? 255 : 127, s_index == SelQuit ? 255 : 127, 255));
-
+	for (int i = 0; i < 4; i++)
+	{
+		uint8_t color = i == s_index ? 255 : 127;
+		float fontSize = Scale(Config::Language == ELanguage::Japanese ? 20 : 19);
+		//auto textSize = g_fntDFPZong->CalcTextSizeA(fontSize, FLT_MAX, 0.0f, s.c_str());
+		AddTextCentered(drawList, g_fntDFPZong, fontSize,
+			res.x / 2.0f,
+			startY + i * spacing,
+			IM_COL32(color, color, color, 255),  // white text
+			IM_COL32(0, 0, 0, 255),        // black outline
+			menuItems[i]);
+	}
 
 	g_up = false;
 	g_upWasHeld = upIsHeld;
@@ -246,18 +263,6 @@ void DrawPauseText()
 	g_right = false;
 	g_rightWasHeld = rightIsHeld;
 	g_isAccepted = false;
-}
-
-// Draw Pause Menu
-X86_FUNC_IMPL(__imp__sub_281A70);
-X86_FUNC(sub_281A70)
-{
-	__imp__sub_281A70(ctx, base);
-	auto isValid = X86_LOAD_U8(0x54DE78);
-	if (isValid)
-	{
-		DrawPauseText();
-	}
 }
 
 // TPauseManagerExec
@@ -276,15 +281,14 @@ X86_FUNC(sub_5AEE0)
 
 
 	// handle new options in pause menu by tricking the game that we shouldn't quit
-	if (!s_quitOptionsRequest && s_index == SelOptions && s_OptionsRequest && GameMenuCommon::g_OptionsOpen == false)
+	if (!s_quitOptionsRequest && s_index == SelOptions && s_OptionsRequest && OptionsMenu::s_isVisible == false)
 	{
 		OptionsMenu::Open(true);
-		GameMenuCommon::g_OptionsOpen = true;
 
 		//X86_STORE_U32(g_pauseModeAddr, ModeOptions); // custom mode for options
 	
 		s_isVisible = false;
-		ctx.esp.u32 += 4;
+		ctx.AddEsp(1);
 		
 		return;
 	}
@@ -322,18 +326,23 @@ X86_FUNC_IMPL(__imp__sub_5AAF0);
 X86_FUNC(sub_5AAF0)
 {
 
-	if (s_index != SelOptions && s_index != SelQuit && !s_quitRequest)
+	g_CursorModeAddr = ctx.ecx.u32 + 0x38;
+	auto mode = X86_LOAD_U8(g_CursorModeAddr);
+	if (s_index == SelOptions || s_index == SelQuit)
 	{
-		__imp__sub_5AAF0(ctx, base);
-
+		ctx.AddEsp(1);
+		return;
 	}
 	else
 	{
-		ctx.esp.u32 += 4;
+		__imp__sub_5AAF0(ctx, base);
+		mode = X86_LOAD_U8(g_CursorModeAddr);
 	}
 
-
-
+	if (s_index != mode && s_index < SelOptions )
+	{
+		X86_STORE_U32(g_CursorModeAddr, s_index);
+	}
 }
 
 
@@ -341,4 +350,5 @@ void PausePatchesInit()
 {
 	g_TexPauseText00 = LOAD_ZSTD_TEXTURE(g_pauseText00);
 	g_TexPauseText01 = LOAD_ZSTD_TEXTURE(g_pauseText01);
+	g_fntDFPZong = ImFontAtlasSnapshot::GetFont("DFPZongYiW5-B5.ttc");
 }
