@@ -113,6 +113,7 @@ static bool useLowSpec = false;
 #include <ui/message_window.h>
 #include <ui/options_menu.h>
 #include <ui/button_guide.h>
+#include <patches/pause_patches.h>
 
 
 
@@ -3568,6 +3569,7 @@ static void DrawImGui()
 	ImGui::End();
 #endif
 
+	DrawPauseText();
 	OptionsMenu::Draw();
 	/**AchievementMenu::Draw();
 	AchievementOverlay::Draw();*/

@@ -9,6 +9,7 @@
 #include <app.h>
 
 bool readyToDebugConstant = false;
+bool s_pauseTextRemoved = false;
 #define widthMin 640.f
 #define heightMin 480.f
 
@@ -93,10 +94,13 @@ static void EmplacePath(const void* key, const std::string_view& value)
 	g_paths.emplace(key, HashStr(value));
 }
 
-
+// Some csd have node name using Shift-JIS encoded Japanese characters being misinterpreted as Latin-1/UTF-8. 
+// This can crash Recomp when storing those, so we fix that by replacing them with _
 std::string SanitizeName(const char* str)
 {
-	if (!str) return "";
+	if (!str) 
+		return "";
+
 	std::string result(str);
 	for (char& c : result)
 	{
@@ -278,6 +282,7 @@ bool Draw(X86Context& ctx, uint8_t* base, X86Func* original, uint32_t stride)
 
 	if ((modifier.Flags & CSD_SKIP) != 0)
 	{
+		
 		// Skip drawing this cast.
 		return false;
 	}
@@ -334,6 +339,8 @@ const xxHashMap<CsdModifier> g_csdModifiers =
 {
 	// pause
 	{ HashStr("csdFiles/pause/pause.xncp/Pause/PauseText"), { CSD_SKIP } },
+	//{ HashStr("csdFiles/pause/pause.xncp/Pause/Pause/Null_pause/bottom"), { CSD_SKIP } },
+	//{ HashStr("csdFiles/pause/pause.xncp/Pause/Pause/Null_pause/bg"), { CSD_SKIP } },
 	/**{HashStr("csdFiles/pause/pause.xncp/Pause/PauseText/resume/"), {CSD_SKIP}},
 	{ HashStr("csdFiles/pause/pause.xncp/Pause/PauseText/restart/"), { CSD_SKIP } },
 	{ HashStr("csdFiles/pause/pause.xncp/Pause/PauseText/quit/"), { CSD_SKIP } },

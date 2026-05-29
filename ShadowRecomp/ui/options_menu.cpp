@@ -22,6 +22,7 @@
 #include <exports.h>
 #include <ui/menu_common.h>
 #include <ui/button_guide.h>
+#include <patches/pause_patches.h>
 
 
 static constexpr int MAX_VISIBLE_ROWS = 5;
@@ -1063,7 +1064,7 @@ void DrawBackground()
 		{ res.x, res.y },
 		{ 0, 0 },
 		{ 1, uvMaxY },
-		IM_COL32(255, 255, 255, 255)
+		IM_COL32(255, 255, 255, OptionsMenu::s_isPause ? 127 : 255)
 	);
 
 	// draw Options Logo
@@ -1071,7 +1072,6 @@ void DrawBackground()
 	auto optionsUVs = PIXELS_TO_UV_COORDS(512, 512, 0, 0, 147, 448);
 	auto optionsWidth = res.x * 0.16f;
 	auto optionsHeight = res.y * 0.96f;
-
 
 	ImVec2 optionsMin = { 0, min.y + Scale(10) };
 	ImVec2 optionsMax = { optionsMin.x + optionsWidth, optionsMin.y + optionsHeight };
@@ -1209,6 +1209,9 @@ static void DrawCategories(ImVec2 min, ImVec2 max)
 	{
 		// Don't show debug category if locked.
 		if (!OptionsMenu::s_isDebugUnlocked && (OptionsMenuCategory)i == OptionsMenuCategory::Debug)
+			continue;
+
+		if (OptionsMenu::s_isPause && (OptionsMenuCategory)i == OptionsMenuCategory::Misc) // do not allow legacy options during gameplay
 			continue;
 
 		auto isCurrent = i == g_categoryIndex;
@@ -1410,6 +1413,9 @@ void OptionsMenu::Draw()
 		if (!s_isDebugUnlocked)
 			categoryCount -= 1;
 
+		if (s_isPause)
+			categoryCount -= 1;
+
 		MoveCursor(g_categoryIndex, g_flowStateTime, 0, categoryCount, []()
 			{
 				ResetOptionSelection();
@@ -1508,6 +1514,8 @@ void OptionsMenu::Draw()
 
 void OptionsMenu::Open(bool isPause)
 {
+
+	OptionsMenu::s_isPause = isPause;
 	InitImGuiUtils();
 	g_stateTime = ImGui::GetTime();
 	s_state = OptionsMenuState::Opening;
@@ -1557,7 +1565,6 @@ void OptionsMenu::SetFlowState(OptionsMenuFlowState flowState)
 	g_flowStateTime = ImGui::GetTime();
 }
 
-// to do
 
 void OptionsMenu::Close()
 {
@@ -1573,7 +1580,8 @@ void OptionsMenu::Close()
 		GameMenuCommon::g_nextModeAddr = 0;
 	}
 
-
+	if (s_isPause)
+		RequestQuitOptionForPause();
 	s_state = OptionsMenuState::Closing;
 	g_stateTime = ImGui::GetTime();
 	g_containerClosedAnimTime = ImGui::GetTime();

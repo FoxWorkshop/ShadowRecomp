@@ -1,3 +1,5 @@
+#pragma once
+
 struct RwV3d
 {
 	float x;

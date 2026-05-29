@@ -27,6 +27,7 @@
 #include <patches/reloaded_mod_patches.h>
 #include <audio/embedded_player.h>
 #include <ui/installer_wizard.h>
+#include <patches/pause_patches.h>
 
 #if defined(_WIN32) && defined(SHADOW_RECOMP_D3D12)
 static std::array<std::string_view, 3> g_D3D12RequiredModules =
@@ -306,6 +307,7 @@ int main(int argc, char* argv[])
 
     PatchUnixStrings();
     ReloadedValuePatches();
+    PausePatchesInit();
 
     //launch the Start function of the game
     isHostThread = true;
