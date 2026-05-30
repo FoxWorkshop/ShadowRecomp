@@ -59,10 +59,10 @@ struct CSDSceneNodeIndex
 
 struct CSDSceneNode
 {
-    uint32_t        SceneCount;      
+    uint32_t SceneCount;      
     xpointer<xpointer<CSDScene>> pScenes;
     xpointer<CSDSceneIndex> pSceneIndices;
-    uint32_t        SceneNodeCount;  
+    uint32_t SceneNodeCount;  
     xpointer<CSDSceneNode> pSceneNodes;
     xpointer<CSDSceneNodeIndex> pSceneNodeIndices;
 };

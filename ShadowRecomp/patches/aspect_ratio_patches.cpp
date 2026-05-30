@@ -86,11 +86,13 @@ std::string NormalizeCSDPath(std::string& path)
 	return path;
 }
 
+
 static void EmplacePath(const void* key, const std::string_view& value)
 {
 	std::lock_guard lock(g_pathMutex);
-	//printf("Emplace %s\n", value.data());
+	//printf("Emplace key %x, %s\n", key, value.data());
 	g_paths.emplace(key, HashStr(value));
+
 }
 
 // Some csd have node name using Shift-JIS encoded Japanese characters being misinterpreted as Latin-1/UTF-8. 
@@ -216,7 +218,7 @@ X86_FUNC(sub_2B47C0)
 
 	auto pSuffix = s_languages[(int)Config::Language.Value];
 
-	auto addrNodePtr = X86_LOAD_U32((uint32_t)thisPtr + 8);
+	auto addrNodePtr = X86_LOAD_U32(g_memory.MapVirtual((const uint8_t*)thisPtr + 8));
 
 	if (addrNodePtr)
 	{
@@ -241,6 +243,35 @@ X86_FUNC(sub_38B5E0)
 
 	
 	__imp__sub_38B5E0(ctx, base);
+}
+
+//TCsdSystem::FreeMemory
+X86_FUNC_IMPL(__imp__sub_184E0);
+X86_FUNC(sub_184E0)
+{
+	auto ptr = X86_LOAD_U32(ctx.esp.u32 + 4);
+
+	if (ptr != 0)
+	{
+		uint32_t magic1 = X86_LOAD_U32(ptr);
+		uint32_t magic2 = X86_LOAD_U32(ptr + 0x20);
+
+
+		if (magic1 == 0x4649584E && magic2 == 0x4A50436E) // NXIF, nCPJ
+		{
+			uint32_t fileSize = X86_LOAD_U32(ptr + 0x14);
+
+			const uint8_t* base_key = (const uint8_t*)(base + ptr);
+
+			std::lock_guard lock(g_pathMutex);
+			auto lower = g_paths.lower_bound(base_key);
+			auto upper = g_paths.lower_bound(base_key + fileSize);
+			g_paths.erase(lower, upper);
+
+			LOGFN_UTILITY("CSD freed: 0x{:08X}", (uint64_t)base_key);
+		}
+	}
+	__imp__sub_184E0(ctx, base);
 }
 
 void RenderCsdCastNodeMidAsmHook(X86Register& rEax)
