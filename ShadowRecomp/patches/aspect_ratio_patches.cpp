@@ -216,7 +216,7 @@ X86_FUNC(sub_2B47C0)
 
 	auto pSuffix = s_languages[(int)Config::Language.Value];
 
-	auto addrNodePtr = X86_LOAD_U32((uint32_t)thisPtr + 8);
+	auto addrNodePtr = X86_LOAD_U32(g_memory.MapVirtual((const uint8_t*)thisPtr + 8));
 
 	if (addrNodePtr)
 	{
