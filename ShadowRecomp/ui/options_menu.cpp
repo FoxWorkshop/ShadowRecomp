@@ -812,16 +812,11 @@ static void DrawGoToLegacyOption
 
 	if (isCurrent)
 	{
-
 		if (OptionsMenu::s_flowState == OptionsMenuFlowState::OptionCursor || OptionsMenu::s_flowState == OptionsMenuFlowState::OptionSelected)
 		{
 			optionDescription = Localise("Options_Desc_LegacyMenu");
 		}
-	}
 
-
-	if (isCurrent)
-	{
 		if (CheckAndDiscard(g_isAccepted))
 		{
 			Game_PlaySound("decide");
@@ -1347,8 +1342,8 @@ void OptionsMenu::Draw()
 		{
 			if (GameMenuCommon::g_LegacyOptions == false)
 			{
-
-				GameMenuCommon::ResetNextMode();
+				if (s_isPause == false)
+					GameMenuCommon::ResetNextMode();
 			}
 			else
 			{
@@ -1542,7 +1537,11 @@ void OptionsMenu::Open(bool isPause)
 
 	ButtonGuide::Open(buttons);
 	ButtonGuide::SetSideMargins(100);
-
+	if (s_isPause)
+	{
+		GameMenuCommon::g_nextModeAddr = 0;
+		GameMenuCommon::g_currentModeAddr = 0;
+	}
 }
 
 bool OptionsMenu::IsRestartRequired()
@@ -1571,6 +1570,13 @@ void OptionsMenu::Close()
 	if (s_state == OptionsMenuState::Closing)
 		return;
 
+	if (s_isPause)
+	{
+		GameMenuCommon::g_nextModeAddr = 0;
+		GameMenuCommon::g_currentModeAddr = 0;
+		RequestQuitOptionForPause();
+	}
+
 	if (GameMenuCommon::g_LegacyOptions == false)
 	{
 		GameMenuCommon::ResetCurrentMode();
@@ -1580,8 +1586,7 @@ void OptionsMenu::Close()
 		GameMenuCommon::g_nextModeAddr = 0;
 	}
 
-	if (s_isPause)
-		RequestQuitOptionForPause();
+
 	s_state = OptionsMenuState::Closing;
 	g_stateTime = ImGui::GetTime();
 	g_containerClosedAnimTime = ImGui::GetTime();

@@ -23,6 +23,7 @@
 enum PauseMode : uint8_t
 {
 	ModeRunning = 2,
+	ModeRestart = 5,
 	ModeQuit = 6,
 	ModeContinue = 9,
 	ModeOptions = 15
@@ -71,20 +72,11 @@ void TogglePauseBossCSD(bool toggle)
 	g_pauseBoss = toggle;
 }
 
-std::unordered_map<ELanguage, uint8_t> pauseTexMap =
-{
-	{ELanguage::English, 4},
-	{ELanguage::Spanish, 1},
-	{ELanguage::Japanese, 0},
-	{ELanguage::German, 2},
-	{ELanguage::French, 5},
-	{ELanguage::Italian, 3},
-};
-
 void RequestQuitOptionForPause()
 {
 	s_quitOptionsRequest = true;
 }
+
 ImVec2 VirtualToScreen(float vx, float vy, ImVec2 displaySize)
 {
 	return {
@@ -130,6 +122,16 @@ void DrawPauseText()
 	if (s_isVisible == false || g_pauseCSD == false) // ensure our CSD patch worked so we can draw pause text safely
 		return;
 
+	if (g_pauseModeAddr)
+	{
+		auto base = g_memory.base;
+		auto mode = X86_LOAD_U32(g_pauseModeAddr);
+		if (mode == ModeQuit || mode == ModeRestart)
+		{
+			return;
+		}
+	}
+
 
 	bool upIsHeld = false;
 	bool downIsHeld = false;
@@ -172,7 +174,6 @@ void DrawPauseText()
 	}
 
 
-	auto base = g_memory.base;
 	auto scrollUp = g_up;
 	auto scrollDown = g_down;
 
@@ -193,8 +194,6 @@ void DrawPauseText()
 		else if (scrollDown)
 		{
 			++s_index;
-
-		
 
 			if (s_index == SelQuit)
 			{
@@ -221,7 +220,6 @@ void DrawPauseText()
 				break;
 			}
 		}
-
 	}
 
 
@@ -229,15 +227,12 @@ void DrawPauseText()
 	auto& res = ImGui::GetIO().DisplaySize;
 	ImVec2 screenCentre = { res.x / 2.0f, res.y / 2.0f };
 	
-	// Continue / Resume
-
 	// virtual size of the texture sprite
 	float vWidth = 120.0f;
 	float vHeight = 26.0f;
 
 	const float offsetY = 30.f;
 
-	auto uvs = PIXELS_TO_UV_COORDS(256, 256, 0, offsetY * pauseTexMap.find(Config::Language.Value)->second, 100, 27);
 	float virtualItemSpacing = 20.0f; // pixels in 640x480 space
 	float virtualStartY = g_pauseBoss ? 200.f : 125.f;
 
@@ -288,7 +283,7 @@ X86_FUNC(sub_5AEE0)
 
 	if (mode == 2 && g_inputAllowed == false)
 	{
-		g_inputAllowed = true;
+		g_inputAllowed = true; //to do find a better way, only enable it when opening anim is complete
 	}
 
 
@@ -296,15 +291,12 @@ X86_FUNC(sub_5AEE0)
 	if (!s_quitOptionsRequest && s_index == SelOptions && s_OptionsRequest && OptionsMenu::s_isVisible == false)
 	{
 		OptionsMenu::Open(true);
-
-		//X86_STORE_U32(g_pauseModeAddr, ModeOptions); // custom mode for options
-	
 		s_isVisible = false;
 		ctx.AddEsp(1);
 		
 		return;
 	}
-	else if (mode == ModeContinue)
+	else if (mode == ModeContinue || mode == ModeRestart)
 	{
 		g_inputAllowed = false;
 		s_index = 0;

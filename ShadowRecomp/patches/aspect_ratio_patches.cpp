@@ -253,7 +253,7 @@ void RenderCsdCastMidAsmHook(X86Register& rEsi)
 	g_castModifier = FindCsdModifier(rEsi.u32);
 }
 
-bool Draw(X86Context& ctx, uint8_t* base, X86Func* original, uint32_t stride)
+bool Draw(X86Context& ctx, uint8_t* base, X86Func* original, void* vertexStride, uint32_t stride)
 {
 	CsdModifier modifier{};
 
@@ -290,6 +290,67 @@ bool Draw(X86Context& ctx, uint8_t* base, X86Func* original, uint32_t stride)
 		return false;
 	}
 
+	auto offsetX = 0.0f;
+	auto offsetY = 0.0f;
+	auto pivotX = 0.0f;
+	auto pivotY = 0.0f;
+	auto scaleX = 1.0f;
+	auto scaleY = 1.0f;
+
+	auto needsStretch = g_aspectRatio >= WIDE_ASPECT_RATIO;
+
+	if (needsStretch && (modifier.Flags & CSD_STRETCH_HORIZONTAL) != 0)
+	{
+		scaleX = vpWidth / 640.f;
+	}
+	else
+	{
+		scaleX = g_aspectRatioScale;
+
+	}
+
+	if ((modifier.Flags & CSD_STRETCH_VERTICAL) != 0)
+	{
+		scaleY = vpHeight / 480.f;
+	}
+	else
+	{
+		scaleY = g_aspectRatioScale;
+
+		if ((modifier.Flags & CSD_ALIGN_BOTTOM) != 0)
+			offsetY = g_aspectRatioOffsetY * 2.0f;
+		else if ((modifier.Flags & CSD_ALIGN_TOP) == 0)
+			offsetY = g_aspectRatioOffsetY;
+
+		if ((modifier.Flags & CSD_SCALE) != 0)
+		{
+			scaleY *= g_aspectRatioGameplayScale;
+
+			if ((modifier.Flags & CSD_ALIGN_BOTTOM) != 0)
+				offsetY += 480.f * (1.0f - g_aspectRatioGameplayScale) * g_aspectRatioScale;
+			else if ((modifier.Flags & CSD_ALIGN_TOP) == 0)
+				offsetY += g_vertCentre - g_aspectRatioOffsetY;
+
+			offsetY += pivotY * g_aspectRatioScale;
+		}
+	}
+
+	for (int i = 0; i < 4; i++)
+	{
+		RwD3D8Vertex* vertexData = (RwD3D8Vertex*)vertexStride;
+
+		auto x = offsetX + (vertexData[i].x - pivotX);
+		auto y = offsetY + (vertexData[i].y - pivotY);
+
+		if ((modifier.Flags & CSD_EXTEND_BOTTOM) != 0 && (i == 1 || i == 3))
+		{
+			float extraItems = 2.0f;
+			float virtualItemSpacing = 40.f;
+			y += virtualItemSpacing * extraItems;
+			vertexData[i].y = round(y);
+		}
+	}
+
 	return true;
 }
 
@@ -298,7 +359,7 @@ bool CPlatformRWDrawPrimitive2DMidAsmHook(X86Register& rEcx)
 	// ecx = vertex stride
 	auto ctx = GetX86Context();
 	auto base = g_memory.base;
-	return Draw(*ctx, base, nullptr, 24) == false;
+	return Draw(*ctx, base, nullptr, g_memory.Translate(rEcx.u32), 28) == false;
 }
 
 const uint32_t GuestDevicePtrAddr = 0x3E0A18;
@@ -343,6 +404,10 @@ const xxHashMap<CsdModifier> g_csdModifiers =
 	// pause
 	{ HashStr("csdFiles/pause/pause.xncp/Pause/PauseText"), { CSD_SKIP | CSD_HIDE_PAUSE } },
 	{ HashStr("csdFiles/pause/pauseBoss.xncp/Pause/PauseText"), { CSD_SKIP | CSD_HIDE_PAUSE | CSD_PAUSE_BOSS } },
+	//{ HashStr("csdFiles/pause/pause.xncp/Pause/Pause/Null_pause/bottom"), { CSD_EXTEND_BOTTOM } },
+	//{ HashStr("csdFiles/pause/pause.xncp/Pause/Pause/Null_pause/bg"), { CSD_EXTEND_BOTTOM } },
+
+
 };
 
 std::optional<CsdModifier> FindCsdModifier(uint32_t data)
