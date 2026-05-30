@@ -7,7 +7,7 @@
 
 // While OG Xbox has thread support, it was originally a mono-core console, meaning threads weren't actually running in parallel
 // Thus, true multi-core creates race issues on PC, specially at load time since it has its own thread running while the main-game loop runs too.
-// So we patch functions that can edit same memory to avoid race issue using mutex or other tweaks.
+// So we patch functions that can edit same memory to avoid race issue using mutex and others tweaks.
 // It would be nice to find a better way, but so far this is the best compromise I found other than forcing mono-core, which I'd prefer not to.
 
 
@@ -18,7 +18,7 @@ static std::atomic<int> loadingThreadID{0};
 XRTL_CRITICAL_SECTION dirtyListLock;
 XRTL_CRITICAL_SECTION csdNodeLock;
 XRTL_CRITICAL_SECTION fmvPtrDataLock;
-void InitPatchesLoadingCriticalSection()
+void InitMultiCoreMutexesPatches()
 {
 	RtlInitializeCriticalSection(&dirtyListLock);
 	RtlInitializeCriticalSection(&csdNodeLock);
@@ -197,7 +197,7 @@ X86_FUNC(sub_2B4440)
 		countExtraSleepFailSafe++;
 
 		// this shouldn't be reached ever, tests show that it never sleep more than twice per loading, but you never know.
-		if (countExtraSleepFailSafe > 1000)
+		if (countExtraSleepFailSafe > 300)
 		{
 			countExtraSleepFailSafe = 0;
 			break;

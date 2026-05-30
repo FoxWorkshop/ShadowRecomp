@@ -73,10 +73,6 @@ void AspectRatioPatches::ComputeOffsets()
 	UpdateFontSize();
 }
 
-void PatchResolutionCapMidAsmHook(X86Register& eax)
-{
-
-}
 
 std::string NormalizeCSDPath(std::string& path)
 {
@@ -93,7 +89,7 @@ std::string NormalizeCSDPath(std::string& path)
 static void EmplacePath(const void* key, const std::string_view& value)
 {
 	std::lock_guard lock(g_pathMutex);
-	printf("Emplace %s\n", value.data());
+	//printf("Emplace %s\n", value.data());
 	g_paths.emplace(key, HashStr(value));
 }
 

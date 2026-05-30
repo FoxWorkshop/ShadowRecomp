@@ -271,19 +271,14 @@ int main(int argc, char* argv[])
 
     ModLoader::Init();
 
-    InitDpcData();
+//    InitDpcData();
 
 
-    NV2ADevice_Init();
+  //  NV2ADevice_Init();
 
-    // Create "interrupt events" thread, a loop will check and fire guest function stored from KeConnectInterrupt
-    //std::thread eventsThread(system_events_launch);
 
-    // Create DPC Routine thread, a loop will check and fire guest function stored from KeInsertQueueDpc
-    //std::thread dpcThread(dpc_launch);
-
-    //init mutex for Loading thread patch
-    InitPatchesLoadingCriticalSection();
+    //init mutexes for multi-core patch
+    InitMultiCoreMutexesPatches();
 
 
     isGameInstalled = std::filesystem::exists(GameExecutable);

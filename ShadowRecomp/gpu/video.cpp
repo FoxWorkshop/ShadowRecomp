@@ -121,6 +121,7 @@ static bool useLowSpec = false;
 #include <Windows.h>
 #endif
 #include "cache/pipeline_cache.h"
+#include <patches/pause_patches.h>
 
 
 
@@ -4176,6 +4177,7 @@ static void DrawImGui()
 	ImGui::End();
 #endif
 
+	DrawPauseText();
 	OptionsMenu::Draw();
 	/**AchievementMenu::Draw();
 	AchievementOverlay::Draw();*/
