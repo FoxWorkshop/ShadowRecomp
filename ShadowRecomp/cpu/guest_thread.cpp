@@ -244,6 +244,15 @@ GuestThreadHandle::~GuestThreadHandle()
 	std::string s = GetThreadName(params.function);
 	printf("Destroy thread %08X with ID %u (%s)\n", params.function, id, s.c_str());
 
+	if (suspended.load())
+	{
+		printf("[GuestThread] WARNING: Destroying suspended thread %08X (%s) - forcing resume\n",
+			params.function, s.c_str());
+		suspended.store(false, std::memory_order_release);
+		suspended.notify_all();
+		suspendCV.notify_all();
+	}
+
 	if (thread.joinable())
 		thread.join();
 }
