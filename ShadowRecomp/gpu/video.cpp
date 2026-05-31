@@ -2667,6 +2667,8 @@ static void CheckSwapChain()
 	{
 		Video::WaitForGPU();
 		g_backBuffer->framebuffers.clear();
+		if (g_pendingStencilResize)
+			g_pendingStencilResize->framebuffers.clear();
 		g_swapChainValid = g_swapChain->resize();
 		g_needsResize = g_swapChainValid;
 	}
@@ -2826,11 +2828,15 @@ static void BeginCommandList()
 				}
 			}
 
-			if (g_pendingStencilResize && useLowSpec)
+			if (g_pendingStencilResize)
 			{
-				g_barrierMap.erase(g_pendingStencilResize->texture);
+				if (useLowSpec)
+				{
+					g_barrierMap.erase(g_pendingStencilResize->texture);
+					RecreateGuestSurfaceTexture(g_pendingStencilResize, false);
+				}
+
 				g_pendingStencilResize->framebuffers.clear();
-				RecreateGuestSurfaceTexture(g_pendingStencilResize, false);
 			}
 
 			g_pendingSurfaceResizeFlag = false;
@@ -7124,11 +7130,6 @@ static void FlushRenderStateForRenderThread()
 
 	if (!g_pendingMsaaResolves.empty())
 		g_pendingMsaaResolves.clear();
-
-	if (renderTarget->wasResized)
-	{
-		printf("");
-	}
 
 	AddBarrier(renderTarget, RenderTextureLayout::COLOR_WRITE);
 	AddBarrier(depthStencil, RenderTextureLayout::DEPTH_WRITE);
