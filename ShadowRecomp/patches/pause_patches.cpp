@@ -19,8 +19,8 @@
 // The options can then be re created through Imgui
 
 static const uint8_t vanillaPauseItemsCount = 3u;
-static const uint8_t pauseItemsCount = 4u;
-static const uint8_t addedPauseItemsCount = 1u;
+static const uint8_t pauseItemsCount = 5u;
+static const uint8_t addedPauseItemsCount = pauseItemsCount - vanillaPauseItemsCount;
 
 enum PauseMode : uint8_t
 {
@@ -35,6 +35,7 @@ enum PauseSelection : uint8_t
 {
 	SelContinue = 0,
 	SelRestart,
+	SelAchievements,
 	SelOptions,
 	SelQuit
 };
@@ -48,6 +49,7 @@ enum PauseAction : uint8_t
 	PauseAction_Quit = 4,
 	// added pause actions:
 	PauseAction_Options = 5,
+	PauseAction_Achievements,
 };
 
 
@@ -59,9 +61,8 @@ static inline bool s_isVisible = false;
 static inline bool s_quitRequest = false;
 static inline bool s_OptionsRequest = false;
 static inline bool s_quitOptionsRequest = false;
-static inline int8_t g_userOptionSelected = -1;
+
 static int8_t s_index = 0;
-static const uint8_t g_optionCount = 4;
 static uint32_t g_pauseModeAddr = 0;
 static uint32_t g_CursorModeAddr = 0;
 static bool g_up{};
@@ -206,7 +207,7 @@ void DrawPauseText()
 
 			if (s_index < SelContinue)
 			{
-				s_index = g_optionCount - 1;
+				s_index = pauseItemsCount - 1;
 				Game_PlaySound("cursor");
 			}
 	
@@ -220,7 +221,7 @@ void DrawPauseText()
 				Game_PlaySound("cursor");
 			}
 
-			if (s_index >= g_optionCount)
+			if (s_index >= pauseItemsCount)
 			{
 				s_index = SelContinue;
 				Game_PlaySound("cursor");
@@ -234,6 +235,9 @@ void DrawPauseText()
 			case SelOptions:
 				Game_PlaySound("decide");
 				s_OptionsRequest = true;
+				break;
+			case SelAchievements:
+				Game_PlaySound("decide");
 				break;
 			case SelQuit:
 				s_quitRequest = true;
@@ -264,13 +268,13 @@ void DrawPauseText()
 
 
 	const char* menuItems[] = { Localise("Pause_Menu_Continue").c_str(), 
-		Localise("Pause_Menu_Restart").c_str(), Localise("Pause_Menu_Options").c_str(),
-		Localise("Pause_Menu_Quit").c_str()
+		Localise("Pause_Menu_Restart").c_str(), Localise("Achievements_Name").c_str(), 
+		Localise("Pause_Menu_Options").c_str(), Localise("Pause_Menu_Quit").c_str()
 	};
 	float startY = screenY;
 	float spacing = ScaleY(20.0f, res.y);
 
-	for (int i = 0; i < 4; i++)
+	for (int i = 0; i < pauseItemsCount; i++)
 	{
 		uint8_t color = i == s_index ? 255 : 127;
 		float fontSize = Scale(Config::Language == ELanguage::Japanese ? 20 : 19);
@@ -393,11 +397,6 @@ X86_FUNC(sub_5AAF0)
 				// new option menu is selected set an unused index
 				ctx.eax.u32 = (uint32_t)PauseAction_Restart + s_index;
 			}
-			g_userOptionSelected = s_index;
-		}
-		else
-		{
-			g_userOptionSelected = -1;
 		}
 	}
 }
