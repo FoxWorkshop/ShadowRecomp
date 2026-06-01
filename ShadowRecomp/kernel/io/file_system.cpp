@@ -255,13 +255,16 @@ FileHandle* XCreateFile_r(const char* SourceString, ULONG CreateDisposition, ULO
 
 	std::error_code ec;
 	fileStream.open(filePath, fileOpenMode);
-	if (!std::filesystem::exists(filePath))
-		std::cout << "File does not exist: " << filePath << std::endl;
+
+	const bool isNotSaveFile = filePath.string().find("Save") == std::string::npos;
+
+	if (!std::filesystem::exists(filePath) && isNotSaveFile)
+		LOGFN_ERROR("File does not exist: {}", filePath.string());
 
 
-	if (!fileStream.is_open())
+	if (!fileStream.is_open() && isNotSaveFile)
 	{
-		std::cout << "Failed to open: " << filePath << " | errno: " << errno << " | message: " << strerror(errno) << std::endl;
+		LOGFN_ERROR("Failed to open: {} errno: {}, message: {}", filePath.string(), errno, strerror(errno));
 		return GetInvalidKernelObject<FileHandle>();
 	}
 
