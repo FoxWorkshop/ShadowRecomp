@@ -102,7 +102,7 @@ static void EmplacePath(const void* key, const std::string_view& value)
 	{
 		g_bufferRegistry[g_currentBuffer].push_back((const uint8_t*)key);
 
-		//printf("Emplace key %x, %s - currentBuffer %x\n", key, value.data(), g_currentBuffer);
+		//printf("Emplace key %x, %s\n", key, value.data());
 	}
 
 }
@@ -146,6 +146,7 @@ void TraverseCast(CSDScene* scene, uint32_t castNodeIndex, CSDCastNode* castNode
 		}
 	}
 
+	path = SanitizeName(path.c_str());
 	EmplacePath(castNode->pCasts[castIndex].get(), path);
 
 	if (castNode->RootCastIndex == castIndex)
@@ -413,7 +414,11 @@ void Draw(X86Context& ctx, uint8_t* base, X86Func* original, void* vertexData, u
 			if ((modifier.Flags & CSD_EXTEND_BOTTOM) != 0 && (i == 1 || i == 3))
 			{
 				csdVertex[i].y += round(pauseYOffset);
+			}
 
+			if ((modifier.Flags & CSD_MOVE_BOTTOM) != 0)
+			{
+				csdVertex[i].y += round(pauseYOffset);
 			}
 		}
 	}
@@ -427,6 +432,11 @@ void Draw(X86Context& ctx, uint8_t* base, X86Func* original, void* vertexData, u
 			auto csdVertex = (RwD3D8Vertex*)vertexData;
 
 			if ((modifier.Flags & CSD_EXTEND_BOTTOM) != 0 && (i == 1 || i == 3))
+			{
+				csdVertex[i].y -= round(pauseYOffset);
+			}
+
+			if ((modifier.Flags & CSD_MOVE_BOTTOM) != 0)
 			{
 				csdVertex[i].y -= round(pauseYOffset);
 			}
@@ -495,6 +505,37 @@ const xxHashMap<CsdModifier> g_csdModifiers =
 	{ HashStr("csdFiles/pause/pauseBoss.xncp/Pause/PauseText"), { CSD_SKIP | CSD_HIDE_PAUSE | CSD_PAUSE_BOSS } },
 	{ HashStr("csdFiles/pause/pause.xncp/Pause/Pause/Null_pause/bottom"), { CSD_HIDE_PAUSE | CSD_EXTEND_BOTTOM } },
 	{ HashStr("csdFiles/pause/pause.xncp/Pause/Pause/Null_pause/bg"), { CSD_HIDE_PAUSE | CSD_EXTEND_BOTTOM } },
+
+	// this is to move the mission board vertex below due to the pause menu bg being extended reaching the mission board position
+	{ HashStr("csdFiles/pause/pause.xncp/Pause/Mission_Board/Null_0189/bg1"), { CSD_HIDE_PAUSE | CSD_MOVE_BOTTOM } },
+	{ HashStr("csdFiles/pause/pause.xncp/Pause/Mission_Board/Null_0189/bg2"), { CSD_HIDE_PAUSE | CSD_MOVE_BOTTOM } },
+	{ HashStr("csdFiles/pause/pause.xncp/Pause/Mission_Board/Null_0189/bg3"), { CSD_HIDE_PAUSE | CSD_MOVE_BOTTOM } },
+	{ HashStr("csdFiles/pause/pause.xncp/Pause/Mission_Board/Null_0189/bg4"), { CSD_HIDE_PAUSE | CSD_MOVE_BOTTOM } },
+	{ HashStr("csdFiles/pause/pause.xncp/Pause/Mission_Board/Null_missionname"), { CSD_HIDE_PAUSE | CSD_MOVE_BOTTOM } },
+	{ HashStr("csdFiles/pause/pause.xncp/Pause/Mission/Null_0190/bg"), { CSD_HIDE_PAUSE | CSD_MOVE_BOTTOM } },
+	{ HashStr("csdFiles/pause/pause.xncp/Pause/Mission/Null_0190/line_top2"), { CSD_HIDE_PAUSE | CSD_MOVE_BOTTOM } },
+	{ HashStr("csdFiles/pause/pause.xncp/Pause/Mission/Null_0190/line_top"), { CSD_HIDE_PAUSE | CSD_MOVE_BOTTOM } },
+	{ HashStr("csdFiles/pause/pause.xncp/Pause/Mission/Null_0190/frame_edge"), { CSD_HIDE_PAUSE | CSD_MOVE_BOTTOM } },
+	{ HashStr("csdFiles/pause/pause.xncp/Pause/Mission/Null_0190/frame_edge___R_s_[(1)"), { CSD_HIDE_PAUSE | CSD_MOVE_BOTTOM } },
+	{ HashStr("csdFiles/pause/pause.xncp/Pause/Mission/Null_0190/frame_edge___R_s_["), { CSD_HIDE_PAUSE | CSD_MOVE_BOTTOM } },
+	{ HashStr("csdFiles/pause/pause.xncp/Pause/Mission/Null_0190/frame_right"), { CSD_HIDE_PAUSE | CSD_MOVE_BOTTOM } },
+	{ HashStr("csdFiles/pause/pause.xncp/Pause/Mission/Null_0190/frame_left"), { CSD_HIDE_PAUSE | CSD_MOVE_BOTTOM } },
+	{ HashStr("csdFiles/pause/pause.xncp/Pause/Mission/Null_0190/line_side_left"), { CSD_HIDE_PAUSE | CSD_MOVE_BOTTOM } },
+	{ HashStr("csdFiles/pause/pause.xncp/Pause/Mission/Null_0190/line_side___R_s_["), { CSD_HIDE_PAUSE | CSD_MOVE_BOTTOM } },
+	{ HashStr("csdFiles/pause/pause.xncp/Pause/Mission/Null_0190/line_side_left___R_s_["), { CSD_HIDE_PAUSE | CSD_MOVE_BOTTOM } },
+	{ HashStr("csdFiles/pause/pause.xncp/Pause/Mission/iconshadow1"), { CSD_HIDE_PAUSE | CSD_MOVE_BOTTOM } },
+	{ HashStr("csdFiles/pause/pause.xncp/Pause/Mission/iconshadow2"), { CSD_HIDE_PAUSE | CSD_MOVE_BOTTOM } },
+	{ HashStr("csdFiles/pause/pause.xncp/Pause/Mission/iconshadow3"), { CSD_HIDE_PAUSE | CSD_MOVE_BOTTOM } },
+	{ HashStr("csdFiles/pause/pause.xncp/Pause/Mission/mission"), { CSD_HIDE_PAUSE | CSD_MOVE_BOTTOM } },
+	{ HashStr("csdFiles/pause/pause.xncp/Pause/MIconHero/highlight"), { CSD_HIDE_PAUSE | CSD_MOVE_BOTTOM } },
+	{ HashStr("csdFiles/pause/pause.xncp/Pause/MIconHero/hero"), { CSD_HIDE_PAUSE | CSD_MOVE_BOTTOM } },
+	{ HashStr("csdFiles/pause/pause.xncp/Pause/MIconNormal/highlight"), { CSD_HIDE_PAUSE | CSD_MOVE_BOTTOM } },
+	{ HashStr("csdFiles/pause/pause.xncp/Pause/MIconNormal/normal"), { CSD_HIDE_PAUSE | CSD_MOVE_BOTTOM } },
+	{ HashStr("csdFiles/pause/pause.xncp/Pause/MIconDark/dark"), { CSD_HIDE_PAUSE | CSD_MOVE_BOTTOM } },
+	{ HashStr("csdFiles/pause/pause.xncp/Pause/MIconDark/highlight"), { CSD_HIDE_PAUSE | CSD_MOVE_BOTTOM } },
+	{ HashStr("csdFiles/pause/pause.xncp/Pause/ChangeMission/change"), { CSD_HIDE_PAUSE | CSD_MOVE_BOTTOM } },
+	{ HashStr("csdFiles/pause/pause.xncp/Pause/ChangeMission/arrow_left"), { CSD_HIDE_PAUSE | CSD_MOVE_BOTTOM } },
+	{ HashStr("csdFiles/pause/pause.xncp/Pause/ChangeMission/arrow_right"), { CSD_HIDE_PAUSE | CSD_MOVE_BOTTOM } },
 
 
 };
