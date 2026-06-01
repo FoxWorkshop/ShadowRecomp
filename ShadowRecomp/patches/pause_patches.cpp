@@ -4,8 +4,6 @@
 #include "aspect_ratio_patches.h"
 #include <locale/locale.h>
 #include <gpu/video.h>
-#include <res/images/common/pause_00.png.h>
-#include <res/images/common/pause_01.png.h>
 #include <ui/imgui_utils.h>
 #include <decompressor.h>
 #include <gpu/imgui/imgui_snapshot.h>
@@ -20,6 +18,7 @@
 // Once we detect that the game is about to draw the pause text (resume, restart, quit etc.) we prevent it to display
 // The options can then be re created through Imgui
 
+static const uint8_t vanillaPauseItemsCount = 3u;
 static const uint8_t pauseItemsCount = 4u;
 static const uint8_t addedPauseItemsCount = 1u;
 
@@ -40,17 +39,27 @@ enum PauseSelection : uint8_t
 	SelQuit
 };
 
+// Return value enum from sub_5AAF0
+enum PauseAction : uint8_t
+{
+	PauseAction_None = 0,
+	PauseAction_Resume = 1,
+	PauseAction_Restart = 3,
+	PauseAction_Quit = 4,
+	// added pause actions:
+	PauseAction_Options = 5,
+};
+
 
 static bool g_pauseCSD = false; // ensure our CSD patch worked
 static bool g_pauseBoss = false; // CSD pause for boss is different and require pos adjust
-static std::unique_ptr<GuestTexture> g_TexPauseText00{};
-static std::unique_ptr<GuestTexture> g_TexPauseText01{};
 static ImFont* g_fntDFPZong;
 
 static inline bool s_isVisible = false;
 static inline bool s_quitRequest = false;
 static inline bool s_OptionsRequest = false;
 static inline bool s_quitOptionsRequest = false;
+static inline int8_t g_userOptionSelected = -1;
 static int8_t s_index = 0;
 static const uint8_t g_optionCount = 4;
 static uint32_t g_pauseModeAddr = 0;
@@ -131,12 +140,14 @@ void DrawPauseText()
 	if (s_isVisible == false || g_pauseCSD == false) // ensure our CSD patch worked so we can draw pause text safely
 		return;
 
+
 	if (g_pauseModeAddr)
 	{
 		auto base = g_memory.base;
 		auto mode = X86_LOAD_U32(g_pauseModeAddr);
-		if (mode == ModeQuit || mode == ModeRestart)
+		if (mode > 3)
 		{
+			g_inputAllowed = false;
 			return;
 		}
 	}
@@ -290,11 +301,11 @@ X86_FUNC(sub_5AEE0)
 	g_pauseModeAddr = ctx.ecx.u32 + 0x30;
 	auto mode = X86_LOAD_U32(g_pauseModeAddr);
 
-	if (mode == 2 && g_inputAllowed == false)
+	if (mode < ModeRunning)
 	{
-		g_inputAllowed = true; //to do find a better way, only enable it when opening anim is complete
+		g_inputAllowed = false;
+		s_index = SelContinue;
 	}
-
 
 	// handle new options in pause menu by tricking the game that we shouldn't quit
 	if (!s_quitOptionsRequest && s_index == SelOptions && s_OptionsRequest && OptionsMenu::s_isVisible == false)
@@ -304,11 +315,6 @@ X86_FUNC(sub_5AEE0)
 		ctx.AddEsp(1);
 		
 		return;
-	}
-	else if (mode == ModeContinue || mode == ModeRestart)
-	{
-		g_inputAllowed = false;
-		s_index = 0;
 	}
 	else if (s_OptionsRequest)
 	{
@@ -320,11 +326,6 @@ X86_FUNC(sub_5AEE0)
 			s_isVisible = true;
 		}
 	}
-	else if (s_quitRequest)
-	{
-		s_quitRequest = false;
-		X86_STORE_U32(g_pauseModeAddr, ModeQuit);
-	}
 
 
 	__imp__sub_5AEE0(ctx, base);
@@ -334,34 +335,70 @@ X86_FUNC(sub_5AEE0)
 
 // This function check input and set cursor for the pause menu
 // Because we add a new option not intended, we don't want this to mess with the real cursor pose 
-// Thus we want this function to not run once our cursor reach higher index than vanilla.
+// Thus we patch this function to trick the game as much as possible that cursor pos is fine
 X86_FUNC_IMPL(__imp__sub_5AAF0);
 X86_FUNC(sub_5AAF0)
 {
 
-	g_CursorModeAddr = ctx.ecx.u32 + 0x38;
-	auto mode = X86_LOAD_U8(g_CursorModeAddr);
-	if (s_index == SelOptions || s_index == SelQuit)
+	const uint32_t cursorAddr = ctx.ecx.u32 + 0x38;
+
+	if (g_pauseCSD) // ensure our CSD patch worked so we can allow custom input properly
 	{
-		ctx.AddEsp(1);
-		return;
-	}
-	else
-	{
-		__imp__sub_5AAF0(ctx, base);
-		mode = X86_LOAD_U8(g_CursorModeAddr);
+		if (X86_LOAD_U8(ctx.ecx.u32 + 0x4D) == 0 || s_OptionsRequest) // anim is playing, don't allow  input yet
+		{
+			ctx.eax.u32 = PauseAction_None;
+			ctx.AddEsp(1);
+			return;
+		}
+
+
+		// Clamp our extended index into vanilla range before handing off
+		if (s_index <= SelRestart || s_index == SelQuit)
+		{
+			int8_t shadowIndex = std::clamp((int)s_index, (int)0, (int)vanillaPauseItemsCount - 1);
+			X86_STORE_U32(cursorAddr, (uint32_t)shadowIndex);
+		}
+
+		g_inputAllowed = true;
 	}
 
-	if (s_index != mode && s_index < SelOptions )
+	auto ecx = ctx.ecx.u32;
+
+	__imp__sub_5AAF0(ctx, base);
+
+	if (g_pauseCSD)
 	{
-		X86_STORE_U32(g_CursorModeAddr, s_index);
+		auto mode = X86_LOAD_U8(ecx + 0x38);
+
+		uint32_t returnedAction = ctx.eax.u32;
+
+
+		// Apply navigation delta to our extended cursor
+
+		if (returnedAction != PauseAction_None)
+		{
+			if (s_index <= SelRestart || s_index == SelQuit)
+			{
+				// Vanilla item is selected, we let the return value propagate to caller
+				// so it will handle Resume/Restart/Quit normally
+				X86_STORE_U32(cursorAddr, (uint32_t)s_index);
+			}
+			else
+			{
+				// new option menu is selected set an unused index
+				ctx.eax.u32 = (uint32_t)PauseAction_Restart + s_index;
+			}
+			g_userOptionSelected = s_index;
+		}
+		else
+		{
+			g_userOptionSelected = -1;
+		}
 	}
 }
 
 
 void PausePatchesInit()
 {
-	g_TexPauseText00 = LOAD_ZSTD_TEXTURE(g_pauseText00);
-	g_TexPauseText01 = LOAD_ZSTD_TEXTURE(g_pauseText01);
 	g_fntDFPZong = ImFontAtlasSnapshot::GetFont("DFPZongYiW5-B5.ttc");
 }
