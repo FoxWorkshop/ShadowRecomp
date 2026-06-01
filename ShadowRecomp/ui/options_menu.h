@@ -5,7 +5,8 @@ enum class OptionsMenuState
     Opening,
     Idle,
     Closing,
-    Restarting
+    Restarting,
+    Transition,
 };
 
 enum class OptionsMenuCategory
@@ -31,6 +32,7 @@ class OptionsMenu
 {
 public:
     static inline OptionsMenuState s_state{};
+    static inline OptionsMenuState s_nextState{};
     static inline OptionsMenuFlowState s_flowState{};
     static inline bool s_isVisible = false;
     static inline bool s_isPause = false;

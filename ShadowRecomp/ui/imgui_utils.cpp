@@ -186,52 +186,11 @@ double ComputeMotion(double duration, double offset, double total, bool reverse)
     return sqrt(ComputeLinearMotion(duration, offset, total, reverse));
 }
 
-void DrawPauseContainer(ImVec2 min, ImVec2 max, float alpha)
+double ComputeEaseOut(double time, double duration, bool reverse)
 {
-    auto drawList = ImGui::GetBackgroundDrawList();
-
-    auto commonWidth = Scale(35);
-    auto commonHeight = Scale(35);
-    auto bottomHeight = Scale(5);
-
-    auto tl = PIXELS_TO_UV_COORDS(128, 512, 0, 0, 35, 35);
-    auto tc = PIXELS_TO_UV_COORDS(128, 512, 51, 0, 5, 35);
-    auto tr = PIXELS_TO_UV_COORDS(128, 512, 70, 0, 35, 35);
-    auto cl = PIXELS_TO_UV_COORDS(128, 512, 0, 35, 35, 235);
-    auto cc = PIXELS_TO_UV_COORDS(128, 512, 51, 35, 5, 235);
-    auto cr = PIXELS_TO_UV_COORDS(128, 512, 70, 35, 35, 235);
-    auto bl = PIXELS_TO_UV_COORDS(128, 512, 0, 270, 35, 40);
-    auto bc = PIXELS_TO_UV_COORDS(128, 512, 51, 270, 5, 40);
-    auto br = PIXELS_TO_UV_COORDS(128, 512, 70, 270, 35, 40);
-
-    auto colour = IM_COL32(255, 255, 255, 255 * alpha);
-
-    /**drawList->AddImage(g_texGeneralWindow.get(), min, {min.x + commonWidth, min.y + commonHeight}, GET_UV_COORDS(tl), colour);
-    drawList->AddImage(g_texGeneralWindow.get(), { min.x + commonWidth, min.y }, { max.x - commonWidth, min.y + commonHeight }, GET_UV_COORDS(tc), colour);
-    drawList->AddImage(g_texGeneralWindow.get(), { max.x - commonWidth, min.y }, { max.x, min.y + commonHeight }, GET_UV_COORDS(tr), colour);
-    drawList->AddImage(g_texGeneralWindow.get(), { min.x, min.y + commonHeight }, { min.x + commonWidth, max.y - commonHeight }, GET_UV_COORDS(cl), colour);
-    drawList->AddImage(g_texGeneralWindow.get(), { min.x + commonWidth, min.y + commonHeight }, { max.x - commonWidth, max.y - commonHeight }, GET_UV_COORDS(cc), colour);
-    drawList->AddImage(g_texGeneralWindow.get(), { max.x - commonWidth, min.y + commonHeight }, { max.x, max.y - commonHeight }, GET_UV_COORDS(cr), colour);
-    drawList->AddImage(g_texGeneralWindow.get(), { min.x, max.y - commonHeight }, { min.x + commonWidth, max.y + bottomHeight }, GET_UV_COORDS(bl), colour);
-    drawList->AddImage(g_texGeneralWindow.get(), { min.x + commonWidth, max.y - commonHeight }, { max.x - commonWidth, max.y + bottomHeight }, GET_UV_COORDS(bc), colour);
-    drawList->AddImage(g_texGeneralWindow.get(), { max.x - commonWidth, max.y - commonHeight }, { max.x, max.y + bottomHeight }, GET_UV_COORDS(br), colour);*/
-}
-
-void DrawPauseHeaderContainer(ImVec2 min, ImVec2 max, float alpha)
-{
-    auto drawList = ImGui::GetBackgroundDrawList();
-
-    auto commonWidth = Scale(35);
-
-    auto left = PIXELS_TO_UV_COORDS(128, 512, 0, 314, 35, 60);
-    auto centre = PIXELS_TO_UV_COORDS(128, 512, 51, 314, 5, 60);
-    auto right = PIXELS_TO_UV_COORDS(128, 512, 70, 314, 35, 60);
-
-    auto colour = IM_COL32(255, 255, 255, 255 * alpha);
-
-   /** drawList->AddImage(g_texGeneralWindow.get(), min, {min.x + commonWidth, max.y}, GET_UV_COORDS(left), colour);
-    drawList->AddImage(g_texGeneralWindow.get(), { min.x + commonWidth, min.y }, { max.x - commonWidth, max.y }, GET_UV_COORDS(centre), colour);
-    drawList->AddImage(g_texGeneralWindow.get(), { max.x - commonWidth, min.y }, max, GET_UV_COORDS(right), colour);*/
+    double t = std::clamp((ImGui::GetTime() - time) / duration, 0.0, 1.0);
+    double result = 1.0 - std::pow(1.0 - t, 3.0); // cubic ease out
+    return reverse ? 1.0 - result : result;
 }
 
 void DrawTextBasic(const ImFont* font, float fontSize, const ImVec2& pos, ImU32 colour, const char* text)

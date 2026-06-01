@@ -28,7 +28,6 @@
 static constexpr int MAX_VISIBLE_ROWS = 5;
 static IConfigDef* g_optionCurrent{};
 static bool g_optionCanReset{};
-
 static std::unique_ptr<GuestTexture> g_upTexOptionsBG{};
 static std::unique_ptr<GuestTexture> g_upTexBGMenuList{};
 static std::unique_ptr<GuestTexture> g_upTexBGOptions{}; // flame, options logo, hud etc.
@@ -68,6 +67,9 @@ bool m_isDescManualScrolling{};
 float m_descScrollOffset{};
 float m_descScrollTimer{};
 float m_descScrollDirection{ 1.0f };
+
+static double s_optionsOpenTime = -1.0;
+static double s_optionsCloseTime = -1.0;
 
 
 static std::string optionDescription = "";
@@ -1040,8 +1042,9 @@ static void MoveCursor(int& cursorIndex, double& cursorTime, int min = 0, int ma
 	}
 }
 
-void DrawBackground()
+void DrawBackground(bool isPause = false)
 {
+
 	auto& res = ImGui::GetIO().DisplaySize;
 	auto drawList = ImGui::GetBackgroundDrawList();
 
@@ -1051,27 +1054,58 @@ void DrawBackground()
 	float borderPixels = 32.f; // Options BG has an extra black border at the bottom, we don't want that.
 	float uvMaxY = 1.0f - (borderPixels / 512.0f);
 
-	ImVec2 centre = { res.x / 2, res.y / 2 };
-	drawList->AddImage
-	(
-		g_upTexOptionsBG.get(),
-		{ 0.0f, 0.0f },
-		{ res.x, res.y },
-		{ 0, 0 },
-		{ 1, uvMaxY },
-		IM_COL32(255, 255, 255, OptionsMenu::s_isPause ? 180 : 255)
-	);
+	ImVec2 centre = { res.x / 2.f, res.y / 2.f };
+	float scale = 1.0f;
+
+	if (isPause)
+	{
+		if (OptionsMenu::s_state == OptionsMenuState::Closing || s_optionsCloseTime > s_optionsOpenTime)
+			scale = (float)ComputeEaseOut(s_optionsCloseTime, 0.5, true); 
+		else
+			scale = (float)ComputeEaseOut(s_optionsOpenTime, 0.5, false);
+
+		// animate from centre outward to fullscreen
+		ImVec2 bgHalfSize = { (res.x / 2.f) * scale, (res.y / 2.f) * scale };
+		ImVec2 bgMin = { centre.x - bgHalfSize.x, centre.y - bgHalfSize.y };
+		ImVec2 bgMax = { centre.x + bgHalfSize.x, centre.y + bgHalfSize.y };
+
+		drawList->AddImage
+		(
+			g_upTexOptionsBG.get(),
+			bgMin,
+			bgMax,
+			{ 0, 0 },
+			{ 1, uvMaxY },
+			IM_COL32(255, 255, 255, 220)
+		);
+	}
+	else
+	{
+
+		drawList->AddImage
+		(
+			g_upTexOptionsBG.get(),
+			{ 0.0f, 0.0f },
+			{ res.x, res.y },
+			{ 0, 0 },
+			{ 1, uvMaxY },
+			IM_COL32(255, 255, 255, 255)
+		);
+	}
 
 	// draw Options Logo
 
-	auto optionsUVs = PIXELS_TO_UV_COORDS(512, 512, 0, 0, 147, 448);
-	auto optionsWidth = res.x * 0.16f;
-	auto optionsHeight = res.y * 0.96f;
+	if (scale >= 0.8f || isPause == false)
+	{
+		auto optionsUVs = PIXELS_TO_UV_COORDS(512, 512, 0, 0, 147, 448);
+		auto optionsWidth = res.x * 0.16f;
+		auto optionsHeight = res.y * 0.96f;
 
-	ImVec2 optionsMin = { 0, min.y + Scale(10) };
-	ImVec2 optionsMax = { optionsMin.x + optionsWidth, optionsMin.y + optionsHeight };
+		ImVec2 optionsMin = { 0, min.y + Scale(10) };
+		ImVec2 optionsMax = { optionsMin.x + optionsWidth, optionsMin.y + optionsHeight };
 
-	drawList->AddImage(g_upTexBGOptions.get(), optionsMin, optionsMax, GET_UV_COORDS(optionsUVs), IM_COL32(255, 255, 255, 128));
+		drawList->AddImage(g_upTexBGOptions.get(), optionsMin, optionsMax, GET_UV_COORDS(optionsUVs), IM_COL32(255, 255, 255, 128));
+	}
 }
 
 void DrawAnimatedFire(ImVec2 min, ImVec2 max)
@@ -1273,6 +1307,19 @@ void OptionsMenu::Draw()
 
 	switch (s_state)
 	{
+	case OptionsMenuState::Transition:
+	{
+		GameMenuCommon::g_LegacyOptions = false;
+		if (OptionsMenu::s_nextState == OptionsMenuState::Opening)
+			s_optionsOpenTime = ImGui::GetTime();
+
+		if (OptionsMenu::s_nextState == OptionsMenuState::Closing)
+			s_optionsCloseTime = ImGui::GetTime();
+
+		s_state = OptionsMenu::s_nextState;
+	}
+		break;
+
 	case OptionsMenuState::Opening:
 	{
 
@@ -1446,6 +1493,7 @@ void OptionsMenu::Draw()
 			}
 			else
 			{
+		
 				Close();
 			}
 		}
@@ -1477,7 +1525,7 @@ void OptionsMenu::Draw()
 	}
 	}
 
-	DrawBackground();
+	DrawBackground(OptionsMenu::s_isPause);
 
 	auto& res = ImGui::GetIO().DisplaySize;
 	ImVec2 min = { g_horzCentre + g_aspectRatioNarrowMargin, g_vertCentre };
@@ -1511,9 +1559,11 @@ void OptionsMenu::Open(bool isPause)
 {
 
 	OptionsMenu::s_isPause = isPause;
+	OptionsMenu::s_nextState = OptionsMenuState::Opening;
+
 	InitImGuiUtils();
 	g_stateTime = ImGui::GetTime();
-	s_state = OptionsMenuState::Opening;
+	s_state = OptionsMenu::s_isPause ? OptionsMenuState::Transition : OptionsMenuState::Opening;
 	g_containerAnimTime = ImGui::GetTime();
 
 	s_isVisible = true;
@@ -1567,11 +1617,12 @@ void OptionsMenu::SetFlowState(OptionsMenuFlowState flowState)
 
 void OptionsMenu::Close()
 {
-	if (s_state == OptionsMenuState::Closing)
+	if (s_state == OptionsMenuState::Closing || s_state == OptionsMenuState::Transition)
 		return;
 
 	if (s_isPause)
 	{
+
 		GameMenuCommon::g_nextModeAddr = 0;
 		GameMenuCommon::g_currentModeAddr = 0;
 		RequestQuitOptionForPause();
@@ -1587,7 +1638,8 @@ void OptionsMenu::Close()
 	}
 
 
-	s_state = OptionsMenuState::Closing;
+	s_state = s_isPause ?  OptionsMenuState::Transition : OptionsMenuState::Closing;
+	s_nextState = OptionsMenuState::Closing;
 	g_stateTime = ImGui::GetTime();
 	g_containerClosedAnimTime = ImGui::GetTime();
 	g_cursorArrowsTime = g_stateTime;

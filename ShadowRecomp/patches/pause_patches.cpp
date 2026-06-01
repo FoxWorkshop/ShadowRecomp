@@ -246,7 +246,9 @@ void DrawPauseText()
 	auto drawList = ImGui::GetBackgroundDrawList();
 	auto& res = ImGui::GetIO().DisplaySize;
 	ImVec2 screenCentre = { res.x / 2.0f, res.y / 2.0f };
-	
+	SetShaderModifier(IMGUI_SHADER_MODIFIER_LOW_QUALITY_TEXT);
+
+
 	// virtual size of the texture sprite
 	float vWidth = 120.0f;
 	float vHeight = 26.0f;
@@ -290,6 +292,8 @@ void DrawPauseText()
 	g_right = false;
 	g_rightWasHeld = rightIsHeld;
 	g_isAccepted = false;
+
+	SetShaderModifier(IMGUI_SHADER_MODIFIER_NONE);
 }
 
 // TPauseManagerExec
@@ -301,10 +305,11 @@ X86_FUNC(sub_5AEE0)
 	g_pauseModeAddr = ctx.ecx.u32 + 0x30;
 	auto mode = X86_LOAD_U32(g_pauseModeAddr);
 
-	if (mode < ModeRunning)
+	if (mode < ModeRunning || mode > 3)
 	{
 		g_inputAllowed = false;
-		s_index = SelContinue;
+		if (mode < ModeRunning)
+			s_index = SelContinue;
 	}
 
 	// handle new options in pause menu by tricking the game that we shouldn't quit

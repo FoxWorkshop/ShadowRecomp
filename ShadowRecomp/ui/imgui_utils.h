@@ -57,9 +57,7 @@ void ResetAdditive();
 float Scale(float size);
 double ComputeLinearMotion(double time, double offset, double total, bool reverse);
 double ComputeMotion(double duration, double offset, double total, bool reverse);
-void DrawPauseContainer(ImVec2 min, ImVec2 max, float alpha = 1);
 void DrawTextBasic(const ImFont* font, float fontSize, const ImVec2& pos, ImU32 colour, const char* text);
-void DrawPauseHeaderContainer(ImVec2 min, ImVec2 max, float alpha = 1);
 void DrawTextWithMarquee(const ImFont* font, float fontSize, const ImVec2& position, const ImVec2& min, const ImVec2& max, ImU32 color, const char* text, double time, double delay, double speed);
 void DrawTextWithMarqueeShadow(const ImFont* font, float fontSize, const ImVec2& pos, const ImVec2& min, const ImVec2& max, ImU32 colour, const char* text, double time, double delay, double speed, float offset = 2.0f, float radius = 1.0f, ImU32 shadowColour = IM_COL32(0, 0, 0, 255));
 void DrawTextWithOutline(const ImFont* font, float fontSize, const ImVec2& pos, ImU32 color, const char* text, float outlineSize, ImU32 outlineColor, uint32_t shaderModifier = IMGUI_SHADER_MODIFIER_NONE);
@@ -84,3 +82,4 @@ void DrawVersionString(const ImFont* font, const ImU32 col = IM_COL32(255, 255, 
 void DrawSelectionContainer(ImVec2 min, ImVec2 max, bool fadeTop = false);
 void DrawToggleLight(ImVec2 pos, bool isEnabled, float alpha = 1.0f);
 const char* CalcWordWrapPositionA(const ImFont* font, float scale, const char* text, const char* text_end, float wrap_width);
+double ComputeEaseOut(double time, double duration, bool reverse);
