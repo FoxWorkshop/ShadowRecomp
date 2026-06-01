@@ -803,4 +803,10 @@ registers = ["r4"]
 name = "CPlatformRWDrawPrimitive2DMidAsmHook"
 address = 0x2B2C46
 registers = ["r2"]
-jump_address_on_true = 0x2B2C4C
+jump_address = 0x2B2C4C
+
+[[midasm_hook]]
+name = "CPlatformRWDrawPrimitive2DMidAsmHook2"
+address = 0x2B2E0B
+registers = ["r4"]
+jump_address = 0x2B2E11

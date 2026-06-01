@@ -16,10 +16,14 @@ bool s_pauseTextRemoved = false;
 #define heightMin 480.f
 
 static Mutex g_pathMutex;
+static Mutex g_bufferMutex;
 static std::map<const void*, XXH64_hash_t> g_paths;
+static std::unordered_map<const uint8_t*, std::vector<const uint8_t*>> g_bufferRegistry;
+static uint8_t* g_currentBuffer = nullptr;
 static std::optional<CsdModifier> g_sceneModifier{};
 static std::optional<CsdModifier> g_castNodeModifier{};
 static std::optional<CsdModifier> g_castModifier{};
+
 
 static XXH64_hash_t HashStr(const std::string_view& value)
 {
@@ -90,8 +94,15 @@ std::string NormalizeCSDPath(std::string& path)
 static void EmplacePath(const void* key, const std::string_view& value)
 {
 	std::lock_guard lock(g_pathMutex);
-	//printf("Emplace key %x, %s\n", key, value.data());
+
 	g_paths.emplace(key, HashStr(value));
+
+	if (g_currentBuffer)
+	{
+		g_bufferRegistry[g_currentBuffer].push_back((const uint8_t*)key);
+
+		//printf("Emplace key %x, %s - currentBuffer %x\n", key, value.data(), g_currentBuffer);
+	}
 
 }
 
@@ -195,6 +206,8 @@ void TraverseSceneNode(CSDSceneNode* node, const std::string& path)
 X86_FUNC_IMPL(__imp__sub_2B47C0);
 X86_FUNC(sub_2B47C0)
 {
+	std::lock_guard lock2(g_bufferMutex);
+
 	void* thisPtr = (void*)GetHostParameter(1, CallConvention::Thiscall, ParameterType::Pointer);
 	char* path = (char*)GetHostParameter(2, CallConvention::Thiscall, ParameterType::Pointer);
 
@@ -202,7 +215,6 @@ X86_FUNC(sub_2B47C0)
 
 	if (!thisPtr || !path)
 		return;
-
 
 	static const char* s_languages[6] =
 	{
@@ -218,6 +230,16 @@ X86_FUNC(sub_2B47C0)
 
 	auto pSuffix = s_languages[(int)Config::Language.Value];
 
+	auto csdFileAddrPtr = X86_LOAD_U32(g_memory.MapVirtual((const uint8_t*)thisPtr + 4));
+
+	if (!csdFileAddrPtr)
+		return;
+
+	// since we can't blindly free g_paths member since no size are stored, we will store the CSD file pointer as a key instead
+	// each child (cast, node etc.) will be able to get identified properly this way
+	auto csdFilePtr = X86_LOAD_U32(csdFileAddrPtr + 4);
+	g_currentBuffer = (uint8_t*)g_memory.Translate(csdFilePtr);
+
 	auto addrNodePtr = X86_LOAD_U32(g_memory.MapVirtual((const uint8_t*)thisPtr + 8));
 
 	if (addrNodePtr)
@@ -230,6 +252,8 @@ X86_FUNC(sub_2B47C0)
 			TraverseSceneNode(nodePtr, path);
 		}
 	}
+
+	g_currentBuffer = nullptr;
 }
 
 // Chao::CSD::Scene::Render
@@ -259,16 +283,20 @@ X86_FUNC(sub_184E0)
 
 		if (magic1 == 0x4649584E && magic2 == 0x4A50436E) // NXIF, nCPJ
 		{
-			uint32_t fileSize = X86_LOAD_U32(ptr + 0x14);
 
 			const uint8_t* base_key = (const uint8_t*)(base + ptr);
 
 			std::lock_guard lock(g_pathMutex);
-			auto lower = g_paths.lower_bound(base_key);
-			auto upper = g_paths.lower_bound(base_key + fileSize);
-			g_paths.erase(lower, upper);
 
-			LOGFN_UTILITY("CSD freed: 0x{:08X}", (uint64_t)base_key);
+			auto it = g_bufferRegistry.find(base_key);
+			if (it != g_bufferRegistry.end())
+			{
+				for (auto* child : it->second)
+					g_paths.erase(child);
+
+				g_bufferRegistry.erase(it);
+				LOGFN_UTILITY("CSD freed: 0x{:08X}", (uint64_t)base_key);
+			}
 		}
 	}
 	__imp__sub_184E0(ctx, base);
@@ -284,7 +312,7 @@ void RenderCsdCastMidAsmHook(X86Register& rEsi)
 	g_castModifier = FindCsdModifier(rEsi.u32);
 }
 
-bool Draw(X86Context& ctx, uint8_t* base, X86Func* original, void* vertexStride, uint32_t stride)
+void Draw(X86Context& ctx, uint8_t* base, X86Func* original, void* vertexData, uint32_t stride)
 {
 	CsdModifier modifier{};
 
@@ -318,8 +346,16 @@ bool Draw(X86Context& ctx, uint8_t* base, X86Func* original, void* vertexStride,
 		TogglePauseCSD((modifier.Flags & CSD_HIDE_PAUSE) != 0);
 		TogglePauseBossCSD((modifier.Flags & CSD_PAUSE_BOSS) != 0);
 		// Skip drawing this cast.
-		return false;
+		return;
 	}
+
+
+	auto drawOriginal = [&]()
+		{
+
+			ctx.SubEsp(1);
+			original(ctx, base);
+		};
 
 	auto offsetX = 0.0f;
 	auto offsetY = 0.0f;
@@ -366,31 +402,42 @@ bool Draw(X86Context& ctx, uint8_t* base, X86Func* original, void* vertexStride,
 		}
 	}
 
-	for (int i = 0; i < 4; i++)
+	if ((modifier.Flags & CSD_HIDE_PAUSE) != 0)
 	{
-		RwD3D8Vertex* vertexData = (RwD3D8Vertex*)vertexStride;
+		scaleY = vpHeight / 480.f;
 
-		auto x = offsetX + (vertexData[i].x - pivotX);
-		auto y = offsetY + (vertexData[i].y - pivotY);
-
-		if ((modifier.Flags & CSD_EXTEND_BOTTOM) != 0 && (i == 1 || i == 3))
+		for (int i = 0; i < 4; i++)
 		{
-			float extraItems = 2.0f;
-			float virtualItemSpacing = 40.f;
-			y += virtualItemSpacing * extraItems;
-			vertexData[i].y = round(y);
+			auto csdVertex = (RwD3D8Vertex*)vertexData;
+			auto x = offsetX + (csdVertex[i].x - pivotX);
+			auto y = offsetY + (csdVertex[i].y - pivotY);
+
+			if ((modifier.Flags & CSD_EXTEND_BOTTOM) != 0 && (i == 1 || i == 3))
+			{
+				y += 30.f;
+				csdVertex[i].y = round(y);
+			}
 		}
 	}
 
-	return true;
+	drawOriginal();
 }
 
-bool CPlatformRWDrawPrimitive2DMidAsmHook(X86Register& rEcx)
+X86_FUNC_IMPL(__imp__sub_2ECC80);
+void CPlatformRWDrawPrimitive2DMidAsmHook(X86Register& rEcx)
 {
 	// ecx = vertex stride
 	auto ctx = GetX86Context();
 	auto base = g_memory.base;
-	return Draw(*ctx, base, nullptr, g_memory.Translate(rEcx.u32), 28) == false;
+	Draw(*ctx, base, __imp__sub_2ECC80, g_memory.Translate(rEcx.u32), 28);
+}
+
+void CPlatformRWDrawPrimitive2DMidAsmHook2(X86Register& rEsi)
+{
+	// ecx = vertex stride
+	auto ctx = GetX86Context();
+	auto base = g_memory.base;
+	Draw(*ctx, base, __imp__sub_2ECC80, g_memory.Translate(rEsi.u32), 28);
 }
 
 const uint32_t GuestDevicePtrAddr = 0x3E0A18;
