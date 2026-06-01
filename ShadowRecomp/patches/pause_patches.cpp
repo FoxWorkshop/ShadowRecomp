@@ -349,7 +349,7 @@ X86_FUNC(sub_5AAF0)
 
 	if (g_pauseCSD) // ensure our CSD patch worked so we can allow custom input properly
 	{
-		if (X86_LOAD_U8(ctx.ecx.u32 + 0x4D) == 0 || s_OptionsRequest) // anim is playing, don't allow  input yet
+		if (X86_LOAD_U8(ctx.ecx.u32 + 0x4D) == 0 || s_OptionsRequest) // pause anim is playing, don't allow input yet
 		{
 			ctx.eax.u32 = PauseAction_None;
 			ctx.AddEsp(1);
