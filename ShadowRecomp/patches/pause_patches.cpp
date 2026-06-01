@@ -20,6 +20,9 @@
 // Once we detect that the game is about to draw the pause text (resume, restart, quit etc.) we prevent it to display
 // The options can then be re created through Imgui
 
+static const uint8_t pauseItemsCount = 4u;
+static const uint8_t addedPauseItemsCount = 1u;
+
 enum PauseMode : uint8_t
 {
 	ModeRunning = 2,
@@ -36,6 +39,7 @@ enum PauseSelection : uint8_t
 	SelOptions,
 	SelQuit
 };
+
 
 static bool g_pauseCSD = false; // ensure our CSD patch worked
 static bool g_pauseBoss = false; // CSD pause for boss is different and require pos adjust
@@ -70,6 +74,11 @@ void TogglePauseCSD(bool toggle)
 void TogglePauseBossCSD(bool toggle)
 {
 	g_pauseBoss = toggle;
+}
+
+const uint8_t GetAddedPauseItemsCount()
+{
+	return addedPauseItemsCount;
 }
 
 void RequestQuitOptionForPause()

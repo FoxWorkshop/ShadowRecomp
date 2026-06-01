@@ -10,6 +10,7 @@
 #include <ui/options_menu.h>
 #include "pause_patches.h"
 
+static const uint8_t CSDVertexCount = 4u; // CSD always use 4 vertex count in this game
 bool readyToDebugConstant = false;
 bool s_pauseTextRemoved = false;
 #define widthMin 640.f
@@ -402,25 +403,35 @@ void Draw(X86Context& ctx, uint8_t* base, X86Func* original, void* vertexData, u
 		}
 	}
 
+	float pauseYOffset = 15.f * GetAddedPauseItemsCount();
 	if ((modifier.Flags & CSD_HIDE_PAUSE) != 0)
 	{
-		scaleY = vpHeight / 480.f;
-
-		for (int i = 0; i < 4; i++)
+		for (int i = 0; i < CSDVertexCount; i++)
 		{
 			auto csdVertex = (RwD3D8Vertex*)vertexData;
-			auto x = offsetX + (csdVertex[i].x - pivotX);
-			auto y = offsetY + (csdVertex[i].y - pivotY);
 
 			if ((modifier.Flags & CSD_EXTEND_BOTTOM) != 0 && (i == 1 || i == 3))
 			{
-				y += 30.f;
-				csdVertex[i].y = round(y);
+				csdVertex[i].y += round(pauseYOffset);
+
 			}
 		}
 	}
 
 	drawOriginal();
+
+	if ((modifier.Flags & CSD_HIDE_PAUSE) != 0)
+	{
+		for (int i = 0; i < CSDVertexCount; i++)
+		{
+			auto csdVertex = (RwD3D8Vertex*)vertexData;
+
+			if ((modifier.Flags & CSD_EXTEND_BOTTOM) != 0 && (i == 1 || i == 3))
+			{
+				csdVertex[i].y -= round(pauseYOffset);
+			}
+		}
+	}
 }
 
 X86_FUNC_IMPL(__imp__sub_2ECC80);
@@ -482,8 +493,8 @@ const xxHashMap<CsdModifier> g_csdModifiers =
 	// pause
 	{ HashStr("csdFiles/pause/pause.xncp/Pause/PauseText"), { CSD_SKIP | CSD_HIDE_PAUSE } },
 	{ HashStr("csdFiles/pause/pauseBoss.xncp/Pause/PauseText"), { CSD_SKIP | CSD_HIDE_PAUSE | CSD_PAUSE_BOSS } },
-	//{ HashStr("csdFiles/pause/pause.xncp/Pause/Pause/Null_pause/bottom"), { CSD_EXTEND_BOTTOM } },
-	//{ HashStr("csdFiles/pause/pause.xncp/Pause/Pause/Null_pause/bg"), { CSD_EXTEND_BOTTOM } },
+	{ HashStr("csdFiles/pause/pause.xncp/Pause/Pause/Null_pause/bottom"), { CSD_HIDE_PAUSE | CSD_EXTEND_BOTTOM } },
+	{ HashStr("csdFiles/pause/pause.xncp/Pause/Pause/Null_pause/bg"), { CSD_HIDE_PAUSE | CSD_EXTEND_BOTTOM } },
 
 
 };
