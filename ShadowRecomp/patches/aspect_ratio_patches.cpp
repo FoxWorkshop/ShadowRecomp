@@ -79,6 +79,18 @@ void AspectRatioPatches::ComputeOffsets()
 }
 
 
+// Used to detect when we're drawing subtitles, pause menu uses subtitles to display the current mission
+// because we move the pause background due to new options count, the subtitles get out of place, so we need to move them as well so they can fit the new BG position
+void AdjustPauseMenuSubtitlesPosition(void* pMatrix)
+{
+	if (isDrawingPauseMenuSubtitle() && pMatrix)
+	{
+		D3DMATRIX* mat = (D3DMATRIX*)pMatrix;
+		mat->_42 -= 0.03f * GetAddedPauseItemsCount();
+	}
+}
+
+
 std::string NormalizeCSDPath(std::string& path)
 {
 	std::replace(path.begin(), path.end(), '\\', '/');
@@ -102,7 +114,7 @@ static void EmplacePath(const void* key, const std::string_view& value)
 	{
 		g_bufferRegistry[g_currentBuffer].push_back((const uint8_t*)key);
 
-		//printf("Emplace key %x, %s\n", key, value.data());
+		printf("Emplace key %x, %s\n", key, value.data());
 	}
 
 }
@@ -536,6 +548,8 @@ const xxHashMap<CsdModifier> g_csdModifiers =
 	{ HashStr("csdFiles/pause/pause.xncp/Pause/ChangeMission/change"), { CSD_HIDE_PAUSE | CSD_MOVE_BOTTOM } },
 	{ HashStr("csdFiles/pause/pause.xncp/Pause/ChangeMission/arrow_left"), { CSD_HIDE_PAUSE | CSD_MOVE_BOTTOM } },
 	{ HashStr("csdFiles/pause/pause.xncp/Pause/ChangeMission/arrow_right"), { CSD_HIDE_PAUSE | CSD_MOVE_BOTTOM } },
+	{ HashStr("csdFiles/pause/pause.xncp/Pause/SRText/text"), { CSD_HIDE_PAUSE | CSD_MOVE_BOTTOM } },
+	{ HashStr("csdFiles/pause/pause.xncp/Pause/SRText/button"), { CSD_HIDE_PAUSE | CSD_MOVE_BOTTOM } },
 
 
 };
