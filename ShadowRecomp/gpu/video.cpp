@@ -3899,7 +3899,6 @@ X86_FUNC(sub_3D1E10) {
 	auto buffer = (GuestBuffer*)GetHostParameter(2, CallConvention::Stdcall, ParameterType::Pointer);
 	auto stride = (uint32_t)GetHostParameter(3);
 
-
 	g_Xbox_SetStreamSource[StreamNumber].VertexBuffer = buffer;
 	g_Xbox_SetStreamSource[StreamNumber].Stride = stride;
 
@@ -6281,6 +6280,11 @@ X86_FUNC(sub_3CFCD0)
 	auto matrixAddr = X86_LOAD_U32(ctx.esp.u32 + 8);
 	D3DMATRIX* pMatrix = (D3DMATRIX*)(base + matrixAddr);
 
+	if (State == X_D3DTS_WORLD) // ensure this is the matrix used that run before rendering pause subtitles
+	{
+		AdjustPauseMenuSubtitlesPosition(pMatrix);
+	}
+
 	//we let the original code run first (todo check if that's needed)
 	__imp__sub_3CFCD0(ctx, base);
 
@@ -6292,7 +6296,7 @@ X86_FUNC(sub_3CFCD0)
 		bWorldViewDirty.fill(true);
 	}
 	if ((X_D3DTS_WORLD <= State) && (State <= X_D3DTS_WORLD3))
-	{
+	{		
 		bWorldViewDirty[State - X_D3DTS_WORLD] = true;
 	}
 }
@@ -7701,6 +7705,7 @@ GuestBuffer* GetGuestVertexBufferIndexed(int i, uint32_t minIdx, uint32_t maxIdx
 		auto& vbDerived = VBsList[g_Xbox_SetStreamSource[i].VertexBuffer];
 		DerivedVertexBuffer newDerivedVB = { bufferCache, hash };
 		vbDerived.push_back(newDerivedVB);
+
 		UnlockVertexBuffer(bufferCache); //send our VB to the GPU
 	}
 
@@ -7745,6 +7750,7 @@ void DrawIndexedPrimitive(X_D3DPRIMITIVETYPE PrimitiveType, uint32_t VertexCount
 		auto memory = LockIndexBuffer(bufferIndex, 0);
 
 		memcpy(memory, pIndexData, sizeof(int16_t) * VertexCount);
+
 		UnlockIndexBuffer(bufferIndex);
 	}
 	else
@@ -7760,14 +7766,8 @@ void DrawIndexedPrimitive(X_D3DPRIMITIVETYPE PrimitiveType, uint32_t VertexCount
 
 	bool patched = false;
 
-	bool drawShadow = false;
-
 	for (int i = 0; i < 16; i++)
 	{
-		if (VertexCount == 91)
-		{
-			printf("");
-		}
 
 		if (g_Xbox_SetStreamSource[i].VertexBuffer == nullptr)
 			continue;

@@ -76,6 +76,15 @@ static bool g_rightWasHeld{};
 static bool g_isAccepted{};
 static bool g_inputAllowed = false;
 
+
+static bool g_isDrawingSubtitle = false;
+
+bool isDrawingPauseMenuSubtitle()
+{
+	return g_isDrawingSubtitle;
+}
+
+
 void TogglePauseCSD(bool toggle)
 {
 	g_pauseCSD = toggle;
@@ -400,6 +409,16 @@ X86_FUNC(sub_5AAF0)
 		}
 	}
 }
+
+// Pause_DrawCurrentMissionText
+X86_FUNC_IMPL(__imp__sub_282F80);
+X86_FUNC(sub_282F80)
+{
+	g_isDrawingSubtitle = true;
+	__imp__sub_282F80(ctx, base);
+	g_isDrawingSubtitle = false;
+}
+
 
 
 void PausePatchesInit()
