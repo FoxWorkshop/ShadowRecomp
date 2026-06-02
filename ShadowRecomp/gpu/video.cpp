@@ -122,6 +122,7 @@ static bool useLowSpec = false;
 #endif
 #include "cache/pipeline_cache.h"
 #include <patches/pause_patches.h>
+#include <ui/achievement_menu.h>
 
 
 
@@ -2507,8 +2508,8 @@ static void CreateImGuiBackend()
 #endif
 
 
-	/**AchievementMenu::Init();
-	AchievementOverlay::Init();*/
+	AchievementMenu::Init();
+	//AchievementOverlay::Init();*/
 
 
 
@@ -4183,9 +4184,10 @@ static void DrawImGui()
 #endif
 
 	DrawPauseText();
+
+	AchievementMenu::Draw();
 	OptionsMenu::Draw();
-	/**AchievementMenu::Draw();
-	AchievementOverlay::Draw();*/
+	//AchievementOverlay::Draw();*/
 
 	ButtonGuide::Draw();
 

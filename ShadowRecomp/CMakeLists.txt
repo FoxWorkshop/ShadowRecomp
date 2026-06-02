@@ -78,6 +78,7 @@ set(SHADOW_RECOMP_KERNEL_CXX_SOURCES
 
 
 set(SHADOW_RECOMP_LOCALE_CXX_SOURCES
+    "locale/achievement_locale.cpp"
     "locale/config_locale.cpp"
     "locale/locale.cpp"
 )
@@ -147,6 +148,7 @@ set(SHADOW_RECOMP_PATCHES_CXX_SOURCES
 
 
 set(SHADOW_RECOMP_USER_CXX_SOURCES
+    "user/achievement_data.cpp"
     "user/config.cpp"
     "user/registry.cpp"
     "user/paths.cpp"
@@ -157,6 +159,7 @@ set(SHADOW_RECOMP_INSTALL_CXX_SOURCES
 )
 
 set(SHADOW_RECOMP_UI_CXX_SOURCES
+    "ui/achievement_menu.cpp"
     "ui/game_window.cpp"
     "ui/imgui_utils.cpp"
     "ui/button_guide.cpp"
@@ -483,6 +486,9 @@ BIN2C(TARGET_OBJ ShadowRecomp SOURCE_FILE "${RESOURCES_SOURCE_PATH}/images/commo
 BIN2C(TARGET_OBJ ShadowRecomp SOURCE_FILE "${RESOURCES_SOURCE_PATH}/images/common/Options2.png" DEST_FILE "${RESOURCES_OUTPUT_PATH}/images/common/Options2.png" ARRAY_NAME "g_optionsIcons" COMPRESSION_TYPE "zstd")
 BIN2C(TARGET_OBJ ShadowRecomp SOURCE_FILE "${RESOURCES_SOURCE_PATH}/images/common/TitleBg.png" DEST_FILE "${RESOURCES_OUTPUT_PATH}/images/common/TitleBg.png" ARRAY_NAME "g_options_bg" COMPRESSION_TYPE "zstd")
 BIN2C(TARGET_OBJ ShadowRecomp SOURCE_FILE "${RESOURCES_SOURCE_PATH}/images/common/controllerBtn.png" DEST_FILE "${RESOURCES_OUTPUT_PATH}/images/common/controllerBtn.png" ARRAY_NAME "g_controller" COMPRESSION_TYPE "zstd")
+BIN2C(TARGET_OBJ ShadowRecomp SOURCE_FILE "${RESOURCES_SOURCE_PATH}/images/common/achievementBG.png" DEST_FILE "${RESOURCES_OUTPUT_PATH}/images/common/achievementBG.png" ARRAY_NAME "g_achievementBG" COMPRESSION_TYPE "zstd")
+BIN2C(TARGET_OBJ ShadowRecomp SOURCE_FILE "${RESOURCES_SOURCE_PATH}/images/common/arrow.png" DEST_FILE "${RESOURCES_OUTPUT_PATH}/images/common/arrow.png" ARRAY_NAME "g_arrow" COMPRESSION_TYPE "zstd")
+BIN2C(TARGET_OBJ ShadowRecomp SOURCE_FILE "${RESOURCES_SOURCE_PATH}/images/common/achievementBtn.png" DEST_FILE "${RESOURCES_OUTPUT_PATH}/images/common/achievementBtn.png" ARRAY_NAME "g_achievementBtn" COMPRESSION_TYPE "zstd")
 
 ## Game Icon ##
 BIN2C(TARGET_OBJ ShadowRecomp SOURCE_FILE "${RESOURCES_SOURCE_PATH}/images/game_icon.bmp" DEST_FILE "${RESOURCES_OUTPUT_PATH}/images/game_icon.bmp" ARRAY_NAME "g_game_icon")

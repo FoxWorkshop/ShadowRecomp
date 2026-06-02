@@ -11,6 +11,7 @@
 #include <input/padstate.h>
 #include <ui/menu_common.h>
 #include <exports.h>
+#include <ui/achievement_menu.h>
 
 
 // We patch pause to add an extra Options in the menu
@@ -61,6 +62,8 @@ static inline bool s_isVisible = false;
 static inline bool s_quitRequest = false;
 static inline bool s_OptionsRequest = false;
 static inline bool s_quitOptionsRequest = false;
+static inline bool s_AchievementRequest = false;
+static inline uint8_t s_currentMode = 0;
 
 static int8_t s_index = 0;
 static uint32_t g_pauseModeAddr = 0;
@@ -155,7 +158,7 @@ void DrawPauseText()
 	{
 		auto base = g_memory.base;
 		auto mode = X86_LOAD_U32(g_pauseModeAddr);
-		if (mode > 3)
+		if (mode > 3 || s_OptionsRequest || s_AchievementRequest)
 		{
 			g_inputAllowed = false;
 			return;
@@ -172,7 +175,7 @@ void DrawPauseText()
 
 	if (auto pInputState = PJSPeripheral::GetControllerSlot(0))
 	{
-		if (g_inputAllowed && !s_OptionsRequest)
+		if (g_inputAllowed)
 		{
 			if (PJSPeripheral::IsHeld(0, PJSPeripheral::BTN_DPAD_UP) || -pInputState->leftY > 0.5f)
 				upIsHeld = true;
@@ -207,7 +210,7 @@ void DrawPauseText()
 	auto scrollUp = g_up;
 	auto scrollDown = g_down;
 
-	if (g_inputAllowed && !s_OptionsRequest)
+	if (g_inputAllowed)
 	{
 		if (scrollUp)
 		{
@@ -247,6 +250,7 @@ void DrawPauseText()
 				break;
 			case SelAchievements:
 				Game_PlaySound("decide");
+				s_AchievementRequest = true;
 				break;
 			case SelQuit:
 				s_quitRequest = true;
@@ -326,24 +330,40 @@ X86_FUNC(sub_5AEE0)
 	}
 
 	// handle new options in pause menu by tricking the game that we shouldn't quit
-	if (!s_quitOptionsRequest && s_index == SelOptions && s_OptionsRequest && OptionsMenu::s_isVisible == false)
+	if (s_currentMode != 0 && (s_OptionsRequest || s_AchievementRequest))
 	{
-		OptionsMenu::Open(true);
-		s_isVisible = false;
-		ctx.AddEsp(1);
-		
-		return;
-	}
-	else if (s_OptionsRequest)
-	{
-		if (OptionsMenu::s_isVisible == false)
+		if (OptionsMenu::s_isVisible == false && AchievementMenu::s_isVisible == false)
 		{
+			s_currentMode = 0;
 			X86_STORE_U32(g_pauseModeAddr, ModeRunning);
 			s_OptionsRequest = false;
+			s_AchievementRequest = false;
 			s_quitOptionsRequest = false;
 			s_isVisible = true;
 		}
 	}
+	else if (!s_currentMode)
+	{
+		if (s_index == SelOptions && s_OptionsRequest && OptionsMenu::s_isVisible == false)
+		{
+			s_currentMode = PauseAction_Options;
+			OptionsMenu::Open(true);
+			s_isVisible = false;
+			ctx.AddEsp(1);
+
+			return;
+		}
+		else if (s_index == SelAchievements && s_AchievementRequest && AchievementMenu::s_isVisible == false)
+		{
+			s_currentMode = PauseAction_Achievements;
+			AchievementMenu::Open();
+			s_isVisible = false;
+			ctx.AddEsp(1);
+			return;
+		}
+	}
+	
+
 
 
 	__imp__sub_5AEE0(ctx, base);
@@ -362,7 +382,7 @@ X86_FUNC(sub_5AAF0)
 
 	if (g_pauseCSD) // ensure our CSD patch worked so we can allow custom input properly
 	{
-		if (X86_LOAD_U8(ctx.ecx.u32 + 0x4D) == 0 || s_OptionsRequest) // pause anim is playing, don't allow input yet
+		if (X86_LOAD_U8(ctx.ecx.u32 + 0x4D) == 0 || s_OptionsRequest || s_AchievementRequest) // pause anim is playing, don't allow input yet
 		{
 			ctx.eax.u32 = PauseAction_None;
 			ctx.AddEsp(1);
