@@ -9,6 +9,16 @@
 
 #define SHR_RECORDS   8
 
+struct Achievement
+{
+    uint16_t ID;
+    std::string Name;
+    std::string UnlockedDesc;
+    std::string LockedDesc;
+    const uint8_t* pImageBuffer;
+    size_t ImageBufferSize;
+    uint16_t Score;
+};
 
 class AchievementData
 {
@@ -33,13 +43,3 @@ public:
     uint32_t CalculateChecksum();
 };
 
-
-struct Achievement
-{
-    uint16_t ID;
-    std::string Name;
-    std::string UnlockedDesc;
-    std::string LockedDesc;
-    const uint8_t* pImageBuffer;
-    size_t ImageBufferSize;
-};

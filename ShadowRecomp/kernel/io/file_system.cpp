@@ -8,6 +8,7 @@
 #include <os/logger.h>
 #include <user/paths.h>
 #include <mod/mod_loader.h>
+#include <user/achievement_manager.h>
 
 // Original code from Unleashed Recomp, O.G Xbox uses similar file / write operation functions than Xbox 360.
 
@@ -588,6 +589,39 @@ int CacheGameFiles(int a1)
 {
 	LOGN("CACHE STUB");
 	return 0;
+}
+
+/**X86_FUNC_IMPL(__imp__sub_2AEABD);
+X86_FUNC(sub_2AEABD)
+{
+	__imp__sub_2AEABD(ctx, base);
+	printf("LoadSaveFile res %d\n", ctx.eax.u32);
+}*/
+
+// load save data
+X86_FUNC_IMPL(__imp__sub_2A4420);
+X86_FUNC(sub_2A4420)
+{
+	__imp__sub_2A4420(ctx, base);
+
+	if (AchievementManager::LoadBinary()) 
+	{
+		AchievementManager::SaveBinary(); // if fail create achievement save file
+	}
+
+}
+
+// XAPILIB::XCreateSaveGam
+X86_FUNC_IMPL(__imp__sub_2AEC9A);
+X86_FUNC(sub_2AEC9A)
+{
+	__imp__sub_2AEC9A(ctx, base);
+
+	if (AchievementManager::LoadBinary()) 
+	{
+		AchievementManager::SaveBinary(); // if fail create achievement save file
+	}
+
 }
 
 GUEST_FUNCTION_HOOK_STDCALL(sub_2AF653, XCreateFile_r);

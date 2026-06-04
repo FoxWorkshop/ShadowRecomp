@@ -149,6 +149,7 @@ set(SHADOW_RECOMP_PATCHES_CXX_SOURCES
 
 set(SHADOW_RECOMP_USER_CXX_SOURCES
     "user/achievement_data.cpp"
+    "user/achievement_manager.cpp"
     "user/config.cpp"
     "user/registry.cpp"
     "user/paths.cpp"

@@ -83,3 +83,4 @@ void DrawSelectionContainer(ImVec2 min, ImVec2 max, bool fadeTop = false);
 void DrawToggleLight(ImVec2 pos, bool isEnabled, float alpha = 1.0f);
 const char* CalcWordWrapPositionA(const ImFont* font, float scale, const char* text, const char* text_end, float wrap_width);
 double ComputeEaseOut(double time, double duration, bool reverse);
+void SetVerticalGradient(const ImVec2& min, const ImVec2& max, ImU32 top, ImU32 bottom);

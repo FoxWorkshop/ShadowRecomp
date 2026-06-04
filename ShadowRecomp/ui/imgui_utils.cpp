@@ -860,3 +860,8 @@ const char* CalcWordWrapPositionA(const ImFont* font, float scale, const char* t
         return s + 1;
     return s;
 }
+
+void SetVerticalGradient(const ImVec2& min, const ImVec2& max, ImU32 top, ImU32 bottom)
+{
+    SetGradient(min, max, top, top, bottom, bottom);
+}

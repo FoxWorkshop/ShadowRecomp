@@ -16,6 +16,6 @@ inline AchievementLocale g_achLocaleMissing =
     g_localeMissing
 };
 
-extern std::unordered_map<int, std::unordered_map<ELanguage, AchievementLocale>> g_achLocale;
+extern std::unordered_map<int, std::unordered_map<ELanguage, AchievementLocale>> g_shrLocale;
 
 AchievementLocale& GetAchievementLocale(const int key);

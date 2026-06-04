@@ -1,7 +1,7 @@
 ﻿#include <user/config.h>
 #include <locale/achievement_locale.h>
 
-std::unordered_map<int, std::unordered_map<ELanguage, AchievementLocale>> g_achLocale =
+std::unordered_map<int, std::unordered_map<ELanguage, AchievementLocale>> g_shrLocale =
 {
     // A Missive from 50 Years Ago (Pure Hero Ending)
     {
@@ -446,9 +446,9 @@ std::unordered_map<int, std::unordered_map<ELanguage, AchievementLocale>> g_achL
 
 AchievementLocale& GetAchievementLocale(const int key)
 {
-    auto localeFindResult = g_achLocale.find(key);
+    auto localeFindResult = g_shrLocale.find(key);
 
-    if (localeFindResult != g_achLocale.end())
+    if (localeFindResult != g_shrLocale.end())
     {
         auto languageFindResult = localeFindResult->second.find(Config::Language);
 

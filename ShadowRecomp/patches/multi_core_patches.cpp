@@ -243,9 +243,6 @@ X86_FUNC(sub_2B39A0)
 			uint32_t pword1C = X86_LOAD_U32(transfoNodeSource + 0x1c);
 			if (!pword1C)
 			{
-#ifdef _WIN32
-				__debugbreak();
-#endif
 				ctx.eax.u32 = transfoNodeSource;
 				LOGFN_ERROR("pword1C is null, skipping CSD node transformation\n", "CSD");
 				ctx.AddEsp(1);
