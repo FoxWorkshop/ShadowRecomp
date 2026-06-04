@@ -16,6 +16,11 @@ float g_fntSeuratSize = 0.0f;
 
 std::unique_ptr<GuestTexture> g_upTexArrow;
 
+GuestTexture* GetTexArrow()
+{
+    return g_upTexArrow.get();
+}
+
 void UpdateFontSize()
 {
     g_fntSeuratSize = Scale(Config::Language == ELanguage::Japanese ? 19 : 18);
