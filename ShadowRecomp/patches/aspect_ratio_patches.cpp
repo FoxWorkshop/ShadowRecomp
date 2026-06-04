@@ -114,7 +114,7 @@ static void EmplacePath(const void* key, const std::string_view& value)
 	{
 		g_bufferRegistry[g_currentBuffer].push_back((const uint8_t*)key);
 
-		printf("Emplace key %x, %s\n", key, value.data());
+		//printf("Emplace key %x, %s\n", key, value.data());
 	}
 
 }

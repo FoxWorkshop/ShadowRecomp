@@ -1620,6 +1620,8 @@ void OptionsMenu::Close()
 	if (s_state == OptionsMenuState::Closing || s_state == OptionsMenuState::Transition)
 		return;
 
+	g_isControlsVisible = false;
+
 	if (s_isPause)
 	{
 

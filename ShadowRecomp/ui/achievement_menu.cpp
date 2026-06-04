@@ -16,6 +16,7 @@
 #include <user/achievement_data.h>
 #include <input/padstate.h>
 #include <user/achievement_manager.h>
+#include "button_guide.h"
 
 static double g_time{};
 static double g_rowSelectionTime{};
@@ -44,6 +45,11 @@ static constexpr double CONTAINER_FADE_OFFSET = CONTAINER_MOVE_OFFSET;
 static constexpr double CONTAINER_FADE_DURATION = 10;
 static constexpr double ROW_FADE_OFFSET = CONTAINER_MOVE_DURATION;
 static constexpr double ROW_FADE_TIME = CONTAINER_MOVE_DURATION;
+
+static constexpr double ROW_SELECT_OFFSET = CONTAINER_FADE_DURATION;
+static constexpr double ROW_SELECT_TIME = CONTAINER_FADE_DURATION;
+
+static bool g_isControlsVisible = false;
 
 static ImFont* g_fntSeurat;
 
@@ -131,6 +137,14 @@ void AchievementMenu::Open()
 	g_hasSwitched = false;
 	g_selectedIndex = 0;
 
+	Button buttons =
+	{
+		Button("Common_Back", 115.0f, EButtonIcon::Y, EButtonAlignment::Left, &g_isControlsVisible),
+	};
+
+	ButtonGuide::Open(buttons);
+	ButtonGuide::SetSideMargins(100);
+
 }
 
 
@@ -139,8 +153,10 @@ void AchievementMenu::Close()
 	if (s_state == AchievementMenuState::ClosingAchievements)
 		return;
 
+	g_isControlsVisible = false;
 	s_state = AchievementMenuState::ClosingAchievements;
 	g_time = ImGui::GetTime();
+	ButtonGuide::Close();
 
 }
 static float g_bgScale = 1.0f;
@@ -174,12 +190,24 @@ static void DrawContainer()
 	ImVec2 rightMax = { rightMin.x + borderWidth, rightMin.y + borderHeight };
 	drawList->AddImage(g_TexAchievementBtn.get(), rightMin, rightMax, GET_UV_COORDS(borderUVs));
 
+
+	// top bar
+	auto topBarUVs = PIXELS_TO_UV_COORDS(512, 370, 0, 329, 512, 10);
+	auto topWidth = res.x * 0.8f;
+	auto topHeight = 10.f;
+	float topY = (res.y * 0.1f) - topHeight;
+
+	ImVec2 topMin = { res.x * 0.1f, topY };
+	ImVec2 topMax = { topMin.x + topWidth, topMin.y + topHeight };
+	drawList->AddImage(g_TexAchievementBtn.get(), topMin, topMax, GET_UV_COORDS(topBarUVs));
+
 }
 
 static void DrawBackground()
 {
 	auto& res = ImGui::GetIO().DisplaySize;
 	auto drawList = ImGui::GetBackgroundDrawList();
+
 
 	ImVec2 centre = { res.x / 2.f, res.y / 2.f };
 
@@ -210,6 +238,7 @@ static void DrawBackground()
 		AchievementMenu::s_isVisible = false;
 	}
 
+
 	DrawContainer();
 }
 
@@ -230,7 +259,7 @@ static void DrawAchievement(int rowIndex, Achievement& achievement, bool isUnloc
 	auto clipRectMin = drawList->GetClipRectMin();
 	auto clipRectMax = drawList->GetClipRectMax();
 
-	auto itemHeight = Scale(94);
+	auto itemHeight = Scale(84);
 	auto itemMarginX = Scale(18);
 	auto imageMarginX = Scale(34);
 	auto imageMarginY = Scale(20);
@@ -264,7 +293,32 @@ static void DrawAchievement(int rowIndex, Achievement& achievement, bool isUnloc
 		return;
 
 	ImVec2 min = { clipRectMin.x + itemMarginX, clipRectMin.y + offsetY };
-	ImVec2 max = { clipRectMax.x + itemMarginX, min.y + itemHeight };
+	ImVec2 max = { clipRectMax.x - itemMarginX, min.y + itemHeight };
+
+
+	float inset = Scale(4.f);
+
+	ImVec2 borderMin = { min.x, min.y + inset };
+	ImVec2 borderMax = { max.x, max.y - inset };
+
+	drawList->AddRectFilled(borderMin, borderMax, IM_COL32(255, 255, 255, 20));
+
+	if (isCurrent)
+	{
+		constexpr auto rowColourAlphaMax = 255;
+		constexpr auto rowColourAlphaMin = 0;
+		auto rowColourBreatheMotionTime = BREATHE_MOTION(1.0f, 0.0f, g_rowSelectionTime, 0.9f);
+		auto rowColourTransitionMotionTime = ComputeLinearMotion(g_time, ROW_SELECT_OFFSET, ROW_SELECT_TIME, false);
+
+		auto rowColourYellow = isCurrent
+			? Lerp(rowColourAlphaMax, rowColourAlphaMin, rowColourBreatheMotionTime) * rowColourTransitionMotionTime
+			: rowColourAlphaMin * rowColourTransitionMotionTime;
+
+		auto rowColour = IM_COL32(255, 255, rowColourYellow, 128);
+		drawList->AddRect(borderMin, borderMax, rowColour);
+	}
+
+
 
 	auto rowUVs = PIXELS_TO_UV_COORDS(1024, 1024, 605, 449, 10, 30);
 	auto rowMarginX = Scale(2);
@@ -285,6 +339,7 @@ static void DrawAchievement(int rowIndex, Achievement& achievement, bool isUnloc
 	ImVec2 rowMin = { clipRectMin.x + rowMarginX, min.y + itemHeight - rowMarginY };
 	ImVec2 rowMax = { clipRectMax.x - rowMarginX, rowMin.y + Scale(30) };
 
+
 	SetAdditive(true);
 	SetVerticalGradient(rowMin, rowMax, IM_COL32_WHITE_TRANS, rowColour);
 	//drawList->AddImage(g_upTexMainMenu1.get(), rowMin, rowMax, GET_UV_COORDS(rowUVs), rowColour);
@@ -301,7 +356,7 @@ static void DrawAchievement(int rowIndex, Achievement& achievement, bool isUnloc
 	if (!isUnlocked)
 		SetShaderModifier(IMGUI_SHADER_MODIFIER_GRAYSCALE);
 
-	// Draw achievement image.
+	// Draw achievement image. (todo)
    // drawList->AddImage(image, imageMin, imageMax, { 0, 0 }, { 1, 1 }, IM_COL32_WHITE);*/
 
 	if (!isUnlocked)
@@ -391,7 +446,15 @@ void AchievementMenu::Draw()
 	if (!s_isVisible)
 		return;
 
+
+	auto& res = ImGui::GetIO().DisplaySize;
+	float containerLeft = res.x * 0.1f;
+	float containerRight = res.x * 0.9f;
+	float containerTop = res.y * 0.15f;
+	float containerBottom = res.y * 0.9f; 
 	auto drawList = ImGui::GetBackgroundDrawList();
+
+
 
 	switch (s_state)
 	{
@@ -399,7 +462,9 @@ void AchievementMenu::Draw()
 	{
 
 		if (AchievementMenu::s_nextState == AchievementMenuState::Achievements)
+		{
 			AchievementMenu::g_BackgroundAnimIntro = ImGui::GetTime();
+		}
 
 		if (AchievementMenu::s_nextState == AchievementMenuState::ClosingAchievements)
 		{
@@ -418,30 +483,31 @@ void AchievementMenu::Draw()
 	{
 
 		DrawBackground();
+
+
+
 		// DrawContainer(min, max);
 
 		if (g_bgScale >= 0.9)
 		{
+			g_isControlsVisible = true;
+
 			auto rowIndex = 0;
 
-			for (auto& tpl : g_achievements)
-			{
-				auto& achievement = std::get<0>(tpl);
-
-				if (AchievementManager::IsUnlocked(achievement.ID))
-					DrawAchievement(rowIndex++, achievement, true);
-			}
+			drawList->PushClipRect(
+				{ containerLeft, containerTop },
+				{ containerRight, containerBottom },
+				true // intersect with current clip rect
+			);
 
 			for (auto& tpl : g_achievements)
 			{
 				auto& achievement = std::get<0>(tpl);
-
-				if (!AchievementManager::IsUnlocked(achievement.ID))
-					DrawAchievement(rowIndex++, achievement, false);
+					DrawAchievement(rowIndex++, achievement, AchievementManager::IsUnlocked(achievement.ID));
 			}
 
 
-
+			drawList->PopClipRect();
 			auto scrollArrowsOffsetX = Scale(17);
 			auto scrollArrowsOffsetTop = Scale(40);
 			auto scrollArrowsOffsetBottom = Scale(60);
@@ -483,8 +549,6 @@ void AchievementMenu::Draw()
 			}
 
 			MoveCursor(g_selectedIndex, 0, g_rowCount);
-
-
 
 			g_up = false;
 			g_upWasHeld = upIsHeld;
