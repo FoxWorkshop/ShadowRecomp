@@ -84,3 +84,6 @@ void DrawToggleLight(ImVec2 pos, bool isEnabled, float alpha = 1.0f);
 const char* CalcWordWrapPositionA(const ImFont* font, float scale, const char* text, const char* text_end, float wrap_width);
 double ComputeEaseOut(double time, double duration, bool reverse);
 void SetVerticalGradient(const ImVec2& min, const ImVec2& max, ImU32 top, ImU32 bottom);
+void DrawScrollArrows(ImVec2 min, ImVec2 max, float scale, double& time, bool top, bool bottom);
+double ComputeLoopMotion(double time, double offset, double total);
+void DrawArrowCursor(ImVec2 pos, double time, bool isIntroAnim, bool isBlinkingAnim, bool isReversed);

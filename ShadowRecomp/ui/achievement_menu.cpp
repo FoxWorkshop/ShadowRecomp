@@ -350,9 +350,6 @@ static void DrawAchievement(int rowIndex, Achievement& achievement, bool isUnloc
 	ImVec2 imageMin = { min.x + imageMarginX, min.y + imageMarginY };
 	ImVec2 imageMax = { min.x + imageMarginX + imageSize, min.y + imageMarginY + imageSize };
 
-	//if (isCurrent)
-	  //  DrawArrowCursor({ rowMin.x + Scale(2), imageMin.y + ((imageMax.y - imageMin.y) / 3) }, g_time, false);
-
 	if (!isUnlocked)
 		SetShaderModifier(IMGUI_SHADER_MODIFIER_GRAYSCALE);
 
@@ -508,13 +505,15 @@ void AchievementMenu::Draw()
 
 
 			drawList->PopClipRect();
-			auto scrollArrowsOffsetX = Scale(17);
+			auto scrollArrowsOffsetX = Scale(40);
 			auto scrollArrowsOffsetTop = Scale(40);
-			auto scrollArrowsOffsetBottom = Scale(60);
-			// ImVec2 scrollArrowsMin = { max.x + scrollArrowsOffsetX, min.y + scrollArrowsOffsetTop };
-			// ImVec2 scrollArrowsMax = { scrollArrowsMin.x + scrollArrowsOffsetX, max.y - scrollArrowsOffsetBottom };
+			auto scrollArrowsOffsetBottom = Scale(70);
+			ImVec2 min = { containerRight - containerLeft, g_vertCentre + containerTop };
+			ImVec2 max = { min.x + containerLeft, g_vertCentre + containerBottom };
+			ImVec2 scrollArrowsMin = { max.x + scrollArrowsOffsetX, min.y + scrollArrowsOffsetTop };
+			ImVec2 scrollArrowsMax = { scrollArrowsMin.x + scrollArrowsOffsetX, max.y - scrollArrowsOffsetBottom };
 
-			 //DrawScrollArrows(scrollArrowsMin, scrollArrowsMax, Scale(25), g_scrollArrowsTime, g_selectedIndex > MAX_VISIBLE_ROWS / 2, g_selectedIndex < g_rowCount - MAX_VISIBLE_ROWS / 2);
+			DrawScrollArrows(scrollArrowsMin, scrollArrowsMax, Scale(15), g_scrollArrowsTime, g_selectedIndex > MAX_VISIBLE_ROWS / 2, g_selectedIndex < g_rowCount - MAX_VISIBLE_ROWS / 2);
 
 			auto upIsHeld = false;
 			auto downIsHeld = false;

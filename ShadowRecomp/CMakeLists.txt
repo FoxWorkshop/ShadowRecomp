@@ -488,6 +488,7 @@ BIN2C(TARGET_OBJ ShadowRecomp SOURCE_FILE "${RESOURCES_SOURCE_PATH}/images/commo
 BIN2C(TARGET_OBJ ShadowRecomp SOURCE_FILE "${RESOURCES_SOURCE_PATH}/images/common/TitleBg.png" DEST_FILE "${RESOURCES_OUTPUT_PATH}/images/common/TitleBg.png" ARRAY_NAME "g_options_bg" COMPRESSION_TYPE "zstd")
 BIN2C(TARGET_OBJ ShadowRecomp SOURCE_FILE "${RESOURCES_SOURCE_PATH}/images/common/controllerBtn.png" DEST_FILE "${RESOURCES_OUTPUT_PATH}/images/common/controllerBtn.png" ARRAY_NAME "g_controller" COMPRESSION_TYPE "zstd")
 BIN2C(TARGET_OBJ ShadowRecomp SOURCE_FILE "${RESOURCES_SOURCE_PATH}/images/common/achievementBG.png" DEST_FILE "${RESOURCES_OUTPUT_PATH}/images/common/achievementBG.png" ARRAY_NAME "g_achievementBG" COMPRESSION_TYPE "zstd")
+
 BIN2C(TARGET_OBJ ShadowRecomp SOURCE_FILE "${RESOURCES_SOURCE_PATH}/images/common/arrow.png" DEST_FILE "${RESOURCES_OUTPUT_PATH}/images/common/arrow.png" ARRAY_NAME "g_arrow" COMPRESSION_TYPE "zstd")
 BIN2C(TARGET_OBJ ShadowRecomp SOURCE_FILE "${RESOURCES_SOURCE_PATH}/images/common/achievementBtn.png" DEST_FILE "${RESOURCES_OUTPUT_PATH}/images/common/achievementBtn.png" ARRAY_NAME "g_achievementBtn" COMPRESSION_TYPE "zstd")
 

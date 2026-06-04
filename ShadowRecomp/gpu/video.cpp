@@ -2512,7 +2512,7 @@ static void CreateImGuiBackend()
 	//AchievementOverlay::Init();*/
 
 
-
+	InitImGuiUtils();
 	ButtonGuide::Init();
 	InstallerWizard::Init();
 	OptionsMenu::Init();

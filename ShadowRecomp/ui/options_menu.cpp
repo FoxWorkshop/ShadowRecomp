@@ -1561,7 +1561,7 @@ void OptionsMenu::Open(bool isPause)
 	OptionsMenu::s_isPause = isPause;
 	OptionsMenu::s_nextState = OptionsMenuState::Opening;
 
-	InitImGuiUtils();
+	UpdateFontSize();
 	g_stateTime = ImGui::GetTime();
 	s_state = OptionsMenu::s_isPause ? OptionsMenuState::Transition : OptionsMenuState::Opening;
 	g_containerAnimTime = ImGui::GetTime();
