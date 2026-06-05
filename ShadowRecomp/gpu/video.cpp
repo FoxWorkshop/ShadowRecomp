@@ -33,6 +33,7 @@
 #include <ui/installer_wizard.h>
 #include <xxHashMap.h>
 #include <patches/multi_core_patches.h>
+#include <patches/fps_patches.h>
 
 
 
@@ -2660,7 +2661,7 @@ static void CreateImGuiBackend()
 
 static void CheckSwapChain()
 {
-	g_swapChain->setVsyncEnabled(Config::VSync);
+	g_swapChain->setVsyncEnabled(ShouldApplyVsyncPatch() ? Config::VSync : true);
 	g_swapChainValid &= !g_swapChain->needsResize();
 
 	if (!g_swapChainValid)
