@@ -790,6 +790,16 @@ name = "SetFramerateMidAsmHook"
 address = 0x572BD
 
 [[midasm_hook]]
+name = "SFXTimingMidAsmHook"
+address = 0x25E783
+registers = ["r4"]
+
+[[midasm_hook]]
+name = "FreeSFXMapMidAsmHook"
+address = 0x25E813
+registers = ["r4"]
+
+[[midasm_hook]]
 name = "RenderCsdCastNodeMidAsmHook"
 address = 0x38B576
 registers = ["r0"]

@@ -124,18 +124,6 @@ void HostStartup()
 std::atomic<bool> running{ true };
 extern bool isHostThread;
 
-void __stdcall system_events_launch()
-{
-    GuestThreadParams events = { 0, 0, 0, 0, 0 };
-    GuestThread::Start_Non_Periodic_Events(events);
-}
-
-void __stdcall dpc_launch()
-{
-    GuestThreadParams dpc = { 0, 0, 0, 0, 0 };
-    GuestThread::Start_Dpc_Routine(dpc);
-}
-
 std::vector<float> dataFloat;
 
 std::vector<float>* getDataFloat()
@@ -270,12 +258,6 @@ int main(int argc, char* argv[])
     HostStartup();
 
     ModLoader::Init();
-
-//    InitDpcData();
-
-
-  //  NV2ADevice_Init();
-
 
     //init mutexes for multi-core patch
     InitMultiCoreMutexesPatches();
