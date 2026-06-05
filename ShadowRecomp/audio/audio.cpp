@@ -338,7 +338,7 @@ int32_t IDirectSound_SetI3DL2Listener(int ppDS_, int a2, char a3)
 	return E_FAIL;
 }
 
-//todo(?)
+
 int32_t IDirectSound_SetDistanceFactor(int32_t ppDS_, float fDistanceFactor, int32_t dwApply)
 {
 	auto pThis = ppDS;
