@@ -193,13 +193,22 @@ static void DrawContainer()
 
 	// top bar
 	auto topBarUVs = PIXELS_TO_UV_COORDS(512, 370, 0, 329, 512, 10);
-	auto topWidth = res.x * 0.8f;
+	auto topWidth = rightMax.x - leftMax.x;
 	auto topHeight = 10.f;
 	float topY = (res.y * 0.1f) - topHeight;
 
-	ImVec2 topMin = { res.x * 0.1f, topY };
+	ImVec2 topMin = { leftMin.x, topY };
 	ImVec2 topMax = { topMin.x + topWidth, topMin.y + topHeight };
 	drawList->AddImage(g_TexAchievementBtn.get(), topMin, topMax, GET_UV_COORDS(topBarUVs));
+
+
+	topMin.y = (res.y * 0.1f);
+	drawList->AddLine(
+		{ topMin.x, topMin.y },  // left point
+		{ topMax.x, topMin.y },  // right point
+		IM_COL32(255, 255, 255, 100),
+		2.f // thickness
+	);
 
 }
 
@@ -354,8 +363,9 @@ static void DrawAchievement(int rowIndex, Achievement& achievement, bool isUnloc
 	if (!isUnlocked)
 		SetShaderModifier(IMGUI_SHADER_MODIFIER_GRAYSCALE);
 
-	// Draw achievement image. (todo)
+	// Draw achievement image.
 	drawList->AddImage((GuestTexture*)image, imageMin, imageMax, {0, 0}, {1, 1}, IM_COL32_WHITE);
+	drawList->AddRect(imageMin, imageMax, IM_COL32(255, 255, 255, 100), 0, 0, 2.f);
 
 	if (!isUnlocked)
 		SetShaderModifier(IMGUI_SHADER_MODIFIER_NONE);
