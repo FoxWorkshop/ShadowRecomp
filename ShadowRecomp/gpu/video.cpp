@@ -33,7 +33,7 @@
 #include <ui/installer_wizard.h>
 #include <xxHashMap.h>
 #include <patches/multi_core_patches.h>
-
+#include <user/achievement_manager.h>
 
 
 const uint32_t GuestDevicePtrAddr = 0x3E0A18;
@@ -5235,6 +5235,9 @@ X86_FUNC_IMPL(__imp__sub_3DDAB0); //CreateDevice
 int32_t Direct3D_CreateDevice_r(int32_t Adapter, int32_t DeviceType, int32_t hFocusWindow, char Flags, X_D3DPRESENT_PARAMETERS* pPresentationParameters, uint32_t* device)
 {
 	LOG_UTILITY("CREATE GUEST D3D DEVICE!");
+
+
+	InitAchievementTextures();
 
 	auto ctx = GetX86Context();
 	auto base = g_memory.base;

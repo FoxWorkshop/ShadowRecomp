@@ -2,6 +2,17 @@
 #include <os/logger.h>
 //#include <ui/achievement_overlay.h>
 #include <user/config.h>
+#include <gpu//video.h>
+
+
+// achievements icons
+#include <res/images/common/pure_hero.png.h>
+#include <res/images/common/pure_dark.png.h>
+#include <res/images/common/neutral_hero.png.h>
+#include <res/images/common/PlaceHolder.png.h>
+#include <decompressor.h>
+
+std::unordered_map<uint16_t, std::unique_ptr<GuestTexture>> g_achievementsTextureCache;
 
 #define NUM_RECORDS sizeof(AchievementManager::Data.Records) / sizeof(AchievementData::SHRRecord)
 
@@ -178,6 +189,28 @@ bool AchievementManager::SaveBinary(bool ignoreStatus)
     return true;
 }
 
+std::unique_ptr<GuestTexture> LoadAchivementTexture(uint16_t id)
+{
+    switch (id)
+    {
+    case 1:
+        return LOAD_ZSTD_TEXTURE(g_purehero);
+    case 2:
+        return LOAD_ZSTD_TEXTURE(g_puredark);
+    case 3:
+        return LOAD_ZSTD_TEXTURE(g_neutralhero);
+    }
+
+    return LOAD_ZSTD_TEXTURE(g_placeholder);
+}
+
+void InitAchievementTextures()
+{
+    for (uint16_t i = 1; i <= SHR_RECORDS; i++)
+    {
+        g_achievementsTextureCache[i] = LoadAchivementTexture(i);
+    }
+}
 
 std::vector<Achievement> GetAchievements(ELanguage language)
 {
@@ -191,6 +224,7 @@ std::vector<Achievement> GetAchievements(ELanguage language)
         achievement.Name = g_shrLocale[i + 1][language].Name;
         achievement.UnlockedDesc = g_shrLocale[i + 1][language].UnlockedDesc;
         achievement.LockedDesc = g_shrLocale[i + 1][language].LockedDesc;
+        achievement.pImageBuffer = (uint8_t*)g_achievementsTextureCache[i + 1].get();
         //  achievement.Score = entry->Gamerscore;
 
         /**auto imageBlock = GetResource(XDBF_SPA_NAMESPACE_IMAGE, entry->ImageID);

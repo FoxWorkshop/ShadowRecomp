@@ -501,3 +501,9 @@ BIN2C(TARGET_OBJ ShadowRecomp SOURCE_FILE "${RESOURCES_SOURCE_PATH}/sounds/sys_m
 BIN2C(TARGET_OBJ ShadowRecomp SOURCE_FILE "${RESOURCES_SOURCE_PATH}/sounds/sys_menu_cursor.ogg" DEST_FILE "${RESOURCES_OUTPUT_PATH}/sounds/sys_menu_cursor.ogg" ARRAY_NAME "g_sys_menu_cursor")
 BIN2C(TARGET_OBJ ShadowRecomp SOURCE_FILE "${RESOURCES_SOURCE_PATH}/sounds/sys_menu_invalid.ogg" DEST_FILE "${RESOURCES_OUTPUT_PATH}/sounds/sys_menu_invalid.ogg" ARRAY_NAME "g_sys_menu_invalid")
 BIN2C(TARGET_OBJ ShadowRecomp SOURCE_FILE "${RESOURCES_SOURCE_PATH}/sounds/sys_menu_cancel.ogg" DEST_FILE "${RESOURCES_OUTPUT_PATH}/sounds/sys_menu_cancel.ogg" ARRAY_NAME "g_sys_menu_cancel")
+
+## Achievements #
+BIN2C(TARGET_OBJ ShadowRecomp SOURCE_FILE "${RESOURCES_SOURCE_PATH}/images/common/achievements/pure_hero.png" DEST_FILE "${RESOURCES_OUTPUT_PATH}/images/common/pure_hero.png" ARRAY_NAME "g_purehero" COMPRESSION_TYPE "zstd")
+BIN2C(TARGET_OBJ ShadowRecomp SOURCE_FILE "${RESOURCES_SOURCE_PATH}/images/common/achievements/neutral_hero.png" DEST_FILE "${RESOURCES_OUTPUT_PATH}/images/common/neutral_hero.png" ARRAY_NAME "g_neutralhero" COMPRESSION_TYPE "zstd")
+BIN2C(TARGET_OBJ ShadowRecomp SOURCE_FILE "${RESOURCES_SOURCE_PATH}/images/common/achievements/PlaceHolder.png" DEST_FILE "${RESOURCES_OUTPUT_PATH}/images/common/PlaceHolder.png" ARRAY_NAME "g_placeholder" COMPRESSION_TYPE "zstd")
+BIN2C(TARGET_OBJ ShadowRecomp SOURCE_FILE "${RESOURCES_SOURCE_PATH}/images/common/achievements/pure_dark.png" DEST_FILE "${RESOURCES_OUTPUT_PATH}/images/common/pure_dark.png" ARRAY_NAME "g_puredark" COMPRESSION_TYPE "zstd")

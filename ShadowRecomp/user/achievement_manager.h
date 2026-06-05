@@ -1,6 +1,7 @@
 #pragma once
 
 #include <user/achievement_data.h>
+#include <gpu/video.h>
 
 enum class EAchBinStatus
 {
@@ -34,3 +35,4 @@ public:
 };
 
 std::vector<Achievement> GetAchievements(ELanguage language);
+void InitAchievementTextures();

@@ -253,6 +253,7 @@ static bool CheckAndDiscard(bool& value)
 	return false;
 }
 
+
 static void DrawAchievement(int rowIndex, Achievement& achievement, bool isUnlocked)
 {
 	auto drawList = ImGui::GetBackgroundDrawList();
@@ -262,7 +263,7 @@ static void DrawAchievement(int rowIndex, Achievement& achievement, bool isUnloc
 	auto itemHeight = Scale(84);
 	auto itemMarginX = Scale(18);
 	auto imageMarginX = Scale(34);
-	auto imageMarginY = Scale(20);
+	auto imageMarginY = Scale(10);
 	auto imageSize = Scale(64);
 
 	auto offsetScroll = 0.0f;
@@ -346,7 +347,7 @@ static void DrawAchievement(int rowIndex, Achievement& achievement, bool isUnloc
 	ResetGradient();
 	ResetAdditive();
 
-	//auto image = g_xdbfTextureCache[achievement.ID];
+	auto image = achievement.pImageBuffer;
 	ImVec2 imageMin = { min.x + imageMarginX, min.y + imageMarginY };
 	ImVec2 imageMax = { min.x + imageMarginX + imageSize, min.y + imageMarginY + imageSize };
 
@@ -354,7 +355,7 @@ static void DrawAchievement(int rowIndex, Achievement& achievement, bool isUnloc
 		SetShaderModifier(IMGUI_SHADER_MODIFIER_GRAYSCALE);
 
 	// Draw achievement image. (todo)
-   // drawList->AddImage(image, imageMin, imageMax, { 0, 0 }, { 1, 1 }, IM_COL32_WHITE);*/
+	drawList->AddImage((GuestTexture*)image, imageMin, imageMax, {0, 0}, {1, 1}, IM_COL32_WHITE);
 
 	if (!isUnlocked)
 		SetShaderModifier(IMGUI_SHADER_MODIFIER_NONE);
@@ -569,8 +570,6 @@ void AchievementMenu::Draw()
 		g_down = false;
 		g_downWasHeld = false;
 		break;
-
-
 	}
 
 

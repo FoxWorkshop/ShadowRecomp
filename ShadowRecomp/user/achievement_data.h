@@ -16,7 +16,6 @@ struct Achievement
     std::string UnlockedDesc;
     std::string LockedDesc;
     const uint8_t* pImageBuffer;
-    size_t ImageBufferSize;
     uint16_t Score;
 };
 
