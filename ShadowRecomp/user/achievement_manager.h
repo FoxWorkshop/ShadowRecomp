@@ -36,3 +36,4 @@ public:
 
 std::vector<Achievement> GetAchievements(ELanguage language);
 void InitAchievementTextures();
+Achievement GetAchievement(ELanguage language, const uint8_t id);

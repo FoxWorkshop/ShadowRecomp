@@ -124,6 +124,7 @@ static bool useLowSpec = false;
 #include <patches/pause_patches.h>
 #include <ui/achievement_menu.h>
 #include <patches/fps_patches.h>
+#include <ui/achievement_overlay.h>
 
 
 
@@ -2510,7 +2511,7 @@ static void CreateImGuiBackend()
 
 
 	AchievementMenu::Init();
-	//AchievementOverlay::Init();*/
+	AchievementOverlay::Init();
 
 
 	InitImGuiUtils();
@@ -4188,7 +4189,7 @@ static void DrawImGui()
 
 	AchievementMenu::Draw();
 	OptionsMenu::Draw();
-	//AchievementOverlay::Draw();*/
+	AchievementOverlay::Draw();
 
 	ButtonGuide::Draw();
 

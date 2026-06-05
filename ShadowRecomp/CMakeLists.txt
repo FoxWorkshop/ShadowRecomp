@@ -161,6 +161,7 @@ set(SHADOW_RECOMP_INSTALL_CXX_SOURCES
 
 set(SHADOW_RECOMP_UI_CXX_SOURCES
     "ui/achievement_menu.cpp"
+    "ui/achievement_overlay.cpp"
     "ui/game_window.cpp"
     "ui/imgui_utils.cpp"
     "ui/button_guide.cpp"

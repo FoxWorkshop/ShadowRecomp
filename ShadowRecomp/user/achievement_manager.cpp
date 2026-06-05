@@ -240,3 +240,14 @@ std::vector<Achievement> GetAchievements(ELanguage language)
 
     return result;
 }
+
+Achievement GetAchievement(ELanguage language, const uint8_t id)
+{
+    Achievement achievement{};
+    achievement.ID = id;
+    achievement.Name = g_shrLocale[id][language].Name;
+    achievement.UnlockedDesc = g_shrLocale[id][language].UnlockedDesc;
+    achievement.LockedDesc = g_shrLocale[id][language].LockedDesc;
+    achievement.pImageBuffer = (uint8_t*)g_achievementsTextureCache[id].get();
+    return achievement;
+}
