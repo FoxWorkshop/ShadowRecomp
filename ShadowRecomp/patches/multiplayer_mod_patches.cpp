@@ -43,6 +43,20 @@ X86_FUNC(sub_12700)
 
 uint32_t g_multiplayerPlayerCount = 4;
 
+// Chaos Powers Fix
+X86_FUNC_IMPL(__imp__sub_22D250);
+X86_FUNC(sub_22D250)
+{
+    __imp__sub_22D250(ctx, base);
+    if (!isAwakeAboutToInvoke)
+    {
+        X86_STORE_U32(0x5456CC, 0x0);
+        X86_STORE_U32(0x5456D8, 0x0);
+    }
+    isAwakeAboutToInvoke = false;
+}
+// End Chaos Powers Fix
+
 bool ExtendedMultiplayerCameraAttachMidAsmHook(X86Register& eax)
 {
 	auto ctx = GetX86Context();
@@ -142,6 +156,35 @@ bool ExtendedMultiplayerPlayerPositionLoopMidAsmHook()
         return true;
 
     s_extraPlayerPositionID = 0;
+    return false;
+}
+
+static uint32_t s_extraPlayerPositionID_Continue0 = 0;
+
+void ExtendedMultiplayerPlayerPositionIDOverrideContinue0MidAsmHook(X86Register& reg)
+{
+    if (s_extraPlayerPositionID_Continue0 != 0)
+        reg.u32 = s_extraPlayerPositionID_Continue0;
+}
+
+bool ExtendedMultiplayerPlayerPositionLoopContinue0MidAsmHook(X86Register& eax, X86Register& esp)
+{
+    if (!Config::ExtendedMultiplayer || g_multiplayerPlayerCount <= 2)
+        return false;
+
+    if (s_extraPlayerPositionID_Continue0 == 0)
+        s_extraPlayerPositionID_Continue0 = 2;
+    else
+        s_extraPlayerPositionID_Continue0++;
+
+    if (s_extraPlayerPositionID_Continue0 <= g_multiplayerPlayerCount - 1)
+    {
+        esp.u32 += 12;
+        eax.u32 = s_extraPlayerPositionID_Continue0;
+        return true;
+    }
+
+    s_extraPlayerPositionID_Continue0 = 0;
     return false;
 }
 
@@ -373,14 +416,129 @@ bool ItemIconManagerLoopCountMidAsmHook(X86Register& eax)
 
 bool SplitscreenTypeInitializeUnpauseMidAsmHook(X86Register& eax)
 {
+    auto base = g_memory.base;
     if (Config::ExtendedMultiplayer)
     {
+        X86_STORE_F32(0x4E5E30, 0.5f); // P3
+        X86_STORE_F32(0x4E5E34, 1.0f);
+        X86_STORE_F32(0x4E5E60, 0.5f); // P4
+        X86_STORE_F32(0x4E5E64, 1.0f);
         return true;
     }
     return (eax.u8_lo & 0x2) == 0;
 }
 
 void AddToScoreNullMidAsmHook() {}
+
+// Effect Slot Registration (FUN_001821f0)
+// Forces playerID = 0 at 0x182222 so dedup check never blocks extra players
+// Handles the collision issue with a few objects for P3 (DashRamps, Boosters, Springs etc)
+void EffectSlotPlayerIdOverrideMidAsmHook(X86Register& edx)
+{
+    if (Config::ExtendedMultiplayer && g_multiplayerPlayerCount > 2)
+        edx.u32 = 0;
+}
+
+// SetObject Loading/Unloading per-player distance
+// The base game checks DAT_0054dde2 to decide single-player (P0 only) or
+// multiplayer (P0+P1) for object loading and unloading distances.
+// For Extended Multiplayer we always take the multiplayer branch (via midasm
+// hooks at the JZ instructions) and patch the distance check functions to
+// also consider P2/P3 so objects only unload when ALL players are out of range.
+
+// Midasm hook at 0x25A429 (JZ to single-player path in load function FUN_0025A3F0)
+// Forces the multiplayer branch when ExtendedMultiplayer is enabled.
+bool SetObjLoadMultiplayerBranchMidAsmHook(X86Register& eax)
+{
+	if (Config::ExtendedMultiplayer)
+		return false;
+	return eax.u8_lo == 0;
+}
+
+// Midasm hook at 0x181F8F (JZ to single-player path in unload function FUN_00181F80)
+// Forces the multiplayer branch when ExtendedMultiplayer is enabled.
+bool SetObjUnloadMultiplayerBranchMidAsmHook(X86Register& eax)
+{
+	if (Config::ExtendedMultiplayer)
+		return false;
+	return eax.u8_lo == 0;
+}
+
+// Hook the per-player distance check inside the load loop.
+// param_1 = object entry pointer, param_2 = player position (guest addr)
+// Returns 0 if object is FAR from player (out of range), non-zero if NEAR (in range).
+// For Extended Multiplayer: when primary player says "far", also check P2/P3.
+// If any extra player is near, override the result to "near".
+X86_FUNC_IMPL(__imp__sub_2595A0);
+X86_FUNC(sub_2595A0)
+{
+	uint32_t objEntryAddr = X86_LOAD_U32(ctx.esp.u32 + 4);
+	uint32_t subObjAddr = X86_LOAD_U32(objEntryAddr);
+
+	__imp__sub_2595A0(ctx, base);
+
+	if (Config::ExtendedMultiplayer && g_multiplayerPlayerCount > 2 && ctx.eax.u8_lo == 0 && subObjAddr)
+	{
+		float objX = X86_LOAD_F32(subObjAddr);
+		float objY = X86_LOAD_F32(subObjAddr + 4);
+		float objZ = X86_LOAD_F32(subObjAddr + 8);
+		uint8_t thresholdByte = X86_LOAD_U8(subObjAddr + 0x23);
+		float thresholdSq = (float)(thresholdByte * thresholdByte) * X86_LOAD_F32(0x448F28);
+
+		for (uint32_t i = 2; i < g_multiplayerPlayerCount; i++)
+		{
+			if (!playerPos[i])
+				continue;
+
+			float dx = objX - playerPos[i]->x;
+			float dy = objY - playerPos[i]->y;
+			float dz = objZ - playerPos[i]->z;
+			float distSq = dx * dx + dy * dy + dz * dz;
+
+			if (distSq < thresholdSq)
+			{
+				ctx.eax.u8_lo = 1;
+				return;
+			}
+		}
+	}
+}
+
+// Hook the unload distance check to also consider P2/P3.
+// Returns true (can unload) if ALL checked players are beyond threshold distance.
+// For Extended Multiplayer we manually check P2+P3 distance when the original
+// reports "far from P0/P1" -- if any extra player is close, we keep the object.
+X86_FUNC_IMPL(__imp__sub_181F80);
+X86_FUNC(sub_181F80)
+{
+	uint32_t objPosAddr = X86_LOAD_U32(ctx.esp.u32 + 4);
+	float thresholdSq = X86_LOAD_F32(ctx.esp.u32 + 8);
+
+	__imp__sub_181F80(ctx, base);
+
+	if (Config::ExtendedMultiplayer && g_multiplayerPlayerCount > 2 && ctx.eax.u8_lo != 0)
+	{
+		float objX = X86_LOAD_F32(objPosAddr);
+		float objY = X86_LOAD_F32(objPosAddr + 4);
+		float objZ = X86_LOAD_F32(objPosAddr + 8);
+
+		for (uint32_t i = 2; i < g_multiplayerPlayerCount; i++)
+		{
+			if (!playerPos[i])
+				continue;
+
+			float dx = objX - playerPos[i]->x;
+			float dy = objY - playerPos[i]->y;
+			float dz = objZ - playerPos[i]->z;
+
+			if (thresholdSq > (dx * dx + dy * dy + dz * dz))
+			{
+				ctx.eax.u8_lo = 0;
+				return;
+			}
+		}
+	}
+}
 
 // END Extended Multiplayer
 

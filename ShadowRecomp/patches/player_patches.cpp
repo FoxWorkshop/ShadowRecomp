@@ -6,7 +6,10 @@
 
 PlayerShadow* playerPtr[4] = {};
 RwV3d* playerPos[4] = {};
+bool isAwakeAboutToInvoke = false;
 static uint32_t s_playerSlotIndex = 0;
+static uint32_t s_knownThisPtrs[4] = {};
+static uint32_t s_knownCount = 0;
 
 void TeleportPlayersToP1()
 {
@@ -35,6 +38,7 @@ X86_FUNC_IMPL(__imp__sub_8E690);
 X86_FUNC(sub_8E690)
 {
 	auto mode = X86_LOAD_U32(ctx.esp.u32 + 16);
+	isAwakeAboutToInvoke = true;
 	__imp__sub_8E690(ctx, base);
 	App::s_chaosMode = mode == 0 ? ELedAura::LED_AURA_VILLAIN : ELedAura::LED_AURA_HERO;
 	SDL_User_ChaosMode(App::s_chaosMode);
@@ -54,10 +58,49 @@ X86_FUNC(sub_96AD0)
 {
 	auto playerAddr = ctx.ecx.u32;
 	__imp__sub_96AD0(ctx, base);
-	uint32_t slot = s_playerSlotIndex;
+
+	uint32_t slot = UINT32_MAX;
+
+	for (uint32_t i = 0; i < s_knownCount; i++)
+	{
+		if (s_knownThisPtrs[i] == playerAddr)
+		{
+			slot = i;
+			break;
+		}
+	}
+
+	if (slot == UINT32_MAX)
+	{
+		bool foundAny = false;
+		for (uint32_t i = 0; i < s_knownCount; i++)
+		{
+			if (s_knownThisPtrs[i] != 0)
+			{
+				foundAny = true;
+				break;
+			}
+		}
+
+		if (foundAny && s_knownCount >= g_multiplayerPlayerCount)
+		{
+			memset(s_knownThisPtrs, 0, sizeof(s_knownThisPtrs));
+			for (uint32_t i = 0; i < 4; i++)
+			{
+				playerPtr[i] = nullptr;
+				playerPos[i] = nullptr;
+			}
+			s_knownCount = 0;
+		}
+
+		slot = s_knownCount++;
+	}
+
+	s_playerSlotIndex = (slot + 1) % g_multiplayerPlayerCount;
+	s_knownThisPtrs[slot] = playerAddr;
+
 	playerPtr[slot] = (PlayerShadow*)X86_LOAD_U32(playerAddr);
 	playerPos[slot] = (RwV3d*)g_memory.Translate(playerAddr + 4);
-	s_playerSlotIndex = (slot + 1) % 4;
 #ifdef _DEBUG
 	printf("Player Slot %u Pointer %llx\n", slot, (intptr_t)playerPtr[slot]);
 	printf("Player Slot %u Pos Ptr %llx\n", slot, (intptr_t)playerPos[slot]);

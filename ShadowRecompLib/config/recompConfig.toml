@@ -896,11 +896,6 @@ jump_address_on_true = 0x16F891
 
 [[midasm_hook]]
 name = "ExtendedMultiplayerPlayerPositionIDOverrideMidAsmHook"
-address = 0x16F6F3
-registers = ["r0"]
-
-[[midasm_hook]]
-name = "ExtendedMultiplayerPlayerPositionIDOverrideMidAsmHook"
 address = 0x16F71F
 registers = ["r0"]
 
@@ -913,6 +908,17 @@ registers = ["r3"]
 name = "ExtendedMultiplayerPlayerPositionLoopMidAsmHook"
 address = 0x16F739
 jump_address_on_true = 0x16F6DA
+
+[[midasm_hook]]
+name = "ExtendedMultiplayerPlayerPositionIDOverrideContinue0MidAsmHook"
+address = 0x16F788
+registers = ["r3"]
+
+[[midasm_hook]]
+name = "ExtendedMultiplayerPlayerPositionLoopContinue0MidAsmHook"
+address = 0x16F78E
+registers = ["r0", "r7"]
+jump_address_on_true = 0x16F76A
 
 [[midasm_hook]]
 name = "AssignPadPlayerIdSaveMidAsmHook"
@@ -1018,6 +1024,13 @@ address = 0x5B756
 jump_address_on_true = 0x5B760
 # End Extended Multiplayer
 
+# Effect Slot Registration
+[[midasm_hook]]
+name = "EffectSlotPlayerIdOverrideMidAsmHook"
+address = 0x182225
+registers = ["r3"]
+# End Effect Slot Registration
+
 # ItemIconManagerLoopCreation
 [[midasm_hook]]
 name = "ItemIconManagerLoopPushCountMidAsmHook"
@@ -1032,6 +1045,22 @@ registers = ["r0"]
 jump_address_on_true = 0x28A710
 jump_address_on_false = 0x28A84C
 # End ItemIconManagerLoopCreation
+
+# SetObject Loading/Unloading per-player distance
+[[midasm_hook]]
+name = "SetObjLoadMultiplayerBranchMidAsmHook"
+address = 0x25A429
+registers = ["r0"]
+jump_address_on_true = 0x25A458
+jump_address_on_false = 0x25A42B
+
+[[midasm_hook]]
+name = "SetObjUnloadMultiplayerBranchMidAsmHook"
+address = 0x181F8F
+registers = ["r0"]
+jump_address_on_true = 0x182020
+jump_address_on_false = 0x181F95
+# End SetObject Loading/Unloading per-player distance
 
 # Add_To_Score nullsub
 [[midasm_hook]]
