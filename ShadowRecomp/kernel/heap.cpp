@@ -148,8 +148,7 @@ uint32_t XAPILIB_VirtualAlloc_r(int baseAddr, int size, int allocType, int prote
 	return g_memory.MapVirtual(g_userHeap.Alloc(size));
 }
 
-
-//heap alloc memory shit
+//heap alloc memory
 
 uint32_t AllocateHeap_r(int a1, uint32_t a2, uint32_t size, int a4, int a5, uint32_t Src)
 {
