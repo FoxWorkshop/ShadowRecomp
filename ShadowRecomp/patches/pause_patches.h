@@ -9,4 +9,4 @@ void TogglePauseBossCSD(bool toggle);
 const uint8_t GetAddedPauseItemsCount();
 bool isDrawingPauseMenuSubtitle();
 
-void AdjustPauseMenuSubtitlesPosition(void* pMatrix);
+void AdjustSubtitlesPosition(uint32_t pMatrix);

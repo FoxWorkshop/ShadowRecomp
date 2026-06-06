@@ -310,6 +310,18 @@ X86_FUNC(sub_34C140)
 	RtlLeaveCriticalSection(&fmvPtrDataLock);
 }
 
+// random crash in glyphic canyon(?) in disp land manager why?
+X86_FUNC_IMPL(__imp__sub_2DD080);
+X86_FUNC(sub_2DD080)
+{
+	auto a1 = X86_LOAD_U32(ctx.esp.u32 + 4);
+	if (!a1 || a1 < 0x10000) //safety check
+	{
+		LOGFN_ERROR("it's over this shit is gonna crash\n");
+	}
+	__imp__sub_2DD080(ctx, base);
+}
+
 int GetLoadingThreadID()
 {
 	return loadingThreadID;

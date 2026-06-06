@@ -6279,11 +6279,11 @@ X86_FUNC(sub_3CFCD0)
 {
 	X_D3DTRANSFORMSTATETYPE State = (X_D3DTRANSFORMSTATETYPE)X86_LOAD_U32(ctx.esp.u32 + 4);
 	auto matrixAddr = X86_LOAD_U32(ctx.esp.u32 + 8);
-	D3DMATRIX* pMatrix = (D3DMATRIX*)(base + matrixAddr);
+	D3DMATRIX* pMatrix = (D3DMATRIX*)g_memory.Translate(matrixAddr);
 
 	if (State == X_D3DTS_WORLD) // ensure this is the matrix used that run before rendering pause subtitles
 	{
-		AdjustPauseMenuSubtitlesPosition(pMatrix);
+		AdjustSubtitlesPosition(matrixAddr);
 	}
 
 	//we let the original code run first (todo check if that's needed)

@@ -820,3 +820,8 @@ name = "CPlatformRWDrawPrimitive2DMidAsmHook2"
 address = 0x2B2E0B
 registers = ["r4"]
 jump_address = 0x2B2E11
+
+[[midasm_hook]]
+name = "DrawHudMidAsmHook"
+address = 0x281729
+registers = ["r0"]
