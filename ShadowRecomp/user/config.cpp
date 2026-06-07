@@ -336,6 +336,12 @@ CONFIG_DEFINE_ENUM_TEMPLATE(ETextureFiltering)
     { "Linear",  ETextureFiltering::Linear }
 };
 
+CONFIG_DEFINE_ENUM_TEMPLATE(EUIAlignmentMode)
+{
+    { "Edge", EUIAlignmentMode::Edge },
+    { "Center",  EUIAlignmentMode::Centre }
+};
+
 
 #undef  CONFIG_DEFINE
 #define CONFIG_DEFINE(section, type, name, defaultValue, requiresRestart) \
