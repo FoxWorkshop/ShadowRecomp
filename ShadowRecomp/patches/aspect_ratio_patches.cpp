@@ -457,7 +457,9 @@ void Draw(X86Context& ctx, uint8_t* base, X86Func* original, void* vertexData, u
 
 	bool shouldBeSkipped = false;
 	// save original vertex values
-	float originalX[4], originalY[4];
+	float originalX[CSDVertexCount], originalY[CSDVertexCount];
+	memset(originalX, 0, sizeof(originalX));
+	memset(originalY, 0, sizeof(originalY));
 	for (int i = 0; i < CSDVertexCount; i++)
 	{
 		auto vertex = (RwD3D8Vertex*)vertexData + i;
@@ -472,9 +474,14 @@ void Draw(X86Context& ctx, uint8_t* base, X86Func* original, void* vertexData, u
 	}
 
 	const bool isCentered = Config::UIAlignmentMode.Value == EUIAlignmentMode::Centre;
+
 	if ((modifier.Flags & CSD_MODIFIER_PRESEVE_4_3_SCALE) != 0)
 	{
 
+		float aspectRatio = vpWidth / vpHeight;
+		float ratio43 = 640.f / 480.f;
+		if (aspectRatio > ratio43)
+		{
 		if (isCentered)
 		{
 			// skip draw call until vertex are meant to be visible. 
@@ -492,12 +499,14 @@ void Draw(X86Context& ctx, uint8_t* base, X86Func* original, void* vertexData, u
 
 				if (vertex)
 				{
+
 					float stretchFactor = (vpWidth / vpHeight) / (640.f / 480.f);
 					float centreX = 640.f / 2.f; // 320 in virtual space
 					vertex->x = centreX + (vertex->x - centreX) / stretchFactor;
 				}
 			}
 		}
+	}
 	}
 
 	drawOriginal();
@@ -562,13 +571,17 @@ void DrawHudMidAsmHook(X86Register& rEax)
 	auto vpHeight = float(Video::s_viewportHeight);
 	float stretchFactor = (vpWidth / vpHeight) / (640.f / 480.f);
 	float centreX = 640.f / 2.f;
-
+	float aspectRatio = vpWidth / vpHeight;
+	float ratio43 = 640.f / 480.f;
+	if (aspectRatio > ratio43)
+	{
 	RwD3D8Vertex* vertexHud = (RwD3D8Vertex*)(g_memory.Translate(rEax.u32));
 
 	for (int i = 0; i < 4; i++)
 	{
 		vertexHud[i].x = centreX + (vertexHud[i].x - centreX) / stretchFactor;
 	}
+}
 }
 
 const uint32_t GuestDevicePtrAddr = 0x3E0A18;
