@@ -24,7 +24,7 @@ static uint8_t* g_currentBuffer = nullptr;
 static std::optional<CsdModifier> g_sceneModifier{};
 static std::optional<CsdModifier> g_castNodeModifier{};
 static std::optional<CsdModifier> g_castModifier{};
-
+static uint32_t hudFlagPtr = 0;
 
 static XXH64_hash_t HashStr(const std::string_view& value)
 {
@@ -290,10 +290,20 @@ X86_FUNC(sub_2B47C0)
 	g_currentBuffer = nullptr;
 }
 
+void ToggleHud(bool toggle)
+{
+	auto base = g_memory.base;
+	X86_STORE_U16(0x54DE78, toggle ? hudFlagPtr : 0);
+}
+
 // Chao::CSD::Scene::Render
 X86_FUNC_IMPL(__imp__sub_38B5E0);
 X86_FUNC(sub_38B5E0)
 {
+	auto res = X86_LOAD_U32(0x54DE78);
+	if (res)
+		hudFlagPtr = res;
+
 	auto pSceneAddr = X86_LOAD_U32(ctx.esp.u32 + 4);
 	auto pScene = (CSDScene*)(base + pSceneAddr);
 
@@ -482,31 +492,31 @@ void Draw(X86Context& ctx, uint8_t* base, X86Func* original, void* vertexData, u
 		float ratio43 = 640.f / 480.f;
 		if (aspectRatio > ratio43)
 		{
-		if (isCentered)
-		{
-			// skip draw call until vertex are meant to be visible. 
-			// This fixes hud elements that have animation and end showing up when they 
-			// shouldn't due to vertex pos adjust.
-
-			if (shouldBeSkipped)
+			if (isCentered)
 			{
-				return;
-			}
+				// skip draw call until vertex are meant to be visible. 
+				// This fixes hud elements that have animation and end showing up when they 
+				// shouldn't due to vertex pos adjust.
 
-			for (int i = 0; i < CSDVertexCount; i++)
-			{
-				auto vertex = (RwD3D8Vertex*)vertexData + i;
-
-				if (vertex)
+				if (shouldBeSkipped)
 				{
+					return;
+				}
 
-					float stretchFactor = (vpWidth / vpHeight) / (640.f / 480.f);
-					float centreX = 640.f / 2.f; // 320 in virtual space
-					vertex->x = centreX + (vertex->x - centreX) / stretchFactor;
+				for (int i = 0; i < CSDVertexCount; i++)
+				{
+					auto vertex = (RwD3D8Vertex*)vertexData + i;
+
+					if (vertex)
+					{
+
+						float stretchFactor = (vpWidth / vpHeight) / (640.f / 480.f);
+						float centreX = 640.f / 2.f; // 320 in virtual space
+						vertex->x = centreX + (vertex->x - centreX) / stretchFactor;
+					}
 				}
 			}
 		}
-	}
 	}
 
 	drawOriginal();
@@ -566,7 +576,6 @@ void DrawHudMidAsmHook(X86Register& rEax)
 	if (Config::UIAlignmentMode.Value != EUIAlignmentMode::Centre || !rEax.u32)
 		return;
 
-
 	auto vpWidth = float(Video::s_viewportWidth);
 	auto vpHeight = float(Video::s_viewportHeight);
 	float stretchFactor = (vpWidth / vpHeight) / (640.f / 480.f);
@@ -575,13 +584,13 @@ void DrawHudMidAsmHook(X86Register& rEax)
 	float ratio43 = 640.f / 480.f;
 	if (aspectRatio > ratio43)
 	{
-	RwD3D8Vertex* vertexHud = (RwD3D8Vertex*)(g_memory.Translate(rEax.u32));
+		RwD3D8Vertex* vertexHud = (RwD3D8Vertex*)(g_memory.Translate(rEax.u32));
 
-	for (int i = 0; i < 4; i++)
-	{
-		vertexHud[i].x = centreX + (vertexHud[i].x - centreX) / stretchFactor;
+		for (int i = 0; i < 4; i++)
+		{
+			vertexHud[i].x = centreX + (vertexHud[i].x - centreX) / stretchFactor;
+		}
 	}
-}
 }
 
 const uint32_t GuestDevicePtrAddr = 0x3E0A18;
@@ -709,8 +718,8 @@ const xxHashMap<CsdModifier> g_csdModifiers =
 	{ HashStr("csdFiles/DarkGauge.xncp/Scene_0000/side1"), { CSD_MODIFIER_PRESEVE_4_3_SCALE } },
 	{ HashStr("csdFiles/DarkGauge.xncp/Scene_0000/side2"), { CSD_MODIFIER_PRESEVE_4_3_SCALE } },
 
-	{ HashStr("csdFiles/Hissatu_Hero.xncp/HissatuHero/XButton"), { CSD_MODIFIER_PRESEVE_4_3_SCALE } },
-	{ HashStr("csdFiles/Hissatu_Hero.xncp/HissatuHero/Eff_X"), { CSD_MODIFIER_PRESEVE_4_3_SCALE } },
+	{ HashStr("csdFiles/Hissatu_Hero.xncp/HissatuHero/XButton"), { CSD_MODIFIER_PRESEVE_4_3_SCALE | CSD_MODIFIER_CB } },
+	{ HashStr("csdFiles/Hissatu_Hero.xncp/HissatuHero/Eff_X"), { CSD_MODIFIER_PRESEVE_4_3_SCALE | CSD_MODIFIER_CB } },
 
 	{ HashStr("csdFiles/Hissatu_Dark.xncp/HissatuDark/YButton"), { CSD_MODIFIER_PRESEVE_4_3_SCALE } },
 	{ HashStr("csdFiles/Hissatu_Dark.xncp/HissatuDark/Eff_Y"), { CSD_MODIFIER_PRESEVE_4_3_SCALE } },
