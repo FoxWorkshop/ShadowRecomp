@@ -25,7 +25,8 @@ static const uint8_t addedPauseItemsCount = pauseItemsCount - vanillaPauseItemsC
 
 enum PauseMode : uint8_t
 {
-	ModeRunning = 2,
+	ModeRunningP1 = 2,
+	ModeRunningP2 = 3,
 	ModeRestart = 5,
 	ModeQuit = 6,
 	ModeContinue = 9,
@@ -64,6 +65,8 @@ static inline bool s_OptionsRequest = false;
 static inline bool s_quitOptionsRequest = false;
 static inline bool s_AchievementRequest = false;
 static inline uint8_t s_currentMode = 0;
+static inline uint8_t g_PlayerPauseMode = 0; // mode is 2 if player 1 open pause, but 3 if it's player 2.
+static inline bool g_animDonePlaying = false;
 
 static int8_t s_index = 0;
 static uint32_t g_pauseModeAddr = 0;
@@ -165,6 +168,19 @@ void DrawPauseText()
 		}
 	}
 
+	uint8_t playerIndex = 0;
+
+	switch (g_PlayerPauseMode) // these values are vanilla, add custom mode if player extended support is added
+	{
+	case 2:
+	default:
+		playerIndex = 0;
+		break;
+	case 3:
+		playerIndex = 1;
+		break;
+	}
+
 
 	bool upIsHeld = false;
 	bool downIsHeld = false;
@@ -173,35 +189,35 @@ void DrawPauseText()
 
 	
 
-	if (auto pInputState = PJSPeripheral::GetControllerSlot(0))
+	if (auto pInputState = PJSPeripheral::GetControllerSlot(playerIndex))
 	{
 		if (g_inputAllowed)
 		{
-			if (PJSPeripheral::IsHeld(0, PJSPeripheral::BTN_DPAD_UP) || -pInputState->leftY > 0.5f)
+			if (PJSPeripheral::IsHeld(playerIndex, PJSPeripheral::BTN_DPAD_UP) || -pInputState->leftY > 0.5f)
 				upIsHeld = true;
 
 			if (!g_upWasHeld && upIsHeld)
 				g_up = true;
 
-			if (PJSPeripheral::IsHeld(0, PJSPeripheral::BTN_DPAD_DOWN) || -pInputState->leftY < -0.5f)
+			if (PJSPeripheral::IsHeld(playerIndex, PJSPeripheral::BTN_DPAD_DOWN) || -pInputState->leftY < -0.5f)
 				downIsHeld = true;
 
 			if (!g_downWasHeld && downIsHeld)
 				g_down = true;
 
-			if (PJSPeripheral::IsHeld(0, PJSPeripheral::BTN_DPAD_LEFT) || -pInputState->leftX > 0.5f)
+			if (PJSPeripheral::IsHeld(playerIndex, PJSPeripheral::BTN_DPAD_LEFT) || -pInputState->leftX > 0.5f)
 				leftIsHeld = true;
 
 			if (!g_leftWasHeld && leftIsHeld)
 				g_left = true;
 
-			if (PJSPeripheral::IsHeld(0, PJSPeripheral::BTN_DPAD_RIGHT) || -pInputState->leftX < -0.5f)
+			if (PJSPeripheral::IsHeld(playerIndex, PJSPeripheral::BTN_DPAD_RIGHT) || -pInputState->leftX < -0.5f)
 				rightIsHeld = true;
 
 			if (!g_rightWasHeld && rightIsHeld)
 				g_right = true;
 
-			if (PJSPeripheral::IsJustPressed(0, PJSPeripheral::BTN_A) || PJSPeripheral::IsJustPressed(0, PJSPeripheral::BTN_START))
+			if (PJSPeripheral::IsJustPressed(playerIndex, PJSPeripheral::BTN_A) || PJSPeripheral::IsJustPressed(playerIndex, PJSPeripheral::BTN_START))
 				g_isAccepted = true;
 		}
 	}
@@ -322,10 +338,15 @@ X86_FUNC(sub_5AEE0)
 	g_pauseModeAddr = ctx.ecx.u32 + 0x30;
 	auto mode = X86_LOAD_U32(g_pauseModeAddr);
 
-	if (mode < ModeRunning || mode > 3)
+	if (mode == ModeRunningP1 || mode == ModeRunningP2)
+	{
+		g_PlayerPauseMode = mode;
+	}
+
+	if (mode < ModeRunningP1 || mode > 3)
 	{
 		g_inputAllowed = false;
-		if (mode < ModeRunning)
+		if (mode < ModeRunningP1)
 			s_index = SelContinue;
 	}
 
@@ -335,7 +356,7 @@ X86_FUNC(sub_5AEE0)
 		if (OptionsMenu::s_isVisible == false && AchievementMenu::s_isVisible == false)
 		{
 			s_currentMode = 0;
-			X86_STORE_U32(g_pauseModeAddr, ModeRunning);
+			X86_STORE_U32(g_pauseModeAddr, g_PlayerPauseMode);
 			s_OptionsRequest = false;
 			s_AchievementRequest = false;
 			s_quitOptionsRequest = false;
@@ -368,7 +389,7 @@ X86_FUNC(sub_5AEE0)
 
 	__imp__sub_5AEE0(ctx, base);
 
-	s_isVisible = !flagdisabled && mode == ModeRunning;
+	s_isVisible = !flagdisabled && (mode == ModeRunningP1 || mode == ModeRunningP2);
 }
 
 // This function check input and set cursor for the pause menu
@@ -382,6 +403,7 @@ X86_FUNC(sub_5AAF0)
 
 	if (g_pauseCSD) // ensure our CSD patch worked so we can allow custom input properly
 	{
+		g_animDonePlaying = X86_LOAD_U8(ctx.ecx.u32 + 0x4D) != 0;
 		if (X86_LOAD_U8(ctx.ecx.u32 + 0x4D) == 0 || s_OptionsRequest || s_AchievementRequest) // pause anim is playing, don't allow input yet
 		{
 			ctx.eax.u32 = PauseAction_None;
@@ -397,7 +419,7 @@ X86_FUNC(sub_5AAF0)
 			X86_STORE_U32(cursorAddr, (uint32_t)shadowIndex);
 		}
 
-		g_inputAllowed = true;
+		g_inputAllowed = g_animDonePlaying;
 	}
 
 	auto ecx = ctx.ecx.u32;
