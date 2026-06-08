@@ -156,10 +156,16 @@ void DrawPauseText()
 	if (s_isVisible == false || g_pauseCSD == false) // ensure our CSD patch worked so we can draw pause text safely
 		return;
 
+	auto base = g_memory.base;
+
+	bool isHudVisible = X86_LOAD_U8(0x54DE78) != 0;
+
+	if (!isHudVisible)
+		return;
 
 	if (g_pauseModeAddr)
 	{
-		auto base = g_memory.base;
+	
 		auto mode = X86_LOAD_U32(g_pauseModeAddr);
 		if (mode > 3 || s_OptionsRequest || s_AchievementRequest)
 		{
