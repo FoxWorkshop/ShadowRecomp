@@ -251,3 +251,33 @@ Achievement GetAchievement(ELanguage language, const uint8_t id)
     achievement.pImageBuffer = (uint8_t*)g_achievementsTextureCache[id].get();
     return achievement;
 }
+
+// Library has 326 ending, this is checked with index 0-325
+bool IsLibrarySequenceUnlocked(int index)
+{
+	auto base = g_memory.base;
+    auto ptr = X86_LOAD_U32(0x549640);
+
+    if (!ptr)
+		return false;
+
+    int bit = 1 << (index & 0x1F);
+
+	uint32_t address = ptr + 4 * ((unsigned int)index >> 5) + 0x16d0;
+	printf("address %08X\n", g_memory.Translate(address));
+    int word = X86_LOAD_U32(address);
+
+    // ecx = ebx = count (index)
+    //	ctx.eflags.update_test_flags_U32(X86_LOAD_U32(ctx.edx.u32 + ctx.ecx.u32 * 0x4 + 0x16d0) & ctx.eax.u32);
+    return (bit & word) != 0;
+}
+
+
+
+X86_FUNC_IMPL(__imp__sub_2924B0);
+X86_FUNC(sub_2924B0)
+{
+
+   // IsLibrarySequenceUnlocked(0);
+    __imp__sub_2924B0(ctx, base);
+}
