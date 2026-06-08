@@ -294,6 +294,7 @@ void ToggleHud(bool toggle)
 {
 	auto base = g_memory.base;
 	X86_STORE_U16(0x54DE78, toggle ? hudFlagPtr : 0);
+	X86_STORE_U8(0x4E4B74, toggle ? 1 : 0);
 }
 
 // Chao::CSD::Scene::Render
