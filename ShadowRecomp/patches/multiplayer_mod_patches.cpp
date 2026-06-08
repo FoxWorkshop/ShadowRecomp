@@ -3,7 +3,7 @@
 #include <user/config.h>
 
 // Uncomment the define below to enable
-// #define EnableMultiplayerMod
+#define EnableMultiplayerMod
 
 #ifdef EnableMultiplayerMod
 // Skip 2P Intro Event by patching StageAction::Change - NOTE DANGEROUS!! Should be replaced later
