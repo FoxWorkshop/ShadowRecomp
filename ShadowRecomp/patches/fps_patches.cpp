@@ -43,19 +43,21 @@ std::unordered_map<uint32_t, float> g_sfxTimers;
 void SFXTimingMidAsmHook(X86Register &esi)
 {
 	auto base = g_memory.base; // use base for the load and store macro.
-	g_sfxTimers[esi.u32] += X86_LOAD_F32(g_deltaTime) * 60.f; 
 
 	uint32_t timerAddr = esi.u32 + 0xc;
-	uint16_t res = X86_LOAD_U16(timerAddr) + 1; // restore og value that the game removed using hardcoded 60 fps.
-	X86_STORE_U16(timerAddr, res); // this is needed in case steps condition below doesn't pass even though it's redundant.
+	uint16_t timer = X86_LOAD_U16(timerAddr) + 1; // restore og value that the game removed using hardcoded 60 fps.
 
-	int steps = (int)g_sfxTimers[esi.u32];
+	g_sfxTimers[esi.u32] += X86_LOAD_F32(g_deltaTime) * 60.f;
+	int steps = (int)(g_sfxTimers[esi.u32] + 0.5f); // use extra 0.5 for rounding, avoid having 0.999960 that prevent step to pass.
 	if (steps > 0) 
 	{
 		g_sfxTimers[esi.u32] -= steps;
-		res -= (uint16_t)steps;
-		X86_STORE_U16(timerAddr, res);
+		int result = (int)timer - steps;
+		timer = (uint16_t)std::max(result, 0);
 	}
+
+
+	X86_STORE_U16(timerAddr, timer);
 }
 
 void FreeSFXMapMidAsmHook(X86Register& esi)
