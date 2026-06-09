@@ -317,7 +317,7 @@ X86_FUNC(sub_2DD080)
 	auto a1 = X86_LOAD_U32(ctx.esp.u32 + 4);
 	if (!a1 || a1 < 0x10000) //safety check
 	{
-		LOGFN_ERROR("it's over this shit is gonna crash\n");
+		LOGFN_ERROR("it's over this shit is gonna crash\n", "GG");
 	}
 	__imp__sub_2DD080(ctx, base);
 }
