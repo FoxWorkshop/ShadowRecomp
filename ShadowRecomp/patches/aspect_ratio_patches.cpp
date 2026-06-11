@@ -447,7 +447,16 @@ void Draw(X86Context& ctx, uint8_t* base, X86Func* original, void* vertexData, u
 		}
 	}
 
-	float pauseYOffset = 15.f * GetAddedPauseItemsCount();
+	const bool isPauseBossWithExtendBottom = ((modifier.Flags & CSD_PAUSE_BOSS) != 0 && ((modifier.Flags & CSD_EXTEND_BOTTOM) != 0));
+	
+	uint8_t pauseItemCount = GetAddedPauseItemsCount();
+
+	if (isPauseBossWithExtendBottom && pauseItemCount >= 2) // pause boss csd already have a big enough background to support 4 options
+		pauseItemCount -= 1;
+
+	float pauseYOffset = 15.f * (float)(pauseItemCount);
+
+
 	if ((modifier.Flags & CSD_HIDE_PAUSE) != 0)
 	{
 		for (int i = 0; i < CSDVertexCount; i++)
@@ -638,6 +647,8 @@ const xxHashMap<CsdModifier> g_csdModifiers =
 	{ HashStr("csdFiles/pause/pauseBoss.xncp/Pause/PauseText"), { CSD_SKIP | CSD_HIDE_PAUSE | CSD_PAUSE_BOSS } },
 	{ HashStr("csdFiles/pause/pause.xncp/Pause/Pause/Null_pause/bottom"), { CSD_HIDE_PAUSE | CSD_EXTEND_BOTTOM } },
 	{ HashStr("csdFiles/pause/pause.xncp/Pause/Pause/Null_pause/bg"), { CSD_HIDE_PAUSE | CSD_EXTEND_BOTTOM } },
+	{ HashStr("csdFiles/pause/pauseBoss.xncp/Pause/Pause/Null_pause/bottom"), { CSD_HIDE_PAUSE | CSD_EXTEND_BOTTOM | CSD_PAUSE_BOSS } },
+	{ HashStr("csdFiles/pause/pauseBoss.xncp/Pause/Pause/Null_pause/bg"), { CSD_HIDE_PAUSE | CSD_EXTEND_BOTTOM | CSD_PAUSE_BOSS } },
 
 	// this is to move the mission board vertex below due to the pause menu bg being extended reaching the mission board position
 	{ HashStr("csdFiles/pause/pause.xncp/Pause/Mission_Board/Null_0189/bg1"), { CSD_HIDE_PAUSE | CSD_MOVE_BOTTOM } },
