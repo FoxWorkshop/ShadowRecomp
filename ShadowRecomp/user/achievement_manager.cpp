@@ -10,6 +10,13 @@
 #include <res/images/common/pure_dark.png.h>
 #include <res/images/common/neutral_hero.png.h>
 #include <res/images/common/PlaceHolder.png.h>
+#include <res/images/common/overlay.png.h>
+#include <res/images/common/pure_hero_dark.png.h>
+#include <res/images/common/hero_hero.png.h>
+#include <res/images/common/hero_dark.png.h>
+#include <res/images/common/dark_dark.png.h>
+#include <res/images/common/dark_hero.png.h>
+
 #include <decompressor.h>
 #include <ui/achievement_overlay.h>
 
@@ -65,6 +72,7 @@ void AchievementManager::Unlock(uint16_t id)
     if (IsUnlocked(id))
         return;
 
+    Data.Records[id].ID = id;
     Data.Records[id].Timestamp = std::chrono::system_clock::to_time_t(std::chrono::system_clock::now());
 
     if (Config::AchievementNotifications)
@@ -188,8 +196,18 @@ std::unique_ptr<GuestTexture> LoadAchivementTexture(uint16_t id)
     {
     case 1:
         return LOAD_ZSTD_TEXTURE(g_puredark);
+    case 3:
+        return LOAD_ZSTD_TEXTURE(g_darkdark);
+    case 4:
+        return LOAD_ZSTD_TEXTURE(g_darkhero);
     case 6:
         return LOAD_ZSTD_TEXTURE(g_neutralhero);
+    case 7:
+        return LOAD_ZSTD_TEXTURE(g_herodark);
+    case 8:
+        return LOAD_ZSTD_TEXTURE(g_herohero);
+    case 9:
+        return LOAD_ZSTD_TEXTURE(g_pureherodark);
     case 10:
         return LOAD_ZSTD_TEXTURE(g_purehero);
     }
