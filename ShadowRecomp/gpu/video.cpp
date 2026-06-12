@@ -4089,6 +4089,12 @@ static void DrawProfiler()
 	font->Scale = defaultScale;
 }
 
+static double s_fps = 0.0;
+double GetFPS()
+{
+	return s_fps;
+}
+
 static void DrawFPS()
 {
 
@@ -4107,6 +4113,7 @@ static void DrawFPS()
 	if (time - updateTime >= 1.0f)
 	{
 		fps = 1000.0 / std::max(totalDeltaTime / double(totalDeltaCount), 1.0);
+		s_fps = fps;
 		updateTime = time;
 		totalDeltaTime = 0.0;
 		totalDeltaCount = 0;
