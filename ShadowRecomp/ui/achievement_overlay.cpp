@@ -23,7 +23,7 @@ static std::thread::id g_mainThreadId = std::this_thread::get_id();
 
 static bool CanDequeueAchievement()
 {
-    return std::this_thread::get_id() == g_mainThreadId && !AchievementOverlay::s_queue.empty();
+    return !AchievementOverlay::s_queue.empty();
 }
 
 void AchievementOverlay::Draw()
@@ -75,7 +75,7 @@ void AchievementOverlay::Draw()
     auto textMarginY = (min.y + (containerHeight / 2)) - (maxHeight / 2);
 
     // TO DO
-    float windowMotion = 0.0f; // DrawWindow(min, max, true, g_appearTime, g_isClosing);
+    float windowMotion = 1.0f; // DrawWindow(min, max, true, g_appearTime, g_isClosing);
 
     if (windowMotion >= 1.0)
     {
@@ -122,7 +122,7 @@ void AchievementOverlay::Draw()
         s_isVisible = false;
     }
 
-    drawList->PopClipRect();
+    //drawList->PopClipRect();
 }
 
 void AchievementOverlay::Open(int id)

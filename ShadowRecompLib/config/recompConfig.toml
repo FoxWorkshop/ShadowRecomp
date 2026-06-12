@@ -825,3 +825,8 @@ jump_address = 0x2B2E11
 name = "DrawHudMidAsmHook"
 address = 0x281729
 registers = ["r0"]
+
+[[midasm_hook]]
+name = "SetEndingAchievementMidAsmHook"
+address = 0x23D620
+registers = ["r2"]

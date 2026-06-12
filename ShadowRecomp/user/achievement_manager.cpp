@@ -11,6 +11,7 @@
 #include <res/images/common/neutral_hero.png.h>
 #include <res/images/common/PlaceHolder.png.h>
 #include <decompressor.h>
+#include <ui/achievement_overlay.h>
 
 std::unordered_map<uint16_t, std::unique_ptr<GuestTexture>> g_achievementsTextureCache;
 
@@ -64,18 +65,10 @@ void AchievementManager::Unlock(uint16_t id)
     if (IsUnlocked(id))
         return;
 
-    for (int i = 0; i < NUM_RECORDS; i++)
-    {
-        if (Data.Records[i].ID == 0)
-        {
-            Data.Records[i].ID = id;
-            Data.Records[i].Timestamp = std::chrono::system_clock::to_time_t(std::chrono::system_clock::now());
-            break;
-        }
-    }
+    Data.Records[id].Timestamp = std::chrono::system_clock::to_time_t(std::chrono::system_clock::now());
 
-    /**if (Config::AchievementNotifications)
-        AchievementOverlay::Open(id);*/
+    if (Config::AchievementNotifications)
+        AchievementOverlay::Open(id);
 }
 
 void AchievementManager::UnlockAll()
@@ -194,11 +187,11 @@ std::unique_ptr<GuestTexture> LoadAchivementTexture(uint16_t id)
     switch (id)
     {
     case 1:
-        return LOAD_ZSTD_TEXTURE(g_purehero);
-    case 2:
         return LOAD_ZSTD_TEXTURE(g_puredark);
-    case 3:
+    case 6:
         return LOAD_ZSTD_TEXTURE(g_neutralhero);
+    case 10:
+        return LOAD_ZSTD_TEXTURE(g_purehero);
     }
 
     return LOAD_ZSTD_TEXTURE(g_placeholder);
@@ -272,12 +265,37 @@ bool IsLibrarySequenceUnlocked(int index)
     return (bit & word) != 0;
 }
 
-
-
-X86_FUNC_IMPL(__imp__sub_2924B0);
-X86_FUNC(sub_2924B0)
+//  this match the route map order so far
+// 0 = dark ending, this might be 0-9 to check the 10 endings
+// 4 neutral dark ending 
+// 5 = neutral hero ending
+bool IsEndingUnlocked(uint16_t flag)
 {
+    auto base = g_memory.base;
+    auto ptr = X86_LOAD_U32(0x549640);
 
-   // IsLibrarySequenceUnlocked(0);
-    __imp__sub_2924B0(ctx, base);
+    if (!ptr)
+        return false;
+
+    uint32_t address = ptr + 0xB88;
+
+    int ptrAddr = X86_LOAD_U32(address);
+
+    auto ptrFLag = (uint8_t*)g_memory.Translate(ptrAddr);
+    if ((*((WORD*)ptrFLag) & (unsigned __int16)flag) != 0)
+    {
+        return true;
+
+    }
+
+    return false;
+}
+
+void SetEndingAchievementMidAsmHook(X86Register& rEcx)
+{
+   const uint8_t id = rEcx.u8_lo;
+    if (id > 9 || id < 0)
+        return;
+
+    AchievementManager::Unlock(id);
 }
