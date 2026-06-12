@@ -304,6 +304,6 @@ void SetEndingAchievementMidAsmHook(X86Register& rEcx)
     if (id > 9 || id < 0)
         return;
 
-    AchievementManager::Unlock(id);
+    AchievementManager::Unlock(id + 1);
     AchievementManager::SaveBinary();
 }
