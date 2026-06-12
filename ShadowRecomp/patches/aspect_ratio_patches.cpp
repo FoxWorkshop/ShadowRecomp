@@ -493,41 +493,6 @@ void Draw(X86Context& ctx, uint8_t* base, X86Func* original, void* vertexData, u
 		}
 	}
 
-	const bool isCentered = Config::UIAlignmentMode.Value == EUIAlignmentMode::Centre;
-
-	if ((modifier.Flags & CSD_MODIFIER_PRESEVE_4_3_SCALE) != 0)
-	{
-
-		float aspectRatio = vpWidth / vpHeight;
-		float ratio43 = 640.f / 480.f;
-		if (aspectRatio > ratio43)
-		{
-			if (isCentered)
-			{
-				// skip draw call until vertex are meant to be visible. 
-				// This fixes hud elements that have animation and end showing up when they 
-				// shouldn't due to vertex pos adjust.
-
-				if (shouldBeSkipped)
-				{
-					return;
-				}
-
-				for (int i = 0; i < CSDVertexCount; i++)
-				{
-					auto vertex = (RwD3D8Vertex*)vertexData + i;
-
-					if (vertex)
-					{
-
-						float stretchFactor = (vpWidth / vpHeight) / (640.f / 480.f);
-						float centreX = 640.f / 2.f; // 320 in virtual space
-						vertex->x = centreX + (vertex->x - centreX) / stretchFactor;
-					}
-				}
-			}
-		}
-	}
 
 	drawOriginal();
 
@@ -545,20 +510,6 @@ void Draw(X86Context& ctx, uint8_t* base, X86Func* original, void* vertexData, u
 			if ((modifier.Flags & CSD_MOVE_BOTTOM) != 0)
 			{
 				csdVertex[i].y -= round(pauseYOffset);
-			}
-		}
-	}
-
-
-	if ((modifier.Flags & CSD_MODIFIER_PRESEVE_4_3_SCALE) != 0)
-	{
-		if (isCentered)
-		{
-			for (int i = 0; i < CSDVertexCount; i++)
-			{
-				auto vertex = (RwD3D8Vertex*)vertexData + i;
-				vertex->x = originalX[i];
-				vertex->y = originalY[i];
 			}
 		}
 	}
@@ -682,86 +633,6 @@ const xxHashMap<CsdModifier> g_csdModifiers =
 	{ HashStr("csdFiles/pause/pause.xncp/Pause/ChangeMission/arrow_right"), { CSD_HIDE_PAUSE | CSD_MOVE_BOTTOM } },
 	{ HashStr("csdFiles/pause/pause.xncp/Pause/SRText/text"), { CSD_HIDE_PAUSE | CSD_MOVE_BOTTOM } },
 	{ HashStr("csdFiles/pause/pause.xncp/Pause/SRText/button"), { CSD_HIDE_PAUSE | CSD_MOVE_BOTTOM } },
-
-
-	// centered hud
-	{ HashStr("csdFiles/InfoWindow.xncp/Ring"), { CSD_MODIFIER_PRESEVE_4_3_SCALE } },
-	{ HashStr("csdFiles/InfoWindow.xncp/Ring/Null_0000"), { CSD_MODIFIER_PRESEVE_4_3_SCALE } },
-	{ HashStr("csdFiles/InfoWindow.xncp/Ring/Null_0000/ring"), { CSD_MODIFIER_PRESEVE_4_3_SCALE } },
-	{ HashStr("csdFiles/InfoWindow.xncp/Zanki"), { CSD_MODIFIER_PRESEVE_4_3_SCALE } },
-	{ HashStr("csdFiles/InfoWindow.xncp/Zanki/Null_0000"), { CSD_MODIFIER_PRESEVE_4_3_SCALE } },
-	{ HashStr("csdFiles/InfoWindow.xncp/Zanki/Null_0000/key"), { CSD_MODIFIER_PRESEVE_4_3_SCALE } },
-	{ HashStr("csdFiles/InfoWindow.xncp/Zanki/Null_0000/zanki"), { CSD_MODIFIER_PRESEVE_4_3_SCALE } },
-
-	{ HashStr("csdFiles/CommandWindow.xncp/CarMeter"), { CSD_MODIFIER_PRESEVE_4_3_SCALE } },
-	{ HashStr("csdFiles/CommandWindow.xncp/CarMeter/outline"), { CSD_MODIFIER_PRESEVE_4_3_SCALE } },
-	{ HashStr("csdFiles/CommandWindow.xncp/CarMeter/meter_bg"), { CSD_MODIFIER_PRESEVE_4_3_SCALE } },
-	{ HashStr("csdFiles/CommandWindow.xncp/CarMeter/meter"), { CSD_MODIFIER_PRESEVE_4_3_SCALE } },
-	{ HashStr("csdFiles/CommandWindow.xncp/Car_BCom"), { CSD_MODIFIER_PRESEVE_4_3_SCALE } },
-	{ HashStr("csdFiles/CommandWindow.xncp/Car_BCom/Null"), { CSD_MODIFIER_PRESEVE_4_3_SCALE } },
-	{ HashStr("csdFiles/CommandWindow.xncp/Car_BCom/Null/button2"), { CSD_MODIFIER_PRESEVE_4_3_SCALE } },
-	{ HashStr("csdFiles/CommandWindow.xncp/Car_BCom/Null/icon_car"), { CSD_MODIFIER_PRESEVE_4_3_SCALE } },
-	{ HashStr("csdFiles/CommandWindow.xncp/Weapon"), { CSD_MODIFIER_PRESEVE_4_3_SCALE } },
-	{ HashStr("csdFiles/CommandWindow.xncp/Weapon/weapon"), { CSD_MODIFIER_PRESEVE_4_3_SCALE } },
-	{ HashStr("csdFiles/CommandWindow.xncp/Weapon/weapon/button1"), { CSD_MODIFIER_PRESEVE_4_3_SCALE } },
-	{ HashStr("csdFiles/CommandWindow.xncp/Weapon/weapon/icon_gun"), { CSD_MODIFIER_PRESEVE_4_3_SCALE } },
-	{ HashStr("csdFiles/CommandWindow.xncp/Window"), { CSD_MODIFIER_PRESEVE_4_3_SCALE } },
-	{ HashStr("csdFiles/CommandWindow.xncp/Window/window"), { CSD_MODIFIER_PRESEVE_4_3_SCALE } },
-	{ HashStr("csdFiles/CommandWindow.xncp/Window/window/window2"), { CSD_MODIFIER_PRESEVE_4_3_SCALE } },
-	{ HashStr("csdFiles/CommandWindow.xncp/Window/window/window1"), { CSD_MODIFIER_PRESEVE_4_3_SCALE } },
-	{ HashStr("csdFiles/CommandWindow.xncp/Window/window/info_bg2"), { CSD_MODIFIER_PRESEVE_4_3_SCALE } },
-	{ HashStr("csdFiles/CommandWindow.xncp/Window/window/info_bg"), { CSD_MODIFIER_PRESEVE_4_3_SCALE } },
-
-	{ HashStr("csdFiles/HeroGauge.xncp/Scene_0000"), { CSD_MODIFIER_PRESEVE_4_3_SCALE } },
-	{ HashStr("csdFiles/HeroGauge.xncp/Scene_0000/bar_bg"), { CSD_MODIFIER_PRESEVE_4_3_SCALE } },
-	{ HashStr("csdFiles/HeroGauge.xncp/Scene_0000/meter_main1"), { CSD_MODIFIER_PRESEVE_4_3_SCALE } },
-	{ HashStr("csdFiles/HeroGauge.xncp/Scene_0000/meter_main2"), { CSD_MODIFIER_PRESEVE_4_3_SCALE } },
-	{ HashStr("csdFiles/HeroGauge.xncp/Scene_0000/meter_main3"), { CSD_MODIFIER_PRESEVE_4_3_SCALE } },
-	{ HashStr("csdFiles/HeroGauge.xncp/Scene_0000/bar"), { CSD_MODIFIER_PRESEVE_4_3_SCALE } },
-	{ HashStr("csdFiles/HeroGauge.xncp/Scene_0000/meter_RSide"), { CSD_MODIFIER_PRESEVE_4_3_SCALE } },
-	{ HashStr("csdFiles/HeroGauge.xncp/Scene_0000/meter_side"), { CSD_MODIFIER_PRESEVE_4_3_SCALE } },
-
-	{ HashStr("csdFiles/DarkGauge.xncp/Scene_0000"), { CSD_MODIFIER_PRESEVE_4_3_SCALE } },
-	{ HashStr("csdFiles/DarkGauge.xncp/Scene_0000/meter_bg"), { CSD_MODIFIER_PRESEVE_4_3_SCALE } },
-	{ HashStr("csdFiles/DarkGauge.xncp/Scene_0000/main1"), { CSD_MODIFIER_PRESEVE_4_3_SCALE } },
-	{ HashStr("csdFiles/DarkGauge.xncp/Scene_0000/main2"), { CSD_MODIFIER_PRESEVE_4_3_SCALE } },
-	{ HashStr("csdFiles/DarkGauge.xncp/Scene_0000/main3"), { CSD_MODIFIER_PRESEVE_4_3_SCALE } },
-	{ HashStr("csdFiles/DarkGauge.xncp/Scene_0000/meter"), { CSD_MODIFIER_PRESEVE_4_3_SCALE } },
-	{ HashStr("csdFiles/DarkGauge.xncp/Scene_0000/side1"), { CSD_MODIFIER_PRESEVE_4_3_SCALE } },
-	{ HashStr("csdFiles/DarkGauge.xncp/Scene_0000/side2"), { CSD_MODIFIER_PRESEVE_4_3_SCALE } },
-
-	{ HashStr("csdFiles/Hissatu_Hero.xncp/HissatuHero/XButton"), { CSD_MODIFIER_PRESEVE_4_3_SCALE | CSD_MODIFIER_CB } },
-	{ HashStr("csdFiles/Hissatu_Hero.xncp/HissatuHero/Eff_X"), { CSD_MODIFIER_PRESEVE_4_3_SCALE | CSD_MODIFIER_CB } },
-
-	{ HashStr("csdFiles/Hissatu_Dark.xncp/HissatuDark/YButton"), { CSD_MODIFIER_PRESEVE_4_3_SCALE } },
-	{ HashStr("csdFiles/Hissatu_Dark.xncp/HissatuDark/Eff_Y"), { CSD_MODIFIER_PRESEVE_4_3_SCALE } },
-
-	{ HashStr("csdFiles/TWindow.xncp/TargetWindow"), { CSD_MODIFIER_PRESEVE_4_3_SCALE } },
-	{ HashStr("csdFiles/TWindow.xncp/TargetWindow/TargetDark/Null_dark"), { CSD_MODIFIER_PRESEVE_4_3_SCALE } },
-	{ HashStr("csdFiles/TWindow.xncp/TargetWindow/TargetDark/Null_dark/dark_icon"), { CSD_MODIFIER_PRESEVE_4_3_SCALE } },
-	{ HashStr("csdFiles/TWindow.xncp/TargetWindow/TargetDark/Null_dark/Cast_0005"), { CSD_MODIFIER_PRESEVE_4_3_SCALE } },
-	{ HashStr("csdFiles/TWindow.xncp/TargetWindow/TargetDark/Null_dark/Cast_0005/Cast_0006"), { CSD_MODIFIER_PRESEVE_4_3_SCALE } },
-	{ HashStr("csdFiles/TWindow.xncp/TargetWindow/TargetHero"), { CSD_MODIFIER_PRESEVE_4_3_SCALE } },
-	{ HashStr("csdFiles/TWindow.xncp/TargetWindow/TargetHero/Null_hero"), { CSD_MODIFIER_PRESEVE_4_3_SCALE } },
-	{ HashStr("csdFiles/TWindow.xncp/TargetWindow/TargetHero/Null_hero/hero_icon"), { CSD_MODIFIER_PRESEVE_4_3_SCALE } },
-	{ HashStr("csdFiles/TWindow.xncp/TargetWindow/TargetHero/Null_hero/Cast_0003"), { CSD_MODIFIER_PRESEVE_4_3_SCALE } },
-	{ HashStr("csdFiles/TWindow.xncp/TargetWindow/TargetHero/Null_hero/Cast_0003/Cast_0004"), { CSD_MODIFIER_PRESEVE_4_3_SCALE } },
-
-	{ HashStr("csdFiles/2P_Ring.xncp/Ring1P/Null_ring/ring"), { CSD_MODIFIER_PRESEVE_4_3_SCALE } },
-	{ HashStr("csdFiles/2P_Ring.xncp/Ring2P/Null_ring/ring"), { CSD_MODIFIER_PRESEVE_4_3_SCALE } },
-	{ HashStr("csdFiles/2P_CommandWindow.xncp/Window/window/info_bg"), { CSD_MODIFIER_PRESEVE_4_3_SCALE } },
-	{ HashStr("csdFiles/2P_CommandWindow.xncp/Window/window/info_bg2"), { CSD_MODIFIER_PRESEVE_4_3_SCALE } },
-	{ HashStr("csdFiles/2P_CommandWindow.xncp/Window/window/window1"), { CSD_MODIFIER_PRESEVE_4_3_SCALE } },
-	{ HashStr("csdFiles/2P_CommandWindow.xncp/Window/window/window2"), { CSD_MODIFIER_PRESEVE_4_3_SCALE } },
-	{ HashStr("csdFiles/2P_CommandWindow.xncp/Weapon/weapon/icon_gun"), { CSD_MODIFIER_PRESEVE_4_3_SCALE } },
-	{ HashStr("csdFiles/2P_CommandWindow.xncp/Weapon/weapon/button1"), { CSD_MODIFIER_PRESEVE_4_3_SCALE } },
-	{ HashStr("csdFiles/2P_CommandWindow.xncp/Car_BCom/Null/icon_car"), { CSD_MODIFIER_PRESEVE_4_3_SCALE } },
-	{ HashStr("csdFiles/2P_CommandWindow.xncp/Car_BCom/Null/button2"), { CSD_MODIFIER_PRESEVE_4_3_SCALE } },
-	{ HashStr("csdFiles/2P_CommandWindow.xncp/CarMeter/outline"), { CSD_MODIFIER_PRESEVE_4_3_SCALE } },
-	{ HashStr("csdFiles/2P_CommandWindow.xncp/CarMeter/meter_bg"), { CSD_MODIFIER_PRESEVE_4_3_SCALE } },
-	{ HashStr("csdFiles/2P_CommandWindow.xncp/CarMeter/meter"), { CSD_MODIFIER_PRESEVE_4_3_SCALE } },
-
-
 };
 
 std::optional<CsdModifier> FindCsdModifier(uint32_t data)
