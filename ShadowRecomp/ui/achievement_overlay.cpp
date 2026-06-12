@@ -9,8 +9,12 @@
 #include <exports.h>
 #include <user/achievement_manager.h>
 #include <gpu/imgui/imgui_snapshot.h>
+#include <res/images/common/overlay.png.h>
+#include <decompressor.h>
 
 constexpr double OVERLAY_DURATION = 5.0;
+
+std::unique_ptr<GuestTexture> g_upTexWindow;
 
 static bool g_isClosing{};
 static double g_appearTime{};
@@ -24,6 +28,43 @@ static std::thread::id g_mainThreadId = std::this_thread::get_id();
 static bool CanDequeueAchievement()
 {
     return !AchievementOverlay::s_queue.empty();
+}
+
+static double DrawWindow(const ImVec2 min, const ImVec2 max, bool isAnimated, double time, bool isClosing)
+{
+    auto drawList = ImGui::GetBackgroundDrawList();
+    auto motionTime = 1.0;
+
+    auto _min = min;
+    auto _max = max;
+
+    if (isAnimated)
+    {
+        motionTime = ComputeLinearMotion(time, 0, 8, isClosing);
+
+        auto centre = ImVec2{ min.x + ((max.x - min.x) / 2), min.y + ((max.y - min.y) / 2) };
+
+        _min = Lerp(centre, min, motionTime);
+        _max = Lerp(centre, max, motionTime);
+    }
+
+    constexpr auto containerTopColour = IM_COL32(20, 56, 130, 200);
+    constexpr auto containerBottomColour = IM_COL32(8, 22, 51, 200);
+
+    drawList->AddRectFilledMultiColor(_min, _max, containerTopColour, containerTopColour, containerBottomColour, containerBottomColour);
+
+    auto windowUV = PIXELS_TO_UV_COORDS(264, 64, 40, 5, 235, 60);
+
+    auto lineScale = Scale(1);
+
+
+    // Window
+    drawList->AddImage(g_upTexWindow.get(), _min, { _max.x, _min.y + lineScale }, GET_UV_COORDS(windowUV));
+
+
+    drawList->PushClipRect(_min, _max);
+
+    return motionTime;
 }
 
 void AchievementOverlay::Draw()
@@ -75,7 +116,7 @@ void AchievementOverlay::Draw()
     auto textMarginY = (min.y + (containerHeight / 2)) - (maxHeight / 2);
 
     // TO DO
-    float windowMotion = 1.0f; // DrawWindow(min, max, true, g_appearTime, g_isClosing);
+    float windowMotion = DrawWindow(min, max, true, g_appearTime, g_isClosing);
 
     if (windowMotion >= 1.0)
     {
@@ -122,7 +163,7 @@ void AchievementOverlay::Draw()
         s_isVisible = false;
     }
 
-    //drawList->PopClipRect();
+    drawList->PopClipRect();
 }
 
 void AchievementOverlay::Open(int id)
@@ -146,4 +187,5 @@ void AchievementOverlay::Init()
 {
 
     g_fntSeurat = ImFontAtlasSnapshot::GetFont("FOT-SeuratPro-DB.otf");
+    g_upTexWindow = LOAD_ZSTD_TEXTURE(g_overlayAchievements);
 }

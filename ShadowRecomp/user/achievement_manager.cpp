@@ -1,7 +1,7 @@
 #include "achievement_manager.h"
 #include <os/logger.h>
-//#include <ui/achievement_overlay.h>
 #include <user/config.h>
+#include <ui/achievement_overlay.h>
 #include <gpu//video.h>
 
 
@@ -16,9 +16,7 @@
 #include <res/images/common/hero_dark.png.h>
 #include <res/images/common/dark_dark.png.h>
 #include <res/images/common/dark_hero.png.h>
-
 #include <decompressor.h>
-#include <ui/achievement_overlay.h>
 
 std::unordered_map<uint16_t, std::unique_ptr<GuestTexture>> g_achievementsTextureCache;
 
@@ -55,11 +53,11 @@ size_t AchievementManager::GetTotalRecords()
 
 bool AchievementManager::IsUnlocked(uint16_t id)
 {
-    for (int i = 0; i < NUM_RECORDS; i++)
-    {
-        if (!Data.Records[i].ID)
-            break;
+    if (!id)
+        return false;
 
+    for (int i = 1; i < NUM_RECORDS; i++)
+    {
         if (Data.Records[i].ID == id)
             return true;
     }
@@ -92,7 +90,9 @@ void AchievementManager::Reset()
 
 bool AchievementManager::LoadBinary()
 {
+
     AchievementManager::Reset();
+
 
     BinStatus = EAchBinStatus::Success;
 
@@ -114,7 +114,7 @@ bool AchievementManager::LoadBinary()
     if (fileSize != dataSize)
     {
         BinStatus = EAchBinStatus::BadFileSize;
-        return false;
+        return true;
     }
 
     std::ifstream file(dataPath, std::ios::binary);
@@ -122,7 +122,7 @@ bool AchievementManager::LoadBinary()
     if (!file)
     {
         BinStatus = EAchBinStatus::IOError;
-        return false;
+        return true;
     }
 
     AchievementData data{};
@@ -133,7 +133,7 @@ bool AchievementManager::LoadBinary()
     {
         BinStatus = EAchBinStatus::BadSignature;
         file.close();
-        return false;
+        return true;
     }
 
     file.read((char*)&data.Version, sizeof(data.Version));
@@ -142,7 +142,7 @@ bool AchievementManager::LoadBinary()
     {
         BinStatus = EAchBinStatus::BadVersion;
         file.close();
-        return false;
+        return true;
     }
 
     file.seekg(0);
@@ -152,14 +152,14 @@ bool AchievementManager::LoadBinary()
     {
         BinStatus = EAchBinStatus::BadChecksum;
         file.close();
-        return false;
+        return true;
     }
 
     file.close();
 
     memcpy(&Data, &data, dataSize);
 
-    return true;
+    return false;
 }
 
 bool AchievementManager::SaveBinary(bool ignoreStatus)
@@ -236,15 +236,7 @@ std::vector<Achievement> GetAchievements(ELanguage language)
         achievement.UnlockedDesc = g_shrLocale[i + 1][language].UnlockedDesc;
         achievement.LockedDesc = g_shrLocale[i + 1][language].LockedDesc;
         achievement.pImageBuffer = (uint8_t*)g_achievementsTextureCache[i + 1].get();
-        //  achievement.Score = entry->Gamerscore;
 
-        /**auto imageBlock = GetResource(XDBF_SPA_NAMESPACE_IMAGE, entry->ImageID);
-
-        if (imageBlock)
-        {
-            achievement.pImageBuffer = imageBlock.pBuffer;
-            achievement.ImageBufferSize = imageBlock.BufferSize;
-        }*/
 
         result.push_back(achievement);
     }
@@ -316,4 +308,5 @@ void SetEndingAchievementMidAsmHook(X86Register& rEcx)
         return;
 
     AchievementManager::Unlock(id);
+    AchievementManager::SaveBinary();
 }
