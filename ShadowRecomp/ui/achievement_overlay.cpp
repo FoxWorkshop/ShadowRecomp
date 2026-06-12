@@ -55,11 +55,10 @@ static double DrawWindow(const ImVec2 min, const ImVec2 max, bool isAnimated, do
 
     auto windowUV = PIXELS_TO_UV_COORDS(264, 64, 40, 5, 235, 60);
 
-    auto lineScale = Scale(1);
 
 
     // Window
-    drawList->AddImage(g_upTexWindow.get(), _min, { _max.x, _min.y + lineScale }, GET_UV_COORDS(windowUV));
+    //drawList->AddImage(g_upTexWindow.get(), min, max, GET_UV_COORDS(windowUV));
 
 
     drawList->PushClipRect(_min, _max);
@@ -115,7 +114,7 @@ void AchievementOverlay::Draw()
     // Calculate centred vertical text offset.
     auto textMarginY = (min.y + (containerHeight / 2)) - (maxHeight / 2);
 
-    // TO DO
+
     float windowMotion = DrawWindow(min, max, true, g_appearTime, g_isClosing);
 
     if (windowMotion >= 1.0)

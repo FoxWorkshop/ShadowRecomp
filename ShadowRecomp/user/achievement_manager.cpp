@@ -26,9 +26,6 @@ time_t AchievementManager::GetTimestamp(uint16_t id)
 {
     for (int i = 0; i < NUM_RECORDS; i++)
     {
-        if (!Data.Records[i].ID)
-            break;
-
         if (Data.Records[i].ID == id)
             return Data.Records[i].Timestamp;
     }
