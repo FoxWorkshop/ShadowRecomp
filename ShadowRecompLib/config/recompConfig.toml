@@ -835,3 +835,7 @@ registers = ["r2"]
 name = "UpdateARankCountMidAsmHook"
 address = 0x237CD4
 registers = ["r3"]
+
+[[midasm_hook]]
+name = "StageActionGoalActionMidAsmHook"
+address = 0x16EF87

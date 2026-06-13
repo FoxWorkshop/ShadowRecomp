@@ -18,6 +18,13 @@
 #include <res/images/common/dark_hero.png.h>
 #include <decompressor.h>
 
+enum EAchievementID
+{
+    Ach_LastStory = 11,
+    Ach_AllARanks = 12,
+    Ach_AllKeys = 13,
+    Ach_ExpertMode = 14,
+};
 std::unordered_map<uint16_t, std::unique_ptr<GuestTexture>> g_achievementsTextureCache;
 
 #define NUM_RECORDS sizeof(AchievementManager::Data.Records) / sizeof(AchievementData::SHRRecord)
@@ -326,7 +333,7 @@ void UpdateARankCountMidAsmHook(X86Register& rEdx)
 {
     if (rEdx.u32 >= 71)
     {
-        AchievementManager::Unlock(12);
+        AchievementManager::Unlock(Ach_AllARanks);
         AchievementManager::SaveBinary();
     }
 }
@@ -334,7 +341,7 @@ void UpdateARankCountMidAsmHook(X86Register& rEdx)
 // This function update key count in the save file for each stage
 // The game doesn't seem to have a full key count data so we have to calculate manually
 // dword_54DDDC is the index used per stage as an offset to browse the save data
-// it start at 5 in westopolis and increase following level internal order skipping bosses.
+// it starts at 5 in westopolis and increase following level internal order skipping bosses.
 // thus, digital circuit which is the second internal stage will be 6, glyphic canyon will be 7 etc.
 X86_FUNC_IMPL(__imp__sub_1B2C30);
 X86_FUNC(sub_1B2C30)
@@ -365,8 +372,31 @@ X86_FUNC(sub_1B2C30)
 
     if (keyCount >= 115)
     {
-        AchievementManager::Unlock(13);
+        AchievementManager::Unlock(Ach_AllKeys);
         AchievementManager::SaveBinary();
     }
 
+}
+
+const uint32_t g_menuModeAddr = 0x5022A4;
+const uint32_t g_stageActionModeAddr = 0x5496C0;
+const uint32_t g_currentStageIDAddr = 0x54DDD8;
+
+
+//StageAction Goal action destructor
+void StageActionGoalActionMidAsmHook()
+{
+    auto base = g_memory.base;
+    auto menuModeAddr = X86_LOAD_U32(g_menuModeAddr);
+    auto currentLevel = X86_LOAD_U32(g_currentStageIDAddr);
+  
+    // if we are in expert mode
+    if (menuModeAddr == 6)
+    {
+        if (currentLevel == 700) // if level is last way
+        {
+            AchievementManager::Unlock(Ach_ExpertMode);
+            AchievementManager::SaveBinary();
+        }
+    }
 }
