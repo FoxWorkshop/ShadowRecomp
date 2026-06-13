@@ -4100,8 +4100,7 @@ double GetFPS()
 static void DrawFPS()
 {
 
-	if (!Config::ShowFPS)
-		return;
+
 
 	double time = ImGui::GetTime();
 	static double updateTime = time;
@@ -4120,6 +4119,9 @@ static void DrawFPS()
 		totalDeltaTime = 0.0;
 		totalDeltaCount = 0;
 	}
+
+	if (!Config::ShowFPS)
+		return;
 
 	auto drawList = ImGui::GetBackgroundDrawList();
 
