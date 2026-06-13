@@ -272,7 +272,7 @@ void GameWindow::SetIcon(ELedAura mode)
     case LED_AURA_HERO:
         //SetIcon(g_game_icon_hero, sizeof(g_game_icon_hero));
         break;
-    case LED_AURA_VILAIN:
+    case LED_AURA_VILLAIN:
        // SetIcon(g_game_icon_vilain, sizeof(g_game_icon_vilain));
         break;
     }

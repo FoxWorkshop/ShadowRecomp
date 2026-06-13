@@ -341,7 +341,7 @@ static void SetControllerChaosModeLED(Controller& controller, ELedAura mode)
 		controller.SetLED(0, 94, 255);
 	}
 	break;
-	case LED_AURA_VILAIN:
+	case LED_AURA_VILLAIN:
 	{
 		controller.SetLED(237, 0, 0);
 	}
