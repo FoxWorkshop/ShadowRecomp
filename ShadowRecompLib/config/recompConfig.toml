@@ -830,3 +830,8 @@ registers = ["r0"]
 name = "SetEndingAchievementMidAsmHook"
 address = 0x23D620
 registers = ["r2"]
+
+[[midasm_hook]]
+name = "UpdateARankCountMidAsmHook"
+address = 0x237CD4
+registers = ["r3"]

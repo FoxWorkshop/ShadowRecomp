@@ -307,3 +307,12 @@ void SetEndingAchievementMidAsmHook(X86Register& rEcx)
     AchievementManager::Unlock(id + 1);
     AchievementManager::SaveBinary();
 }
+
+void UpdateARankCountMidAsmHook(X86Register& rEdx)
+{
+    if (rEdx.u32 >= 71)
+    {
+        AchievementManager::Unlock(12);
+        AchievementManager::SaveBinary();
+    }
+}
