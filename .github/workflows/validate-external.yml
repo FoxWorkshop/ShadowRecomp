@@ -14,7 +14,7 @@ jobs:
       - run: echo ✓
   build:
     needs: authorize
-    uses: ./.github/workflows/validate.yml
+    uses: ./.github/workflows/build-flatpak.yml
     secrets:
       ASSET_REPO: ${{ secrets.ASSET_REPO }}
       ASSET_REPO_TOKEN: ${{ secrets.ASSET_REPO_TOKEN }}
