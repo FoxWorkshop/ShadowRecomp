@@ -330,3 +330,43 @@ void UpdateARankCountMidAsmHook(X86Register& rEdx)
         AchievementManager::SaveBinary();
     }
 }
+
+// This function update key count in the save file for each stage
+// The game doesn't seem to have a full key count data so we have to calculate manually
+// dword_54DDDC is the index used per stage as an offset to browse the save data
+// it start at 5 in westopolis and increase following level internal order skipping bosses.
+// thus, digital circuit which is the second internal stage will be 6, glyphic canyon will be 7 etc.
+X86_FUNC_IMPL(__imp__sub_1B2C30);
+X86_FUNC(sub_1B2C30)
+{
+    __imp__sub_1B2C30(ctx, base);
+
+    auto pointerAddr = X86_LOAD_U32(0x549640);
+    if (!pointerAddr)
+        return;
+   
+    uint16_t keyCount = 0;
+    // the game has 23 stages (22 on stage select + last way) 
+    for (int i = 0; i < 23; i++)
+    {
+        int index = (i + 5); // index start at 5 because they count debug level (0-4)
+
+        // check if each key has been found (5 keys per level)
+        for (int j = 0; j < 5; j++)
+        {
+            auto indexSaveStruct = index + index * 0x2;
+            indexSaveStruct <<= 3;
+            auto offset = 0xf4 + (j * 4);
+            int32_t res = (int32_t)X86_LOAD_U32(pointerAddr + indexSaveStruct * 0x4 + offset);
+            keyCount += res != -1;
+        }
+
+    }
+
+    if (keyCount >= 115)
+    {
+        AchievementManager::Unlock(13);
+        AchievementManager::SaveBinary();
+    }
+
+}
