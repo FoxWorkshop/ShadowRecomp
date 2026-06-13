@@ -53,7 +53,7 @@ bool AchievementManager::IsUnlocked(uint16_t id)
     if (!id)
         return false;
 
-    for (int i = 1; i < NUM_RECORDS; i++)
+    for (int i = 0; i < NUM_RECORDS; i++)
     {
         if (Data.Records[i].ID == id)
             return true;
@@ -72,6 +72,20 @@ void AchievementManager::Unlock(uint16_t id)
 
     if (Config::AchievementNotifications)
         AchievementOverlay::Open(id);
+
+    // check if all achievements have been unlocked
+    // if so unlock the final one
+    const size_t unlockedCount = AchievementManager::GetTotalRecords();
+
+    const uint8_t lastSlotID = SHR_RECORDS - 1;
+    if (unlockedCount == lastSlotID)
+    {
+        Data.Records[lastSlotID].ID = SHR_RECORDS;
+        Data.Records[lastSlotID].Timestamp = std::chrono::system_clock::to_time_t(std::chrono::system_clock::now());
+
+        if (Config::AchievementNotifications)
+            AchievementOverlay::Open(lastSlotID);
+    }
 }
 
 void AchievementManager::UnlockAll()

@@ -765,6 +765,60 @@ std::unordered_map<int, std::unordered_map<ELanguage, AchievementLocale>> g_shrL
 			},
 		}
 	},
+	// I Am... All Of Me (Get all achievements)
+	{
+		15,
+		{
+			{
+				ELanguage::English,
+				{
+					"I Am... All of Me",
+					"Unlock all the achievements.",
+					"Unlocked all the achievements."
+				}
+			},
+			{
+				ELanguage::Japanese,
+				{
+					"I Am... All of Me",
+					"Unlock all the achievements.",
+					"Unlocked all the achievements."
+				}
+			},
+			{
+				ELanguage::German,
+				{
+					"I Am... All of Me",
+					"Unlock all the achievements.",
+					"Unlocked all the achievements."
+				}
+			},
+			{
+				ELanguage::French,
+				{
+					"I Am... All of Me",
+					"Débloquez tous les succès.",
+					"Obtenu tous les succès."
+				}
+			},
+			{
+				ELanguage::Spanish,
+				{
+					"I Am... All of Me",
+					"Unlock all the achievements.",
+					"Unlocked all the achievements."
+				}
+			},
+			{
+				ELanguage::Italian,
+				{
+					"I Am... All of Me",
+					"Unlock all the achievements.",
+					"Unlocked all the achievements."
+				}
+			},
+		}
+	},
 
 
 };
