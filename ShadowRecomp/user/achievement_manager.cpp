@@ -357,15 +357,15 @@ X86_FUNC(sub_1B2C30)
     for (int i = 0; i < 23; i++)
     {
         int index = (i + 5); // index start at 5 because they count debug level (0-4)
-
+   
         // check if each key has been found (5 keys per level)
         for (int j = 0; j < 5; j++)
         {
             auto indexSaveStruct = index + index * 0x2;
             indexSaveStruct <<= 3;
             auto offset = 0xf4 + (j * 4);
-            int32_t res = (int32_t)X86_LOAD_U32(pointerAddr + indexSaveStruct * 0x4 + offset);
-            keyCount += res != -1;
+            uint32_t res = X86_LOAD_U32(pointerAddr + indexSaveStruct * 0x4 + offset);
+            keyCount += res != 0xFFFFFFFF;
         }
 
     }
@@ -375,7 +375,6 @@ X86_FUNC(sub_1B2C30)
         AchievementManager::Unlock(Ach_AllKeys);
         AchievementManager::SaveBinary();
     }
-
 }
 
 const uint32_t g_menuModeAddr = 0x5022A4;
