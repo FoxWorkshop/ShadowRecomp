@@ -37,11 +37,15 @@ X86_FUNC(sub_2293E0)
 
 }
 
+double GetFPS();
 std::unordered_map<uint32_t, float> g_sfxTimers;
 // SFX duration are hardcoded without using any kind of delta time
 // We need to patch them so they don't cut too early
 void SFXTimingMidAsmHook(X86Register &esi)
 {
+	if (GetFPS() < 60)
+		return;
+
 	auto base = g_memory.base; // use base for the load and store macro.
 
 	uint32_t timerAddr = esi.u32 + 0xc;
