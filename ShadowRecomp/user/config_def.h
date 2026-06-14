@@ -9,8 +9,14 @@ CONFIG_DEFINE_LOCALISED("System", bool, AchievementNotifications, true, false);
 CONFIG_DEFINE_LOCALISED("System", bool, EnablePartnerIntro, true, false);
 CONFIG_DEFINE("System", bool, ShowConsole, false, false);
 
-CONFIG_DEFINE_ENUM_LOCALISED("Input", ECameraRotationMode, HorizontalCamera, ECameraRotationMode::Normal, false);
-CONFIG_DEFINE_LOCALISED("Input", bool, Vibration, true, false);
+CONFIG_DEFINE_ENUM_LOCALISED("Input", ECameraRotationMode, HorizontalCamera1P, ECameraRotationMode::Normal, false);
+CONFIG_DEFINE_ENUM_LOCALISED("Input", ECameraRotationMode, HorizontalCamera2P, ECameraRotationMode::Normal, false);
+CONFIG_DEFINE_ENUM_LOCALISED("Input", ECameraRotationMode, HorizontalCamera3P, ECameraRotationMode::Normal, false);
+CONFIG_DEFINE_ENUM_LOCALISED("Input", ECameraRotationMode, HorizontalCamera4P, ECameraRotationMode::Normal, false);
+CONFIG_DEFINE_LOCALISED("Input", bool, Vibration1P, true, false);
+CONFIG_DEFINE_LOCALISED("Input", bool, Vibration2P, true, false);
+CONFIG_DEFINE_LOCALISED("Input", bool, Vibration3P, true, false);
+CONFIG_DEFINE_LOCALISED("Input", bool, Vibration4P, true, false);
 CONFIG_DEFINE_LOCALISED("Input", bool, AllowBackgroundInput, false, false);
 CONFIG_DEFINE_ENUM_LOCALISED("Input", EControllerIcons, ControllerIcons, EControllerIcons::Auto, false);
 

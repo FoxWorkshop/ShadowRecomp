@@ -101,7 +101,7 @@ public:
 		return controller;
 	}
 
-	void PollAxis()
+	void PollAxis(uint32_t playerIndex)
 	{
 		if (!CanPoll())
 			return;
@@ -117,7 +117,16 @@ public:
 		pad.sThumbRY = (int16_t)std::clamp(-(int32_t)SDL_GameControllerGetAxis(controller, SDL_CONTROLLER_AXIS_RIGHTY),
 			(int32_t)-32768, (int32_t)INT16_MAX);
 
-		if (Config::HorizontalCamera.Value == ECameraRotationMode::Reverse)
+		auto horizontalCamera = ECameraRotationMode::Normal;
+		switch (playerIndex)
+		{
+		case 1:  horizontalCamera = Config::HorizontalCamera2P; break;
+		case 2:  horizontalCamera = Config::HorizontalCamera3P; break;
+		case 3:  horizontalCamera = Config::HorizontalCamera4P; break;
+		default: horizontalCamera = Config::HorizontalCamera1P; break;
+		}
+
+		if (horizontalCamera == ECameraRotationMode::Reverse)
 			pad.sThumbRX = (int16_t)std::clamp(-(int32_t)pad.sThumbRX, (int32_t)-32768, (int32_t)INT16_MAX);
 
 		int16_t leftTrig = SDL_GameControllerGetAxis(controller, SDL_CONTROLLER_AXIS_TRIGGERLEFT);
@@ -399,7 +408,7 @@ int Input_OnSDLEvent(void*, SDL_Event* event)
 				SetControllerInputDevice(controller);
 			}
 
-			controller->PollAxis();
+			controller->PollAxis(static_cast<uint32_t>(controller - g_controllers.data()));
 		}
 		else
 		{
@@ -497,7 +506,7 @@ uint32_t input::GetState(uint32_t dwUserIndex, XINPUT_STATE* pState)
 		if (g_controllers[0].controller)
 		{
 			g_controllers[0].Poll();
-			g_controllers[0].PollAxis();
+			g_controllers[0].PollAxis(0);
 			pState->Gamepad = g_controllers[0].state;
 		}
 		else
@@ -531,7 +540,7 @@ uint32_t input::GetState(uint32_t dwUserIndex, XINPUT_STATE* pState)
 	if (g_controllers[dwUserIndex - 1].controller)
 	{
 		g_controllers[dwUserIndex - 1].Poll();
-		g_controllers[dwUserIndex - 1].PollAxis();
+		g_controllers[dwUserIndex - 1].PollAxis(dwUserIndex - 1);
 		pState->Gamepad = g_controllers[dwUserIndex - 1].state;
 		return ERROR_SUCCESS;
 	}
@@ -542,7 +551,19 @@ uint32_t input::GetState(uint32_t dwUserIndex, XINPUT_STATE* pState)
 
 uint32_t input::SetState(uint32_t dwUserIndex, XboxVibrationPacket* outPacket)
 {
-	if (!outPacket || !Config::Vibration.Value)
+	if (!outPacket)
+		return ERROR_SUCCESS;
+
+	bool vibrationEnabled = true;
+	switch (dwUserIndex)
+	{
+	case 2:  vibrationEnabled = Config::Vibration2P.Value; break;
+	case 3:  vibrationEnabled = Config::Vibration3P.Value; break;
+	case 4:  vibrationEnabled = Config::Vibration4P.Value; break;
+	default: vibrationEnabled = Config::Vibration1P.Value; break;
+	}
+
+	if (!vibrationEnabled)
 		return ERROR_SUCCESS;
 
 	if (!g_activeController)
