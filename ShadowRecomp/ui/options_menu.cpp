@@ -874,12 +874,16 @@ static void DrawOptions(ImVec2 minClipRect, ImVec2 maxClipRect, ImVec2 min, ImVe
 	case OptionsMenuCategory::Input:
 		DrawOption(rowCount++, &Config::HorizontalCamera1P, true, min, max);
 		DrawOption(rowCount++, &Config::HorizontalCamera2P, true, min, max);
+#ifdef EnableMultiplayerMod
 		DrawOption(rowCount++, &Config::HorizontalCamera3P, true, min, max);
 		DrawOption(rowCount++, &Config::HorizontalCamera4P, true, min, max);
+#endif
 		DrawOption(rowCount++, &Config::Vibration1P, true, min, max);
 		DrawOption(rowCount++, &Config::Vibration2P, true, min, max);
+#ifdef EnableMultiplayerMod
 		DrawOption(rowCount++, &Config::Vibration3P, true, min, max);
 		DrawOption(rowCount++, &Config::Vibration4P, true, min, max);
+#endif
 		DrawOption(rowCount++, &Config::AllowBackgroundInput, true, min, max);
 		DrawOption(rowCount++, &Config::ControllerIcons, !OptionsMenu::s_isPause, min, max, cmnReason);
 		break;
