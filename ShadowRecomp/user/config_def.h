@@ -61,6 +61,7 @@ CONFIG_DEFINE_LOCALISED("Video", bool, VSync, true, false);
 CONFIG_DEFINE_ENUM("Video", ETripleBuffering, TripleBuffering, ETripleBuffering::Auto, false);
 CONFIG_DEFINE_LOCALISED("Video", int32_t, FPS, 60, false);
 CONFIG_DEFINE("Video", bool, ShowFPS, false, false);
+CONFIG_DEFINE("Video", float, ProfilerFontScale, 1.0f, false);
 CONFIG_DEFINE("Video", bool, Enable2PLite, false, false);
 CONFIG_DEFINE("Video", uint32_t, MaxFrameLatency, 2, false);
 CONFIG_DEFINE_LOCALISED("Video", float, Brightness, 0.5f, false);

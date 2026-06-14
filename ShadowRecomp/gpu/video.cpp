@@ -3970,7 +3970,7 @@ static void DrawProfiler()
 	ImFont* font = ImFontAtlasSnapshot::GetFont("FOT-SeuratPro-DB.otf"); //ImGui::GetIO().Fonts->Fonts[0];
 
 	float defaultScale = font->Scale;
-	font->Scale = ImGui::GetDefaultFont()->FontSize / font->FontSize;
+	font->Scale = (ImGui::GetDefaultFont()->FontSize / font->FontSize) * Config::ProfilerFontScale.Value;
 	ImGui::PushFont(font);
 
 #define IMGUI_GENERIC_ROW(name, value, ...) \
@@ -4052,6 +4052,14 @@ static void DrawProfiler()
 				ImGui::EndTable();
 			}
 
+			ImGui::Separator();
+
+			ImGui::TextUnformatted("Profiler Font Size");
+			ImGui::PushItemWidth(-1);
+			ImGui::SliderFloat("##ProfilerFontSize", &Config::ProfilerFontScale.Value, 0.1f, 2.0f, "%.2fx", ImGuiSliderFlags_AlwaysClamp);
+			ImGui::PopItemWidth();
+
+			ImGui::TextUnformatted("Configuration");
 			ImGui::Separator();
 
 			ImGui::Checkbox("Show FPS", &Config::ShowFPS.Value);
