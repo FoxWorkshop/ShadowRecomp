@@ -392,31 +392,20 @@ int Input_OnSDLEvent(void*, SDL_Event* event)
 	case SDL_CONTROLLERBUTTONDOWN:
 	case SDL_CONTROLLERBUTTONUP:
 	case SDL_CONTROLLERAXISMOTION:
-	case SDL_CONTROLLERTOUCHPADDOWN:
 	{
 		auto* controller = FindController(event->cdevice.which);
 
 		if (!controller)
 			break;
 
-		if (event->type == SDL_CONTROLLERAXISMOTION)
+		if (g_activeController != controller)
 		{
-			if (abs(event->caxis.value) > 8000)
-			{
-				if (!GameWindow::s_isFullscreenCursorVisible)
-					SDL_ShowCursor(SDL_DISABLE);
-				SetControllerInputDevice(controller);
-			}
+			if (event->type == SDL_CONTROLLERAXISMOTION && abs(event->caxis.value) <= 8000)
+				break;
 
-			controller->PollAxis(static_cast<uint32_t>(controller - g_controllers.data()));
-		}
-		else
-		{
 			if (!GameWindow::s_isFullscreenCursorVisible)
 				SDL_ShowCursor(SDL_DISABLE);
 			SetControllerInputDevice(controller);
-
-			controller->Poll();
 		}
 
 		break;
