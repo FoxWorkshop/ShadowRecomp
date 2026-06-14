@@ -218,14 +218,47 @@ CONFIG_DEFINE_ENUM_LOCALE(EControllerIcons)
 };
 
 // Japanese Notes: This localization should include furigana.
-CONFIG_DEFINE_LOCALE(HorizontalCamera)
+CONFIG_DEFINE_LOCALE(HorizontalCamera1P)
 {
-    { ELanguage::English, { "Horizontal Camera", "Change how the camera moves left and right." } },
-    { ELanguage::Japanese, { "カメラの[左右:さゆう]", "カメラ[左右:さゆう]の\u200B[動:うご]く[方向:ほうこう]を\u200B[選択:せんたく]できます" } },
-    { ELanguage::German,   { "Horizontale Kamera", "Ändere wie sich die Kamera nach links und rechts bewegt." } },
-    { ELanguage::French,   { "Caméra horizontale", "Modifie la rotation horizontale de la caméra." } },
-    { ELanguage::Spanish,  { "Cámara horizontal", "Cambia cómo se mueve la camara hacia la izquierda y la derecha." } },
-    { ELanguage::Italian,  { "Telecamera orizzontale", "Modifica come la telecamera si muove da sinistra a destra." } }
+    { ELanguage::English, { "1P Horizontal Camera", "Change how the camera moves left and right." } },
+    { ELanguage::Japanese, { "1Pカメラの[左右:さゆう]", "カメラ[左右:さゆう]の\u200B[動:うご]く[方向:ほうこう]を\u200B[選択:せんたく]できます" } },
+    { ELanguage::German,   { "1P Horizontale Kamera", "Ändere wie sich die Kamera nach links und rechts bewegt." } },
+    { ELanguage::French,   { "1P Caméra horizontale", "Modifie la rotation horizontale de la caméra." } },
+    { ELanguage::Spanish,  { "1P Cámara horizontal", "Cambia cómo se mueve la camara hacia la izquierda y la derecha." } },
+    { ELanguage::Italian,  { "1P Telecamera orizzontale", "Modifica come la telecamera si muove da sinistra a destra." } }
+};
+
+// Japanese Notes: This localization should include furigana.
+CONFIG_DEFINE_LOCALE(HorizontalCamera2P)
+{
+    { ELanguage::English, { "2P Horizontal Camera", "Change how the camera moves left and right." } },
+    { ELanguage::Japanese, { "2Pカメラの[左右:さゆう]", "カメラ[左右:さゆう]の\u200B[動:うご]く[方向:ほうこう]を\u200B[選択:せんたく]できます" } },
+    { ELanguage::German,   { "2P Horizontale Kamera", "Ändere wie sich die Kamera nach links und rechts bewegt." } },
+    { ELanguage::French,   { "2P Caméra horizontale", "Modifie la rotation horizontale de la caméra." } },
+    { ELanguage::Spanish,  { "2P Cámara horizontal", "Cambia cómo se mueve la camara hacia la izquierda y la derecha." } },
+    { ELanguage::Italian,  { "2P Telecamera orizzontale", "Modifica come la telecamera si muove da sinistra a destra." } }
+};
+
+// Japanese Notes: This localization should include furigana.
+CONFIG_DEFINE_LOCALE(HorizontalCamera3P)
+{
+    { ELanguage::English, { "3P Horizontal Camera", "Change how the camera moves left and right." } },
+    { ELanguage::Japanese, { "3Pカメラの[左右:さゆう]", "カメラ[左右:さゆう]の\u200B[動:うご]く[方向:ほうこう]を\u200B[選択:せんたく]できます" } },
+    { ELanguage::German,   { "3P Horizontale Kamera", "Ändere wie sich die Kamera nach links und rechts bewegt." } },
+    { ELanguage::French,   { "3P Caméra horizontale", "Modifie la rotation horizontale de la caméra." } },
+    { ELanguage::Spanish,  { "3P Cámara horizontal", "Cambia cómo se mueve la camara hacia la izquierda y la derecha." } },
+    { ELanguage::Italian,  { "3P Telecamera orizzontale", "Modifica come la telecamera si muove da sinistra a destra." } }
+};
+
+// Japanese Notes: This localization should include furigana.
+CONFIG_DEFINE_LOCALE(HorizontalCamera4P)
+{
+    { ELanguage::English, { "4P Horizontal Camera", "Change how the camera moves left and right." } },
+    { ELanguage::Japanese, { "4Pカメラの[左右:さゆう]", "カメラ[左右:さゆう]の\u200B[動:うご]く[方向:ほうこう]を\u200B[選択:せんたく]できます" } },
+    { ELanguage::German,   { "4P Horizontale Kamera", "Ändere wie sich die Kamera nach links und rechts bewegt." } },
+    { ELanguage::French,   { "4P Caméra horizontale", "Modifie la rotation horizontale de la caméra." } },
+    { ELanguage::Spanish,  { "4P Cámara horizontal", "Cambia cómo se mueve la camara hacia la izquierda y la derecha." } },
+    { ELanguage::Italian,  { "4P Telecamera orizzontale", "Modifica come la telecamera si muove da sinistra a destra." } }
 };
 
 
@@ -278,14 +311,47 @@ CONFIG_DEFINE_ENUM_LOCALE(ECameraRotationMode)
 
 
 // Japanese Notes: This localization should include furigana.
-CONFIG_DEFINE_LOCALE(Vibration)
+CONFIG_DEFINE_LOCALE(Vibration1P)
 {
-    { ELanguage::English, { "Vibration", "Toggle controller vibration." } },
-    { ELanguage::Japanese, { "[振動:しんどう]", "[振動:しんどう]の\u200B[有無:うむ]を\u200B[選択:せんたく]できます" } },
-    { ELanguage::German,   { "Vibration", "Schalte die Controllervibration an oder aus." } },
-    { ELanguage::French,   { "Vibration", "Active les vibrations de la manette." } },
-    { ELanguage::Spanish,  { "Vibración", "Activa o desactiva la vibración del mando." } },
-    { ELanguage::Italian,  { "Vibrazione", "Attiva/disattiva la vibrazione del controller." } }
+    { ELanguage::English, { "1P Vibration", "Toggle controller vibration." } },
+    { ELanguage::Japanese, { "1P[振動:しんどう]", "[振動:しんどう]の\u200B[有無:うむ]を\u200B[選択:せんたく]できます" } },
+    { ELanguage::German,   { "1P Vibration", "Schalte die Controllervibration an oder aus." } },
+    { ELanguage::French,   { "1P Vibration", "Active les vibrations de la manette." } },
+    { ELanguage::Spanish,  { "1P Vibración", "Activa o desactiva la vibración del mando." } },
+    { ELanguage::Italian,  { "1P Vibrazione", "Attiva/disattiva la vibrazione del controller." } }
+};
+
+// Japanese Notes: This localization should include furigana.
+CONFIG_DEFINE_LOCALE(Vibration2P)
+{
+    { ELanguage::English, { "2P Vibration", "Toggle controller vibration." } },
+    { ELanguage::Japanese, { "2P[振動:しんどう]", "[振動:しんどう]の\u200B[有無:うむ]を\u200B[選択:せんたく]できます" } },
+    { ELanguage::German,   { "2P Vibration", "Schalte die Controllervibration an oder aus." } },
+    { ELanguage::French,   { "2P Vibration", "Active les vibrations de la manette." } },
+    { ELanguage::Spanish,  { "2P Vibración", "Activa o desactiva la vibración del mando." } },
+    { ELanguage::Italian,  { "2P Vibrazione", "Attiva/disattiva la vibrazione del controller." } }
+};
+
+// Japanese Notes: This localization should include furigana.
+CONFIG_DEFINE_LOCALE(Vibration3P)
+{
+    { ELanguage::English, { "3P Vibration", "Toggle controller vibration." } },
+    { ELanguage::Japanese, { "3P[振動:しんどう]", "[振動:しんどう]の\u200B[有無:うむ]を\u200B[選択:せんたく]できます" } },
+    { ELanguage::German,   { "3P Vibration", "Schalte die Controllervibration an oder aus." } },
+    { ELanguage::French,   { "3P Vibration", "Active les vibrations de la manette." } },
+    { ELanguage::Spanish,  { "3P Vibración", "Activa o desactiva la vibración del mando." } },
+    { ELanguage::Italian,  { "3P Vibrazione", "Attiva/disattiva la vibrazione del controller." } }
+};
+
+// Japanese Notes: This localization should include furigana.
+CONFIG_DEFINE_LOCALE(Vibration4P)
+{
+    { ELanguage::English, { "4P Vibration", "Toggle controller vibration." } },
+    { ELanguage::Japanese, { "4P[振動:しんどう]", "[振動:しんどう]の\u200B[有無:うむ]を\u200B[選択:せんたく]できます" } },
+    { ELanguage::German,   { "4P Vibration", "Schalte die Controllervibration an oder aus." } },
+    { ELanguage::French,   { "4P Vibration", "Active les vibrations de la manette." } },
+    { ELanguage::Spanish,  { "4P Vibración", "Activa o desactiva la vibración del mando." } },
+    { ELanguage::Italian,  { "4P Vibrazione", "Attiva/disattiva la vibrazione del controller." } }
 };
 
 // Japanese Notes: This localization should include furigana.
