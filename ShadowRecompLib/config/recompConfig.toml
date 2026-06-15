@@ -826,6 +826,13 @@ name = "DrawHudMidAsmHook"
 address = 0x281729
 registers = ["r0"]
 
+# Inlined Homing Attack Speed 1000f -> 2000f [Reloaded Phys]
+[[midasm_hook]]
+name = "HomingAttackSpeedMidAsmHook"
+address = 0x74757
+registers = ["r7"]
+jump_address = 0x7475C
+
 [[midasm_hook]]
 name = "SetEndingAchievementMidAsmHook"
 address = 0x23D620
