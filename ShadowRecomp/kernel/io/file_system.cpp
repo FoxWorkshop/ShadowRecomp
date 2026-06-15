@@ -591,13 +591,6 @@ int CacheGameFiles(int a1)
 	return 0;
 }
 
-/**X86_FUNC_IMPL(__imp__sub_2AEABD);
-X86_FUNC(sub_2AEABD)
-{
-	__imp__sub_2AEABD(ctx, base);
-	printf("LoadSaveFile res %d\n", ctx.eax.u32);
-}*/
-
 // load save data
 X86_FUNC_IMPL(__imp__sub_2A4420);
 X86_FUNC(sub_2A4420)
