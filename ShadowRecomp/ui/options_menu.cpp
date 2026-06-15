@@ -9,6 +9,7 @@
 #include <decompressor.h>
 #include <patches/aspect_ratio_patches.h>
 #include <patches/bloom_patches.h>
+#include <patches/wide_fov_patches.h>
 
 #include "imgui_utils.h"
 #include <gpu/imgui/imgui_snapshot.h>
@@ -576,6 +577,7 @@ static void DrawOption
 				if (config->Value != s_oldValue)
 				{
 					BloomConfigValueChangedCallback(config);
+					WideFOVConfigValueChangedCallback(config);
 				}
 
 				// Run standard callback if there's no callback on apply.
@@ -913,6 +915,7 @@ static void DrawOptions(ImVec2 minClipRect, ImVec2 maxClipRect, ImVec2 min, ImVe
 
 		DrawOption(rowCount++, &Config::Monitor, canChangeMonitor, min, max, devReason, 0, 0, 1, false);
 		DrawOption(rowCount++, &Config::AspectRatio, true, min, max, devReason);
+		DrawOption(rowCount++, &Config::WideFOV, true, min, max, nullptr);
 		DrawOption(rowCount++, &Config::ResolutionScale, true, min, max, nullptr, 0.25f, 1.0f, 2.0f);
 		DrawOption(rowCount++, &Config::Fullscreen, true, min, max, devReason);
 		DrawOption(rowCount++, &Config::VSync, true, min, max, nullptr);

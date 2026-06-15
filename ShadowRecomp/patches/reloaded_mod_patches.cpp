@@ -21,10 +21,6 @@ void ReloadedValuePatches()
 #ifdef EnableReloaded
 	auto base = g_memory.base;
 
-	// Widescreen Hack (SP CAM/RENDER)
-	const uint32_t singlePlayerWidescreen = 0x4E5D6C;
-	X86_STORE_F32(singlePlayerWidescreen, 1.33333337306976f);
-
 	// 2P Unique Android JumpBall Colors
 
 	// 3 Endings unlocks Last Story
