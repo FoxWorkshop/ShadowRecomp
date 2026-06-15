@@ -106,6 +106,19 @@ void AchievementManager::Reset()
     Data = {};
 }
 
+#ifdef _DEBUG
+void AchievementManager::UnlockTest()
+{
+    for (uint16_t i = 1; i < SHR_RECORDS; i++)
+    {
+        if (i == Ach_AllARanks || i == SHR_RECORDS)
+            continue;
+
+        AchievementManager::Unlock(i);
+    }
+}
+#endif
+
 bool AchievementManager::LoadBinary()
 {
 

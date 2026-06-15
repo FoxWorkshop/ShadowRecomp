@@ -32,6 +32,9 @@ public:
     static void Reset();
     static bool LoadBinary();
     static bool SaveBinary(bool ignoreStatus = false);
+#ifdef _DEBUG
+    static void UnlockTest();
+#endif
 };
 
 std::vector<Achievement> GetAchievements(ELanguage language);
