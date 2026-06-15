@@ -398,4 +398,12 @@ void StageActionGoalActionMidAsmHook()
             AchievementManager::SaveBinary();
         }
     }
+    else if (menuModeAddr == 1) // are we in (last) story mode 
+    {
+        if (currentLevel == 710) // if level is Devil Doom
+        {
+            AchievementManager::Unlock(Ach_LastStory);
+            AchievementManager::SaveBinary();
+        }
+    }
 }
