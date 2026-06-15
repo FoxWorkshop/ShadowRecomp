@@ -574,7 +574,7 @@ static void DrawOption
 					}
 				}
 
-				if (config->Value != s_oldValue)
+				if (increment || decrement)
 				{
 					BloomConfigValueChangedCallback(config);
 					WideFOVConfigValueChangedCallback(config);
