@@ -71,11 +71,11 @@ bool AchievementManager::IsUnlocked(uint16_t id)
 
 void AchievementManager::Unlock(uint16_t id)
 {
-    if (IsUnlocked(id))
+    if (IsUnlocked(id) || !id)
         return;
 
-    Data.Records[id].ID = id;
-    Data.Records[id].Timestamp = std::chrono::system_clock::to_time_t(std::chrono::system_clock::now());
+    Data.Records[id - 1].ID = id;
+    Data.Records[id - 1].Timestamp = std::chrono::system_clock::to_time_t(std::chrono::system_clock::now());
 
     if (Config::AchievementNotifications)
         AchievementOverlay::Open(id);
@@ -91,13 +91,13 @@ void AchievementManager::Unlock(uint16_t id)
         Data.Records[lastSlotID].Timestamp = std::chrono::system_clock::to_time_t(std::chrono::system_clock::now());
 
         if (Config::AchievementNotifications)
-            AchievementOverlay::Open(lastSlotID);
+            AchievementOverlay::Open(SHR_RECORDS);
     }
 }
 
 void AchievementManager::UnlockAll()
 {
-    for (uint16_t i = 1; i <= SHR_RECORDS; i++)
+    for (uint16_t i = 1; i < SHR_RECORDS; i++)
         AchievementManager::Unlock(i);
 }
 
