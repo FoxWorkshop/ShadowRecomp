@@ -88,6 +88,7 @@ std::atomic<bool> shouldQuit = false;
 // So we do a mid asm hook in the entry point function and put our loop there instead
 void UpdateSDLEventsMidAsmHook()
 {
+	SDL_Event event;
 	while (!shouldQuit)
 	{
 		// fix unresponsive window
@@ -99,6 +100,6 @@ void UpdateSDLEventsMidAsmHook()
 			GameWindow::Update();
 		}
 
-		std::this_thread::sleep_for(std::chrono::milliseconds(16)); // This is a hack; Without it two+ controllers connected makes framerate tank even on menus
+		SDL_WaitEventTimeout(&event, 8);
 	}
 }

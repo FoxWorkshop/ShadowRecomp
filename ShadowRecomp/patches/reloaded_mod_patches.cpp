@@ -4,6 +4,18 @@
 // Uncomment the define below to enable
 //#define EnableReloaded
 
+// Inlined Homing Attack Speed 1000f -> 2000f [Reloaded Phys]
+void HomingAttackSpeedMidAsmHook(X86Register& esp)
+{
+	auto base = g_memory.base;
+	esp.u32 -= 4;
+#ifdef EnableReloaded
+    X86_STORE_F32(esp.u32, 2000.0f);
+#else
+    X86_STORE_F32(esp.u32, 1000.0f);  // 0x447A0000, original
+#endif
+}
+
 void ReloadedValuePatches()
 {
 #ifdef EnableReloaded
