@@ -45,8 +45,6 @@ struct GuestThreadHandle : KernelObject
 struct GuestThread
 {
     static uint32_t Start(const GuestThreadParams& params);
-    static void Start_Non_Periodic_Events(const GuestThreadParams& params);
-    static void Start_Dpc_Routine(const GuestThreadParams& params);
     static GuestThreadHandle* Start(const GuestThreadParams& params, uint32_t* threadId);
 
     static uint32_t GetCurrentThreadId();

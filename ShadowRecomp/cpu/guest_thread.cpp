@@ -354,23 +354,6 @@ void GuestThread::SetThreadName(uint32_t threadId, const char* name)
 }
 #endif
 
-void GuestThread::Start_Non_Periodic_Events(const GuestThreadParams& params)
-{
-	printf("GuestThread::Start_Non_Periodic_Events\n");
-
-	GuestThreadContext ctx(params);
-	system_events(&ctx.x86Context);
-}
-
-void GuestThread::Start_Dpc_Routine(const GuestThreadParams& params)
-{
-	printf("GuestThread::Start_Dpc_Routine\n");
-
-	GuestThreadContext ctx(params);
-	DPCRoutine(&ctx.x86Context);
-}
-
-
 
 // Function to clean the stack after a function call
 X86_FUNC(StubWithCleanStack)
