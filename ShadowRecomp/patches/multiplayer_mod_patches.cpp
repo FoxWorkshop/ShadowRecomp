@@ -48,12 +48,15 @@ X86_FUNC_IMPL(__imp__sub_22D250);
 X86_FUNC(sub_22D250)
 {
     __imp__sub_22D250(ctx, base);
-    if (!isAwakeAboutToInvoke)
+    if (Config::ExtendedMultiplayer)
     {
-        X86_STORE_U32(0x5456CC, 0x0);
-        X86_STORE_U32(0x5456D8, 0x0);
+        if (!isAwakeAboutToInvoke)
+        {
+            X86_STORE_U32(0x5456CC, 0x0);
+            X86_STORE_U32(0x5456D8, 0x0);
+        }
+        isAwakeAboutToInvoke = false;
     }
-    isAwakeAboutToInvoke = false;
 }
 // End Chaos Powers Fix
 
@@ -141,12 +144,15 @@ static uint32_t s_extraPlayerPositionID = 0;
 
 void ExtendedMultiplayerPlayerPositionIDOverrideMidAsmHook(X86Register& reg)
 {
-    if (s_extraPlayerPositionID != 0)
+    if (Config::ExtendedMultiplayer && s_extraPlayerPositionID != 0)
         reg.u32 = s_extraPlayerPositionID;
 }
 
 bool ExtendedMultiplayerPlayerPositionLoopMidAsmHook()
 {
+    if (!Config::ExtendedMultiplayer)
+        return false;
+
     if (s_extraPlayerPositionID == 0)
         s_extraPlayerPositionID = 2;
     else
@@ -163,7 +169,7 @@ static uint32_t s_extraPlayerPositionID_Continue0 = 0;
 
 void ExtendedMultiplayerPlayerPositionIDOverrideContinue0MidAsmHook(X86Register& reg)
 {
-    if (s_extraPlayerPositionID_Continue0 != 0)
+    if (Config::ExtendedMultiplayer && s_extraPlayerPositionID_Continue0 != 0)
         reg.u32 = s_extraPlayerPositionID_Continue0;
 }
 
@@ -197,7 +203,8 @@ void AssignPadPlayerIdSaveMidAsmHook(X86Register& ecx)
 
 void AssignPadPlayerIdOverrideMidAsmHook(X86Register& edx)
 {
-    edx.u32 = s_assignPadPlayerId;
+    if (Config::ExtendedMultiplayer)
+        edx.u32 = s_assignPadPlayerId;
 }
 
 bool PADBoundsCheckMidAsmHook(X86Register& eax)
@@ -440,7 +447,24 @@ bool SplitscreenTypeInitializeUnpauseMidAsmHook(X86Register& eax)
     return (eax.u8_lo & 0x2) == 0;
 }
 
-void AddToScoreNullMidAsmHook() {}
+void AddToScoreNullMidAsmHook()
+{
+    if (!Config::ExtendedMultiplayer)
+    {
+        auto ctx = GetX86Context();
+        auto base = g_memory.base;
+        uint32_t thisPtr = ctx->ecx.u32;
+        uint32_t scoreType = X86_LOAD_U32(ctx->esp.u32 + 4);
+        uint32_t amount = X86_LOAD_U32(ctx->esp.u32 + 8);
+
+        if (amount != 0 && scoreType <= 2)
+        {
+            uint32_t offset = scoreType * 4;
+            X86_STORE_U32(thisPtr + offset, X86_LOAD_U32(thisPtr + offset) + amount);
+            X86_STORE_U32(thisPtr + offset + 0xC, X86_LOAD_U32(0x54DDC0));
+        }
+    }
+}
 
 // Effect Slot Registration (FUN_001821f0)
 // Forces playerID = 0 at 0x182222 so dedup check never blocks extra players
