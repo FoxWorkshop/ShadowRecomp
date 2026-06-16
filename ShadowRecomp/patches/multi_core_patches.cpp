@@ -18,11 +18,16 @@ static std::atomic<int> loadingThreadID{0};
 XRTL_CRITICAL_SECTION dirtyListLock;
 XRTL_CRITICAL_SECTION csdNodeLock;
 XRTL_CRITICAL_SECTION fmvPtrDataLock;
+XRTL_CRITICAL_SECTION globalcurCamera;
+XRTL_CRITICAL_SECTION globalCurWorld;
+
 void InitMultiCoreMutexesPatches()
 {
 	RtlInitializeCriticalSection(&dirtyListLock);
 	RtlInitializeCriticalSection(&csdNodeLock);
 	RtlInitializeCriticalSection(&fmvPtrDataLock);
+	RtlInitializeCriticalSection(&globalcurCamera);
+	RtlInitializeCriticalSection(&globalCurWorld);
 }
 
 /* --- RwFrame Dirty link list race ---
@@ -307,14 +312,75 @@ X86_FUNC(sub_34C140)
 	RtlLeaveCriticalSection(&fmvPtrDataLock);
 }
 
-// random crash in glyphic canyon(?) in disp land manager why?
+// it seems like the global camera and global camera world can have a race issue during loading
+// as always we mutex and add fail safe
+
+// CameraBeginUpdate
+X86_FUNC_IMPL(__imp__sub_2DCDE0);
+X86_FUNC(sub_2DCDE0)
+{
+	RtlEnterCriticalSection(&globalcurCamera);
+	__imp__sub_2DCDE0(ctx, base);
+	RtlLeaveCriticalSection(&globalcurCamera);
+
+}
+
+// CameraEndUpdate
+X86_FUNC_IMPL(__imp__sub_2DCDB0);
+X86_FUNC(sub_2DCDB0)
+{
+	RtlEnterCriticalSection(&globalcurCamera);
+	__imp__sub_2DCDB0(ctx, base);
+	RtlLeaveCriticalSection(&globalcurCamera);
+}
+
+// WorldCameraBeginUpdate
+X86_FUNC_IMPL(__imp__sub_2CBA40);
+X86_FUNC(sub_2CBA40)
+{
+	RtlEnterCriticalSection(&globalCurWorld);
+	__imp__sub_2CBA40(ctx, base);
+	RtlLeaveCriticalSection(&globalCurWorld);
+
+}
+
+// WorldCameraEndUpdate
+X86_FUNC_IMPL(__imp__sub_2CBA70);
+X86_FUNC(sub_2CBA70)
+{
+	RtlEnterCriticalSection(&globalCurWorld);
+	__imp__sub_2CBA70(ctx, base);
+	RtlLeaveCriticalSection(&globalCurWorld);
+}
+
+X86_FUNC_IMPL(__imp__sub_2D4A90);
+X86_FUNC(sub_2D4A90)
+{
+	RtlEnterCriticalSection(&globalCurWorld);
+
+	auto res = X86_LOAD_U32(0x57DE04);
+	if (!res)
+	{
+		LOG_ERROR("sub_2D4A90: globalCurWorld was null, aborting function for safety.\n");
+		ctx.eax.u32 = 0;
+		RtlLeaveCriticalSection(&globalCurWorld);
+		return; // no need to adjust esp this function is originally a jmp tail
+	}
+
+	__imp__sub_2D4A90(ctx, base);
+
+	RtlLeaveCriticalSection(&globalCurWorld);
+
+}
+
+// left over in case that happens again
 X86_FUNC_IMPL(__imp__sub_2DD080);
 X86_FUNC(sub_2DD080)
 {
 	auto a1 = X86_LOAD_U32(ctx.esp.u32 + 4);
 	if (!a1 || a1 < 0x10000) //safety check
 	{
-		LOGFN_ERROR("it's over this shit is gonna crash\n", "GG");
+		LOGFN_ERROR("RwCameraFrustumTestSphere it's over..\n", "GG");
 	}
 	__imp__sub_2DD080(ctx, base);
 }
