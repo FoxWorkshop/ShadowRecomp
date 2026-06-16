@@ -11,6 +11,7 @@
 #include <input/padstate.h>
 #include <ui/menu_common.h>
 #include <exports.h>
+#include <ui/achievement_menu.h>
 
 
 // We patch pause to add an extra Options in the menu
@@ -19,12 +20,13 @@
 // The options can then be re created through Imgui
 
 static const uint8_t vanillaPauseItemsCount = 3u;
-static const uint8_t pauseItemsCount = 4u;
-static const uint8_t addedPauseItemsCount = 1u;
+static const uint8_t pauseItemsCount = 5u;
+static const uint8_t addedPauseItemsCount = pauseItemsCount - vanillaPauseItemsCount;
 
 enum PauseMode : uint8_t
 {
-	ModeRunning = 2,
+	ModeRunningP1 = 2,
+	ModeRunningP2 = 3,
 	ModeRestart = 5,
 	ModeQuit = 6,
 	ModeContinue = 9,
@@ -35,6 +37,7 @@ enum PauseSelection : uint8_t
 {
 	SelContinue = 0,
 	SelRestart,
+	SelAchievements,
 	SelOptions,
 	SelQuit
 };
@@ -48,6 +51,7 @@ enum PauseAction : uint8_t
 	PauseAction_Quit = 4,
 	// added pause actions:
 	PauseAction_Options = 5,
+	PauseAction_Achievements,
 };
 
 
@@ -59,9 +63,12 @@ static inline bool s_isVisible = false;
 static inline bool s_quitRequest = false;
 static inline bool s_OptionsRequest = false;
 static inline bool s_quitOptionsRequest = false;
-static inline int8_t g_userOptionSelected = -1;
+static inline bool s_AchievementRequest = false;
+static inline uint8_t s_currentMode = 0;
+static inline uint8_t g_PlayerPauseMode = 0; // mode is 2 if player 1 open pause, but 3 if it's player 2.
+static inline bool g_animDonePlaying = false;
+
 static int8_t s_index = 0;
-static const uint8_t g_optionCount = 4;
 static uint32_t g_pauseModeAddr = 0;
 static uint32_t g_CursorModeAddr = 0;
 static bool g_up{};
@@ -149,16 +156,35 @@ void DrawPauseText()
 	if (s_isVisible == false || g_pauseCSD == false) // ensure our CSD patch worked so we can draw pause text safely
 		return;
 
+	auto base = g_memory.base;
+
+	bool isHudVisible = X86_LOAD_U8(0x54DE78) != 0;
+
+	if (!isHudVisible)
+		return;
 
 	if (g_pauseModeAddr)
 	{
-		auto base = g_memory.base;
+	
 		auto mode = X86_LOAD_U32(g_pauseModeAddr);
-		if (mode > 3)
+		if (mode > 3 || s_OptionsRequest || s_AchievementRequest)
 		{
 			g_inputAllowed = false;
 			return;
 		}
+	}
+
+	uint8_t playerIndex = 0;
+
+	switch (g_PlayerPauseMode) // these values are vanilla, add custom mode if player extended support is added
+	{
+	case 2:
+	default:
+		playerIndex = 0;
+		break;
+	case 3:
+		playerIndex = 1;
+		break;
 	}
 
 
@@ -169,35 +195,35 @@ void DrawPauseText()
 
 	
 
-	if (auto pInputState = PJSPeripheral::GetControllerSlot(0))
+	if (auto pInputState = PJSPeripheral::GetControllerSlot(playerIndex))
 	{
-		if (g_inputAllowed && !s_OptionsRequest)
+		if (g_inputAllowed)
 		{
-			if (PJSPeripheral::IsHeld(0, PJSPeripheral::BTN_DPAD_UP) || -pInputState->leftY > 0.5f)
+			if (PJSPeripheral::IsHeld(playerIndex, PJSPeripheral::BTN_DPAD_UP) || -pInputState->leftY > 0.5f)
 				upIsHeld = true;
 
 			if (!g_upWasHeld && upIsHeld)
 				g_up = true;
 
-			if (PJSPeripheral::IsHeld(0, PJSPeripheral::BTN_DPAD_DOWN) || -pInputState->leftY < -0.5f)
+			if (PJSPeripheral::IsHeld(playerIndex, PJSPeripheral::BTN_DPAD_DOWN) || -pInputState->leftY < -0.5f)
 				downIsHeld = true;
 
 			if (!g_downWasHeld && downIsHeld)
 				g_down = true;
 
-			if (PJSPeripheral::IsHeld(0, PJSPeripheral::BTN_DPAD_LEFT) || -pInputState->leftX > 0.5f)
+			if (PJSPeripheral::IsHeld(playerIndex, PJSPeripheral::BTN_DPAD_LEFT) || -pInputState->leftX > 0.5f)
 				leftIsHeld = true;
 
 			if (!g_leftWasHeld && leftIsHeld)
 				g_left = true;
 
-			if (PJSPeripheral::IsHeld(0, PJSPeripheral::BTN_DPAD_RIGHT) || -pInputState->leftX < -0.5f)
+			if (PJSPeripheral::IsHeld(playerIndex, PJSPeripheral::BTN_DPAD_RIGHT) || -pInputState->leftX < -0.5f)
 				rightIsHeld = true;
 
 			if (!g_rightWasHeld && rightIsHeld)
 				g_right = true;
 
-			if (PJSPeripheral::IsJustPressed(0, PJSPeripheral::BTN_A) || PJSPeripheral::IsJustPressed(0, PJSPeripheral::BTN_START))
+			if (PJSPeripheral::IsJustPressed(playerIndex, PJSPeripheral::BTN_A) || PJSPeripheral::IsJustPressed(playerIndex, PJSPeripheral::BTN_START))
 				g_isAccepted = true;
 		}
 	}
@@ -206,7 +232,7 @@ void DrawPauseText()
 	auto scrollUp = g_up;
 	auto scrollDown = g_down;
 
-	if (g_inputAllowed && !s_OptionsRequest)
+	if (g_inputAllowed)
 	{
 		if (scrollUp)
 		{
@@ -215,7 +241,7 @@ void DrawPauseText()
 
 			if (s_index < SelContinue)
 			{
-				s_index = g_optionCount - 1;
+				s_index = pauseItemsCount - 1;
 				Game_PlaySound("cursor");
 			}
 	
@@ -229,7 +255,7 @@ void DrawPauseText()
 				Game_PlaySound("cursor");
 			}
 
-			if (s_index >= g_optionCount)
+			if (s_index >= pauseItemsCount)
 			{
 				s_index = SelContinue;
 				Game_PlaySound("cursor");
@@ -243,6 +269,10 @@ void DrawPauseText()
 			case SelOptions:
 				Game_PlaySound("decide");
 				s_OptionsRequest = true;
+				break;
+			case SelAchievements:
+				Game_PlaySound("decide");
+				s_AchievementRequest = true;
 				break;
 			case SelQuit:
 				s_quitRequest = true;
@@ -273,13 +303,13 @@ void DrawPauseText()
 
 
 	const char* menuItems[] = { Localise("Pause_Menu_Continue").c_str(), 
-		Localise("Pause_Menu_Restart").c_str(), Localise("Pause_Menu_Options").c_str(),
-		Localise("Pause_Menu_Quit").c_str()
+		Localise("Pause_Menu_Restart").c_str(), Localise("Achievements_Name").c_str(), 
+		Localise("Pause_Menu_Options").c_str(), Localise("Pause_Menu_Quit").c_str()
 	};
 	float startY = screenY;
 	float spacing = ScaleY(20.0f, res.y);
 
-	for (int i = 0; i < 4; i++)
+	for (int i = 0; i < pauseItemsCount; i++)
 	{
 		uint8_t color = i == s_index ? 255 : 127;
 		float fontSize = Scale(Config::Language == ELanguage::Japanese ? 20 : 19);
@@ -314,37 +344,58 @@ X86_FUNC(sub_5AEE0)
 	g_pauseModeAddr = ctx.ecx.u32 + 0x30;
 	auto mode = X86_LOAD_U32(g_pauseModeAddr);
 
-	if (mode < ModeRunning || mode > 3)
+	if (mode == ModeRunningP1 || mode == ModeRunningP2)
+	{
+		g_PlayerPauseMode = mode;
+	}
+
+	if (mode < ModeRunningP1 || mode > 3)
 	{
 		g_inputAllowed = false;
-		if (mode < ModeRunning)
+		if (mode < ModeRunningP1)
 			s_index = SelContinue;
 	}
 
 	// handle new options in pause menu by tricking the game that we shouldn't quit
-	if (!s_quitOptionsRequest && s_index == SelOptions && s_OptionsRequest && OptionsMenu::s_isVisible == false)
+	if (s_currentMode != 0 && (s_OptionsRequest || s_AchievementRequest))
 	{
-		OptionsMenu::Open(true);
-		s_isVisible = false;
-		ctx.AddEsp(1);
-		
-		return;
-	}
-	else if (s_OptionsRequest)
-	{
-		if (OptionsMenu::s_isVisible == false)
+		if (OptionsMenu::s_isVisible == false && AchievementMenu::s_isVisible == false)
 		{
-			X86_STORE_U32(g_pauseModeAddr, ModeRunning);
+			s_currentMode = 0;
+			X86_STORE_U32(g_pauseModeAddr, g_PlayerPauseMode);
 			s_OptionsRequest = false;
+			s_AchievementRequest = false;
 			s_quitOptionsRequest = false;
 			s_isVisible = true;
 		}
 	}
+	else if (!s_currentMode)
+	{
+		if (s_index == SelOptions && s_OptionsRequest && OptionsMenu::s_isVisible == false)
+		{
+			s_currentMode = PauseAction_Options;
+			OptionsMenu::Open(true);
+			s_isVisible = false;
+			ctx.AddEsp(1);
+
+			return;
+		}
+		else if (s_index == SelAchievements && s_AchievementRequest && AchievementMenu::s_isVisible == false)
+		{
+			s_currentMode = PauseAction_Achievements;
+			AchievementMenu::Open();
+			s_isVisible = false;
+			ctx.AddEsp(1);
+			return;
+		}
+	}
+	
+
 
 
 	__imp__sub_5AEE0(ctx, base);
 
-	s_isVisible = !flagdisabled && mode == ModeRunning;
+	s_isVisible = !flagdisabled && (mode == ModeRunningP1 || mode == ModeRunningP2);
 }
 
 // This function check input and set cursor for the pause menu
@@ -358,7 +409,8 @@ X86_FUNC(sub_5AAF0)
 
 	if (g_pauseCSD) // ensure our CSD patch worked so we can allow custom input properly
 	{
-		if (X86_LOAD_U8(ctx.ecx.u32 + 0x4D) == 0 || s_OptionsRequest) // pause anim is playing, don't allow input yet
+		g_animDonePlaying = X86_LOAD_U8(ctx.ecx.u32 + 0x4D) != 0;
+		if (X86_LOAD_U8(ctx.ecx.u32 + 0x4D) == 0 || s_OptionsRequest || s_AchievementRequest) // pause anim is playing, don't allow input yet
 		{
 			ctx.eax.u32 = PauseAction_None;
 			ctx.AddEsp(1);
@@ -373,7 +425,7 @@ X86_FUNC(sub_5AAF0)
 			X86_STORE_U32(cursorAddr, (uint32_t)shadowIndex);
 		}
 
-		g_inputAllowed = true;
+		g_inputAllowed = g_animDonePlaying;
 	}
 
 	auto ecx = ctx.ecx.u32;
@@ -402,11 +454,6 @@ X86_FUNC(sub_5AAF0)
 				// new option menu is selected set an unused index
 				ctx.eax.u32 = (uint32_t)PauseAction_Restart + s_index;
 			}
-			g_userOptionSelected = s_index;
-		}
-		else
-		{
-			g_userOptionSelected = -1;
 		}
 	}
 }

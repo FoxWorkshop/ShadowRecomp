@@ -827,3 +827,17 @@ name = "HomingAttackSpeedMidAsmHook"
 address = 0x74757
 registers = ["r7"]
 jump_address = 0x7475C
+
+[[midasm_hook]]
+name = "SetEndingAchievementMidAsmHook"
+address = 0x23D620
+registers = ["r2"]
+
+[[midasm_hook]]
+name = "UpdateARankCountMidAsmHook"
+address = 0x237CD4
+registers = ["r3"]
+
+[[midasm_hook]]
+name = "StageActionGoalActionMidAsmHook"
+address = 0x16EF87

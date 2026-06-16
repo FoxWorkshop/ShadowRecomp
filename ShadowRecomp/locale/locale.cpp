@@ -399,12 +399,12 @@ std::unordered_map<std::string_view, std::unordered_map<ELanguage, std::string>>
 		// Notes: used for the button guide at the pause menu.
 		"Achievements_Name",
 		{
-			{ ELanguage::English,  "Achievements" },
+			{ ELanguage::English,  "achievements" },
 			{ ELanguage::Japanese, "実績" },
-			{ ELanguage::German,   "Erfolge" },
-			{ ELanguage::French,   "Succès" },
-			{ ELanguage::Spanish,  "Logros" },
-			{ ELanguage::Italian,  "Obiettivi" }
+			{ ELanguage::German,   "erfolge" },
+			{ ELanguage::French,   "succès" },
+			{ ELanguage::Spanish,  "logros" },
+			{ ELanguage::Italian,  "obiettivi" }
 		}
 	},
 	{

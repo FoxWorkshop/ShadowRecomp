@@ -13,7 +13,7 @@ X86_FUNC(sub_8E690)
 {
 	auto mode = X86_LOAD_U32(ctx.esp.u32 + 16);
 	__imp__sub_8E690(ctx, base);
-	App::s_chaosMode = mode == 0 ? ELedAura::LED_AURA_VILAIN : ELedAura::LED_AURA_HERO;
+	App::s_chaosMode = mode == 0 ? ELedAura::LED_AURA_VILLAIN : ELedAura::LED_AURA_HERO;
 	SDL_User_ChaosMode(App::s_chaosMode);
 }
 

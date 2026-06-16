@@ -78,6 +78,7 @@ set(SHADOW_RECOMP_KERNEL_CXX_SOURCES
 
 
 set(SHADOW_RECOMP_LOCALE_CXX_SOURCES
+    "locale/achievement_locale.cpp"
     "locale/config_locale.cpp"
     "locale/locale.cpp"
 )
@@ -149,6 +150,8 @@ set(SHADOW_RECOMP_PATCHES_CXX_SOURCES
 
 
 set(SHADOW_RECOMP_USER_CXX_SOURCES
+    "user/achievement_data.cpp"
+    "user/achievement_manager.cpp"
     "user/config.cpp"
     "user/registry.cpp"
     "user/paths.cpp"
@@ -159,6 +162,8 @@ set(SHADOW_RECOMP_INSTALL_CXX_SOURCES
 )
 
 set(SHADOW_RECOMP_UI_CXX_SOURCES
+    "ui/achievement_menu.cpp"
+    "ui/achievement_overlay.cpp"
     "ui/game_window.cpp"
     "ui/imgui_utils.cpp"
     "ui/button_guide.cpp"
@@ -485,6 +490,10 @@ BIN2C(TARGET_OBJ ShadowRecomp SOURCE_FILE "${RESOURCES_SOURCE_PATH}/images/commo
 BIN2C(TARGET_OBJ ShadowRecomp SOURCE_FILE "${RESOURCES_SOURCE_PATH}/images/common/Options2.png" DEST_FILE "${RESOURCES_OUTPUT_PATH}/images/common/Options2.png" ARRAY_NAME "g_optionsIcons" COMPRESSION_TYPE "zstd")
 BIN2C(TARGET_OBJ ShadowRecomp SOURCE_FILE "${RESOURCES_SOURCE_PATH}/images/common/TitleBg.png" DEST_FILE "${RESOURCES_OUTPUT_PATH}/images/common/TitleBg.png" ARRAY_NAME "g_options_bg" COMPRESSION_TYPE "zstd")
 BIN2C(TARGET_OBJ ShadowRecomp SOURCE_FILE "${RESOURCES_SOURCE_PATH}/images/common/controllerBtn.png" DEST_FILE "${RESOURCES_OUTPUT_PATH}/images/common/controllerBtn.png" ARRAY_NAME "g_controller" COMPRESSION_TYPE "zstd")
+BIN2C(TARGET_OBJ ShadowRecomp SOURCE_FILE "${RESOURCES_SOURCE_PATH}/images/common/achievementBG.png" DEST_FILE "${RESOURCES_OUTPUT_PATH}/images/common/achievementBG.png" ARRAY_NAME "g_achievementBG" COMPRESSION_TYPE "zstd")
+
+BIN2C(TARGET_OBJ ShadowRecomp SOURCE_FILE "${RESOURCES_SOURCE_PATH}/images/common/arrow.png" DEST_FILE "${RESOURCES_OUTPUT_PATH}/images/common/arrow.png" ARRAY_NAME "g_arrow" COMPRESSION_TYPE "zstd")
+BIN2C(TARGET_OBJ ShadowRecomp SOURCE_FILE "${RESOURCES_SOURCE_PATH}/images/common/achievementBtn.png" DEST_FILE "${RESOURCES_OUTPUT_PATH}/images/common/achievementBtn.png" ARRAY_NAME "g_achievementBtn" COMPRESSION_TYPE "zstd")
 
 ## Game Icon ##
 BIN2C(TARGET_OBJ ShadowRecomp SOURCE_FILE "${RESOURCES_SOURCE_PATH}/images/game_icon.bmp" DEST_FILE "${RESOURCES_OUTPUT_PATH}/images/game_icon.bmp" ARRAY_NAME "g_game_icon")
@@ -495,3 +504,15 @@ BIN2C(TARGET_OBJ ShadowRecomp SOURCE_FILE "${RESOURCES_SOURCE_PATH}/sounds/sys_m
 BIN2C(TARGET_OBJ ShadowRecomp SOURCE_FILE "${RESOURCES_SOURCE_PATH}/sounds/sys_menu_cursor.ogg" DEST_FILE "${RESOURCES_OUTPUT_PATH}/sounds/sys_menu_cursor.ogg" ARRAY_NAME "g_sys_menu_cursor")
 BIN2C(TARGET_OBJ ShadowRecomp SOURCE_FILE "${RESOURCES_SOURCE_PATH}/sounds/sys_menu_invalid.ogg" DEST_FILE "${RESOURCES_OUTPUT_PATH}/sounds/sys_menu_invalid.ogg" ARRAY_NAME "g_sys_menu_invalid")
 BIN2C(TARGET_OBJ ShadowRecomp SOURCE_FILE "${RESOURCES_SOURCE_PATH}/sounds/sys_menu_cancel.ogg" DEST_FILE "${RESOURCES_OUTPUT_PATH}/sounds/sys_menu_cancel.ogg" ARRAY_NAME "g_sys_menu_cancel")
+
+## Achievements #
+BIN2C(TARGET_OBJ ShadowRecomp SOURCE_FILE "${RESOURCES_SOURCE_PATH}/images/common/achievements/pure_hero.png" DEST_FILE "${RESOURCES_OUTPUT_PATH}/images/common/pure_hero.png" ARRAY_NAME "g_purehero" COMPRESSION_TYPE "zstd")
+BIN2C(TARGET_OBJ ShadowRecomp SOURCE_FILE "${RESOURCES_SOURCE_PATH}/images/common/achievements/neutral_hero.png" DEST_FILE "${RESOURCES_OUTPUT_PATH}/images/common/neutral_hero.png" ARRAY_NAME "g_neutralhero" COMPRESSION_TYPE "zstd")
+BIN2C(TARGET_OBJ ShadowRecomp SOURCE_FILE "${RESOURCES_SOURCE_PATH}/images/common/achievements/PlaceHolder.png" DEST_FILE "${RESOURCES_OUTPUT_PATH}/images/common/PlaceHolder.png" ARRAY_NAME "g_placeholder" COMPRESSION_TYPE "zstd")
+BIN2C(TARGET_OBJ ShadowRecomp SOURCE_FILE "${RESOURCES_SOURCE_PATH}/images/common/achievements/pure_dark.png" DEST_FILE "${RESOURCES_OUTPUT_PATH}/images/common/pure_dark.png" ARRAY_NAME "g_puredark" COMPRESSION_TYPE "zstd")
+BIN2C(TARGET_OBJ ShadowRecomp SOURCE_FILE "${RESOURCES_SOURCE_PATH}/images/common/achievements/pure_hero_dark.png" DEST_FILE "${RESOURCES_OUTPUT_PATH}/images/common/pure_hero_dark.png" ARRAY_NAME "g_pureherodark" COMPRESSION_TYPE "zstd")
+BIN2C(TARGET_OBJ ShadowRecomp SOURCE_FILE "${RESOURCES_SOURCE_PATH}/images/common/achievements/dark_dark.png" DEST_FILE "${RESOURCES_OUTPUT_PATH}/images/common/dark_dark.png" ARRAY_NAME "g_darkdark" COMPRESSION_TYPE "zstd")
+BIN2C(TARGET_OBJ ShadowRecomp SOURCE_FILE "${RESOURCES_SOURCE_PATH}/images/common/achievements/dark_hero.png" DEST_FILE "${RESOURCES_OUTPUT_PATH}/images/common/dark_hero.png" ARRAY_NAME "g_darkhero" COMPRESSION_TYPE "zstd")
+BIN2C(TARGET_OBJ ShadowRecomp SOURCE_FILE "${RESOURCES_SOURCE_PATH}/images/common/achievements/hero_dark.png" DEST_FILE "${RESOURCES_OUTPUT_PATH}/images/common/hero_dark.png" ARRAY_NAME "g_herodark" COMPRESSION_TYPE "zstd")
+BIN2C(TARGET_OBJ ShadowRecomp SOURCE_FILE "${RESOURCES_SOURCE_PATH}/images/common/achievements/hero_hero.png" DEST_FILE "${RESOURCES_OUTPUT_PATH}/images/common/hero_hero.png" ARRAY_NAME "g_herohero" COMPRESSION_TYPE "zstd") 
+BIN2C(TARGET_OBJ ShadowRecomp SOURCE_FILE "${RESOURCES_SOURCE_PATH}/images/common/achievements/overlay.png" DEST_FILE "${RESOURCES_OUTPUT_PATH}/images/common/overlay.png" ARRAY_NAME "g_overlayAchievements" COMPRESSION_TYPE "zstd")

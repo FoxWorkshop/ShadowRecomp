@@ -10,8 +10,16 @@
 #include <res/images/common/Options.png.h>
 #include <res/images/common/Options2.png.h>
 #include <res/images/common/TitleBg.png.h>
+#include <res/images/common/arrow.png.h>
 
 float g_fntSeuratSize = 0.0f;
+
+std::unique_ptr<GuestTexture> g_upTexArrow;
+
+GuestTexture* GetTexArrow()
+{
+    return g_upTexArrow.get();
+}
 
 void UpdateFontSize()
 {
@@ -20,17 +28,10 @@ void UpdateFontSize()
 
 void InitImGuiUtils()
 {
-   // g_texGeneralWindow = LOAD_ZSTD_TEXTURE(g_general_window);
-    //g_texLight = LOAD_ZSTD_TEXTURE(g_light);
-    //g_texSelect = LOAD_ZSTD_TEXTURE(g_select);
-
-    //g_upTexOptionsBG = LOAD_ZSTD_TEXTURE(g_options_bg);
+    g_upTexArrow = LOAD_ZSTD_TEXTURE(g_arrow);
 
     UpdateFontSize();
 }
-
-
-
 
 
 void SetGradient(const ImVec2& min, const ImVec2& max, ImU32 top, ImU32 bottom)
@@ -172,6 +173,11 @@ void ResetAdditive()
 float Scale(float size)
 {
     return size * g_aspectRatioScale;
+}
+
+double ComputeLoopMotion(double time, double offset, double total)
+{
+    return std::clamp(fmod((ImGui::GetTime() - time - (offset / 60.0)) / (total / 60.0), 1.0 + (total / 60.0)), 0.0, 1.0) / 1.0;
 }
 
 double ComputeLinearMotion(double time, double offset, double total, bool reverse)
@@ -859,4 +865,120 @@ const char* CalcWordWrapPositionA(const ImFont* font, float scale, const char* t
     if (s == text && text < text_end)
         return s + 1;
     return s;
+}
+
+void SetVerticalGradient(const ImVec2& min, const ImVec2& max, ImU32 top, ImU32 bottom)
+{
+    SetGradient(min, max, top, top, bottom, bottom);
+}
+
+void AddImageFlipped(ImTextureID texture, const ImVec2& min, const ImVec2& max, const ImVec2& uvMin, const ImVec2& uvMax, ImU32 col, bool flipHorz, bool flipVert)
+{
+    auto drawList = ImGui::GetBackgroundDrawList();
+
+    ImVec2 uv0 = uvMin;
+    ImVec2 uv1 = { uvMax.x, uvMin.y };
+    ImVec2 uv2 = uvMax;
+    ImVec2 uv3 = { uvMin.x, uvMax.y };
+
+    if (flipHorz)
+    {
+        std::swap(uv0.x, uv1.x);
+        std::swap(uv2.x, uv3.x);
+    }
+
+    if (flipVert)
+    {
+        std::swap(uv0.y, uv3.y);
+        std::swap(uv1.y, uv2.y);
+    }
+
+    ImVec2 p0 = min;
+    ImVec2 p1 = { max.x, min.y };
+    ImVec2 p2 = max;
+    ImVec2 p3 = { min.x, max.y };
+
+    drawList->AddImageQuad(texture, p0, p1, p2, p3, uv0, uv1, uv2, uv3, col);
+}
+
+void DrawScrollArrows(ImVec2 min, ImVec2 max, float scale, double& time, bool top, bool bottom)
+{
+    auto drawList = ImGui::GetBackgroundDrawList();
+
+    auto scrollArrowUVs = PIXELS_TO_UV_COORDS(48, 48, 0, 24, 24, 24);
+
+    auto scrollArrowAlphaMotionInTime = ComputeLinearMotion(time, 0, 3, false);
+    auto scrollArrowAlphaMotionPauseTime = ComputeLinearMotion(time, 3, 11, false);
+    auto scrollArrowAlphaMotionOutTime = ComputeLinearMotion(time, 11, 4, true);
+    auto scrollArrowAlphaMotionLoopTime = ComputeLinearMotion(time, 15, 50, false);
+    auto scrollArrowAlphaMotion = 255;
+
+    if (scrollArrowAlphaMotionPauseTime >= 1.0)
+    {
+        // Fade out arrows.
+        scrollArrowAlphaMotion = 255 * scrollArrowAlphaMotionOutTime;
+
+        // Reset loop.
+        if (scrollArrowAlphaMotionLoopTime >= 1.0)
+            time = ImGui::GetTime();
+    }
+    else
+    {
+        // Fade in arrows.
+        scrollArrowAlphaMotion = 255 * scrollArrowAlphaMotionInTime;
+    }
+
+    auto scrollArrowColourMotion = IM_COL32(255, 255, 255, scrollArrowAlphaMotion);
+
+    ImVec2 scrollArrowTopMin = min;
+    ImVec2 scrollArrowTopMax = { scrollArrowTopMin.x + scale, scrollArrowTopMin.y + scale };
+    ImVec2 scrollArrowBottomMin = { scrollArrowTopMin.x, max.y - scale };
+    ImVec2 scrollArrowBottomMax = { scrollArrowTopMax.x, scrollArrowBottomMin.y + scale };
+
+    if (top)
+        drawList->AddImage(g_upTexArrow.get(), scrollArrowTopMin, scrollArrowTopMax, GET_UV_COORDS(scrollArrowUVs), scrollArrowColourMotion);
+
+    scrollArrowUVs = PIXELS_TO_UV_COORDS(48, 48, 24, 24, 24, 24);
+
+    if (bottom)
+        drawList->AddImage(g_upTexArrow.get(), scrollArrowBottomMin, scrollArrowBottomMax, GET_UV_COORDS(scrollArrowUVs), scrollArrowColourMotion);
+}
+
+void DrawArrowCursor(ImVec2 pos, double time, bool isIntroAnim, bool isBlinkingAnim, bool isReversed)
+{
+    auto drawList = ImGui::GetBackgroundDrawList();
+
+    auto cursorUVs = PIXELS_TO_UV_COORDS(48, 48, 0, 24, 24, 24);
+    auto cursorScaleX = Scale(14);
+
+    for (int i = 0; i < 3; i++)
+    {
+        auto cursorMotionTime = isIntroAnim ? ComputeLinearMotion(time, i, 5, isReversed) : 1.0;
+        auto cursorScaleYMotion = Lerp(Scale(37.5), Scale(24), cursorMotionTime);
+        auto cursorOffsetXMotion = Lerp(0, Scale(8.5), cursorMotionTime);
+        auto cursorOffsetYMotion = Lerp(pos.y - cursorScaleYMotion / 6, pos.y, cursorMotionTime);
+        auto cursorRightMotion = (cursorOffsetXMotion * 3) - (cursorOffsetXMotion * i);
+        auto cursorAlphaMotionTime = isIntroAnim ? ComputeLinearMotion(time, i, 2, isReversed) : 1.0;
+        auto cursorAlphaMotion = (int)Lerp(0, 255, cursorAlphaMotionTime);
+
+        if (isBlinkingAnim)
+        {
+            auto cursorAlphaMotionInTime = ComputeLoopMotion(time, 3.0 * i, 12.0);
+            auto cursorAlphaMotionOutTime = ComputeLoopMotion(time, 3.0 * (i + 1), 12.0);
+
+            // horrible
+            cursorAlphaMotionTime = cursorAlphaMotionInTime >= 1.0
+                ? cursorAlphaMotionOutTime >= 1.0
+                ? cursorAlphaMotionInTime
+                : cursorAlphaMotionOutTime
+                : cursorAlphaMotionInTime;
+
+            cursorAlphaMotion = (int)Lerp(50 * (i + 1), 255, cursorAlphaMotionTime);
+        }
+
+        ImVec2 cursorMin = { pos.x + cursorRightMotion, cursorOffsetYMotion };
+        ImVec2 cursorMax = { pos.x + cursorRightMotion + cursorScaleX, cursorMin.y + cursorScaleYMotion };
+
+        drawList->AddImage(g_upTexArrow.get(), cursorMin, cursorMax, GET_UV_COORDS(cursorUVs), IM_COL32(255, 255, 255, cursorAlphaMotion));
+    }
 }

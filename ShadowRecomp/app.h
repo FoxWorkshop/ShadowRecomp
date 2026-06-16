@@ -6,7 +6,7 @@ enum ELedAura
 {
     LED_AURA_NEUTRAL = 0, 
     LED_AURA_HERO,
-    LED_AURA_VILAIN
+    LED_AURA_VILLAIN
 };
 
 class App

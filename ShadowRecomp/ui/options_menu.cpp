@@ -669,9 +669,8 @@ static void DrawOption
 	}
 
 	// Draw value
-
-	float valueAreaStart = titlePos.x + titleTextSize.x + Scale(20);
-	float valueAreaEnd = clipRectMax.x - Scale(10);   // leave a small right margin
+	float valueAreaStart = titlePos.x + titleTextSize.x + Scale(30);
+	float valueAreaEnd = clipRectMax.x - Scale(10);
 	float valueAreaWidth = valueAreaEnd - valueAreaStart;
 
 	SetShaderModifier(IMGUI_SHADER_MODIFIER_LOW_QUALITY_TEXT);
@@ -877,12 +876,16 @@ static void DrawOptions(ImVec2 minClipRect, ImVec2 maxClipRect, ImVec2 min, ImVe
 	case OptionsMenuCategory::Input:
 		DrawOption(rowCount++, &Config::HorizontalCamera1P, true, min, max);
 		DrawOption(rowCount++, &Config::HorizontalCamera2P, true, min, max);
+#ifdef EnableMultiplayerMod
 		DrawOption(rowCount++, &Config::HorizontalCamera3P, true, min, max);
 		DrawOption(rowCount++, &Config::HorizontalCamera4P, true, min, max);
+#endif
 		DrawOption(rowCount++, &Config::Vibration1P, true, min, max);
 		DrawOption(rowCount++, &Config::Vibration2P, true, min, max);
+#ifdef EnableMultiplayerMod
 		DrawOption(rowCount++, &Config::Vibration3P, true, min, max);
 		DrawOption(rowCount++, &Config::Vibration4P, true, min, max);
+#endif
 		DrawOption(rowCount++, &Config::AllowBackgroundInput, true, min, max);
 		DrawOption(rowCount++, &Config::ControllerIcons, !OptionsMenu::s_isPause, min, max, cmnReason);
 		break;
@@ -923,7 +926,7 @@ static void DrawOptions(ImVec2 minClipRect, ImVec2 maxClipRect, ImVec2 min, ImVe
 		DrawOption(rowCount++, &Config::Brightness, true, min, max, nullptr);
 		DrawOption(rowCount++, &Config::AntiAliasing, false, min, max, devReason);
 		DrawOption(rowCount++, &Config::TextureFiltering, true, min, max, nullptr);
-		DrawOption(rowCount++, &Config::UIAlignmentMode, true, min, max, nullptr);
+		//DrawOption(rowCount++, &Config::UIAlignmentMode, true, min, max, nullptr);
 		DrawOption(rowCount++, &Config::BloomIntensity, true, min, max, nullptr);
 
 
@@ -964,10 +967,20 @@ static void DrawOptions(ImVec2 minClipRect, ImVec2 maxClipRect, ImVec2 min, ImVe
 
 	if (g_optionCount > MAX_VISIBLE_ROWS && OptionsMenu::s_flowState == OptionsMenuFlowState::OptionCursor)
 	{
-		ImVec2 scrollArrowsMin = { max.x - Scale(84), min.y + Scale(12) };
-		ImVec2 scrollArrowsMax = { max.x, max.y - Scale(16) };
+		auto& res = ImGui::GetIO().DisplaySize;
+		auto scrollArrowsOffsetX = Scale(40);
+		auto scrollArrowsOffsetTop = Scale(100);
+		auto scrollArrowsOffsetBottom = Scale(25);
+		float containerLeft = res.x * 0.1f;
+		float containerRight = res.x * 0.9f;
+		float containerTop = res.y * 0.15f;
+		float containerBottom = res.y * 0.9f;
+		ImVec2 min = { containerRight - containerLeft, g_vertCentre + containerTop};
+		ImVec2 max = { min.x + containerLeft, g_vertCentre + containerBottom  };
+		ImVec2 scrollArrowsMin = { max.x + scrollArrowsOffsetX, min.y + scrollArrowsOffsetTop };
+		ImVec2 scrollArrowsMax = { scrollArrowsMin.x + scrollArrowsOffsetX, max.y - scrollArrowsOffsetBottom };
 
-		//DrawScrollArrows(scrollArrowsMin, scrollArrowsMax, Scale(20), g_scrollArrowsTime, g_optionIndex > 1, g_optionIndex < rowCount - 2);
+		DrawScrollArrows(scrollArrowsMin, scrollArrowsMax, Scale(15), g_scrollArrowsTime, g_optionIndex > 1, g_optionIndex < rowCount - 2);
 	}
 
 }
@@ -1572,7 +1585,7 @@ void OptionsMenu::Open(bool isPause)
 	OptionsMenu::s_isPause = isPause;
 	OptionsMenu::s_nextState = OptionsMenuState::Opening;
 
-	InitImGuiUtils();
+	UpdateFontSize();
 	g_stateTime = ImGui::GetTime();
 	s_state = OptionsMenu::s_isPause ? OptionsMenuState::Transition : OptionsMenuState::Opening;
 	g_containerAnimTime = ImGui::GetTime();
@@ -1630,6 +1643,8 @@ void OptionsMenu::Close()
 {
 	if (s_state == OptionsMenuState::Closing || s_state == OptionsMenuState::Transition)
 		return;
+
+	g_isControlsVisible = false;
 
 	if (s_isPause)
 	{
