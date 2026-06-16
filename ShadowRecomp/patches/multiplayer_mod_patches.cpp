@@ -467,12 +467,22 @@ void AddToScoreNullMidAsmHook()
 }
 
 // Effect Slot Registration (FUN_001821f0)
-// Forces playerID = 0 at 0x182222 so dedup check never blocks extra players
-// Handles the collision issue with a few objects for P3 (DashRamps, Boosters, Springs etc)
+// At 0x182222 the owning player's ID is loaded into edx ([eax+0x54]) and fed
+// into the dedup loop at 0x182230. edx therefore holds the current player on
+// entry, so we remap it per-player instead of forcing everyone to 0:
+//   P1 (0) -> 0, P2 (1) -> 1, P3 (2) -> 0, P4 (3) -> unchanged.
+// P3 is spoofed to P1's slot to dodge the collision issues with a few objects
+// (DashRamps, Boosters, Springs, etc).
 void EffectSlotPlayerIdOverrideMidAsmHook(X86Register& edx)
 {
     if (Config::ExtendedMultiplayer && g_multiplayerPlayerCount > 2)
-        edx.u32 = 0;
+    {
+        switch (edx.u32)
+        {
+            case 2: edx.u32 = 4; // P3 -> bullshit
+            default: break; // P1,P2, P4 -> no change
+        }
+    }
 }
 
 // SetObject Loading/Unloading per-player distance
