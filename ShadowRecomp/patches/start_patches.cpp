@@ -1,7 +1,6 @@
 #include <kernel/function.h>
+#include <user/config.h>
 
-
-bool QuickBoot = true;
 extern bool QuickBootConfig;
 
 //stub unnecessary startup functions to force the game to boot
@@ -32,11 +31,11 @@ int sub_2B0164_r(int a1)
 }
 
 //infinite lives todo implement properly as a cheat
-bool infiniteLives = true;
+
 X86_FUNC_IMPL(__imp__sub_22D120);
 X86_FUNC(sub_22D120)
 {
-	if (infiniteLives)
+	if (Config::InfiniteLives)
 	{
 		auto lives = X86_LOAD_U32(ctx.esp.u32 + 4);
 		lives = 99;
@@ -52,7 +51,7 @@ X86_FUNC(sub_24F80)
 {
 	char* str = (char*)GetHostParameter(1, CallConvention::Cdecl, ParameterType::Pointer);
 
-	if ( (QuickBoot || QuickBootConfig) && str && !strcmp(str, "Op.sfd"))
+	if ( (Config::QuickBoot.Value || QuickBootConfig) && str && !strcmp(str, "Op.sfd"))
 	{
 		ctx.eax.u32 = 0;
 		ctx.esp.u32 += 4;
@@ -70,7 +69,7 @@ X86_FUNC_IMPL(__imp__sub_29EA60);
 X86_FUNC(sub_29EA60)
 {
 
-	if (QuickBoot || QuickBootConfig)
+	if (Config::QuickBoot.Value || QuickBootConfig)
 	{
 		auto ptr = X86_LOAD_U32(ctx.ecx.u32 + 4);
 		auto mode = X86_LOAD_U32(ptr + 0x64);

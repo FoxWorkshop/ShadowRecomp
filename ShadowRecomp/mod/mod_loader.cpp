@@ -59,7 +59,7 @@ std::filesystem::path ModLoader::ResolvePath(std::string_view path)
 
 	for (int i = g_mods.size() - 1; i >= 0; i--) // iterate in reverse to prioritize later mods in the list (which are higher priority in mod loader)
 	{
-		auto &mod = g_mods[i];
+		auto& mod = g_mods[i];
 
 		for (auto& includeDir : mod.includeDirs)
 		{
@@ -69,9 +69,9 @@ std::filesystem::path ModLoader::ResolvePath(std::string_view path)
 		}
 
 		std::filesystem::path commonDir = mod.commonDir;
-			std::filesystem::path modPath = commonDir / fsPath;
-			if (std::filesystem::exists(modPath))
-				return s_cache.emplace(hash, modPath).first->second;
+		std::filesystem::path modPath = commonDir / fsPath;
+		if (std::filesystem::exists(modPath))
+			return s_cache.emplace(hash, modPath).first->second;
 	}
 
 	return s_cache.emplace(hash, std::filesystem::path{}).first->second;
@@ -82,7 +82,6 @@ std::vector<std::filesystem::path>* ModLoader::GetIncludeDirectories(size_t modI
 	return modIndex < g_mods.size() ? &g_mods[modIndex].includeDirs : nullptr;
 }
 
-
 void ModLoader::Init()
 {
 	using json = nlohmann::json;
@@ -92,6 +91,7 @@ void ModLoader::Init()
 
 	std::filesystem::path profileListPath = gPath / "mods/.modloader/profiles/profiles.json";
 	std::filesystem::path defaultProfile = gPath / "mods/.modloader/profiles/Default.json";
+
 	std::filesystem::path currentProfile = defaultProfile;
 
 	int ind_profile = -1;
@@ -204,13 +204,13 @@ void ModLoader::Init()
 							modConfigGameDir = modDirStr;
 							modinf.includeDirs.push_back(modConfigGameDir);
 						}
-	
+
 					}
 				}
 			}
 
 		}
-		
+
 		if (commonDirExist || includeDirExist)
 		{
 			g_mods.push_back(modinf);
@@ -218,6 +218,36 @@ void ModLoader::Init()
 	}
 
 
+	// --- load codes if any ---
+
+	std::filesystem::path codePath = gPath / "mods/.modloader/Codes.json";
+	if (std::filesystem::exists(codePath) == false)
+	{
+		return;
+	}
+
+	json Enabledjson_codes = json_profile["EnabledCodes"];
+
+	std::vector<std::string> enabledCodes;
+
+	// first we store what codes are enabled
+	for (unsigned int i = 0; i < Enabledjson_codes.size(); i++)
+	{
+		std::string code_fname = Enabledjson_codes.at(i);
+		enabledCodes.push_back(code_fname);
+	}
+
+
+	// because enabled code don't store varialbe name, we have to compare with the full code list in a separate json file
+	// this should be changed as it's way too much steps for checking a code
+
+	std::ifstream ifCodes(codePath);
+	json json_codes;
+	json_codes = json::parse(ifCodes);
+	ifCodes.close();
+
+
+	bool valueFound = false;
 	for (auto& def : g_configDefinitions)
 	{
 		if (!def->IsHidden() || def->GetSection() != "Codes")
@@ -226,18 +256,26 @@ void ModLoader::Init()
 		/* NOTE: this is inefficient, but it happens
 		   once on boot for a handful of codes at release
 		   and is temporary until we support real code mods. */
-		json json_codes = json_profile["EnabledCodes"];
-		for (unsigned int i = 1; i <= json_codes.size(); i++)
+	
+		json json_codesList = json_codes["Codes"];
+
+
+		for (std::string curCode : enabledCodes)
 		{
-			std::string code_fname = json_codes.at(i - 1);
-			if (def->GetName() == code_fname)
+			for (unsigned int i = 0; i < json_codesList.size(); i++)
 			{
-				LOGF_IMPL(Utility, "Mod Loader", "Loading code: \"{}\"", code_fname);
-				*(bool*)def->GetValue() = true;
-				break;
+				std::string codeInternalName = json_codesList.at(i)["InternalName"].get<std::string>();
+				std::string codeName = json_codesList.at(i)["Name"].get<std::string>();
+				if (codeInternalName == curCode && codeName == def->GetName())
+				{
+					LOGF_IMPL(Utility, "Mod Loader", "Loading code: \"{}\"", curCode);
+					*(bool*)def->GetValue() = true;
+					break;
+				}
 			}
 		}
 	}
 
 
+	enabledCodes.clear();
 }

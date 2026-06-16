@@ -841,3 +841,9 @@ registers = ["r3"]
 [[midasm_hook]]
 name = "StageActionGoalActionMidAsmHook"
 address = 0x16EF87
+
+[[midasm_hook]]
+name = "EasierUnlockLastStoryMidAsmHook"
+address = 0x23D64A
+registers = ["r5"]
+jump_address_on_true = 0x23D64F

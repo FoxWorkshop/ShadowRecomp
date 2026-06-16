@@ -86,9 +86,12 @@ CONFIG_DEFINE_LOCALISED("Video", float, BloomIntensity, 0.7f, false);
 CONFIG_DEFINE_ENUM_LOCALISED("Video", EUIAlignmentMode, UIAlignmentMode, EUIAlignmentMode::Edge, false);
 
 
-CONFIG_DEFINE_HIDDEN("Codes", bool, SkipIntroLogos, false, false);
+CONFIG_DEFINE_HIDDEN("Codes", bool, QuickBoot, false, false);
 CONFIG_DEFINE_HIDDEN("Codes", bool, InfiniteLives, false, false);
 CONFIG_DEFINE_HIDDEN("Codes", bool, AllStagesUnlocked, false, false);
 CONFIG_DEFINE_HIDDEN("Codes", bool, UseOfficialTitleOnTitleBar, false, false);
+CONFIG_DEFINE_HIDDEN("Codes", bool, EasyLastStoryUnlock, false, false);
+
+
 
 CONFIG_DEFINE("Update", time_t, LastChecked, 0, false);

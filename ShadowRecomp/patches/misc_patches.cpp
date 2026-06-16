@@ -62,18 +62,30 @@ X86_FUNC(sub_41CD65)
 	return;
 }
 
-
-
-//todo implement as an option
 bool SkipPartnerIntroMidAsmHook()
 {
 	return !Config::EnablePartnerIntro;
 }
 
-// TODO: This is temporary, replace with a proper SaveData patch
 void SelectModeUnlockCheckBypassMidAsmHook(X86Register& eax)
 {
-	eax.u32 = 1;
+	if (Config::AllStagesUnlocked)
+	{
+		eax.u32 = 1;
+	}
+}
+
+bool EasierUnlockLastStoryMidAsmHook(X86Register & edi)
+{
+	if (Config::EasyLastStoryUnlock)
+	{
+		if (edi.u32 >= 5)
+		{
+			return true;
+		}
+	}
+
+	return false;
 }
 
 //can always skip cutscenes
