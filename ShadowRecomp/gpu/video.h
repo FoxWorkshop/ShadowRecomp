@@ -95,7 +95,6 @@ struct Video
 	static bool CreateHostDevice(const char* sdlVideoDriver, bool graphicsApiRetry);
 	static void PrecompileShadersAndPipelines();
 	static void Present();
-	static void StartPipelinePrecompilation();
 	static void WaitOnSwapChain();
 	static void WaitForGPU();
 	static void ComputeViewportDimensions();

@@ -831,7 +831,7 @@ static std::unique_ptr<RenderPipeline> CreateGraphicsPipeline(const PipelineStat
 static void SanitizePipelineState(PipelineState& pipelineState);
 
 static constexpr uint32_t PIPELINE_CACHE_MAGIC = 0x31435053;
-static constexpr uint32_t PIPELINE_CACHE_VERSION = 1;
+static constexpr uint32_t PIPELINE_CACHE_VERSION = 2;
 static constexpr size_t MAX_VERTEX_ELEMENTS = 32;
 
 #pragma pack(push, 1)
@@ -878,11 +878,123 @@ struct PipelineCacheEntry
 };
 #pragma pack(pop)
 
+static_assert(sizeof(PipelineCacheEntry) == 414,
+	"PipelineCacheEntry layout changed - bump PIPELINE_CACHE_VERSION and regenerate pipeline_cache.h");
+
 static Mutex g_pipelineCacheMutex;
 static std::atomic<bool> g_pipelineCacheShutdownDone{false};
 static ankerl::unordered_dense::map<uint64_t, PipelineCacheEntry> g_pipelineCacheEntries;
 static void EnqueueDeferredPipeline(const PipelineCacheEntry& entry);
 static bool TryCompileFromCacheEntry(const PipelineCacheEntry& entry);
+static bool IsReadableMemory(const void* ptr, size_t size);
+
+static XXH64_hash_t ComputePipelineEntryHash(const PipelineCacheEntry& entry)
+{
+	PipelineCacheEntry temp = entry;
+	temp.pipelineHash = 0;
+	return XXH3_64bits(&temp, sizeof(temp));
+}
+
+static bool BuildPipelineCacheEntry(const PipelineState& pipelineState, PipelineCacheEntry& outEntry)
+{
+	outEntry = {};
+	outEntry.vertexShaderMode = pipelineState.vertexShaderType;
+	outEntry.isFixedFunctionPS = pipelineState.isFixedFunctionPS;
+
+	if (pipelineState.vertexShaderType == VertexShaderMode::FixedFunction ||
+		pipelineState.vertexShaderType == VertexShaderMode::Passthrough)
+	{
+		outEntry.vertexShaderHash = 0;
+	}
+	else if (pipelineState.vertexShader != nullptr &&
+		IsReadableMemory(pipelineState.vertexShader, sizeof(GuestShader)))
+	{
+		if (pipelineState.vertexShader->shaderCacheEntry != nullptr)
+			outEntry.vertexShaderHash = pipelineState.vertexShader->shaderCacheEntry->hash;
+		else if (pipelineState.vertexShader->runtimeHash != 0)
+			outEntry.vertexShaderHash = pipelineState.vertexShader->runtimeHash;
+		else
+			return false;
+	}
+	else
+		return false;
+
+	if (pipelineState.isFixedFunctionPS)
+	{
+		outEntry.pixelShaderHash = 0;
+	}
+	else if (pipelineState.pixelShader != nullptr &&
+		IsReadableMemory(pipelineState.pixelShader, sizeof(GuestShader)))
+	{
+		if (pipelineState.pixelShader->shaderCacheEntry != nullptr)
+			outEntry.pixelShaderHash = pipelineState.pixelShader->shaderCacheEntry->hash;
+		else if (pipelineState.pixelShader->runtimeHash != 0)
+			outEntry.pixelShaderHash = pipelineState.pixelShader->runtimeHash;
+		else
+			return false;
+	}
+	else if (pipelineState.pixelShader == nullptr)
+	{
+		outEntry.pixelShaderHash = 0;
+	}
+	else
+		return false;
+
+	if (pipelineState.vertexDeclaration != nullptr)
+	{
+		outEntry.vertexDeclHash = pipelineState.vertexDeclaration->hash;
+		outEntry.vertexElementCount = pipelineState.vertexDeclaration->vertexElementCount;
+		if (outEntry.vertexElementCount > MAX_VERTEX_ELEMENTS)
+			return false;
+
+		memcpy(outEntry.vertexElements, pipelineState.vertexDeclaration->vertexElements.get(),
+			outEntry.vertexElementCount * sizeof(D3DVERTEXELEMENT9));
+	}
+	else
+		return false;
+
+	outEntry.zEnable = pipelineState.zEnable;
+	outEntry.zWriteEnable = pipelineState.zWriteEnable;
+	outEntry.stencilEnable = pipelineState.stencilEnable;
+	outEntry.srcBlend = pipelineState.srcBlend;
+	outEntry.destBlend = pipelineState.destBlend;
+	outEntry.cullMode = pipelineState.cullMode;
+	outEntry.zFunc = pipelineState.zFunc;
+	outEntry.stencilFunc = pipelineState.stencilFunc;
+	outEntry.stencilFail = pipelineState.stencilFail;
+	outEntry.stencilZFail = pipelineState.stencilZFail;
+	outEntry.stencilPass = pipelineState.stencilPass;
+	outEntry.stencilMask = pipelineState.stencilMask;
+	outEntry.stencilWriteMask = pipelineState.stencilWriteMask;
+	outEntry.stencilRef = pipelineState.stencilRef;
+	outEntry.stencilFuncCCW = pipelineState.stencilFuncCCW;
+	outEntry.alphaBlendEnable = pipelineState.alphaBlendEnable;
+	outEntry.blendOp = pipelineState.blendOp;
+	outEntry.slopeScaledDepthBias = pipelineState.slopeScaledDepthBias;
+	outEntry.depthBias = pipelineState.depthBias;
+	outEntry.srcBlendAlpha = pipelineState.srcBlendAlpha;
+	outEntry.destBlendAlpha = pipelineState.destBlendAlpha;
+	outEntry.blendOpAlpha = pipelineState.blendOpAlpha;
+	outEntry.colorWriteEnable = pipelineState.colorWriteEnable;
+	outEntry.primitiveTopology = pipelineState.primitiveTopology;
+	memcpy(outEntry.vertexStrides, pipelineState.vertexStrides, sizeof(outEntry.vertexStrides));
+	outEntry.renderTargetFormat = pipelineState.renderTargetFormat;
+	outEntry.depthStencilFormat = pipelineState.depthStencilFormat;
+	outEntry.sampleCount = pipelineState.sampleCount;
+	outEntry.enableAlphaToCoverage = pipelineState.enableAlphaToCoverage;
+	outEntry.specConstants = pipelineState.specConstants;
+
+	return true;
+}
+
+static XXH64_hash_t ComputePipelineStateHash(const PipelineState& pipelineState)
+{
+	PipelineCacheEntry entry;
+	if (BuildPipelineCacheEntry(pipelineState, entry))
+		return ComputePipelineEntryHash(entry);
+
+	return XXH3_64bits(&pipelineState, sizeof(pipelineState));
+}
 
 static std::filesystem::path GetCachePath()
 {
@@ -935,108 +1047,14 @@ static bool SafeGetShaderHash(const GuestShader* shader, uint64_t& outHash, cons
 	return true;
 }
 
-static void RecordPipelineState(const PipelineState& pipelineState, uint64_t hash)
+static void RecordPipelineState(const PipelineState& pipelineState)
 {
-	PipelineCacheEntry entry{};
+	PipelineCacheEntry entry;
+	if (!BuildPipelineCacheEntry(pipelineState, entry))
+		return;
+
+	XXH64_hash_t hash = ComputePipelineEntryHash(entry);
 	entry.pipelineHash = hash;
-	entry.vertexShaderMode = pipelineState.vertexShaderType;
-	entry.isFixedFunctionPS = pipelineState.isFixedFunctionPS;
-
-	if (pipelineState.vertexShaderType == VertexShaderMode::FixedFunction ||
-		pipelineState.vertexShaderType == VertexShaderMode::Passthrough)
-	{
-		entry.vertexShaderHash = 0;
-	}
-	else if (pipelineState.vertexShader != nullptr &&
-		IsReadableMemory(pipelineState.vertexShader, sizeof(GuestShader)))
-	{
-		if (pipelineState.vertexShader->shaderCacheEntry != nullptr)
-			entry.vertexShaderHash = pipelineState.vertexShader->shaderCacheEntry->hash;
-		else if (pipelineState.vertexShader->runtimeHash != 0)
-			entry.vertexShaderHash = pipelineState.vertexShader->runtimeHash;
-		else
-		{
-			LOGFN("PipelineCache: Skipping pipeline {:016X} - VS not cacheable (ptr={})", hash, (void*)pipelineState.vertexShader);
-			return;
-		}
-	}
-	else
-	{
-		LOGFN("PipelineCache: Skipping pipeline {:016X} - VS not cacheable (ptr={})", hash, (void*)pipelineState.vertexShader);
-		return;
-	}
-
-	if (pipelineState.isFixedFunctionPS)
-	{
-		entry.pixelShaderHash = 0;
-	}
-	else if (pipelineState.pixelShader != nullptr &&
-		IsReadableMemory(pipelineState.pixelShader, sizeof(GuestShader)))
-	{
-		if (pipelineState.pixelShader->shaderCacheEntry != nullptr)
-			entry.pixelShaderHash = pipelineState.pixelShader->shaderCacheEntry->hash;
-		else if (pipelineState.pixelShader->runtimeHash != 0)
-			entry.pixelShaderHash = pipelineState.pixelShader->runtimeHash;
-		else
-		{
-			LOGFN("PipelineCache: Skipping pipeline {:016X} - PS not cacheable (ptr={})", hash, (void*)pipelineState.pixelShader);
-			return;
-		}
-	}
-	else if (pipelineState.pixelShader == nullptr)
-	{
-		entry.pixelShaderHash = 0;
-	}
-	else
-	{
-		LOGFN("PipelineCache: Skipping pipeline {:016X} - PS not cacheable (ptr={})", hash, (void*)pipelineState.pixelShader);
-		return;
-	}
-
-	if (pipelineState.vertexDeclaration != nullptr)
-	{
-		entry.vertexDeclHash = pipelineState.vertexDeclaration->hash;
-		entry.vertexElementCount = pipelineState.vertexDeclaration->vertexElementCount;
-		if (entry.vertexElementCount > MAX_VERTEX_ELEMENTS)
-			return;
-
-		memcpy(entry.vertexElements, pipelineState.vertexDeclaration->vertexElements.get(),
-			entry.vertexElementCount * sizeof(D3DVERTEXELEMENT9));
-	}
-	else
-	{
-		return;
-	}
-	entry.zEnable = pipelineState.zEnable;
-	entry.zWriteEnable = pipelineState.zWriteEnable;
-	entry.stencilEnable = pipelineState.stencilEnable;
-	entry.srcBlend = pipelineState.srcBlend;
-	entry.destBlend = pipelineState.destBlend;
-	entry.cullMode = pipelineState.cullMode;
-	entry.zFunc = pipelineState.zFunc;
-	entry.stencilFunc = pipelineState.stencilFunc;
-	entry.stencilFail = pipelineState.stencilFail;
-	entry.stencilZFail = pipelineState.stencilZFail;
-	entry.stencilPass = pipelineState.stencilPass;
-	entry.stencilMask = pipelineState.stencilMask;
-	entry.stencilWriteMask = pipelineState.stencilWriteMask;
-	entry.stencilRef = pipelineState.stencilRef;
-	entry.stencilFuncCCW = pipelineState.stencilFuncCCW;
-	entry.alphaBlendEnable = pipelineState.alphaBlendEnable;
-	entry.blendOp = pipelineState.blendOp;
-	entry.slopeScaledDepthBias = pipelineState.slopeScaledDepthBias;
-	entry.depthBias = pipelineState.depthBias;
-	entry.srcBlendAlpha = pipelineState.srcBlendAlpha;
-	entry.destBlendAlpha = pipelineState.destBlendAlpha;
-	entry.blendOpAlpha = pipelineState.blendOpAlpha;
-	entry.colorWriteEnable = pipelineState.colorWriteEnable;
-	entry.primitiveTopology = pipelineState.primitiveTopology;
-	memcpy(entry.vertexStrides, pipelineState.vertexStrides, sizeof(entry.vertexStrides));
-	entry.renderTargetFormat = pipelineState.renderTargetFormat;
-	entry.depthStencilFormat = pipelineState.depthStencilFormat;
-	entry.sampleCount = pipelineState.sampleCount;
-	entry.enableAlphaToCoverage = pipelineState.enableAlphaToCoverage;
-	entry.specConstants = pipelineState.specConstants;
 
 	std::lock_guard lock(g_pipelineCacheMutex);
 	if (!g_pipelineCacheEntries.contains(hash))
@@ -1086,6 +1104,21 @@ static void LoadAndPrecompilePipelines()
 		return;
 	}
 
+	std::error_code ec;
+	auto fileSize = std::filesystem::file_size(path, ec);
+	if (ec)
+	{
+		LOGFN("PipelineCache: Failed to get file size for {}", path.string());
+		return;
+	}
+
+	constexpr size_t headerSize = sizeof(PIPELINE_CACHE_MAGIC) + sizeof(PIPELINE_CACHE_VERSION) + sizeof(uint32_t);
+	if (fileSize < headerSize)
+	{
+		LOGFN("PipelineCache: File too small for header ({} bytes)", fileSize);
+		return;
+	}
+
 	uint32_t magic, version, entryCount;
 	file.read(reinterpret_cast<char*>(&magic), sizeof(magic));
 	file.read(reinterpret_cast<char*>(&version), sizeof(version));
@@ -1094,6 +1127,13 @@ static void LoadAndPrecompilePipelines()
 	if (magic != PIPELINE_CACHE_MAGIC || version != PIPELINE_CACHE_VERSION)
 	{
 		LOGFN("PipelineCache: Invalid cache file (magic={:X} version={})", magic, version);
+		return;
+	}
+
+	if (entryCount == 0 || (fileSize - headerSize) / sizeof(PipelineCacheEntry) < entryCount)
+	{
+		LOGFN("PipelineCache: File truncated (claims {} entries, {} available)", entryCount,
+			(fileSize - headerSize) / sizeof(PipelineCacheEntry));
 		return;
 	}
 
@@ -1107,8 +1147,14 @@ static void LoadAndPrecompilePipelines()
 	{
 		PipelineCacheEntry entry;
 		file.read(reinterpret_cast<char*>(&entry), sizeof(PipelineCacheEntry));
-		if (file.eof())
+		if (file.gcount() != static_cast<std::streamsize>(sizeof(PipelineCacheEntry)))
+		{
+			LOGFN("PipelineCache: Short read at entry {} (got {}, expected {})", i,
+				file.gcount(), sizeof(PipelineCacheEntry));
 			break;
+		}
+
+		entry.pipelineHash = ComputePipelineEntryHash(entry);
 
 		if (TryCompileFromCacheEntry(entry))
 			compiled++;
@@ -1210,7 +1256,7 @@ static bool TryCompileFromCacheEntry(const PipelineCacheEntry& entry)
 
 	SanitizePipelineState(pipelineState);
 
-	XXH64_hash_t hash = XXH3_64bits(&pipelineState, sizeof(pipelineState));
+	XXH64_hash_t hash = ComputePipelineStateHash(pipelineState);
 	auto& pipeline = g_pipelines[hash];
 	if (pipeline == nullptr)
 	{
@@ -1246,7 +1292,11 @@ static void PrecompileStaticPipelines()
 	{
 		std::lock_guard lock(g_pipelineCacheMutex);
 		for (size_t i = 0; i < g_staticPipelineCacheCount; i++)
-			g_pipelineCacheEntries.emplace(entries[i].pipelineHash, entries[i]);
+		{
+			PipelineCacheEntry entry = entries[i];
+			entry.pipelineHash = ComputePipelineEntryHash(entry);
+			g_pipelineCacheEntries.emplace(entry.pipelineHash, entry);
+		}
 	}
 
 	auto totalElapsed = std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - totalStart).count();
@@ -1386,7 +1436,7 @@ static void CompilePendingPipelinesForShader(uint64_t runtimeHash, GuestShader* 
 
 		SanitizePipelineState(pipelineState);
 
-		XXH64_hash_t hash = XXH3_64bits(&pipelineState, sizeof(pipelineState));
+		XXH64_hash_t hash = ComputePipelineStateHash(pipelineState);
 		auto& pipeline = g_pipelines[hash];
 		if (pipeline == nullptr)
 			pipeline = CreateGraphicsPipeline(pipelineState);
@@ -4478,7 +4528,6 @@ void Video::WaitOnSwapChain()
 	}
 }
 
-static bool g_shouldPrecompilePipelines;
 static std::atomic<bool> g_executedCommandList;
 std::chrono::steady_clock::time_point frameStartTime;
 static std::atomic<bool> presentExecuted(true);
@@ -4502,11 +4551,6 @@ void Video::Present()
 
 	cmd.type = RenderCommandType::ExecuteCommandList;
 	g_renderQueue.enqueue(cmd);
-
-	if (g_shouldPrecompilePipelines)
-	{
-		g_shouldPrecompilePipelines = false;
-	}
 
 	presentExecuted = false;
 	g_executedCommandList.wait(false);
@@ -4603,11 +4647,6 @@ void Video::PrecompileShadersAndPipelines()
 	PrecompileShaders();
 	PrecompileStaticPipelines();
 	LoadAndPrecompilePipelines();
-}
-
-void Video::StartPipelinePrecompilation()
-{
-	g_shouldPrecompilePipelines = true;
 }
 
 static void SetRootDescriptor(const UploadAllocation& allocation, size_t index)
@@ -6862,7 +6901,7 @@ static RenderPipeline* CreateGraphicsPipelineInRenderThread(PipelineState pipeli
 {
 	SanitizePipelineState(pipelineState);
 
-	XXH64_hash_t hash = XXH3_64bits(&pipelineState, sizeof(pipelineState));
+	XXH64_hash_t hash = ComputePipelineStateHash(pipelineState);
 	auto& pipeline = g_pipelines[hash];
 	if (pipeline == nullptr)
 	{
@@ -6893,7 +6932,6 @@ static RenderPipeline* CreateGraphicsPipelineInRenderThread(PipelineState pipeli
 				"  vertexShader: {}\n"
 				"  pixelShader: {}\n"
 				"  vertexDeclaration: {:X}\n"
-				"  instancing: {}\n"
 				"  zEnable: {}\n"
 				"  zWriteEnable: {}\n"
 				"  srcBlend: {}\n"
@@ -6922,7 +6960,6 @@ static RenderPipeline* CreateGraphicsPipelineInRenderThread(PipelineState pipeli
 				pipelineState.vertexShader->name,
 				pipelineState.pixelShader != nullptr ? pipelineState.pixelShader->name : "<none>",
 				reinterpret_cast<size_t>(pipelineState.vertexDeclaration),
-				pipelineState.instancing,
 				pipelineState.zEnable,
 				pipelineState.zWriteEnable,
 				magic_enum::enum_name(pipelineState.srcBlend),
@@ -6951,7 +6988,7 @@ static RenderPipeline* CreateGraphicsPipelineInRenderThread(PipelineState pipeli
 		}
 #endif
 
-		RecordPipelineState(pipelineState, hash);
+		RecordPipelineState(pipelineState);
 
 #ifdef PSO_CACHING
 		std::lock_guard lock(g_pipelineCacheMutex);
