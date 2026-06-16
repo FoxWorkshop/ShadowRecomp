@@ -209,22 +209,31 @@ public:
 		else
 			state.sThumbLX = 0;
 
-		if (keystate[SDL_SCANCODE_I])
+		if (keystate[Config::Key_RightStickUp])
 			state.sThumbRY = STICK_MAX;
-		else if (keystate[SDL_SCANCODE_K])
+		else if (keystate[Config::Key_RightStickDown])
 			state.sThumbRY = STICK_MIN;
 		else
 			state.sThumbRY = 0;
 
-		if (keystate[SDL_SCANCODE_J])
+		if (keystate[Config::Key_RightStickLeft])
 			state.sThumbRX = STICK_MIN;
-		else if (keystate[SDL_SCANCODE_L])
+		else if (keystate[Config::Key_RightStickRight])
 			state.sThumbRX = STICK_MAX;
 		else
 			state.sThumbRX = 0;
 
 		if (keystate[Config::Key_Start])
 			state.wButtons |= XINPUT_GAMEPAD_START;
+
+		if (keystate[Config::Key_DPadUp])
+			state.wButtons |= XINPUT_GAMEPAD_DPAD_UP;
+		if (keystate[Config::Key_DPadDown])
+			state.wButtons |= XINPUT_GAMEPAD_DPAD_DOWN;
+		if (keystate[Config::Key_DPadLeft])
+			state.wButtons |= XINPUT_GAMEPAD_DPAD_LEFT;
+		if (keystate[Config::Key_DPadRight])
+			state.wButtons |= XINPUT_GAMEPAD_DPAD_RIGHT;
 
 		if (keystate[Config::Key_Y])
 			state.bAnalogButtons[Buttons_Y] = 0xFF;
