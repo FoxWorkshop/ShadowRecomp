@@ -419,10 +419,22 @@ bool SplitscreenTypeInitializeUnpauseMidAsmHook(X86Register& eax)
     auto base = g_memory.base;
     if (Config::ExtendedMultiplayer)
     {
-        X86_STORE_F32(0x4E5E30, 0.5f); // P3
-        X86_STORE_F32(0x4E5E34, 1.0f);
-        X86_STORE_F32(0x4E5E60, 0.5f); // P4
-        X86_STORE_F32(0x4E5E64, 1.0f);
+        if (g_multiplayerPlayerCount == 3) {
+            X86_STORE_F32(0x4E5E30, 0.5f); // P3
+            X86_STORE_F32(0x4E5E34, 1.0f);
+            X86_STORE_F32(0x4E5E60, 0.5f); // P4
+            X86_STORE_F32(0x4E5E64, 1.0f);
+        }
+        else if (g_multiplayerPlayerCount == 4) {
+            X86_STORE_F32(0x4E5DD0, 0.75f); // P1
+            X86_STORE_F32(0x4E5DD4, 0.75f);
+            X86_STORE_F32(0x4E5E00, 0.75f); // P2
+            X86_STORE_F32(0x4E5E04, 0.75f);
+            X86_STORE_F32(0x4E5E30, 0.75f); // P3
+            X86_STORE_F32(0x4E5E34, 0.75f);
+            X86_STORE_F32(0x4E5E60, 0.75f); // P4
+            X86_STORE_F32(0x4E5E64, 0.75f);
+        }
         return true;
     }
     return (eax.u8_lo & 0x2) == 0;
