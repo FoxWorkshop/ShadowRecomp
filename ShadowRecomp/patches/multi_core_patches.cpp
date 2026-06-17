@@ -320,8 +320,13 @@ X86_FUNC_IMPL(__imp__sub_2DCDE0);
 X86_FUNC(sub_2DCDE0)
 {
 	RtlEnterCriticalSection(&globalcurCamera);
+
 	__imp__sub_2DCDE0(ctx, base);
-	RtlLeaveCriticalSection(&globalcurCamera);
+
+	if (!ctx.eax.u32) // end update won't be called if function failed
+	{
+		RtlLeaveCriticalSection(&globalcurCamera);
+	}
 
 }
 
@@ -329,7 +334,6 @@ X86_FUNC(sub_2DCDE0)
 X86_FUNC_IMPL(__imp__sub_2DCDB0);
 X86_FUNC(sub_2DCDB0)
 {
-	RtlEnterCriticalSection(&globalcurCamera);
 	__imp__sub_2DCDB0(ctx, base);
 	RtlLeaveCriticalSection(&globalcurCamera);
 }
@@ -340,7 +344,11 @@ X86_FUNC(sub_2CBA40)
 {
 	RtlEnterCriticalSection(&globalCurWorld);
 	__imp__sub_2CBA40(ctx, base);
-	RtlLeaveCriticalSection(&globalCurWorld);
+
+	if (!ctx.eax.u32) // end update won't be called if function failed
+	{
+		RtlLeaveCriticalSection(&globalCurWorld);
+	}
 
 }
 
@@ -348,7 +356,6 @@ X86_FUNC(sub_2CBA40)
 X86_FUNC_IMPL(__imp__sub_2CBA70);
 X86_FUNC(sub_2CBA70)
 {
-	RtlEnterCriticalSection(&globalCurWorld);
 	__imp__sub_2CBA70(ctx, base);
 	RtlLeaveCriticalSection(&globalCurWorld);
 }
@@ -356,20 +363,15 @@ X86_FUNC(sub_2CBA70)
 X86_FUNC_IMPL(__imp__sub_2D4A90);
 X86_FUNC(sub_2D4A90)
 {
-	RtlEnterCriticalSection(&globalCurWorld);
-
 	auto res = X86_LOAD_U32(0x57DE04);
 	if (!res)
 	{
 		LOG_ERROR("sub_2D4A90: globalCurWorld was null, aborting function for safety.\n");
 		ctx.eax.u32 = 0;
-		RtlLeaveCriticalSection(&globalCurWorld);
 		return; // no need to adjust esp this function is originally a jmp tail
 	}
 
 	__imp__sub_2D4A90(ctx, base);
-
-	RtlLeaveCriticalSection(&globalCurWorld);
 
 }
 
