@@ -14,11 +14,6 @@ void SetFramerateMidAsmHook()
 	}
 }
 
-bool ShouldApplyVsyncPatch()
-{
-	return g_isEventPlaying == false;
-}
-
 // TPjsEventActionManager::Exec
 X86_FUNC_IMPL(__imp__sub_228740);
 X86_FUNC(sub_228740)

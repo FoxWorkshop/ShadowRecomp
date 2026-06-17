@@ -123,7 +123,6 @@ static bool useLowSpec = false;
 #include "cache/pipeline_cache.h"
 #include <patches/pause_patches.h>
 #include <ui/achievement_menu.h>
-#include <patches/fps_patches.h>
 #include <ui/achievement_overlay.h>
 
 
@@ -2713,7 +2712,7 @@ static void CreateImGuiBackend()
 
 static void CheckSwapChain()
 {
-	g_swapChain->setVsyncEnabled(ShouldApplyVsyncPatch() ? Config::VSync : true);
+	g_swapChain->setVsyncEnabled(Config::VSync);
 	g_swapChainValid &= !g_swapChain->needsResize();
 
 	if (!g_swapChainValid)
