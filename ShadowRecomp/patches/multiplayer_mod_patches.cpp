@@ -444,7 +444,7 @@ bool SplitscreenTypeInitializeUnpauseMidAsmHook(X86Register& eax)
         }
         return true;
     }
-    return (eax.u8_lo & 0x2) == 0;
+    return (eax.u8_lo & 0x2) != 0;
 }
 
 void AddToScoreNullMidAsmHook()

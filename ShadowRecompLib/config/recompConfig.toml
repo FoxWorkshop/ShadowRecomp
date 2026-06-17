@@ -860,7 +860,7 @@ address = 0x23C877
 name = "PatchDisableHudMidAsmHook"
 address = 0x23CCE3
 
-# Extended Multiplayer
+#### Extended Multiplayer
 [[midasm_hook]]
 name = "ExtendedMultiplayerCameraAttachMidAsmHook"
 address = 0x165047
@@ -1068,3 +1068,4 @@ name = "AddToScoreNullMidAsmHook"
 address = 0x22D630
 jump_address = 0x22D699
 # End Add_To_Score nullsub
+#### End Extended Multiplayer
