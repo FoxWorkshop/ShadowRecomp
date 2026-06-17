@@ -27,6 +27,18 @@ struct Mod
 
 };
 
+enum class ModReservedID : uint8_t
+{
+	Reloaded,
+	Multiplayer
+};
+
+const char* reservedIDName[] =
+{
+	"shthr.Reloaded",
+	"shthr.Multiplayer"
+};
+
 static std::vector<Mod> g_mods;
 
 
@@ -147,7 +159,7 @@ void ModLoader::Init()
 		modinfo->getString("Description"),
 		modinfo->getString("Version"),
 		"",
-		"",
+		modinfo->getString("ModID"),
 		modinfo->getBool("RedirectMainSave"),
 		};
 
@@ -209,6 +221,16 @@ void ModLoader::Init()
 				}
 			}
 
+		}
+
+		if (strcmp(reservedIDName[(uint8_t)ModReservedID::Reloaded], modinf.ID.c_str()) == 0)
+		{
+			// add toggle for reloaded
+		}
+
+		if (strcmp(reservedIDName[(uint8_t)ModReservedID::Multiplayer], modinf.ID.c_str()) == 0)
+		{
+			// add toggle for mp
 		}
 
 		if (commonDirExist || includeDirExist)
