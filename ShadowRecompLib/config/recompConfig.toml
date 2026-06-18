@@ -847,3 +847,15 @@ name = "EasierUnlockLastStoryMidAsmHook"
 address = 0x23D64A
 registers = ["r5"]
 jump_address_on_true = 0x23D64F
+
+[[midasm_hook]]
+name = "PatchDisableHudMidAsmHook"
+address = 0x23D414
+
+[[midasm_hook]]
+name = "PatchDisableHudMidAsmHook"
+address = 0x23C877
+
+[[midasm_hook]]
+name = "PatchDisableHudMidAsmHook"
+address = 0x23CCE3

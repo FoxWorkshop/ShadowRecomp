@@ -290,11 +290,23 @@ X86_FUNC(sub_2B47C0)
 	g_currentBuffer = nullptr;
 }
 
+static bool s_hudDisabled = false;
+
 void ToggleHud(bool toggle)
 {
 	auto base = g_memory.base;
 	X86_STORE_U16(0x54DE78, toggle ? hudFlagPtr : 0);
 	X86_STORE_U8(0x4E4B74, toggle ? 1 : 0);
+	s_hudDisabled = toggle == false;
+}
+
+void PatchDisableHudMidAsmHook()
+{
+	if (s_hudDisabled)
+	{
+		auto base = g_memory.base;
+		X86_STORE_U16(0x54DE78, 0x0);
+	}
 }
 
 // Chao::CSD::Scene::Render
