@@ -13,5 +13,7 @@ struct PlayerShadow
 	int32_t pos;
 };
 
-extern PlayerShadow* playerPtr; // NOTE: This is last Shadow allocated, not necessarily P1!
-extern RwV3d* playerPos; // NOTE: This is last Shadow allocated, not necessarily P1!
+extern PlayerShadow* playerPtr[4];
+extern RwV3d* playerPos[4];
+extern uint32_t g_multiplayerPlayerCount;
+extern bool isAwakeAboutToInvoke;

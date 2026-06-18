@@ -180,6 +180,7 @@ public:
 
 std::array<Controller, 4> g_controllers;
 Controller* g_activeController;
+uint32_t g_keyboardPort = 1;
 
 class KeyboardController
 {
@@ -421,6 +422,13 @@ int Input_OnSDLEvent(void*, SDL_Event* event)
 	}
 
 	case SDL_KEYDOWN:
+		if (event->key.keysym.scancode == SDL_SCANCODE_F6 && event->key.repeat == 0)
+		{
+			g_keyboardPort = (g_keyboardPort % 4) + 1;
+			printf("Keyboard now controlling PORT %d\n", g_keyboardPort);
+		}
+		input::g_inputDevice = input::EInputDevice::Keyboard;
+		break;
 	case SDL_KEYUP:
 		input::g_inputDevice = input::EInputDevice::Keyboard;
 		break;
@@ -499,19 +507,17 @@ uint32_t input::GetState(uint32_t dwUserIndex, XINPUT_STATE* pState)
 
 	pState->dwPacketNumber = packet++;
 
-	if (dwUserIndex == 1)
+	bool hasController = false;
+	if (dwUserIndex >= 1 && dwUserIndex <= 4 && g_controllers[dwUserIndex - 1].controller)
 	{
-		if (g_controllers[0].controller)
-		{
-			g_controllers[0].Poll();
-			g_controllers[0].PollAxis(0);
-			pState->Gamepad = g_controllers[0].state;
-		}
-		else
-		{
-			memset(&pState->Gamepad, 0, sizeof(pState->Gamepad));
-		}
+		g_controllers[dwUserIndex - 1].Poll();
+		g_controllers[dwUserIndex - 1].PollAxis(dwUserIndex - 1);
+		pState->Gamepad = g_controllers[dwUserIndex - 1].state;
+		hasController = true;
+	}
 
+	if (dwUserIndex == g_keyboardPort)
+	{
 		g_keyboardController.Poll();
 		auto& kbPad = g_keyboardController.state;
 		auto& pad = pState->Gamepad;
@@ -532,16 +538,14 @@ uint32_t input::GetState(uint32_t dwUserIndex, XINPUT_STATE* pState)
 		return ERROR_SUCCESS;
 	}
 
+	if (dwUserIndex == 1)
+		return ERROR_SUCCESS;
+
 	if (!g_activeController)
 		return ERROR_DEVICE_NOT_CONNECTED;
 
-	if (g_controllers[dwUserIndex - 1].controller)
-	{
-		g_controllers[dwUserIndex - 1].Poll();
-		g_controllers[dwUserIndex - 1].PollAxis(dwUserIndex - 1);
-		pState->Gamepad = g_controllers[dwUserIndex - 1].state;
+	if (hasController)
 		return ERROR_SUCCESS;
-	}
 
 	return ERROR_DEVICE_NOT_CONNECTED;
 }
