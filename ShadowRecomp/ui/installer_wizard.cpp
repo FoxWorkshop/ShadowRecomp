@@ -17,7 +17,14 @@
 #include <exports.h>
 #include <patches/aspect_ratio_patches.h>
 #include <gpu/imgui/imgui_snapshot.h>
+#include <ui/imgui_utils.h>
+#include <res/images/common/TitleBg.png.h>
+#include <res/images/common/Options2.png.h>
 
+#include <decompressor.h>
+
+static std::unique_ptr<GuestTexture> g_upTexOptionsBG{};
+static std::unique_ptr<GuestTexture> g_upTexBGMenuList{};
 
 enum class WizardPage
 {
@@ -70,7 +77,7 @@ static constexpr double ALL_ANIMATIONS_FULL_DURATION = CONTAINER_INNER_TIME + CO
 static constexpr double QUITTING_EXTRA_DURATION = 60.0;
 
 static float fontSize = 24.0f;
-static float smallFontSize = 16.0f;
+static float smallFontSize = 18.0f;
 static float descFontSize = 18.0f;
 
 constexpr float CONTAINER_X = 153.0f;
@@ -408,10 +415,10 @@ static void DrawLanguagePicker(ImVec2 panelMin, ImVec2 panelMax)
 	}
 }
 
-static void DrawNextButton(ImVec2 &panelMin, ImVec2 &panelMax)
+static void DrawNextButton(ImVec2& panelMin, ImVec2& panelMax)
 {
 
-	auto& io = ImGui::GetIO();	
+	auto& io = ImGui::GetIO();
 	auto drawList = ImGui::GetBackgroundDrawList();
 	auto& displaySize = io.DisplaySize;
 	auto* font = g_fntSeurat;
@@ -443,10 +450,10 @@ static void DrawNextButton(ImVec2 &panelMin, ImVec2 &panelMax)
 
 }
 
-static void DrawPrevButton(ImVec2 &panelMin, ImVec2 &panelMax)
+static void DrawPrevButton(ImVec2& panelMin, ImVec2& panelMax)
 {
 
-	auto& io = ImGui::GetIO();	
+	auto& io = ImGui::GetIO();
 	auto drawList = ImGui::GetBackgroundDrawList();
 	auto& displaySize = io.DisplaySize;
 	auto* font = g_fntSeurat;
@@ -478,9 +485,175 @@ static void DrawPrevButton(ImVec2 &panelMin, ImVec2 &panelMax)
 
 }
 
-void InstallerWizard::Init()
+static void DrawDescription(std::string s)
 {
-	g_fntSeurat = ImFontAtlasSnapshot::GetFont("FOT-SeuratPro-DB.otf");
+	static std::string prevText;
+	static double scrollStartTime = 0.0;
+	constexpr double scrollDelay = 0.5; // seconds to wait before scrolling
+	double elapsed = ImGui::GetTime() - scrollStartTime;
+
+	std::replace(s.begin(), s.end(), '\n', ' ');
+
+	if (prevText != s)
+	{
+		prevText = s;
+		scrollStartTime = ImGui::GetTime() + scrollDelay;
+	}
+
+	auto drawList = ImGui::GetBackgroundDrawList();
+	auto& res = ImGui::GetIO().DisplaySize;
+
+	// First we calculate the position of the black bar of the menu BG
+	float barTexX = 74.0f;
+	float barTexY = 38.f;
+	float barTexH = 48.f;
+	float texHeight = 512.0f;
+
+	// Then we map to screen space proportionally
+	float barScreenX = (barTexX / texHeight) * res.x;
+	float barScreenY = (barTexY / texHeight) * res.y;
+	float barScreenH = (barTexH / texHeight) * res.y;
+
+	ImVec2 barMin = { barScreenX + Scale(30), barScreenY };
+	ImVec2 barMax = { res.x, barScreenY + barScreenH };
+
+	drawList->PushClipRect(barMin, barMax);
+
+
+	float fontSize = g_fntSeuratSize - 2.f;
+	auto textSize = g_fntSeurat->CalcTextSizeA(fontSize, FLT_MAX, 0.0f, s.c_str());
+
+	float barWidth = res.x - barScreenX;
+
+
+	ImVec2 textPos = {
+		barScreenX + barWidth * 0.5f - textSize.x * 0.5f + Scale(15.f),  // centered within bar bounds
+		barScreenY + barScreenH * 0.6f - textSize.y * 0.5f
+	};
+
+	float offsetScroll = 0.0f;
+	float totalWidth = 0.0f;
+	bool isScrolling = textSize.x > barWidth - Scale(55.f);
+
+	if (isScrolling)
+	{
+		float gap = Scale(80.0f);
+		totalWidth = textSize.x + gap;
+		float scrollSpeed = Scale(70.0f);
+
+		// Anchor to left edge of the bar so scroll always starts at beginning of text
+		textPos.x = barMin.x + Scale(15.f);
+		offsetScroll = elapsed > 0.0 ? fmod(elapsed * scrollSpeed, totalWidth) : 0.0f;
+	}
+
+	textPos.x -= offsetScroll;
+
+
+	SetShaderModifier(IMGUI_SHADER_MODIFIER_LOW_QUALITY_TEXT);
+
+	drawList->AddText(g_fntSeurat, fontSize, textPos, IM_COL32(255, 255, 255, 255), s.c_str());
+
+	if (isScrolling)
+	{
+		// Draw the looping copy trailing behind
+		ImVec2 loopPos = { textPos.x + totalWidth, textPos.y };
+		drawList->AddText(g_fntSeurat, fontSize, loopPos, IM_COL32(255, 255, 255, 255), s.c_str());
+	}
+
+	SetShaderModifier(IMGUI_SHADER_MODIFIER_NONE);
+
+	drawList->PopClipRect();
+}
+
+void DrawMenuListContainer()
+{
+	auto* drawList = ImGui::GetBackgroundDrawList();
+	auto& res = ImGui::GetIO().DisplaySize;
+
+	auto containerUVs = PIXELS_TO_UV_COORDS(512, 512, 0, 247, 274, 264);
+	auto containerWidth = res.x * 0.5f;
+	auto containerHeight = res.y;
+	auto containerOffsetX = Scale(1);
+	auto containerOffsetY = Scale(136);
+
+
+	ImVec2 min = { g_horzCentre + g_aspectRatioNarrowMargin, g_vertCentre };
+	ImVec2 max = { res.x - min.x, res.y - min.y };
+	// 1.0 = fully on screen, 0.0 = fully off screen
+	float t = 1.0f;
+
+
+	float containerFinalX = res.x - containerWidth;
+
+	// Start position is fully off screen to the right
+	float containerStartX = res.x;
+
+	// Interpolate between start and final
+	float containerCurrentX = containerStartX + (containerFinalX - containerStartX) * t;
+
+	ImVec2 containerMin = { containerCurrentX, min.y + containerOffsetY };
+	ImVec2 containerMax = { containerCurrentX + containerWidth, containerMin.y + containerHeight };
+
+	drawList->AddImage(g_upTexBGMenuList.get(), containerMin, containerMax, GET_UV_COORDS(containerUVs));
+
+	if (t < 1.f)
+		return;
+
+	float optionsOffsetX = Scale(170);
+	float optionsOffsetY = Scale(23);
+
+	ImVec2 minOptions = { containerMin.x + optionsOffsetX, containerMin.y + optionsOffsetY };
+	ImVec2 maxOptions = { res.x, containerMax.y - optionsOffsetY };
+
+	optionsOffsetX -= Scale(170);
+	//optionsOffsetY -= Scale(23);
+	ImVec2 minClipRect = { containerMin.x + optionsOffsetX, containerMin.y + optionsOffsetY };
+	ImVec2 maxClipRect = { res.x, containerMax.y - optionsOffsetY };
+
+}
+
+static void DrawBackground()
+{
+
+	auto& res = ImGui::GetIO().DisplaySize;
+	auto drawList = ImGui::GetBackgroundDrawList();
+
+	ImVec2 min = { g_horzCentre + g_aspectRatioNarrowMargin, g_vertCentre };
+	ImVec2 max = { res.x - min.x, res.y - min.y };
+
+	float borderPixels = 32.f; // Options BG has an extra black border at the bottom, we don't want that.
+	float uvMaxY = 1.0f - (borderPixels / 512.0f);
+
+	ImVec2 centre = { res.x / 2.f, res.y / 2.f };
+	float scale = 1.0f;
+
+
+
+
+	drawList->AddImage
+	(
+		g_upTexOptionsBG.get(),
+		{ 0.0f, 0.0f },
+		{ res.x, res.y },
+		{ 0, 0 },
+		{ 1, uvMaxY },
+		IM_COL32(255, 255, 255, 255)
+	);
+
+
+	// draw Options Logo
+
+	if (scale >= 0.8f)
+	{
+		auto optionsUVs = PIXELS_TO_UV_COORDS(512, 512, 0, 0, 147, 448);
+		auto optionsWidth = res.x * 0.16f;
+		auto optionsHeight = res.y * 0.96f;
+
+		ImVec2 optionsMin = { 0, min.y + Scale(10) };
+		ImVec2 optionsMax = { optionsMin.x + optionsWidth, optionsMin.y + optionsHeight };
+
+		//drawList->AddImage(g_upTexBGOptions.get(), optionsMin, optionsMax, GET_UV_COORDS(optionsUVs), IM_COL32(255, 255, 255, 128));
+	}
 }
 
 void InstallerWizard::Draw()
@@ -501,37 +674,58 @@ void InstallerWizard::Draw()
 
 	float centerX = displaySize.x * 0.5f;
 	float centerY = displaySize.y * 0.5f;
-	float panelWidth = displaySize.x * 0.6f;
+	float panelWidth = centerX;
 	float panelHeight = displaySize.y * 0.6f;
-	float panelX = centerX - panelWidth * 0.5f;
+	float panelX = centerX;
 	float panelY = displaySize.y * 0.5f - panelHeight * 0.5f;
 
 	float baseFontSize = std::floor(std::min(panelWidth, panelHeight) / 22.0f);
 	fontSize = baseFontSize;
-	descFontSize = std::floor(baseFontSize);
+	descFontSize = std::floor(baseFontSize) + 8.f;
 	smallFontSize = std::floor(baseFontSize * 0.80f);
 
+	DrawBackground();
 
+	auto min = ImVec2(g_horzCentre + g_aspectRatioNarrowMargin, g_vertCentre);
+	auto max = ImVec2(displaySize.x - min.x, displaySize.y - min.y);
 
-	ImVec2 panelMin(panelX, panelY);
-	ImVec2 panelMax(panelX + panelWidth, panelY + panelHeight);
+	ImVec2 panelMin(max.x - panelWidth, panelY);
+	ImVec2 panelMax(displaySize.x, panelY + panelHeight);
 
-	drawList->AddRectFilled(panelMin, panelMax, IM_COL32(30, 30, 50, 255), 8.0f);
-	drawList->AddRect(panelMin, panelMax, IM_COL32(80, 80, 120, 255), 8.0f, 0, 1.0f);
+	drawList->AddRectFilled(panelMin, panelMax, IM_COL32(30, 30, 50, 128), 8.0f);
+	drawList->AddRect(panelMin, panelMax, IM_COL32(80, 80, 120, 128), 8.0f, 0, 1.0f);
 
 	auto titleText = "Shadow the Hedgehog Recompiled - Setup";
 	auto titleSize = font->CalcTextSizeA(fontSize + 2.f, FLT_MAX, 0, titleText);
 	float titleX = centerX - titleSize.x * 0.5f;
-	drawList->AddText(font, fontSize, ImVec2(titleX, panelY + 25), IM_COL32(220, 220, 255, 255), titleText);
+
 
 	float contentY = panelY + 80;
 
+	std::string wizardText = GetWizardText(g_currentPage);
 	char descriptionText[512];
-	strncpy(descriptionText, GetWizardText(g_currentPage).c_str(), sizeof(descriptionText) - 1);
+	strncpy(descriptionText, wizardText.c_str(), sizeof(descriptionText) - 1);
+	auto originMargin = Scale(38);
+	auto originMin = ImVec2(panelMin.x + originMargin, panelMin.y + originMargin);
+	auto originMax = ImVec2(max.x - originMargin, panelMax.y - originMargin);
+	auto textMargin = 5.0f;
 
+	auto textMaxWidth = originMax.x - (descFontSize / 2.0f) - originMin.x;
+	auto textSize = MeasureCentredParagraph(g_fntSeurat, descFontSize, textMaxWidth, textMargin, wizardText.c_str());
 	if (g_currentPage != WizardPage::Installing && g_currentPage != WizardPage::InstallFailed)
 	{
-		drawList->AddText(font, descFontSize, ImVec2(panelX + 20, contentY), IM_COL32(200, 200, 200, 255), descriptionText, nullptr, panelWidth - 40);
+
+		if (wizardText.length() < 20)
+		{
+			DrawDescription(descriptionText);
+			drawList->AddText(font, fontSize, ImVec2(titleX, panelY + 25), IM_COL32(220, 220, 255, 255), titleText);
+		}
+		else
+		{
+			DrawDescription("SHADOW THE HEDGEHOG - INSTALLER");
+			DrawTextParagraph(g_fntSeurat, descFontSize, textMaxWidth, originMin, textMargin, wizardText.c_str(),
+				[&](const char* str, ImVec2 pos) { DrawTextBasic(g_fntSeurat, descFontSize, pos, IM_COL32(255, 255, 255, 255), str); });
+		}
 	}
 
 	switch (g_currentPage)
@@ -594,6 +788,8 @@ void InstallerWizard::Draw()
 		{
 			displayPath = displayPath + strlen(displayPath) - 60;
 		}
+
+
 		drawList->AddText(font, smallFontSize, ImVec2(inputMin.x + 8, inputMin.y + 7), IM_COL32(180, 180, 180, 255), displayPath, nullptr, inputWidth - 100);
 
 		float btnWidth = 120;
@@ -666,11 +862,16 @@ void InstallerWizard::Draw()
 	break;
 	case WizardPage::Installing:
 	{
+		DrawDescription("SHADOW THE HEDGEHOG - INSTALLER");
+
 		auto phase = g_installerPhase.load();
 		const char* headerText = (phase == XisoExtract::Phase::Hashing)
 			? Localise("Installer_Page_Verifying").c_str()
 			: Localise("Installer_Page_Installing").c_str();
-		drawList->AddText(font, descFontSize, ImVec2(panelX + 20, contentY), IM_COL32(220, 220, 255, 255), headerText);
+
+		DrawTextParagraph(font, descFontSize, textMaxWidth, originMin, textMargin, headerText,
+			[&](const char* str, ImVec2 pos) { DrawTextBasic(g_fntSeurat, descFontSize, pos, IM_COL32(255, 255, 255, 255), str); });
+		//drawList->AddText(font, descFontSize, ImVec2(panelX + 20, contentY), IM_COL32(220, 220, 255, 255), headerText);
 
 		contentY += 50;
 
@@ -736,14 +937,15 @@ void InstallerWizard::Draw()
 		auto foxDev = "FoxWorkShop";
 		bool playHovered = false;
 
-		auto foxSize = font->CalcTextSizeA(fontSize, FLT_MAX, 0, foxDev);
-		drawList->AddText(font, fontSize, ImVec2(centerX - foxSize.x * 0.5f, centerY - foxSize.y), IM_COL32(220, 255, 220, 255), foxDev);
+
+		auto foxSize = font->CalcTextSizeA(descFontSize, FLT_MAX, 0, foxDev);
+		drawList->AddText(font, descFontSize, ImVec2(panelX + foxSize.x * 0.5f, centerY - foxSize.y + 24), IM_COL32(220, 255, 220, 255), foxDev);
 
 
 		float playBtnWidth = 250;
 		float playBtnHeight = 58;
-		float playBtnX = centerX - playBtnWidth * 0.5f;
-		float playBtnY = centerY + playBtnHeight * 0.5f;
+		float playBtnX = panelX + playBtnWidth;
+		float playBtnY = centerY + playBtnHeight;
 
 		if (io.MousePos.x >= playBtnX && io.MousePos.x <= playBtnX + playBtnWidth &&
 			io.MousePos.y >= playBtnY && io.MousePos.y <= playBtnY + playBtnHeight)
@@ -755,6 +957,7 @@ void InstallerWizard::Draw()
 		drawList->AddRectFilled(ImVec2(playBtnX, playBtnY), ImVec2(playBtnX + playBtnWidth, playBtnY + playBtnHeight), playColor, 8.0f);
 
 		auto playText = Localise("Installer_Button_PlayGame").c_str();
+
 		auto playSize = font->CalcTextSizeA(descFontSize, FLT_MAX, 0, playText);
 		drawList->AddText(font, descFontSize, ImVec2(playBtnX + (playBtnWidth - playSize.x) * 0.5f, playBtnY + 12), IM_COL32(220, 255, 220, 255), playText);
 
@@ -936,4 +1139,13 @@ bool InstallerWizard::Run(std::filesystem::path installPath)
 	EmbeddedPlayer::Shutdown();
 
 	return !g_isQuitting;
+}
+
+
+
+void InstallerWizard::Init()
+{
+	g_fntSeurat = ImFontAtlasSnapshot::GetFont("FOT-SeuratPro-DB.otf");
+	g_upTexOptionsBG = LOAD_ZSTD_TEXTURE(g_options_bg);
+	g_upTexBGMenuList = LOAD_ZSTD_TEXTURE(g_optionsIcons);
 }

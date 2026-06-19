@@ -87,3 +87,4 @@ void DrawScrollArrows(ImVec2 min, ImVec2 max, float scale, double& time, bool to
 double ComputeLoopMotion(double time, double offset, double total);
 void DrawArrowCursor(ImVec2 pos, double time, bool isIntroAnim, bool isBlinkingAnim, bool isReversed);
 GuestTexture* GetTexArrow();
+void DrawTextParagraph(const ImFont* font, float fontSize, float maxWidth, const ImVec2& pos, float lineMargin, const char* text, std::function<void(const char*, ImVec2)> drawMethod, bool isCentred = false);

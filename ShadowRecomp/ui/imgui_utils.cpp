@@ -324,6 +324,33 @@ float CalcWidestTextSize(const ImFont* font, float fontSize, std::span<std::stri
     return result;
 }
 
+void DrawTextParagraph(const ImFont* font, float fontSize, float maxWidth, const ImVec2& pos, float lineMargin, const char* text, std::function<void(const char*, ImVec2)> drawMethod, bool isCentred)
+{
+    auto lines = Split(text, font, fontSize, maxWidth);
+    auto paragraphSize = MeasureCentredParagraph(font, fontSize, lineMargin, lines);
+    auto offsetY = 0.0f;
+
+    for (auto& line : lines)
+    {
+        auto textSize = font->CalcTextSizeA(fontSize, FLT_MAX, 0, line.c_str());
+        auto textX = pos.x;
+        auto textY = pos.y + offsetY;
+
+        if (isCentred)
+        {
+            textX = line.starts_with("- ")
+                ? pos.x - paragraphSize.x / 2
+                : pos.x - textSize.x / 2;
+
+            textY = pos.y - paragraphSize.y / 2 + offsetY;
+        }
+
+        drawMethod(line.c_str(), { textX, textY });
+
+        textX += textSize.x;
+        offsetY += textSize.y + Scale(lineMargin);
+    }
+}
 std::string Truncate(const std::string& input, size_t maxLength, bool useEllipsis, bool usePrefixEllipsis)
 {
     const std::string ellipsis = "...";

@@ -479,12 +479,12 @@ std::unordered_map<std::string_view, std::unordered_map<ELanguage, std::string>>
 		// Japanese Notes: This localization should include furigana.
 		"Installer_Page_Introduction",
 		{
-			{ ELanguage::English,  "Welcome to\nShadow Recompiled!\n\nYou'll need an Xbox copy\nof Shadow The Hedgehog in order to proceed with the installation." },
+			{ ELanguage::English,  "Welcome to Shadow Recompiled!\n\nYou'll need an Xbox copy of\nShadow The Hedgehog in order to\nproceed with the installation." },
 			{ ELanguage::Japanese, "Shadow Recompiledへようこそ！\nインストールには\n[北米版:ほくべいばん]またはEU[版:ばん]のXbox[用:よう]\n「SHADOW THE HEDGEHOG」が[必要:ひつよう]です" },
-			{ ELanguage::German,   "Willkommen zu\nShadow Recompiled!\nEs wird eine Xbox Kopie von Shadow The Hedgehog benötigt um mit der Installation fortfahren zu können." },
-			{ ELanguage::French,   "Bienvenue sur\nShadow Recompiled !\n\nVous aurez besoin d'une copie de Shadow The Hedgehog pour Xbox\npour procéder à l'installation." },
-			{ ELanguage::Spanish,  "¡Bienvenido a\nShadow Recompiled!\n\nNecesitas una copia de\nShadow The Hedgehog de Xbox\npara continuar con la instalación." },
-			{ ELanguage::Italian,  "Benvenuto a\nShadow Recompiled!\n\nDovrai avere una copia di\nShadow The Hedgehog per la Xbox\nper proseguire con l'installazione." }
+			{ ELanguage::German,   "Willkommen zu Shadow Recompiled!\nEs wird eine Xbox Kopie von Shadow The Hedgehog benötigt um mit der Installation fortfahren zu können." },
+			{ ELanguage::French,   "Bienvenue sur Shadow Recompiled !\n\nVous aurez besoin d'une copie de Shadow The Hedgehog pour Xbox\npour procéder à l'installation." },
+			{ ELanguage::Spanish,  "¡Bienvenido a Shadow Recompiled!\n\nNecesitas una copia de\nShadow The Hedgehog de Xbox\npara continuar con la instalación." },
+			{ ELanguage::Italian,  "Benvenuto a Shadow Recompiled!\n\nDovrai avere una copia di\nShadow The Hedgehog per la Xbox\nper proseguire con l'installazione." }
 		}
 	},
 	{
