@@ -312,7 +312,7 @@ void DrawPauseText()
 	for (int i = 0; i < pauseItemsCount; i++)
 	{
 		uint8_t color = i == s_index ? 255 : 127;
-		float fontSize = Scale(Config::Language == ELanguage::Japanese ? 20 : 19);
+		float fontSize = Scale(Config::Language == ELanguage::Japanese ? 19 : 18);
 		//auto textSize = g_fntDFPZong->CalcTextSizeA(fontSize, FLT_MAX, 0.0f, s.c_str());
 		AddTextCentered(drawList, g_fntDFPZong, fontSize,
 			res.x / 2.0f,
