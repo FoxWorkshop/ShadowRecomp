@@ -99,6 +99,8 @@ struct Video
 	static void WaitForGPU();
 	static void ComputeViewportDimensions();
 	static void Shutdown();
+	static void BeginGameThreadProfiler();
+	static void EndGameThreadProfiler();
 };
 
 

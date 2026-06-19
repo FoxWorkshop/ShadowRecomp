@@ -400,14 +400,18 @@ struct Profiler
 	std::atomic<double> value;
 	double values[PROFILER_VALUE_COUNT];
 	std::chrono::steady_clock::time_point start;
+	bool started = false;
 
 	void Begin()
 	{
 		start = std::chrono::steady_clock::now();
+		started = true;
 	}
 
 	void End()
 	{
+		if (!started)
+			return;
 		value = std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - start).count();
 	}
 
@@ -429,7 +433,36 @@ struct Profiler
 	}
 };
 
+struct FrameAccumulator
+{
+	std::atomic<double> value{ 0.0 };
+	double values[PROFILER_VALUE_COUNT];
+	double accum = 0.0;
+
+	void Add(double ms) { accum += ms; }
+	void SnapshotAndReset()
+	{
+		value = accum;
+		accum = 0.0;
+	}
+	double UpdateAndReturnAverage()
+	{
+		values[g_profilerValueIndex] = value.load();
+		return std::accumulate(values, values + PROFILER_VALUE_COUNT, 0.0) / PROFILER_VALUE_COUNT;
+	}
+};
+
+// RAII scope timer that adds elapsed time to a FrameAccumulator.
+struct RtScopeTimer
+{
+	std::chrono::steady_clock::time_point start;
+	FrameAccumulator& accum;
+	RtScopeTimer(FrameAccumulator& a) : start(std::chrono::steady_clock::now()), accum(a) {}
+	~RtScopeTimer() { accum.Add(std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - start).count()); }
+};
+
 static double g_applicationValues[PROFILER_VALUE_COUNT];
+static double g_frameIntervalMs = 0.0;
 static Profiler g_gpuFrameProfiler;
 static Profiler g_presentProfiler;
 static Profiler g_updateDirectorProfiler;
@@ -437,6 +470,32 @@ static Profiler g_renderDirectorProfiler;
 static Profiler g_frameFenceProfiler;
 static Profiler g_presentWaitProfiler;
 static Profiler g_swapChainAcquireProfiler;
+static Profiler g_executeCmdListWaitProfiler;
+static Profiler g_beginCmdListWaitProfiler;
+
+// --- Per-frame command counters (reset at ExecuteCommandList) ---
+static std::atomic<uint32_t> g_drawCallCount{0};      // DrawPrimitive + DrawIndexedPrimitive + DrawPrimitiveUP
+static std::atomic<uint32_t> g_stateChangeCount{0};   // All non-draw, non-frame-boundary commands
+static std::atomic<uint32_t> g_totalCommandCount{0};  // Everything
+static uint32_t g_drawCallCountSnapshot = 0;
+static uint32_t g_stateChangeCountSnapshot = 0;
+static uint32_t g_totalCommandCountSnapshot = 0;
+static std::atomic<uint32_t> g_psoCacheHits{0};
+static std::atomic<uint32_t> g_psoCacheMisses{0};
+static uint32_t g_psoCacheHitsSnapshot = 0;
+static uint32_t g_psoCacheMissesSnapshot = 0;
+
+// --- Render-thread per-frame breakdown (cumulative; snapshot at frame end) ---
+static FrameAccumulator g_rtPsoWorkAccum;
+static FrameAccumulator g_rtFlushWorkAccum;
+static FrameAccumulator g_rtDrawCallAccum;
+static FrameAccumulator g_rtQueueWaitAccum;
+static FrameAccumulator g_gtDrawRecordingAccum;
+static FrameAccumulator g_gtStateFlushAccum;
+static FrameAccumulator g_gtHashingAccum;
+static FrameAccumulator g_rtOtherCmdsAccum;
+static FrameAccumulator g_rtDrawHandlerAccum;
+static FrameAccumulator g_rtBeginCmdListWorkAccum;
 
 static bool g_profilerVisible;
 static bool g_profilerWasToggled;
@@ -456,19 +515,17 @@ static std::unique_ptr<RenderDevice> g_device;
 
 static RenderDeviceCapabilities g_capabilities;
 
-static constexpr size_t old_NUM_FRAMES = 2;
-static constexpr size_t NUM_FRAMES = 1;
+static constexpr size_t NUM_FRAMES = 2;
 static constexpr size_t NUM_QUERIES = 2;
 
 uint32_t g_frame = 0;
-//static uint32_t g_nextFrame = 1;
-static uint32_t g_nextFrame = 0;
+static uint32_t g_nextFrame = 1;
 
 static std::unique_ptr<RenderCommandQueue> g_queue;
-static std::unique_ptr<RenderCommandList> g_commandLists[old_NUM_FRAMES];
-static std::unique_ptr<RenderCommandFence> g_commandFences[old_NUM_FRAMES];
-static std::unique_ptr<RenderQueryPool> g_queryPools[old_NUM_FRAMES];
-static bool g_commandListStates[old_NUM_FRAMES];
+static std::unique_ptr<RenderCommandList> g_commandLists[NUM_FRAMES];
+static std::unique_ptr<RenderCommandFence> g_commandFences[NUM_FRAMES];
+static std::unique_ptr<RenderQueryPool> g_queryPools[NUM_FRAMES];
+static bool g_commandListStates[NUM_FRAMES];
 
 static Mutex g_copyMutex;
 static std::unique_ptr<RenderCommandQueue> g_copyQueue;
@@ -481,8 +538,8 @@ static bool g_swapChainValid;
 
 static constexpr RenderFormat BACKBUFFER_FORMAT = RenderFormat::B8G8R8A8_UNORM;
 
-static std::unique_ptr<RenderCommandSemaphore> g_acquireSemaphores[old_NUM_FRAMES];
-static std::unique_ptr<RenderCommandSemaphore> g_renderSemaphores[old_NUM_FRAMES];
+static std::unique_ptr<RenderCommandSemaphore> g_acquireSemaphores[NUM_FRAMES];
+static std::unique_ptr<RenderCommandSemaphore> g_renderSemaphores[NUM_FRAMES];
 static uint32_t g_backBufferIndex;
 static std::unique_ptr<GuestSurface> g_backBufferHolder;
 static GuestSurface* g_backBuffer;
@@ -563,8 +620,7 @@ struct UploadAllocator
 	}
 };
 
-//static UploadAllocator g_uploadAllocators[NUM_FRAMES];
-static UploadAllocator g_uploadAllocators[2];
+static UploadAllocator g_uploadAllocators[NUM_FRAMES];
 
 struct IntermediaryUploadAllocator
 {
@@ -613,8 +669,8 @@ struct IntermediaryUploadAllocator
 
 static IntermediaryUploadAllocator g_intermediaryUploadAllocator;
 
-static std::vector<GuestResource*> g_tempResources[old_NUM_FRAMES];
-static std::vector<std::unique_ptr<RenderBuffer>> g_tempBuffers[old_NUM_FRAMES];
+static std::vector<GuestResource*> g_tempResources[NUM_FRAMES];
+static std::vector<std::unique_ptr<RenderBuffer>> g_tempBuffers[NUM_FRAMES];
 
 
 float GetRenderTargetHeight()
@@ -896,9 +952,8 @@ static bool IsReadableMemory(const void* ptr, size_t size);
 
 static XXH64_hash_t ComputePipelineEntryHash(const PipelineCacheEntry& entry)
 {
-	PipelineCacheEntry temp = entry;
-	temp.pipelineHash = 0;
-	return XXH3_64bits(&temp, sizeof(temp));
+	constexpr size_t skip = sizeof(uint64_t); // skip pipelineHash
+	return XXH3_64bits(reinterpret_cast<const uint8_t*>(&entry) + skip, sizeof(PipelineCacheEntry) - skip);
 }
 
 static bool BuildPipelineCacheEntry(const PipelineState& pipelineState, PipelineCacheEntry& outEntry)
@@ -912,8 +967,7 @@ static bool BuildPipelineCacheEntry(const PipelineState& pipelineState, Pipeline
 	{
 		outEntry.vertexShaderHash = 0;
 	}
-	else if (pipelineState.vertexShader != nullptr &&
-		IsReadableMemory(pipelineState.vertexShader, sizeof(GuestShader)))
+	else if (pipelineState.vertexShader != nullptr)
 	{
 		if (pipelineState.vertexShader->shaderCacheEntry != nullptr)
 			outEntry.vertexShaderHash = pipelineState.vertexShader->shaderCacheEntry->hash;
@@ -929,8 +983,7 @@ static bool BuildPipelineCacheEntry(const PipelineState& pipelineState, Pipeline
 	{
 		outEntry.pixelShaderHash = 0;
 	}
-	else if (pipelineState.pixelShader != nullptr &&
-		IsReadableMemory(pipelineState.pixelShader, sizeof(GuestShader)))
+	else if (pipelineState.pixelShader != nullptr)
 	{
 		if (pipelineState.pixelShader->shaderCacheEntry != nullptr)
 			outEntry.pixelShaderHash = pipelineState.pixelShader->shaderCacheEntry->hash;
@@ -2860,6 +2913,15 @@ static void BeginCommandList()
 
 		if (g_pendingSurfaceResizeFlag)
 		{
+			for (size_t i = 0; i < NUM_FRAMES; i++)
+			{
+				if (g_commandListStates[i])
+				{
+					g_queue->waitForCommandFence(g_commandFences[i].get());
+					g_commandListStates[i] = false;
+				}
+			}
+
 			for (auto& g_tex : g_pendingTextureResizes)
 			{
 				g_barrierMap.erase(g_tex->texture);
@@ -4019,16 +4081,28 @@ static void DrawProfiler()
 
 	if (ImGui::Begin("Profiler", &g_profilerVisible))
 	{
-		g_applicationValues[g_profilerValueIndex] = App::s_deltaTime * 1000.0;
+		g_applicationValues[g_profilerValueIndex] = g_frameIntervalMs;
 
 		const double applicationAvg = std::accumulate(g_applicationValues, g_applicationValues + PROFILER_VALUE_COUNT, 0.0) / PROFILER_VALUE_COUNT;
 		double gpuFrameAvg = g_gpuFrameProfiler.UpdateAndReturnAverage();
 		double presentAvg = g_presentProfiler.UpdateAndReturnAverage();
-		double updateDirectorAvg = g_updateDirectorProfiler.UpdateAndReturnAverage();
-		double renderDirectorAvg = g_renderDirectorProfiler.UpdateAndReturnAverage();
+		double gameThreadAvg = g_updateDirectorProfiler.UpdateAndReturnAverage();
+		double renderThreadWorkAvg = g_renderDirectorProfiler.UpdateAndReturnAverage();
 		double frameFenceAvg = g_frameFenceProfiler.UpdateAndReturnAverage();
 		double presentWaitAvg = g_presentWaitProfiler.UpdateAndReturnAverage();
 		double swapChainAcquireAvg = g_swapChainAcquireProfiler.UpdateAndReturnAverage();
+		double executeCmdListWaitAvg = g_executeCmdListWaitProfiler.UpdateAndReturnAverage();
+		double beginCmdListWaitAvg = g_beginCmdListWaitProfiler.UpdateAndReturnAverage();
+		double rtPsoWorkAvg = g_rtPsoWorkAccum.UpdateAndReturnAverage();
+		double rtFlushWorkAvg = g_rtFlushWorkAccum.UpdateAndReturnAverage();
+		double rtDrawCallAvg = g_rtDrawCallAccum.UpdateAndReturnAverage();
+		double rtOtherCmdsAvg = g_rtOtherCmdsAccum.UpdateAndReturnAverage();
+		double rtBeginCmdListWorkAvg = g_rtBeginCmdListWorkAccum.UpdateAndReturnAverage();
+		double rtDrawHandlerAvg = g_rtDrawHandlerAccum.UpdateAndReturnAverage();
+		double rtQueueWaitAvg = g_rtQueueWaitAccum.UpdateAndReturnAverage();
+		double gtDrawRecordingAvg = g_gtDrawRecordingAccum.UpdateAndReturnAverage();
+		double gtStateFlushAvg = g_gtStateFlushAccum.UpdateAndReturnAverage();
+		double gtHashingAvg = g_gtHashingAccum.UpdateAndReturnAverage();
 
 		if (ImGui::CollapsingHeader("Performance", ImGuiTreeNodeFlags_DefaultOpen))
 		{
@@ -4039,12 +4113,93 @@ static void DrawProfiler()
 				ImPlot::PlotLine<double>("Application", g_applicationValues, PROFILER_VALUE_COUNT, 1.0, 0.0, ImPlotLineFlags_None, g_profilerValueIndex);
 				ImPlot::PlotLine<double>("GPU Frame", g_gpuFrameProfiler.values, PROFILER_VALUE_COUNT, 1.0, 0.0, ImPlotLineFlags_None, g_profilerValueIndex);
 				ImPlot::PlotLine<double>("Present", g_presentProfiler.values, PROFILER_VALUE_COUNT, 1.0, 0.0, ImPlotLineFlags_None, g_profilerValueIndex);
-				ImPlot::PlotLine<double>("Update Director", g_updateDirectorProfiler.values, PROFILER_VALUE_COUNT, 1.0, 0.0, ImPlotLineFlags_None, g_profilerValueIndex);
-				ImPlot::PlotLine<double>("Render Director", g_renderDirectorProfiler.values, PROFILER_VALUE_COUNT, 1.0, 0.0, ImPlotLineFlags_None, g_profilerValueIndex);
+				ImPlot::PlotLine<double>("Game Thread", g_updateDirectorProfiler.values, PROFILER_VALUE_COUNT, 1.0, 0.0, ImPlotLineFlags_None, g_profilerValueIndex);
+				ImPlot::PlotLine<double>("Render-Thread Work", g_renderDirectorProfiler.values, PROFILER_VALUE_COUNT, 1.0, 0.0, ImPlotLineFlags_None, g_profilerValueIndex);
 				ImPlot::PlotLine<double>("Present Wait", g_presentWaitProfiler.values, PROFILER_VALUE_COUNT, 1.0, 0.0, ImPlotLineFlags_None, g_profilerValueIndex);
 				ImPlot::PlotLine<double>("Frame Fence", g_frameFenceProfiler.values, PROFILER_VALUE_COUNT, 1.0, 0.0, ImPlotLineFlags_None, g_profilerValueIndex);
 				ImPlot::PlotLine<double>("Swap Chain Acquire", g_swapChainAcquireProfiler.values, PROFILER_VALUE_COUNT, 1.0, 0.0, ImPlotLineFlags_None, g_profilerValueIndex);
+				ImPlot::PlotLine<double>("Exec CmdList Wait", g_executeCmdListWaitProfiler.values, PROFILER_VALUE_COUNT, 1.0, 0.0, ImPlotLineFlags_None, g_profilerValueIndex);
+				ImPlot::PlotLine<double>("Begin CmdList Wait", g_beginCmdListWaitProfiler.values, PROFILER_VALUE_COUNT, 1.0, 0.0, ImPlotLineFlags_None, g_profilerValueIndex);
 				ImPlot::EndPlot();
+			}
+
+			if (ImGui::Button("Copy Stats"))
+			{
+				double psoCur = g_rtPsoWorkAccum.value.load();
+				double flushCur = g_rtFlushWorkAccum.value.load();
+				double drawHandlerCur = g_rtDrawHandlerAccum.value.load();
+				double drawCallCur = g_rtDrawCallAccum.value.load();
+				double queueWaitCur = g_rtQueueWaitAccum.value.load();
+				std::string text = fmt::format(
+					"AVERAGES:\n"
+					"Application          {:.4g} ms\n"
+					"GPU Frame            {:.4g} ms\n"
+					"Present              {:.4g} ms\n"
+					"Game Thread          {:.4g} ms\n"
+					"Render-Thread Work   {:.4g} ms\n"
+					"Present Wait         {:.4g} ms\n"
+					"Frame Fence          {:.4g} ms\n"
+					"Swap Chain Acquire   {:.4g} ms\n"
+					"Exec CmdList Wait    {:.4g} ms\n"
+					"Begin CmdList Wait   {:.4g} ms\n"
+					"\n"
+					"RENDER-THREAD BREAKDOWN (averages):\n"
+					"PSO Work             {:.4g} ms\n"
+					"Per-Draw Flush       {:.4g} ms\n"
+					"  (excl. PSO)        {:.4g} ms\n"
+					"Draw Calls (API)     {:.4g} ms\n"
+					"Draw Handlers (tot)  {:.4g} ms\n"
+					"  Draw Pre-Work      {:.4g} ms\n"
+					"Other Cmds           {:.4g} ms\n"
+					"Begin CmdList Work   {:.4g} ms\n"
+					"Queue Wait (starved) {:.4g} ms\n"
+					"\n"
+					"COMMAND COUNTS (last frame):\n"
+					"Draw Calls            {}\n"
+					"State Changes         {}\n"
+					"Total Commands        {}\n"
+					"PSO per Draw          {:.2f} us\n"
+					"API Call per Draw     {:.2f} us\n"
+					"PSO Cache Hits        {} / {} ({:.1f}%)\n"
+					"\n"
+					"GAME-THREAD BREAKDOWN (averages):\n"
+					"Draw Recording        {:.4g} ms\n"
+					"  State Flush         {:.4g} ms\n"
+					"  Hashing (XXH3)      {:.4g} ms\n"
+					"Present (in GT)       {:.4g} ms\n"
+					"Game Logic            {:.4g} ms\n"
+					"\n"
+					"CURRENT:\n"
+					"Application          {:.4g} ms ({:.1f} FPS)\n"
+					"GPU Frame            {:.4g} ms ({:.1f} FPS)\n"
+					"Render-Thread Work   {:.4g} ms\n"
+					"PSO Work (current)   {:.4g} ms\n"
+					"Per-Draw Flush (cur) {:.4g} ms\n"
+					"Draw Handlers (cur)  {:.4g} ms\n"
+					"  Draw Pre-Work(cur) {:.4g} ms\n"
+					"Draw Calls (cur)     {:.4g} ms\n"
+					"Other Cmds (cur)     {:.4g} ms\n"
+					"Queue Wait (cur)     {:.4g} ms\n"
+					"Draw Recording (cur) {:.4g} ms\n"
+					"Present (in GT, cur) {:.4g} ms\n"
+					"Game Logic (cur)     {:.4g} ms\n",
+					applicationAvg, gpuFrameAvg, presentAvg, gameThreadAvg, renderThreadWorkAvg,
+					presentWaitAvg, frameFenceAvg, swapChainAcquireAvg, executeCmdListWaitAvg, beginCmdListWaitAvg,
+					rtPsoWorkAvg, rtFlushWorkAvg, std::max(rtFlushWorkAvg - rtPsoWorkAvg, 0.0), rtDrawCallAvg,
+					rtDrawHandlerAvg, std::max(rtDrawHandlerAvg - rtFlushWorkAvg - rtDrawCallAvg, 0.0),
+					rtOtherCmdsAvg, rtBeginCmdListWorkAvg, rtQueueWaitAvg,
+					g_drawCallCountSnapshot, g_stateChangeCountSnapshot, g_totalCommandCountSnapshot,
+					g_drawCallCountSnapshot > 0 ? rtPsoWorkAvg * 1000.0 / g_drawCallCountSnapshot : 0.0,
+					g_drawCallCountSnapshot > 0 ? rtDrawCallAvg * 1000.0 / g_drawCallCountSnapshot : 0.0,
+					g_psoCacheHitsSnapshot, g_psoCacheHitsSnapshot + g_psoCacheMissesSnapshot,
+					(g_psoCacheHitsSnapshot + g_psoCacheMissesSnapshot) > 0 ? 100.0 * g_psoCacheHitsSnapshot / (g_psoCacheHitsSnapshot + g_psoCacheMissesSnapshot) : 0.0,
+					gtDrawRecordingAvg, gtStateFlushAvg, gtHashingAvg, presentAvg, std::max(gameThreadAvg - gtDrawRecordingAvg - presentAvg, 0.0),
+					g_frameIntervalMs, 1000.0 / std::max(g_frameIntervalMs, 0.001),
+					g_gpuFrameProfiler.value.load(), (g_gpuFrameProfiler.value.load() > 0.0 ? 1000.0 / g_gpuFrameProfiler.value.load() : 0.0),
+					g_renderDirectorProfiler.value.load(),
+					psoCur, flushCur, drawHandlerCur, std::max(drawHandlerCur - flushCur - drawCallCur, 0.0), drawCallCur, g_rtOtherCmdsAccum.value.load(), queueWaitCur,
+					g_gtDrawRecordingAccum.value.load(), g_presentProfiler.value.load(), std::max(g_updateDirectorProfiler.value.load() - g_gtDrawRecordingAccum.value.load() - g_presentProfiler.value.load(), 0.0));
+				ImGui::SetClipboardText(text.c_str());
 			}
 
 			g_profilerValueIndex = (g_profilerValueIndex + 1) % PROFILER_VALUE_COUNT;
@@ -4078,26 +4233,135 @@ static void DrawProfiler()
 				};
 
 				// -------- Name ------------------ Current Time --------------------------------- Average Time ----------- Current FPS ------------------------------------- Average FPS -------------- //
-				drawPerfRow("Application",          App::s_deltaTime * 1000.0,                 applicationAvg,      true, 1.0 / App::s_deltaTime,                         1000.0 / applicationAvg      );
-				drawPerfRow("GPU Frame",            g_gpuFrameProfiler.value.load(),           gpuFrameAvg,         true, 1000.0 / g_gpuFrameProfiler.value.load(),       1000.0 / gpuFrameAvg         );
-				drawPerfRow("Present",              g_presentProfiler.value.load(),            presentAvg,          true, 1000.0 / g_presentProfiler.value.load(),        1000.0 / presentAvg          );
-				drawPerfRow("Update Director",      g_updateDirectorProfiler.value.load(),     updateDirectorAvg,   true, 1000.0 / g_updateDirectorProfiler.value.load(), 1000.0 / updateDirectorAvg   );
-				drawPerfRow("Render Director",      g_renderDirectorProfiler.value.load(),     renderDirectorAvg,   true, 1000.0 / g_renderDirectorProfiler.value.load(), 1000.0 / renderDirectorAvg   );
-				drawPerfRow("Present Wait",         g_presentWaitProfiler.value.load(),        presentWaitAvg                                                                                              );
-				drawPerfRow("Frame Fence",          g_frameFenceProfiler.value.load(),         frameFenceAvg                                                                                               );
-				drawPerfRow("Swap Chain Acquire",   g_swapChainAcquireProfiler.value.load(),   swapChainAcquireAvg                                                                                         );
+				drawPerfRow("Application",          g_frameIntervalMs,                           applicationAvg,       true, 1000.0 / std::max(g_frameIntervalMs, 0.001),     1000.0 / applicationAvg       );
+				drawPerfRow("GPU Frame",            g_gpuFrameProfiler.value.load(),             gpuFrameAvg,          true, 1000.0 / g_gpuFrameProfiler.value.load(),        1000.0 / gpuFrameAvg          );
+				drawPerfRow("Present",              g_presentProfiler.value.load(),              presentAvg,           true, 1000.0 / g_presentProfiler.value.load(),         1000.0 / presentAvg           );
+				drawPerfRow("Game Thread",          g_updateDirectorProfiler.value.load(),       gameThreadAvg,        true, 1000.0 / g_updateDirectorProfiler.value.load(),  1000.0 / gameThreadAvg        );
+				drawPerfRow("Render-Thread Work",   g_renderDirectorProfiler.value.load(),       renderThreadWorkAvg,  true, 1000.0 / g_renderDirectorProfiler.value.load(),  1000.0 / renderThreadWorkAvg  );
+				drawPerfRow("Present Wait",         g_presentWaitProfiler.value.load(),          presentWaitAvg                                                                                                );
+				drawPerfRow("Frame Fence",          g_frameFenceProfiler.value.load(),           frameFenceAvg                                                                                                 );
+				drawPerfRow("Swap Chain Acquire",   g_swapChainAcquireProfiler.value.load(),     swapChainAcquireAvg                                                                                           );
+				drawPerfRow("Exec CmdList Wait",    g_executeCmdListWaitProfiler.value.load(),   executeCmdListWaitAvg                                                                                         );
+				drawPerfRow("Begin CmdList Wait",   g_beginCmdListWaitProfiler.value.load(),     beginCmdListWaitAvg                                                                                           );
 
 				ImGui::EndTable();
 			}
 
-			ImGui::Separator();
+			if (ImGui::CollapsingHeader("Render-Thread Breakdown"))
+			{
+				if (ImGui::BeginTable("RT Breakdown", 4))
+				{
+					ImGui::TableSetupColumn("Name");
+					ImGui::TableSetupColumn("Current");
+					ImGui::TableSetupColumn("Average");
+					ImGui::TableSetupColumn("% of RT Work");
+					ImGui::TableHeadersRow();
 
+					auto drawRtRow = [&](const char* name, double cur, double avg)
+					{
+						double rtCur = g_renderDirectorProfiler.value.load();
+						double rtAvg = renderThreadWorkAvg;
+						ImGui::TableNextColumn();
+						ImGui::Text("%s", name);
+						ImGui::TableNextColumn();
+						ImGui::Text("%g ms", cur);
+						ImGui::TableNextColumn();
+						ImGui::Text("%g ms", avg);
+						ImGui::TableNextColumn();
+						ImGui::Text("%.1f%% / %.1f%%", rtCur > 0.0 ? (cur / rtCur * 100.0) : 0.0, rtAvg > 0.0 ? (avg / rtAvg * 100.0) : 0.0);
+					};
+
+					// FlushWork is inclusive of PSO work
+					double psoCur = g_rtPsoWorkAccum.value.load();
+					double flushCur = g_rtFlushWorkAccum.value.load();
+					drawRtRow("PSO Work",          psoCur,                               rtPsoWorkAvg);
+					drawRtRow("Per-Draw Flush",    flushCur,                             rtFlushWorkAvg);
+					drawRtRow("  (excl. PSO)",     std::max(flushCur - psoCur, 0.0),     std::max(rtFlushWorkAvg - rtPsoWorkAvg, 0.0));
+					drawRtRow("Draw Calls (API)",  g_rtDrawCallAccum.value.load(),       rtDrawCallAvg);
+					drawRtRow("Other Cmds",        g_rtOtherCmdsAccum.value.load(),      rtOtherCmdsAvg);
+					drawRtRow("Begin CmdList Work",g_rtBeginCmdListWorkAccum.value.load(), rtBeginCmdListWorkAvg);
+					drawRtRow("Queue Wait (starved)", g_rtQueueWaitAccum.value.load(), rtQueueWaitAvg);
+					// Draw Handlers total is inclusive of FlushWork + DrawCall + pre-work
+					double drawHandlerCur = g_rtDrawHandlerAccum.value.load();
+					double drawCallCur = g_rtDrawCallAccum.value.load();
+					drawRtRow("Draw Handlers (total)", drawHandlerCur,                    rtDrawHandlerAvg);
+					drawRtRow("  Draw Pre-Work",     std::max(drawHandlerCur - flushCur - drawCallCur, 0.0),
+						std::max(rtDrawHandlerAvg - rtFlushWorkAvg - rtDrawCallAvg, 0.0));
+					// Begin CmdList Work runs OUTSIDE the g_renderDirectorProfiler bracket.
+					double totalAcctCur = flushCur + drawCallCur + g_rtOtherCmdsAccum.value.load() + g_rtBeginCmdListWorkAccum.value.load() + g_rtQueueWaitAccum.value.load();
+					double totalAcctAvg = rtFlushWorkAvg + rtDrawCallAvg + rtOtherCmdsAvg + rtBeginCmdListWorkAvg + rtQueueWaitAvg;
+					ImGui::TableNextColumn(); ImGui::TextDisabled("Total Acct.");
+					ImGui::TableNextColumn(); ImGui::TextDisabled("%g ms", totalAcctCur);
+					ImGui::TableNextColumn(); ImGui::TextDisabled("%g ms", totalAcctAvg);
+					ImGui::TableNextColumn(); ImGui::TextDisabled("(vs RT Work: %g ms)", renderThreadWorkAvg);
+
+					ImGui::EndTable();
+				}
+				ImGui::Separator();
+				ImGui::TextUnformatted("Per-Frame Command Counts");
+				ImGui::SameLine();
+				ImGui::TextDisabled("(last frame)");
+				{
+					double psoPerDraw = g_drawCallCountSnapshot > 0 ? g_rtPsoWorkAccum.value.load() / g_drawCallCountSnapshot : 0.0;
+					double drawApiPerDraw = g_drawCallCountSnapshot > 0 ? g_rtDrawCallAccum.value.load() / g_drawCallCountSnapshot : 0.0;
+					ImGui::Text("  Draw Calls:        %u", g_drawCallCountSnapshot);
+					ImGui::Text("  State Changes:     %u", g_stateChangeCountSnapshot);
+					ImGui::Text("  Total Commands:    %u", g_totalCommandCountSnapshot);
+					ImGui::Text("  PSO / Draw:        %.2f us", psoPerDraw * 1000.0);
+					ImGui::Text("  API Call / Draw:   %.2f us", drawApiPerDraw * 1000.0);
+					uint32_t psoTotal = g_psoCacheHitsSnapshot + g_psoCacheMissesSnapshot;
+					ImGui::Text("  PSO Cache Hits:    %u / %u (%.1f%%)", g_psoCacheHitsSnapshot, psoTotal,
+						psoTotal > 0 ? 100.0 * g_psoCacheHitsSnapshot / psoTotal : 0.0);
+				}
+			}
+
+			if (ImGui::CollapsingHeader("Game-Thread Breakdown"))
+			{
+				if (ImGui::BeginTable("GT Breakdown", 4))
+				{
+					ImGui::TableSetupColumn("Name");
+					ImGui::TableSetupColumn("Current");
+					ImGui::TableSetupColumn("Average");
+					ImGui::TableSetupColumn("% of Game Thread");
+					ImGui::TableHeadersRow();
+
+					auto drawGtRow = [&](const char* name, double cur, double avg)
+					{
+						double gtCur = g_updateDirectorProfiler.value.load();
+						double gtAvg = gameThreadAvg;
+						ImGui::TableNextColumn();
+						ImGui::Text("%s", name);
+						ImGui::TableNextColumn();
+						ImGui::Text("%g ms", cur);
+						ImGui::TableNextColumn();
+						ImGui::Text("%g ms", avg);
+						ImGui::TableNextColumn();
+						ImGui::Text("%.1f%% / %.1f%%", gtCur > 0.0 ? (cur / gtCur * 100.0) : 0.0, gtAvg > 0.0 ? (avg / gtAvg * 100.0) : 0.0);
+					};
+
+					double drawRecCur = g_gtDrawRecordingAccum.value.load();
+					double stateFlushCur = g_gtStateFlushAccum.value.load();
+					double hashingCur = g_gtHashingAccum.value.load();
+					double presentCur = g_presentProfiler.value.load();
+					double gameLogicCur = std::max(g_updateDirectorProfiler.value.load() - drawRecCur - presentCur, 0.0); // Game Thread includes present, so subtract (sub_57630)
+					double gameLogicAvg = std::max(gameThreadAvg - gtDrawRecordingAvg - presentAvg, 0.0);
+					drawGtRow("Draw Recording",   drawRecCur,                        gtDrawRecordingAvg);
+					drawGtRow("  State Flush",    stateFlushCur,                     gtStateFlushAvg);
+					drawGtRow("  Hashing (XXH3)", hashingCur,                        gtHashingAvg);
+					drawGtRow("Present (in GT)",  presentCur,                        presentAvg);
+					drawGtRow("Game Logic",      gameLogicCur,                      gameLogicAvg);
+					ImGui::EndTable();
+				}
+			}
+		}
+
+		if (ImGui::CollapsingHeader("Configuration", ImGuiTreeNodeFlags_DefaultOpen))
+		{
 			ImGui::TextUnformatted("Profiler Font Size");
 			ImGui::PushItemWidth(-1);
 			ImGui::SliderFloat("##ProfilerFontSize", &Config::ProfilerFontScale.Value, 0.1f, 2.0f, "%.2fx", ImGuiSliderFlags_AlwaysClamp);
 			ImGui::PopItemWidth();
 
-			ImGui::TextUnformatted("Configuration");
 			ImGui::Separator();
 
 			ImGui::Checkbox("Show FPS", &Config::ShowFPS.Value);
@@ -4107,7 +4371,7 @@ static void DrawProfiler()
 
 		if (g_userHeap.heap != nullptr && g_userHeap.physicalHeap != nullptr)
 		{
-			if (ImGui::CollapsingHeader("Memory", ImGuiTreeNodeFlags_DefaultOpen))
+			if (ImGui::CollapsingHeader("Memory"))
 			{
 				O1HeapDiagnostics diagnostics, physicalDiagnostics;
 				{
@@ -4129,7 +4393,7 @@ static void DrawProfiler()
 			}
 		}
 
-		if (ImGui::CollapsingHeader("GPU", ImGuiTreeNodeFlags_DefaultOpen))
+		if (ImGui::CollapsingHeader("GPU"))
 		{
 			if (ImGui::BeginTable("GPU", 2))
 			{
@@ -4229,10 +4493,10 @@ static void DrawFPS()
 	static double totalDeltaTime = 0.0;
 	static uint32_t totalDeltaCount = 0;
 
-	totalDeltaTime += g_presentProfiler.value.load();
+	totalDeltaTime += g_frameIntervalMs; // wall-clock frame interval; Previously g_presentProfiler.value.load();
 	totalDeltaCount++;
 
-	if (time - updateTime >= 1.0f)
+	if (time - updateTime >= 0.25f) // TODO: Make measure rate a config option maybe?
 	{
 		fps = 1000.0 / std::max(totalDeltaTime / double(totalDeltaCount), 1.0);
 		s_fps = fps;
@@ -4561,11 +4825,32 @@ void VideoDebug_DumpPresentState()
 	printf("===================================\n");
 }
 
+void Video::BeginGameThreadProfiler() { g_updateDirectorProfiler.Begin(); }
+void Video::EndGameThreadProfiler()
+{
+	g_updateDirectorProfiler.End();
+	g_gtDrawRecordingAccum.SnapshotAndReset();
+	g_gtStateFlushAccum.SnapshotAndReset();
+	g_gtHashingAccum.SnapshotAndReset();
+}
+
 void Video::Present()
 {
 	bool expected = false;
 	if (!g_inPresent.compare_exchange_strong(expected, true))
 		return;
+
+	g_presentProfiler.Begin();
+	// Get actual frame delivery rate seen by the OS.
+	{
+		static std::chrono::steady_clock::time_point s_prevPresentTime;
+		static bool s_presentTimeInit = false;
+		auto now = std::chrono::steady_clock::now();
+		if (s_presentTimeInit)
+			g_frameIntervalMs = std::chrono::duration<double, std::milli>(now - s_prevPresentTime).count();
+		s_presentTimeInit = true;
+		s_prevPresentTime = now;
+	}
 
 	RenderCommand cmd;
 	cmd.type = RenderCommandType::ExecutePendingCopyRectsCommands;
@@ -4577,7 +4862,9 @@ void Video::Present()
 	g_renderQueue.enqueue(cmd);
 
 	presentExecuted = false;
+	g_executeCmdListWaitProfiler.Begin();
 	g_executedCommandList.wait(false);
+	g_executeCmdListWaitProfiler.End();
 	g_executedCommandList = false;
 
 	if (g_swapChainValid)
@@ -4619,7 +4906,9 @@ void Video::Present()
 	cmd.type = RenderCommandType::BeginCommandList;
 	g_renderQueue.enqueue(cmd);
 
+	g_beginCmdListWaitProfiler.Begin();
 	g_readyForCommands.wait(false);
+	g_beginCmdListWaitProfiler.End();
 
 	g_inPresent = false;
 
@@ -4663,7 +4952,7 @@ void Video::Present()
 		s_next += 1000000000ns / Config::FPS;
 	}
 
-	g_presentProfiler.Reset();
+	g_presentProfiler.End();
 }
 
 void Video::PrecompileShadersAndPipelines()
@@ -4785,6 +5074,7 @@ static void ProcExecuteCommandList(const RenderCommand& cmd)
 
 static void ProcBeginCommandList(const RenderCommand& cmd)
 {
+	RtScopeTimer _scope(g_rtBeginCmdListWorkAccum);
 	DestructTempResources();
 	BeginCommandList();
 }
@@ -6968,7 +7258,21 @@ static std::unique_ptr<RenderPipeline> CreateGraphicsPipeline(const PipelineStat
 
 static RenderPipeline* CreateGraphicsPipelineInRenderThread(PipelineState pipelineState)
 {
+	RtScopeTimer _psoScope(g_rtPsoWorkAccum);
 	SanitizePipelineState(pipelineState);
+
+	// If the sanitized state matches the last draw's state, reuse the cached pipeline pointer.
+	// Skips g_pipelines map lookup entirely.
+	static PipelineState s_lastSanitizedState{};
+	static RenderPipeline* s_lastPipeline = nullptr;
+
+	if (s_lastPipeline != nullptr && std::memcmp(&pipelineState, &s_lastSanitizedState, sizeof(PipelineState)) == 0)
+	{
+		g_psoCacheHits.fetch_add(1, std::memory_order_relaxed);
+		return s_lastPipeline;
+	}
+
+	g_psoCacheMisses.fetch_add(1, std::memory_order_relaxed);
 
 	XXH64_hash_t hash = ComputePipelineStateHash(pipelineState);
 	auto& pipeline = g_pipelines[hash];
@@ -7065,6 +7369,8 @@ static RenderPipeline* CreateGraphicsPipelineInRenderThread(PipelineState pipeli
 #endif
 	}
 
+	s_lastSanitizedState = pipelineState;
+	s_lastPipeline = pipeline.get();
 	return pipeline.get();
 }
 
@@ -7199,6 +7505,7 @@ void UpdateUserConfigConstant(bool toggle)
 
 static void FlushRenderStateForMainThread(LocalRenderCommandQueue& queue)
 {
+	RtScopeTimer _stateFlushScope(g_gtStateFlushAccum);
 	UpdateAllRenderState();
 
 	if (g_Xbox_VertexShaderMode == VertexShaderMode::FixedFunction)
@@ -7242,7 +7549,8 @@ static void FlushRenderStateForMainThread(LocalRenderCommandQueue& queue)
 	}
 
 
-	XXH64_hash_t hash = XXH3_64bits(&vsh_constants[0][0], sizeof(vsh_constants));
+	XXH64_hash_t hash;
+	{ RtScopeTimer _h(g_gtHashingAccum); hash = XXH3_64bits(&vsh_constants[0][0], sizeof(vsh_constants)); }
 	bool isDirty = g_lastVertexShaderConstants != hash;
 
 	if (isDirty)
@@ -7295,7 +7603,7 @@ static void FlushRenderStateForMainThread(LocalRenderCommandQueue& queue)
 	}
 
 	//SetPixelShaderConstants
-	hash = XXH3_64bits(&psh_constants[0][0], sizeof(psh_constants));
+	{ RtScopeTimer _h(g_gtHashingAccum); hash = XXH3_64bits(&psh_constants[0][0], sizeof(psh_constants)); }
 	isDirty = g_lastPixelShaderConstants != hash;
 
 	if (isDirty)
@@ -7315,6 +7623,7 @@ static constexpr int32_t COMMON_DEPTH_BIAS_VALUE = int32_t((1 << 24) * 0.002f);
 static constexpr float COMMON_SLOPE_SCALED_DEPTH_BIAS_VALUE = 1.0f;
 static void FlushRenderStateForRenderThread()
 {
+	RtScopeTimer _flushScope(g_rtFlushWorkAccum);
 	const bool isFixed = isFixedForRenderThread;
 	auto renderTarget = g_pipelineState.colorWriteEnable ? g_renderTarget : nullptr;
 	auto depthStencil = g_pipelineState.zEnable || g_pipelineState.stencilEnable ? g_depthStencil : nullptr;
@@ -7771,6 +8080,7 @@ uint8_t* ApplyVertexPatch(uint8_t* vertexData, const uint8_t indexStream, const 
 bool reUsedVertex = false;
 void DrawPrimitive(X_D3DPRIMITIVETYPE PrimitiveType, uint32_t StartVertex, uint32_t VertexCount)
 {
+	RtScopeTimer _gtScope(g_gtDrawRecordingAccum);
 	WaitForPresentDuringLoading();
 
 	Guard_Rendering();
@@ -7797,7 +8107,8 @@ void DrawPrimitive(X_D3DPRIMITIVETYPE PrimitiveType, uint32_t StartVertex, uint3
 			unsigned long dataAddr = (unsigned long)GetDataFromXboxResource((X_D3DResource*)(g_Xbox_SetStreamSource[i].VertexBuffer));
 			uint8_t* pXboxVertexData = reinterpret_cast<uint8_t*>(g_memory.Translate(dataAddr));
 
-			XXH64_hash_t hash = XXH3_64bits(pXboxVertexData, g_Xbox_SetStreamSource[i].Stride);
+			XXH64_hash_t hash;
+			{ RtScopeTimer _h(g_gtHashingAccum); hash = XXH3_64bits(pXboxVertexData, g_Xbox_SetStreamSource[i].Stride); }
 
 			uint8_t* vertexParticles = nullptr;
 
@@ -7838,6 +8149,7 @@ void DrawPrimitive(X_D3DPRIMITIVETYPE PrimitiveType, uint32_t StartVertex, uint3
 
 static void ProcDrawPrimitive(const RenderCommand& cmd)
 {
+	RtScopeTimer _handlerScope(g_rtDrawHandlerAccum);
 	const auto& args = cmd.drawPrimitive;
 
 	//convert primitive
@@ -7847,7 +8159,10 @@ static void ProcDrawPrimitive(const RenderCommand& cmd)
 
 	uint32_t primitiveCount = args.primitiveCount;
 	auto& commandList = g_commandLists[g_frame];
-	commandList->drawInstanced(primitiveCount, 1, args.startVertex, 0);
+	{
+		RtScopeTimer _drawScope(g_rtDrawCallAccum);
+		commandList->drawInstanced(primitiveCount, 1, args.startVertex, 0);
+	}
 }
 
 static void ComputeIndexRange(const int16_t* indices, uint32_t startIndex, uint32_t indexCount, uint32_t& outMin, uint32_t& outMax)
@@ -7887,7 +8202,8 @@ GuestBuffer* GetGuestVertexBufferIndexed(int i, uint32_t minIdx, uint32_t maxIdx
 	pXboxVertexData += (minIdx * originalStride); //we only want to hash and copy the used vertices, the unused can be skipped.
 
 	const size_t originalSize = usedVertices * originalStride;
-	XXH64_hash_t hash = XXH3_64bits(pXboxVertexData, originalSize);
+	XXH64_hash_t hash;
+	{ RtScopeTimer _h(g_gtHashingAccum); hash = XXH3_64bits(pXboxVertexData, originalSize); }
 
 
 	auto& bufferCache = g_indexedVertexBufferCache[hash];
@@ -7924,6 +8240,7 @@ GuestBuffer* GetGuestVertexBufferIndexed(int i, uint32_t minIdx, uint32_t maxIdx
 //On Xbox, VertexCount = IndexCount, both are the same
 void DrawIndexedPrimitive(X_D3DPRIMITIVETYPE PrimitiveType, uint32_t VertexCount, int16_t* pIndexData)
 {
+	RtScopeTimer _gtScope(g_gtDrawRecordingAccum);
 	WaitForPresentDuringLoading();
 
 #ifdef _DEBUG //this is a breakpoint spot for debugging the light issue with tails muzzle in circus park.
@@ -7943,7 +8260,8 @@ void DrawIndexedPrimitive(X_D3DPRIMITIVETYPE PrimitiveType, uint32_t VertexCount
 	//shadow = 2192 vertex = stride 24 (32 with conversion)
 	//object (shadow eyes) = 91 vertex =  stride 24 (32 with conversion)
 
-	XXH64_hash_t hash = XXH3_64bits(pIndexData, VertexCount * sizeof(int16_t));
+	XXH64_hash_t hash;
+	{ RtScopeTimer _h(g_gtHashingAccum); hash = XXH3_64bits(pIndexData, VertexCount * sizeof(int16_t)); }
 	auto& bufferIndexCache = g_indexBufferCache[hash];
 
 	GuestBuffer* bufferIndex;
@@ -8023,17 +8341,22 @@ void DrawIndexedPrimitive(X_D3DPRIMITIVETYPE PrimitiveType, uint32_t VertexCount
 
 static void ProcDrawIndexedPrimitive(const RenderCommand& cmd)
 {
+	RtScopeTimer _handlerScope(g_rtDrawHandlerAccum);
 	const auto& args = cmd.drawIndexedPrimitive;
 	SetPrimitiveType(args.primitiveType);
 	isFixedForRenderThread = args.isFixed;
 	FlushRenderStateForRenderThread();
-	g_commandLists[g_frame]->drawIndexedInstanced(args.primCount, 1, args.startIndex, args.baseVertexIndex, 0);
+	{
+		RtScopeTimer _drawScope(g_rtDrawCallAccum);
+		g_commandLists[g_frame]->drawIndexedInstanced(args.primCount, 1, args.startIndex, args.baseVertexIndex, 0);
+	}
 }
 extern bool captureNow;
 extern bool drawCompositeRT;
 
 void DrawPrimitiveUP(X_D3DPRIMITIVETYPE PrimitiveType, uint32_t VertexCount, void* pVertexStreamZeroData, uint32_t VertexStreamZeroStride)
 {
+	RtScopeTimer _gtScope(g_gtDrawRecordingAccum);
 	WaitForPresentDuringLoading();
 
 	DrawCallCaller callerDebugger = Others;
@@ -8071,6 +8394,7 @@ extern bool readyToDebug;
 
 static void ProcDrawPrimitiveUP(const RenderCommand& cmd)
 {
+	RtScopeTimer _handlerScope(g_rtDrawHandlerAccum);
 	if (g_pendingSurfaceResizeFlag)
 	{
 		return;
@@ -8108,10 +8432,13 @@ static void ProcDrawPrimitiveUP(const RenderCommand& cmd)
 
 	uint32_t primitiveCount = args.primitiveCount;
 
-	if (indexCount != 0)
-		g_commandLists[g_frame]->drawIndexedInstanced(indexCount, 1, 0, 0, 0);
-	else
-		g_commandLists[g_frame]->drawInstanced(primitiveCount, 1, 0, 0);
+	{
+		RtScopeTimer _drawScope(g_rtDrawCallAccum);
+		if (indexCount != 0)
+			g_commandLists[g_frame]->drawIndexedInstanced(indexCount, 1, 0, 0, 0);
+		else
+			g_commandLists[g_frame]->drawInstanced(primitiveCount, 1, 0, 0);
+	}
 }
 
 
@@ -8820,7 +9147,7 @@ void VideoConfigValueChangedCallback(IConfigDef* config)
 static std::thread g_renderThread([]
 	{
 #ifdef _WIN32
-		SetThreadPriority(GetCurrentThread(), THREAD_PRIORITY_ABOVE_NORMAL);
+		SetThreadPriority(GetCurrentThread(), THREAD_PRIORITY_HIGHEST);
 		GuestThread::SetThreadName(GetCurrentThreadId(), "Render Thread");
 #endif
 
@@ -8828,19 +9155,41 @@ static std::thread g_renderThread([]
 
 		while (true)
 		{
-			size_t count = g_renderQueue.wait_dequeue_bulk(commands, std::size(commands));
+			size_t count;
+			{
+				RtScopeTimer _qw(g_rtQueueWaitAccum);
+				count = g_renderQueue.wait_dequeue_bulk(commands, std::size(commands));
+			}
 			for (size_t i = 0; i < count; i++)
 			{
 				auto& cmd = commands[i];
+				g_totalCommandCount.fetch_add(1, std::memory_order_relaxed);
 
 				switch (cmd.type)
 				{
-				case RenderCommandType::DestructResource:                  ProcDestructResource(cmd); break;
-				case RenderCommandType::UnlockTextureRect:                 ProcUnlockTextureRect(cmd); break;
-				case RenderCommandType::UnlockBuffer16:                    ProcUnlockBuffer16(cmd); break;
-				case RenderCommandType::UnlockBuffer32:                    ProcUnlockBuffer32(cmd); break;
-				case RenderCommandType::ExecuteCommandList:                ProcExecuteCommandList(cmd); break;
-				case RenderCommandType::BeginCommandList:                  ProcBeginCommandList(cmd); break;
+				case RenderCommandType::DestructResource:                  { g_stateChangeCount.fetch_add(1, std::memory_order_relaxed); RtScopeTimer _s(g_rtOtherCmdsAccum); ProcDestructResource(cmd); } break;
+				case RenderCommandType::UnlockTextureRect:                 { g_stateChangeCount.fetch_add(1, std::memory_order_relaxed); RtScopeTimer _s(g_rtOtherCmdsAccum); ProcUnlockTextureRect(cmd); } break;
+				case RenderCommandType::UnlockBuffer16:                    { g_stateChangeCount.fetch_add(1, std::memory_order_relaxed); RtScopeTimer _s(g_rtOtherCmdsAccum); ProcUnlockBuffer16(cmd); } break;
+				case RenderCommandType::UnlockBuffer32:                    { g_stateChangeCount.fetch_add(1, std::memory_order_relaxed); RtScopeTimer _s(g_rtOtherCmdsAccum); ProcUnlockBuffer32(cmd); } break;
+				case RenderCommandType::ExecuteCommandList:
+					g_drawCallCountSnapshot = g_drawCallCount.exchange(0, std::memory_order_relaxed);
+					g_stateChangeCountSnapshot = g_stateChangeCount.exchange(0, std::memory_order_relaxed);
+					g_totalCommandCountSnapshot = g_totalCommandCount.exchange(0, std::memory_order_relaxed);
+					g_psoCacheHitsSnapshot = g_psoCacheHits.exchange(0, std::memory_order_relaxed);
+					g_psoCacheMissesSnapshot = g_psoCacheMisses.exchange(0, std::memory_order_relaxed);
+					g_rtOtherCmdsAccum.SnapshotAndReset();
+					g_rtBeginCmdListWorkAccum.SnapshotAndReset();
+					g_rtPsoWorkAccum.SnapshotAndReset();
+					g_rtFlushWorkAccum.SnapshotAndReset();
+					g_rtDrawCallAccum.SnapshotAndReset();
+					g_rtDrawHandlerAccum.SnapshotAndReset();
+					g_rtQueueWaitAccum.SnapshotAndReset();
+					g_renderDirectorProfiler.End();
+					ProcExecuteCommandList(cmd); break;
+				case RenderCommandType::BeginCommandList:
+					ProcBeginCommandList(cmd);
+					g_renderDirectorProfiler.Begin();
+					break;
 				default:
 					if (!g_commandListOpen)
 					{
@@ -8849,25 +9198,25 @@ static std::thread g_renderThread([]
 					}
 					switch (cmd.type)
 					{
-					case RenderCommandType::SetRenderState:                ProcSetRenderState(cmd); break;
-					case RenderCommandType::DrawImGui:                     ProcDrawImGui(cmd); break;
-					case RenderCommandType::SetRenderTarget:               ProcSetRenderTarget(cmd); break;
-					case RenderCommandType::SetDepthStencilSurface:        ProcSetDepthStencilSurface(cmd); break;
-					case RenderCommandType::ExecutePendingCopyRectsCommands: ProcExecutePendingCopyRectsCommands(cmd); break;
-					case RenderCommandType::Clear:                         ProcClear(cmd); break;
-					case RenderCommandType::SetViewport:                   ProcSetViewport(cmd); break;
-					case RenderCommandType::SetTexture:                    ProcSetTexture(cmd); break;
-					case RenderCommandType::SetTextureStageState:          ProcSetTextureStageState(cmd); break;
-					case RenderCommandType::SetVertexShaderConstants:      ProcSetVertexShaderConstants(cmd); break;
-					case RenderCommandType::SetPixelShaderConstants:       ProcSetPixelShaderConstants(cmd); break;
-					case RenderCommandType::DrawPrimitive:                 ProcDrawPrimitive(cmd); break;
-					case RenderCommandType::DrawIndexedPrimitive:          ProcDrawIndexedPrimitive(cmd); break;
-					case RenderCommandType::DrawPrimitiveUP:               ProcDrawPrimitiveUP(cmd); break;
-					case RenderCommandType::SetVertexDeclaration:          ProcSetVertexDeclaration(cmd); break;
-					case RenderCommandType::SetVertexShader:               ProcSetVertexShader(cmd); break;
-					case RenderCommandType::SetStreamSource:               ProcSetStreamSource(cmd); break;
-					case RenderCommandType::SetIndices:                    ProcSetIndices(cmd); break;
-					case RenderCommandType::SetPixelShader:                ProcSetPixelShader(cmd); break;
+					case RenderCommandType::SetRenderState:                { g_stateChangeCount.fetch_add(1, std::memory_order_relaxed); RtScopeTimer _s(g_rtOtherCmdsAccum); ProcSetRenderState(cmd); } break;
+					case RenderCommandType::DrawImGui:                     { g_stateChangeCount.fetch_add(1, std::memory_order_relaxed); RtScopeTimer _s(g_rtOtherCmdsAccum); ProcDrawImGui(cmd); } break;
+					case RenderCommandType::SetRenderTarget:               { g_stateChangeCount.fetch_add(1, std::memory_order_relaxed); RtScopeTimer _s(g_rtOtherCmdsAccum); ProcSetRenderTarget(cmd); } break;
+					case RenderCommandType::SetDepthStencilSurface:        { g_stateChangeCount.fetch_add(1, std::memory_order_relaxed); RtScopeTimer _s(g_rtOtherCmdsAccum); ProcSetDepthStencilSurface(cmd); } break;
+					case RenderCommandType::ExecutePendingCopyRectsCommands: { g_stateChangeCount.fetch_add(1, std::memory_order_relaxed); RtScopeTimer _s(g_rtOtherCmdsAccum); ProcExecutePendingCopyRectsCommands(cmd); } break;
+					case RenderCommandType::Clear:                         { g_stateChangeCount.fetch_add(1, std::memory_order_relaxed); RtScopeTimer _s(g_rtOtherCmdsAccum); ProcClear(cmd); } break;
+					case RenderCommandType::SetViewport:                   { g_stateChangeCount.fetch_add(1, std::memory_order_relaxed); RtScopeTimer _s(g_rtOtherCmdsAccum); ProcSetViewport(cmd); } break;
+					case RenderCommandType::SetTexture:                    { g_stateChangeCount.fetch_add(1, std::memory_order_relaxed); RtScopeTimer _s(g_rtOtherCmdsAccum); ProcSetTexture(cmd); } break;
+					case RenderCommandType::SetTextureStageState:          { g_stateChangeCount.fetch_add(1, std::memory_order_relaxed); RtScopeTimer _s(g_rtOtherCmdsAccum); ProcSetTextureStageState(cmd); } break;
+					case RenderCommandType::SetVertexShaderConstants:      { g_stateChangeCount.fetch_add(1, std::memory_order_relaxed); RtScopeTimer _s(g_rtOtherCmdsAccum); ProcSetVertexShaderConstants(cmd); } break;
+					case RenderCommandType::SetPixelShaderConstants:       { g_stateChangeCount.fetch_add(1, std::memory_order_relaxed); RtScopeTimer _s(g_rtOtherCmdsAccum); ProcSetPixelShaderConstants(cmd); } break;
+					case RenderCommandType::DrawPrimitive:                 { g_drawCallCount.fetch_add(1, std::memory_order_relaxed); ProcDrawPrimitive(cmd); } break;
+					case RenderCommandType::DrawIndexedPrimitive:          { g_drawCallCount.fetch_add(1, std::memory_order_relaxed); ProcDrawIndexedPrimitive(cmd); } break;
+					case RenderCommandType::DrawPrimitiveUP:               { g_drawCallCount.fetch_add(1, std::memory_order_relaxed); ProcDrawPrimitiveUP(cmd); } break;
+					case RenderCommandType::SetVertexDeclaration:          { g_stateChangeCount.fetch_add(1, std::memory_order_relaxed); RtScopeTimer _s(g_rtOtherCmdsAccum); ProcSetVertexDeclaration(cmd); } break;
+					case RenderCommandType::SetVertexShader:               { g_stateChangeCount.fetch_add(1, std::memory_order_relaxed); RtScopeTimer _s(g_rtOtherCmdsAccum); ProcSetVertexShader(cmd); } break;
+					case RenderCommandType::SetStreamSource:               { g_stateChangeCount.fetch_add(1, std::memory_order_relaxed); RtScopeTimer _s(g_rtOtherCmdsAccum); ProcSetStreamSource(cmd); } break;
+					case RenderCommandType::SetIndices:                    { g_stateChangeCount.fetch_add(1, std::memory_order_relaxed); RtScopeTimer _s(g_rtOtherCmdsAccum); ProcSetIndices(cmd); } break;
+					case RenderCommandType::SetPixelShader:                { g_stateChangeCount.fetch_add(1, std::memory_order_relaxed); RtScopeTimer _s(g_rtOtherCmdsAccum); ProcSetPixelShader(cmd); } break;
 					default:
 						assert(false && "Unrecognized render command type.");
 						break;
