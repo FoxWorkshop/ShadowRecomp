@@ -215,9 +215,30 @@ static void DrawButtonContainer(ImVec2 min, ImVec2 max, int baser, int baseg, fl
 	auto& res = ImGui::GetIO().DisplaySize;
 	auto drawList = ImGui::GetBackgroundDrawList();
 	SetShaderModifier(IMGUI_SHADER_MODIFIER_SCANLINE_BUTTON);
-	drawList->AddRectFilledMultiColor(min, max, IM_COL32(baser, baseg + 130, 0, 223 * alpha), IM_COL32(baser, baseg + 130, 0, 178 * alpha), IM_COL32(baser, baseg + 130, 0, 223 * alpha), IM_COL32(baser, baseg + 130, 0, 178 * alpha));
-	drawList->AddRectFilledMultiColor(min, max, IM_COL32(baser, baseg, 0, 13 * alpha), IM_COL32(baser, baseg, 0, 0), IM_COL32(baser, baseg, 0, 55 * alpha), IM_COL32(baser, baseg, 0, 6 * alpha));
-	drawList->AddRectFilledMultiColor(min, max, IM_COL32(baser, baseg + 130, 0, 13 * alpha), IM_COL32(baser, baseg + 130, 0, 111 * alpha), IM_COL32(baser, baseg + 130, 0, 0), IM_COL32(baser, baseg + 130, 0, 55 * alpha));
+	drawList->AddRectFilledMultiColor(
+		min, max,
+		IM_COL32(180, 0, 0, 223 * alpha),
+		IM_COL32(140, 0, 0, 178 * alpha),
+		IM_COL32(160, 0, 0, 223 * alpha),
+		IM_COL32(120, 0, 0, 178 * alpha) 
+	);
+
+	drawList->AddRectFilledMultiColor(
+		min, max,
+		IM_COL32(60, 0, 0, 180 * alpha),  
+		IM_COL32(40, 0, 0, 100 * alpha),  
+		IM_COL32(80, 0, 0, 200 * alpha),  
+		IM_COL32(30, 0, 0, 80 * alpha)    
+	);
+
+
+	drawList->AddRectFilledMultiColor(
+		min, max,
+		IM_COL32(220, 0, 0, 60 * alpha),    
+		IM_COL32(200, 0, 0, 30 * alpha),    
+		IM_COL32(255, 0, 0, 80 * alpha),    
+		IM_COL32(180, 0, 0, 20 * alpha)     
+	);
 	SetShaderModifier(IMGUI_SHADER_MODIFIER_NONE);
 }
 
