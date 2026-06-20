@@ -1,6 +1,7 @@
 #include <kernel/function.h>
 #include <locale/locale.h>
 #include <ui/message_window.h>
+#include <user/config.h>
 
 static int messageID[] = { 6062, 6068, 6075, 6081, 6092 };
 const int messageIDLength = 5;
@@ -27,6 +28,21 @@ X86_FUNC_IMPL(__imp__sub_5A7B0);
 X86_FUNC(sub_5A7B0)	
 {
 	__imp__sub_5A7B0(ctx, base);
+}
+
+// confirmation prompts
+X86_FUNC_IMPL(__imp__sub_2A5B60);
+X86_FUNC(sub_2A5B60)
+{
+	if (Config::ConfirmationPrompt.Value == false)
+	{
+		ctx.eax.u32 = 2;
+		ctx.AddEsp(4); // thiscall with 3 param + ret value = (4*4)
+
+		return;
+	}
+
+	__imp__sub_2A5B60(ctx, base);
 }
 
 static bool ProcessCreateSaveMessage()

@@ -148,6 +148,17 @@ CONFIG_DEFINE_LOCALE(AchievementNotifications)
 };
 
 // Japanese Notes: This localization should include furigana.
+CONFIG_DEFINE_LOCALE(ConfirmationPrompt)
+{
+    { ELanguage::English,  { "Confirmation Prompts", "Shows confirmation prompts when loading a save file, exiting to the menu, restarting, and in other similar situations.\n\nDisabling this option replicates the behavior of the GameCube version." } },
+    { ELanguage::Japanese, { "Confirmation Prompts", "Shows confirmation prompts when loading a save file, exiting to the menu, restarting, and in other similar situations.\n\nDisabling this option replicates the behavior of the GameCube version." } },
+    { ELanguage::German,   { "Confirmation Prompts", "Shows confirmation prompts when loading a save file, exiting to the menu, restarting, and in other similar situations.\n\nDisabling this option replicates the behavior of the GameCube version." } },
+    { ELanguage::French,   { "Confirmation Prompts", "Affiche les messages de confirmation lors du chargement d'une sauvegarde, du retour au menu, du redémarrage et dans d'autres situations similaires.\n\nDésactiver cette option reproduit le comportement de la version GameCube." } },
+    { ELanguage::Spanish,  { "Confirmation Prompts", "Shows confirmation prompts when loading a save file, exiting to the menu, restarting, and in other similar situations.\n\nDisabling this option replicates the behavior of the GameCube version." } },
+    { ELanguage::Italian,  { "Confirmation Prompts", "Shows confirmation prompts when loading a save file, exiting to the menu, restarting, and in other similar situations.\n\nDisabling this option replicates the behavior of the GameCube version." } },
+};
+
+// Japanese Notes: This localization should include furigana.
 CONFIG_DEFINE_LOCALE(ControllerIcons)
 {
     { ELanguage::English, { "Controller Icons", "Change the icons to match your controller." } },

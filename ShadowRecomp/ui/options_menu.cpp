@@ -869,8 +869,10 @@ static void DrawOptions(ImVec2 minClipRect, ImVec2 maxClipRect, ImVec2 min, ImVe
 		DrawOption(rowCount++, &Config::VoiceLanguage, !OptionsMenu::s_isPause, min, max, cmnReason);
 		DrawOption(rowCount++, &Config::Subtitles, true, min, max);
 		DrawOption(rowCount++, &Config::EnablePartnerIntro, true, min, max);
+		DrawOption(rowCount++, &Config::ConfirmationPrompt, true, min, max);
 		DrawOption(rowCount++, &Config::Hints, !OptionsMenu::s_isPause, min, max);
 		DrawOption(rowCount++, &Config::AchievementNotifications, true, min, max);
+
 		break;
 
 	case OptionsMenuCategory::Input:
