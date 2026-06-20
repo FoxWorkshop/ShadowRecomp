@@ -586,52 +586,7 @@ static void DrawDescription(std::string s)
 	drawList->PopClipRect();
 }
 
-void DrawMenuListContainer()
-{
-	auto* drawList = ImGui::GetBackgroundDrawList();
-	auto& res = ImGui::GetIO().DisplaySize;
 
-	auto containerUVs = PIXELS_TO_UV_COORDS(512, 512, 0, 247, 274, 264);
-	auto containerWidth = res.x * 0.5f;
-	auto containerHeight = res.y;
-	auto containerOffsetX = Scale(1);
-	auto containerOffsetY = Scale(136);
-
-
-	ImVec2 min = { g_horzCentre + g_aspectRatioNarrowMargin, g_vertCentre };
-	ImVec2 max = { res.x - min.x, res.y - min.y };
-	// 1.0 = fully on screen, 0.0 = fully off screen
-	float t = 1.0f;
-
-
-	float containerFinalX = res.x - containerWidth;
-
-	// Start position is fully off screen to the right
-	float containerStartX = res.x;
-
-	// Interpolate between start and final
-	float containerCurrentX = containerStartX + (containerFinalX - containerStartX) * t;
-
-	ImVec2 containerMin = { containerCurrentX, min.y + containerOffsetY };
-	ImVec2 containerMax = { containerCurrentX + containerWidth, containerMin.y + containerHeight };
-
-	drawList->AddImage(g_upTexBGMenuList.get(), containerMin, containerMax, GET_UV_COORDS(containerUVs));
-
-	if (t < 1.f)
-		return;
-
-	float optionsOffsetX = Scale(170);
-	float optionsOffsetY = Scale(23);
-
-	ImVec2 minOptions = { containerMin.x + optionsOffsetX, containerMin.y + optionsOffsetY };
-	ImVec2 maxOptions = { res.x, containerMax.y - optionsOffsetY };
-
-	optionsOffsetX -= Scale(170);
-	//optionsOffsetY -= Scale(23);
-	ImVec2 minClipRect = { containerMin.x + optionsOffsetX, containerMin.y + optionsOffsetY };
-	ImVec2 maxClipRect = { res.x, containerMax.y - optionsOffsetY };
-
-}
 
 static void DrawBackground()
 {
@@ -695,13 +650,15 @@ void InstallerWizard::Draw()
 	// absurdly wide on ultrawide / high-resolution displays. All sizes
 	// below are derived from the panel rectangle so the layout scales
 	// correctly with both window resizing and High DPI.
-	float panelWidth = std::min(displaySize.x * 0.7f, Scale(900.0f));
+	float panelWidth = std::min(displaySize.x * 0.7f, Scale(800.0f));
 	float panelHeight = std::min(displaySize.y * 0.72f, Scale(640.0f));
 	float panelMinX = (displaySize.x - panelWidth) * 0.5f;
 	float panelMinY = (displaySize.y - panelHeight) * 0.5f;
 
-	ImVec2 panelMin(panelMinX, panelMinY);
-	ImVec2 panelMax(panelMinX + panelWidth, panelMinY + panelHeight);
+	float verticalOffset = Scale(40.0f);
+
+	ImVec2 panelMin(panelMinX, panelMinY + verticalOffset);
+	ImVec2 panelMax(panelMinX + panelWidth, panelMinY + panelHeight + verticalOffset);
 
 	float centerX = (panelMin.x + panelMax.x) * 0.5f;
 	float centerY = (panelMin.y + panelMax.y) * 0.5f;
@@ -714,8 +671,8 @@ void InstallerWizard::Draw()
 
 	DrawBackground();
 
-	drawList->AddRectFilled(panelMin, panelMax, IM_COL32(30, 30, 50, 128), Scale(8.0f));
-	drawList->AddRect(panelMin, panelMax, IM_COL32(80, 80, 120, 128), Scale(8.0f), 0, Scale(1.0f));
+	drawList->AddRectFilled(panelMin, panelMax, IM_COL32(30, 30, 50, 128), Scale(8.0f)); 
+	drawList->AddRect(panelMin, panelMax, IM_COL32(80, 80, 120, 128), Scale(8.0f), 0, Scale(1.0f)); // border
 
 	auto titleText = "Shadow the Hedgehog Recompiled - Setup";
 	auto titleSize = font->CalcTextSizeA(fontSize + 2.f, FLT_MAX, 0, titleText);
@@ -733,21 +690,13 @@ void InstallerWizard::Draw()
 	auto textMargin = 5.0f;
 
 	auto textMaxWidth = originMax.x - (descFontSize / 2.0f) - originMin.x;
-	auto textSize = MeasureCentredParagraph(g_fntSeurat, descFontSize, textMaxWidth, textMargin, wizardText.c_str());
+
+	DrawDescription("SHADOW THE HEDGEHOG - INSTALLER");
+
 	if (g_currentPage != WizardPage::Installing && g_currentPage != WizardPage::InstallFailed)
 	{
-
-		if (wizardText.length() < 20)
-		{
-			DrawDescription(descriptionText);
-			drawList->AddText(font, fontSize, ImVec2(titleX, panelMin.y + Scale(25.0f)), IM_COL32(220, 220, 255, 255), titleText);
-		}
-		else
-		{
-			DrawDescription("SHADOW THE HEDGEHOG - INSTALLER");
 			DrawTextParagraph(g_fntSeurat, descFontSize, textMaxWidth, originMin, textMargin, wizardText.c_str(),
-				[&](const char* str, ImVec2 pos) { DrawTextBasic(g_fntSeurat, descFontSize, pos, IM_COL32(255, 255, 255, 255), str); });
-		}
+				[&](const char* str, ImVec2 pos) { DrawTextBasic(g_fntSeurat, descFontSize, pos, IM_COL32(255, 255, 255, 255), str); });	
 	}
 
 	switch (g_currentPage)
