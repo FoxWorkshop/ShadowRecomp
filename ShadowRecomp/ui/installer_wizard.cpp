@@ -352,7 +352,7 @@ static void DrawButton(ImVec2 min, ImVec2 max, const char* buttonText, bool sour
 		font,
 		size,
 		min,
-		buttonPressed || btnHovered || buttonEnabled ? IM_COL32(255, 255, 255, 255) : IM_COL32(122, 0, 0, 255),
+		buttonPressed || btnHovered || buttonEnabled ? IM_COL32(255, 255, 0, 255) : IM_COL32(255, 255, 255, 255),
 		buttonText,
 		4,
 		IM_COL32(baser, baseg, 0, 255)
