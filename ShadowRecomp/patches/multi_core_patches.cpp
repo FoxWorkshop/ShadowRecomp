@@ -325,7 +325,7 @@ X86_FUNC(sub_2DCDE0)
 
 	if (!ctx.eax.u32) // end update won't be called if function failed
 	{
-		LOGFN("camera update failed, leaving early");
+		LOGFN("camera update failed, leaving early", "CameraUpdate");
 		RtlLeaveCriticalSection(&globalcurCamera);
 	}
 
@@ -348,7 +348,7 @@ X86_FUNC(sub_2CBA40)
 
 	if (!ctx.eax.u32) // end update won't be called if function failed
 	{
-		LOGFN("camera world update failed, leaving early");
+		LOGFN("camera world update failed, leaving early", "CameraUpdate");
 		RtlLeaveCriticalSection(&globalCurWorld);
 	}
 
