@@ -380,19 +380,21 @@ static void DrawOption
 			if (CheckAndDiscard(g_isAccepted))
 			{
 				Game_PlaySound("decide");
-
+		
 				if (OptionsMenu::s_flowState == OptionsMenuFlowState::OptionCursor)
 				{
-					setValueDescription();
+					g_leftWasHeld = false;
+					g_rightWasHeld = false;
 
-					s_oldValue = config->Value;
+					setValueDescription();
 
 					if (config->LockCallback)
 						config->LockCallback(config);
 
 					OptionsMenu::SetFlowState(OptionsMenuFlowState::OptionSelected);
 
-					isSelected = true;
+					isSelected = true;				
+					s_oldValue = config->Value;
 				}
 				else
 				{
@@ -409,13 +411,13 @@ static void DrawOption
 					isSelected = false;
 				}
 			}
-
-			if (CheckAndDiscard(g_isDeclined))
+			else if (CheckAndDiscard(g_isDeclined))
 			{
 				Game_PlaySound("cancel");
 
 				if (config->Value != s_oldValue)
 				{
+					// released lock, restore old value
 					config->Value = s_oldValue;
 
 					VideoConfigValueChangedCallback(config);
