@@ -768,19 +768,43 @@ void InstallerWizard::Draw()
 		drawList->AddRectFilled(inputMin, inputMax, IM_COL32(40, 40, 60, 255), Scale(4.0f));
 		drawList->AddRect(inputMin, inputMax, IM_COL32(100, 100, 140, 255), Scale(4.0f), 0, Scale(1.0f));
 
-		const char* displayPath = g_isoPath.empty() ? Localise("Installer_Page_NoFileSelected").c_str() : g_isoPath.c_str();
-		if (strlen(displayPath) > 60)
-		{
-			displayPath = displayPath + strlen(displayPath) - 60;
-		}
-
-		auto displayTextSize = font->CalcTextSizeA(smallFontSize, FLT_MAX, 0.0f, displayPath);
-		drawList->AddText(font, smallFontSize, ImVec2(inputMin.x + Scale(8.0f), inputMin.y + (inputHeight - displayTextSize.y) * 0.5f), IM_COL32(180, 180, 180, 255), displayPath, nullptr, inputWidth - Scale(100.0f));
-
 		float btnWidth = Scale(120.0f);
 		float btnHeight = Scale(32.0f);
-		float btnX = inputMax.x - btnWidth - Scale(4.0f);
+		float btnX = inputMax.x - btnWidth;
 		float btnY = inputMin.y;
+		float pathClipWidth = (btnX - Scale(8.0f)) - (inputMin.x + Scale(8.0f));
+
+		const std::string displayPathStorage = g_isoPath.empty() ? Localise("Installer_Page_NoFileSelected") : std::string(g_isoPath);
+		const char* displayPath = displayPathStorage.c_str();
+
+		auto displayTextSize = font->CalcTextSizeA(smallFontSize, FLT_MAX, 0.0f, displayPath);
+		bool pathOverflows = displayTextSize.x > pathClipWidth;
+		std::string overflowRender;
+		const char* pathToShow = displayPath;
+		if (pathOverflows)
+		{
+			// Find the longest tail of displayPath that, when prefixed with
+			// "...", still fits within pathClipWidth.
+			const std::string ellipsis = "...";
+			size_t dlen = strlen(displayPath);
+			size_t tailLen = dlen;
+			while (tailLen > 1)
+			{
+				std::string candidate = ellipsis + std::string(displayPath + (dlen - tailLen), tailLen);
+				auto candSize = font->CalcTextSizeA(smallFontSize, FLT_MAX, 0.0f, candidate.c_str());
+				if (candSize.x <= pathClipWidth)
+				{
+					overflowRender = std::move(candidate);
+					break;
+				}
+				tailLen--;
+			}
+			if (overflowRender.empty())
+				overflowRender = ellipsis;
+			pathToShow = overflowRender.c_str();
+		}
+
+		drawList->AddText(font, smallFontSize, ImVec2(inputMin.x + Scale(8.0f), inputMin.y + (inputHeight - displayTextSize.y) * 0.5f), IM_COL32(180, 180, 180, 255), pathToShow, nullptr, pathClipWidth);
 
 		bool btnHovered = false;
 		if (io.MousePos.x >= btnX && io.MousePos.x <= btnX + btnWidth &&
@@ -791,7 +815,8 @@ void InstallerWizard::Draw()
 
 		ImU32 btnColor = btnHovered ? IM_COL32(80, 80, 140, 255) : IM_COL32(60, 60, 100, 255);
 		drawList->AddRectFilled(ImVec2(btnX, btnY), ImVec2(btnX + btnWidth, btnY + btnHeight), btnColor, Scale(4.0f));
-		auto browseText = Localise("Installer_Header_Browse").c_str();
+		const std::string browseTextStorage = Localise("Installer_Header_Browse");
+		const char* browseText = browseTextStorage.c_str();
 		auto browseSize = font->CalcTextSizeA(smallFontSize, FLT_MAX, 0, browseText);
 		drawList->AddText(font, smallFontSize, ImVec2(btnX + (btnWidth - browseSize.x) * 0.5f, btnY + (btnHeight - browseSize.y) * 0.5f), IM_COL32(220, 220, 255, 255), browseText);
 
