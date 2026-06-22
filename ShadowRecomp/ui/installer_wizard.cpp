@@ -906,10 +906,7 @@ void InstallerWizard::Draw()
 		ImVec2 barMin(barX, centerY - barHeight * 0.5f);
 		ImVec2 barMax(barX + barWidth, centerY + barHeight * 0.5f);
 
-		float target = g_installerProgressTarget.load();
-		g_installerProgress += (target - g_installerProgress) * 0.1f;
-		if (std::abs(g_installerProgress - target) < 0.001f)
-			g_installerProgress = target;
+		g_installerProgress = g_installerProgressTarget.load();
 
 		drawList->AddRectFilled(barMin, barMax, IM_COL32(40, 40, 60, 255), Scale(4.0f));
 
