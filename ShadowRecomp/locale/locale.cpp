@@ -899,7 +899,7 @@ std::unordered_map<std::string_view, std::unordered_map<ELanguage, std::string>>
 			{ ELanguage::English,  "select" },
 			{ ELanguage::Japanese, "決定" },
 			{ ELanguage::German,   "auswählen" },
-			{ ELanguage::French,   "choisir" },
+			{ ELanguage::French,   "confirmer" },
 			{ ELanguage::Spanish,  "elegir" },
 			{ ELanguage::Italian,  "seleziona" }
 		}
