@@ -669,18 +669,32 @@ static void DrawOption
 	}
 
 	// Draw value
-	float valueAreaStart = titlePos.x + titleTextSize.x + Scale(30);
-	float valueAreaEnd = clipRectMax.x - Scale(10);
-	float valueAreaWidth = valueAreaEnd - valueAreaStart;
+	float valueAreaWidth = Scale(100);
+	float valueAreaEnd = max.x - Scale(10);  
+	float valueAreaStart = valueAreaEnd - valueAreaWidth;
+	float valueAreaCenter = valueAreaStart + (valueAreaWidth * 0.5f);
+
+	float titleEndX = titlePos.x + titleTextSize.x + Scale(30);
+	std::string displayTitle = titleText;
+
+	if (titleEndX > valueAreaStart) 
+	{
+		float availableTitleWidth = valueAreaStart - titlePos.x - Scale(10);
+
+		if (availableTitleWidth > Scale(30))
+			displayTitle = TruncateTextWithEllipsis(g_fntSeurat, g_fntSeuratSize, titleText, availableTitleWidth);
+	}
+
 
 	SetShaderModifier(IMGUI_SHADER_MODIFIER_LOW_QUALITY_TEXT);
+
 
 	if (valueAreaWidth > 0.0f)
 	{
 		auto rawValueSize = g_fntSeurat->CalcTextSizeA(g_fntSeuratSize, FLT_MAX, 0.0f, valueText.data());
 		bool overflows = rawValueSize.x > valueAreaWidth;
 
-		ImVec2 valuePos = { valueAreaStart, titlePos.y };
+		ImVec2 valuePos = { valueAreaEnd - rawValueSize.x, titlePos.y };
 
 		if (overflows && isHover)
 		{
@@ -710,9 +724,10 @@ static void DrawOption
 			else if (elapsed >= PAUSE_BEFORE + scrollDur)
 				scrollX = overflow;
 
-			// we can use clip rect so the text can't bleed into the title area or off the right edge
+			float marqueeStartX = valueAreaStart;
+			valuePos.x = marqueeStartX - scrollX;
+
 			drawList->PushClipRect({ valueAreaStart, clipRectMin.y }, { valueAreaEnd, clipRectMax.y }, true);
-			valuePos.x -= scrollX;
 			drawList->AddText(g_fntSeurat, g_fntSeuratSize, valuePos,
 				IM_COL32(255, 255, 255, 255), valueText.data());
 			drawList->PopClipRect();
@@ -724,6 +739,9 @@ static void DrawOption
 				? TruncateTextWithEllipsis(g_fntSeurat, g_fntSeuratSize, valueText, valueAreaWidth)
 				: valueText;
 
+			// Recalculate position for truncated text (centered)
+			auto displaySize = g_fntSeurat->CalcTextSizeA(g_fntSeuratSize, FLT_MAX, 0.0f, displayText.data());
+			valuePos.x = valueAreaCenter - (displaySize.x * 0.5f);
 			drawList->AddText(g_fntSeurat, g_fntSeuratSize, valuePos,
 				IM_COL32(255, 255, 255, isAccessible ? 255 : 127), displayText.data());
 		}
@@ -1230,7 +1248,7 @@ void DrawMenuListContainer(ImVec2 min, ImVec2 max)
 	float optionsOffsetY = Scale(23);
 
 	ImVec2 minOptions = { containerMin.x + optionsOffsetX, containerMin.y + optionsOffsetY };
-	ImVec2 maxOptions = { res.x, containerMax.y - optionsOffsetY };
+	ImVec2 maxOptions = { containerMax.x, containerMax.y - optionsOffsetY };
 
 	optionsOffsetX -= Scale(170);
 	//optionsOffsetY -= Scale(23);
