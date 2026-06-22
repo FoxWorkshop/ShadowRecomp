@@ -317,11 +317,7 @@ void DrawGameStyleMessageBox(ImVec2 center, ImVec2 size)
 
 static void ResetSelection()
 {
-	/* Always use -1 for mouse input to prevent the selection
-	   cursor from erroneously appearing where it shouldn't. */
-	g_selectedRowIndex = input::g_inputDevice == input::EInputDevice::Mouse
-		? -1
-		: g_defaultButtonIndex;
+	g_selectedRowIndex = g_defaultButtonIndex;
 
 	g_upWasHeld = false;
 	g_downWasHeld = false;
