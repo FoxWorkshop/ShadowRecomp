@@ -1456,15 +1456,6 @@ void OptionsMenu::Draw()
 
 		if (!s_restartPromptOpened)
 		{
-			// Fade out description.
-		   // s_commonMenu.SetDescription(" ");
-
-			/**for (auto& def : g_configDefinitions)
-			{
-				if (def->RequiresRestart() && def->IsValueChanged())
-					message += "\n- " + def->GetNameLocalised(Config::Language);
-			}*/
-
 			s_restartPromptOpened = true;
 		}
 
@@ -1472,12 +1463,12 @@ void OptionsMenu::Draw()
 		{
 			if (s_restartMessageResult == 0)
 			{
+				Config::Save();
 				Fader::FadeOut(1, []() { App::Restart({ "--quickboot" }); });
 				s_restartFaderBegun = true;
 			}
 			else
 			{
-				//s_commonMenu.SetDescription(GetCategoryDescription((OptionsMenuCategory)g_categoryIndex));
 				s_state = OptionsMenuState::Opening;
 			}
 
