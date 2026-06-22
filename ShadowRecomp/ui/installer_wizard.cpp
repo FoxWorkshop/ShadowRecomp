@@ -347,15 +347,16 @@ static void DrawButton(ImVec2 min, ImVec2 max, const char* buttonText, bool sour
 
 
 
+	int aText = (int)(255 * alpha);
 	DrawTextWithOutline
 	(
 		font,
 		size,
 		min,
-		buttonPressed || btnHovered || buttonEnabled ? IM_COL32(255, 255, 0, 255) : IM_COL32(255, 255, 255, 255),
+		buttonPressed || btnHovered || buttonEnabled ? IM_COL32(255, 255, 0, aText) : IM_COL32(255, 255, 255, aText),
 		buttonText,
 		4,
-		IM_COL32(baser, baseg, 0, 255)
+		IM_COL32(baser, baseg, 0, aText)
 	);
 
 	ResetGradient();
@@ -436,7 +437,7 @@ static void DrawLanguagePicker(ImVec2 panelMin, ImVec2 panelMax)
 	}
 }
 
-static void DrawNextButton(ImVec2& panelMin, ImVec2& panelMax)
+static void DrawNextButton(ImVec2& panelMin, ImVec2& panelMax, float alpha = 1.0f)
 {
 
 	auto& io = ImGui::GetIO();
@@ -456,12 +457,12 @@ static void DrawNextButton(ImVec2& panelMin, ImVec2& panelMax)
 		nextHovered = true;
 	}
 
-	ImU32 nextColor = nextHovered ? IM_COL32(30, 180, 255, 255) : IM_COL32(0, 140, 200, 255);
+	ImU32 nextColor = nextHovered ? IM_COL32(30, 180, 255, (int)(255 * alpha)) : IM_COL32(0, 140, 200, (int)(255 * alpha));
 	drawList->AddRectFilled(ImVec2(nextBtnX, nextBtnY), ImVec2(nextBtnX + nextBtnWidth, nextBtnY + nextBtnHeight), nextColor, Scale(6.0f));
 
 	auto nextText = Localise("Installer_Button_Next").c_str();
 	auto nextSize = font->CalcTextSizeA(smallFontSize, FLT_MAX, 0, nextText);
-	drawList->AddText(font, smallFontSize, ImVec2(nextBtnX + (nextBtnWidth - nextSize.x) * 0.5f, nextBtnY + Scale(9.0f)), IM_COL32(220, 235, 255, 255), nextText);
+	drawList->AddText(font, smallFontSize, ImVec2(nextBtnX + (nextBtnWidth - nextSize.x) * 0.5f, nextBtnY + Scale(9.0f)), IM_COL32(220, 235, 255, (int)(255 * alpha)), nextText);
 
 	if (nextHovered && io.MouseClicked[0])
 	{
@@ -506,7 +507,7 @@ static void DrawPrevButton(ImVec2& panelMin, ImVec2& panelMax)
 
 }
 
-static void DrawDescription(std::string s)
+static void DrawDescription(std::string s, float alpha = 1.0f)
 {
 	static std::string prevText;
 	static double scrollStartTime = 0.0;
@@ -572,13 +573,14 @@ static void DrawDescription(std::string s)
 
 	SetShaderModifier(IMGUI_SHADER_MODIFIER_LOW_QUALITY_TEXT);
 
-	drawList->AddText(g_fntSeurat, fontSize, textPos, IM_COL32(255, 255, 255, 255), s.c_str());
+	ImU32 descColor = IM_COL32(255, 255, 255, (int)(255 * alpha));
+	drawList->AddText(g_fntSeurat, fontSize, textPos, descColor, s.c_str());
 
 	if (isScrolling)
 	{
 		// Draw the looping copy trailing behind
 		ImVec2 loopPos = { textPos.x + totalWidth, textPos.y };
-		drawList->AddText(g_fntSeurat, fontSize, loopPos, IM_COL32(255, 255, 255, 255), s.c_str());
+		drawList->AddText(g_fntSeurat, fontSize, loopPos, descColor, s.c_str());
 	}
 
 	SetShaderModifier(IMGUI_SHADER_MODIFIER_NONE);
@@ -588,7 +590,7 @@ static void DrawDescription(std::string s)
 
 
 
-static void DrawBackground()
+static void DrawBackground(float alpha = 1.0f)
 {
 
 	auto& res = ImGui::GetIO().DisplaySize;
@@ -613,7 +615,7 @@ static void DrawBackground()
 		{ res.x, res.y },
 		{ 0, 0 },
 		{ 1, uvMaxY },
-		IM_COL32(255, 255, 255, 255)
+		IM_COL32(255, 255, 255, (int)(255 * alpha))
 	);
 
 
@@ -669,10 +671,20 @@ void InstallerWizard::Draw()
 	descFontSize = baseFontSize + std::floor(baseFontSize * 0.2f);
 	smallFontSize = std::floor(baseFontSize * 0.80f);
 
-	DrawBackground();
+	// Background, description banner, and body text fade in from black on
+	// the language-selection screen, matching the fade used by the
+	// language-picker button containers.
+	float fadeAlpha = 1.0f;
+	if (g_currentPage == WizardPage::SelectLanguage)
+	{
+		fadeAlpha = ComputeMotionInstaller(g_appearTime, g_disappearTime, CONTAINER_INNER_TIME, CONTAINER_INNER_DURATION);
+	}
 
-	drawList->AddRectFilled(panelMin, panelMax, IM_COL32(30, 30, 50, 128), Scale(8.0f)); 
-	drawList->AddRect(panelMin, panelMax, IM_COL32(80, 80, 120, 128), Scale(8.0f), 0, Scale(1.0f)); // border
+	DrawBackground(fadeAlpha);
+
+	int panelA = (int)(128 * fadeAlpha);
+	drawList->AddRectFilled(panelMin, panelMax, IM_COL32(30, 30, 50, panelA), Scale(8.0f));
+	drawList->AddRect(panelMin, panelMax, IM_COL32(80, 80, 120, panelA), Scale(8.0f), 0, Scale(1.0f)); // border
 
 	auto titleText = "Shadow the Hedgehog Recompiled - Setup";
 	auto titleSize = font->CalcTextSizeA(fontSize + 2.f, FLT_MAX, 0, titleText);
@@ -691,12 +703,12 @@ void InstallerWizard::Draw()
 
 	auto textMaxWidth = originMax.x - (descFontSize / 2.0f) - originMin.x;
 
-	DrawDescription("Shadow the Hedgehog - Installer");
+	DrawDescription("Shadow the Hedgehog - Installer", fadeAlpha);
 
 	if (g_currentPage != WizardPage::Installing && g_currentPage != WizardPage::InstallFailed)
 	{
 			DrawTextParagraph(g_fntSeurat, descFontSize, textMaxWidth, originMin, textMargin, wizardText.c_str(),
-				[&](const char* str, ImVec2 pos) { DrawTextBasic(g_fntSeurat, descFontSize, pos, IM_COL32(255, 255, 255, 255), str); });	
+				[&](const char* str, ImVec2 pos) { DrawTextBasic(g_fntSeurat, descFontSize, pos, IM_COL32(255, 255, 255, (int)(255 * fadeAlpha)), str); });
 	}
 
 	switch (g_currentPage)
@@ -707,7 +719,7 @@ void InstallerWizard::Draw()
 		DrawLanguagePicker(panelMin, panelMax);
 
 
-		DrawNextButton(panelMin, panelMax);
+		DrawNextButton(panelMin, panelMax, fadeAlpha);
 
 		float quitBtnWidth = Scale(100.0f);
 		float quitBtnHeight = Scale(36.0f);
@@ -720,12 +732,13 @@ void InstallerWizard::Draw()
 			quitHovered = true;
 		}
 
-		ImU32 quitColor = quitHovered ? IM_COL32(140, 50, 50, 255) : IM_COL32(100, 30, 30, 255);
+		int quitA = (int)(255 * fadeAlpha);
+		ImU32 quitColor = quitHovered ? IM_COL32(140, 50, 50, quitA) : IM_COL32(100, 30, 30, quitA);
 		drawList->AddRectFilled(ImVec2(quitBtnX, quitBtnY), ImVec2(quitBtnX + quitBtnWidth, quitBtnY + quitBtnHeight), quitColor, Scale(6.0f));
 
 		auto quitText = Localise("Common_Quit").c_str();
 		auto quitSize = font->CalcTextSizeA(smallFontSize, FLT_MAX, 0, quitText);
-		drawList->AddText(font, smallFontSize, ImVec2(quitBtnX + (quitBtnWidth - quitSize.x) * 0.5f, quitBtnY + Scale(9.0f)), IM_COL32(255, 200, 200, 255), quitText);
+		drawList->AddText(font, smallFontSize, ImVec2(quitBtnX + (quitBtnWidth - quitSize.x) * 0.5f, quitBtnY + Scale(9.0f)), IM_COL32(255, 200, 200, quitA), quitText);
 
 		if (quitHovered && io.MouseClicked[0])
 		{
