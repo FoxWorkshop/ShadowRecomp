@@ -152,7 +152,7 @@ int Window_OnSDLEvent(void*, SDL_Event* event)
 void GameWindow::Init(const char* sdlVideoDriver)
 {
 #ifdef __linux__
-    SDL_SetHint("SDL_APP_ID", "io.github.fox_workshop.shadowrecomp");
+    SDL_SetHint("SDL_APP_ID", "io.github.foxworkshop.shadowrecomp");
 #endif
 
     if (SDL_VideoInit(sdlVideoDriver) != 0 && sdlVideoDriver)
