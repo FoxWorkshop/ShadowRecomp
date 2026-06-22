@@ -280,8 +280,6 @@ static PipelineState g_pipelineState;
 static int32_t g_depthBias;
 static float g_slopeScaledDepthBias;
 int32_t g_RenderUpscaleFactor = 1;
-static bool is_loadingThread = false;
-static int loadingThreadID = -1;
 
 GuestSurface* GetRenderTarget()
 {
