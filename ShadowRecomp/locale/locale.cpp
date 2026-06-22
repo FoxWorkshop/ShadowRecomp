@@ -896,67 +896,78 @@ std::unordered_map<std::string_view, std::unordered_map<ELanguage, std::string>>
 	{
 		"Common_Select",
 		{
-			{ ELanguage::English,  "Select" },
+			{ ELanguage::English,  "select" },
 			{ ELanguage::Japanese, "決定" },
-			{ ELanguage::German,   "Auswählen" },
-			{ ELanguage::French,   "Choisir" },
-			{ ELanguage::Spanish,  "Seleccionar" },
-			{ ELanguage::Italian,  "Seleziona" }
+			{ ELanguage::German,   "auswählen" },
+			{ ELanguage::French,   "choisir" },
+			{ ELanguage::Spanish,  "elegir" },
+			{ ELanguage::Italian,  "seleziona" }
 		}
 	},
 	{
 		"Common_Back",
 		{
-			{ ELanguage::English,  "Back" },
+			{ ELanguage::English,  "back" },
 			{ ELanguage::Japanese, "もどる" },
-			{ ELanguage::German,   "Zurück" },
-			{ ELanguage::French,   "Retour" },
-			{ ELanguage::Spanish,  "Atrás" },
-			{ ELanguage::Italian,  "Indietro" }
+			{ ELanguage::German,   "zurück" },
+			{ ELanguage::French,   "retour" },
+			{ ELanguage::Spanish,  "atrás" },
+			{ ELanguage::Italian,  "indietro" }
 		}
 	},
 	{
 		"Common_Quit",
 		{
-			{ ELanguage::English,  "Quit" },
+			{ ELanguage::English,  "quit" },
 			{ ELanguage::Japanese, "終了" },
-			{ ELanguage::German,   "Verlassen" },
-			{ ELanguage::French,   "Quitter" },
-			{ ELanguage::Spanish,  "Salir" },
-			{ ELanguage::Italian,  "Esci" }
+			{ ELanguage::German,   "verlassen" },
+			{ ELanguage::French,   "quitter" },
+			{ ELanguage::Spanish,  "salir" },
+			{ ELanguage::Italian,  "esci" }
 		}
 	},
 	{
 		"Common_Cancel",
 		{
-			{ ELanguage::English,  "Cancel" },
+			{ ELanguage::English,  "cancel" },
 			{ ELanguage::Japanese, "キャンセル" },
-			{ ELanguage::German,   "Abbrechen" },
-			{ ELanguage::French,   "Annuler" },
-			{ ELanguage::Spanish,  "Cancelar" },
-			{ ELanguage::Italian,  "Annulla" }
+			{ ELanguage::German,   "abbrechen" },
+			{ ELanguage::French,   "annuler" },
+			{ ELanguage::Spanish,  "cancelar" },
+			{ ELanguage::Italian,  "annulla" }
 		}
 	},
 	{
 		"Common_Reset",
 		{
-			{ ELanguage::English,  "Reset" },
+			{ ELanguage::English,  "reset" },
 			{ ELanguage::Japanese, "リセット" },
-			{ ELanguage::German,   "Zurücksetzen" },
-			{ ELanguage::French,   "Par défaut" },
-			{ ELanguage::Spanish,  "Reiniciar" },
-			{ ELanguage::Italian,  "Ripristina" }
+			{ ELanguage::German,   "zurücksetzen" },
+			{ ELanguage::French,   "par défaut" },
+			{ ELanguage::Spanish,  "reiniciar" },
+			{ ELanguage::Italian,  "ripristina" }
+		}
+	},
+	{
+		"Common_Exit",
+		{
+			{ ELanguage::English,  "exit" },
+			{ ELanguage::Japanese, "終了" },
+			{ ELanguage::German,   "verlassen" },
+			{ ELanguage::French,   "quitter" },
+			{ ELanguage::Spanish,  "salir" },
+			{ ELanguage::Italian,  "esci" }
 		}
 	},
 	{
 		"Common_Switch",
 		{
-			{ ELanguage::English,  "Switch" },
+			{ ELanguage::English,  "switch" },
 			{ ELanguage::Japanese, "きりかえ" },
-			{ ELanguage::German,   "Wechseln" },
-			{ ELanguage::French,   "Changer" },
-			{ ELanguage::Spanish,  "Cambiar" },
-			{ ELanguage::Italian,  "Cambia" }
+			{ ELanguage::German,   "wechseln" },
+			{ ELanguage::French,   "changer" },
+			{ ELanguage::Spanish,  "cambiar" },
+			{ ELanguage::Italian,  "cambia" }
 		}
 	},
 	{

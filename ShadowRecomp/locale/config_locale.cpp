@@ -426,7 +426,7 @@ CONFIG_DEFINE_LOCALE(VoiceLanguage)
     { ELanguage::English, { "Voice Language", "Change the language used for character voices." } },
     { ELanguage::Japanese, { "[音声言語:おんせいげんご]", "ゲーム[内:ない]の\u200B[音声言語:おんせいげんご]を\u200B[変更:へんこう]できます" } },
     { ELanguage::German,   { "Stimmeinstellung", "Ändere die Sprache, die für Charakterstimmen benutzt wird." } },
-    { ELanguage::French,   { "Langue de doublage", "Modifie la langue utilisée pour la voix des personnages." } },
+    { ELanguage::French,   { "Langue des voix", "Modifie la langue utilisée pour la voix des personnages." } },
     { ELanguage::Spanish,  { "Idioma de voz", "Cambia el idioma utilizado para las voces de los personajes." } },
     { ELanguage::Italian, { "Lingua delle voci", "Modifica la lingua utilizzata per le voci dei personaggi." } }
 };
@@ -725,7 +725,7 @@ CONFIG_DEFINE_LOCALE(EnablePartnerIntro)
     { ELanguage::English, { "Partner Intro", "Show partner's introduction when they are first met." } },
     { ELanguage::Japanese, { "", "" } },
     { ELanguage::German,   { "", "" } },
-    { ELanguage::French,   { "Introduction du Partenaire", "Afficher l'introduction du partenaire lorsqu'il est rencontré pour la première fois." } },
+    { ELanguage::French,   { "Intro du Partenaire", "Afficher l'introduction du partenaire lorsqu'il est rencontré pour la première fois." } },
     { ELanguage::Spanish,  { "", "" } },
     { ELanguage::Italian,  { "", "" } }
 };

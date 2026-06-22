@@ -669,7 +669,7 @@ static void DrawOption
 	}
 
 	// Draw value
-	float valueAreaWidth = Scale(100);
+	float valueAreaWidth = Scale(105);
 	float valueAreaEnd = max.x - Scale(10);  
 	float valueAreaStart = valueAreaEnd - valueAreaWidth;
 	float valueAreaCenter = valueAreaStart + (valueAreaWidth * 0.5f);
@@ -1622,9 +1622,9 @@ void OptionsMenu::Open(bool isPause)
 	std::array<Button, 3> buttons =
 	{
 		//Button("Common_Switch", 115.0f, EButtonIcon::LBRB, EButtonAlignment::Left, &g_isControlsVisible),
-		Button("Common_Back", 115.0f, EButtonIcon::Y, EButtonAlignment::Left, &g_isControlsVisible),
+		Button("Common_Exit", 115.0f, EButtonIcon::Y, EButtonAlignment::Left, &g_isControlsVisible),
 		Button("Common_Reset", 100.0f, EButtonIcon::X, EButtonAlignment::Left, &g_optionCanReset),
-		Button("Common_Select", 125.0f, EButtonIcon::A, EButtonAlignment::Right, &g_isControlsVisible),
+		Button("Common_Select", 75.0f, EButtonIcon::A, EButtonAlignment::Right, &g_isControlsVisible),
 
 
 	};

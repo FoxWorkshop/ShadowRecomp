@@ -168,7 +168,7 @@ static void DrawGuide(float* offset, ImVec2 regionMin, ImVec2 regionMax, EButton
         textPos = { textMarginX, textMarginY };
     }
 
-	textPos.y -= Scale(5.0f);
+	textPos.y -= Scale(8.0f);
     SetScale({ textScale, 1.0f });
     SetOrigin(textPos);
 
@@ -200,7 +200,7 @@ void ButtonGuide::Draw()
     ImVec2 regionMax = { g_aspectRatioOffsetX + Scale(640.f - g_sideMargins), g_aspectRatioOffsetY * 2.0f + Scale(480.f) };
 
     auto textMarginX = Scale(21.25f);
-    auto iconMarginX = Scale(4);
+    auto iconMarginX = Scale(8);
     auto fontSize = Scale(18.8f);
 
     auto offsetLeft = 0.0f;
