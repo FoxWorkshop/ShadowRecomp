@@ -142,11 +142,11 @@ static std::string& GetWizardText(WizardPage page)
 // These are ordered from bottom to top in a 3x2 grid.
 const char* LANGUAGE_TEXT[] =
 {
-	"FRANÇAIS", // French
-	"DEUTSCH", // German
-	"ENGLISH", // English
-	"ESPAÑOL", // Spanish
-	"ITALIANO", // Italian
+	"Français", // French
+	"Deutsch", // German
+	"English", // English
+	"Español", // Spanish
+	"Italiano", // Italian
 	"日本語", // Japanese
 };
 
@@ -691,7 +691,7 @@ void InstallerWizard::Draw()
 
 	auto textMaxWidth = originMax.x - (descFontSize / 2.0f) - originMin.x;
 
-	DrawDescription("SHADOW THE HEDGEHOG - INSTALLER");
+	DrawDescription("Shadow the Hedgehog - Installer");
 
 	if (g_currentPage != WizardPage::Installing && g_currentPage != WizardPage::InstallFailed)
 	{
@@ -834,7 +834,7 @@ void InstallerWizard::Draw()
 	break;
 	case WizardPage::Installing:
 	{
-		DrawDescription("SHADOW THE HEDGEHOG - INSTALLER");
+		DrawDescription("Shadow the Hedgehog - Installer");
 
 		auto phase = g_installerPhase.load();
 		const char* headerText = (phase == XisoExtract::Phase::Hashing)

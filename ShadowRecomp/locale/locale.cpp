@@ -433,34 +433,34 @@ std::unordered_map<std::string_view, std::unordered_map<ELanguage, std::string>>
 	{
 		"Installer_Header_Installer",
 		{
-			{ ELanguage::English,  "INSTALLER" },
-			{ ELanguage::Japanese, "INSTALL" },
-			{ ELanguage::German,   "INSTALLATION" },
-			{ ELanguage::French,   "INSTALLATEUR" },
-			{ ELanguage::Spanish,  "INSTALADOR" },
-			{ ELanguage::Italian,  "INSTALLATORE" },
+			{ ELanguage::English,  "Installer" },
+			{ ELanguage::Japanese, "Install" },
+			{ ELanguage::German,   "Installation" },
+			{ ELanguage::French,   "Installateur" },
+			{ ELanguage::Spanish,  "Instalador" },
+			{ ELanguage::Italian,  "Installatore" },
 		},
 	},
 	{
 		"Installer_Header_Installing",
 		{
-			{ ELanguage::English,  "INSTALLING" },
-			{ ELanguage::Japanese, "INSTALL" },
-			{ ELanguage::German,   "INSTALLATION" },
-			{ ELanguage::French,   "INSTALLATION" },
-			{ ELanguage::Spanish,  "INSTALANDO" },
-			{ ELanguage::Italian,  "INSTALLANDO" },
+			{ ELanguage::English,  "Installing" },
+			{ ELanguage::Japanese, "Install" },
+			{ ELanguage::German,   "Installation" },
+			{ ELanguage::French,   "Installation" },
+			{ ELanguage::Spanish,  "Instalando" },
+			{ ELanguage::Italian,  "Installando" },
 		}
 	},
 	{
 		"Installer_Header_Browse",
 		{
-			{ ELanguage::English,  "BROWSE" },
+			{ ELanguage::English,  "Browse" },
 			{ ELanguage::Japanese, "ブラウズ" },
-			{ ELanguage::German,   "DURCHSUCHEN" },
-			{ ELanguage::French,   "PARCOURIR" },
-			{ ELanguage::Spanish,  "EXPLORAR" },
-			{ ELanguage::Italian,  "ESPLORA" },
+			{ ELanguage::German,   "Durchsuchen" },
+			{ ELanguage::French,   "Parcourir" },
+			{ ELanguage::Spanish,  "Explorar" },
+			{ ELanguage::Italian,  "Esplora" },
 		}
 	},
 	{
@@ -574,23 +574,23 @@ std::unordered_map<std::string_view, std::unordered_map<ELanguage, std::string>>
 	{
 		"Installer_Step_Game",
 		{
-			{ ELanguage::English,  "GAME" },
+			{ ELanguage::English,  "Game" },
 			{ ELanguage::Japanese, "ゲーム" },
-			{ ELanguage::German,   "SPIEL" },
-			{ ELanguage::French,   "JEU" },
-			{ ELanguage::Spanish,  "JUEGO" },
-			{ ELanguage::Italian,  "GIOCO" }
+			{ ELanguage::German,   "Spiel" },
+			{ ELanguage::French,   "Jeu" },
+			{ ELanguage::Spanish,  "Juego" },
+			{ ELanguage::Italian,  "Gioco" }
 		}
 	},
 	{
 		"Installer_Step_Update",
 		{
-			{ ELanguage::English,  "UPDATE" },
+			{ ELanguage::English,  "Update" },
 			{ ELanguage::Japanese, "アップデート" },
-			{ ELanguage::German,   "UPDATE" },
-			{ ELanguage::French,   "MISE À JOUR" },
-			{ ELanguage::Spanish,  "ACTUALIZACIÓN" },
-			{ ELanguage::Italian,  "AGGIORNAMENTO" }
+			{ ELanguage::German,   "Update" },
+			{ ELanguage::French,   "Mise à jour" },
+			{ ELanguage::Spanish,  "Actualización" },
+			{ ELanguage::Italian,  "Aggiornamento" }
 		}
 	},
 	{
@@ -620,67 +620,45 @@ std::unordered_map<std::string_view, std::unordered_map<ELanguage, std::string>>
 	{
 		"Installer_Button_Next", // back already exist in common
 		{
-			{ ELanguage::English,  "NEXT" },
+			{ ELanguage::English,  "Next" },
 			{ ELanguage::Japanese, "次へ" },
-			{ ELanguage::German,   "WEITER" },
-			{ ELanguage::French,   "SUIVANT" },
-			{ ELanguage::Spanish,  "SIGUIENTE" },
-			{ ELanguage::Italian,  "CONTINUA" }
-		}
-	},
-	{
-		"Installer_Button_Skip",
-		{
-			{ ELanguage::English,  "SKIP" },
-			{ ELanguage::Japanese, "スキップ" },
-			{ ELanguage::German,   "ÜBERSPRINGEN" },
-			{ ELanguage::French,   "IGNORER" },
-			{ ELanguage::Spanish,  "SALTAR" },
-			{ ELanguage::Italian,  "SALTA" }
+			{ ELanguage::German,   "Weiter" },
+			{ ELanguage::French,   "Suivant" },
+			{ ELanguage::Spanish,  "Siguiente" },
+			{ ELanguage::Italian,  "Continua" }
 		}
 	},
 	{
 		"Installer_Button_Retry",
 		{
-			{ ELanguage::English,  "RETRY" },
+			{ ELanguage::English,  "Retry" },
 			{ ELanguage::Japanese, "リトライ" },
-			{ ELanguage::German,   "ERNEUT VERSUCHEN" },
-			{ ELanguage::French,   "RÉESSAYER" },
-			{ ELanguage::Spanish,  "REINTENTAR" },
-			{ ELanguage::Italian,  "RIPROVA" }
+			{ ELanguage::German,   "Erneut versuchen" },
+			{ ELanguage::French,   "Réessayer" },
+			{ ELanguage::Spanish,  "Reintentar" },
+			{ ELanguage::Italian,  "Riprova" }
 		}
 	},
 	{
 		"Installer_Button_AddFiles",
 		{
-			{ ELanguage::English,  "ADD FILES" },
+			{ ELanguage::English,  "Add Files" },
 			{ ELanguage::Japanese, "ファイルを追加" },
-			{ ELanguage::German,   "DATEIEN HINZUFÜGEN" },
-			{ ELanguage::French,   "AJOUTER DES FICHIERS" },
-			{ ELanguage::Spanish,  "AÑADIR ARCHIVOS" },
-			{ ELanguage::Italian,  "AGGIUNGI FILE" }
+			{ ELanguage::German,   "Dateien hinzufügen" },
+			{ ELanguage::French,   "Ajouter des fichiers" },
+			{ ELanguage::Spanish,  "Añadir archivos" },
+			{ ELanguage::Italian,  "Aggiungi file" }
 		}
 	},
 	{
 		"Installer_Button_PlayGame",
 		{
-			{ ELanguage::English,  "PLAY GAME" },
+			{ ELanguage::English,  "Play Game" },
 			{ ELanguage::Japanese, "ゲームを開始" },
-			{ ELanguage::German,   "SPIEL STARTEN" },
-			{ ELanguage::French,   "JOUER" },
-			{ ELanguage::Spanish,  "JUGAR" },
-			{ ELanguage::Italian,  "GIOCARE" }
-		}
-	},
-	{
-		"Installer_Button_AddFolder",
-		{
-			{ ELanguage::English,  "ADD FOLDER" },
-			{ ELanguage::Japanese, "フォルダを追加" },
-			{ ELanguage::German,   "ORDNER HINZUFÜGEN" },
-			{ ELanguage::French,   "AJOUTER UN DOSSIER" },
-			{ ELanguage::Spanish,  "AÑADIR CARPETA" },
-			{ ELanguage::Italian,  "AGGIUNGI CARTELLA" }
+			{ ELanguage::German,   "Spiel starten" },
+			{ ELanguage::French,   "Jouer" },
+			{ ELanguage::Spanish,  "Jugar" },
+			{ ELanguage::Italian,  "Giocare" }
 		}
 	},
 	{
@@ -720,32 +698,6 @@ std::unordered_map<std::string_view, std::unordered_map<ELanguage, std::string>>
 			{ ELanguage::French,   "Sélectionnez un dossier contenant\nles fichiers extraits du jeu de\nbase.\n\nCes fichiers peuvent être obtenus\nà partir du disque dur de votre\nXbox en suivant les\ninstructions de la page GitHub.\n\nPour choisir une copie\ndématérialisée, utilisez plutôt\nl'option \"Ajouter des fichiers\"." },
 			{ ELanguage::Spanish,  "Selecciona una carpeta que\ncontenga los archivos sin\nmodificar extraídos del juego.\n\nPuedes obtener los archivos\nde tu disco duro de Xbox\nsiguiendo las instrucciones de\nla página de GitHub.\n\nPara elegir una copia digital,\nutiliza la opción \"Añadir Archivos\"." },
 			{ ELanguage::Italian,  "Seleziona una cartella che contiene\ni file non modificati che sono stati\nestratti dal gioco.\n\nQuesti file possono essere ottenuti\ndall'hard drive della tua Xbox\nseguendo le istruzioni\nsulla pagina GitHub.\n\nPer selezionare una copia digitale\nusa l'opzione \"Aggiungi file\"." }
-		}
-	},
-	{
-		// Notes: message appears when user chooses "Quit" on the first available installation screen.
-		// Japanese Notes: This localization should include furigana.
-		"Installer_Message_Quit",
-		{
-			{ ELanguage::English,  "Are you sure you want to quit?" },
-			{ ELanguage::Japanese, "[終了:しゅうりょう]してもよろしいですか？" },
-			{ ELanguage::German,   "Installation verlassen?" },
-			{ ELanguage::French,   "Êtes-vous sûr de vouloir quitter ?" },
-			{ ELanguage::Spanish,  "¿Estás seguro de que quieres\nsalir?" },
-			{ ELanguage::Italian,  "Sicuro di voler uscire?" }
-		}
-	},
-	{
-		// Notes: message appears when user chooses "Cancel" during installation.
-		// Japanese Notes: This localization should include furigana.
-		"Installer_Message_Cancel",
-		{
-			{ ELanguage::English,  "Are you sure you want to cancel the installation?" },
-			{ ELanguage::Japanese, "インストールをキャンセルしてもよろしいですか？" },
-			{ ELanguage::German,   "Bist du dir sicher, dass du die Installation abbrechen möchtest?" },
-			{ ELanguage::French,   "Êtes-vous sûr de vouloir annuler l'installation ?" },
-			{ ELanguage::Spanish,  "¿Estás seguro de que quieres cancelar la instalación?" },
-			{ ELanguage::Italian,  "Sicuro di voler annullare l'installazione?" }
 		}
 	},
 	{
