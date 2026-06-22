@@ -462,7 +462,7 @@ static void DrawNextButton(ImVec2& panelMin, ImVec2& panelMax, float alpha = 1.0
 
 	auto nextText = Localise("Installer_Button_Next").c_str();
 	auto nextSize = font->CalcTextSizeA(smallFontSize, FLT_MAX, 0, nextText);
-	drawList->AddText(font, smallFontSize, ImVec2(nextBtnX + (nextBtnWidth - nextSize.x) * 0.5f, nextBtnY + Scale(9.0f)), IM_COL32(220, 235, 255, (int)(255 * alpha)), nextText);
+	drawList->AddText(font, smallFontSize, ImVec2(nextBtnX + (nextBtnWidth - nextSize.x) * 0.5f, nextBtnY + (nextBtnHeight - nextSize.y) * 0.5f), IM_COL32(220, 235, 255, (int)(255 * alpha)), nextText);
 
 	if (nextHovered && io.MouseClicked[0])
 	{
@@ -497,7 +497,7 @@ static void DrawPrevButton(ImVec2& panelMin, ImVec2& panelMax)
 
 	auto prevText = Localise("Common_Back").c_str();
 	auto prevSize = font->CalcTextSizeA(smallFontSize, FLT_MAX, 0, prevText);
-	drawList->AddText(font, smallFontSize, ImVec2(prevBtnX + (prevBtnWidth - prevSize.x) * 0.5f, prevBtnY + Scale(9.0f)), IM_COL32(255, 200, 200, 255), prevText);
+	drawList->AddText(font, smallFontSize, ImVec2(prevBtnX + (prevBtnWidth - prevSize.x) * 0.5f, prevBtnY + (prevBtnHeight - prevSize.y) * 0.5f), IM_COL32(255, 200, 200, 255), prevText);
 
 	if (prevHovered && io.MouseClicked[0])
 	{
@@ -738,7 +738,7 @@ void InstallerWizard::Draw()
 
 		auto quitText = Localise("Common_Quit").c_str();
 		auto quitSize = font->CalcTextSizeA(smallFontSize, FLT_MAX, 0, quitText);
-		drawList->AddText(font, smallFontSize, ImVec2(quitBtnX + (quitBtnWidth - quitSize.x) * 0.5f, quitBtnY + Scale(9.0f)), IM_COL32(255, 200, 200, quitA), quitText);
+		drawList->AddText(font, smallFontSize, ImVec2(quitBtnX + (quitBtnWidth - quitSize.x) * 0.5f, quitBtnY + (quitBtnHeight - quitSize.y) * 0.5f), IM_COL32(255, 200, 200, quitA), quitText);
 
 		if (quitHovered && io.MouseClicked[0])
 		{
@@ -774,8 +774,8 @@ void InstallerWizard::Draw()
 			displayPath = displayPath + strlen(displayPath) - 60;
 		}
 
-
-		drawList->AddText(font, smallFontSize, ImVec2(inputMin.x + Scale(8.0f), inputMin.y + Scale(7.0f)), IM_COL32(180, 180, 180, 255), displayPath, nullptr, inputWidth - Scale(100.0f));
+		auto displayTextSize = font->CalcTextSizeA(smallFontSize, FLT_MAX, 0.0f, displayPath);
+		drawList->AddText(font, smallFontSize, ImVec2(inputMin.x + Scale(8.0f), inputMin.y + (inputHeight - displayTextSize.y) * 0.5f), IM_COL32(180, 180, 180, 255), displayPath, nullptr, inputWidth - Scale(100.0f));
 
 		float btnWidth = Scale(120.0f);
 		float btnHeight = Scale(32.0f);
@@ -793,7 +793,7 @@ void InstallerWizard::Draw()
 		drawList->AddRectFilled(ImVec2(btnX, btnY), ImVec2(btnX + btnWidth, btnY + btnHeight), btnColor, Scale(4.0f));
 		auto browseText = Localise("Installer_Header_Browse").c_str();
 		auto browseSize = font->CalcTextSizeA(smallFontSize, FLT_MAX, 0, browseText);
-		drawList->AddText(font, smallFontSize, ImVec2(btnX + (btnWidth - browseSize.x) * 0.5f, btnY + Scale(7.0f)), IM_COL32(220, 220, 255, 255), browseText);
+		drawList->AddText(font, smallFontSize, ImVec2(btnX + (btnWidth - browseSize.x) * 0.5f, btnY + (btnHeight - browseSize.y) * 0.5f), IM_COL32(220, 220, 255, 255), browseText);
 
 		if (btnHovered && io.MouseClicked[0])
 		{
@@ -828,7 +828,7 @@ void InstallerWizard::Draw()
 
 			auto nextText = Localise("Common_Install").c_str();
 			auto nextSize = font->CalcTextSizeA(smallFontSize, FLT_MAX, 0, nextText);
-			drawList->AddText(font, smallFontSize, ImVec2(nextBtnX + (nextBtnWidth - nextSize.x) * 0.5f, nextBtnY + Scale(9.0f)), IM_COL32(220, 235, 255, 255), nextText);
+			drawList->AddText(font, smallFontSize, ImVec2(nextBtnX + (nextBtnWidth - nextSize.x) * 0.5f, nextBtnY + (nextBtnHeight - nextSize.y) * 0.5f), IM_COL32(220, 235, 255, 255), nextText);
 
 			if (nextHovered && io.MouseClicked[0])
 			{
