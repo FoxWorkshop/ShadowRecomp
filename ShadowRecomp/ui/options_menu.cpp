@@ -318,18 +318,75 @@ static void DrawOption
 	drawList->AddImage(g_upTexMainMenu8.get(), titleBgStretchMin, titleBgStretchMax, GET_UV_COORDS(bgStretchUVs), bgColour);
 	ResetGradient();*/
 
-	auto titleText = config->GetNameLocalised(Config::Language);
-	auto titleTextSize = g_fntSeurat->CalcTextSizeA(g_fntSeuratSize, FLT_MAX, 0, titleText.c_str());
-
-	ImVec2 titlePos = { titleBgEdgeMin.x, titleBgEdgeMin.y + Scale(8) };
-
-
-	auto isTitleRightFade = !isMiddleRow && OptionsMenu::s_flowState == OptionsMenuFlowState::OptionCursor;
-
-
 	SetShaderModifier(IMGUI_SHADER_MODIFIER_LOW_QUALITY_TEXT);
 
-	drawList->AddText(g_fntSeurat, g_fntSeuratSize, titlePos, isHoverOrSelected ? IM_COL32(234, 234, 69, 255) : IM_COL32(255, 255, 255, 255), titleText.c_str());
+	// value variables
+	float valueAreaWidth = Scale(105);
+	float valueAreaEnd = max.x - Scale(10);
+	float valueAreaStart = valueAreaEnd - valueAreaWidth;
+	float valueAreaCenter = valueAreaStart + (valueAreaWidth * 0.5f);
+
+
+	// options name variables
+	auto titleText = config->GetNameLocalised(Config::Language);
+	auto titleTextSize = g_fntSeurat->CalcTextSizeA(g_fntSeuratSize, FLT_MAX, 0, titleText.c_str());
+	ImVec2 titlePos = { titleBgEdgeMin.x, titleBgEdgeMin.y + Scale(8) };
+	auto isTitleRightFade = !isMiddleRow && OptionsMenu::s_flowState == OptionsMenuFlowState::OptionCursor;
+	auto titleAreaStart = titlePos.x;
+	auto titleAreaEnd = valueAreaStart - Scale(10); // leave a gap before the value column
+	auto titleAreaWidth = titleAreaEnd - titleAreaStart;
+	bool titleOverflows = titleTextSize.x > titleAreaWidth;
+
+	if (titleOverflows && isHover)
+	{
+		static double s_titleMarqueeStartTime = 0.0;
+		static int s_titleMarqueeRow = -1;
+
+		if (s_titleMarqueeRow != rowIndex)
+		{
+			s_titleMarqueeRow = rowIndex;
+			s_titleMarqueeStartTime = ImGui::GetTime();
+		}
+
+		constexpr double PAUSE_BEFORE = 1.0;
+		constexpr double PAUSE_AFTER = 0.75;
+		constexpr double SCROLL_SPEED = 80.0;
+		const float  overflow = titleTextSize.x - titleAreaWidth;
+		const float  scaledSpeed = (float)(Scale(1) * SCROLL_SPEED);
+		const double scrollDur = overflow / scaledSpeed;
+		const double cycleDur = PAUSE_BEFORE + scrollDur + PAUSE_AFTER;
+
+		double elapsed = std::fmod(ImGui::GetTime() - s_titleMarqueeStartTime, cycleDur);
+		float  scrollX = 0.0f;
+
+		if (elapsed > PAUSE_BEFORE && elapsed < PAUSE_BEFORE + scrollDur)
+			scrollX = (float)((elapsed - PAUSE_BEFORE) * scaledSpeed);
+		else if (elapsed >= PAUSE_BEFORE + scrollDur)
+			scrollX = overflow;
+
+		drawList->PushClipRect({ titleAreaStart, clipRectMin.y }, { titleAreaEnd, clipRectMax.y }, true);
+		ImVec2 scrolledTitlePos = { titlePos.x - scrollX, titlePos.y };
+		drawList->AddText(g_fntSeurat, g_fntSeuratSize, scrolledTitlePos,
+			isHoverOrSelected ? IM_COL32(234, 234, 69, 255) : IM_COL32(255, 255, 255, 255),
+			titleText.c_str());
+		drawList->PopClipRect();
+	}
+	else
+	{
+		// not hovered or fits fine: truncate with ellipsis as before
+		std::string displayTitle = titleOverflows
+			? TruncateTextWithEllipsis(g_fntSeurat, g_fntSeuratSize, titleText, titleAreaWidth)
+			: titleText;
+
+		drawList->AddText(g_fntSeurat, g_fntSeuratSize, titlePos,
+			isHoverOrSelected ? IM_COL32(234, 234, 69, 255) : IM_COL32(255, 255, 255, 255),
+			displayTitle.c_str());
+	}
+
+
+	//drawList->AddText(g_fntSeurat, g_fntSeuratSize, titlePos, isHoverOrSelected ? IM_COL32(234, 234, 69, 255) : IM_COL32(255, 255, 255, 255), titleText.c_str());
+
+
 
 	SetShaderModifier(IMGUI_SHADER_MODIFIER_NONE);
 
@@ -671,10 +728,7 @@ static void DrawOption
 	}
 
 	// Draw value
-	float valueAreaWidth = Scale(105);
-	float valueAreaEnd = max.x - Scale(10);  
-	float valueAreaStart = valueAreaEnd - valueAreaWidth;
-	float valueAreaCenter = valueAreaStart + (valueAreaWidth * 0.5f);
+
 
 	float titleEndX = titlePos.x + titleTextSize.x + Scale(30);
 	std::string displayTitle = titleText;
@@ -1219,7 +1273,7 @@ void DrawMenuListContainer(ImVec2 min, ImVec2 max)
 	auto& res = ImGui::GetIO().DisplaySize;
 
 	auto containerUVs = PIXELS_TO_UV_COORDS(512, 512, 0, 247, 274, 264);
-	auto containerWidth = res.x * 0.5f;
+	auto containerWidth = res.x * 0.55f;
 	auto containerHeight = res.y;
 	auto containerOffsetX = Scale(1);
 	auto containerOffsetY = Scale(136);
