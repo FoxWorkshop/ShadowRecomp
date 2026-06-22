@@ -1226,7 +1226,7 @@ SHTHR_SOUNDDEVICE_Impl::SHTHR_SOUNDDEVICE_Impl()
 		mPullThread = SDL_CreateThread(PullThreadStatic, "AudioPull", this);
 
 		SDL_PauseAudioDevice(mDeviceID, SDL_FALSE);
-		LOGFN_UTILITY("Init SDL2 Audio ok\n");
+		LOGFN_UTILITY("Init SDL2 Audio ok\n", "SDLAudio");
 	}
 }
 
