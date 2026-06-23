@@ -6,6 +6,7 @@
 #include <res/images/common/Options.png.h>
 #include <res/images/common/Options2.png.h>
 #include <res/images/common/gamemenu.png.h>
+#include <res/images/common/arrow.png.h>
 #include <decompressor.h>
 #include <patches/aspect_ratio_patches.h>
 #include <patches/bloom_patches.h>
@@ -33,6 +34,7 @@ static std::unique_ptr<GuestTexture> g_upTexOptionsBG{};
 static std::unique_ptr<GuestTexture> g_upTexBGMenuList{};
 static std::unique_ptr<GuestTexture> g_upTexBGOptions{}; // flame, options logo, hud etc.
 static std::unique_ptr<GuestTexture> g_upTexGameMenuText{}; // select, exit text etc.
+static std::unique_ptr<GuestTexture> g_upTexArrow{};
 static ImFont* g_fntSeurat;
 
 static int g_categoryIndex{ -1 };
@@ -237,6 +239,66 @@ static std::string TruncateTextWithEllipsis(ImFont* font, float fontSize, const 
 	return result + ellipsis;
 }
 
+
+void DrawSelectionArrows(ImVec2 min, ImVec2 max, bool isSelected)
+{
+	if (!isSelected)
+		return;
+
+	auto drawList = ImGui::GetBackgroundDrawList();
+
+	static bool s_isLeftArrowMotion = false;
+	static bool s_isRightArrowMotion = false;
+
+	auto motionTime = (s_isLeftArrowMotion || s_isRightArrowMotion)
+		? ComputeLinearMotion(g_lastTappedTime, 0, 15)
+		: 0;
+
+	if (g_left)
+	{
+		s_isLeftArrowMotion = true;
+		s_isRightArrowMotion = false;
+	}
+
+	if (g_right)
+	{
+		s_isLeftArrowMotion = false;
+		s_isRightArrowMotion = true;
+	}
+
+	if (motionTime >= 1.0)
+	{
+		s_isLeftArrowMotion = false;
+		s_isRightArrowMotion = false;
+	}
+
+	auto arrowUVs = PIXELS_TO_UV_COORDS(48, 48, 0, 0, 24, 24);
+
+	auto arrowWidth = Scale(24);
+	auto arrowHeight = Scale(24);
+
+	auto arrowOffsetXMin = Scale(10);
+	auto arrowOffsetXMax = Scale(1);
+
+	auto arrowOffsetX = Lerp(arrowOffsetXMin, arrowOffsetXMax, sin(motionTime * M_PI));
+	auto arrowOffsetY = Scale(5);
+
+	auto arrowLeftOffsetX = s_isLeftArrowMotion ? arrowOffsetX : arrowOffsetXMin;
+	auto arrowRightOffsetX = s_isRightArrowMotion ? arrowOffsetX : arrowOffsetXMin;
+
+	ImVec2 arrowLeftMin = { min.x + arrowLeftOffsetX, min.y + arrowOffsetY };
+	ImVec2 arrowLeftMax = { arrowLeftMin.x + arrowWidth, arrowLeftMin.y + arrowHeight };
+	ImVec2 arrowRightMin = { max.x - arrowWidth - arrowRightOffsetX, arrowLeftMin.y };
+	ImVec2 arrowRightMax = { arrowRightMin.x + arrowWidth, arrowLeftMax.y };
+
+	// Draw left arrow.
+	drawList->AddImage(g_upTexArrow.get(), arrowLeftMin, arrowLeftMax, GET_UV_COORDS(arrowUVs), IM_COL32_WHITE);
+
+	arrowUVs = PIXELS_TO_UV_COORDS(48, 48, 24, 0, 24, 24);
+	// Draw right arrow.
+	drawList->AddImage(g_upTexArrow.get(), arrowRightMin, arrowRightMax, GET_UV_COORDS(arrowUVs));
+};
+
 template <typename T, bool isHidden = false>
 static void DrawOption
 (
@@ -322,7 +384,7 @@ static void DrawOption
 
 	// value variables
 	float valueAreaWidth = Scale(105);
-	float valueAreaEnd = max.x - Scale(10);
+	float valueAreaEnd = max.x - Scale(15);
 	float valueAreaStart = valueAreaEnd - valueAreaWidth;
 	float valueAreaCenter = valueAreaStart + (valueAreaWidth * 0.5f);
 
@@ -509,14 +571,16 @@ static void DrawOption
 				}
 			}
 
+
+
 			if (isSelected)
 			{
-
 				auto increment = g_right;
 				auto decrement = g_left;
 
 				if (increment || decrement)
 					g_lastTappedTime = ImGui::GetTime();
+
 
 				if constexpr (std::is_enum_v<T>)
 				{
@@ -730,27 +794,16 @@ static void DrawOption
 	// Draw value
 
 
-	float titleEndX = titlePos.x + titleTextSize.x + Scale(30);
-	std::string displayTitle = titleText;
-
-	if (titleEndX > valueAreaStart) 
-	{
-		float availableTitleWidth = valueAreaStart - titlePos.x - Scale(10);
-
-		if (availableTitleWidth > Scale(30))
-			displayTitle = TruncateTextWithEllipsis(g_fntSeurat, g_fntSeuratSize, titleText, availableTitleWidth);
-	}
-
-
 	SetShaderModifier(IMGUI_SHADER_MODIFIER_LOW_QUALITY_TEXT);
 
 
+	auto rawValueSize = g_fntSeurat->CalcTextSizeA(g_fntSeuratSize, FLT_MAX, 0.0f, valueText.data());
+	bool overflows = rawValueSize.x > valueAreaWidth;
+
+	ImVec2 valuePos = { valueAreaEnd - rawValueSize.x, titlePos.y };
+
 	if (valueAreaWidth > 0.0f)
 	{
-		auto rawValueSize = g_fntSeurat->CalcTextSizeA(g_fntSeuratSize, FLT_MAX, 0.0f, valueText.data());
-		bool overflows = rawValueSize.x > valueAreaWidth;
-
-		ImVec2 valuePos = { valueAreaEnd - rawValueSize.x, titlePos.y };
 
 		if (overflows && isHover)
 		{
@@ -802,6 +855,12 @@ static void DrawOption
 				IM_COL32(255, 255, 255, isAccessible ? 255 : 127), displayText.data());
 		}
 	}
+
+
+	float arrowAreaPadding = Scale(35); 
+	ImVec2 arrowAreaMin = { valueAreaStart - arrowAreaPadding, min.y + offsetY };
+	ImVec2 arrowAreaMax = { valueAreaEnd + arrowAreaPadding, min.y + offsetY + optionHeight };
+	DrawSelectionArrows(arrowAreaMin, arrowAreaMax, isSelected);
 
 }
 
@@ -1753,6 +1812,7 @@ void OptionsMenu::Init()
 	g_upTexOptionsBG = LOAD_ZSTD_TEXTURE(g_options_bg);
 	g_upTexBGMenuList = LOAD_ZSTD_TEXTURE(g_optionsIcons);
 	g_upTexBGOptions = LOAD_ZSTD_TEXTURE(g_optionsText);
+	g_upTexArrow = LOAD_ZSTD_TEXTURE(g_arrow);
 
 	g_fntSeurat = ImFontAtlasSnapshot::GetFont("FOT-SeuratPro-DB.otf");
 }
