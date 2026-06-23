@@ -98,19 +98,6 @@ X86_FUNC(sub_2A6020)
 
 }
 
-X86_FUNC_IMPL(__imp__sub_307570);
-X86_FUNC(sub_307570)
-{
-	__imp__sub_307570(ctx, base);
-}
-
-X86_FUNC_IMPL(__imp__sub_1E410);
-X86_FUNC(sub_1E410)
-{
-
-	__imp__sub_1E410(ctx, base);
-}
-
 bool DrawAdvertiseMessageMidAsmHook(X86Register& esi)
 {
 	auto base = g_memory.base;
@@ -119,12 +106,6 @@ bool DrawAdvertiseMessageMidAsmHook(X86Register& esi)
 	switch (g_currentMessageID)
 	{
 	default:
-		break;
-	case 5523: // quit message (during stages)
-
-		break;
-	case 5493: // restart message
-
 		break;
 	case 6070:
 		return ProcessFailedCreateSaveMessage();
