@@ -76,7 +76,6 @@ static double s_optionsCloseTime = -1.0;
 
 
 static std::string optionDescription = "";
-static std::string optionValDescription = "";
 
 static std::string& GetCategoryName(OptionsMenuCategory category)
 {
@@ -446,10 +445,6 @@ static void DrawOption
 	}
 
 
-	//drawList->AddText(g_fntSeurat, g_fntSeuratSize, titlePos, isHoverOrSelected ? IM_COL32(234, 234, 69, 255) : IM_COL32(255, 255, 255, 255), titleText.c_str());
-
-
-
 	SetShaderModifier(IMGUI_SHADER_MODIFIER_NONE);
 
 
@@ -471,26 +466,24 @@ static void DrawOption
 		if (OptionsMenu::s_flowState == OptionsMenuFlowState::OptionCursor || OptionsMenu::s_flowState == OptionsMenuFlowState::OptionSelected)
 		{
 			optionDescription = config->GetDescription(Config::Language);
-		}
-	}
 
 
-
-	if (isCurrent)
-	{
-		auto setValueDescription = [=]()
+			if constexpr (std::is_same_v<T, float>)
 			{
-				auto valueDescription = config->GetValueDescription(Config::Language);
-				auto isLanguageOption = (ConfigDef<ELanguage>*)config == &Config::Language;
-				if (valueDescription.empty())
+				if (config == &Config::ResolutionScale)
 				{
-					optionValDescription = config->GetDescription(Config::Language);
+
+					auto resScale = round(*(float*)config->GetValue() * 1000) / 1000;
+
+					auto valueText = fmt::format("({}x{})",
+						(int)((float)Video::s_viewportWidth * resScale),
+						(int)((float)Video::s_viewportHeight * resScale));
+
+					optionDescription += valueText;
 				}
-				else
-				{
-					optionValDescription = valueDescription;
-				}
-			};
+			}
+		}
+
 
 		if (isAccessible)
 		{
@@ -505,7 +498,7 @@ static void DrawOption
 					g_leftWasHeld = false;
 					g_rightWasHeld = false;
 
-					setValueDescription();
+					//setValueDescription();
 
 					if (config->LockCallback)
 						config->LockCallback(config);
@@ -606,7 +599,8 @@ static void DrawOption
 
 					if (increment || decrement)
 					{
-						setValueDescription();
+						//setValueDescription();
+
 
 						Game_PlaySound("cursor");
 
@@ -730,11 +724,7 @@ static void DrawOption
 		if (config == &Config::ResolutionScale)
 		{
 			auto resScale = round(*(float*)config->GetValue() * 1000) / 1000;
-
-			valueText = fmt::format("{}% - ({}x{})", round(resScale * 100),
-				(int)((float)Video::s_viewportWidth * resScale),
-				(int)((float)Video::s_viewportHeight * resScale));
-
+			valueText = fmt::format("{}%", round(resScale * 100));
 		}
 		else
 		{
@@ -1039,9 +1029,6 @@ static void DrawOptions(ImVec2 minClipRect, ImVec2 maxClipRect, ImVec2 min, ImVe
 
 		DrawOption(rowCount++, &Config::WindowSize, canChangeResolution, min, max, devReason, 0, 0, (int)GameWindow::GetDisplayModes().size() - 1, false);
 
-		// DrawOption(rowCount++, &Config::WindowSize, !Config::Fullscreen,
-		//     &Localise("Options_Desc_NotAvailableFullscreen"),
-		//     0, 0, (int)GameWindow::GetDisplayModes().size() - 1, false);
 
 		auto displayCount = GameWindow::GetDisplayCount();
 		auto canChangeMonitor = Config::Fullscreen && displayCount > 1;
@@ -1370,12 +1357,9 @@ void DrawMenuListContainer(ImVec2 min, ImVec2 max)
 	ImVec2 minClipRect = { containerMin.x + optionsOffsetX, containerMin.y + optionsOffsetY };
 	ImVec2 maxClipRect = { res.x, containerMax.y - optionsOffsetY };
 	DrawOptions(minClipRect, maxClipRect, minOptions, maxOptions);
-	if (OptionsMenu::s_flowState == OptionsMenuFlowState::OptionCursor)
+	if (OptionsMenu::s_flowState == OptionsMenuFlowState::OptionCursor || OptionsMenu::s_flowState == OptionsMenuFlowState::OptionSelected)
 		DrawDescription(optionDescription); // we draw option description separately so they don't get discard by the clip rect.
-	else if (OptionsMenu::s_flowState == OptionsMenuFlowState::OptionSelected)
-	{
-		DrawDescription(optionValDescription);
-	}
+
 }
 
 
@@ -1808,7 +1792,6 @@ bool OptionsMenu::CanClose()
 void OptionsMenu::Init()
 {
 	optionDescription = "";
-	optionValDescription = "";
 	g_upTexOptionsBG = LOAD_ZSTD_TEXTURE(g_options_bg);
 	g_upTexBGMenuList = LOAD_ZSTD_TEXTURE(g_optionsIcons);
 	g_upTexBGOptions = LOAD_ZSTD_TEXTURE(g_optionsText);
