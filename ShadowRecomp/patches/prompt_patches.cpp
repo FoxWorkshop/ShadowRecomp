@@ -22,19 +22,40 @@ X86_FUNC(sub_2A6530)
 	__imp__sub_2A6530(ctx, base);
 }
 
+static bool g_shouldPreventPrompt = false;
 
 // player quit prompt
 X86_FUNC_IMPL(__imp__sub_5A7B0);
 X86_FUNC(sub_5A7B0)	
 {
+	g_shouldPreventPrompt = Config::ConfirmationPrompt.Value == false;
 	__imp__sub_5A7B0(ctx, base);
+	g_shouldPreventPrompt = false;
 }
 
-// confirmation prompts
+// player restart prompt
+X86_FUNC_IMPL(__imp__sub_5A750);
+X86_FUNC(sub_5A750)
+{
+	g_shouldPreventPrompt = Config::ConfirmationPrompt.Value == false;
+	__imp__sub_5A750(ctx, base);
+	g_shouldPreventPrompt = false;
+}
+
+// load or create save file confirmation prompt
+X86_FUNC_IMPL(__imp__sub_2A6D00);
+X86_FUNC(sub_2A6D00)
+{
+	g_shouldPreventPrompt = Config::ConfirmationPrompt.Value == false;
+	__imp__sub_2A6D00(ctx, base);
+	g_shouldPreventPrompt = false;
+}
+
+// confirmation prompts logic
 X86_FUNC_IMPL(__imp__sub_2A5B60);
 X86_FUNC(sub_2A5B60)
 {
-	if (Config::ConfirmationPrompt.Value == false)
+	if (g_shouldPreventPrompt)
 	{
 		ctx.eax.u32 = 2;
 		ctx.AddEsp(4); // thiscall with 3 param + ret value = (4*4)
