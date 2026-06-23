@@ -3864,11 +3864,6 @@ void LoadVertexShader(DWORD Handle, DWORD Address)
 	}
 }
 
-int32_t CreatePixelShader(const uint32_t pPSDef, DWORD* pHandle)
-{
-	return 0;
-}
-
 // SetPixelShader
 X86_FUNC_IMPL(__imp__sub_3DC590);
 X86_FUNC(sub_3DC590)
@@ -3923,22 +3918,12 @@ X86_FUNC(sub_3DC790)
 	UpdatePixelShaderConstant(psh_constants);
 
 }
-bool isNonFixedPS = false;
-
 
 static void ProcSetPixelShader(const RenderCommand& cmd)
 {
 	GuestShader* shader = cmd.setPixelShader.shader;
 	SetDirtyValue(g_dirtyStates.pipelineState, g_pipelineState.pixelShader, shader);
 	SetDirtyValue(g_dirtyStates.pipelineState, g_pipelineState.isFixedFunctionPS, cmd.setPixelShader.isFixed);
-}
-
-//Stub for now
-//for what I saw on CXBX, there is no need to track them as they are simply regular RenderState which we already have
-//the only advantage to track them would be for optimisation 
-static void SetPixelShaderConstants(int32_t Register, __m128* pConstantData, int32_t ConstantCount)
-{
-
 }
 
 //SetStreamSource
@@ -3957,12 +3942,9 @@ X86_FUNC(sub_3D1E10) {
 }
 
 
-//offset might be 0 but I'm not sure, to do check
 static void ProcSetStreamSource(const RenderCommand& cmd)
 {
-
 	const auto& args = cmd.setStreamSource;
-
 
 	SetDirtyValue(g_dirtyStates.pipelineState, g_pipelineState.vertexStrides[args.StreamNumber], uint8_t(args.vertexBuffer != nullptr ? args.stride : 0));
 
@@ -3972,13 +3954,11 @@ static void ProcSetStreamSource(const RenderCommand& cmd)
 	SetDirtyValue(dirty, g_vertexBufferViews[args.StreamNumber].size, args.vertexBuffer != nullptr ? (args.vertexBuffer->dataSize - 0) : 0u);
 	SetDirtyValue(dirty, g_inputSlots[args.StreamNumber].stride, args.vertexBuffer != nullptr ? args.stride : 0u);
 
-
 	if (dirty)
 	{
 		g_dirtyStates.vertexStreamFirst = std::min<uint8_t>(g_dirtyStates.vertexStreamFirst, args.StreamNumber);
 		g_dirtyStates.vertexStreamLast = std::max<uint8_t>(g_dirtyStates.vertexStreamLast, args.StreamNumber);
 	}
-
 }
 
 static const char* DeviceTypeName(RenderDeviceType type)
