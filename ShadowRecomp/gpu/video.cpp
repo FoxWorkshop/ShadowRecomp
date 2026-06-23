@@ -280,8 +280,6 @@ static PipelineState g_pipelineState;
 static int32_t g_depthBias;
 static float g_slopeScaledDepthBias;
 int32_t g_RenderUpscaleFactor = 1;
-static bool is_loadingThread = false;
-static int loadingThreadID = -1;
 
 GuestSurface* GetRenderTarget()
 {
@@ -4532,10 +4530,48 @@ std::chrono::steady_clock::time_point frameStartTime;
 static std::atomic<bool> presentExecuted(true);
 
 
-static int copyCount;
 static int g_drawPrimitiveUP_ID = 0;
 bool PresentAllowed = true;
-extern std::atomic<bool> aboutToDrawLoading;
+
+// Debug helper: dumps present/swap-chain/window state to stdout. Intended to
+// be called from a paused debugger via:
+//   (gdb) call VideoDebug_DumpPresentState()
+// Remove this once the Wayland backgrounding hang is root-caused.
+void VideoDebug_DumpPresentState()
+{
+	const Uint32 sdlFlags = (GameWindow::s_pWindow != nullptr)
+		? SDL_GetWindowFlags(GameWindow::s_pWindow)
+		: 0u;
+	int winW = 0, winH = 0;
+	if (GameWindow::s_pWindow != nullptr)
+		SDL_GetWindowSizeInPixels(GameWindow::s_pWindow, &winW, &winH);
+
+	printf("=== VideoDebug_DumpPresentState ===\n");
+	printf("  swap chain: g_swapChain=%p g_swapChainValid=%d presentWait_capable=%d g_backBufferIndex=%u\n",
+		(void*)g_swapChain.get(), (int)g_swapChainValid, (int)g_capabilities.presentWait, g_backBufferIndex);
+	printf("  present pipeline: g_inPresent=%d presentExecuted=%d g_executedCommandList=%d g_pendingWaitOnSwapChain=%d\n",
+		(int)g_inPresent.load(), (int)presentExecuted.load(), (int)g_executedCommandList.load(), (int)g_pendingWaitOnSwapChain);
+	printf("  frames: g_frame=%u g_nextFrame=%u\n", g_frame, g_nextFrame);
+	printf("  commandListStates per frame:");
+	for (size_t i = 0; i < NUM_FRAMES; ++i)
+		printf(" [%zu]=%d", i, (int)g_commandListStates[i]);
+	printf("\n");
+	printf("  renderQueue size_approx=%zu\n", g_renderQueue.size_approx());
+	printf("  loading: aboutToDrawLoading=%d loadingThreadID=%d currentThreadId=%u\n",
+		(int)aboutToDrawLoading.load(), GetLoadingThreadID(), GuestThread::GetCurrentThreadId());
+	printf("  window: ptr=%p SDL flags=0x%X (HIDDEN=%d MINIMIZED=%d INPUT_FOCUS=%d MOUSE_FOCUS=%d MAXIMIZED=%d FULLSCREEN=%d)\n",
+		(void*)GameWindow::s_pWindow, (unsigned)sdlFlags,
+		(int)!!(sdlFlags & SDL_WINDOW_HIDDEN),
+		(int)!!(sdlFlags & SDL_WINDOW_MINIMIZED),
+		(int)!!(sdlFlags & SDL_WINDOW_INPUT_FOCUS),
+		(int)!!(sdlFlags & SDL_WINDOW_MOUSE_FOCUS),
+		(int)!!(sdlFlags & SDL_WINDOW_MAXIMIZED),
+		(int)!!(sdlFlags & SDL_WINDOW_FULLSCREEN));
+	printf("  window size in pixels: %dx%d\n", winW, winH);
+	printf("  PresentAllowed=%d\n", (int)PresentAllowed);
+	printf("===================================\n");
+}
+
 void Video::Present()
 {
 	bool expected = false;
