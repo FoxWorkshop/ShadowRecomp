@@ -828,7 +828,7 @@ static void DrawOption
 
 			drawList->PushClipRect({ valueAreaStart, clipRectMin.y }, { valueAreaEnd, clipRectMax.y }, true);
 			drawList->AddText(g_fntSeurat, g_fntSeuratSize, valuePos,
-				IM_COL32(255, 255, 255, 255), valueText.data());
+				IM_COL32(255, 255, 255, isAccessible ? 255 : 127), valueText.data());
 			drawList->PopClipRect();
 		}
 		else
@@ -1073,6 +1073,7 @@ static void DrawOptions(ImVec2 minClipRect, ImVec2 maxClipRect, ImVec2 min, ImVe
 	case OptionsMenuCategory::Misc:
 	{
 		DrawGoToLegacyOption(rowCount++, min, max);
+
 	}
 
 	}
