@@ -15,9 +15,13 @@
 #include "FixedFunction.h"
 #include "renderstate.h"
 #include <app.h>
+#include <bc_diff.h>
 #include <cpu/guest_thread.h>
 #include <decompressor.h>
+#include <input/input.h>
 
+#include <res/bc_diff/button_bc_diff_gc.bin.h>
+#include <res/bc_diff/button_bc_diff_ps2.bin.h>
 #include <res/font/im_font_atlas.png.h>
 
 #include <kernel/function.h>
@@ -34,6 +38,8 @@
 #include <xxHashMap.h>
 #include <patches/multi_core_patches.h>
 #include <user/achievement_manager.h>
+
+
 
 
 const uint32_t GuestDevicePtrAddr = 0x3E0A18;
@@ -712,7 +718,8 @@ static void FlushBarriers()
 }
 
 static std::unique_ptr<uint8_t[]> g_shaderCache;
-static std::unique_ptr<uint8_t[]> g_buttonBcDiff;
+static std::unique_ptr<uint8_t[]> g_buttonBcDiff_GC;
+static std::unique_ptr<uint8_t[]> g_buttonBcDiff_PS2;
 
 static void LoadEmbeddedResources()
 {
@@ -729,7 +736,9 @@ static void LoadEmbeddedResources()
 	}
 #endif
 
-	//g_buttonBcDiff = decompressZstd(g_button_bc_diff, g_button_bc_diff_uncompressed_size);
+
+	g_buttonBcDiff_GC = decompressZstd(g_button_bc_diff_gc, g_button_bc_diff_gc_uncompressed_size);
+	g_buttonBcDiff_PS2 = decompressZstd(g_button_bc_diff_ps2, g_button_bc_diff_ps2_uncompressed_size);
 }
 
 static void PrecompileShaders()
@@ -5042,6 +5051,48 @@ std::unique_ptr<GuestTexture> LoadCustomTexture(const uint8_t* data, size_t data
 	return nullptr;
 }
 
+static bool DiffPatchTexture(GuestTexture* texture, uint8_t* data, uint32_t dataSize, XXH64_hash_t hash)
+{
+	const bool isAuto = Config::ControllerIcons.Value == EControllerIcons::Auto;
+	bool isXbox = Config::ControllerIcons.Value == EControllerIcons::Xbox || isAuto && input::g_inputDeviceController == input::EInputDevice::Xbox;
+	bool isUnknown = isAuto && input::g_inputDeviceController == input::EInputDevice::Unknown;
+
+	if (isXbox || isUnknown)
+		return false;
+
+
+	const bool isGC = Config::ControllerIcons.Value == EControllerIcons::Gamecube;
+	auto ptr = g_buttonBcDiff_GC.get();
+	if (Config::ControllerIcons == EControllerIcons::PlayStation2)
+	{
+		ptr = g_buttonBcDiff_PS2.get();
+	}
+
+	auto header = reinterpret_cast<BlockCompressionDiffPatchHeader*>(ptr);
+	auto entries = reinterpret_cast<BlockCompressionDiffEntry*>(ptr + header->entriesOffset);
+	auto end = entries + header->entryCount;
+
+	auto findResult = std::lower_bound(entries, end, hash, [](BlockCompressionDiffEntry& lhs, XXH64_hash_t rhs)
+		{
+			return lhs.hash < rhs;
+		});
+
+	if (findResult != end && findResult->hash == hash)
+	{
+		assert(findResult->dataSize <= dataSize);
+		memcpy(data, ptr + findResult->dataOffset, findResult->dataSize);
+
+		GuestTexture patchedTexture(ResourceType::Texture);
+		if (LoadTexture(patchedTexture, data, dataSize, {}))
+			texture->patchedTexture = std::make_unique<GuestTexture>(std::move(patchedTexture));
+
+		return true;
+	}
+
+	return false;
+	
+}
+
 static RenderHeapType GetBufferHeapType()
 {
 	return g_capabilities.gpuUploadHeap ? RenderHeapType::GPU_UPLOAD : RenderHeapType::DEFAULT;
@@ -5858,6 +5909,9 @@ void UpdateHostTextureScaling(GuestTexture* tex, const bool isFixedFunc)
 
 void SetTexture(uint32_t stage, GuestTexture* texture)
 {
+	if (texture && texture->patchedTexture != nullptr)
+		texture = texture->patchedTexture.get();
+
 	RenderCommand cmd;
 	cmd.type = RenderCommandType::SetTexture;
 	cmd.setTexture.index = stage;
@@ -8349,7 +8403,7 @@ X86_FUNC(sub_2DF9F0)
 		g_currentPaletteData = (uint32_t*)(base + paletteData);
 	}
 }
-
+extern bool foundTex;
 void CopyTextureToGPU(GuestTexture* tex)
 {
 	auto base = g_memory.base;
@@ -8456,11 +8510,22 @@ void CopyTextureToGPU(GuestTexture* tex)
 
 	// For each slice: copy/unswizzle/convert into mapped + dstOffset
 
+	XXH64_hash_t hash;
+
+
 	for (auto& slice : slices)
 	{
 		unsigned long VirtualAddr = (unsigned long)GetDataFromXboxResource((X_D3DResource*)(&tex->guestResource));
 		uint8_t* srcData = reinterpret_cast<uint8_t*>(base + VirtualAddr + slice.srcOffset);
 		uint8_t* dstData = mappedMemory + slice.dstOffset;
+
+		// shadow tex don't have mipmap so it should be safe to do this here
+		hash = XXH3_64bits(srcData, slice.srcRowPitch * slice.rowCount * slice.depth);
+
+		if (DiffPatchTexture(tex, mappedMemory, curDstOffset, hash))
+		{
+			break;
+		}
 
 		if (bConvertARGB)
 		{
@@ -8555,6 +8620,7 @@ X86_FUNC(sub_2ED0D0)
 		//we also need to convert palette to regular format as DX12 does not support that directly
 		//finally we need to unswizzle texture so they can match what DX12 expect.
 		CopyTextureToGPU(tex);
+		foundTex = false;
 	}
 }
 

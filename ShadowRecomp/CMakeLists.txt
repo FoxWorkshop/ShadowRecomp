@@ -207,6 +207,7 @@ set(SHADOW_RECOMP_THIRDPARTY_INCLUDES
     "${SHADOW_RECOMP_THIRDPARTY_ROOT}/stb"
     "${SHADOW_RECOMP_THIRDPARTY_ROOT}/unordered_dense/include"
     "${SHADOW_RECOMP_THIRDPARTY_ROOT}/DirectXMath/Inc"
+    "${SHADOW_RECOMP_TOOLS_ROOT}/bc_diff"
     "${SHADOW_RECOMP_TOOLS_ROOT}/XShaderRecomp/thirdparty/smol-v/source"
 )
 
@@ -483,6 +484,8 @@ set(RESOURCES_SOURCE_PATH "${PROJECT_SOURCE_DIR}/../ShadowRecompResources")
 set(RESOURCES_OUTPUT_PATH "${PROJECT_SOURCE_DIR}/res")
 
 ## Miscellaneous ##
+BIN2C(TARGET_OBJ ShadowRecomp SOURCE_FILE "${RESOURCES_SOURCE_PATH}/bc_diff/button_bc_diff_gc.bin" DEST_FILE "${RESOURCES_OUTPUT_PATH}/bc_diff/button_bc_diff_gc.bin" ARRAY_NAME "g_button_bc_diff_gc" COMPRESSION_TYPE "zstd")
+BIN2C(TARGET_OBJ ShadowRecomp SOURCE_FILE "${RESOURCES_SOURCE_PATH}/bc_diff/button_bc_diff_ps2.bin" DEST_FILE "${RESOURCES_OUTPUT_PATH}/bc_diff/button_bc_diff_ps2.bin" ARRAY_NAME "g_button_bc_diff_ps2" COMPRESSION_TYPE "zstd")
 BIN2C(TARGET_OBJ ShadowRecomp SOURCE_FILE "${RESOURCES_SOURCE_PATH}/font/im_font_atlas.bin" DEST_FILE "${RESOURCES_OUTPUT_PATH}/font/im_font_atlas.bin" ARRAY_NAME "g_im_font_atlas" COMPRESSION_TYPE "zstd")
 BIN2C(TARGET_OBJ ShadowRecomp SOURCE_FILE "${RESOURCES_SOURCE_PATH}/font/im_font_atlas.png" DEST_FILE "${RESOURCES_OUTPUT_PATH}/font/im_font_atlas.png" ARRAY_NAME "g_im_font_atlas_texture" COMPRESSION_TYPE "zstd")
 BIN2C(TARGET_OBJ ShadowRecomp SOURCE_FILE "${RESOURCES_SOURCE_PATH}/images/common/gamemenu.png" DEST_FILE "${RESOURCES_OUTPUT_PATH}/images/common/gamemenu.png" ARRAY_NAME "g_gameMenuText" COMPRESSION_TYPE "zstd")

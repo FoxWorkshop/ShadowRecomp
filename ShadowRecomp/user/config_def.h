@@ -19,7 +19,7 @@ CONFIG_DEFINE_LOCALISED("Input", bool, Vibration2P, true, false);
 CONFIG_DEFINE_LOCALISED("Input", bool, Vibration3P, true, false);
 CONFIG_DEFINE_LOCALISED("Input", bool, Vibration4P, true, false);
 CONFIG_DEFINE_LOCALISED("Input", bool, AllowBackgroundInput, false, false);
-CONFIG_DEFINE_ENUM_LOCALISED("Input", EControllerIcons, ControllerIcons, EControllerIcons::Auto, false);
+CONFIG_DEFINE_ENUM_LOCALISED("Input", EControllerIcons, ControllerIcons, EControllerIcons::Auto, true);
 
 CONFIG_DEFINE_ENUM("Bindings", SDL_Scancode, Key_A, SDL_SCANCODE_X, false);
 CONFIG_DEFINE_ENUM("Bindings", SDL_Scancode, Key_B, SDL_SCANCODE_C, false);

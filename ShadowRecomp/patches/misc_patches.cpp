@@ -123,6 +123,15 @@ X86_FUNC(sub_28AF30)
 	X86_STORE_U32(0x5356E8, 1); // PAD2 locked to XInput PORT 2
 }
 
+std::string texNameArray[] =
+{
+	"gamemenu",
+	"001_command_icons",
+	"pause_main",
+	"000_squarebuttons",
+	"000_VHArrow_xbox",
+};
+
 bool foundTex = false;
 //RwSetTextureName debugging left over, can be useful to track a texture pointer and find where it's used
 X86_FUNC_IMPL(__imp__sub_2D82E0);
@@ -130,9 +139,13 @@ X86_FUNC(sub_2D82E0)
 {
 	char* str = (char*)GetHostParameter(2, CallConvention::Cdecl, ParameterType::Pointer);
 	std::string s = str;
-	if (s.find("pause_main") != std::string::npos)
+	for (int i = 0; i < 5; i++)
 	{
-		foundTex = true;
+		if (s.find(texNameArray[i]) != std::string::npos)
+		{
+			printf("tex %s ", texNameArray[i].c_str());
+			foundTex = true;
+		}
 	}
 	__imp__sub_2D82E0(ctx, base);
 }
