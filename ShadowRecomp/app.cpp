@@ -53,7 +53,9 @@ X86_FUNC(sub_57630)
 	App::s_deltaTime = X86_LOAD_F32(0x541FA8);
 	App::s_time += App::s_deltaTime;
 
+	Video::BeginGameThreadProfiler();
 	__imp__sub_57630(ctx, base);
+	Video::EndGameThreadProfiler();
 	//std::this_thread::sleep_for(std::chrono::milliseconds(16));
 
 }
