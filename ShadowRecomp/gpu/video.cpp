@@ -5063,7 +5063,7 @@ static bool DiffPatchTexture(GuestTexture* texture, uint8_t* data, uint32_t data
 
 	const bool isGC = Config::ControllerIcons.Value == EControllerIcons::Gamecube;
 	auto ptr = g_buttonBcDiff_GC.get();
-	if (Config::ControllerIcons == EControllerIcons::PlayStation2)
+	if (Config::ControllerIcons == EControllerIcons::PlayStation2 || isAuto && input::g_inputDeviceController == input::EInputDevice::PlayStation)
 	{
 		ptr = g_buttonBcDiff_PS2.get();
 	}
