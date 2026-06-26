@@ -640,6 +640,28 @@ std::unordered_map<std::string_view, std::unordered_map<ELanguage, std::string>>
 		}
 	},
 	{
+		"Installer_Button_Back",
+		{
+			{ ELanguage::English,  "Back" },
+			{ ELanguage::Japanese, "もどる" },
+			{ ELanguage::German,   "Zurück" },
+			{ ELanguage::French,   "Retour" },
+			{ ELanguage::Spanish,  "Atrás" },
+			{ ELanguage::Italian,  "Indietro" }
+		}
+	},
+	{
+		"Installer_Button_Quit",
+		{
+			{ ELanguage::English,  "Quit" },
+			{ ELanguage::Japanese, "終了" },
+			{ ELanguage::German,   "Verlassen" },
+			{ ELanguage::French,   "Quitter" },
+			{ ELanguage::Spanish,  "Salir" },
+			{ ELanguage::Italian,  "Esci" }
+		}
+	},
+	{
 		"Installer_Button_AddFiles",
 		{
 			{ ELanguage::English,  "Add Files" },

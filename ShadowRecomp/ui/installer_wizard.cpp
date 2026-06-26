@@ -495,7 +495,7 @@ static void DrawPrevButton(ImVec2& panelMin, ImVec2& panelMax)
 	ImU32 prevColor = prevHovered ? IM_COL32(140, 50, 50, 255) : IM_COL32(100, 30, 30, 255);
 	drawList->AddRectFilled(ImVec2(prevBtnX, prevBtnY), ImVec2(prevBtnX + prevBtnWidth, prevBtnY + prevBtnHeight), prevColor, Scale(6.0f));
 
-	auto prevText = Localise("Common_Back").c_str();
+	auto prevText = Localise("Installer_Button_Back").c_str();
 	auto prevSize = font->CalcTextSizeA(smallFontSize, FLT_MAX, 0, prevText);
 	drawList->AddText(font, smallFontSize, ImVec2(prevBtnX + (prevBtnWidth - prevSize.x) * 0.5f, prevBtnY + (prevBtnHeight - prevSize.y) * 0.5f), IM_COL32(255, 200, 200, 255), prevText);
 
@@ -736,7 +736,7 @@ void InstallerWizard::Draw()
 		ImU32 quitColor = quitHovered ? IM_COL32(140, 50, 50, quitA) : IM_COL32(100, 30, 30, quitA);
 		drawList->AddRectFilled(ImVec2(quitBtnX, quitBtnY), ImVec2(quitBtnX + quitBtnWidth, quitBtnY + quitBtnHeight), quitColor, Scale(6.0f));
 
-		auto quitText = Localise("Common_Quit").c_str();
+		auto quitText = Localise("Installer_Button_Quit").c_str();
 		auto quitSize = font->CalcTextSizeA(smallFontSize, FLT_MAX, 0, quitText);
 		drawList->AddText(font, smallFontSize, ImVec2(quitBtnX + (quitBtnWidth - quitSize.x) * 0.5f, quitBtnY + (quitBtnHeight - quitSize.y) * 0.5f), IM_COL32(255, 200, 200, quitA), quitText);
 
@@ -1035,7 +1035,7 @@ void InstallerWizard::Draw()
 		ImU32 quitColor = quitHovered ? IM_COL32(140, 50, 50, 255) : IM_COL32(100, 30, 30, 255);
 		drawList->AddRectFilled(ImVec2(quitBtnX, quitBtnY), ImVec2(quitBtnX + quitBtnWidth, quitBtnY + quitBtnHeight), quitColor, Scale(6.0f));
 
-		auto quitText = Localise("Common_Quit").c_str();
+		auto quitText = Localise("Installer_Button_Quit").c_str();
 		auto quitSize = font->CalcTextSizeA(smallFontSize, FLT_MAX, 0, quitText);
 		drawList->AddText(font, smallFontSize, ImVec2(quitBtnX + (quitBtnWidth - quitSize.x) * 0.5f, quitBtnY + (quitBtnHeight - quitSize.y) * 0.5f), IM_COL32(255, 200, 200, 255), quitText);
 
