@@ -1104,7 +1104,7 @@ static void DrawOptions(ImVec2 minClipRect, ImVec2 maxClipRect, ImVec2 min, ImVe
 	if (g_optionCount > MAX_VISIBLE_ROWS && OptionsMenu::s_flowState == OptionsMenuFlowState::OptionCursor)
 	{
 		auto& res = ImGui::GetIO().DisplaySize;
-		auto scrollArrowsOffsetX = Scale(40);
+		auto scrollArrowsOffsetX = Scale(45);
 		auto scrollArrowsOffsetTop = Scale(100);
 		auto scrollArrowsOffsetBottom = Scale(25);
 		float containerLeft = res.x * 0.1f;

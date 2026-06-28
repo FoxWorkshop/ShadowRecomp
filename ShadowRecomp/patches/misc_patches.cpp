@@ -139,14 +139,7 @@ X86_FUNC(sub_2D82E0)
 {
 	char* str = (char*)GetHostParameter(2, CallConvention::Cdecl, ParameterType::Pointer);
 	std::string s = str;
-	for (int i = 0; i < 5; i++)
-	{
-		if (s.find(texNameArray[i]) != std::string::npos)
-		{
-			printf("tex %s ", texNameArray[i].c_str());
-			foundTex = true;
-		}
-	}
+
 	__imp__sub_2D82E0(ctx, base);
 }
 
