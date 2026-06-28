@@ -119,35 +119,6 @@ ImVec2 VirtualToScreen(float vx, float vy, ImVec2 displaySize)
 	};
 }
 
-void AddTextWithOutline(ImDrawList* drawList, ImFont* font, float fontSize,
-	ImVec2 pos, ImU32 textColor, ImU32 outlineColor,
-	const char* text, float outlineSize = 2.0f)
-{
-	// two passes for thicker outline
-	for (float thickness = 1.0f; thickness <= outlineSize; thickness += 1.0f)
-	{
-		for (int dx = -1; dx <= 1; dx++)
-		{
-			for (int dy = -1; dy <= 1; dy++)
-			{
-				if (dx == 0 && dy == 0) continue;
-				drawList->AddText(font, fontSize,
-					ImVec2(pos.x + dx * thickness, pos.y + dy * thickness),
-					outlineColor, text);
-			}
-		}
-	}
-	drawList->AddText(font, fontSize, pos, textColor, text);
-}
-
-void AddTextCentered(ImDrawList* drawList, ImFont* font, float fontSize,
-	float centerX, float y, ImU32 textColor, ImU32 outlineColor,
-	const char* text)
-{
-	ImVec2 textSize = font->CalcTextSizeA(fontSize, FLT_MAX, 0.0f, text);
-	ImVec2 pos = { centerX - textSize.x / 2.0f, y };
-	AddTextWithOutline(drawList, font, fontSize, pos, textColor, outlineColor, text);
-}
 static float ScaleX(float vWidth, float displayWidth) { return (vWidth / 640.0f) * displayWidth; }
 static float ScaleY(float vHeight, float displayHeight) { return (vHeight / 480.0f) * displayHeight; }
 

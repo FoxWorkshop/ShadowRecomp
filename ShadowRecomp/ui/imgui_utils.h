@@ -88,3 +88,10 @@ double ComputeLoopMotion(double time, double offset, double total);
 void DrawArrowCursor(ImVec2 pos, double time, bool isIntroAnim, bool isBlinkingAnim, bool isReversed);
 GuestTexture* GetTexArrow();
 void DrawTextParagraph(const ImFont* font, float fontSize, float maxWidth, const ImVec2& pos, float lineMargin, const char* text, std::function<void(const char*, ImVec2)> drawMethod, bool isCentred = false);
+void AddTextWithOutline(ImDrawList* drawList, ImFont* font, float fontSize,
+    ImVec2 pos, ImU32 textColor, ImU32 outlineColor,
+    const char* text, float outlineSize = 2.0f, float outlineOffsetX = 0.0f, float outlineOffsetY = 0.0f);
+
+void AddTextCentered(ImDrawList* drawList, ImFont* font, float fontSize,
+    float centerX, float y, ImU32 textColor, ImU32 outlineColor,
+    const char* text);

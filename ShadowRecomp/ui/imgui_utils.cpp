@@ -1009,3 +1009,36 @@ void DrawArrowCursor(ImVec2 pos, double time, bool isIntroAnim, bool isBlinkingA
         drawList->AddImage(g_upTexArrow.get(), cursorMin, cursorMax, GET_UV_COORDS(cursorUVs), IM_COL32(255, 255, 255, cursorAlphaMotion));
     }
 }
+
+
+void AddTextWithOutline(ImDrawList* drawList, ImFont* font, float fontSize,
+    ImVec2 pos, ImU32 textColor, ImU32 outlineColor,
+    const char* text, float outlineSize, float outlineOffsetX, float outlineOffsetY)
+{
+    // two passes for thicker outline
+    for (float thickness = 1.0f; thickness <= outlineSize; thickness += 1.0f)
+    {
+        for (int dx = -1; dx <= 1; dx++)
+        {
+            for (int dy = -1; dy <= 1; dy++)
+            {
+                if (dx == 0 && dy == 0) 
+                    continue;
+
+                drawList->AddText(font, fontSize,
+                    ImVec2(pos.x + dx * thickness + Scale(outlineOffsetX), pos.y + dy * thickness + Scale(outlineOffsetY)),
+                    outlineColor, text);
+            }
+        }
+    }
+    drawList->AddText(font, fontSize, pos, textColor, text);
+}
+
+void AddTextCentered(ImDrawList* drawList, ImFont* font, float fontSize,
+    float centerX, float y, ImU32 textColor, ImU32 outlineColor,
+    const char* text)
+{
+    ImVec2 textSize = font->CalcTextSizeA(fontSize, FLT_MAX, 0.0f, text);
+    ImVec2 pos = { centerX - textSize.x / 2.0f, y };
+    AddTextWithOutline(drawList, font, fontSize, pos, textColor, outlineColor, text);
+}

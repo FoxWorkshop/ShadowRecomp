@@ -320,7 +320,7 @@ static void DrawOption
 
 	auto optionMotionTime = 1.0f; // ComputeLinearMotion(g_categoryTime, 0, 5, OptionsMenu::s_state != OptionsMenuState::Idle);
 
-	auto optionHeight = Scale(56);
+	auto optionHeight = Scale(48);
 	float offsetScroll = 0.0f;
 
 	bool isMiddleRow = false;
@@ -398,6 +398,10 @@ static void DrawOption
 	auto titleAreaWidth = titleAreaEnd - titleAreaStart;
 	bool titleOverflows = titleTextSize.x > titleAreaWidth;
 
+	auto TextoutlineColor = isHoverOrSelected ? IM_COL32(0, 0, 60, 44) : IM_COL32(0, 0, 0, 44);
+	const float outlineOffset = 2.f;
+	auto TexColor = isHoverOrSelected ? IM_COL32(234, 234, 69, 255) : IM_COL32(255, 255, 255, 255);
+
 	if (titleOverflows && isHover)
 	{
 		static double s_titleMarqueeStartTime = 0.0;
@@ -427,9 +431,11 @@ static void DrawOption
 
 		drawList->PushClipRect({ titleAreaStart, clipRectMin.y }, { titleAreaEnd, clipRectMax.y }, true);
 		ImVec2 scrolledTitlePos = { titlePos.x - scrollX, titlePos.y };
-		drawList->AddText(g_fntSeurat, g_fntSeuratSize, scrolledTitlePos,
-			isHoverOrSelected ? IM_COL32(234, 234, 69, 255) : IM_COL32(255, 255, 255, 255),
-			titleText.c_str());
+
+
+		AddTextWithOutline(drawList, g_fntSeurat, g_fntSeuratSize, scrolledTitlePos, TexColor,
+			TextoutlineColor, titleText.c_str(), 1.f, outlineOffset, outlineOffset);
+
 		drawList->PopClipRect();
 	}
 	else
@@ -439,9 +445,10 @@ static void DrawOption
 			? TruncateTextWithEllipsis(g_fntSeurat, g_fntSeuratSize, titleText, titleAreaWidth)
 			: titleText;
 
-		drawList->AddText(g_fntSeurat, g_fntSeuratSize, titlePos,
-			isHoverOrSelected ? IM_COL32(234, 234, 69, 255) : IM_COL32(255, 255, 255, 255),
-			displayTitle.c_str());
+		AddTextWithOutline(drawList, g_fntSeurat, g_fntSeuratSize, titlePos, TexColor,
+			TextoutlineColor, displayTitle.c_str(), 1.f, outlineOffset, outlineOffset);
+
+
 	}
 
 
@@ -827,8 +834,11 @@ static void DrawOption
 			valuePos.x = marqueeStartX - scrollX;
 
 			drawList->PushClipRect({ valueAreaStart, clipRectMin.y }, { valueAreaEnd, clipRectMax.y }, true);
-			drawList->AddText(g_fntSeurat, g_fntSeuratSize, valuePos,
-				IM_COL32(255, 255, 255, isAccessible ? 255 : 127), valueText.data());
+
+
+			AddTextWithOutline(drawList, g_fntSeurat, g_fntSeuratSize, valuePos, IM_COL32(255, 255, 255, isAccessible ? 255 : 127),
+				TextoutlineColor, valueText.data(), 1.f, outlineOffset, outlineOffset);
+
 			drawList->PopClipRect();
 		}
 		else
@@ -841,8 +851,10 @@ static void DrawOption
 			// Recalculate position for truncated text (centered)
 			auto displaySize = g_fntSeurat->CalcTextSizeA(g_fntSeuratSize, FLT_MAX, 0.0f, displayText.data());
 			valuePos.x = valueAreaCenter - (displaySize.x * 0.5f);
-			drawList->AddText(g_fntSeurat, g_fntSeuratSize, valuePos,
-				IM_COL32(255, 255, 255, isAccessible ? 255 : 127), displayText.data());
+
+			AddTextWithOutline(drawList, g_fntSeurat, g_fntSeuratSize, valuePos, IM_COL32(255, 255, 255, isAccessible ? 255 : 127),
+				TextoutlineColor, displayText.data(), 1.f, outlineOffset, outlineOffset);
+
 		}
 	}
 
@@ -925,13 +937,18 @@ static void DrawGoToLegacyOption
 
 	ImVec2 titlePos = { titleBgEdgeMin.x, titleBgEdgeMin.y + Scale(8) };
 
+	const float outlineOffset = 2.f;
 
 	auto isTitleRightFade = !isMiddleRow && OptionsMenu::s_flowState == OptionsMenuFlowState::OptionCursor;
 
 
 	SetShaderModifier(IMGUI_SHADER_MODIFIER_LOW_QUALITY_TEXT);
 
-	drawList->AddText(g_fntSeurat, g_fntSeuratSize - 2.f, titlePos, isHoverOrSelected ? IM_COL32(234, 234, 69, 255) : IM_COL32(255, 255, 255, 255), titleText.c_str());
+	auto TextoutlineColor = isHoverOrSelected ? IM_COL32(0, 0, 60, 44) : IM_COL32(0, 0, 0, 44);
+	auto TexColor = isHoverOrSelected ? IM_COL32(234, 234, 69, 255) : IM_COL32(255, 255, 255, 255);
+	AddTextWithOutline(drawList, g_fntSeurat, g_fntSeuratSize, titlePos, TexColor,
+		TextoutlineColor, titleText.c_str(), 1.f, outlineOffset, outlineOffset);
+	
 
 	SetShaderModifier(IMGUI_SHADER_MODIFIER_NONE);
 
@@ -1344,7 +1361,7 @@ void DrawMenuListContainer(ImVec2 min, ImVec2 max)
 		return;
 
 	float optionsOffsetX = Scale(170);
-	float optionsOffsetY = Scale(23);
+	float optionsOffsetY = Scale(15);
 
 	ImVec2 minOptions = { containerMin.x + optionsOffsetX, containerMin.y + optionsOffsetY };
 	ImVec2 maxOptions = { containerMax.x, containerMax.y - optionsOffsetY };

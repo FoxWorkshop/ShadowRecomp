@@ -80,20 +80,20 @@ std::tuple<std::tuple<ImVec2, ImVec2>, GuestTexture*> GetButtonIcon(EButtonIcon 
     switch (icon)
     {
     case EButtonIcon::X:
-        btn = PIXELS_TO_UV_COORDS(114, 114, xOffsetCmn, 0, 35, 30);
+        btn = PIXELS_TO_UV_COORDS(114, 120, xOffsetCmn, 0, 35, 30);
         texture = g_upControllerIcons.get();
         break;
     case EButtonIcon::A:
-        btn = PIXELS_TO_UV_COORDS(114, 114, xOffsetCmn, 0 + 30, 35, 30);
+        btn = PIXELS_TO_UV_COORDS(114, 120, xOffsetCmn, 0 + 30, 35, 30);
         texture = g_upControllerIcons.get();
         break;
 
     case EButtonIcon::B:
-        btn = PIXELS_TO_UV_COORDS(114, 114, xOffsetCmn, 0 + 60, 35, 30);
+        btn = PIXELS_TO_UV_COORDS(114, 120, xOffsetCmn, 0 + 60, 35, 30);
         texture = g_upControllerIcons.get();
         break;
     case EButtonIcon::Y:
-        btn = PIXELS_TO_UV_COORDS(114, 114, xOffsetCmn, yOffsetBtnY, 35, 30);
+        btn = PIXELS_TO_UV_COORDS(114, 120, xOffsetCmn, yOffsetBtnY, 35, 30);
         texture = g_upControllerIcons.get();
         break;
 
@@ -168,7 +168,7 @@ static void DrawGuide(float* offset, ImVec2 regionMin, ImVec2 regionMax, EButton
         textPos = { textMarginX, textMarginY };
     }
 
-	textPos.y -= Scale(8.0f);
+	textPos.y -= Scale(6.0f);
     SetScale({ textScale, 1.0f });
     SetOrigin(textPos);
 
