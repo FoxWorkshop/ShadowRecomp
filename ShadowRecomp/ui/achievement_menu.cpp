@@ -370,10 +370,12 @@ static void DrawAchievement(int rowIndex, Achievement& achievement, bool isUnloc
 	if (!isUnlocked)
 		SetShaderModifier(IMGUI_SHADER_MODIFIER_NONE);
 
-	auto fontSize = Scale(Config::Language == ELanguage::Japanese ? 18 : 17);
+	auto descFontSize = Scale(Config::Language == ELanguage::Japanese ? 18 : 17) - 4.f;
+	auto fontTitleSize = Scale(Config::Language == ELanguage::Japanese ? 18 : 17) - 2.f;
 
 	auto textX = imageMax.x + itemMarginX * 2;
 	auto textColour = isUnlocked ? IM_COL32_WHITE : IM_COL32(137, 137, 137, 255);
+	auto outlineColor = IM_COL32(0, 0, 0, 124);
 
 	std::string name;
 	std::string lockedDesc;
@@ -390,17 +392,18 @@ static void DrawAchievement(int rowIndex, Achievement& achievement, bool isUnloc
 
 	auto descText = isUnlocked ? unlockedDesc.c_str() : lockedDesc.c_str();
 	auto descTextOffsetY = Scale(32);
-	auto descSize = g_fntSeurat->CalcTextSizeA(fontSize, FLT_MAX, 0, descText);
+	auto descSize = g_fntSeurat->CalcTextSizeA(descFontSize, FLT_MAX, 0, descText);
 
 	ImVec2 namePos = { textX, imageMin.y + Scale(3) };
 	ImVec2 descPos = { textX, namePos.y + descTextOffsetY };
 
 	// Draw achievement name.
 	SetShaderModifier(IMGUI_SHADER_MODIFIER_LOW_QUALITY_TEXT);
-	drawList->AddText(g_fntSeurat, fontSize, namePos, textColour, name.c_str());
+
+	DrawTextWithOutline(g_fntSeurat, fontTitleSize, namePos, textColour, name.c_str(), 2.f, outlineColor);
 	SetShaderModifier(IMGUI_SHADER_MODIFIER_NONE);
 
-	auto timestampOffsetX = Scale(60);
+	auto timestampOffsetX = Scale(30);
 
 	ImVec2 marqueeMin = { textX, min.y };
 	ImVec2 marqueeMax = { max.x - timestampOffsetX, max.y };
@@ -416,7 +419,7 @@ static void DrawAchievement(int rowIndex, Achievement& achievement, bool isUnloc
 	}
 
 	SetShaderModifier(IMGUI_SHADER_MODIFIER_LOW_QUALITY_TEXT);
-	DrawTextWithMarquee(g_fntSeurat, fontSize, descPos, marqueeMin, marqueeMax, textColour, descText, g_rowSelectionTime, marqueeDelay, shouldMarquee ? Scale(200) : 0);
+	DrawTextWithMarquee(g_fntSeurat, descFontSize, descPos, marqueeMin, marqueeMax, textColour, descText, g_rowSelectionTime, marqueeDelay, shouldMarquee ? Scale(200) : 0);
 	SetShaderModifier(IMGUI_SHADER_MODIFIER_NONE);
 
 	if (!isUnlocked)
@@ -440,11 +443,14 @@ static void DrawAchievement(int rowIndex, Achievement& achievement, bool isUnloc
 	snprintf(buffer, sizeof(buffer), "%d/%d/%d %02d:%02d",
 		pTime->tm_year + 1900, pTime->tm_mon + 1, pTime->tm_mday, pTime->tm_hour, pTime->tm_min);
 
-	auto timestampSize = g_fntSeurat->CalcTextSizeA(fontSize, FLT_MAX, 0, buffer);
+
+	auto timestampSize = g_fntSeurat->CalcTextSizeA(descFontSize - 2.f, FLT_MAX, 0, buffer);
+
+	ImVec2 datePos = { max.x - timestampSize.x - timestampOffsetX, namePos.y };
 
 	// Draw timestamp text.
 	SetShaderModifier(IMGUI_SHADER_MODIFIER_LOW_QUALITY_TEXT);
-	drawList->AddText(g_fntSeurat, fontSize, { max.x - timestampSize.x - timestampOffsetX, namePos.y }, IM_COL32_WHITE, buffer);
+	drawList->AddText(g_fntSeurat, descFontSize - 2.f, datePos, IM_COL32_WHITE, buffer);
 	SetShaderModifier(IMGUI_SHADER_MODIFIER_NONE);
 }
 
