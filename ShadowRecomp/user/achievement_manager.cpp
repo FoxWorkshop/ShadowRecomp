@@ -16,6 +16,9 @@
 #include <res/images/common/hero_dark.png.h>
 #include <res/images/common/dark_dark.png.h>
 #include <res/images/common/dark_hero.png.h>
+#include <res/images/common/A_Rank.png.h>
+#include <res/images/common/key.png.h>
+#include <res/images/common/LastStoryComplete.png.h>
 #include <decompressor.h>
 
 enum EAchievementID
@@ -241,6 +244,12 @@ std::unique_ptr<GuestTexture> LoadAchivementTexture(uint16_t id)
         return LOAD_ZSTD_TEXTURE(g_pureherodark);
     case 10:
         return LOAD_ZSTD_TEXTURE(g_purehero);
+    case 11:
+        return LOAD_ZSTD_TEXTURE(g_laststorycomplete);
+    case 12:
+        return LOAD_ZSTD_TEXTURE(g_arank);
+    case 13:
+        return LOAD_ZSTD_TEXTURE(g_key);
     }
 
     return LOAD_ZSTD_TEXTURE(g_placeholder);
