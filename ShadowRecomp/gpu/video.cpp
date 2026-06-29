@@ -5452,8 +5452,8 @@ static GuestSurface* CreateSurface(uint32_t width, uint32_t height, X_D3DFORMAT 
 	}
 	else
 	{
-		newWidth = 4096;
-		newHeight = 4096;
+		newWidth = 8192;
+		newHeight = 8192;
 	}
 
 	width = newWidth;
