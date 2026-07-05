@@ -384,6 +384,7 @@ float4 main(PS_INPUT input) : SV_Target
 
 	// Run each stage
     int previousOp = -1;
+    [unroll]
     for (int i = 0; i < 4; i++)
     {
         ctx = ExecuteTextureStage(
