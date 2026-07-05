@@ -410,6 +410,7 @@ void FillLightArray(out Light lightsArray[8])
 {
 #ifdef __spirv__
     
+    [unroll]
     for (uint i = 0; i < 8; i++)
     {
         lightsArray[i].Diffuse = LDiffuse(i);
@@ -431,6 +432,7 @@ void FillMaterialArray(out Material matArray[2])
 {
 #ifdef __spirv__
     
+    [unroll]
     for (uint i = 0; i < 2; i++)
     {
         matArray[i].Diffuse = MDiffuse(i);
@@ -451,6 +453,7 @@ void FillTextureStateArray(out TextureState texArray[4])
 {
 #ifdef __spirv__
     
+    [unroll]
     for (uint i = 0; i < 4; i++)
     {
         texArray[i].TextureTransformFlagsCount = TexState_TransfoFlagsCount(i);

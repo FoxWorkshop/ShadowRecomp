@@ -185,6 +185,7 @@ LightingOutput CalcLighting(const float2 powers)
     Light Lights_[8];
     FillLightArray(Lights_);
     
+    [unroll]
     for (uint i = 0; i < 8; i++)
     {
         const Light currentLight = Lights_[i];
@@ -444,6 +445,7 @@ VS_INPUT InitializeInputRegisters(const VS_INPUT xInput)
 
     // Initialize input registers from the vertex buffer data
     // Or use the register's default value (which can be changed by the title)
+    [unroll]
     for (uint i = 0; i < 16; i++)
     {
         const float4 value = lerp(Get(xInput, i), vRegisterDefaultValues(i), vRegisterDefaultFlags[i]);
