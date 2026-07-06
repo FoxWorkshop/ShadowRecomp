@@ -91,7 +91,7 @@ void AdjustSubtitlesPosition(uint32_t pMatrix)
 	auto base = g_memory.base;
 	if (isDrawingPauseMenuSubtitle())
 	{
-		
+
 		float _42 = X86_LOAD_F32(pMatrix + 0x34);
 		_42 -= 0.03f * GetAddedPauseItemsCount(); // move down
 		X86_STORE_F32(pMatrix + 0x34, _42);
@@ -462,7 +462,7 @@ void Draw(X86Context& ctx, uint8_t* base, X86Func* original, void* vertexData, u
 	}
 
 	const bool isPauseBossWithExtendBottom = ((modifier.Flags & CSD_PAUSE_BOSS) != 0 && ((modifier.Flags & CSD_EXTEND_BOTTOM) != 0));
-	
+
 	uint8_t pauseItemCount = GetAddedPauseItemsCount();
 
 	if (isPauseBossWithExtendBottom && pauseItemCount >= 2) // pause boss csd already have a big enough background to support 4 options
@@ -568,47 +568,168 @@ void DrawHudMidAsmHook(X86Register& rEax)
 	}
 }
 
+
+// helper function to find the current asset loaded from a .one file.
+char* TOneFileCheckFileName(TOneFile* this_, int32_t index)
+{
+	int v2 = this_->field_34;
+	char* result; // eax
+
+	int resV2 = 0;
+
+	if (v2)
+	{
+		auto base = g_memory.base;
+		resV2 = X86_LOAD_U32(v2 + 16);
+	}
+
+
+	if ((this_->field_2C || this_->fname[0]) && index >= 2 && (index < resV2 + 2))
+		result = (char*)g_memory.Translate(56 * index + v2 + 52);
+	else
+		result = 0;
+
+	return result;
+}
+
+
 // the game often use a quad model to draw a picture on the screen, usually to show Shadow memories, 
 // but the quad model is not stretched to fit the screen, thus any high resolution won't cover the whole screen
 // we can fix that by stretching the vertex
-void StretchPictureVertex(X86Context* ctx, uint8_t* base)
+
+
+struct QuadStretchCalibration
 {
-	std::string s = GetCurrentNameFileFromOneFile();
-	if (s.find("!PIC!") != std::string::npos)
+	// fname/fid hash identifying this specific cutscene quad
+	float calibrationX = 1.0f; // multiplier on top of the base formula
+	float calibrationY = 1.0f;
+};
+
+
+thread_local QuadStretchCalibration* g_currentQuadCallib = nullptr;
+
+const xxHashMap<QuadStretchCalibration> g_pictureDff =
+{
+	{ HashStr("ARK!PICTURE!O!.DFF"), { 1.0f, 1.6f } },
+	{ HashStr("ARK!PICTURE!LOCATOR.DFF"), { 1.0f, 1.6f } },
+	{ HashStr("FLASH!BACK!PIC01!O!.DFF"), { 1.0f, 1.6f } },
+	{ HashStr("ADV2!FLASH!BACK!PIC01!O!.DFF"), { 1.0f, 1.1f } },
+	{ HashStr("ADV2!FLASH!BACK!PIC02!O!.DFF"), { 1.0f, 1.1f } },
+	{ HashStr("ADV2!FLASH!BACK!PIC03!O!.DFF"), { 1.0f, 1.1f } },
+	{ HashStr("ADV2!FLASH!BACK!PIC04!O!.DFF"), { 1.0f, 1.1f } },
+};
+
+void FindPictureBackgroundModel(X86Context* ctx, uint8_t* base)
+{
+	auto pOneFileAsync = (TOneFileAsync*)g_memory.Translate(ctx->ecx.u32);
+	if (pOneFileAsync)
 	{
-		auto atomicAddr = X86_LOAD_U32(ctx->esp.u32 + 4);
+		auto pOneFile = pOneFileAsync->pOneFile.get();
+		if (pOneFile)
+		{
+
+			auto assetName = TOneFileCheckFileName(pOneFile, pOneFileAsync->fid); //pOneFile->fname;
+			std::string s = "";
+
+			if (assetName)
+				s = assetName;
+
+			auto it = g_pictureDff.find(HashStr(s.c_str()));
+			if (it != g_pictureDff.end() && g_aspectRatio > 1.f)
+			{
+				g_currentQuadCallib = (QuadStretchCalibration*)&it->second;
+				printf("Found picture background model: %s\n", s.c_str());
+			}
+			else
+			{
+				g_currentQuadCallib = nullptr;
+			}
+		}
+	}
+
+}
+
+
+void StretchPictureVertex(uint32_t atomicAddr, uint8_t* base)
+{
+	if (g_currentQuadCallib)
+	{
 		auto geometryPtr = X86_LOAD_U32(atomicAddr + 0x18);
 		RpGeometry* geometry = (RpGeometry*)g_memory.Translate(geometryPtr);
-		if (geometry)
+		if (geometry && geometry->numVertices == 4 && geometry->numMorphTargets == 1) // pic data is always 4 vertex
 		{
-			LOGFN_UTILITY("RpGeometry: 0x{:08X}, numTriangles: {}, numVertices: {}, numMorphTargets: {}, numTexCoordSets: {}", (uint64_t)geometry, geometry->numTriangles, geometry->numVertices, geometry->numMorphTargets, geometry->numTexCoordSets);
+			auto morphTargetPtr = geometry->morphTarget.get();
+
+			if (morphTargetPtr)
+			{
+				morphTargetPtr = morphTargetPtr;
+
+				if (morphTargetPtr)
+				{
+					RwV3d* verts = morphTargetPtr->verts.get();
+
+					for (int i = 0; i < geometry->numVertices; i++)
+					{
+						verts[i].x *= g_currentQuadCallib->calibrationX;
+						verts[i].y *= g_currentQuadCallib->calibrationY;
+
+					}
+
+				}
+			}
 		}
 	}
 }
 
-// callback used by RpClumpForAllAtomics
-// we can use this to check for the geometry of the picture vertex
+// callbacks used by RpClumpForAllAtomics
+// we can use them to stretch the vertex of the picture model
 X86_FUNC_IMPL(__imp__sub_29EB20);
 X86_FUNC(sub_29EB20)
 {
-	StretchPictureVertex(&ctx, base);
+	if (ctx.esp.u32 + 4)
+	{
+		StretchPictureVertex(X86_LOAD_U32(ctx.esp.u32 + 4), base);
+	}
 	__imp__sub_29EB20(ctx, base);
 }
 
-// same as above
 X86_FUNC_IMPL(__imp__sub_261A0);
 X86_FUNC(sub_261A0)
 {
-	StretchPictureVertex(&ctx, base);
+	if (ctx.esp.u32 + 4)
+	{
+		StretchPictureVertex(X86_LOAD_U32(ctx.esp.u32 + 4), base);
+	}
 	__imp__sub_261A0(ctx, base);
 }
 
+X86_FUNC_IMPL(__imp__sub_25DF0);
+X86_FUNC(sub_25DF0)
+{
+	if (ctx.esp.u32 + 4)
+	{
+		StretchPictureVertex(X86_LOAD_U32(ctx.esp.u32 + 4), base);
+	}
+	__imp__sub_25DF0(ctx, base);
+}
+
+// TOneFileAsyncRpClump::Read
 X86_FUNC_IMPL(__imp__sub_1FE00);
 X86_FUNC(sub_1FE00)
 {
 	auto mode = X86_LOAD_U32(ctx.ecx.u32 + 0x28);
-	printf("TOneFileAsyncRpClump::Read mode %d\n", mode);
+
+	if (mode == 4)
+	{
+		FindPictureBackgroundModel(&ctx, base);
+	}
+
 	__imp__sub_1FE00(ctx, base);
+
+	if (mode >= 4)
+	{
+		g_currentQuadCallib = nullptr;
+	}
 }
 
 const uint32_t GuestDevicePtrAddr = 0x3E0A18;

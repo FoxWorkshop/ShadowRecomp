@@ -73,6 +73,13 @@ struct RwObject
 	xpointer<void> parent;
 };
 
+struct RwMemory
+{
+	xpointer<RwUInt8> start;
+	RwUInt32 length;
+};
+
+struct RpMorphTarget;
 struct RpGeometry
 {
 	RwObject object;
@@ -89,5 +96,105 @@ struct RpGeometry
 	uint32_t texCoords[8]; // RwTexCoords* ptr
 	uint32_t mesh; // RpMeshHeader* ptr
 	uint32_t repEntry; // RwResEntry* ptr
-	uint32_t morphTarget; // RpMorphTarget* ptr
+	xpointer<RpMorphTarget> morphTarget; 
+};
+
+enum RwStreamType
+{
+	rwNASTREAM = 0x0,
+	rwSTREAMFILE = 0x1,
+	rwSTREAMFILENAME = 0x2,
+	rwSTREAMMEMORY = 0x3,
+	rwSTREAMCUSTOM = 0x4,
+};
+
+enum RwStreamAccessType
+{
+	rwNASTREAMACCESS = 0x0,
+	rwSTREAMREAD = 0x1,
+	rwSTREAMWRITE = 0x2,
+	rwSTREAMAPPEND = 0x3,
+};
+
+struct RwStreamMemory
+{
+	RwUInt32 position;
+	RwUInt32 nSize;
+	xpointer<RwUInt8> memBlock;
+};
+
+union RwStreamFile
+{
+	xpointer<void> fpFile;
+	xpointer<const void> constfpFile;
+};
+
+
+union RwStreamUnion
+{
+	RwStreamMemory memory;
+	RwStreamFile file;
+	uint8_t custom[0x14]; //RwStreamCustom
+};
+
+
+struct RwStream
+{
+	RwStreamType type;
+	RwStreamAccessType accessType;
+	RwInt32 position;
+	RwStreamUnion Type;
+	bool rwOwned;
+};
+
+struct TOneFile
+{
+	char fname[38];
+	BYTE gap26[6];
+	int32_t field_2C;
+	BYTE gap30[4];
+	int32_t field_34;
+	BYTE gap38[4];
+	int32_t size;
+	int32_t field_40;
+	char field_44;
+	int32_t pASyncFunc_HHC;
+	int32_t field_4C;
+	BYTE gap50[4];
+	int32_t field_54;
+};
+
+
+struct TOneFileAsync
+{
+	uint8_t task[0x28];
+	int32_t mode;
+	int32_t threadFunc;
+	int32_t pAsyncManager;
+	int32_t fid;
+	xpointer<void> dest;
+	uint32_t clump; //xpointer<RpClump>
+	xpointer<TOneFile> pOneFile;
+	RwMemory _mem;
+	xpointer<RwStream> stream;
+	char field_50;
+	int32_t texDict;
+	char field_58;
+	int32_t field_5C;
+};
+
+
+struct RwSphere
+{
+	RwV3d center;
+	RwReal radius;
+};
+
+
+struct RpMorphTarget
+{
+	xpointer<RpGeometry> parentGeom;
+	RwSphere boundingSphere;
+	xpointer<RwV3d> verts;
+	xpointer<RwV3d> normals;
 };

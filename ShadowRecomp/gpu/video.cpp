@@ -5137,21 +5137,6 @@ void Video::ComputeViewportDimensions()
 
 	auto base = g_memory.base;
 
-	//update rwRASTERTYPECAMERA resolution (main 640x480 rt)
-	//X86_STORE_U32(0x4E5D3C, width);
-	//X86_STORE_U32(0x4E5D40, height);
-
-	//update rwRASTERTYPEZBUFFER and rwRASTERTYPECAMERATEXTURE resolution
-	/**GetUpscaledRTResolution(512, 512, &width, &height);
-	X86_STORE_U32(0x4E5D50, width);
-	X86_STORE_U32(0x4E5D54, height);
-
-	GetUpscaledRTResolution(512, 384, &width, &height);
-	X86_STORE_U32(0x4E5D64, width);
-	X86_STORE_U32(0x4E5D68, height);*/
-
-	//X86_STORE_F32(0x4E5D44, aspectRatio);
-
 	AspectRatioPatches::ComputeOffsets();
 }
 
