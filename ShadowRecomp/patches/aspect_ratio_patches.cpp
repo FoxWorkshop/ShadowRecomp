@@ -612,7 +612,7 @@ const xxHashMap<QuadStretchCalibration> g_pictureDff =
 {
 	{ HashStr("ARK!PICTURE!O!.DFF"), { 1.0f, 1.6f } },
 	{ HashStr("ARK!PICTURE!LOCATOR.DFF"), { 1.0f, 1.6f } },
-	{ HashStr("FLASH!BACK!PIC01!O!.DFF"), { 1.0f, 1.6f } },
+	{ HashStr("FLASH!BACK!PIC01!O!.DFF"), { 1.0f, 1.2f } },
 	{ HashStr("ADV2!FLASH!BACK!PIC01!O!.DFF"), { 1.0f, 1.1f } },
 	{ HashStr("ADV2!FLASH!BACK!PIC02!O!.DFF"), { 1.0f, 1.1f } },
 	{ HashStr("ADV2!FLASH!BACK!PIC03!O!.DFF"), { 1.0f, 1.1f } },
