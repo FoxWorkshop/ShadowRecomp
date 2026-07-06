@@ -9,6 +9,8 @@
 #include <app.h>
 #include <ui/options_menu.h>
 #include "pause_patches.h"
+#include "global.h"
+#include <mod/mod_loader.h>
 
 static const uint8_t CSDVertexCount = 4u; // CSD always use 4 vertex count in this game
 bool readyToDebugConstant = false;
@@ -564,6 +566,49 @@ void DrawHudMidAsmHook(X86Register& rEax)
 			vertexHud[i].x = centreX + (vertexHud[i].x - centreX) / stretchFactor;
 		}
 	}
+}
+
+// the game often use a quad model to draw a picture on the screen, usually to show Shadow memories, 
+// but the quad model is not stretched to fit the screen, thus any high resolution won't cover the whole screen
+// we can fix that by stretching the vertex
+void StretchPictureVertex(X86Context* ctx, uint8_t* base)
+{
+	std::string s = GetCurrentNameFileFromOneFile();
+	if (s.find("!PIC!") != std::string::npos)
+	{
+		auto atomicAddr = X86_LOAD_U32(ctx->esp.u32 + 4);
+		auto geometryPtr = X86_LOAD_U32(atomicAddr + 0x18);
+		RpGeometry* geometry = (RpGeometry*)g_memory.Translate(geometryPtr);
+		if (geometry)
+		{
+			LOGFN_UTILITY("RpGeometry: 0x{:08X}, numTriangles: {}, numVertices: {}, numMorphTargets: {}, numTexCoordSets: {}", (uint64_t)geometry, geometry->numTriangles, geometry->numVertices, geometry->numMorphTargets, geometry->numTexCoordSets);
+		}
+	}
+}
+
+// callback used by RpClumpForAllAtomics
+// we can use this to check for the geometry of the picture vertex
+X86_FUNC_IMPL(__imp__sub_29EB20);
+X86_FUNC(sub_29EB20)
+{
+	StretchPictureVertex(&ctx, base);
+	__imp__sub_29EB20(ctx, base);
+}
+
+// same as above
+X86_FUNC_IMPL(__imp__sub_261A0);
+X86_FUNC(sub_261A0)
+{
+	StretchPictureVertex(&ctx, base);
+	__imp__sub_261A0(ctx, base);
+}
+
+X86_FUNC_IMPL(__imp__sub_1FE00);
+X86_FUNC(sub_1FE00)
+{
+	auto mode = X86_LOAD_U32(ctx.ecx.u32 + 0x28);
+	printf("TOneFileAsyncRpClump::Read mode %d\n", mode);
+	__imp__sub_1FE00(ctx, base);
 }
 
 const uint32_t GuestDevicePtrAddr = 0x3E0A18;
