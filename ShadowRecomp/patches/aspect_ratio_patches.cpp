@@ -596,7 +596,7 @@ char* TOneFileCheckFileName(TOneFile* this_, int32_t index)
 // the game often use a quad model to draw a picture on the screen, usually to show Shadow memories, 
 // but the quad model is not stretched to fit the screen, thus any high resolution won't cover the whole screen
 // we can fix that by stretching the vertex
-
+// note: this is inconsistent, some cutscenes have it scaled properly, some don't, because of course they do.
 
 struct QuadStretchCalibration
 {
@@ -627,7 +627,6 @@ void FindPictureBackgroundModel(X86Context* ctx, uint8_t* base)
 		auto pOneFile = pOneFileAsync->pOneFile.get();
 		if (pOneFile)
 		{
-
 			auto assetName = TOneFileCheckFileName(pOneFile, pOneFileAsync->fid); //pOneFile->fname;
 			std::string s = "";
 
@@ -638,7 +637,6 @@ void FindPictureBackgroundModel(X86Context* ctx, uint8_t* base)
 			if (it != g_pictureDff.end() && g_aspectRatio > 1.f)
 			{
 				g_currentQuadCallib = (QuadStretchCalibration*)&it->second;
-				printf("Found picture background model: %s\n", s.c_str());
 			}
 			else
 			{
@@ -646,7 +644,6 @@ void FindPictureBackgroundModel(X86Context* ctx, uint8_t* base)
 			}
 		}
 	}
-
 }
 
 
