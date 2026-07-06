@@ -604,7 +604,7 @@ X86_FUNC(sub_2A4420)
 
 }
 
-// XAPILIB::XCreateSaveGam
+// XAPILIB::XCreateSaveGame
 X86_FUNC_IMPL(__imp__sub_2AEC9A);
 X86_FUNC(sub_2AEC9A)
 {
@@ -616,6 +616,7 @@ X86_FUNC(sub_2AEC9A)
 	}
 
 }
+
 
 GUEST_FUNCTION_HOOK_STDCALL(sub_2AF653, XCreateFile_r);
 GUEST_FUNCTION_HOOK_STDCALL(sub_2ADFF0, XReadFile_r);

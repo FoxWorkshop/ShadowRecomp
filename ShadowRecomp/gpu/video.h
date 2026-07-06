@@ -4,6 +4,7 @@
 
 #define D3DCLEAR_TARGET  0x1
 #define D3DCLEAR_ZBUFFER 0x10
+typedef float RwReal;
 
 #define LOAD_ZSTD_TEXTURE(name) LoadCustomTexture(decompressZstd(name, name##_uncompressed_size).get(), name##_uncompressed_size)
 
@@ -35,50 +36,6 @@ extern std::atomic<bool> g_pendingSurfaceResizeFlag;
 #define NV_PMC_INTR_0_PCRTC                                (1 << 24)
 #define NV_PCRTC_INTR_EN_0                               0x00000140
 
-typedef float RwReal;
-
-struct RwV3d
-{
-	RwReal x;
-	RwReal y;
-	RwReal z;
-};
-
-enum RwMatrixFlag
-{
-	rwMATRIXINTERNALIDENTITY = 0x20000,
-};
-#define RwUInt32 uint32_t
-struct RwMatrixTag
-{
-	RwV3d right;
-	RwMatrixFlag flags;
-	RwV3d up;
-	RwUInt32 pad1;
-	RwV3d at;
-	RwUInt32 pad2;
-	RwV3d pos;
-	RwUInt32 pad3;
-};
-
-
-struct GeoMesh
-{
-	float x, y, z;
-	uint8_t r, g, b, a;
-	float u, v;
-};
-
-
-struct WeightedMesh
-{
-	float x, y, z;
-	float nx, ny, nz;
-	float u, v;
-};
-
-
-typedef RwMatrixTag RwMatrix;
 
 void CopyVertexShaderConstant(int32_t Register, DWORD* pConstantData, const uint32_t count);
 float GetRenderTargetHeight();

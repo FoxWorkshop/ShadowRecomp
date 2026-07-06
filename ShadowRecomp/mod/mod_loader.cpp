@@ -94,6 +94,61 @@ std::vector<std::filesystem::path>* ModLoader::GetIncludeDirectories(size_t modI
 	return modIndex < g_mods.size() ? &g_mods[modIndex].includeDirs : nullptr;
 }
 
+
+// TOneFile::CheckFileID
+X86_FUNC_IMPL(__imp__sub_1ED50);
+X86_FUNC(sub_1ED50)
+{
+	char* fileName = (char*)GetHostParameter(2, CallConvention::Thiscall, ParameterType::Pointer);
+	//printf("TOneFile::CheckFileID: %s\n", fileName);
+	__imp__sub_1ED50(ctx, base);
+}
+
+uint32_t g_currentIndexFileFromOneFile = 0;
+std::string g_currentNameFileFromOneFile = "";
+
+std::string GetCurrentNameFileFromOneFile()
+{
+	return g_currentNameFileFromOneFile;
+}
+
+
+// TOneFile::CheckFileName
+X86_FUNC_IMPL(__imp__sub_1ED10);
+X86_FUNC(sub_1ED10)
+{
+	//printf("TOneFile::CheckFileID: %s\n", fileName);
+	__imp__sub_1ED10(ctx, base);
+	if (ctx.eax.u32)
+	{
+		g_currentNameFileFromOneFile = reinterpret_cast<const char*>(g_memory.Translate((ctx.eax.u32)));
+		printf("%s\n", g_currentNameFileFromOneFile.c_str());
+	}
+}
+
+// RpClumpForAllAtomics
+X86_FUNC_IMPL(__imp__sub_2CA9F0);
+X86_FUNC(sub_2CA9F0)
+{
+	__imp__sub_2CA9F0(ctx, base);
+}
+
+
+
+void GetInfoFromOneFileMidAsmHook(X86Register& rEax, X86Register& rEbx)
+{
+	g_currentIndexFileFromOneFile = rEbx.u32;
+
+
+}
+
+void GetNameFileFromOneFileMidAsmHook()
+{
+
+}
+
+
+
 void ModLoader::Init()
 {
 	using json = nlohmann::json;

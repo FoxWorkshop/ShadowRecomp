@@ -125,11 +125,14 @@ X86_FUNC(sub_28AF30)
 
 std::string texNameArray[] =
 {
-	"gamemenu",
-	"001_command_icons",
-	"pause_main",
-	"000_squarebuttons",
-	"000_VHArrow_xbox",
+	"E630A_c1",
+	"memory01",
+	"memory02",
+	"memory03",
+	"memory04",
+	"memory05",
+	"memory06",
+	"memory07",
 };
 
 bool foundTex = false;
@@ -139,6 +142,15 @@ X86_FUNC(sub_2D82E0)
 {
 	char* str = (char*)GetHostParameter(2, CallConvention::Cdecl, ParameterType::Pointer);
 	std::string s = str;
+
+	for (int i = 0; i < 8; i++)
+	{
+		if (s.find(texNameArray[i]) != std::string::npos)
+		{
+			foundTex = true;
+			break;
+		}
+	}
 
 	__imp__sub_2D82E0(ctx, base);
 }
