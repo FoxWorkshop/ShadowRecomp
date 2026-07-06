@@ -634,7 +634,7 @@ void FindPictureBackgroundModel(X86Context* ctx, uint8_t* base)
 				s = assetName;
 
 			auto it = g_pictureDff.find(HashStr(s.c_str()));
-			if (it != g_pictureDff.end() && g_aspectRatio > 1.f)
+			if (it != g_pictureDff.end())
 			{
 				g_currentQuadCallib = (QuadStretchCalibration*)&it->second;
 			}
