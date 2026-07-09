@@ -508,46 +508,48 @@ uint32_t input::GetState(uint32_t dwUserIndex, XINPUT_STATE* pState)
 	pState->dwPacketNumber = packet++;
 
 	bool hasController = false;
-	if (dwUserIndex >= 1 && dwUserIndex <= 4 && g_controllers[dwUserIndex - 1].controller)
+	bool isConnected = dwUserIndex == 1
+		|| dwUserIndex == g_keyboardPort
+		|| (dwUserIndex >= 1 && dwUserIndex <= 4 && g_controllers[dwUserIndex - 1].controller)
+		|| g_activeController != nullptr;
+
+	if (IsInputAllowed())
 	{
-		g_controllers[dwUserIndex - 1].Poll();
-		g_controllers[dwUserIndex - 1].PollAxis(dwUserIndex - 1);
-		pState->Gamepad = g_controllers[dwUserIndex - 1].state;
-		hasController = true;
-	}
-
-	if (dwUserIndex == g_keyboardPort)
-	{
-		g_keyboardController.Poll();
-		auto& kbPad = g_keyboardController.state;
-		auto& pad = pState->Gamepad;
-
-		if (kbPad.sThumbLX != 0) pad.sThumbLX = kbPad.sThumbLX;
-		if (kbPad.sThumbLY != 0) pad.sThumbLY = kbPad.sThumbLY;
-		if (kbPad.sThumbRX != 0) pad.sThumbRX = kbPad.sThumbRX;
-		if (kbPad.sThumbRY != 0) pad.sThumbRY = kbPad.sThumbRY;
-
-		pad.wButtons |= kbPad.wButtons;
-
-		for (int i = 0; i < 8; i++)
+		if (dwUserIndex >= 1 && dwUserIndex <= 4 && g_controllers[dwUserIndex - 1].controller)
 		{
-			if (kbPad.bAnalogButtons[i] != 0)
-				pad.bAnalogButtons[i] = kbPad.bAnalogButtons[i];
+			g_controllers[dwUserIndex - 1].Poll();
+			g_controllers[dwUserIndex - 1].PollAxis(dwUserIndex - 1);
+			pState->Gamepad = g_controllers[dwUserIndex - 1].state;
+			hasController = true;
 		}
 
-		return ERROR_SUCCESS;
+		if (dwUserIndex == g_keyboardPort)
+		{
+			g_keyboardController.Poll();
+			auto& kbPad = g_keyboardController.state;
+			auto& pad = pState->Gamepad;
+
+			if (kbPad.sThumbLX != 0) pad.sThumbLX = kbPad.sThumbLX;
+			if (kbPad.sThumbLY != 0) pad.sThumbLY = kbPad.sThumbLY;
+			if (kbPad.sThumbRX != 0) pad.sThumbRX = kbPad.sThumbRX;
+			if (kbPad.sThumbRY != 0) pad.sThumbRY = kbPad.sThumbRY;
+
+			pad.wButtons |= kbPad.wButtons;
+
+			for (int i = 0; i < 8; i++)
+			{
+				if (kbPad.bAnalogButtons[i] != 0)
+					pad.bAnalogButtons[i] = kbPad.bAnalogButtons[i];
+			}
+
+			return ERROR_SUCCESS;
+		}
+
+		if (hasController || dwUserIndex == 1)
+			return ERROR_SUCCESS;
 	}
 
-	if (dwUserIndex == 1)
-		return ERROR_SUCCESS;
-
-	if (!g_activeController)
-		return ERROR_DEVICE_NOT_CONNECTED;
-
-	if (hasController)
-		return ERROR_SUCCESS;
-
-	return ERROR_DEVICE_NOT_CONNECTED;
+	return isConnected ? ERROR_SUCCESS : ERROR_DEVICE_NOT_CONNECTED;
 }
 
 
