@@ -117,6 +117,8 @@ X86_FUNC(sub_258550)
 	__imp__sub_258550(ctx, base);
 }
 
+// Always allow skipping the title screen logos
+void AlwaysAllowLogoSkipMidAsmHook() {}
 
 GUEST_FUNCTION_HOOK_STDCALL(sub_2B0CE1, TryOpenVolume);
 GUEST_FUNCTION_HOOK_STDCALL(sub_2B0C27, MapLetterToDirectory); //this stub will trigger the lack of space after pressing start

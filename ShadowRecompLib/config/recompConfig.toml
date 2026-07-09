@@ -776,6 +776,11 @@ name = "DisableMessageMidAsmHook"
 address = 0x595CA
 
 [[midasm_hook]]
+name = "AlwaysAllowLogoSkipMidAsmHook"
+address = 0x29E9DC
+jump_address = 0x29E9DE
+
+[[midasm_hook]]
 name = "DestructResourceMidAsmHook"
 address = 0x2E0562
 registers = ["r4"]
