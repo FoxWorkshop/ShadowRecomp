@@ -421,6 +421,17 @@ CONFIG_DEFINE_LOCALE(VoicesVolume)
 };
 
 // Japanese Notes: This localization should include furigana.
+CONFIG_DEFINE_LOCALE(MuteOnFocusLost)
+{
+    { ELanguage::English, { "Mute on Focus Lost", "Mute the game's audio when the window is not in focus." } },
+    { ELanguage::Japanese, { "フォーカスロストミュート", "ウィンドウがフォーカスされていないときにゲームのオーディオをミュートします" } },
+    { ELanguage::German,   { "Stummstellen wenn nicht fokussiert", "Stellt das Audio des Spiels stumm solange das Fenster nicht im Fokus ist." } },
+    { ELanguage::French,   { "Muet si fenêtre inactive", "Coupe le son du jeu lorsque la fenêtre n'est pas active." } },
+    { ELanguage::Spanish,  { "Silenciar al perder el foco", "Silencia el audio del juego cuando la ventana no esté en primer plano." } },
+    { ELanguage::Italian,  { "Audio muto con finestra inattiva", "Disattiva l'audio del gioco quando la finestra non è attiva." } }
+};
+
+// Japanese Notes: This localization should include furigana.
 CONFIG_DEFINE_LOCALE(VoiceLanguage)
 {
     { ELanguage::English, { "Voice Language", "Change the language used for character voices." } },

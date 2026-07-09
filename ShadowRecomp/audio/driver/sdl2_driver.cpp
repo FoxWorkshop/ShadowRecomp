@@ -12,6 +12,7 @@
 #include <unordered_set>
 #include <os/logger.h>
 #include <user/config.h>
+#include <ui/game_window.h>
 
 // Memo: 
 // Two way of using buffers: Static (sfx, voices - Buffer is filled once with complete audio, Pull just read the buffer) 
@@ -28,6 +29,14 @@
 bool PlayMusic = false;
 SHTHR_SOUNDDEVICE* ppDS = nullptr;
 static volatile bool g_audioThreadShouldExit;
+
+static float GetMasterVolume()
+{
+	if (Config::MuteOnFocusLost && !GameWindow::s_isFocused)
+		return 0.0f;
+
+	return Config::MasterVolume.Value;
+}
 
 void AudioShutDown()
 {
@@ -1074,7 +1083,7 @@ int SHTHR_SOUNDDEVICE_Impl::PullThreadFunc()
 			auto result = queue->Pull(src_buf.data(), FILL_CHUNK_BYTES);
 			if (result.bytesRead > 0)
 			{
-			float finalVol = result.mixVolume * Config::MasterVolume.Value;
+			float finalVol = result.mixVolume * GetMasterVolume();
 				finalVol = std::min(finalVol, (float)SDL_MIX_MAXVOLUME);
 
 
@@ -1173,7 +1182,7 @@ void SHTHR_SOUNDDEVICE_Impl::AudioCallback(Uint8* stream, int32_t len)
 			{
 				memset(&read_buffer[result.bytesRead], mAudioSpec.silence, len - result.bytesRead);
 			}
-			float finalVol = result.mixVolume * Config::MasterVolume.Value;
+			float finalVol = result.mixVolume * GetMasterVolume();
 			SDL_MixAudioFormat(stream, &read_buffer[0], mFormat, len, (int)finalVol);
 		}
 	}
