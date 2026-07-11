@@ -1,6 +1,7 @@
 #include <audio/audio.h>
 #include <audio/embedded_player.h>
 #include <user/config.h>
+#include <ui/game_window.h>
 
 
 #include <res/music/installer.ogg.h>
@@ -30,6 +31,15 @@ struct EmbeddedSoundData
 };
 
 static std::array<EmbeddedSoundData, size_t(EmbeddedSound::Count)> g_embeddedSoundData = {};
+
+static float GetMasterVolume()
+{
+    if (Config::MuteOnFocusLost && !GameWindow::s_isFocused)
+        return 0.0f;
+
+    return Config::MasterVolume;
+}
+
 static const std::unordered_map<std::string_view, EmbeddedSound> g_embeddedSoundMap =
 {
     { "window_open", EmbeddedSound::WindowOpen },
@@ -77,7 +87,7 @@ static void PlayEmbeddedSound(EmbeddedSound s)
         data.chunk = Mix_LoadWAV_RW(SDL_RWFromConstMem(soundData, soundDataSize), 1);
     }
 
-    Mix_VolumeChunk(data.chunk, (Config::MasterVolume * Config::EffectsVolume * EmbeddedPlayer::EFFECTS_VOLUME) * MIX_MAX_VOLUME);
+    Mix_VolumeChunk(data.chunk, (GetMasterVolume() * Config::EffectsVolume * EmbeddedPlayer::EFFECTS_VOLUME) * MIX_MAX_VOLUME);
     Mix_PlayChannel(g_channelIndex % MIX_CHANNELS, data.chunk, 0);
     ++g_channelIndex;
 }
@@ -110,8 +120,9 @@ void EmbeddedPlayer::PlayMusic()
     if (!Mix_PlayingMusic())
     {
         Mix_PlayMusic(g_installerMusic, INT_MAX);
-        Mix_VolumeMusic(Config::MasterVolume * Config::MusicVolume * MUSIC_VOLUME * MIX_MAX_VOLUME);
     }
+
+    Mix_VolumeMusic(GetMasterVolume() * Config::MusicVolume * MUSIC_VOLUME * MIX_MAX_VOLUME);
 }
 
 void EmbeddedPlayer::FadeOutMusic()
