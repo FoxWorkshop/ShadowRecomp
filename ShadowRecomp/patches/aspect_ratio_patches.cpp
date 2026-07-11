@@ -569,30 +569,6 @@ void DrawHudMidAsmHook(X86Register& rEax)
 }
 
 
-// helper function to find the current asset loaded from a .one file.
-char* TOneFileCheckFileName(TOneFile* this_, int32_t index)
-{
-	int v2 = this_->field_34;
-	char* result; // eax
-
-	int resV2 = 0;
-
-	if (v2)
-	{
-		auto base = g_memory.base;
-		resV2 = X86_LOAD_U32(v2 + 16);
-	}
-
-
-	if ((this_->field_2C || this_->fname[0]) && index >= 2 && (index < resV2 + 2))
-		result = (char*)g_memory.Translate(56 * index + v2 + 52);
-	else
-		result = 0;
-
-	return result;
-}
-
-
 // the game often use a quad model to draw a picture on the screen, usually to show Shadow memories, 
 // but the quad model is not stretched to fit the screen, thus any high resolution won't cover the whole screen
 // we can fix that by stretching the vertex

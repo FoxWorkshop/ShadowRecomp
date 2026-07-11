@@ -1,6 +1,7 @@
 #include <gpu/video.h>
 #include <kernel/function.h>
 #include <user/config.h>
+#include <patches/global.h>
 
 extern bool s_ShouldPatchSubtitles;
 // Patch out logs Artificial Chaos can spew (causes crashes)
@@ -181,4 +182,29 @@ X86_FUNC(sub_59430)
 void DisableMessageMidAsmHook()
 {
 	shouldSkipMessage = Config::Subtitles.Value == 0;
+}
+
+
+
+// helper function to find the current asset loaded from a .one file.
+char* TOneFileCheckFileName(TOneFile* this_, int32_t index)
+{
+	int v2 = this_->assetStreamData;
+	char* result; // eax
+
+	int resV2 = 0;
+
+	if (v2)
+	{
+		auto base = g_memory.base;
+		resV2 = X86_LOAD_U32(v2 + 16);
+	}
+
+
+	if ((this_->field_2C || this_->fname[0]) && index >= 2 && (index < resV2 + 2))
+		result = (char*)g_memory.Translate(56 * index + v2 + 52);
+	else
+		result = 0;
+
+	return result;
 }

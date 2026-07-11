@@ -130,9 +130,7 @@ std::filesystem::path FileSystem::ResolvePath(const std::string_view& path, bool
 
 		if (!resolvedPath.empty())
 		{
-			if (ModLoader::s_isLogTypeConsole)
-				LOGF_IMPL(Utility, "Mod Loader", "Loading file: \"{}\"", reinterpret_cast<const char*>(resolvedPath.u8string().c_str()));
-
+			LOGF_IMPL(Utility, "Mod Loader", "Loading file: \"{}\"", reinterpret_cast<const char*>(resolvedPath.u8string().c_str()));
 			return resolvedPath;
 		}
 	}

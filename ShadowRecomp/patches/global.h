@@ -153,7 +153,7 @@ struct TOneFile
 	BYTE gap26[6];
 	int32_t field_2C;
 	BYTE gap30[4];
-	int32_t field_34;
+	int32_t assetStreamData;
 	BYTE gap38[4];
 	int32_t size;
 	int32_t field_40;
@@ -198,3 +198,6 @@ struct RpMorphTarget
 	xpointer<RwV3d> verts;
 	xpointer<RwV3d> normals;
 };
+
+
+char* TOneFileCheckFileName(TOneFile* this_, int32_t index);

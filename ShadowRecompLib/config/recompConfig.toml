@@ -1074,3 +1074,8 @@ address = 0x22D630
 jump_address = 0x22D699
 # End Add_To_Score nullsub
 #### End Extended Multiplayer
+
+[[midasm_hook]]
+name = "ModOverrideSizesMidAsmHook"
+address = 0x1F7D8
+registers = ["r6"]
