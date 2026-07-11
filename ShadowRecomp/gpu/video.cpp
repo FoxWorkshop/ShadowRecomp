@@ -5576,9 +5576,10 @@ static void FlushViewport(const bool isFixed)
 	viewport.x *= scaleX;
 	viewport.y *= scaleY;
 
-	// offset is needed for bloom, potentially whole game as well, even though we removed the Xbox 0.5 offset.
-	viewport.x += 0.5f;
-	viewport.y += 0.5f;
+	// The Xbox half-pixel viewport offset is needed for bloom
+	// Need to scale otherwise at higher res bloom will drift left / up
+	viewport.x += 0.5f * scaleX;
+	viewport.y += 0.5f * scaleY;
 
 	if (isFixed == false)
 	{
@@ -5586,8 +5587,8 @@ static void FlushViewport(const bool isFixed)
 		height = (float)hostHeight;
 		viewport.minDepth = 0.0f;
 		viewport.maxDepth = 1.0f;
-		viewport.x = 0.5f;
-		viewport.y = 0.5f;
+		viewport.x = 0.5f * scaleX;
+		viewport.y = 0.5f * scaleY;
 	}
 
 	if (g_dirtyStates.viewport)
