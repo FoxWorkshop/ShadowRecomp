@@ -155,7 +155,7 @@ void FindIndividualFiles(const fs::path& modGameRoot, Mod* modinf)
 		uint32_t line_number = 0;
 
 		xxHashMap<std::filesystem::path> assets;
-
+		
 		while (!index_file.eof())
 		{
 			try
@@ -178,7 +178,7 @@ void FindIndividualFiles(const fs::path& modGameRoot, Mod* modinf)
 				if (!std::filesystem::exists(asset_path))
 				{
 					LOGF_ERROR("{} Asset entry on line {} does not exist: {}", modinf->Name, std::to_string(line_number), assetPathStr.c_str());
-					break;
+					continue;
 				}
 
 				auto assetsHash = XXH3_64bits(asset_path.filename().string().c_str(), asset_path.filename().string().size());
@@ -194,9 +194,11 @@ void FindIndividualFiles(const fs::path& modGameRoot, Mod* modinf)
 			}
 		}
 
-		auto archiveHash = XXH3_64bits(oneFileName.c_str(), oneFileName.size());
-
-		modinf->individualFiles[archiveHash].assets = assets;
+		if (assets.empty() == false)
+		{
+			auto archiveHash = XXH3_64bits(oneFileName.c_str(), oneFileName.size());
+			modinf->individualFiles[archiveHash].assets = assets;
+		}
 	}
 }
 
