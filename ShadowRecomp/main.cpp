@@ -122,33 +122,7 @@ void HostStartup()
     g_userHeap.Init();
 }
 
-std::atomic<bool> running{ true };
 extern bool isHostThread;
-
-std::vector<float> dataFloat;
-
-std::vector<float>* getDataFloat()
-{
-    return &dataFloat;
-}
-
-std::vector<float> ReadFloatPairs(const std::string& path)
-{
- 
-    std::ifstream in(path);
-    if (!in.is_open()) 
-        return dataFloat;
-
-    std::string line;
-    while (std::getline(in, line))
-    {
-        std::istringstream iss(line);
-        float a;
-        if (iss >> a)
-            dataFloat.push_back(a);
-    }
-    return dataFloat;
-}
 
 
 bool QuickBootConfig = false;
@@ -298,8 +272,7 @@ int main(int argc, char* argv[])
     GuestThreadParams params = { entry, 0, 0, 0, 0 };
     GuestThread::Start(params);
 
-    
-    running = false;
+
     printf("function Main is returning 0\n");
 	return 0;
 }

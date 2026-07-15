@@ -576,7 +576,6 @@ void DrawHudMidAsmHook(X86Register& rEax)
 
 struct QuadStretchCalibration
 {
-	// fname/fid hash identifying this specific cutscene quad
 	float calibrationX = 1.0f; // multiplier on top of the base formula
 	float calibrationY = 1.0f;
 };
@@ -645,7 +644,6 @@ void StretchPictureVertex(uint32_t atomicAddr, uint8_t* base)
 					{
 						verts[i].x *= g_currentQuadCallib->calibrationX;
 						verts[i].y *= g_currentQuadCallib->calibrationY;
-
 					}
 
 				}

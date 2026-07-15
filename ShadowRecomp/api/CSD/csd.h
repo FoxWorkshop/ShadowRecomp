@@ -23,7 +23,6 @@ struct CSDSceneIndex
 struct CSDCastIndex
 {
     xpointer<const char> pCastName;
-    //MARATHON_INSERT_PADDING(4);
     uint32_t CastNodeIndex;
     uint32_t CastIndex;
 };
