@@ -78,3 +78,8 @@ X86_FUNC(sub_8D2B0)
 		PopCameraDemoFOV();
 	}
 }
+
+bool SkipCameraDemoMidAsmHook()
+{
+	return Config::ExtendedMultiplayer;
+}

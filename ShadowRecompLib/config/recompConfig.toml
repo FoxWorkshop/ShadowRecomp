@@ -1080,3 +1080,15 @@ jump_address = 0x22D699
 name = "ModOverrideSizesMidAsmHook"
 address = 0x1F7D8
 registers = ["r6"]
+
+# Skip ChaosControl Cam
+[[midasm_hook]]
+name = "SkipCameraDemoMidAsmHook"
+address = 0x6CA92
+jump_address_on_true = 0x6CA99
+
+# Skip ChaosBlast Cam
+[[midasm_hook]]
+name = "SkipCameraDemoMidAsmHook"
+address = 0x6C06F
+jump_address_on_true = 0x6C075
