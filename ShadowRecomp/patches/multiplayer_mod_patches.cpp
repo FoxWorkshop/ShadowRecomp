@@ -485,15 +485,7 @@ void EffectSlotPlayerIdOverrideMidAsmHook(X86Register& edx)
     }
 }
 
-// SetObject Loading/Unloading per-player distance
-// The base game checks DAT_0054dde2 to decide single-player (P0 only) or
-// multiplayer (P0+P1) for object loading and unloading distances.
-// For Extended Multiplayer we always take the multiplayer branch (via midasm
-// hooks at the JZ instructions) and patch the distance check functions to
-// also consider P2/P3 so objects only unload when ALL players are out of range.
-
-// Midasm hook at 0x25A429 (JZ to single-player path in load function FUN_0025A3F0)
-// Forces the multiplayer branch when ExtendedMultiplayer is enabled.
+// Start Layout Distance Check Patches
 bool SetObjLoadMultiplayerBranchMidAsmHook(X86Register& eax)
 {
 	if (Config::ExtendedMultiplayer)
@@ -501,13 +493,12 @@ bool SetObjLoadMultiplayerBranchMidAsmHook(X86Register& eax)
 	return eax.u8_lo == 0;
 }
 
-// Midasm hook at 0x181F8F (JZ to single-player path in unload function FUN_00181F80)
-// Forces the multiplayer branch when ExtendedMultiplayer is enabled.
-bool SetObjUnloadMultiplayerBranchMidAsmHook(X86Register& eax)
+bool SetObjUnloadMultiplayerBranchMidAsmHook()
 {
-	if (Config::ExtendedMultiplayer)
-		return false;
-	return eax.u8_lo == 0;
+    auto base = g_memory.base;
+    if (Config::ExtendedMultiplayer)
+	    return false;
+    return X86_LOAD_U8(0x54DDE2) == 0;
 }
 
 // Hook the per-player distance check inside the load loop.
@@ -585,6 +576,7 @@ X86_FUNC(sub_181F80)
 		}
 	}
 }
+// END Layout Distance Check Patches
 
 // END Extended Multiplayer
 

@@ -1063,7 +1063,6 @@ jump_address_on_false = 0x25A42B
 [[midasm_hook]]
 name = "SetObjUnloadMultiplayerBranchMidAsmHook"
 address = 0x181F8F
-registers = ["r0"]
 jump_address_on_true = 0x182020
 jump_address_on_false = 0x181F95
 # End SetObject Loading/Unloading per-player distance
