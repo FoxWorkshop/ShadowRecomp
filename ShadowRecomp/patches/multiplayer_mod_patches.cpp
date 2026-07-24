@@ -30,6 +30,24 @@ X86_FUNC(sub_12700)
 
 uint32_t g_multiplayerPlayerCount = 4;
 
+// Chaos Powers Gain & Drain for MP Fix
+X86_FUNC_IMPL (__imp__sub_22D250);
+
+X86_FUNC (sub_22D250)
+{
+    __imp__sub_22D250(ctx, base);
+    if (Config::ExtendedMultiplayer)
+    {
+        if (!isAwakeAboutToInvoke)
+        {
+            X86_STORE_U32(0x5456CC, 0x0);
+            X86_STORE_U32(0x5456D8, 0x0);
+        }
+        isAwakeAboutToInvoke = false;
+    }
+}
+// End Chaos Powers - Enable Drain for MP Fix
+
 bool ExtendedMultiplayerCameraAttachMidAsmHook(X86Register& eax)
 {
 	auto base = g_memory.base;

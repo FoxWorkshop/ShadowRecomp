@@ -6,6 +6,7 @@
 
 PlayerShadow* playerPtr[4] = {};
 RwV3d* playerPos[4] = {};
+bool isAwakeAboutToInvoke = false;
 static uint32_t s_playerSlotIndex = 0;
 static uint32_t s_knownThisPtrs[4] = {};
 static uint32_t s_knownCount = 0;
@@ -33,14 +34,15 @@ void TeleportPlayersToP1()
 }
 
 //Awake Set Chaos Control / Blast mode
-// X86_FUNC_IMPL(__imp__sub_8E690);
-// X86_FUNC(sub_8E690)
-// {
-// 	auto mode = X86_LOAD_U32(ctx.esp.u32 + 16);
-// 	__imp__sub_8E690(ctx, base);
-// 	App::s_chaosMode = mode == 0 ? ELedAura::LED_AURA_VILLAIN : ELedAura::LED_AURA_HERO;
-// 	SDL_User_ChaosMode(App::s_chaosMode);
-// }
+X86_FUNC_IMPL (__imp__sub_8E690);
+X86_FUNC (sub_8E690)
+{
+	isAwakeAboutToInvoke = true;
+	//auto mode = X86_LOAD_U32(ctx.esp.u32 + 16);
+	__imp__sub_8E690(ctx, base);
+	//App::s_chaosMode = mode == 0 ? ELedAura::LED_AURA_VILLAIN : ELedAura::LED_AURA_HERO;
+	//SDL_User_ChaosMode(App::s_chaosMode);
+}
 
 //Awake destructor
 // X86_FUNC_IMPL(__imp__sub_8E9A0);
