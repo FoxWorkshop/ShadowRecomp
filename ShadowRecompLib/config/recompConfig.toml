@@ -1069,7 +1069,7 @@ jump_address_on_false = 0x181F95
 
 # Add_To_Score nullsub
 [[midasm_hook]]
-name = "AddToScoreNullMidAsmHook"
+name = "AddAllScoreToP1MidAsmHook"
 address = 0x22D630
 jump_address = 0x22D699
 # End Add_To_Score nullsub

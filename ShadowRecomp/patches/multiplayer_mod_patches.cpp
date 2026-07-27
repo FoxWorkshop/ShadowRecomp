@@ -503,24 +503,30 @@ bool SplitscreenTypeInitializeUnpauseMidAsmHook(X86Register& eax)
     return (eax.u8_lo & 0x2) != 0;
 }
 
-// TODO: Replace this to hardcode score adds to P1
-void AddToScoreNullMidAsmHook()
+void AddAllScoreToP1MidAsmHook()
 {
-    if (!Config::ExtendedMultiplayer)
-    {
-        auto ctx = GetX86Context();
-        auto base = g_memory.base;
-        uint32_t thisPtr = ctx->ecx.u32;
-        uint32_t scoreType = X86_LOAD_U32(ctx->esp.u32 + 4);
-        uint32_t amount = X86_LOAD_U32(ctx->esp.u32 + 8);
+    // 0x22D630
+    auto ctx = GetX86Context();
+    auto base = g_memory.base;
+    uint32_t thisPtr = ctx->ecx.u32;
+    uint32_t scoreType = X86_LOAD_U32(ctx->esp.u32 + 4);
+    uint32_t amount = X86_LOAD_U32(ctx->esp.u32 + 8);
 
-        if (amount != 0 && scoreType <= 2)
-        {
-            uint32_t offset = scoreType * 4;
-            X86_STORE_U32(thisPtr + offset, X86_LOAD_U32(thisPtr + offset) + amount);
-            X86_STORE_U32(thisPtr + offset + 0xC, X86_LOAD_U32(0x54DDC0));
+    if (amount == 0 || scoreType > 2) {
+        return;
+    }
+
+    if (Config::ExtendedMultiplayer)
+    {
+        uint32_t gameStateBase = X86_LOAD_U32(0x54963C);
+        if (gameStateBase != 0) {
+            thisPtr = gameStateBase + 0x754;
         }
     }
+
+    uint32_t offset = scoreType * 4;
+    X86_STORE_U32(thisPtr + offset, X86_LOAD_U32(thisPtr + offset) + amount);
+    X86_STORE_U32(thisPtr + offset + 0xC, X86_LOAD_U32(0x54DDC0));
 }
 
 // Effect Slot Registration (FUN_001821f0)
