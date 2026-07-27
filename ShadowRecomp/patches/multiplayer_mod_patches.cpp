@@ -30,7 +30,7 @@ X86_FUNC(sub_12700)
 
 uint32_t g_multiplayerPlayerCount = 4;
 
-// Chaos Powers Gain & Drain for MP Fix
+// Chaos Powers Enabled for MP Fix (Xbox exclusive patch where its disabled)
 X86_FUNC_IMPL (__imp__sub_22D250);
 
 X86_FUNC (sub_22D250)
@@ -46,7 +46,81 @@ X86_FUNC (sub_22D250)
         isAwakeAboutToInvoke = false;
     }
 }
-// End Chaos Powers - Enable Drain for MP Fix
+// End Chaos Powers Enabled for MP Fix
+
+// ChaosPowers Sync
+// pBehavior bitfield @ player_struct + 0xAC
+static uint32_t CountActiveAwakePlayers(uint8_t awakeBit)
+{
+    auto base = g_memory.base;
+    uint32_t count = 0;
+    for (uint32_t i = 0; i < g_multiplayerPlayerCount; i++)
+    {
+        if (!g_playerStructAddrs[i]) {
+            continue;
+        }
+        uint8_t stateByte = X86_LOAD_U8(g_playerStructAddrs[i] + 0xAC);
+        if (stateByte & awakeBit) {
+            count++;
+        }
+    }
+    return count;
+}
+
+// Awake Idle drain reduction (per player)
+void AwakeDrainReductionMidAsmHook(X86Register& ecx, X86Register& esi)
+{
+    if (!Config::ExtendedMultiplayer) {
+        return;
+    }
+
+    auto base = g_memory.base;
+
+    uint32_t mode = X86_LOAD_U32(esi.u32 + 0x40);   // 0 = Dark, 1 = Hero
+    uint8_t awakeBit = (mode == 1) ? 0x04 : 0x08;    // HeroShadow / DarkShadow
+
+    uint32_t count = CountActiveAwakePlayers(awakeBit);
+    if (count > 1) {
+        ecx.u32 = (int32_t)ecx.u32 / (int32_t)count;
+    }
+}
+
+void AwakeDarkThresholdBypassMidAsmHook(X86Register& edx, X86Register& eax)
+{
+    if (!Config::ExtendedMultiplayer) {
+        return;
+    }
+
+    auto base = g_memory.base;
+
+    int32_t darkThreshold = (int32_t)X86_LOAD_U32(eax.u32 + 0x71C);
+    if ((int32_t)edx.u32 >= darkThreshold) {
+        return;
+    }
+
+    if (CountActiveAwakePlayers(0x08) > 0) { // handle vehicle case or egg dealer
+        edx.u32 = darkThreshold;
+    }
+}
+
+void AwakeHeroThresholdBypassMidAsmHook(X86Register& ecx, X86Register& eax)
+{
+    if (!Config::ExtendedMultiplayer) {
+        return;
+    }
+
+    auto base = g_memory.base;
+
+    int32_t heroThreshold = (int32_t)X86_LOAD_U32(eax.u32 + 0x710);
+    if ((int32_t)ecx.u32 >= heroThreshold) {
+        return;
+    }
+
+    if (CountActiveAwakePlayers(0x04) > 0) {
+        ecx.u32 = heroThreshold;
+    }
+}
+// End ChaosPowerSync
 
 bool ExtendedMultiplayerCameraAttachMidAsmHook(X86Register& eax)
 {

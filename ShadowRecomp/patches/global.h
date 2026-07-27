@@ -61,8 +61,7 @@ extern PlayerShadow* playerPtr[4];
 extern RwV3d* playerPos[4];
 extern uint32_t g_multiplayerPlayerCount;
 extern bool isAwakeAboutToInvoke;
-
-
+extern uint32_t g_playerStructAddrs[4];
 
 struct RwObject
 {

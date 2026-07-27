@@ -1073,12 +1073,25 @@ name = "AddToScoreNullMidAsmHook"
 address = 0x22D630
 jump_address = 0x22D699
 # End Add_To_Score nullsub
-#### End Extended Multiplayer
 
+# AwakeExec Idle Drain Fix
 [[midasm_hook]]
-name = "ModOverrideSizesMidAsmHook"
-address = 0x1F7D8
-registers = ["r6"]
+name = "AwakeDrainReductionMidAsmHook"
+address = 0x8EB8F
+registers = ["r2", "r4"]
+
+# DarkShadow Sync
+[[midasm_hook]]
+name = "AwakeDarkThresholdBypassMidAsmHook"
+address = 0x9835F
+registers = ["r3", "r0"]
+
+# HeroShadow Sync
+[[midasm_hook]]
+name = "AwakeHeroThresholdBypassMidAsmHook"
+address = 0x9837C
+registers = ["r2", "r0"]
+# End Awake sync
 
 # Skip ChaosControl Cam
 [[midasm_hook]]
@@ -1091,3 +1104,9 @@ jump_address_on_true = 0x6CA99
 name = "SkipCameraDemoMidAsmHook"
 address = 0x6C06F
 jump_address_on_true = 0x6C075
+#### End Extended Multiplayer
+
+[[midasm_hook]]
+name = "ModOverrideSizesMidAsmHook"
+address = 0x1F7D8
+registers = ["r6"]
