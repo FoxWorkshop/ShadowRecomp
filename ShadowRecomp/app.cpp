@@ -9,6 +9,7 @@
 #include <user/paths.h>
 #include <user/registry.h>
 #include <audio/driver/sdl2_driver.h>
+#include <cpu/guest_thread.h>
 
 static std::thread::id g_mainThreadId = std::this_thread::get_id();
 
@@ -28,6 +29,11 @@ void App::Exit()
 	timeEndPeriod(1);
 #endif
 
+	if (m_TLS)
+	{
+		delete(m_TLS);
+		m_TLS = nullptr;
+	}
 	std::_Exit(0);
 
 }

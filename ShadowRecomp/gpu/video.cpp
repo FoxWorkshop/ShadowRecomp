@@ -5358,7 +5358,7 @@ std::unique_ptr<GuestTexture> LoadCustomTexture(const uint8_t* data, size_t data
 	return nullptr;
 }
 
-static bool DiffPatchTexture(GuestTexture* texture, uint8_t* data, uint32_t dataSize, XXH64_hash_t hash)
+static bool DiffPatchControllerGUITexture(GuestTexture* texture, uint8_t* data, uint32_t dataSize, XXH64_hash_t hash)
 {
 	const bool isAuto = Config::ControllerIcons.Value == EControllerIcons::Auto;
 	bool isXbox = Config::ControllerIcons.Value == EControllerIcons::Xbox || isAuto && input::g_inputDeviceController == input::EInputDevice::Xbox;
@@ -8867,7 +8867,7 @@ void CopyTextureToGPU(GuestTexture* tex)
 		// shadow tex don't have mipmap so it should be safe to do this here
 		hash = XXH3_64bits(srcData, slice.srcRowPitch * slice.rowCount * slice.depth);
 
-		if (DiffPatchTexture(tex, mappedMemory, curDstOffset, hash))
+		if (DiffPatchControllerGUITexture(tex, mappedMemory, curDstOffset, hash))
 		{
 			break;
 		}
