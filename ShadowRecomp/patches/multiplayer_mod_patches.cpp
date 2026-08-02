@@ -23,19 +23,6 @@ X86_FUNC(sub_12700)
 	}
 }
 
-
-//X86_FUNC_IMPL(__imp__sub_226E50);
-//// sub_226E50 // Skip all event loading
-//bool skipAllEventLoading(DWORD* this_, int* a2, int a3, char a4)
-//{
-//	auto ctx = GetX86Context();
-//	auto base = g_memory.base;
-//	__imp__sub_226E50(*ctx, base);
-//	ctx->esp.u32 -= 16;
-//	return ctx->eax.u8_lo;
-//}
-//GUEST_FUNCTION_HOOK_THISCALL(sub_226E50, skipAllEventLoading);
-
 // Extended Multiplayer
 // 2P, 3P, or 4P Shadow the Hedgehog
 // NOTE: Allocations on game boot are required;
@@ -43,9 +30,10 @@ X86_FUNC(sub_12700)
 
 uint32_t g_multiplayerPlayerCount = 4;
 
-// Chaos Powers Fix
-X86_FUNC_IMPL(__imp__sub_22D250);
-X86_FUNC(sub_22D250)
+// Chaos Powers Enabled for MP Fix (Xbox exclusive patch where its disabled)
+X86_FUNC_IMPL (__imp__sub_22D250);
+
+X86_FUNC (sub_22D250)
 {
     __imp__sub_22D250(ctx, base);
     if (Config::ExtendedMultiplayer)
@@ -58,11 +46,84 @@ X86_FUNC(sub_22D250)
         isAwakeAboutToInvoke = false;
     }
 }
-// End Chaos Powers Fix
+// End Chaos Powers Enabled for MP Fix
+
+// ChaosPowers Sync
+// pBehavior bitfield @ player_struct + 0xAC
+static uint32_t CountActiveAwakePlayers(uint8_t awakeBit)
+{
+    auto base = g_memory.base;
+    uint32_t count = 0;
+    for (uint32_t i = 0; i < g_multiplayerPlayerCount; i++)
+    {
+        if (!g_playerStructAddrs[i]) {
+            continue;
+        }
+        uint8_t stateByte = X86_LOAD_U8(g_playerStructAddrs[i] + 0xAC);
+        if (stateByte & awakeBit) {
+            count++;
+        }
+    }
+    return count;
+}
+
+// Awake Idle drain reduction (per player)
+void AwakeDrainReductionMidAsmHook(X86Register& ecx, X86Register& esi)
+{
+    if (!Config::ExtendedMultiplayer) {
+        return;
+    }
+
+    auto base = g_memory.base;
+
+    uint32_t mode = X86_LOAD_U32(esi.u32 + 0x40);   // 0 = Dark, 1 = Hero
+    uint8_t awakeBit = (mode == 1) ? 0x04 : 0x08;    // HeroShadow / DarkShadow
+
+    uint32_t count = CountActiveAwakePlayers(awakeBit);
+    if (count > 1) {
+        ecx.u32 = (int32_t)ecx.u32 / (int32_t)count;
+    }
+}
+
+void AwakeDarkThresholdBypassMidAsmHook(X86Register& edx, X86Register& eax)
+{
+    if (!Config::ExtendedMultiplayer) {
+        return;
+    }
+
+    auto base = g_memory.base;
+
+    int32_t darkThreshold = (int32_t)X86_LOAD_U32(eax.u32 + 0x71C);
+    if ((int32_t)edx.u32 >= darkThreshold) {
+        return;
+    }
+
+    if (CountActiveAwakePlayers(0x08) > 0) { // handle vehicle case or egg dealer
+        edx.u32 = darkThreshold;
+    }
+}
+
+void AwakeHeroThresholdBypassMidAsmHook(X86Register& ecx, X86Register& eax)
+{
+    if (!Config::ExtendedMultiplayer) {
+        return;
+    }
+
+    auto base = g_memory.base;
+
+    int32_t heroThreshold = (int32_t)X86_LOAD_U32(eax.u32 + 0x710);
+    if ((int32_t)ecx.u32 >= heroThreshold) {
+        return;
+    }
+
+    if (CountActiveAwakePlayers(0x04) > 0) {
+        ecx.u32 = heroThreshold;
+    }
+}
+// End ChaosPowerSync
 
 bool ExtendedMultiplayerCameraAttachMidAsmHook(X86Register& eax)
 {
-	auto ctx = GetX86Context();
 	auto base = g_memory.base;
     if (Config::ExtendedMultiplayer)
     {
@@ -74,7 +135,6 @@ bool ExtendedMultiplayerCameraAttachMidAsmHook(X86Register& eax)
 
 bool ExtendedMultiplayerPlayerSpawnMidAsmHook(X86Register& eax)
 {
-	auto ctx = GetX86Context();
 	auto base = g_memory.base;
     if (Config::ExtendedMultiplayer)
     {
@@ -97,7 +157,6 @@ static uint32_t s_extraSpawnPlayerIndex = 2;
 
 bool ExtendedMultiplayerExtraSpawnMidAsmHook(X86Register& esp)
 {
-	auto ctx = GetX86Context();
 	auto base = g_memory.base;
     if (s_extraSpawnDone)
     {
@@ -129,7 +188,6 @@ bool ExtendedMultiplayerExtraSpawnMidAsmHook(X86Register& esp)
 
 bool ExtendedMultiplayerExtraSpawnRedirectMidAsmHook(X86Register& esp)
 {
-	auto ctx = GetX86Context();
 	auto base = g_memory.base;
     if (s_extraSpawnActive)
     {
@@ -226,7 +284,6 @@ bool ViewportDivMidAsmHook(X86Register& reg)
 
 void ViewportExtendedPlayerCalcOverrideMidAsmHook()
 {
-	auto ctx = GetX86Context();
 	auto base = g_memory.base;
     if (!Config::ExtendedMultiplayer || g_multiplayerPlayerCount <= 2)
         return;
@@ -333,7 +390,6 @@ bool RenderDivCameraLookupMidAsmHook(X86Register& eax)
 
 bool RenderDivPlayerOverrideMidAsmHook(X86Register& esp)
 {
-	auto ctx = GetX86Context();
 	auto base = g_memory.base;
     if (Config::ExtendedMultiplayer && g_multiplayerPlayerCount > 2 && s_renderDivExtraPass > 0)
     {
@@ -346,7 +402,6 @@ bool RenderDivPlayerOverrideMidAsmHook(X86Register& esp)
 
 bool RenderDivCameraTargetOverrideMidAsmHook()
 {
-	auto ctx = GetX86Context();
 	auto base = g_memory.base;
     if (Config::ExtendedMultiplayer && g_multiplayerPlayerCount > 2 && s_renderDivExtraPass > 0)
     {
@@ -360,7 +415,6 @@ static uint32_t s_cameraAttachPlayerIndex = 0;
 
 bool CameraAttachSetupMidAsmHook(X86Register& ebp)
 {
-    auto ctx = GetX86Context();
     auto base = g_memory.base;
     if (Config::ExtendedMultiplayer)
     {
@@ -374,7 +428,6 @@ bool CameraAttachSetupMidAsmHook(X86Register& ebp)
 
 bool CameraAttachPlayerIdMidAsmHook(X86Register& esp)
 {
-    auto ctx = GetX86Context();
     auto base = g_memory.base;
     if (!Config::ExtendedMultiplayer)
         return false;
@@ -401,6 +454,7 @@ bool PlayerPostManagerLoopMidAsmHook(X86Register& eax)
     return eax.u32 < 2;
 }
 
+// TODO: Needs further investigation - should prevent freezes as is, but may be corrupting memory (observed in GC)
 bool ItemIconManagerLoopPushCountMidAsmHook(X86Register& esp)
 {
     auto ctx = GetX86Context();
@@ -414,6 +468,7 @@ bool ItemIconManagerLoopPushCountMidAsmHook(X86Register& esp)
     return false;
 }
 
+// TODO: Needs further investigation - should prevent freezes as is, but may be corrupting memory (observed in GC)
 bool ItemIconManagerLoopCountMidAsmHook(X86Register& eax)
 {
     if (Config::ExtendedMultiplayer)
@@ -421,6 +476,7 @@ bool ItemIconManagerLoopCountMidAsmHook(X86Register& eax)
     return eax.u32 < 2;
 }
 
+// Refresh/set custom viewports on init and unpause
 bool SplitscreenTypeInitializeUnpauseMidAsmHook(X86Register& eax)
 {
     auto base = g_memory.base;
@@ -447,26 +503,34 @@ bool SplitscreenTypeInitializeUnpauseMidAsmHook(X86Register& eax)
     return (eax.u8_lo & 0x2) != 0;
 }
 
-void AddToScoreNullMidAsmHook()
+void AddAllScoreToP1MidAsmHook()
 {
-    if (!Config::ExtendedMultiplayer)
-    {
-        auto ctx = GetX86Context();
-        auto base = g_memory.base;
-        uint32_t thisPtr = ctx->ecx.u32;
-        uint32_t scoreType = X86_LOAD_U32(ctx->esp.u32 + 4);
-        uint32_t amount = X86_LOAD_U32(ctx->esp.u32 + 8);
+    // 0x22D630
+    auto ctx = GetX86Context();
+    auto base = g_memory.base;
+    uint32_t thisPtr = ctx->ecx.u32;
+    uint32_t scoreType = X86_LOAD_U32(ctx->esp.u32 + 4);
+    uint32_t amount = X86_LOAD_U32(ctx->esp.u32 + 8);
 
-        if (amount != 0 && scoreType <= 2)
-        {
-            uint32_t offset = scoreType * 4;
-            X86_STORE_U32(thisPtr + offset, X86_LOAD_U32(thisPtr + offset) + amount);
-            X86_STORE_U32(thisPtr + offset + 0xC, X86_LOAD_U32(0x54DDC0));
+    if (amount == 0 || scoreType > 2) {
+        return;
+    }
+
+    if (Config::ExtendedMultiplayer)
+    {
+        uint32_t gameStateBase = X86_LOAD_U32(0x54963C);
+        if (gameStateBase != 0) {
+            thisPtr = gameStateBase + 0x754;
         }
     }
+
+    uint32_t offset = scoreType * 4;
+    X86_STORE_U32(thisPtr + offset, X86_LOAD_U32(thisPtr + offset) + amount);
+    X86_STORE_U32(thisPtr + offset + 0xC, X86_LOAD_U32(0x54DDC0));
 }
 
 // Effect Slot Registration (FUN_001821f0)
+// TODO: Rework this because as is P1/P3 share collision slot and can clip out through objects if both activate at once
 // At 0x182222 the owning player's ID is loaded into edx ([eax+0x54]) and fed
 // into the dedup loop at 0x182230. edx therefore holds the current player on
 // entry, so we remap it per-player instead of forcing everyone to 0:
@@ -480,20 +544,12 @@ void EffectSlotPlayerIdOverrideMidAsmHook(X86Register& edx)
         switch (edx.u32)
         {
             case 2: edx.u32 = 4; // P3 -> bullshit
-            default: break; // P1,P2, P4 -> no change
+            default: break; // P1, P2, P4 -> no change
         }
     }
 }
 
-// SetObject Loading/Unloading per-player distance
-// The base game checks DAT_0054dde2 to decide single-player (P0 only) or
-// multiplayer (P0+P1) for object loading and unloading distances.
-// For Extended Multiplayer we always take the multiplayer branch (via midasm
-// hooks at the JZ instructions) and patch the distance check functions to
-// also consider P2/P3 so objects only unload when ALL players are out of range.
-
-// Midasm hook at 0x25A429 (JZ to single-player path in load function FUN_0025A3F0)
-// Forces the multiplayer branch when ExtendedMultiplayer is enabled.
+// Start Layout Distance Check Patches
 bool SetObjLoadMultiplayerBranchMidAsmHook(X86Register& eax)
 {
 	if (Config::ExtendedMultiplayer)
@@ -501,20 +557,15 @@ bool SetObjLoadMultiplayerBranchMidAsmHook(X86Register& eax)
 	return eax.u8_lo == 0;
 }
 
-// Midasm hook at 0x181F8F (JZ to single-player path in unload function FUN_00181F80)
-// Forces the multiplayer branch when ExtendedMultiplayer is enabled.
-bool SetObjUnloadMultiplayerBranchMidAsmHook(X86Register& eax)
+bool SetObjUnloadMultiplayerBranchMidAsmHook()
 {
-	if (Config::ExtendedMultiplayer)
-		return false;
-	return eax.u8_lo == 0;
+    auto base = g_memory.base;
+    if (Config::ExtendedMultiplayer)
+	    return false;
+    return X86_LOAD_U8(0x54DDE2) == 0;
 }
 
-// Hook the per-player distance check inside the load loop.
-// param_1 = object entry pointer, param_2 = player position (guest addr)
-// Returns 0 if object is FAR from player (out of range), non-zero if NEAR (in range).
-// For Extended Multiplayer: when primary player says "far", also check P2/P3.
-// If any extra player is near, override the result to "near".
+// Object <-> Player distance check (inside SetObjLoad)
 X86_FUNC_IMPL(__imp__sub_2595A0);
 X86_FUNC(sub_2595A0)
 {
@@ -550,10 +601,7 @@ X86_FUNC(sub_2595A0)
 	}
 }
 
-// Hook the unload distance check to also consider P2/P3.
-// Returns true (can unload) if ALL checked players are beyond threshold distance.
-// For Extended Multiplayer we manually check P2+P3 distance when the original
-// reports "far from P0/P1" -- if any extra player is close, we keep the object.
+// Object <-> Player distance check (inside SetObjUnload)
 X86_FUNC_IMPL(__imp__sub_181F80);
 X86_FUNC(sub_181F80)
 {
@@ -585,70 +633,4 @@ X86_FUNC(sub_181F80)
 		}
 	}
 }
-
-// END Extended Multiplayer
-
-// Level Geo Unrestrict (For Custom Stages)
-// Note: This will break some stages, e.g. Egg Dealer (Black Comet) and if you die in a certain area in GUN Fortress.
-// This is because Sonic Team left visibility chunks pointing to old files... which are usually ignore due to this file restriction function.
-//X86_FUNC_IMPL(__imp__sub_56E00);
-//X86_FUNC(sub_56E00)
-//{
-//	auto isDigit = [](char c) { return c >= '0' && c <= '9'; };
-//
-//	uint32_t strAddr = X86_LOAD_U32(ctx.esp.u32 + 4);
-//	const char* str = strAddr ? (const char*)(base + strAddr) : nullptr;
-//
-//	if (str)
-//	{
-//		for (const char* p = str; *p; p++)
-//		{
-//			if ((p[0] == 's' || p[0] == 'S') &&
-//				(p[1] == 't' || p[1] == 'T') &&
-//				(p[2] == 'g' || p[2] == 'G') &&
-//				isDigit(p[3]) && isDigit(p[4]) &&
-//				isDigit(p[5]) && isDigit(p[6]) &&
-//				p[7] == '_' &&
-//				isDigit(p[8]) && isDigit(p[9]))
-//			{
-//				ctx.eax.u32 = 1;
-//				ctx.esp.u32 += 4;
-//				return;
-//			}
-//		}
-//	}
-//
-//	__imp__sub_56E00(ctx, base);
-//}
-
-
-
-// Collision BVH Stack Overflow Fix
-// Original sub_302E30 inner BVH stack lives on the host stack (~32 entries).
-// Large collision meshes create BVH trees deeper than 32 levels, silently
-// overflowing into other stack variables and crashing.
-// 
-// Redirects the BVH stack to a static guest memory buffer using mid-asm hooks.
-// [[midasm_hook]] entries at 0x303375 and 0x30392B
-
-// static constexpr uint32_t COLL_BVH_BUF_ADDR = 0x80000000;
-//
-// void BVHStackRedirectInit(X86Register& ecx, X86Register& esi)
-// {
-// 	auto base = g_memory.base;
-//
-// 	float tNear = X86_LOAD_F32(ecx.u32 + 4);
-// 	float tFar = X86_LOAD_F32(ecx.u32 + 8);
-//
-// 	X86_STORE_U32(COLL_BVH_BUF_ADDR + 0, 0x0000FF00);
-// 	X86_STORE_U32(COLL_BVH_BUF_ADDR + 4, COLL_BVH_BUF_ADDR);
-// 	X86_STORE_F32(COLL_BVH_BUF_ADDR + 8, tNear);
-// 	X86_STORE_F32(COLL_BVH_BUF_ADDR + 12, tFar);
-//
-// 	esi.u32 = COLL_BVH_BUF_ADDR + 16;
-// }
-//
-// void BVHStackRedirectCmp(X86Register& eax)
-// {
-// 	eax.u32 = COLL_BVH_BUF_ADDR + 4;
-// }
+// END Layout Distance Check Patches

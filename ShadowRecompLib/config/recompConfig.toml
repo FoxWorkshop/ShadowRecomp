@@ -1063,17 +1063,47 @@ jump_address_on_false = 0x25A42B
 [[midasm_hook]]
 name = "SetObjUnloadMultiplayerBranchMidAsmHook"
 address = 0x181F8F
-registers = ["r0"]
 jump_address_on_true = 0x182020
 jump_address_on_false = 0x181F95
 # End SetObject Loading/Unloading per-player distance
 
 # Add_To_Score nullsub
 [[midasm_hook]]
-name = "AddToScoreNullMidAsmHook"
+name = "AddAllScoreToP1MidAsmHook"
 address = 0x22D630
 jump_address = 0x22D699
 # End Add_To_Score nullsub
+
+# AwakeExec Idle Drain Fix
+[[midasm_hook]]
+name = "AwakeDrainReductionMidAsmHook"
+address = 0x8EB8F
+registers = ["r2", "r4"]
+
+# DarkShadow Sync
+[[midasm_hook]]
+name = "AwakeDarkThresholdBypassMidAsmHook"
+address = 0x9835F
+registers = ["r3", "r0"]
+
+# HeroShadow Sync
+[[midasm_hook]]
+name = "AwakeHeroThresholdBypassMidAsmHook"
+address = 0x9837C
+registers = ["r2", "r0"]
+# End Awake sync
+
+# Skip ChaosControl Cam
+[[midasm_hook]]
+name = "SkipCameraDemoMidAsmHook"
+address = 0x6CA92
+jump_address_on_true = 0x6CA99
+
+# Skip ChaosBlast Cam
+[[midasm_hook]]
+name = "SkipCameraDemoMidAsmHook"
+address = 0x6C06F
+jump_address_on_true = 0x6C075
 #### End Extended Multiplayer
 
 [[midasm_hook]]

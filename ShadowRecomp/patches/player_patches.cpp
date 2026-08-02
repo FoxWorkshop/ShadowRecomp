@@ -7,8 +7,8 @@
 PlayerShadow* playerPtr[4] = {};
 RwV3d* playerPos[4] = {};
 bool isAwakeAboutToInvoke = false;
+uint32_t g_playerStructAddrs[4] = {};
 static uint32_t s_playerSlotIndex = 0;
-static uint32_t s_knownThisPtrs[4] = {};
 static uint32_t s_knownCount = 0;
 
 void TeleportPlayersToP1()
@@ -34,24 +34,24 @@ void TeleportPlayersToP1()
 }
 
 //Awake Set Chaos Control / Blast mode
-X86_FUNC_IMPL(__imp__sub_8E690);
-X86_FUNC(sub_8E690)
+X86_FUNC_IMPL (__imp__sub_8E690);
+X86_FUNC (sub_8E690)
 {
-	auto mode = X86_LOAD_U32(ctx.esp.u32 + 16);
 	isAwakeAboutToInvoke = true;
+	//auto mode = X86_LOAD_U32(ctx.esp.u32 + 16);
 	__imp__sub_8E690(ctx, base);
-	App::s_chaosMode = mode == 0 ? ELedAura::LED_AURA_VILLAIN : ELedAura::LED_AURA_HERO;
-	SDL_User_ChaosMode(App::s_chaosMode);
+	//App::s_chaosMode = mode == 0 ? ELedAura::LED_AURA_VILLAIN : ELedAura::LED_AURA_HERO;
+	//SDL_User_ChaosMode(App::s_chaosMode);
 }
 
 //Awake destructor
-X86_FUNC_IMPL(__imp__sub_8E9A0);
-X86_FUNC(sub_8E9A0)
-{
-	__imp__sub_8E9A0(ctx, base);
-	App::s_chaosMode = ELedAura::LED_AURA_NEUTRAL;
-	SDL_User_ChaosMode(App::s_chaosMode);
-}
+// X86_FUNC_IMPL(__imp__sub_8E9A0);
+// X86_FUNC(sub_8E9A0)
+// {
+// 	__imp__sub_8E9A0(ctx, base);
+// 	App::s_chaosMode = ELedAura::LED_AURA_NEUTRAL;
+// 	SDL_User_ChaosMode(App::s_chaosMode);
+// }
 
 X86_FUNC_IMPL(__imp__sub_96AD0);
 X86_FUNC(sub_96AD0)
@@ -63,7 +63,7 @@ X86_FUNC(sub_96AD0)
 
 	for (uint32_t i = 0; i < s_knownCount; i++)
 	{
-		if (s_knownThisPtrs[i] == playerAddr)
+		if (g_playerStructAddrs[i] == playerAddr)
 		{
 			slot = i;
 			break;
@@ -75,7 +75,7 @@ X86_FUNC(sub_96AD0)
 		bool foundAny = false;
 		for (uint32_t i = 0; i < s_knownCount; i++)
 		{
-			if (s_knownThisPtrs[i] != 0)
+			if (g_playerStructAddrs[i] != 0)
 			{
 				foundAny = true;
 				break;
@@ -84,7 +84,7 @@ X86_FUNC(sub_96AD0)
 
 		if (foundAny && s_knownCount >= g_multiplayerPlayerCount)
 		{
-			memset(s_knownThisPtrs, 0, sizeof(s_knownThisPtrs));
+			memset(g_playerStructAddrs, 0, sizeof(g_playerStructAddrs));
 			for (uint32_t i = 0; i < 4; i++)
 			{
 				playerPtr[i] = nullptr;
@@ -97,7 +97,7 @@ X86_FUNC(sub_96AD0)
 	}
 
 	s_playerSlotIndex = (slot + 1) % g_multiplayerPlayerCount;
-	s_knownThisPtrs[slot] = playerAddr;
+	g_playerStructAddrs[slot] = playerAddr;
 
 	playerPtr[slot] = (PlayerShadow*)X86_LOAD_U32(playerAddr);
 	playerPos[slot] = (RwV3d*)g_memory.Translate(playerAddr + 4);

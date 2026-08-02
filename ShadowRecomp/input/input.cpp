@@ -427,6 +427,11 @@ int Input_OnSDLEvent(void*, SDL_Event* event)
 			g_keyboardPort = (g_keyboardPort % 4) + 1;
 			printf("Keyboard now controlling PORT %d\n", g_keyboardPort);
 		}
+		if (event->key.keysym.scancode == SDL_SCANCODE_F7 && event->key.repeat == 0)
+		{
+			auto base = g_memory.base;
+			X86_STORE_F32(0x5456C4, 30000.0f);
+		}
 		input::g_inputDevice = input::EInputDevice::Keyboard;
 		break;
 	case SDL_KEYUP:

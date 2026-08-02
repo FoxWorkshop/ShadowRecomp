@@ -2951,12 +2951,8 @@ static void BeginCommandList()
 
 			if (g_pendingStencilResize)
 			{
-				if (useLowSpec)
-				{
-					g_barrierMap.erase(g_pendingStencilResize->texture);
-					RecreateGuestSurfaceTexture(g_pendingStencilResize, false);
-				}
-
+				g_barrierMap.erase(g_pendingStencilResize->texture);
+				RecreateGuestSurfaceTexture(g_pendingStencilResize, false);
 				g_pendingStencilResize->framebuffers.clear();
 			}
 
@@ -5454,28 +5450,15 @@ static GuestBuffer* CreateIndexBuffer(uint32_t IndexCount, X_D3DFORMAT format)
 
 static GuestSurface* CreateSurface(uint32_t width, uint32_t height, X_D3DFORMAT format, bool formatSet = false)
 {
-
-	auto ogFormat = formatSet ? (plume::RenderFormat)format : ConvertFormat(format);
+	auto ogFormat = formatSet ? static_cast<plume::RenderFormat>(format) : ConvertFormat(format);
 	auto isStencil = ogFormat == DepthStencilFormat;
-	uint32_t ogWidth, ogHeight;
-	ogWidth = width;
-	ogHeight = height;
-
+	uint32_t ogWidth = width;
+	uint32_t ogHeight = height;
 	uint32_t newWidth, newHeight;
 
-	if (useLowSpec)
-	{
-		GetUpscaledSurfaceResolution(width, height, &newWidth, &newHeight);
-	}
-	else
-	{
-		newWidth = 8192;
-		newHeight = 8192;
-	}
-
+	GetUpscaledSurfaceResolution(width, height, &newWidth, &newHeight);
 	width = newWidth;
 	height = newHeight;
-
 
 	RenderTextureDesc desc;
 	desc.dimension = RenderTextureDimension::TEXTURE_2D;
