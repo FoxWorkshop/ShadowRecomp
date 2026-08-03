@@ -4974,38 +4974,6 @@ static void ProcExecuteCommandList(const RenderCommand& cmd)
 
 	if (g_swapChainValid)
 	{
-		// Clear edge/garbage pixels that accumulates out of viewport (classic PS2 era moment - shoutout to FF12!)
-		if (g_backBuffer && g_backBuffer->texture)
-		{
-			auto& commandList = g_commandLists[g_frame];
-			// Use 3u as minimum, since even at native 640x480 res, there is 3px of bad data - scale with render
-			uint32_t edge = std::max(3u, (uint32_t)std::round((float)Video::s_viewportWidth / 640.0f) * 2u);
-			uint32_t w = g_backBuffer->width;
-			uint32_t h = g_backBuffer->height;
-
-			RenderRect edgeRects[] = {
-				{ 0, 0, int32_t(w), int32_t(edge) }, // top
-				{ 0, 0, int32_t(edge), int32_t(h) }, // left
-				{ int32_t(w - edge), 0, int32_t(w), int32_t(h) }, // right
-				{ 0, int32_t(h - edge), int32_t(w), int32_t(h) }, // bottom
-			};
-
-			AddBarrier(g_backBuffer, RenderTextureLayout::COLOR_WRITE);
-			FlushBarriers();
-
-			auto& clearFB = g_backBuffer->framebuffers[g_backBuffer->texture];
-			if (!clearFB)
-			{
-				RenderFramebufferDesc fbDesc;
-				fbDesc.colorAttachments = const_cast<const RenderTexture**>(&g_backBuffer->texture);
-				fbDesc.colorAttachmentsCount = 1;
-				clearFB = g_device->createFramebuffer(fbDesc);
-			}
-			commandList->setFramebuffer(clearFB.get());
-			commandList->clearColor(0, RenderColor(0.0f, 0.0f, 0.0f, 0.0f), edgeRects, 4);
-			commandList->setFramebuffer(nullptr);
-		}
-
 		auto swapChainTexture = g_swapChain->getTexture(g_backBufferIndex);
 		if (g_backBuffer->texture == g_intermediaryBackBufferTexture.get())
 		{
