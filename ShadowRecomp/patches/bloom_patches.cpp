@@ -26,7 +26,7 @@ void BloomConfigValueChangedCallback(IConfigDef* config)
 }
 
 // bloom seems to create some kind of small artifact effect at the bottom of the screen at higher resolution
-// rounding the bloom vertex seems to be good enough to fix the issue.
+// rounding the bloom vertex
 void DrawBloomMidAsmHook(X86Register& rEcx)
 {
 	auto addrVertex = rEcx.u32 + 72;
