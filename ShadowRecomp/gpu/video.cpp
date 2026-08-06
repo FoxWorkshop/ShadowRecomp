@@ -672,6 +672,9 @@ static IntermediaryUploadAllocator g_intermediaryUploadAllocator;
 static std::vector<GuestResource*> g_tempResources[NUM_FRAMES];
 static std::vector<std::unique_ptr<RenderBuffer>> g_tempBuffers[NUM_FRAMES];
 
+// RT tracking to deal with edge bleed issue
+static ankerl::unordered_dense::set<const RenderTexture*> g_clearedRenderTargetsThisFrame;
+
 
 float GetRenderTargetHeight()
 {
@@ -3030,6 +3033,29 @@ static void BeginCommandList()
 	commandList->setGraphicsDescriptorSet(g_textureDescriptorSet.get(), 1); //texture 3D
 	commandList->setGraphicsDescriptorSet(g_textureDescriptorSet.get(), 2); //texture cube
 	commandList->setGraphicsDescriptorSet(g_samplerDescriptorSet.get(), 3); //sampler
+
+	// Prevent edge bleed (thanks sonic team >_>)
+	g_clearedRenderTargetsThisFrame.clear();
+
+	AddBarrier(g_backBuffer, RenderTextureLayout::COLOR_WRITE);
+	FlushBarriers();
+
+	{
+		auto& clearFB = g_backBuffer->framebuffers[g_backBuffer->texture];
+		if (!clearFB)
+		{
+			RenderFramebufferDesc fbDesc;
+			fbDesc.colorAttachments = const_cast<const RenderTexture**>(&g_backBuffer->texture);
+			fbDesc.colorAttachmentsCount = 1;
+			clearFB = g_device->createFramebuffer(fbDesc);
+		}
+
+		commandList->setFramebuffer(clearFB.get());
+		commandList->clearColor(0, RenderColor(0.0f, 0.0f, 0.0f, 0.0f));
+		commandList->setFramebuffer(nullptr);
+	}
+
+	g_clearedRenderTargetsThisFrame.insert(g_backBuffer->texture);
 
 	g_commandListOpen = true;
 	g_readyForCommands = true;
@@ -6330,6 +6356,17 @@ static void ProcSetRenderTarget(const RenderCommand& cmd)
 	SetDirtyValue(g_dirtyStates.renderTargetAndDepthStencil, g_renderTarget, args.renderTarget);
 	SetDirtyValue(g_dirtyStates.pipelineState, g_pipelineState.renderTargetFormat, args.renderTarget != nullptr ? args.renderTarget->format : RenderFormat::UNKNOWN);
 	SetDirtyValue(g_dirtyStates.pipelineState, g_pipelineState.sampleCount, args.renderTarget != nullptr ? args.renderTarget->sampleCount : RenderSampleCount::COUNT_1);
+
+	// Hack: Prevent edge bleed (thanks sonic team >_>)
+	if (args.renderTarget != nullptr && args.renderTarget->texture != nullptr &&
+	    g_clearedRenderTargetsThisFrame.insert(args.renderTarget->texture).second)
+	{
+		AddBarrier(args.renderTarget, RenderTextureLayout::COLOR_WRITE);
+		FlushBarriers();
+
+		SetFramebuffer(args.renderTarget, nullptr, true);
+		g_commandLists[g_frame]->clearColor(0, RenderColor(0.0f, 0.0f, 0.0f, 0.0f));
+	}
 
 
 	// TODO: We can probably scrap this if dropping MSAA
