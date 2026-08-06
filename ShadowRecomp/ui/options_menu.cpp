@@ -11,6 +11,7 @@
 #include <patches/aspect_ratio_patches.h>
 #include <patches/bloom_patches.h>
 #include <patches/wide_fov_patches.h>
+#include <patches/fps_patches.h>
 
 #include "imgui_utils.h"
 #include <gpu/imgui/imgui_snapshot.h>
@@ -702,6 +703,7 @@ static void DrawOption
 				{
 					BloomConfigValueChangedCallback(config);
 					WideFOVConfigValueChangedCallback(config);
+					FpsConfigValueChangedCallback(config);
 				}
 
 				// Run standard callback if there's no callback on apply.

@@ -1,0 +1,3 @@
+
+
+void FpsConfigValueChangedCallback(IConfigDef* config);

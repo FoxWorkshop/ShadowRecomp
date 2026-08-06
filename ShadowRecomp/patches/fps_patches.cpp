@@ -63,3 +63,19 @@ void FreeSFXMapMidAsmHook(X86Register& esi)
 {
 	g_sfxTimers.erase(esi.u32);
 }
+
+void FpsConfigValueChangedCallback(IConfigDef* config)
+{
+	if (config == &Config::FPS)
+	{
+		float rounded = std::roundf(Config::FPS.Value * 100.0f) / 100.0f;
+
+		Config::FPS.Value = rounded;
+
+		if (Config::FPS.Value < 0.01f)
+			Config::FPS.Value = 0.0f;
+
+		if (Config::FPS.Value > FPS_MAX)
+			Config::FPS.Value = FPS_MAX;
+	}
+}
