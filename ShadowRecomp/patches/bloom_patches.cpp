@@ -1,6 +1,5 @@
 #include <kernel/function.h>
 #include <user/config.h>
-#include <gpu/video.h>
 
 static const uint32_t bloomAddr = 0x52E5C4;
 
@@ -22,24 +21,5 @@ void BloomConfigValueChangedCallback(IConfigDef* config)
 
 		auto base = g_memory.base;
 		X86_STORE_F32(bloomAddr, Config::BloomIntensity.Value);
-	}
-}
-
-// bloom seems to create some kind of small artifact effect at the bottom of the screen at higher resolution
-// rounding the bloom vertex
-void DrawBloomMidAsmHook(X86Register& rEcx)
-{
-	auto addrVertex = rEcx.u32 + 72;
-
-	if (addrVertex)
-	{
-		auto vertex = (UpVertex*)(g_memory.Translate(addrVertex));
-
-		for (int i = 0; i < 4; i++)
-		{
-			vertex[i].x = roundf(vertex[i].x);
-			vertex[i].y = roundf(vertex[i].y);
-			vertex[i].z = roundf(vertex[i].z);
-		}
 	}
 }

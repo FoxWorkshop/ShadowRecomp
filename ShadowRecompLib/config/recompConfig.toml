@@ -1110,9 +1110,3 @@ jump_address_on_true = 0x6C075
 name = "ModOverrideSizesMidAsmHook"
 address = 0x1F7D8
 registers = ["r6"]
-
-
-[[midasm_hook]]
-name = "DrawBloomMidAsmHook"
-address = 0x325BEE
-registers = ["r2"]
