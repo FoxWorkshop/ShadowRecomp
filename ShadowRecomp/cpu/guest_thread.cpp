@@ -52,7 +52,7 @@ std::string GetThreadName(uint32_t func)
 	switch (func)
 	{
 	case 0x4F440:
-		name = "Event And Loading Thread";
+		name = "AsyncLoadingThread";
 		break;
 	case 0x2AFADF:
 		name = "mainXapi GameLoop";
