@@ -79,3 +79,12 @@ void FpsConfigValueChangedCallback(IConfigDef* config)
 			Config::FPS.Value = FPS_MAX;
 	}
 }
+
+// For now applying regardless of framerate as this fixes bad slope collision
+// with minimal side effects. TBD if we should only apply when > 60 FPS
+// Pass the first collision sweep @ 0x85420 to run 0x84E50
+bool HighFramerateCollisionFixMidAsmHook()
+{
+	// TODO: Maybe gate this for > 60 FPS if we observe negative side effects
+	return true;
+}

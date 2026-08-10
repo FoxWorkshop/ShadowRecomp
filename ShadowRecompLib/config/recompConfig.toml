@@ -1110,3 +1110,9 @@ jump_address_on_true = 0x6C075
 name = "ModOverrideSizesMidAsmHook"
 address = 0x1F7D8
 registers = ["r6"]
+
+# Slope ground-stick fix for framerates above 60 FPS
+[[midasm_hook]]
+name = "HighFramerateCollisionFixMidAsmHook"
+address = 0x85420
+jump_address_on_true = 0x855E4
