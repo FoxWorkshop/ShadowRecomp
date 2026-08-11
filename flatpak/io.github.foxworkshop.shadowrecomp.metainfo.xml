@@ -3,7 +3,7 @@
   <id>io.github.foxworkshop.shadowrecomp</id>
 
   <name>Shadow Recompiled</name>
-  <summary>An unofficial PC port of Shadow The Hedgehog (2005)</summary>
+  <summary>An unofficial PC port of Shadow the Hedgehog (2005)</summary>
 
   <metadata_license>CC0-1.0</metadata_license>
   <project_license>GPL-3.0+</project_license>
@@ -16,7 +16,7 @@
 
   <description>
     <p>
-      An unofficial PC port of the original Xbox version of Shadow The Hedgehog (2005) created through the process of static recompilation
+      An unofficial PC port of the original Xbox version of Shadow the Hedgehog (2005) created through the process of static recompilation
 
       https://github.com/FoxWorkshop/ShadowRecomp
     </p>

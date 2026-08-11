@@ -8,7 +8,7 @@
 > [!CAUTION]
 > This recompilation is still under active development, expect bugs and crashes.
 
-Shadow Recompiled is an unofficial PC port of the original Xbox version of Shadow The Hedgehog (2005) created through the process of static recompilation.
+Shadow Recompiled is an unofficial PC port of the original Xbox version of Shadow the Hedgehog (2005) created through the process of static recompilation.
 The port supports Windows and Linux.
 
 **This project does not include any game assets. You must provide the files from your own legally acquired copy of the game to install or build Shadow Recompiled.**

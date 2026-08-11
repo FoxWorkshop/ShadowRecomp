@@ -8,7 +8,7 @@
       Correct:
       This is a string that contains a brand name like
       Xbox, which is one of the few consoles to have a port of
-      Shadow The Hedgehog.
+      Shadow the Hedgehog.
 
       Incorrect:
       This is a string that contains a brand name like Xbox

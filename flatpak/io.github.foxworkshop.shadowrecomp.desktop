@@ -4,5 +4,5 @@ Exec=/app/bin/ShadowRecomp
 Type=Application
 Icon=io.github.foxworkshop.shadowrecomp
 Categories=Game;
-Comment=Static recompilation of Shadow The Hedgehog (2005)
+Comment=Static recompilation of Shadow the Hedgehog (2005)
 MimeType=x-scheme-handler/shadowrecomp
