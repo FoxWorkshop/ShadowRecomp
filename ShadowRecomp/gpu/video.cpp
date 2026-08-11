@@ -2598,7 +2598,7 @@ extern ImFontBuilderIO g_fontBuilderIO;
 
 static void CreateImGuiBackend()
 {
-	LOG_UTILITY("Initializing ImGui...\n");
+	LOG_UTILITY("Initializing ImGui...");
 	ImGuiIO& io = ImGui::GetIO();
 	io.IniFilename = nullptr;
 	io.BackendFlags |= ImGuiBackendFlags_RendererHasVtxOffset;
@@ -2764,7 +2764,7 @@ static void CreateImGuiBackend()
 	stbi_write_png("im_font_atlas.png", atlasW, atlasH, bpp, pixelsCopy, atlasW * bpp);
 #endif
 
-	LOG_UTILITY("ImGui Initialized\n");
+	LOG_UTILITY("ImGui Initialized");
 }
 
 static void CheckSwapChain()
@@ -9151,40 +9151,6 @@ void Video::Shutdown()
 		return;
 
 	SavePipelineCache();
-
-	std::lock_guard lock(g_pipelineCacheMutex);
-	if (g_pipelineCacheEntries.empty())
-		return;
-
-	auto path = GetCachePath() / "pipeline_cache_dump.h";
-	std::filesystem::create_directories(path.parent_path());
-	FILE* f = fopen(path.string().c_str(), "w");
-	if (f == nullptr)
-		return;
-
-	std::vector<PipelineCacheEntry> entries;
-	for (auto& [hash, entry] : g_pipelineCacheEntries)
-		entries.push_back(entry);
-
-	fmt::print(f, "#pragma once\n\n");
-	fmt::print(f, "static const uint8_t g_staticPipelineCacheData[] = {{\n");
-
-	auto bytes = reinterpret_cast<const uint8_t*>(entries.data());
-	size_t totalSize = entries.size() * sizeof(PipelineCacheEntry);
-
-	for (size_t i = 0; i < totalSize; i++)
-	{
-		fmt::print(f, "0x{:02X}{}", bytes[i], i < totalSize - 1 ? "," : "");
-		if ((i + 1) % 16 == 0)
-			fmt::print(f, "\n");
-	}
-
-	fmt::print(f, "\n}};\n");
-	fmt::print(f, "static constexpr size_t g_staticPipelineCacheCount = {};\n", entries.size());
-
-	fclose(f);
-	LOGFN("PipelineCache: Generated {} with {} entries ({:.1f} KB)",
-		path.filename().string(), entries.size(), totalSize / 1024.0);
 }
 
 class PipelineCacheSDLEventListener : public SDLEventListener
