@@ -81,8 +81,8 @@ void FpsConfigValueChangedCallback(IConfigDef* config)
 }
 
 // Pass the first collision sweep @ 0x85420 to run 0x84E50
-// Only enalbing for 68+ FPS to avoid the slight camera 'drop' for slide while this is active.
+// Only enabling for 61+ FPS to avoid the slight camera 'drop' for slide while this is active.
 bool HighFramerateCollisionFixMidAsmHook()
 {
-	return Config::FPS.Value >= 68.0f;
+	return Config::FPS.Value >= 61.0f;
 }
