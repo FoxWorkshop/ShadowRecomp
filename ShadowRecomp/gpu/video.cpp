@@ -803,12 +803,10 @@ static void LoadEmbeddedResources()
 static void PrecompileShaders()
 {
 	auto totalStart = std::chrono::steady_clock::now();
-	LOGFN("PrecompileShaders: Starting pre-compilation of {} shader cache entries...", g_shaderCacheEntryCount);
 
 	for (size_t i = 0; i < g_shaderCacheEntryCount; i++)
 	{
 		auto& entry = g_shaderCacheEntries[i];
-		auto shaderStart = std::chrono::steady_clock::now();
 
 		GuestShader* guestShader = g_userHeap.AllocPhysical<GuestShader>(ResourceType::VertexShader);
 		guestShader->shaderCacheEntry = &entry;
@@ -829,10 +827,6 @@ static void PrecompileShaders()
 				g_shaderCache.get() + entry.dxilOffset, entry.dxilSize, "main", RenderShaderFormat::DXIL);
 		}
 #endif
-
-		auto shaderElapsed = std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - shaderStart).count();
-		LOGFN("PrecompileShaders: [{}/{}] hash={:016X} spirvSize={} dxilSize={} -> {:.2f} ms (createShader/VkShaderModule only)",
-			i + 1, g_shaderCacheEntryCount, entry.hash, entry.spirvSize, entry.dxilSize, shaderElapsed);
 	}
 
 	auto totalElapsed = std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - totalStart).count();
