@@ -1035,7 +1035,6 @@ uint32_t MmGetPhysicalAddress(uint32_t BaseAddress)
 LONG MmLockUnlockBufferPages(uint32_t* BaseAddress, uint32_t NumberOfBytes, BOOLEAN Lock)
 {
 	LOG_UTILITY("!!! STUB !!!");
-	printf("\n");
 	return X_STATUS_SUCCESS; // No-op in recompiler
 }
 
@@ -1044,7 +1043,6 @@ LONG MmLockUnlockPhysicalPage(uint32_t PhysicalAddress_, BOOLEAN Lock)
 	xbox::physical_address_xt PhysicalAddress = PhysicalAddress_;
 	uint32_t addr = static_cast<uint32_t>(PhysicalAddress);
 	printf("MmLockUnlockPhysicalPage(0x%08X, %s)\n", addr, Lock ? "Lock" : "Unlock");
-	printf("\n");
 	return X_STATUS_SUCCESS;
 }
 

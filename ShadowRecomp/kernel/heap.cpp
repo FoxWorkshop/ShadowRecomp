@@ -5,26 +5,21 @@
 #include "x86_context.h"
 
 constexpr size_t XBE_END_ADDR = 0x006A1000ull;
-constexpr size_t HEAP_BEGIN = XBE_END_ADDR + 0x1000000;    //Start heap way after XBE 
-
+constexpr size_t HEAP_BEGIN = XBE_END_ADDR + 0x1000000; //Start heap way after XBE
 constexpr size_t HEAP_END = 0xA0000000;
 
 extern uint8_t* g_nv2aPtr;
 
 void Heap::Init()
 {
-	printf("Heap Init\n");
+	printf("Initializing Heap...\n");
 	heap = o1heapInit(g_memory.Translate(HEAP_BEGIN), HEAP_END - HEAP_BEGIN);
 	physicalHeap = o1heapInit(g_memory.Translate(HEAP_END), 0x100000000 - HEAP_END);
-
 	printf("Regular Heap: %p - %p\n", heap, (char*)heap + (HEAP_END - HEAP_BEGIN));
 	printf("Physical Heap: %p - %p\n", physicalHeap, (char*)physicalHeap + (0x100000000 - HEAP_END));
-	printf("Heap and PhysicaHeap Done.\n");
-
+	printf("Heap and Physical Heap Initialized\n");
 	g_nv2aPtr = (uint8_t*)g_userHeap.AllocPhysical(0x3000, 1);
 }
-
-
 
 void* Heap::Alloc(size_t size)
 {

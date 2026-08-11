@@ -1235,7 +1235,7 @@ SHTHR_SOUNDDEVICE_Impl::SHTHR_SOUNDDEVICE_Impl()
 		mPullThread = SDL_CreateThread(PullThreadStatic, "AudioPull", this);
 
 		SDL_PauseAudioDevice(mDeviceID, SDL_FALSE);
-		LOGFN_UTILITY("Init SDL2 Audio ok\n", "SDLAudio");
+		LOGFN_UTILITY("Initialized SDL2 Audio", "SDLAudio");
 	}
 }
 
@@ -1272,7 +1272,7 @@ int32_t SHTHRSoundCreate(SHTHR_SOUNDDEVICE** ppDevice)
 	auto key = g_memory.MapVirtual(ptr);
 
 	ppDS = device;
-	LOGN_UTILITY("created sound device\n");
+	LOGN_UTILITY("Created sound device");
 	return key;
 }
 

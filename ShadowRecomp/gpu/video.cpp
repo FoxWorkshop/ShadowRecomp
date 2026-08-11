@@ -830,7 +830,7 @@ static void PrecompileShaders()
 	}
 
 	auto totalElapsed = std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - totalStart).count();
-	LOGFN("PrecompileShaders: Completed all {} entries in {:.2f} ms (NOTE: VkShaderModule creation is cheap; real GPU compilation happens at pipeline creation time)",
+	LOGFN("PrecompileShaders: {} shaders in {:.2f} ms",
 		g_shaderCacheEntryCount, totalElapsed);
 }
 
@@ -2598,7 +2598,7 @@ extern ImFontBuilderIO g_fontBuilderIO;
 
 static void CreateImGuiBackend()
 {
-	LOG_UTILITY("Init ImGui, please wait...\n");
+	LOG_UTILITY("Initializing ImGui...\n");
 	ImGuiIO& io = ImGui::GetIO();
 	io.IniFilename = nullptr;
 	io.BackendFlags |= ImGuiBackendFlags_RendererHasVtxOffset;
@@ -2764,7 +2764,7 @@ static void CreateImGuiBackend()
 	stbi_write_png("im_font_atlas.png", atlasW, atlasH, bpp, pixelsCopy, atlasW * bpp);
 #endif
 
-	LOG_UTILITY("Done.\n");
+	LOG_UTILITY("ImGui Initialized\n");
 }
 
 static void CheckSwapChain()

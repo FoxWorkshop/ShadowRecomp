@@ -142,7 +142,7 @@ int main(int argc, char* argv[])
     os::process::CheckConsole();
 
     if (!os::registry::Init())
-        LOGN_WARNING("OS does not support registry.");
+        LOGN_WARNING("OS does not support registry");
 
 
     os::logger::Init();
@@ -150,7 +150,7 @@ int main(int argc, char* argv[])
     PreloadContext preloadContext;
     preloadContext.PreloadExecutable();
 
-    LOGN("Starting Shadow Recomp...");
+    LOGN("Starting Shadow Recomp");
 
     std::filesystem::path xbePath;
     xbePath = GameExecutable;
