@@ -1147,15 +1147,9 @@ LONG NtSuspendThread(GuestThreadHandle* ThreadHandle, uint32_t* PreviousSuspendC
 	//printf("NtSuspendThread(0x%X) id: (0x%X)\n", ThreadHandle, ThreadHandle->thread.get_id());
 	assert(ThreadHandle != GetKernelObject(CURRENT_THREAD_HANDLE) && ThreadHandle->thread.get_id() == std::this_thread::get_id());
 
-	ThreadHandle->suspended = true;
 	std::unique_lock lock(ThreadHandle->suspendMutex);
-	if (!ThreadHandle->suspendCV.wait_for(lock, std::chrono::seconds(10),
-		[&] { return !ThreadHandle->suspended.load(); }))
-	{
-		printf("[NtSuspendThread] WARNING: Thread %u timed out waiting for NtResumeThread after 10s - self-resuming\n",
-			GuestThread::GetCurrentThreadId());
-		ThreadHandle->suspended = false;
-	}
+	ThreadHandle->suspendCV.wait(lock, [&] { return ThreadHandle->resumeRequested.load(); });
+	ThreadHandle->resumeRequested = false;
 
 	return S_OK;
 }
@@ -1167,9 +1161,14 @@ LONG NtResumeThread(GuestThreadHandle* ThreadHandle, uint32_t* PreviousSuspendCo
 	//printf("NtResumeThread(0x%X), id: (0x%X)\n", ThreadHandle, ThreadHandle->thread.get_id());
 	assert(ThreadHandle != GetKernelObject(CURRENT_THREAD_HANDLE));
 
+	{
+		std::lock_guard lock(ThreadHandle->suspendMutex);
+		ThreadHandle->resumeRequested = true;
+	}
+	ThreadHandle->suspendCV.notify_all();
+
 	ThreadHandle->suspended = false;
 	ThreadHandle->suspended.notify_all();
-	ThreadHandle->suspendCV.notify_all();
 
 	return X_STATUS_SUCCESS;
 }

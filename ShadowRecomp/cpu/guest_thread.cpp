@@ -250,8 +250,13 @@ GuestThreadHandle::~GuestThreadHandle()
 			params.function, s.c_str());
 		suspended.store(false, std::memory_order_release);
 		suspended.notify_all();
-		suspendCV.notify_all();
 	}
+
+	{
+		std::lock_guard lock(suspendMutex);
+		resumeRequested = true;
+	}
+	suspendCV.notify_all();
 
 	if (thread.joinable())
 		thread.join();

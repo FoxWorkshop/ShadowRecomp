@@ -26,12 +26,11 @@ struct GuestThreadContext
     ~GuestThreadContext();
 };
 
-
-
 struct GuestThreadHandle : KernelObject
 {
     GuestThreadParams params;
     std::atomic<bool> suspended;
+    std::atomic<bool> resumeRequested{false};
     std::mutex suspendMutex;
     std::condition_variable suspendCV;
     std::thread thread;
