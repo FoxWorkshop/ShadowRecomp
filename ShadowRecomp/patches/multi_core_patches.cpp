@@ -393,3 +393,31 @@ int GetLoadingThreadID()
 {
 	return loadingThreadID;
 }
+
+// Start Infinite Loading Fix
+
+// It is possible this fix can make a task list op be 1 frame late
+// but considering a lot of objects spam Commands or StageAction requests
+// until received, I don't think it should matter at all.
+//
+// Global counter lives at 0x54159C.
+// Children @ parent->0x1C, next = node->0x10, prev = node->0x14 (same as GameCube)
+// Mutated by both Mainthread and AsyncLoadingThread (TExpandNotice/TOneFileNotice)
+static std::mutex g_taskListMutex;
+
+// Task::Task
+X86_FUNC_IMPL(__imp__sub_21C70);
+X86_FUNC(sub_21C70)
+{
+	std::lock_guard lock(g_taskListMutex);
+	__imp__sub_21C70(ctx, base);
+}
+
+// Task::~Task
+X86_FUNC_IMPL(__imp__sub_21A30);
+X86_FUNC(sub_21A30)
+{
+	std::lock_guard lock(g_taskListMutex);
+	__imp__sub_21A30(ctx, base);
+}
+// End Infinite Loading Fix
