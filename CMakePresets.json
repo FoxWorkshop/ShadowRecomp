@@ -17,7 +17,8 @@
         }
       },
       "environment": {
-        "VCPKG_ROOT": "${sourceDir}/thirdparty/vcpkg"
+        "VCPKG_ROOT": "${sourceDir}/thirdparty/vcpkg",
+        "PATH": "$penv{PATH};C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\"
       },
       "condition": {
         "type": "equals",
