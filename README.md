@@ -1,5 +1,5 @@
 <p align="center">
-    <img src="https://github.com/FoxWorkshop/ShadowRecompResources/blob/fc5bdfe5c432eab0e92aef10018b7de77c1edd4c/images/logo/logo.png" width="512"/>
+    <img src="https://github.com/FoxWorkshop/ShadowRecompResources/blob/cef9207b5b0a4857e8af6177dee84e36319c39a1/images/logo/logo.png" width="1024"/>
 </p>
 
 ---
@@ -56,7 +56,7 @@ This project does not plan to support any more platforms other than Windows and 
 
 - [Sewer56](https://github.com/Sewer56): Tips to handle x86 recompilation including the idea of using [Zydis](https://github.com/zyantific/zydis) for XboxRecomp.
 
-- [Deep-Sea Berry](https://github.com/FreezerXTreme): Artist behind the project logo.
+- [Deep-Sea Berry](https://github.com/Deep-SeaBerry): Artist behind the project logo.
 
 ### Special Thanks
 
