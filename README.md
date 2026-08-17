@@ -56,7 +56,7 @@ This project does not plan to support any more platforms other than Windows and 
 
 - [Sewer56](https://github.com/Sewer56): Tips to handle x86 recompilation including the idea of using [Zydis](https://github.com/zyantific/zydis) for XboxRecomp.
 
-- [Deep-Sea Berry](https://github.com/FreezerXTreme): Artist behind the project logo.
+- [Deep-Sea Berry](https://github.com/Deep-SeaBerry): Artist behind the project logo.
 
 ### Special Thanks
 
