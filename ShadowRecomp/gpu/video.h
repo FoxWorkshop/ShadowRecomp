@@ -368,10 +368,10 @@ struct GuestTexture : GuestBaseTexture
 	uint32_t sizeOfTextureRect = 0;
 	std::unique_ptr<RenderFramebuffer> framebuffer;
 	std::unique_ptr<GuestTexture> patchedTexture;
-	std::unique_ptr<GuestTexture> recreatedCubeMapTexture;
 	struct GuestSurface* sourceSurface = nullptr;
 	std::vector<struct GuestSurface*> surfaceRTs;
 	bool isRenderTarget = false;
+	bool shouldFreeMemory = false;
 };
 
 struct GuestLockedRect

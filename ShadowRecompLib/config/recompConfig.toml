@@ -785,6 +785,7 @@ jump_address = 0x29E9DE
 name = "DestructResourceMidAsmHook"
 address = 0x2E0562
 registers = ["r4"]
+jump_address_on_true = 0x2E0568
 
 [[midasm_hook]]
 name = "SetFramerateMidAsmHook"

@@ -1598,7 +1598,7 @@ std::unordered_map<GuestBuffer*, std::vector<DerivedVertexBuffer>> VBsList;
 std::vector<GuestResource*> g_tempUnreadyResource; // store VB that weren't ready to be deleted
 std::atomic<bool> g_pendingSurfaceResizeFlag = false; // flag used to trigger RT and Stencil recreation.
 
-//todo figure out this
+
 static void DestructTempResources()
 {
 	bool valid = false;
@@ -1612,7 +1612,7 @@ static void DestructTempResources()
 		case ResourceType::Texture:
 		case ResourceType::VolumeTexture:
 		{
-			/**const auto texture = reinterpret_cast<GuestTexture*>(resource);
+			const auto texture = reinterpret_cast<GuestTexture*>(resource);
 
 			if (texture->mappedMemory != nullptr)
 				g_userHeap.Free(texture->mappedMemory);
@@ -1622,8 +1622,11 @@ static void DestructTempResources()
 			if (texture->patchedTexture != nullptr)
 				g_textureDescriptorAllocator.free(texture->patchedTexture->descriptorIndex);
 
-			texture->~GuestTexture();*/
-			valid = false;
+
+			texture->~GuestTexture();
+			
+
+			valid = texture->shouldFreeMemory;
 			break;
 		}
 
@@ -5774,10 +5777,10 @@ static void ProcDestructResource(const RenderCommand& cmd)
 }
 
 
-void DestructResourceMidAsmHook(X86Register& esi)
+bool DestructResourceMidAsmHook(X86Register& esi)
 {
 	if (esi.u32 == 0)
-		return;
+		return false;
 
 
 	auto resource = (GuestResource*)g_memory.Translate(esi.u32);
@@ -5785,8 +5788,23 @@ void DestructResourceMidAsmHook(X86Register& esi)
 	if (resource->type == ResourceType::Texture || resource->type == ResourceType::VolumeTexture)
 	{
 		const auto texture = reinterpret_cast<GuestTexture*>(resource);
+
+		if (texture->isRenderTarget == false)
+		{
+			printf("");
+		}
+		int oldSize = g_pendingTextureResizes.size();
 		g_pendingTextureResizes.erase(texture);
+		if (oldSize == g_pendingTextureResizes.size())
+		{
+			// this wasn't a RT we can send it to delete
+			AddDestructResource(resource);
+			texture->shouldFreeMemory = true;
+			return true;
+		}
 	}
+
+	return false;
 }
 
 
