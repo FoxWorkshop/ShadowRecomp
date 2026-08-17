@@ -1,5 +1,5 @@
 <p align="center">
-    <img src="https://github.com/FoxWorkshop/ShadowRecompResources/blob/cef9207b5b0a4857e8af6177dee84e36319c39a1/images/logo/logo.png" width="1024"/>
+    <img src="https://raw.githubusercontent.com/FoxWorkshop/ShadowRecompResources/cef9207b5b0a4857e8af6177dee84e36319c39a1/images/logo/logo.png" width="1024"/>
 </p>
 
 ---
