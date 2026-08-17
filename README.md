@@ -1,9 +1,8 @@
-
-
 <p align="center">
-    <img src="https://i.imgur.com/FUdbWMA.png" width="256"/>
+    <img src="https://github.com/FoxWorkshop/ShadowRecompResources/blob/fc5bdfe5c432eab0e92aef10018b7de77c1edd4c/images/logo/logo.png" width="512"/>
 </p>
-<h1 align="center">Shadow Recompiled</h1>
+
+---
 
 > [!CAUTION]
 > This recompilation is still under active development, expect bugs and crashes.
@@ -56,6 +55,8 @@ This project does not plan to support any more platforms other than Windows and 
 - [DonutStopGaming](https://github.com/DonutStopGaming): Help with understanding RenderWare and finding Shadow functions.
 
 - [Sewer56](https://github.com/Sewer56): Tips to handle x86 recompilation including the idea of using [Zydis](https://github.com/zyantific/zydis) for XboxRecomp.
+
+- [Deep-Sea Berry](https://github.com/FreezerXTreme): Artist behind the project logo.
 
 ### Special Thanks
 
