@@ -1166,3 +1166,27 @@ registers = ["r4"]
 name = "StretchGrassDecayMidAsmHook"
 address = 0x1E17FA
 registers = ["r4"]
+
+# Start vert bump patches
+# Adjust tolerance in sub_84E50.
+[[midasm_hook]]
+name = "CollisionToleranceMidAsmHook"
+address = 0x85344
+registers = ["r4", "r7"]
+
+# ray hit, sweep fails
+# fallback to ignore state reset
+[[midasm_hook]]
+name = "CollisionToleranceSnapFallbackMidAsmHook"
+address = 0x85690
+jump_address_on_true = 0x85692
+registers = ["r4", "r0", "r7"]
+
+# Skip dot < cos80 check iff above passes
+# 0x7FB30 will recover rotation
+[[midasm_hook]]
+name = "CollisionToleranceSlopeGateMidAsmHook"
+address = 0x856AF
+jump_address_on_true = 0x856B1
+registers = ["r4"]
+# End vert bump patches

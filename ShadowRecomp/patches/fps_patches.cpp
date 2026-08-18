@@ -1,7 +1,6 @@
 #include <kernel/function.h>
 #include <user/config.h>
 
-
 const uint32_t g_deltaTime = 0x541FA8;
 const uint32_t g_refRate = 0x54DD80;
 static bool g_isEventPlaying = false;
