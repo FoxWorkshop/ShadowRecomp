@@ -1597,7 +1597,8 @@ struct DerivedVertexBuffer
 std::unordered_map<GuestBuffer*, std::vector<DerivedVertexBuffer>> VBsList;
 std::vector<GuestResource*> g_tempUnreadyResource; // store VB that weren't ready to be deleted
 std::atomic<bool> g_pendingSurfaceResizeFlag = false; // flag used to trigger RT and Stencil recreation.
-
+static Mutex g_surfaceRTsMutex; // Multiple threads can access Surface RT so we can prevent a potential race issue with mutex
+static Mutex g_tempUnreadyResourceMutex; // for destruct resource (VB, texture stuff)
 
 static void DestructTempResources()
 {
@@ -1639,6 +1640,7 @@ static void DestructTempResources()
 			{
 				if (buffer->buffer->at(0) == g_vertexBufferViews[i].buffer) // ensure Render Thread isn't about to use the VB while we try to delete it
 				{
+					std::lock_guard lock(g_tempUnreadyResourceMutex);
 					g_tempUnreadyResource.push_back(resource); //we can store the resource to delete it later when the render thread isn't trying to use it
 					invalid = true;
 					break;
@@ -1663,6 +1665,8 @@ static void DestructTempResources()
 		{
 
 			const auto surface = reinterpret_cast<GuestSurface*>(resource);
+
+			std::lock_guard lock(g_surfaceRTsMutex);
 
 			if (surface->parentTexture != nullptr)
 			{
@@ -2921,6 +2925,8 @@ static void BeginCommandList()
 					g_commandListStates[i] = false;
 				}
 			}
+
+			std::lock_guard lock(g_surfaceRTsMutex);
 
 			for (auto& g_tex : g_pendingTextureResizes)
 			{
@@ -5519,6 +5525,7 @@ static GuestSurface* GetSurfaceLevel(GuestTexture* texture, int32_t level, X_D3D
 	surface->sampleCount = RenderSampleCount::COUNT_1;
 
 	surface->guestResource.Format = Format;
+	std::lock_guard lock(g_surfaceRTsMutex);
 	surface->layout = texture->layout;
 
 	surface->parentTexture = texture;
@@ -8611,12 +8618,16 @@ X86_FUNC(sub_2E6140)
 			VBsList.erase(resourcePtr);
 		}
 
-		for (auto& temp : g_tempUnreadyResource) //if previous VB wasn't ready to be deleted before, try again now
+		std::vector<GuestResource*> unready;
+		{
+			std::lock_guard lock(g_tempUnreadyResourceMutex);
+			unready.swap(g_tempUnreadyResource);
+		}
+
+		for (auto& temp : unready) //if previous VB wasn't ready to be deleted before, try again now
 		{
 			AddDestructResource(temp);
 		}
-
-		g_tempUnreadyResource.clear();
 	}
 
 	__imp__sub_2E6140(ctx, base);
