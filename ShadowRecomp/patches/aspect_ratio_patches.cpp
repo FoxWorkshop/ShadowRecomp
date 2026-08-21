@@ -585,13 +585,17 @@ thread_local QuadStretchCalibration* g_currentQuadCallib = nullptr;
 
 const xxHashMap<QuadStretchCalibration> g_pictureDff =
 {
-	{ HashStr("ARK!PICTURE!O!.DFF"), { 1.0f, 1.6f } },
-	{ HashStr("ARK!PICTURE!LOCATOR.DFF"), { 1.0f, 1.6f } },
-	{ HashStr("FLASH!BACK!PIC01!O!.DFF"), { 1.0f, 1.2f } },
+	{ HashStr("ARK!PICTURE!O!.DFF"), { 2.2f, 1.2f } }, // cosmic fall intro (height is ignored for some reason??)
+	{ HashStr("ARK!PICTURE!LOCATOR.DFF"), { 2.2f, 1.2f } },
+	{ HashStr("FLASH!BACK!PIC01!O!.DFF"), { 1.6f, 1.1f } },
 	{ HashStr("ADV2!FLASH!BACK!PIC01!O!.DFF"), { 1.0f, 1.1f } },
 	{ HashStr("ADV2!FLASH!BACK!PIC02!O!.DFF"), { 1.0f, 1.1f } },
 	{ HashStr("ADV2!FLASH!BACK!PIC03!O!.DFF"), { 1.0f, 1.1f } },
 	{ HashStr("ADV2!FLASH!BACK!PIC04!O!.DFF"), { 1.0f, 1.1f } },
+	{ HashStr("BD!SHIP!PIC01!O!.DFF"), { 1.5f, 1.1f } }, // ev 4202 sky troops intro
+	{ HashStr("EGG!SHIP!PIC01!O!.DFF"), { 1.5f, 1.1f } }, // ev 4202 sky troops intro
+	{ HashStr("EGG!SHIP!PIC02!O!.DFF"), { 1.5f, 1.1f } }, // ev 4202 sky troops intro
+
 };
 
 void FindPictureBackgroundModel(X86Context* ctx, uint8_t* base)
@@ -611,7 +615,9 @@ void FindPictureBackgroundModel(X86Context* ctx, uint8_t* base)
 			auto it = g_pictureDff.find(HashStr(s.c_str()));
 			if (it != g_pictureDff.end())
 			{
+				s = s;
 				g_currentQuadCallib = (QuadStretchCalibration*)&it->second;
+				printf("found %s asset, assigning g_currentQuadCallib\n", assetName);
 			}
 			else
 			{
@@ -639,7 +645,7 @@ void StretchPictureVertex(uint32_t atomicAddr, uint8_t* base)
 				if (morphTargetPtr)
 				{
 					RwV3d* verts = morphTargetPtr->verts.get();
-
+					printf("now stretching vertex\n");
 					for (int i = 0; i < geometry->numVertices; i++)
 					{
 						verts[i].x *= g_currentQuadCallib->calibrationX;
