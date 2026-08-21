@@ -86,3 +86,57 @@ bool HighFramerateCollisionFixMidAsmHook()
 {
 	return Config::FPS.Value >= 61.0f;
 }
+
+// Common platforms that are used in many different stages
+// the mode linear type movement don't use delta time so the platforms move way too fast above 60 fps
+// we can patch this to cap the speed properly
+void FootingMovableLinearMidAsmHook(X86Register& esi)
+{
+	auto base = g_memory.base;
+	const uint32_t this_ = esi.u32;
+	const float speed = X86_LOAD_F32(this_ + 0x54); // degree
+	const float phase = X86_LOAD_F32(this_ + 0x7C); // also degree
+	const float frames = X86_LOAD_F32(g_deltaTime) * 60.0f;
+	X86_STORE_F32(this_ + 0x7C, phase + speed * (frames - 1.0f));
+}
+
+// reel goes with fixed speed instead of delta time
+
+static const uint32_t g_upDownReelStep = 0x468A18; // 0.18f originally
+
+static void UpDownReelPreBias(uint32_t this_, float sign)
+{
+	auto base = g_memory.base;
+	const float frames = X86_LOAD_F32(g_deltaTime) * 60.f;
+	const float bias = sign * X86_LOAD_F32(g_upDownReelStep) * (frames - 1.0f);
+	X86_STORE_F32(this_ + 0x58, X86_LOAD_F32(this_ + 0x58) + bias);
+}
+
+void UpDownReelRaiseMidAsmHook(X86Register& edi)
+{
+	UpDownReelPreBias(edi.u32, 1.0f);
+}
+
+void UpDownReelLowerMidAsmHook(X86Register& edi)
+{
+	UpDownReelPreBias(edi.u32, -1.0f);
+}
+
+static const uint32_t g_upDownReelAngleRate = 0x54CD64;
+
+void UpDownReelAngleMidAsmHook(X86Register& edi)
+{
+	auto base = g_memory.base;
+	const float frames = X86_LOAD_F32(g_deltaTime) * 60.0f;
+	const float angle = X86_LOAD_F32(edi.u32 + 0x7C);
+	const float extra = X86_LOAD_F32(g_upDownReelAngleRate) * (frames - 1.0f);
+
+	if (extra >= std::fabs(angle))
+	{
+		X86_STORE_F32(edi.u32 + 0x7C, 0.0f);
+	}
+	else
+	{
+		X86_STORE_F32(edi.u32 + 0x7C, angle - (angle >= 0.0f ? extra : -extra));
+	}
+}
