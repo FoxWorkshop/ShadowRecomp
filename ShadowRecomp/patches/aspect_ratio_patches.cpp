@@ -615,9 +615,7 @@ void FindPictureBackgroundModel(X86Context* ctx, uint8_t* base)
 			auto it = g_pictureDff.find(HashStr(s.c_str()));
 			if (it != g_pictureDff.end())
 			{
-				s = s;
 				g_currentQuadCallib = (QuadStretchCalibration*)&it->second;
-				printf("found %s asset, assigning g_currentQuadCallib\n", assetName);
 			}
 			else
 			{
@@ -645,7 +643,6 @@ void StretchPictureVertex(uint32_t atomicAddr, uint8_t* base)
 				if (morphTargetPtr)
 				{
 					RwV3d* verts = morphTargetPtr->verts.get();
-					printf("now stretching vertex\n");
 					for (int i = 0; i < geometry->numVertices; i++)
 					{
 						verts[i].x *= g_currentQuadCallib->calibrationX;
