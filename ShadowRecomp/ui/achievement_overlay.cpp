@@ -93,7 +93,7 @@ void AchievementOverlay::Draw()
     auto& strAchievementName = GetAchievementLocale(g_achievement.ID).Name;
 
     // Calculate text sizes.
-    auto fontSize = Scale(Config::Language == ELanguage::Japanese ? 28 : 27);
+    auto fontSize = Scale(Config::Language == ELanguage::Japanese ? 26 : 25);
     auto headerSize = g_fntSeurat->CalcTextSizeA(fontSize, FLT_MAX, 0, strAchievementUnlocked.c_str());
     auto nameSize = g_fntSeurat->CalcTextSizeA(fontSize, FLT_MAX, 0, strAchievementName.c_str());
     auto nameOffsetY = Scale(6);
@@ -101,14 +101,14 @@ void AchievementOverlay::Draw()
     auto maxHeight = headerSize.y + nameSize.y + nameOffsetY;
 
     // Calculate margins.
-    auto imageMarginX = Scale(25);
-    auto imageMarginY = Scale(20);
-    auto imageSize = Scale(64);
+    auto imageMarginX = Scale(15);
+    auto imageMarginY = Scale(10);
+    auto imageSize = Scale(55);
     auto textMarginX = imageMarginX * 2 + imageSize - Scale(5);
     auto containerWidth = imageMarginX + textMarginX + maxWidth;
-    auto containerHeight = Scale(105);
+    auto containerHeight = Scale(95);
 
-    ImVec2 min = { (res.x / 2) - (containerWidth / 2), Scale(55) };
+    ImVec2 min = { (res.x / 2) - (containerWidth / 2), Scale(45) };
     ImVec2 max = { min.x + containerWidth, min.y + containerHeight };
 
     // Calculate centred vertical text offset.
