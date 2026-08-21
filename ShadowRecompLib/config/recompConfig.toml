@@ -791,6 +791,13 @@ jump_address_on_true = 0x2E0568
 name = "SetFramerateMidAsmHook"
 address = 0x572BD
 
+# 0x56FC0 is the internal frame limiter, does a busy-wait during events
+# Patch after 0x570C9 to keep non-waiting behavior
+[[midasm_hook]]
+name = "FrameLimiterWaitMidAsmHook"
+address = 0x570E7
+registers = ["r1", "r4"]
+
 [[midasm_hook]]
 name = "SFXTimingMidAsmHook"
 address = 0x25E783

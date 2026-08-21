@@ -1,9 +1,10 @@
 #include <kernel/function.h>
 #include <user/config.h>
-
+#include <gpu/video.h>
 
 const uint32_t g_deltaTime = 0x541FA8;
 const uint32_t g_refRate = 0x54DD80;
+const uint32_t g_frameRateDivisor = 0x54DD40;
 static bool g_isEventPlaying = false;
 void SetFramerateMidAsmHook()
 {
@@ -32,7 +33,40 @@ X86_FUNC(sub_2293E0)
 
 }
 
-double GetFPS();
+// Get the requested in-game framerate
+// TPjsEventActionManager sets divisor to 2 for events
+// 0 represents no internal framerate request (safe to do any limit)
+float GetInternalFrameRate()
+{
+	auto base = g_memory.base;
+	uint32_t refRate = X86_LOAD_U32(g_refRate);
+	int32_t divisor = (int32_t)X86_LOAD_U32(g_frameRateDivisor);
+	if (refRate == 0 || divisor <= 0)
+		return 0.0f;
+
+	float fps = (float)refRate / (float)divisor;
+	return (fps >= 1.0f && fps <= 500.0f) ? fps : 0.0f;
+}
+
+// Patch the internal busy-wait (sub_56FC0) to not burn a core
+void FrameLimiterWaitMidAsmHook(X86Register& ebx, X86Register& esi)
+{
+	auto base = g_memory.base;
+
+	uint32_t refRate = X86_LOAD_U32(g_refRate);
+	int32_t divisor = (int32_t)X86_LOAD_U32(g_frameRateDivisor);
+	if (refRate == 0 || divisor <= 0)
+		return;
+
+	int64_t period = (int64_t)(1000000.0 / (double)refRate);
+	int64_t target = period * divisor;
+	int64_t elapsed = (int64_t)(((uint64_t)esi.u32 << 32) | ebx.u32);
+	int64_t remaining = target - elapsed;
+
+	if (remaining > 2500)
+		std::this_thread::sleep_for(std::chrono::microseconds(remaining - 2000));
+}
+
 std::unordered_map<uint32_t, float> g_sfxTimers;
 // SFX duration are hardcoded without using any kind of delta time
 // We need to patch them so they don't cut too early

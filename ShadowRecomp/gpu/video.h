@@ -39,6 +39,7 @@ extern std::atomic<bool> g_pendingSurfaceResizeFlag;
 
 void CopyVertexShaderConstant(int32_t Register, DWORD* pConstantData, const uint32_t count);
 float GetRenderTargetHeight();
+double GetFPS();
 
 inline bool g_needsResize;
 

@@ -128,6 +128,7 @@ static bool useLowSpec = false;
 #endif
 #include "cache/pipeline_cache.h"
 #include <patches/pause_patches.h>
+#include <patches/fps_patches.h>
 #include <ui/achievement_menu.h>
 #include <ui/achievement_overlay.h>
 
@@ -4954,27 +4955,44 @@ void Video::Present()
 		if (elapsed < targetDuration)
 			std::this_thread::sleep_for(targetDuration - elapsed);
 	}
-	else if (Config::FPS >= FPS_MIN && Config::FPS < FPS_MAX)
+	else
 	{
 		using namespace std::chrono_literals;
 
+		// Pace at the slower rate to avoid the busy wait in 0x56FC0
+		double targetFps = Config::FPS.Value;
+		float gameFps = GetInternalFrameRate();
+		if (gameFps > 0.0f && gameFps < targetFps)
+			targetFps = gameFps;
+
 		static std::chrono::steady_clock::time_point s_next;
+		static double s_lastTargetFps = 0.0;
 
 		auto now = std::chrono::steady_clock::now();
 
-		if (now < s_next)
+		// Reset on change
+		if (targetFps != s_lastTargetFps)
 		{
-			std::this_thread::sleep_for(std::chrono::floor<std::chrono::milliseconds>(s_next - now - 2ms));
-
-			while ((now = std::chrono::steady_clock::now()) < s_next)
-				std::this_thread::yield();
-		}
-		else
-		{
+			s_lastTargetFps = targetFps;
 			s_next = now;
 		}
 
-		s_next += 1000000000ns / Config::FPS;
+		if (targetFps >= FPS_MIN && targetFps < FPS_MAX)
+		{
+			if (now < s_next)
+			{
+				std::this_thread::sleep_for(std::chrono::floor<std::chrono::milliseconds>(s_next - now - 2ms));
+
+				while ((now = std::chrono::steady_clock::now()) < s_next)
+					std::this_thread::yield();
+			}
+			else
+			{
+				s_next = now;
+			}
+
+			s_next += std::chrono::duration_cast<std::chrono::steady_clock::duration>(1000000000ns / targetFps);
+		}
 	}
 
 	g_presentProfiler.End();
