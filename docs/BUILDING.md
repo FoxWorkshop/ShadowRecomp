@@ -101,3 +101,12 @@ The prebuilt DXC shader compiler shipped in `tools/XShaderRecomp/thirdparty/dxc-
 is custom-invoked with extra added library paths.
 
 Outside of that, all else works relatively normal.
+
+### VSCode Intellisense
+
+Note: If you're using VSCode as your IDE:
+- Install direnv & direnv extension.
+- Install clangd extension
+- Run `configure-release`.
+  - This will generate a `compile_commands.json` file in the root of the project.
+- Ctrl+Shift+P → `clangd: Restart language server`.
