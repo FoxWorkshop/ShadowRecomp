@@ -1638,7 +1638,7 @@ void OptionsMenu::Draw()
 
 			s_isRestartRequired = IsRestartRequired();
 
-			if (OptionsMenu::s_isRestartRequired)
+			if (OptionsMenu::s_isRestartRequired && !OptionsMenu::s_isPause)
 			{
 				s_state = OptionsMenuState::Restarting;
 			}
