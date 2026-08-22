@@ -400,3 +400,8 @@ FodyWeavers.xsd
 # JetBrains
 *.sln.iml
 .idea/
+
+# Nix / direnv
+# If you need this you're a geek :eggman:
+# > JOIN THE EGGMAN EMPIRE <
+.direnv/

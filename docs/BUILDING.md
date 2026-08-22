@@ -76,3 +76,28 @@ cmake --build ./out/build/linux-release --target ShadowRecomp
 ./ShadowRecomp
 ```
 
+## Building with Nix
+
+A dev shell is provided (`flake.nix`). Requirements:
+- Nix with flakes enabled
+- `ShadowRecompLib/private/default.xbe` present (same as the other build methods)
+
+```bash
+# Enter the dev shell (or use direnv: it loads automatically via .envrc)
+nix develop
+
+# Build / run (available: debug, relwithdebinfo, release)
+build-release
+run-release
+
+# Other commands
+sr-help
+```
+
+All dependencies (SDL2, freetype, GTK, Vulkan loader, ...) come from nixpkgs.
+vcpkg is replaced by a stub.
+
+The prebuilt DXC shader compiler shipped in `tools/XShaderRecomp/thirdparty/dxc-bin`
+is custom-invoked with extra added library paths.
+
+Outside of that, all else works relatively normal.
