@@ -6,7 +6,7 @@
 # Flake-provided env (SR_ROOT is set by the flake's shellHook):
 #  - SR_DXC: dxc-linux invocation through its loader (CMake ;-list)
 #  - SR_BUILD_RPATH: rpath for build-time tools (XboxRecomp runs in-build)
-#  - SR_GAME_LIBS: LD_LIBRARY_PATH for the game binary (run-<type>)
+#  - SR_GAME_LIBS: LD_LIBRARY_PATH for the game binary (global, see below)
 #  - SR_LLVM_AR / SR_LLVM_RANLIB: archive tools for link-time optimization
 #  - SR_NLOHMANN_JSON_SRC: pinned nlohmann_json source (FetchContent)
 
@@ -21,6 +21,9 @@ fi
 
 # The flake bakes $SR_ROOT as a placeholder; expand it here (CMake/ninja won't).
 export SR_DXC="${SR_DXC//\$SR_ROOT/$SR_ROOT}"
+
+# Runtime libs for the game exe + prebuilt deps (libdxcompiler.so).
+export LD_LIBRARY_PATH="${SR_GAME_LIBS}${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
 
 # ------------------------------------------------------------------------------
 # Commands
@@ -67,8 +70,7 @@ sr_build() {
   cmake --build "$bdir" --target ShadowRecomp "$@"
 }
 
-# Runs the built binary with the env Nix needs: runtime libs and Vulkan
-# driver.
+# Runs the built binary.
 sr_run() {
   local type="$1"; shift
 
@@ -77,17 +79,7 @@ sr_run() {
   local exe="$bdir/ShadowRecomp/ShadowRecomp"
   [ -x "$exe" ] || { echo "shadowrecomp: $exe not built; run build-$(echo "$type" | tr '[:upper:]' '[:lower:]')" >&2; return 1; }
 
-  # Libs the loader cannot find: NixOS has no FHS default paths.
-  local libpath="${SR_GAME_LIBS}:$bdir/ShadowRecomp${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
-
-  # Vulkan driver discovery lives under /run/opengl-driver/share.
-  local xdg="${XDG_DATA_DIRS:-}"
-  [ -d /run/opengl-driver/share ] && xdg="/run/opengl-driver/share${xdg:+:$xdg}"
-
-  env \
-    ${xdg:+XDG_DATA_DIRS="$xdg"} \
-    LD_LIBRARY_PATH="$libpath" \
-    "$exe" "$@"
+  exec "$exe" "$@"
 }
 
 sr_clean() { rm -rf "$SR_ROOT"/out/build/nix-*; }

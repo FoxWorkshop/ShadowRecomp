@@ -125,6 +125,8 @@
       # Portable script from nix/ does the actual work.
       shellHook = ''
         export SR_ROOT="$PWD"
+        # Vulkan ICD discovery.
+        export XDG_DATA_DIRS="/run/opengl-driver/share''${XDG_DATA_DIRS:+:$XDG_DATA_DIRS}"
         . "$SR_ROOT/nix/sr-env.sh"
       '';
     };
