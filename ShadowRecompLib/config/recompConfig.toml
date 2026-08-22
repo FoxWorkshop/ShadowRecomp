@@ -1124,10 +1124,6 @@ name = "FootingMovableLinearMidAsmHook"
 address = 0x19C6EC
 registers = ["r4"]
 
-#[[midasm_hook]]
-#name = "FootingMovableLinearMidAsmHook"
-#address = 0x19D7B5
-#registers = ["r4"]
 
 # Pulley stuff 
 [[midasm_hook]]
@@ -1166,3 +1162,9 @@ registers = ["r4"]
 name = "StretchGrassDecayMidAsmHook"
 address = 0x1E17FA
 registers = ["r4"]
+
+# Light in Digital Circuit that yeet Shadow
+[[midasm_hook]]
+name = "ElecSearchLightPullMidAsmHook"
+address = 0x201DB9
+registers = ["r7"]

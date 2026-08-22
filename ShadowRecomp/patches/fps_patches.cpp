@@ -237,3 +237,14 @@ X86_FUNC(sub_1AD1A0)
 	X86_STORE_F32(rocketPtr + 0x50, velY);
 	X86_STORE_F32(rocketPtr + 0x54, velZ);
 }
+
+// Light in digital circuit that yeet Shadow
+// the speed when getting launch is way too high above 60
+// we can patch the scale value stored in the vector just before the launch to use delta time.
+void ElecSearchLightPullMidAsmHook(X86Register &esp)
+{
+	auto base = g_memory.base;
+	const uint32_t scaleAddr = esp.u32;
+	float step = X86_LOAD_F32(scaleAddr) * (X86_LOAD_F32(g_deltaTime) * 60.0f);
+	X86_STORE_F32(scaleAddr, std::min(step, 45.0f));
+}
