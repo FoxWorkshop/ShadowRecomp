@@ -48,7 +48,7 @@ void SFXTimingMidAsmHook(X86Register &esi)
 
 	g_sfxTimers[esi.u32] += X86_LOAD_F32(g_deltaTime) * 60.f;
 	int steps = (int)(g_sfxTimers[esi.u32] + 0.5f); // use extra 0.5 for rounding, avoid having 0.999960 that prevent step to pass.
-	if (steps > 0) 
+	if (steps > 0)
 	{
 		g_sfxTimers[esi.u32] -= steps;
 		int result = (int)timer - steps;
@@ -100,7 +100,7 @@ void FootingMovableLinearMidAsmHook(X86Register& esi)
 	X86_STORE_F32(this_ + 0x7C, phase + speed * (frames - 1.0f));
 }
 
-// reel goes with fixed speed instead of delta time
+// reel (pulley) goes with fixed speed instead of delta time
 
 static const uint32_t g_upDownReelStep = 0x468A18; // 0.18f originally
 
@@ -139,4 +139,101 @@ void UpDownReelAngleMidAsmHook(X86Register& edi)
 	{
 		X86_STORE_F32(edi.u32 + 0x7C, angle - (angle >= 0.0f ? extra : -extra));
 	}
+}
+
+/**	--SetStretchGrass Patch START-- */
+// aka death ruin object that launch you 
+// for some reason only the mode 5 of this object use delta time
+// anything else doesn't so we have to patch the math
+
+static const uint32_t g_stretchGrassChargeStep = 0x46A558; // 0.005f
+static const uint32_t g_stretchGrassRecoverStep = 0x46A560; //0.42f
+static const uint32_t g_stretchGrassDecayFactor = 0x46A608; // -0.93f
+
+// for mode 2 of the object
+// the charge builds with frame count and then launch gets stronger the higher the framerate goes
+void StretchGrassChargeMidAsmHook(X86Register& esi)
+{
+	auto base = g_memory.base;
+	const uint32_t this_ = esi.u32;
+	const float frames = X86_LOAD_F32(g_deltaTime) * 60.0f;
+	const float step = X86_LOAD_F32(g_stretchGrassChargeStep);
+	const float acc = X86_LOAD_F32(this_ + 0x4C) + step * frames;
+
+	X86_STORE_F32(this_ + 0x4C, acc - step);
+	X86_STORE_F32(this_ + 0x48, X86_LOAD_F32(this_ + 0x48) + acc * (frames - 1.0f));
+}
+
+// for mode 3 of the object
+void StretchGrassRecoverMidAsmHook(X86Register& esi)
+{
+	auto base = g_memory.base;
+	const uint32_t self = esi.u32;
+	const float frames = X86_LOAD_F32(g_deltaTime) * 60.0f;
+	const float step = X86_LOAD_F32(g_stretchGrassRecoverStep);
+	X86_STORE_F32(self + 0x48, X86_LOAD_F32(self + 0x48) - step * (frames - 1.0f));
+}
+
+// for mode 4 of the object
+std::unordered_map<uint32_t, float> g_stretchGrassDecay;
+
+void StretchGrassDecayMidAsmHook(X86Register& esi)
+{
+	auto base = g_memory.base;
+	const uint32_t this_ = esi.u32;
+	const float factor = X86_LOAD_F32(g_stretchGrassDecayFactor);
+
+	float &carry = g_stretchGrassDecay[this_];
+	carry += X86_LOAD_F32(g_deltaTime) * 60.0f;
+
+	// just to be safe
+	int steps = std::min((int)carry, 128);
+	carry -= steps;
+
+	float value = X86_LOAD_F32(this_ + 0x48);
+
+	if (steps == 0)
+	{
+		value /= factor; // the game's own multiply puts it straight back
+	}
+	else
+	{
+		for (int i = 1; i < steps; i++)
+		{
+			value *= factor;
+		}
+	}
+
+	X86_STORE_F32(this_ + 0x48, value);
+
+
+	if (std::fabs(value * factor) < 0.001f)
+		g_stretchGrassDecay.erase(this_);
+}
+
+
+/**	--SetStretchGrass Patch END-- */
+
+// rocket goes way too fast above 60 fps
+// some part of the velocity logic uses raw value which increase above 60
+// we can patch it with proper delta time
+X86_FUNC_IMPL(__imp__sub_1AD1A0);
+X86_FUNC(sub_1AD1A0)
+{
+	const uint32_t rocketPtr = ctx.ecx.u32; // thiscall
+	const float frames = X86_LOAD_F32(g_deltaTime) * 60.0f;
+
+	const float velX = X86_LOAD_F32(rocketPtr + 0x4C);
+	const float velY = X86_LOAD_F32(rocketPtr + 0x50);
+	const float velZ = X86_LOAD_F32(rocketPtr + 0x54);
+
+	X86_STORE_F32(rocketPtr + 0x4C, velX * frames);
+	X86_STORE_F32(rocketPtr + 0x50, velY * frames);
+	X86_STORE_F32(rocketPtr + 0x54, velZ * frames);
+
+	__imp__sub_1AD1A0(ctx, base);
+
+	X86_STORE_F32(rocketPtr + 0x4C, velX);
+	X86_STORE_F32(rocketPtr + 0x50, velY);
+	X86_STORE_F32(rocketPtr + 0x54, velZ);
 }

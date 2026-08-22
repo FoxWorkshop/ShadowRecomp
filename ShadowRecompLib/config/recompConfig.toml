@@ -1129,6 +1129,7 @@ registers = ["r4"]
 #address = 0x19D7B5
 #registers = ["r4"]
 
+# Pulley stuff 
 [[midasm_hook]]
 name = "UpDownReelRaiseMidAsmHook"
 address = 0x1BDCCF
@@ -1148,3 +1149,20 @@ registers = ["r5"]
 name = "UpDownReelLowerMidAsmHook"
 address = 0x1BDD60
 registers = ["r5"]
+
+# plant thing that launch you in Death Ruins
+
+[[midasm_hook]]
+name = "StretchGrassChargeMidAsmHook"
+address = 0x1E1770
+registers = ["r4"]
+
+[[midasm_hook]]
+name = "StretchGrassRecoverMidAsmHook"
+address = 0x1E17C9
+registers = ["r4"]
+
+[[midasm_hook]]
+name = "StretchGrassDecayMidAsmHook"
+address = 0x1E17FA
+registers = ["r4"]
