@@ -95,6 +95,7 @@
         ninja
         pkg-config
         clang
+        clang-tools # clangd: IDE language server
         lld
         libllvm # llvm-ar / llvm-ranlib: link-time optimization archives
         git # version.cmake: find_package(Git)
@@ -125,6 +126,11 @@
       # Portable script from nix/ does the actual work.
       shellHook = ''
         export SR_ROOT="$PWD"
+        # clangStdenv's `clang` package puts an 'unwrapped' toolset
+        # first on PATH. Its clangd can't find nix stdlib headers.
+        # Prepend wrapped clangd so VSCode and friends pick that one.
+        export PATH="${pkgs.clang-tools}/bin:$PATH"
+
         # Vulkan ICD discovery.
         export XDG_DATA_DIRS="/run/opengl-driver/share''${XDG_DATA_DIRS:+:$XDG_DATA_DIRS}"
         . "$SR_ROOT/nix/sr-env.sh"
