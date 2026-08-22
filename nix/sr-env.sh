@@ -39,8 +39,9 @@ sr_configure() {
     echo "shadowrecomp: dxc-linux missing (submodule initialization failed?)" >&2
     return 1
   fi
-  cmake -S "$SR_ROOT" -B "$(sr_type_dir "$type")" -G Ninja \
+    cmake -S "$SR_ROOT" -B "$(sr_type_dir "$type")" -G Ninja \
     -DCMAKE_BUILD_TYPE="$type" \
+    -DCMAKE_EXPORT_COMPILE_COMMANDS=ON \
     -DCMAKE_LINKER_TYPE=LLD \
     -DCMAKE_POSITION_INDEPENDENT_CODE=OFF \
     -DCMAKE_BUILD_RPATH_USE_ORIGIN=ON \
@@ -57,7 +58,10 @@ sr_configure() {
     -DSDL_DBUS=OFF -DSDL_IBUS=OFF -DSDL_FCITX=OFF \
     -DSDL_RPATH=OFF -DSDL_TESTS=OFF \
     -DMSDFGEN_USE_OPENMP=OFF \
-    "$@"
+    "$@" || return 1
+
+  # Clangd (VSCode etc.): point at the freshest compile database via a root symlink.
+  ln -sfn "$(sr_type_dir "$type")/compile_commands.json" "$SR_ROOT/compile_commands.json"
 }
 
 # Builds the ShadowRecomp target; configures first if needed.
