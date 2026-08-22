@@ -387,6 +387,9 @@ FodyWeavers.xsd
 !.vscode/extensions.json
 *.code-workspace
 
+# Clangd compile database
+compile_commands.json
+
 # Local History for Visual Studio Code
 .history/
 
@@ -400,3 +403,8 @@ FodyWeavers.xsd
 # JetBrains
 *.sln.iml
 .idea/
+
+# Nix / direnv
+# If you need this you're a geek :eggman:
+# > JOIN THE EGGMAN EMPIRE <
+.direnv/
