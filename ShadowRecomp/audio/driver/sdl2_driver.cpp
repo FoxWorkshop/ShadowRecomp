@@ -394,6 +394,18 @@ SHTHR_SOUNDBUFFER_Impl::~SHTHR_SOUNDBUFFER_Impl()
 	}
 
 	SoundBufferList.erase(keyBuffer);
+
+	if (mAudioStream != nullptr)
+	{
+		SDL_FreeAudioStream(mAudioStream);
+		mAudioStream = nullptr;
+	}
+
+	if (m3DBuffer != nullptr)
+	{
+		delete m3DBuffer;
+		m3DBuffer = nullptr;
+	}
 }
 
 
