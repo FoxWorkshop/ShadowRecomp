@@ -4794,7 +4794,8 @@ void Video::WaitOnSwapChain()
 {
 	if (g_pendingWaitOnSwapChain)
 	{
-		if (g_swapChainValid && g_capabilities.presentWait)
+		// Pacing without vsync throttles to the compositor's vblank (Linux/Wayland).
+		if (g_swapChainValid && g_capabilities.presentWait && Config::VSync)
 		{
 			g_presentWaitProfiler.Begin();
 			g_swapChain->wait();
@@ -4923,7 +4924,8 @@ void Video::Present()
 	g_quadIndexData.reset();
 
 
-	if (g_vulkan && g_capabilities.presentWait)
+	// Pacing without vsync throttles to the compositor's vblank (Linux/Wayland).
+	if (g_vulkan && g_capabilities.presentWait && Config::VSync)
 		g_swapChain->wait();
 
 	CheckSwapChain();
