@@ -634,3 +634,8 @@ X86_FUNC(sub_181F80)
 	}
 }
 // END Layout Distance Check Patches
+
+bool SkipCameraDemoMidAsmHook()
+{
+	return Config::ExtendedMultiplayer;
+}

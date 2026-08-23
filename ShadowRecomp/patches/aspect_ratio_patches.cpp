@@ -1,3 +1,4 @@
+#include <cmath>
 #include <kernel/function.h>
 #include <patches/aspect_ratio_patches.h>
 #include <gpu/video.h>
@@ -817,3 +818,131 @@ void D3DDevice_SetScreenSpaceOffset(float a1, float a2)
 }
 
 GUEST_FUNCTION_HOOK_STDCALL(sub_3D1320, D3DDevice_SetScreenSpaceOffset);
+
+/*** START Render at any Aspect Ratio ***/
+// Based on the Sonic Heroes PC widescreen patch (thanks Sewer56 for Heroes.Graphics.Essentials)
+// and thanks DonutStopGaming for mapping the Rw functions in Xbox Shadow!
+// RwCameraSetViewWindow @ 0x2DD1C0
+// CameraBuildPerspClipPlanes @ 0x2DB9C0
+// RwCamera: +0x68 viewWindow (clip planes/culling)
+//           +0x70 recipViewWindow (projection matrix)
+
+static constexpr uint32_t rwCameraViewWindow = 0x68;
+static constexpr uint32_t rwCameraRecipViewWindow = 0x70;
+static constexpr float nativeAspectRatio = NARROW_ASPECT_RATIO;
+
+static float GetRelativeAspectRatio(float aspectRatio)
+{
+	return aspectRatio / nativeAspectRatio;
+}
+
+// Necessary because this runs before g_aspectRatio is init
+static bool TryGetAspectRatio(float& aspectRatio)
+{
+	aspectRatio = g_aspectRatio;
+	return aspectRatio > 0.0f;
+}
+
+static void StretchViewWindow(uint32_t camera, float aspectRatio, float relativeAspectRatio)
+{
+	const auto base = g_memory.base;
+	if (aspectRatio > nativeAspectRatio)
+	{
+		// Hor+
+		X86_STORE_F32(camera + rwCameraViewWindow, X86_LOAD_F32(camera + rwCameraViewWindow) * relativeAspectRatio);
+	}
+	else {
+ 		// Vert+
+		X86_STORE_F32(camera + rwCameraViewWindow + 4, X86_LOAD_F32(camera + rwCameraViewWindow + 4) / relativeAspectRatio);
+	}
+}
+
+static void UnStretchViewWindow(uint32_t camera, float aspectRatio, float relativeAspectRatio)
+{
+	StretchViewWindow(camera, aspectRatio, 1.0f / relativeAspectRatio);
+}
+
+static void StretchRecipViewWindow(uint32_t camera, float aspectRatio, float relativeAspectRatio)
+{
+	const auto base = g_memory.base;
+	if (aspectRatio > nativeAspectRatio)
+	{
+		// Hor+
+		X86_STORE_F32(camera + rwCameraRecipViewWindow, X86_LOAD_F32(camera + rwCameraRecipViewWindow) * relativeAspectRatio);
+	}
+	else
+	{ 
+		// Vert+
+		X86_STORE_F32(camera + rwCameraRecipViewWindow + 4, X86_LOAD_F32(camera + rwCameraRecipViewWindow + 4) / relativeAspectRatio);
+	}
+}
+
+static void UnStretchRecipViewWindow(uint32_t camera, float aspectRatio, float relativeAspectRatio)
+{
+	StretchRecipViewWindow(camera, aspectRatio, 1.0f / relativeAspectRatio);
+}
+
+// RwCameraSetViewWindow is only called when fov changes
+// Force a reaction
+static void RecalculateRecipViewWindow(uint32_t camera)
+{
+	const auto base = g_memory.base;
+	float viewWindowX = X86_LOAD_F32(camera + rwCameraViewWindow);
+	float viewWindowY = X86_LOAD_F32(camera + rwCameraViewWindow + 4);
+	if (viewWindowX != 0.0f)
+	{
+		X86_STORE_F32(camera + rwCameraRecipViewWindow, 1.0f / viewWindowX);
+	}
+	if (viewWindowY != 0.0f)
+	{
+		X86_STORE_F32(camera + rwCameraRecipViewWindow + 4, 1.0f / viewWindowY);
+	}
+}
+
+
+// RwCameraSetViewWindow
+X86_FUNC_IMPL(__imp__sub_2DD1C0);
+X86_FUNC(sub_2DD1C0)
+{
+	uint32_t camera = X86_LOAD_U32(ctx.esp.u32 + 4);
+
+	__imp__sub_2DD1C0(ctx, base);
+
+	float aspectRatio;
+	if (camera != 0 && TryGetAspectRatio(aspectRatio))
+	{
+		UnStretchRecipViewWindow(camera, aspectRatio, GetRelativeAspectRatio(aspectRatio));
+	}
+}
+
+// CameraBuildPerspClipPlanes
+X86_FUNC_IMPL(__imp__sub_2DB9C0);
+X86_FUNC(sub_2DB9C0)
+{
+	uint32_t camera = ctx.eax.u32;
+	if (camera == 0)
+	{
+		__imp__sub_2DB9C0(ctx, base);
+		return;
+	}
+
+	float aspectRatio;
+	if (TryGetAspectRatio(aspectRatio))
+	{
+		float relativeAspectRatio = GetRelativeAspectRatio(aspectRatio);
+
+		StretchViewWindow(camera, aspectRatio, relativeAspectRatio);
+		RecalculateRecipViewWindow(camera);
+
+		__imp__sub_2DB9C0(ctx, base);
+
+		UnStretchViewWindow(camera, aspectRatio, relativeAspectRatio);
+	}
+	else
+	{
+		__imp__sub_2DB9C0(ctx, base);
+	}
+}
+
+/*** END Render at any Aspect Ratio ***/
+

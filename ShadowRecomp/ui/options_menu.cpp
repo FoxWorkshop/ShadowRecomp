@@ -10,7 +10,6 @@
 #include <decompressor.h>
 #include <patches/aspect_ratio_patches.h>
 #include <patches/bloom_patches.h>
-#include <patches/wide_fov_patches.h>
 #include <patches/fps_patches.h>
 
 #include "imgui_utils.h"
@@ -699,12 +698,11 @@ static void DrawOption
 					}
 				}
 
-				if (increment || decrement)
-				{
-					BloomConfigValueChangedCallback(config);
-					WideFOVConfigValueChangedCallback(config);
-					FpsConfigValueChangedCallback(config);
-				}
+			if (increment || decrement)
+			{
+				BloomConfigValueChangedCallback(config);
+				FpsConfigValueChangedCallback(config);
+			}
 
 				// Run standard callback if there's no callback on apply.
 				if (!config->ApplyCallback)
@@ -1060,7 +1058,6 @@ static void DrawOptions(ImVec2 minClipRect, ImVec2 maxClipRect, ImVec2 min, ImVe
 
 		DrawOption(rowCount++, &Config::Monitor, canChangeMonitor, min, max, devReason, 0, 0, 1, false);
 		DrawOption(rowCount++, &Config::AspectRatio, true, min, max, devReason);
-		DrawOption(rowCount++, &Config::WideFOV, true, min, max, nullptr);
 		DrawOption(rowCount++, &Config::ResolutionScale, true, min, max, nullptr, 0.25f, 1.0f, 2.0f);
 		DrawOption(rowCount++, &Config::Fullscreen, true, min, max, devReason);
 		DrawOption(rowCount++, &Config::VSync, true, min, max, nullptr);
