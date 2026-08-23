@@ -46,16 +46,27 @@ You can also find the equivalent packages for your preferred distro.
 
 ## 4. Build the Project
 
-### Windows
-1. Open the repository directory in Visual Studio and wait for CMake generation to complete. If you don't plan to debug, switch to the `Release` configuration.
-
 > [!TIP]
 > If you need a Release-performant build and want to iterate on development without debugging, **it is highly recommended** that you use the `RelWithDebInfo` configuration for faster compile times.
 
+### Windows
+1. Open the repository folder in Visual Studio.
 2. Under **Solution Explorer**, right-click and choose **Switch to CMake Targets View**.
-3. Right-click the **ShadowRecomp** project and choose **Set as Startup Item**, then choose **Add Debug Configuration**.
-4. Add a `currentDir` property to the first element under `configurations` in the generated JSON and set its value to the path to your game directory (where root is the directory containing `character`, `sound`, `enemy`, etc).
-5. Start **ShadowRecomp**. The initial compilation may take a while to complete due to code and shader recompilation.
+
+![](./assets/windows-setup-1.webp)
+
+3. Right-click **ShadowRecomp**, choose **Set as Startup Item**, then choose **Add Debug Configuration**.
+
+![](./assets/windows-setup-2.webp)
+
+4. Click `Edit in launch.vs.json`
+
+![](./assets/windows-setup-3.webp)
+
+And add a `currentDir` and `args` property.
+This will prevent you from having to reinstall game when switching between configurations.
+
+5. Start **ShadowRecomp**. May take a while the first time due to code and shader recompilation.
 
 ### Linux
 1. Configure the project using CMake by navigating to the repository and running the following command.
