@@ -10,6 +10,7 @@
 #include <user/registry.h>
 #include <audio/driver/sdl2_driver.h>
 #include <cpu/guest_thread.h>
+#include <gpu/frame_pacing/timer_resolution.h>
 
 static std::thread::id g_mainThreadId = std::this_thread::get_id();
 
@@ -25,9 +26,7 @@ void App::Exit()
 	AudioShutDown();
 	Config::Save();
 
-#ifdef _WIN32
-	timeEndPeriod(1);
-#endif
+	TimerResolution::Release();
 
 	if (m_TLS)
 	{

@@ -16,9 +16,6 @@
 #include <os/registry.h>
 
 #include <xbe.h>
-#ifdef _WIN32
-#include <timeapi.h>
-#endif
 #include <iostream>
 #include <filesystem>
 #include <mod/mod_loader.h>
@@ -27,6 +24,7 @@
 #include <patches/reloaded_mod_patches.h>
 #include <audio/embedded_player.h>
 #include <ui/installer_wizard.h>
+#include <gpu/frame_pacing/timer_resolution.h>
 #include <patches/pause_patches.h>
 #include <patches/bloom_patches.h>
 #include <patches/wide_fov_patches.h>
@@ -131,7 +129,7 @@ int main(int argc, char* argv[])
 {
 #ifdef _WIN32
     //SetProcessAffinityMask(GetCurrentProcess(), 1);
-    timeBeginPeriod(1);
+    TimerResolution::SetHighestResolution();
 #elif defined(__linux__)
     //cpu_set_t cpuset;
     //CPU_ZERO(&cpuset);

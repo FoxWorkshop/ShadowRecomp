@@ -106,6 +106,8 @@ set(SHADOW_RECOMP_CPU_CXX_SOURCES
 
 set(SHADOW_RECOMP_GPU_CXX_SOURCES
     "gpu/video.cpp"
+    "gpu/frame_pacing/frame_pacer.cpp"
+    "gpu/frame_pacing/timer_resolution.cpp"
     "gpu/vertexshader.cpp"
     "gpu/vertexdeclaration.cpp"
     "gpu/pixelshader.cpp"

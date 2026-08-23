@@ -589,7 +589,6 @@ CONFIG_DEFINE_LOCALE(FPS)
     { ELanguage::Italian,  { "FPS", "Imposta il frame rate massimo del gioco.\n\nATTENZIONE: questa opzione può causare dei glitch a frame rate più alti di 60 FPS." } }
 };
 
-
 // Japanese Notes: This localization should include furigana.
 CONFIG_DEFINE_LOCALE(Brightness)
 {
