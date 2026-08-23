@@ -8,6 +8,13 @@
 
 #pragma once
 
+#ifdef __linux__
+/* Timer slack is per-thread on Linux, so the state must be too. */
+#define TIMER_RESOLUTION_THREAD_LOCAL thread_local
+#else
+#define TIMER_RESOLUTION_THREAD_LOCAL
+#endif
+
 class TimerResolution
 {
 public:
@@ -36,11 +43,11 @@ public:
 
 private:
     /* Achieved granularity in milliseconds; 0.5 until proven finer. */
-    static double s_granularityMs;
+    static TIMER_RESOLUTION_THREAD_LOCAL double s_granularityMs;
 
     /* Whether SetHighestResolution successfully raised the resolution. */
-    static bool s_isActive;
+    static TIMER_RESOLUTION_THREAD_LOCAL bool s_isActive;
 
     /* Whether a raise was attempted, so failed attempts are not retried. */
-    static bool s_isResolved;
+    static TIMER_RESOLUTION_THREAD_LOCAL bool s_isResolved;
 };

@@ -46,7 +46,7 @@ void FramePacer::Sleep(double durationMs, bool spin, bool allowThreadYieldInSpin
 
         // One granularity is subtracted because a sleep can wake up to one
         // granularity tick late (per Windows docs); the yield/spin finishes
-        // the rest. (Same logic applies to Linux.
+        // the rest. The same logic applies to Linux.
         const double sleepTimeLeftMs = timeLeftMs - timerGranularity;
 
 #ifdef _WIN32

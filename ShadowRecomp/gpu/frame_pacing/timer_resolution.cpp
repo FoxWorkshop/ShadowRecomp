@@ -18,9 +18,9 @@ typedef NTSTATUS(NTAPI* SetTimerResolutionFn)(ULONG, BOOLEAN, PULONG);
 #include <sys/prctl.h>
 #endif
 
-double TimerResolution::s_granularityMs = 0.5;
-bool TimerResolution::s_isActive = false;
-bool TimerResolution::s_isResolved = false;
+TIMER_RESOLUTION_THREAD_LOCAL double TimerResolution::s_granularityMs = 0.5;
+TIMER_RESOLUTION_THREAD_LOCAL bool TimerResolution::s_isActive = false;
+TIMER_RESOLUTION_THREAD_LOCAL bool TimerResolution::s_isResolved = false;
 
 bool TimerResolution::SetHighestResolution()
 {
