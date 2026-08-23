@@ -130,6 +130,9 @@ int main(int argc, char* argv[])
 #ifdef _WIN32
     //SetProcessAffinityMask(GetCurrentProcess(), 1);
     TimerResolution::SetHighestResolution();
+
+    // Higher priority == faster wake-up during frame pacing.
+    SetThreadPriority(GetCurrentThread(), THREAD_PRIORITY_ABOVE_NORMAL);
 #elif defined(__linux__)
     //cpu_set_t cpuset;
     //CPU_ZERO(&cpuset);

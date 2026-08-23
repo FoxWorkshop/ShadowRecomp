@@ -21,7 +21,7 @@ public:
     /**
      * \brief Gets the timer granularity in milliseconds. Raises the
      * resolution on first call if SetHighestResolution was never called.
-     * \return The timer granularity in milliseconds; 1.0 when the platform
+     * \return The timer granularity in milliseconds; 0.5 when the platform
      * does not support raising it.
      */
     static double GetGranularityMs();
@@ -29,11 +29,13 @@ public:
     /**
      * \brief Releases the timer resolution request made by
      * SetHighestResolution. No-op when the resolution was never raised.
+     *
+     * Linux: Always a no-op; the timer slack is per-thread.
      */
     static void Release();
 
 private:
-    /* Achieved granularity in milliseconds; 1.0 until proven finer. */
+    /* Achieved granularity in milliseconds; 0.5 until proven finer. */
     static double s_granularityMs;
 
     /* Whether SetHighestResolution successfully raised the resolution. */

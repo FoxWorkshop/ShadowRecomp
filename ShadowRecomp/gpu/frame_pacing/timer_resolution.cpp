@@ -14,18 +14,20 @@
 typedef LONG NTSTATUS;
 typedef NTSTATUS(NTAPI* QueryTimerResolutionFn)(PULONG, PULONG, PULONG);
 typedef NTSTATUS(NTAPI* SetTimerResolutionFn)(ULONG, BOOLEAN, PULONG);
+#elif defined(__linux__)
+#include <sys/prctl.h>
 #endif
 
-double TimerResolution::s_granularityMs = 1.0;
+double TimerResolution::s_granularityMs = 0.5;
 bool TimerResolution::s_isActive = false;
 bool TimerResolution::s_isResolved = false;
 
 bool TimerResolution::SetHighestResolution()
 {
-#ifdef _WIN32
     if (s_isActive)
         return true;
 
+#ifdef _WIN32
     const HMODULE ntdll = GetModuleHandleW(L"ntdll.dll");
     if (ntdll == nullptr)
         return false;
@@ -47,9 +49,16 @@ bool TimerResolution::SetHighestResolution()
         s_isActive = true;
         return true;
     }
-#endif
-
+#elif defined(__linux__)
+    // Slack tells how late a wake may land. 50us is the kernel default.
+    // Set it in case it was overriden externally.
+    prctl(PR_SET_TIMERSLACK, 50000UL);
+    s_granularityMs = static_cast<double>(prctl(PR_GET_TIMERSLACK)) / 1000000.0;
+    s_isActive = true;
+    return true;
+#else
     return false;
+#endif
 }
 
 double TimerResolution::GetGranularityMs()
@@ -82,7 +91,9 @@ void TimerResolution::Release()
     }
 
     s_isActive = false;
-    s_granularityMs = 1.0;
+    s_granularityMs = 0.5;
     s_isResolved = false;
+#elif defined(__linux__)
+    // Slack is per-thread; nothing process/system-wide to undo.
 #endif
 }

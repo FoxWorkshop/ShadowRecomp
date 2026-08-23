@@ -1,6 +1,11 @@
 #include "frame_pacer.h"
 #include "timer_resolution.h"
+#include <chrono>
 #include <thread>
+
+#ifdef _WIN32
+#include "precision_sleep_win10.h"
+#endif
 
 void FramePacer::SetFpsLimit(double fpsLimit)
 {
@@ -39,23 +44,26 @@ void FramePacer::Sleep(double durationMs, bool spin, bool allowThreadYieldInSpin
             break;
         }
 
-        // Sleep() below 1ms it floors to Sleep(0).
-        // That just performs a yield. We made that clear here.
-        // 
-        // One granularity is subtracted because Sleep(n) can wake
-        // up to one tick late (per Windows docs).
+        // One granularity is subtracted because a sleep can wake up to one
+        // granularity tick late (per Windows docs); the yield/spin finishes
+        // the rest. (Same logic applies to Linux.
         const double sleepTimeLeftMs = timeLeftMs - timerGranularity;
-        if (sleepTimeLeftMs >= 1.0)
+
+#ifdef _WIN32
+        // Waitable timer (Windows 10 1803+) accepts 0.5ms (0.5-1.0ms) sleep where
+        // sleep_for on MSVC rounds up and does Sleep(1) 1ms (1.0-1.5ms).
+        // So we can save some more CPU here.
+        if (PrecisionSleep::IsAvailable())
         {
-            // Sleep the thread if above granularity.
-            std::this_thread::sleep_for(
-                std::chrono::milliseconds(static_cast<long long>(sleepTimeLeftMs)));
+            PrecisionSleep::Sleep(sleepTimeLeftMs);
+            continue;
         }
+#else
+        if (sleepTimeLeftMs > 0.0)
+            std::this_thread::sleep_for(std::chrono::duration<double, std::milli>(sleepTimeLeftMs));
         else
-        {
-            // Yield the thread if below granularity.
             std::this_thread::yield();
-        }
+#endif
     }
 
     m_oversleptMs = ElapsedMsSince(m_sleepStart) - durationMs;
