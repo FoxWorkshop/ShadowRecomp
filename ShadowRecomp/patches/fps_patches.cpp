@@ -374,3 +374,38 @@ void RegularRingSpinMidAsmHook(X86Register& eax, X86Register& ebp)
 	X86_STORE_F32(entry + 0x24, phase + step * extra);
 	X86_STORE_F32(entry + 0x1C, X86_LOAD_F32(entry + 0x1C) + sway);
 }
+
+/**	--Weight Patch START-- */
+
+// The big black block that drops on the player.
+// State 5 and 6 don't use delta time for some reason so we patch this as usual
+
+static const uint32_t g_weightRiseSpeed = 0x46B438; // 1.0f
+static const uint32_t g_weightFallSpeed = 0x468C74; // 2.5f
+
+// eax is the transform the block is positioned through
+void WeightRiseMidAsmHook(X86Register& eax)
+{
+	auto base = g_memory.base;
+	const float frames = X86_LOAD_F32(g_deltaTime) * 60.0f;
+
+	if (!(frames >= 0.0f) || std::fabs(frames - 1.0f) < 0.0001f)
+		return;
+
+	const float step = X86_LOAD_F32(g_weightRiseSpeed);
+	X86_STORE_F32(eax.u32 + 0x8, X86_LOAD_F32(eax.u32 + 0x8) + step * (frames - 1.0f));
+}
+
+void WeightFallMidAsmHook(X86Register& eax)
+{
+	auto base = g_memory.base;
+	const float frames = X86_LOAD_F32(g_deltaTime) * 60.0f;
+
+	if (!(frames >= 0.0f) || std::fabs(frames - 1.0f) < 0.0001f)
+		return;
+
+	const float step = X86_LOAD_F32(g_weightFallSpeed);
+	X86_STORE_F32(eax.u32 + 0x8, X86_LOAD_F32(eax.u32 + 0x8) - step * (frames - 1.0f));
+}
+
+/**	--Weight Patch END-- */

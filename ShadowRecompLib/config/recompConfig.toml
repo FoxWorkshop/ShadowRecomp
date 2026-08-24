@@ -1216,3 +1216,13 @@ address = 0x856AF
 jump_address_on_true = 0x856B1
 registers = ["r4"]
 # End vert bump patches
+
+[[midasm_hook]]
+name = "WeightRiseMidAsmHook"
+address = 0x1C1479
+registers = ["r0"]
+
+[[midasm_hook]]
+name = "WeightFallMidAsmHook"
+address = 0x1C1563
+registers = ["r0"]
