@@ -3,6 +3,13 @@
 ###############################################################################
 * text=auto
 
+ShadowRecomp/gpu/ubershaders/shader/fixed_function_pixel_shader/variants/*.py text eol=lf
+ShadowRecomp/gpu/ubershaders/shader/fixed_function_pixel_shader/variants/*.jsonl text eol=lf
+ShadowRecomp/gpu/ubershaders/shader/fixed_function_pixel_shader/variants/generated/* text eol=lf
+ShadowRecomp/gpu/ubershaders/shader/fixed_function_vertex_shader/variants/*.py text eol=lf
+ShadowRecomp/gpu/ubershaders/shader/fixed_function_vertex_shader/variants/*.jsonl text eol=lf
+ShadowRecomp/gpu/ubershaders/shader/fixed_function_vertex_shader/variants/generated/* text eol=lf
+
 ###############################################################################
 # Set default behavior for command prompt diff.
 #

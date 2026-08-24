@@ -1,5 +1,6 @@
 #include "video.h"
 #include "renderstate.h"
+#include "FixedFunction.h"
 
 //Since Xbox has a lot of arbitrary rules with RenderState, we can't just pass the state as they are for the host
 //Different methods exist to set a render state and some require conversion, this page will handle that
@@ -283,6 +284,45 @@ void UpdateAllRenderState()
 		}
 
 		//Set the host render state
+		switch (RenderState)
+		{
+		// Fixed-function states that only refresh uploaded shader constants.
+		case X_D3DRS_FOGSTART:
+		case X_D3DRS_FOGEND:
+		case X_D3DRS_FOGDENSITY:
+		case X_D3DRS_AMBIENT:
+		case X_D3DRS_BACKAMBIENT:
+		case X_D3DRS_POINTSIZE:
+		case X_D3DRS_POINTSIZE_MIN:
+		case X_D3DRS_POINTSIZE_MAX:
+		case X_D3DRS_POINTSCALE_A:
+		case X_D3DRS_POINTSCALE_B:
+		case X_D3DRS_POINTSCALE_C:
+			MarkFixedFunctionVertexShaderStateDirty();
+			break;
+		// Fixed-function states that can also select a different specialized
+		// vertex shader variant.
+		case X_D3DRS_FOGENABLE:
+		case X_D3DRS_FOGTABLEMODE:
+		case X_D3DRS_RANGEFOGENABLE:
+		case X_D3DRS_LIGHTING:
+		case X_D3DRS_SPECULARENABLE:
+		case X_D3DRS_LOCALVIEWER:
+		case X_D3DRS_COLORVERTEX:
+		case X_D3DRS_SPECULARMATERIALSOURCE:
+		case X_D3DRS_DIFFUSEMATERIALSOURCE:
+		case X_D3DRS_AMBIENTMATERIALSOURCE:
+		case X_D3DRS_EMISSIVEMATERIALSOURCE:
+		case X_D3DRS_POINTSPRITEENABLE:
+		case X_D3DRS_POINTSCALEENABLE:
+		case X_D3DRS_VERTEXBLEND:
+		case X_D3DRS_TWOSIDEDLIGHTING:
+		case X_D3DRS_NORMALIZENORMALS:
+			MarkFixedFunctionVertexShaderVariantDirty();
+			break;
+		default:
+			break;
+		}
 		SetRenderState((X_D3DRENDERSTATETYPE)RenderState, Value);
 		g_dirty_render_states[RenderState] = Value;
 	}

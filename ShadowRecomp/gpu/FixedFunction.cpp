@@ -6,6 +6,7 @@
 #include <algorithm>
 #include <DirectXMath.h>
 #include "FixedFunction.h"
+#include "ubershaders/fixed_function_vertex_shader_variants.h"
 
 // original code (mostly) re used from CXBX Reloaded
 // Since modern API don't have a fixed function pipeline, we have to emulate it ourselves using shaders.
@@ -115,10 +116,28 @@ void D3D8LightState::EnableLight(uint32_t index, bool enable) {
 
 
 D3D8LightState g_LightState = D3D8LightState();
+// I (sewer) won't deny, that having these as static is a bit sus.
+// But fret not, D3D8 is singlethreaded in operation; all callers which
+// access this can only run on one thread at a time- promise!
+static bool g_fixedFunctionVertexShaderVariantDirty = true;
+static bool g_fixedFunctionVertexShaderStateDirty = true;
+static ShaderVariantKey g_fixedFunctionVertexShaderVariant = GenericShaderVariant;
+
+void MarkFixedFunctionVertexShaderStateDirty()
+{
+	g_fixedFunctionVertexShaderStateDirty = true;
+}
+
+void MarkFixedFunctionVertexShaderVariantDirty()
+{
+	g_fixedFunctionVertexShaderVariantDirty = true;
+	MarkFixedFunctionVertexShaderStateDirty();
+}
 
 void LightEnable(uint32_t Index, int32_t bEnable)
 {
 	g_LightState.EnableLight(Index, bEnable);
+	MarkFixedFunctionVertexShaderVariantDirty();
 }
 
 std::array<bool, 4> bWorldViewDirty;
@@ -161,7 +180,7 @@ struct Transforms
 {
 	XMFLOAT4X4 View;
 	XMFLOAT4X4 Projection;
-	XMFLOAT4X4 Texture[4]; // c8-c23 (4 matrices × 4 regs each)
+	XMFLOAT4X4 Texture[4]; // c8-c23 (4 matrices x 4 regs each)
 	XMFLOAT4X4 WorldView[4];
 	XMFLOAT4X4 WorldViewInverseTranspose[4];
 };
@@ -296,6 +315,7 @@ extern std::array<D3DMATRIX, X_D3DTS_MAX> g_Transforms;
 
 void UpdateMaterial(Material* pMaterial)
 {
+	MarkFixedFunctionVertexShaderStateDirty();
 	ffShaderState.Materials[0].Ambient = pMaterial->Ambient;
 	ffShaderState.Materials[0].Diffuse = pMaterial->Diffuse;
 	ffShaderState.Materials[0].Specular = pMaterial->Specular;
@@ -305,6 +325,9 @@ void UpdateMaterial(Material* pMaterial)
 
 void UpdateLightData(uint32_t index, X_D3DLIGHT8* pLight)
 {
+	MarkFixedFunctionVertexShaderStateDirty();
+	if (g_LightState.Lights[index].Type != pLight->Type)
+		MarkFixedFunctionVertexShaderVariantDirty();
 	g_LightState.Lights[index] = *pLight;
 }
 
@@ -428,8 +451,10 @@ int GetXboxVertexDataComponentCount(int32_t d3dvsdt)
 
 
 bool logIndexedPrimitive = false;
-void UpdateFixedFunctionVertexShaderState(size_t Handle, bool isPSFixed)
+ShaderVariantKey UpdateFixedFunctionVertexShaderState(size_t Handle, bool isPSFixed, uint32_t vertexRegisterDefaultMask)
 {
+	if (!g_fixedFunctionVertexShaderStateDirty)
+		return g_fixedFunctionVertexShaderVariant;
 
 	// Vertex blending
 	// Prepare vertex blending mode variables used in transforms, below
@@ -628,10 +653,46 @@ void UpdateFixedFunctionVertexShaderState(size_t Handle, bool isPSFixed)
 	// Misc flags
 	ffShaderState.Modes.NormalizeNormals = (float)GetGuestRenderState(X_D3DRS_NORMALIZENORMALS);
 
+	if (g_fixedFunctionVertexShaderVariantDirty)
+	{
+		// Move current fixed-function controls shader selector state.
+		// We can then pick the optimised shader.
+		FixedFunctionVertexShaderControlState controlState{};
+		controlState.vertex_blend_matrix_count = (uint32_t)ffShaderState.Modes.VertexBlend_NrOfMatrices;
+		controlState.vertex_blend_calc_last_weight = (uint32_t)ffShaderState.Modes.VertexBlend_CalcLastWeight;
+		controlState.lighting_enable = (uint32_t)ffShaderState.Modes.Lighting;
+		controlState.two_sided_lighting_enable = (uint32_t)ffShaderState.Modes.TwoSidedLighting;
+		controlState.local_viewer_enable = (uint32_t)ffShaderState.Modes.LocalViewer;
+		controlState.normalize_normals_enable = (uint32_t)ffShaderState.Modes.NormalizeNormals;
+		controlState.ambient_material_source = (uint32_t)ffShaderState.Modes.AmbientMaterialSource;
+		controlState.diffuse_material_source = (uint32_t)ffShaderState.Modes.DiffuseMaterialSource;
+		controlState.specular_material_source = (uint32_t)ffShaderState.Modes.SpecularMaterialSource;
+		controlState.emissive_material_source = (uint32_t)ffShaderState.Modes.EmissiveMaterialSource;
+		controlState.fog_enable = (uint32_t)ffShaderState.Fog.Enable;
+		controlState.fog_depth_mode = (uint32_t)ffShaderState.Fog.DepthMode;
+		for (uint32_t i = 0; i < FixedFunctionVertexShaderControlState::LightCount; i++)
+			controlState.light_type[i] = (uint32_t)ffShaderState.Lights[i].DirectionVN.w;
+		for (uint32_t i = 0; i < FixedFunctionVertexShaderControlState::TextureStageCount; i++)
+		{
+			controlState.texture_transform_count[i] = (uint32_t)ffShaderState.TextureStates[i].TextureTransformFlagsCount;
+			controlState.texture_transform_projected[i] = (uint32_t)ffShaderState.TextureStates[i].TextureTransformFlagsProjected;
+			controlState.texcoord_index[i] = (uint32_t)ffShaderState.TextureStates[i].TexCoordIndex;
+			controlState.texcoord_generation[i] = (uint32_t)ffShaderState.TextureStates[i].TexCoordIndexGen;
+			controlState.texcoord_component_count[i] = (uint32_t)ffShaderState.TexCoordComponentCount[i];
+		}
+		controlState.vertex_register_default_mask = vertexRegisterDefaultMask;
+		controlState.point_sprite_enable = PointSpriteEnable;
+		controlState.point_scale_enable = PointScaleEnable;
+		controlState.specular_enable = GetGuestRenderState(X_D3DRS_SPECULARENABLE) != FALSE;
+		g_fixedFunctionVertexShaderVariant = FixedFunctionVertexShaderVariants::Select(controlState);
+		g_fixedFunctionVertexShaderVariantDirty = false;
+	}
+
 	// Write fixed function state to shader constants
 	const int slotSize = 16;
 	const int fixedFunctionStateSize = (sizeof(FixedFunctionVertexShaderState) + slotSize - 1) / slotSize;
 	CopyVertexShaderConstant(0, (DWORD*)&ffShaderState, fixedFunctionStateSize);
+	g_fixedFunctionVertexShaderStateDirty = false;
 
+	return g_fixedFunctionVertexShaderVariant;
 }
-

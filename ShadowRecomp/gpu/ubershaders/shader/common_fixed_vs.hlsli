@@ -241,6 +241,7 @@ vk::RawBufferLoad<float>(g_PushConstants.VertexShaderConstants + V_CBUFFER_OFFSE
 
 #define PSPointScaleABC \
 vk::RawBufferLoad<float4>(g_PushConstants.VertexShaderConstants + V_CBUFFER_OFFSET(127,'x'))
+#define PSRenderUpscaleFactor PSPointScaleABC.w
 
 #define LIGHT_STRIDE 96
 
@@ -374,6 +375,7 @@ cbuffer SharedConstants : register(b2, space4)
 #define vRegisterDefaultValues(i) vRegisterDefaultVal[i]
 #define vRegisterDefaultFlagsPacked(i) vRegisterDefaultFlagsPack[i]
 #define xboxTextureScale(i) xboxTextureScl[i]
+#define PSRenderUpscaleFactor pointSprite.PointScaleABC.w
 
 
 #endif
@@ -428,6 +430,41 @@ void FillLightArray(out Light lightsArray[8])
  #endif
 }
 
+Light LoadLight(const uint index)
+{
+#ifdef __spirv__
+    Light light;
+    light.Diffuse = LDiffuse(index);
+    light.Specular = LSpecular(index);
+    light.PositionV = LPositionV(index);
+    light.DirectionVN = LDirectionVN(index);
+    light.Attenuation = LAttenuation(index);
+    light.SpotParams = LSpotParams(index);
+    return light;
+#else
+    return Lights[index];
+#endif
+}
+
+Light LoadDirectionalLight(const uint index)
+{
+    Light light = (Light)0;
+#ifdef __spirv__
+    light.Diffuse = LDiffuse(index);
+#if !defined(FIXED_FUNCTION_VERTEX_SHADER_VARIANT) || FFVS_SPECULAR_ENABLE_VALUE
+    light.Specular = LSpecular(index);
+#endif
+    light.DirectionVN = LDirectionVN(index);
+#else
+    light.Diffuse = Lights[index].Diffuse;
+#if !defined(FIXED_FUNCTION_VERTEX_SHADER_VARIANT) || FFVS_SPECULAR_ENABLE_VALUE
+    light.Specular = Lights[index].Specular;
+#endif
+    light.DirectionVN = Lights[index].DirectionVN;
+#endif
+    return light;
+}
+
 void FillMaterialArray(out Material matArray[2])
 {
 #ifdef __spirv__
@@ -446,6 +483,44 @@ void FillMaterialArray(out Material matArray[2])
 #else   
     matArray = Materials;
  #endif
+}
+
+Material LoadMaterial(const uint index)
+{
+#ifdef __spirv__
+    Material material;
+    material.Diffuse = MDiffuse(index);
+    material.Ambient = MAmbient(index);
+    material.Specular = MSpecular(index);
+    material.Emissive = MEmissive(index);
+    material.Power = MPower(index);
+    return material;
+#else
+    return Materials[index];
+#endif
+}
+
+Material LoadSpecializedMaterial(const uint index)
+{
+    Material material = (Material)0;
+#ifdef __spirv__
+    material.Diffuse = MDiffuse(index);
+    material.Ambient = MAmbient(index);
+    material.Emissive = MEmissive(index);
+#if !defined(FIXED_FUNCTION_VERTEX_SHADER_VARIANT) || FFVS_SPECULAR_ENABLE_VALUE
+    material.Specular = MSpecular(index);
+    material.Power = MPower(index);
+#endif
+#else
+    material.Diffuse = Materials[index].Diffuse;
+    material.Ambient = Materials[index].Ambient;
+    material.Emissive = Materials[index].Emissive;
+#if !defined(FIXED_FUNCTION_VERTEX_SHADER_VARIANT) || FFVS_SPECULAR_ENABLE_VALUE
+    material.Specular = Materials[index].Specular;
+    material.Power = Materials[index].Power;
+#endif
+#endif
+    return material;
 }
 
 
@@ -504,4 +579,3 @@ static const uint texcoord3 = 12; // See X_D3DFVF_TEX4     / X_D3DVSDE_TEXCOORD3
 static const uint reserved0 = 13; // Has no X_D3DFVF_*     / X_D3DVSDE_*
 static const uint reserved1 = 14; // Has no X_D3DFVF_*     / X_D3DVSDE_*
 static const uint reserved2 = 15; // Has no X_D3DFVF_*     / X_D3DVSDE_*
-

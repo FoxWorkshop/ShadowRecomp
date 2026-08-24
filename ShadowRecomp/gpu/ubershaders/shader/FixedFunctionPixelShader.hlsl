@@ -1,4 +1,5 @@
 #include "common_fixed_ps.hlsli"
+#include "fixed_function_pixel_shader/state.hlsli"
 
 Texture2D<float4> g_Texture2DDescriptorHeap[] : register(t0, space0);
 Texture3D<float4> g_Texture3DDescriptorHeap[] : register(t0, space1);
@@ -148,7 +149,8 @@ TextureArgs ExecuteTextureStage(
 	int i,
 	TextureArgs ctx,
 	PsTextureHardcodedState s,
-	int previousOp
+	int previousOp,
+    int type
 )
 {
 	// Early exit if this stage is disabled (and therefore all further stages are too)
@@ -183,7 +185,6 @@ TextureArgs ExecuteTextureStage(
 
 	// Sample the texture
     float4 t;
-    int type = GetTextureSampleType(i);
     if (type == SAMPLE_NONE)
     {
         //t = 1;
@@ -293,21 +294,21 @@ float4 main(PS_INPUT input) : SV_Target
     float fogFactor;
 
 
-    if (FogEnable == 0)
+    if (FF_FOG_ENABLE == 0)
     {
         fogFactor = 1;
     }
     else
     {
-        if (FogTableMode == FOG_TABLE_NONE)
+        if (FF_FOG_TABLE_MODE == FOG_TABLE_NONE)
             fogFactor = input.iFog;
-        if (FogTableMode == FOG_TABLE_EXP)
+        if (FF_FOG_TABLE_MODE == FOG_TABLE_EXP)
             fogFactor = 1 / exp(input.iFog * FogDensity); // 1 / e^(d * density)
-        if (FogTableMode == FOG_TABLE_EXP2)
+        if (FF_FOG_TABLE_MODE == FOG_TABLE_EXP2)
             fogFactor = 1 / exp(pow(input.iFog * FogDensity, 2)); // 1 / e^((d * density)^2)
-        if (FogTableMode == FOG_TABLE_LINEAR)
+        if (FF_FOG_TABLE_MODE == FOG_TABLE_LINEAR)
             fogFactor = (FogEnd - input.iFog) / (FogEnd - FogStart); // (end - d) / (end - start)
-        if (FogEnable == 0)
+        if (FF_FOG_ENABLE == 0)
             fogFactor = 1;
     }
     TexCoords = input.iT;
@@ -329,108 +330,135 @@ float4 main(PS_INPUT input) : SV_Target
     ctx.TEMP = float4(0, 0, 0, 0);
     ctx.TFACTOR = TextureFactor;
 
+#ifdef FIXED_FUNCTION_PIXEL_SHADER_VARIANT
+#define FF_SET_STAGE(stage, index) \
+    stage.COLOROP = FF_COLOR_OP_##index; \
+    stage.COLORARG0 = FF_COLOR_ARG0_##index; \
+    stage.COLORARG1 = FF_COLOR_ARG1_##index; \
+    stage.COLORARG2 = FF_COLOR_ARG2_##index; \
+    stage.ALPHAOP = FF_ALPHA_OP_##index; \
+    stage.ALPHAARG0 = FF_ALPHA_ARG0_##index; \
+    stage.ALPHAARG1 = FF_ALPHA_ARG1_##index; \
+    stage.ALPHAARG2 = FF_ALPHA_ARG2_##index; \
+    stage.RESULTARG = FF_RESULT_ARG_##index
+
+#if FF_ACTIVE_STAGE_COUNT_VALUE > 0
+    PsTextureHardcodedState stage0;
+    FF_SET_STAGE(stage0, 0);
+    ctx = ExecuteTextureStage(0, ctx, stage0, -1, FF_TEXTURE_SAMPLE_TYPE_0);
+#endif
+#if FF_ACTIVE_STAGE_COUNT_VALUE > 1
+    PsTextureHardcodedState stage1;
+    FF_SET_STAGE(stage1, 1);
+    ctx = ExecuteTextureStage(1, ctx, stage1, FF_COLOR_OP_0, FF_TEXTURE_SAMPLE_TYPE_1);
+#endif
+#if FF_ACTIVE_STAGE_COUNT_VALUE > 2
+    PsTextureHardcodedState stage2;
+    FF_SET_STAGE(stage2, 2);
+    ctx = ExecuteTextureStage(2, ctx, stage2, FF_COLOR_OP_1, FF_TEXTURE_SAMPLE_TYPE_2);
+#endif
+#if FF_ACTIVE_STAGE_COUNT_VALUE > 3
+    PsTextureHardcodedState stage3;
+    FF_SET_STAGE(stage3, 3);
+    ctx = ExecuteTextureStage(3, ctx, stage3, FF_COLOR_OP_2, FF_TEXTURE_SAMPLE_TYPE_3);
+#endif
+#undef FF_SET_STAGE
+#else
     PsTextureHardcodedState stages[4];
     stages[0].COLOROP = X_D3DTOP_DISABLE;
     stages[1].COLOROP = X_D3DTOP_DISABLE;
     stages[2].COLOROP = X_D3DTOP_DISABLE;
     stages[3].COLOROP = X_D3DTOP_DISABLE;
-    
-    stages[0].COLOROP = color_op_0;
-    stages[0].COLORARG0 = color_arg0_0;
-    stages[0].COLORARG1 = color_arg1_0;
-    stages[0].COLORARG2 = color_arg2_0;
-    stages[0].ALPHAOP = alpha_op_0;
-    stages[0].ALPHAARG0 = alpha_arg0_0;
-    stages[0].ALPHAARG1 = alpha_arg1_0;
-    stages[0].ALPHAARG2 = alpha_arg2_0;
-    stages[0].RESULTARG = result_arg_0;
-    
-    stages[1].COLOROP = color_op_1;
-    stages[1].COLORARG0 = color_arg0_1;
-    stages[1].COLORARG1 = color_arg1_1;
-    stages[1].COLORARG2 = color_arg2_1;
-    stages[1].ALPHAOP = alpha_op_1; 
-    stages[1].ALPHAARG0 = alpha_arg0_1;
-    stages[1].ALPHAARG1 = alpha_arg1_1;
-    stages[1].ALPHAARG2 = alpha_arg2_1;
-    stages[1].RESULTARG = result_arg_1;
-    
-    stages[2].COLOROP = color_op_2;
-    stages[2].COLORARG0 = color_arg0_2;
-    stages[2].COLORARG1 = color_arg1_2;
-    stages[2].COLORARG2 = color_arg2_2;
-    stages[2].ALPHAOP = alpha_op_2; 
-    stages[2].ALPHAARG0 = alpha_arg0_2;
-    stages[2].ALPHAARG1 = alpha_arg1_2;
-    stages[2].ALPHAARG2 = alpha_arg2_2;
-    stages[2].RESULTARG = result_arg_2;
-    
-    stages[3].COLOROP = color_op_3;
-    stages[3].COLORARG0 = color_arg0_3;
-    stages[3].COLORARG1 = color_arg1_3;
-    stages[3].COLORARG2 = color_arg2_3;
-    stages[3].ALPHAOP = alpha_op_3; 
-    stages[3].ALPHAARG0 = alpha_arg0_3;
-    stages[3].ALPHAARG1 = alpha_arg1_3;
-    stages[3].ALPHAARG2 = alpha_arg2_3;
-    stages[3].RESULTARG = result_arg_3;
 
-	// Define stages
-	// https://docs.microsoft.com/en-us/windows/win32/direct3d9/d3dtexturestagestatetype
-	// We'll find comment below and insert the definitions after it
-	// STAGE DEFINITIONS
-    
-	// END STAGE DEFINITIONS
+    stages[0].COLOROP = FF_COLOR_OP_0;
+    stages[0].COLORARG0 = FF_COLOR_ARG0_0;
+    stages[0].COLORARG1 = FF_COLOR_ARG1_0;
+    stages[0].COLORARG2 = FF_COLOR_ARG2_0;
+    stages[0].ALPHAOP = FF_ALPHA_OP_0;
+    stages[0].ALPHAARG0 = FF_ALPHA_ARG0_0;
+    stages[0].ALPHAARG1 = FF_ALPHA_ARG1_0;
+    stages[0].ALPHAARG2 = FF_ALPHA_ARG2_0;
+    stages[0].RESULTARG = FF_RESULT_ARG_0;
 
-	// Run each stage
+    stages[1].COLOROP = FF_COLOR_OP_1;
+    stages[1].COLORARG0 = FF_COLOR_ARG0_1;
+    stages[1].COLORARG1 = FF_COLOR_ARG1_1;
+    stages[1].COLORARG2 = FF_COLOR_ARG2_1;
+    stages[1].ALPHAOP = FF_ALPHA_OP_1;
+    stages[1].ALPHAARG0 = FF_ALPHA_ARG0_1;
+    stages[1].ALPHAARG1 = FF_ALPHA_ARG1_1;
+    stages[1].ALPHAARG2 = FF_ALPHA_ARG2_1;
+    stages[1].RESULTARG = FF_RESULT_ARG_1;
+
+    stages[2].COLOROP = FF_COLOR_OP_2;
+    stages[2].COLORARG0 = FF_COLOR_ARG0_2;
+    stages[2].COLORARG1 = FF_COLOR_ARG1_2;
+    stages[2].COLORARG2 = FF_COLOR_ARG2_2;
+    stages[2].ALPHAOP = FF_ALPHA_OP_2;
+    stages[2].ALPHAARG0 = FF_ALPHA_ARG0_2;
+    stages[2].ALPHAARG1 = FF_ALPHA_ARG1_2;
+    stages[2].ALPHAARG2 = FF_ALPHA_ARG2_2;
+    stages[2].RESULTARG = FF_RESULT_ARG_2;
+
+    stages[3].COLOROP = FF_COLOR_OP_3;
+    stages[3].COLORARG0 = FF_COLOR_ARG0_3;
+    stages[3].COLORARG1 = FF_COLOR_ARG1_3;
+    stages[3].COLORARG2 = FF_COLOR_ARG2_3;
+    stages[3].ALPHAOP = FF_ALPHA_OP_3;
+    stages[3].ALPHAARG0 = FF_ALPHA_ARG0_3;
+    stages[3].ALPHAARG1 = FF_ALPHA_ARG1_3;
+    stages[3].ALPHAARG2 = FF_ALPHA_ARG2_3;
+    stages[3].RESULTARG = FF_RESULT_ARG_3;
+
+    int sampleTypes[4];
+    sampleTypes[0] = FF_TEXTURE_SAMPLE_TYPE_0;
+    sampleTypes[1] = FF_TEXTURE_SAMPLE_TYPE_1;
+    sampleTypes[2] = FF_TEXTURE_SAMPLE_TYPE_2;
+    sampleTypes[3] = FF_TEXTURE_SAMPLE_TYPE_3;
+
     int previousOp = -1;
     [unroll]
     for (int i = 0; i < 4; i++)
     {
-        ctx = ExecuteTextureStage(
-			i,
-			ctx,
-			stages[i],
-			previousOp
-		);
-
+        ctx = ExecuteTextureStage(i, ctx, stages[i], previousOp, sampleTypes[i]);
         previousOp = stages[i].COLOROP;
     }
+#endif
     
     
 
 	// Add fog if enabled
-    if (FogEnable)
+    if (FF_FOG_ENABLE)
     {
         float3 fogCOlor_ = float3(FogColor0, FogColor1, FogColor2);
         ctx.CURRENT.rgb = lerp(fogCOlor_.rgb, ctx.CURRENT.rgb, saturate(fogFactor));
     }
 
 	// Add specular if enabled
-    if (SpecularEnable)
+    if (FF_SPECULAR_ENABLE)
     {
         ctx.CURRENT.rgb += ctx.SPECULAR.rgb;
     }
      
-    if (alphaTestEnable)
+    if (FF_ALPHA_TEST_ENABLE)
     {
         bool passTest = false;
         
-        if (alphaFunc == 1) // D3DCMP_NEVER
+        if (FF_ALPHA_FUNC == 1) // D3DCMP_NEVER
             passTest = false;
-        else if (alphaFunc == 2) // D3DCMP_LESS
+        else if (FF_ALPHA_FUNC == 2) // D3DCMP_LESS
             passTest = ctx.CURRENT.a < alphaRef;
-        else if (alphaFunc == 3) // D3DCMP_EQUAL
+        else if (FF_ALPHA_FUNC == 3) // D3DCMP_EQUAL
             passTest = abs(ctx.CURRENT.a - alphaRef) < 0.001f;
-        else if (alphaFunc == 4) // D3DCMP_LESSEQUAL
+        else if (FF_ALPHA_FUNC == 4) // D3DCMP_LESSEQUAL
             passTest = ctx.CURRENT.a <= alphaRef;
-        else if (alphaFunc == 5) // D3DCMP_GREATER
+        else if (FF_ALPHA_FUNC == 5) // D3DCMP_GREATER
             passTest = ctx.CURRENT.a > alphaRef;
-        else if (alphaFunc == 6) // D3DCMP_NOTEQUAL
+        else if (FF_ALPHA_FUNC == 6) // D3DCMP_NOTEQUAL
             passTest = abs(ctx.CURRENT.a - alphaRef) >= 0.001f;
-        else if (alphaFunc == 7) // D3DCMP_GREATEREQUAL
+        else if (FF_ALPHA_FUNC == 7) // D3DCMP_GREATEREQUAL
             passTest = ctx.CURRENT.a >= alphaRef;
-        else if (alphaFunc == 8) // D3DCMP_ALWAYS
+        else if (FF_ALPHA_FUNC == 8) // D3DCMP_ALWAYS
             passTest = true;
             
         if (!passTest)
