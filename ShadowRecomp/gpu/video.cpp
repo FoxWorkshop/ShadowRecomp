@@ -14,6 +14,7 @@
 #include "swizzle.h"
 #include "FixedFunction.h"
 #include "renderstate.h"
+#include "frame_pacing/frame_pacer.h"
 #include <app.h>
 #include <bc_diff.h>
 #include <cpu/guest_thread.h>
@@ -4793,7 +4794,8 @@ void Video::WaitOnSwapChain()
 {
 	if (g_pendingWaitOnSwapChain)
 	{
-		if (g_swapChainValid && g_capabilities.presentWait)
+		// Pacing without vsync throttles to the compositor's vblank (Linux/Wayland).
+		if (g_swapChainValid && g_capabilities.presentWait && Config::VSync)
 		{
 			g_presentWaitProfiler.Begin();
 			g_swapChain->wait();
@@ -4805,7 +4807,6 @@ void Video::WaitOnSwapChain()
 }
 
 static std::atomic<bool> g_executedCommandList;
-std::chrono::steady_clock::time_point frameStartTime;
 static std::atomic<bool> presentExecuted(true);
 
 
@@ -4923,7 +4924,8 @@ void Video::Present()
 	g_quadIndexData.reset();
 
 
-	if (g_vulkan && g_capabilities.presentWait)
+	// Pacing without vsync throttles to the compositor's vblank (Linux/Wayland).
+	if (g_vulkan && g_capabilities.presentWait && Config::VSync)
 		g_swapChain->wait();
 
 	CheckSwapChain();
@@ -4940,8 +4942,6 @@ void Video::Present()
 
 	g_pendingWaitOnSwapChain = false;
 
-	frameStartTime = std::chrono::steady_clock::now();
-
 	if (aboutToDrawLoading && GuestThread::GetCurrentThreadId() == GetLoadingThreadID())
 	{
 		static bool loggedOnce = false;
@@ -4950,48 +4950,24 @@ void Video::Present()
 			printf("[Present] Loading thread frame limiter active (16ms pacing)\n");
 			loggedOnce = true;
 		}
-		auto elapsed = std::chrono::steady_clock::now() - frameStartTime;
-		auto targetDuration = std::chrono::milliseconds(16);
-		if (elapsed < targetDuration)
-			std::this_thread::sleep_for(targetDuration - elapsed);
+
+		static FramePacer loadingFramePacer;
+		loadingFramePacer.SetFpsLimit(60.0);
+		loadingFramePacer.EndFrame(false);
 	}
 	else
 	{
-		using namespace std::chrono_literals;
-
 		// Pace at the slower rate to avoid the busy wait in 0x56FC0
 		double targetFps = Config::FPS.Value;
 		float gameFps = GetInternalFrameRate();
 		if (gameFps > 0.0f && gameFps < targetFps)
 			targetFps = gameFps;
 
-		static std::chrono::steady_clock::time_point s_next;
-		static double s_lastTargetFps = 0.0;
-
-		auto now = std::chrono::steady_clock::now();
-
-		// Reset on change
-		if (targetFps != s_lastTargetFps)
-		{
-			s_lastTargetFps = targetFps;
-			s_next = now;
-		}
-
 		if (targetFps >= FPS_MIN && targetFps < FPS_MAX)
 		{
-			if (now < s_next)
-			{
-				std::this_thread::sleep_for(std::chrono::floor<std::chrono::milliseconds>(s_next - now - 2ms));
-
-				while ((now = std::chrono::steady_clock::now()) < s_next)
-					std::this_thread::yield();
-			}
-			else
-			{
-				s_next = now;
-			}
-
-			s_next += std::chrono::duration_cast<std::chrono::steady_clock::duration>(1000000000ns / targetFps);
+			static FramePacer framePacer;
+			framePacer.SetFpsLimit(targetFps);
+			framePacer.EndFrame(true);
 		}
 	}
 
