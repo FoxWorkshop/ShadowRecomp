@@ -2,6 +2,7 @@
 #include <user/config.h>
 
 extern bool QuickBootConfig;
+extern int Ts_StageID; 
 
 //stub unnecessary startup functions to force the game to boot
 
@@ -83,42 +84,44 @@ X86_FUNC(sub_29EA60)
 	__imp__sub_29EA60(ctx, base);
 }
 
-
-// test spawn level
-static bool changeLevelOnce = false; // true = disabled
-X86_FUNC_IMPL(__imp__sub_258550);
-X86_FUNC(sub_258550)
-{
-	if (!changeLevelOnce)
-	{
-		//X86_STORE_U32(ctx.esp.u32 + 4, 5); // Test level 5 (used in Sky Troops Intro Cutscene)
-
-		//X86_STORE_U32(ctx.esp.u32 + 4, 504); 
-		//X86_STORE_U32(ctx.esp.u32 + 4, 301); //prison island
-
-		//X86_STORE_U32(ctx.esp.u32 + 4, 302); //circus park 
-
-		//X86_STORE_U32(ctx.esp.u32 + 4, 300); 
-
-
-		//X86_STORE_U32(ctx.esp.u32 + 4, 310); //Egg Breaker 
-		//X86_STORE_U32(ctx.esp.u32 + 4, 600); //Gun Fortress (require pixel shader)
-		//X86_STORE_U32(ctx.esp.u32 + 4, 602); //Lava Shelter
-		//X86_STORE_U32(ctx.esp.u32 + 4, 710); //Devil Doom
-
-		//X86_STORE_U32(ctx.esp.u32 + 4, 400); //Central City
-
-		//X86_STORE_U32(ctx.esp.u32 + 4, 201); //Glyphic Canyon 
-		//X86_STORE_U32(ctx.esp.u32 + 4, 210); //black bull (require pixel shader)
-		//X86_STORE_U32(ctx.esp.u32 + 4, 402); //Sky Troops	
-		//X86_STORE_U32(ctx.esp.u32 + 4, 501); //air fleet  (eventually require pixel shader)
-		changeLevelOnce = true;
-	}
-	__imp__sub_258550(ctx, base);
-}
-
 // Always allow skipping the title screen logos
 void AlwaysAllowLogoSkipMidAsmHook() {}
+
+// SwapGameMode
+// boot directly into a stage when --l <stage id> is used
+// we first force game mode to 5 (StageSequence::Manager)
+// then assign the new stage id
+static bool StageBootDone = false;
+X86_FUNC_IMPL(__imp__sub_5C5E0);
+X86_FUNC(sub_5C5E0)
+{
+	if (!StageBootDone && Ts_StageID != -1 && X86_LOAD_U32(ctx.esp.u32 + 4) == 4)
+	{
+		StageBootDone = true;
+
+		X86_STORE_U32(ctx.esp.u32 + 4, 5); // force game mode to 5 for levels
+		X86_STORE_U32(0x5022A4, 0);
+		X86_STORE_U32(0x54C910, Ts_StageID);
+
+		// reset the stage sequence state
+		GuestToHostFunction<void, CallConvention::Thiscall>(sub_258610, 0x54DDFC);
+
+		// we need to assign the pad num to the controller data
+		// otherwise Vibration::Manager will crash the game with a vector out of range
+		uint32_t padState = X86_LOAD_U32(0x5356F0);
+
+		if (!padState)
+			padState = GuestToHostFunction<uint32_t, CallConvention::Cdecl>(sub_11410);
+
+		if (padState) // set pad num per player
+		{
+			X86_STORE_U32(padState + 404, 0);
+			X86_STORE_U32(padState + 408, 1);
+		}
+	}
+
+	__imp__sub_5C5E0(ctx, base);
+}
 
 GUEST_FUNCTION_HOOK_STDCALL(sub_2B0CE1, TryOpenVolume);
 GUEST_FUNCTION_HOOK_STDCALL(sub_2B0C27, MapLetterToDirectory); //this stub will trigger the lack of space after pressing start

@@ -124,6 +124,7 @@ extern bool isHostThread;
 
 
 bool QuickBootConfig = false;
+int Ts_StageID = -1; // test spawn stage select
 
 int main(int argc, char* argv[])
 {
@@ -169,6 +170,14 @@ int main(int argc, char* argv[])
         forceInstallationCheck = forceInstallationCheck || (strcmp(argv[i], "--install-check") == 0);
         graphicsApiRetry = graphicsApiRetry || (strcmp(argv[i], "--graphics-api-retry") == 0);
         QuickBootConfig = (strcmp(argv[i], "--quickboot") == 0);
+
+        if (strcmp(argv[i], "--l") == 0 || strcmp(argv[i], "--level") == 0)
+        {
+            if ((i + 1) < argc)
+                Ts_StageID = atoi(argv[++i]);
+            else
+                LOGN_WARNING("No argument was specified for --level. Option will be ignored.");
+        }
 
 
         if (strcmp(argv[i], "--sdl-video-driver") == 0)
