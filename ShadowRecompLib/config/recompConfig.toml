@@ -1176,6 +1176,23 @@ name = "ElecSearchLightPullMidAsmHook"
 address = 0x201DB9
 registers = ["r7"]
 
+# Ring drop FPS fix
+[[midasm_hook]]
+name = "ScatteringRingPhysicsMidAsmHook"
+address = 0x1B140D
+registers = ["r4"]
+
+[[midasm_hook]]
+name = "ScatteringRingSpinMidAsmHook"
+address = 0x1B14C8
+registers = ["r4"]
+
+# Regular ring rotation fix for High FPS
+[[midasm_hook]]
+name = "RegularRingSpinMidAsmHook"
+address = 0x1AC05C
+registers = ["r0", "r6"]
+
 # Start vert bump patches
 # Adjust tolerance in sub_84E50.
 [[midasm_hook]]

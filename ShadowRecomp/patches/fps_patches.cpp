@@ -282,3 +282,95 @@ void ElecSearchLightPullMidAsmHook(X86Register &esp)
 	float step = X86_LOAD_F32(scaleAddr) * (X86_LOAD_F32(g_deltaTime) * 60.0f);
 	X86_STORE_F32(scaleAddr, std::min(step, 45.0f));
 }
+
+/** --ScatteringRing Patch START-- */
+
+// Rings that drop on the floor when you get hit
+// they go too fast above 60 fps so we adjust the physics to use delta time.
+
+static const uint32_t g_scatteringRingDamp = 0x46806C; // 0.98437297f
+static const uint32_t g_scatteringRingDrag = 0x46B380; // 0.1f
+static const uint32_t g_scatteringRingGravity = 0x468030; // 0.12138f
+
+void ScatteringRingPhysicsMidAsmHook(X86Register& esi)
+{
+	auto base = g_memory.base;
+	const uint32_t this_ = esi.u32;
+	const float frames = X86_LOAD_F32(g_deltaTime) * 60.0f;
+
+	if (!(frames >= 0.0f) || std::fabs(frames - 1.0f) < 0.0001f)
+		return;
+
+	const float damp = X86_LOAD_F32(g_scatteringRingDamp);
+	const float drag = 1.0f - X86_LOAD_F32(g_scatteringRingDrag);
+	const float gravity = X86_LOAD_F32(g_scatteringRingGravity);
+
+	const float velX = X86_LOAD_F32(this_ + 0x54);
+	const float velY = X86_LOAD_F32(this_ + 0x58);
+	const float velZ = X86_LOAD_F32(this_ + 0x5C);
+
+	const float dampN = std::pow(damp, frames);
+	const float dragN = std::pow(drag, frames);
+	const float terminal = -gravity / (1.0f - drag);
+	const float endVelX = velX * dampN;
+	const float endVelY = terminal + (velY - terminal) * dragN;
+	const float endVelZ = velZ * dampN;
+
+	// distance stuff
+	const float sumDamp = damp * (1.0f - dampN) / (1.0f - damp);
+	const float sumDrag = drag * (1.0f - dragN) / (1.0f - drag);
+	const float travelX = velX * sumDamp;
+	const float travelY = terminal * frames + (velY - terminal) * sumDrag;
+	const float travelZ = velZ * sumDamp;
+
+	X86_STORE_F32(this_ + 0x54, endVelX / damp);
+	X86_STORE_F32(this_ + 0x58, (endVelY + gravity) / drag);
+	X86_STORE_F32(this_ + 0x5C, endVelZ / damp);
+
+	X86_STORE_F32(this_ + 0x48, X86_LOAD_F32(this_ + 0x48) + (travelX - endVelX));
+	X86_STORE_F32(this_ + 0x4C, X86_LOAD_F32(this_ + 0x4C) + (travelY - endVelY));
+	X86_STORE_F32(this_ + 0x50, X86_LOAD_F32(this_ + 0x50) + (travelZ - endVelZ));
+}
+
+// Simple visual fix so the rings rotate at normal speed at high fps.
+static const uint32_t g_scatteringRingSpinPi = 0x47E0A4; // pi
+static const uint32_t g_scatteringRingSpinDeg = 0x42A880; // 1/180
+static const uint32_t g_scatteringRingSpinRate = 0x468054; // 1.5f
+
+void ScatteringRingSpinMidAsmHook(X86Register& esi)
+{
+	auto base = g_memory.base;
+	const float frames = X86_LOAD_F32(g_deltaTime) * 60.f;
+	const float spinPi = X86_LOAD_F32(g_scatteringRingSpinPi);
+	const float spinDeg = X86_LOAD_F32(g_scatteringRingSpinDeg);
+	const float spinRate = X86_LOAD_F32(g_scatteringRingSpinRate);
+	const float stepRes = spinPi * spinDeg * spinRate;
+
+	X86_STORE_F32(esi.u32 + 0x64, X86_LOAD_F32(esi.u32 + 0x64) + stepRes * (frames - 1.0f));
+}
+
+/** --ScatteringRing Patch END-- */
+
+// Regular rings spin too fast just like their drop variation
+static const uint32_t g_regularRingSpinStep = 0x467D00; // 0.01f
+static const uint32_t g_regularRingSpinAmplitude = 0x467D04; // 0.05f
+
+void RegularRingSpinMidAsmHook(X86Register& eax, X86Register& ebp)
+{
+	auto base = g_memory.base;
+	const float frames = X86_LOAD_F32(g_deltaTime) * 60.0f;
+
+	if (!(frames >= 0.0f) || std::fabs(frames - 1.0f) < 0.0001f)
+		return;
+
+	// eax is the current ring array while ebp is the current offset
+	const uint32_t entry = eax.u32 + ebp.u32;
+	const float step = X86_LOAD_F32(g_regularRingSpinStep);
+	const float amplitude = X86_LOAD_F32(g_regularRingSpinAmplitude);
+	const float phase = X86_LOAD_F32(entry + 0x24);
+	const float extra = frames - 1.0f;
+
+	const float sway = amplitude * (std::sin(extra * step * 0.5f) / std::sin(step * 0.5f)) * std::sin(phase + (extra + 1.0f) * step * 0.5f);
+	X86_STORE_F32(entry + 0x24, phase + step * extra);
+	X86_STORE_F32(entry + 0x1C, X86_LOAD_F32(entry + 0x1C) + sway);
+}
