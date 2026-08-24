@@ -4240,36 +4240,45 @@ static void DrawProfiler()
 				ImGui::TableSetupColumn("Average FPS");
 				ImGui::TableHeadersRow();
 
-				auto drawPerfRow = [](const char* name, double ms, double msAvg, bool showFPS = false, double fps = 0, double fpsAvg = 0)
+				// Indentation = nesting. "(wait)" = blocked. "(async)" = other worker.
+				auto drawPerfRow = [&](const char* name, double ms, double msAvg, bool showFPS = false, const char* note = nullptr)
 				{
 					ImGui::TableNextColumn();
-					ImGui::Text("%s", name);
+					ImGui::TextUnformatted(name);
+
+					if (note != nullptr && ImGui::IsItemHovered())
+						ImGui::SetTooltip("%s", note);
+
 					ImGui::TableNextColumn();
-					ImGui::Text("%g ms", ms);
+					ImGui::Text("%.3f ms (%.1f%%)", ms, g_frameIntervalMs > 0.0 ? ms / g_frameIntervalMs * 100.0 : 0.0);
 					ImGui::TableNextColumn();
-					ImGui::Text("%g ms", msAvg);
+					ImGui::Text("%.3f ms (%.1f%%)", msAvg, applicationAvg > 0.0 ? msAvg / applicationAvg * 100.0 : 0.0);
 					ImGui::TableNextColumn();
 
 					if (showFPS)
-						ImGui::Text("%g FPS", fps);
+						ImGui::Text("%.3f FPS", 1000.0 / std::max(ms, 0.001));
+					else
+						ImGui::TextUnformatted("N/A");
 
 					ImGui::TableNextColumn();
 
 					if (showFPS)
-						ImGui::Text("%g FPS", fpsAvg);
+						ImGui::Text("%.3f FPS", 1000.0 / std::max(msAvg, 0.001));
+					else
+						ImGui::TextUnformatted("N/A");
 				};
 
-				// -------- Name ------------------ Current Time --------------------------------- Average Time ----------- Current FPS ------------------------------------- Average FPS -------------- //
-				drawPerfRow("Application",          g_frameIntervalMs,                           applicationAvg,       true, 1000.0 / std::max(g_frameIntervalMs, 0.001),     1000.0 / applicationAvg       );
-				drawPerfRow("GPU Frame",            g_gpuFrameProfiler.value.load(),             gpuFrameAvg,          true, 1000.0 / g_gpuFrameProfiler.value.load(),        1000.0 / gpuFrameAvg          );
-				drawPerfRow("Present",              g_presentProfiler.value.load(),              presentAvg,           true, 1000.0 / g_presentProfiler.value.load(),         1000.0 / presentAvg           );
-				drawPerfRow("Game Thread",          g_updateDirectorProfiler.value.load(),       gameThreadAvg,        true, 1000.0 / g_updateDirectorProfiler.value.load(),  1000.0 / gameThreadAvg        );
-				drawPerfRow("Render-Thread Work",   g_renderDirectorProfiler.value.load(),       renderThreadWorkAvg,  true, 1000.0 / g_renderDirectorProfiler.value.load(),  1000.0 / renderThreadWorkAvg  );
-				drawPerfRow("Present Wait",         g_presentWaitProfiler.value.load(),          presentWaitAvg                                                                                                );
-				drawPerfRow("Frame Fence",          g_frameFenceProfiler.value.load(),           frameFenceAvg                                                                                                 );
-				drawPerfRow("Swap Chain Acquire",   g_swapChainAcquireProfiler.value.load(),     swapChainAcquireAvg                                                                                           );
-				drawPerfRow("Exec CmdList Wait",    g_executeCmdListWaitProfiler.value.load(),   executeCmdListWaitAvg                                                                                         );
-				drawPerfRow("Begin CmdList Wait",   g_beginCmdListWaitProfiler.value.load(),     beginCmdListWaitAvg                                                                                           );
+				// Percentages are relative to parent; (Application == 100% of frame).
+				drawPerfRow("Application",                 g_frameIntervalMs,                         applicationAvg,        true, "Whole frame period, wall clock, Present to Present.\nGame-thread time only; async lanes below overlap it.");
+				drawPerfRow("    Game Thread",             g_updateDirectorProfiler.value.load(),     gameThreadAvg,         true, "Game update + draw submission + present.\nBrackets sub_57630 on the game thread.");
+				drawPerfRow("        Present",             g_presentProfiler.value.load(),            presentAvg,            true, "Video::Present: waits, swapchain submit, fence wait,\nsetup of the next frame.");
+				drawPerfRow("            Exec CmdList (wait)",   g_executeCmdListWaitProfiler.value.load(), executeCmdListWaitAvg,  false, "Blocked waiting for the render thread to finish\nthe command list.");
+				drawPerfRow("            Frame Fence (wait)",    g_frameFenceProfiler.value.load(),        frameFenceAvg,           false, "Blocked waiting for the GPU to finish an older frame\n(backpressure from the buffered-frame pipeline).");
+				drawPerfRow("            Swap Chain Acquire",     g_swapChainAcquireProfiler.value.load(),  swapChainAcquireAvg,    false, "Acquiring a free backbuffer image from the swap chain.");
+				drawPerfRow("            Begin CmdList (wait)",   g_beginCmdListWaitProfiler.value.load(),  beginCmdListWaitAvg,    false, "Blocked waiting for the render thread to open the\nnext command list.");
+				drawPerfRow("    Present Wait (wait)",      g_presentWaitProfiler.value.load(),        presentWaitAvg,         false, "VSync pacing: waiting on the swap chain between frames\n(only with vsync + presentWait).");
+				drawPerfRow("Render-Thread Work (async)", g_renderDirectorProfiler.value.load(),  renderThreadWorkAvg,   true, "Separate CPU thread translating game commands into\nGPU API calls. Async worker: overlaps the frame period,\ndoes not add to it.");
+				drawPerfRow("GPU Frame (async)",       g_gpuFrameProfiler.value.load(),           gpuFrameAvg,           true, "GPU execution time from timestamp queries.\nAsync worker: own clock domain, overlaps the frame period.");
 
 				ImGui::EndTable();
 			}
@@ -4289,11 +4298,11 @@ static void DrawProfiler()
 						double rtCur = g_renderDirectorProfiler.value.load();
 						double rtAvg = renderThreadWorkAvg;
 						ImGui::TableNextColumn();
-						ImGui::Text("%s", name);
+						ImGui::TextUnformatted(name);
 						ImGui::TableNextColumn();
-						ImGui::Text("%g ms", cur);
+						ImGui::Text("%.3f ms", cur);
 						ImGui::TableNextColumn();
-						ImGui::Text("%g ms", avg);
+						ImGui::Text("%.3f ms", avg);
 						ImGui::TableNextColumn();
 						ImGui::Text("%.1f%% / %.1f%%", rtCur > 0.0 ? (cur / rtCur * 100.0) : 0.0, rtAvg > 0.0 ? (avg / rtAvg * 100.0) : 0.0);
 					};
@@ -4318,9 +4327,9 @@ static void DrawProfiler()
 					double totalAcctCur = flushCur + drawCallCur + g_rtOtherCmdsAccum.value.load() + g_rtBeginCmdListWorkAccum.value.load() + g_rtQueueWaitAccum.value.load();
 					double totalAcctAvg = rtFlushWorkAvg + rtDrawCallAvg + rtOtherCmdsAvg + rtBeginCmdListWorkAvg + rtQueueWaitAvg;
 					ImGui::TableNextColumn(); ImGui::TextDisabled("Total Acct.");
-					ImGui::TableNextColumn(); ImGui::TextDisabled("%g ms", totalAcctCur);
-					ImGui::TableNextColumn(); ImGui::TextDisabled("%g ms", totalAcctAvg);
-					ImGui::TableNextColumn(); ImGui::TextDisabled("(vs RT Work: %g ms)", renderThreadWorkAvg);
+					ImGui::TableNextColumn(); ImGui::TextDisabled("%.3f ms", totalAcctCur);
+					ImGui::TableNextColumn(); ImGui::TextDisabled("%.3f ms", totalAcctAvg);
+					ImGui::TableNextColumn(); ImGui::TextDisabled("(vs RT Work: %.3f ms)", renderThreadWorkAvg);
 
 					ImGui::EndTable();
 				}
@@ -4357,11 +4366,11 @@ static void DrawProfiler()
 						double gtCur = g_updateDirectorProfiler.value.load();
 						double gtAvg = gameThreadAvg;
 						ImGui::TableNextColumn();
-						ImGui::Text("%s", name);
+						ImGui::TextUnformatted(name);
 						ImGui::TableNextColumn();
-						ImGui::Text("%g ms", cur);
+						ImGui::Text("%.3f ms", cur);
 						ImGui::TableNextColumn();
-						ImGui::Text("%g ms", avg);
+						ImGui::Text("%.3f ms", avg);
 						ImGui::TableNextColumn();
 						ImGui::Text("%.1f%% / %.1f%%", gtCur > 0.0 ? (cur / gtCur * 100.0) : 0.0, gtAvg > 0.0 ? (avg / gtAvg * 100.0) : 0.0);
 					};
