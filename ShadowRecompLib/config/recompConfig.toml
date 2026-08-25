@@ -837,6 +837,7 @@ address = 0x281729
 registers = ["r0"]
 
 #Enemy HP bar scaling stuff 
+[[midasm_hook]]
 name = "HpBarProjectionMidAsmHook"
 address = 0x2859FA
 registers = ["r4", "r0"]
