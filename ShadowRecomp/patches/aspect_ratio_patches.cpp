@@ -1140,10 +1140,12 @@ X86_FUNC(sub_2DB9C0)
 }
 
 // The game draws a quad in front of the game camera and scale it, but this only work for 4:3, 
-// this is used for the red filter of the camera in Gun Fortress. 
+// this is used for different effects, such as the camera in Gun Fortress or the rain in Sky Troops. 
 // We can edit the math and apply the same stretch the projection got with the new aspect ratio (right before the matrix scale call).
-void WatchCameraFilterScaleMidAsmHook(X86Register& esp)
+
+static void StretchFullScreenQuadScale(uint32_t scaleArgs)
 {
+
 	float aspectRatio = g_aspectRatio;
 	auto base = g_memory.base;
 
@@ -1153,12 +1155,25 @@ void WatchCameraFilterScaleMidAsmHook(X86Register& esp)
 
 	if (aspectRatio > nativeAspectRatio) // horizontal
 	{
-		X86_STORE_F32(esp.u32, X86_LOAD_F32(esp.u32) * relativeAspectRatio);
+		X86_STORE_F32(scaleArgs, X86_LOAD_F32(scaleArgs) * relativeAspectRatio);
 	}
 	else // graw the quad vertically
 	{
-		X86_STORE_F32(esp.u32 + 4, X86_LOAD_F32(esp.u32 + 4) / relativeAspectRatio);
+		X86_STORE_F32(scaleArgs + 4, X86_LOAD_F32(scaleArgs + 4) / relativeAspectRatio);
 	}
+}
+
+// The camera that shows a red filter that covers the screen in Gun Fortress.
+void WatchCameraFilterScaleMidAsmHook(X86Register& esp)
+{
+	StretchFullScreenQuadScale(esp.u32);
+}
+
+// RainEffect (ctor sub_1C7C70) does the same thing for the rain overlay than the camera red filter in Gun Fortress
+// So we can just re use the same code
+void RainEffectScaleMidAsmHook(X86Register& esp)
+{
+	StretchFullScreenQuadScale(esp.u32);
 }
 
 /*** END Render at any Aspect Ratio ***/

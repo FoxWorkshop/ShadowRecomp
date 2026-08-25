@@ -853,6 +853,12 @@ name = "WatchCameraFilterScaleMidAsmHook"
 address = 0x21BAAD
 registers = ["r7"]
 
+# Same 4:3-locked full-screen quad as the watch camera filter above
+[[midasm_hook]]
+name = "RainEffectScaleMidAsmHook"
+address = 0x1C8004
+registers = ["r7"]
+
 # Inlined Homing Attack Speed 1000f -> 2000f [Reloaded Phys]
 [[midasm_hook]]
 name = "HomingAttackSpeedMidAsmHook"
