@@ -146,6 +146,7 @@ set(SHADOW_RECOMP_PATCHES_CXX_SOURCES
     "patches/prompt_patches.cpp"
     "patches/player_patches.cpp"
     "patches/misc_patches.cpp"
+    "patches/vector_patches.cpp"
     "patches/multiplayer_mod_patches.cpp"
     "patches/reloaded_mod_patches.cpp"
     "patches/objects_patches.cpp"
