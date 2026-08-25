@@ -19,6 +19,9 @@ inline float g_aspectRatioNarrowMargin;
 inline float g_horzCentre;
 inline float g_vertCentre;
 
+// 1.0 at 4:3 and below, 0.75 at 16:9, ~0.5625 at 21:9.
+inline float g_hudUnstretchX = 1.0f;
+
 struct AspectRatioPatches
 {
     static void ComputeOffsets();
@@ -99,6 +102,10 @@ enum CsdFlags : uint64_t
 
     CSD_EXTEND_BOTTOM = MAKE_BITFLAG64(44),
     CSD_MOVE_BOTTOM = MAKE_BITFLAG64(45),
+
+    // Unstretch a primitive even though it spans the whole virtual screen, for the rare
+    // full-width element that is a widget rather than a background.
+    CSD_FORCE_UNSTRETCH = MAKE_BITFLAG64(46),
 };
 
 

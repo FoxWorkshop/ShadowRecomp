@@ -76,6 +76,12 @@ void AspectRatioPatches::ComputeOffsets()
 
 	g_aspectRatioNarrowScale = std::clamp((g_aspectRatio - NARROW_ASPECT_RATIO) / (WIDE_ASPECT_RATIO - NARROW_ASPECT_RATIO), 0.0f, 1.0f);
 	g_aspectRatioNarrowMargin = std::lerp(50.0f, 0.0f, g_aspectRatioNarrowScale);
+
+	// The game draws all 2D in a fixed 640x480 space which ends being mapped in our viewport, 
+	// so anything authored for 4:3 leaves the screen stretched horizontally 
+	// Squeezing X by the inverse restores square pixels.
+	g_hudUnstretchX = std::min(1.0f, NARROW_ASPECT_RATIO / g_aspectRatio);
+
 	g_horzCentre = g_aspectRatioOffsetX + 640.0f * (1.0f - g_aspectRatioGameplayScale) * g_aspectRatioScale;
 	g_vertCentre = g_aspectRatioOffsetY + 360.0f * (1.0f - g_aspectRatioGameplayScale) * g_aspectRatioScale;
 	UpdateFontSize();
@@ -372,12 +378,86 @@ void RenderCsdCastMidAsmHook(X86Register& rEsi)
 	g_castModifier = FindCsdModifier(rEsi.u32);
 }
 
+
+
+static constexpr float CSD_ANCHOR_LEFT = 0.0f;
+static constexpr float CSD_ANCHOR_CENTRE = widthMin / 2.0f;
+static constexpr float CSD_ANCHOR_RIGHT = widthMin;
+
+static float ResolveAnchorX(int64_t flags, float minX, float maxX)
+{
+	if (Config::UIAlignmentMode.Value == EUIAlignmentMode::Centre)
+		return CSD_ANCHOR_CENTRE;
+
+	if ((flags & CSD_ALIGN_LEFT) != 0)
+		return CSD_ANCHOR_LEFT;
+
+	if ((flags & CSD_ALIGN_RIGHT) != 0)
+		return CSD_ANCHOR_RIGHT;
+
+
+	float centre = (minX + maxX) * 0.5f;
+
+	if (centre < widthMin / 3.0f)
+		return CSD_ANCHOR_LEFT;
+
+	if (centre > widthMin * 2.0f / 3.0f)
+		return CSD_ANCHOR_RIGHT;
+
+	return CSD_ANCHOR_CENTRE;
+}
+
+
+static bool UnstretchPrimitive(void* vertexData, uint32_t count, int64_t flags, float* savedX)
+{
+	auto* verts = (RwD3D8Vertex*)vertexData;
+
+	if (verts == nullptr || count == 0)
+		return false;
+
+	// 4:3 or narrower, or the user asked for the original stretched look.
+	if (g_hudUnstretchX >= 1.0f || Config::UIAlignmentMode.Value == EUIAlignmentMode::Stretch)
+		return false;
+
+	if ((flags & CSD_STRETCH_HORIZONTAL) != 0)
+		return false;
+
+	float minX = FLT_MAX;
+	float maxX = -FLT_MAX;
+
+	for (uint32_t i = 0; i < count; i++)
+	{
+		minX = std::min(minX, verts[i].x);
+		maxX = std::max(maxX, verts[i].x);
+	}
+
+	// Primitives that already span the virtual screen are backgrounds, fades and letterbox bars.
+	// They are meant to cover the display, so leave them stretched.
+	if ((flags & CSD_FORCE_UNSTRETCH) == 0 && minX <= 1.0f && maxX >= widthMin - 1.0f)
+		return false;
+
+	float anchor = ResolveAnchorX(flags, minX, maxX);
+
+	for (uint32_t i = 0; i < count; i++)
+	{
+		savedX[i] = verts[i].x;
+		verts[i].x = anchor + (verts[i].x - anchor) * g_hudUnstretchX;
+	}
+
+	return true;
+}
+
+static void RestorePrimitiveX(void* vertexData, uint32_t count, const float* savedX)
+{
+	auto* verts = (RwD3D8Vertex*)vertexData;
+
+	for (uint32_t i = 0; i < count; i++)
+		verts[i].x = savedX[i];
+}
+
 void Draw(X86Context& ctx, uint8_t* base, X86Func* original, void* vertexData, uint32_t stride)
 {
 	CsdModifier modifier{};
-
-	auto vpWidth = float(Video::s_viewportWidth);
-	auto vpHeight = float(Video::s_viewportHeight);
 
 	if (g_castModifier.has_value())
 	{
@@ -417,51 +497,6 @@ void Draw(X86Context& ctx, uint8_t* base, X86Func* original, void* vertexData, u
 			original(ctx, base);
 		};
 
-	auto offsetX = 0.0f;
-	auto offsetY = 0.0f;
-	auto pivotX = 0.0f;
-	auto pivotY = 0.0f;
-	auto scaleX = 1.0f;
-	auto scaleY = 1.0f;
-
-	auto needsStretch = g_aspectRatio >= WIDE_ASPECT_RATIO;
-
-	if (needsStretch && (modifier.Flags & CSD_STRETCH_HORIZONTAL) != 0)
-	{
-		scaleX = vpWidth / 640.f;
-	}
-	else
-	{
-		scaleX = g_aspectRatioScale;
-
-	}
-
-	if ((modifier.Flags & CSD_STRETCH_VERTICAL) != 0)
-	{
-		scaleY = vpHeight / 480.f;
-	}
-	else
-	{
-		scaleY = g_aspectRatioScale;
-
-		if ((modifier.Flags & CSD_ALIGN_BOTTOM) != 0)
-			offsetY = g_aspectRatioOffsetY * 2.0f;
-		else if ((modifier.Flags & CSD_ALIGN_TOP) == 0)
-			offsetY = g_aspectRatioOffsetY;
-
-		if ((modifier.Flags & CSD_SCALE) != 0)
-		{
-			scaleY *= g_aspectRatioGameplayScale;
-
-			if ((modifier.Flags & CSD_ALIGN_BOTTOM) != 0)
-				offsetY += 480.f * (1.0f - g_aspectRatioGameplayScale) * g_aspectRatioScale;
-			else if ((modifier.Flags & CSD_ALIGN_TOP) == 0)
-				offsetY += g_vertCentre - g_aspectRatioOffsetY;
-
-			offsetY += pivotY * g_aspectRatioScale;
-		}
-	}
-
 	const bool isPauseBossWithExtendBottom = ((modifier.Flags & CSD_PAUSE_BOSS) != 0 && ((modifier.Flags & CSD_EXTEND_BOTTOM) != 0));
 
 	uint8_t pauseItemCount = GetAddedPauseItemsCount();
@@ -490,26 +525,13 @@ void Draw(X86Context& ctx, uint8_t* base, X86Func* original, void* vertexData, u
 		}
 	}
 
-	bool shouldBeSkipped = false;
-	// save original vertex values
-	float originalX[CSDVertexCount], originalY[CSDVertexCount];
-	memset(originalX, 0, sizeof(originalX));
-	memset(originalY, 0, sizeof(originalY));
-	for (int i = 0; i < CSDVertexCount; i++)
-	{
-		auto vertex = (RwD3D8Vertex*)vertexData + i;
-		if (vertex)
-		{
-			originalX[i] = vertex->x;
-			originalY[i] = vertex->y;
-
-			if (originalX[i] < -10.f || originalX[i] > 640 + 20.f)
-				shouldBeSkipped = true;
-		}
-	}
-
+	float originalX[CSDVertexCount];
+	bool unstretched = UnstretchPrimitive(vertexData, CSDVertexCount, modifier.Flags, originalX);
 
 	drawOriginal();
+
+	if (unstretched)
+		RestorePrimitiveX(vertexData, CSDVertexCount, originalX);
 
 	if ((modifier.Flags & CSD_HIDE_PAUSE) != 0)
 	{
@@ -547,26 +569,14 @@ void CPlatformRWDrawPrimitive2DMidAsmHook2(X86Register& rEsi)
 	Draw(*ctx, base, __imp__sub_2ECC80, g_memory.Translate(rEsi.u32), 28);
 }
 
+
 void DrawHudMidAsmHook(X86Register& rEax)
 {
-	if (Config::UIAlignmentMode.Value != EUIAlignmentMode::Centre || !rEax.u32)
+	if (!rEax.u32)
 		return;
 
-	auto vpWidth = float(Video::s_viewportWidth);
-	auto vpHeight = float(Video::s_viewportHeight);
-	float stretchFactor = (vpWidth / vpHeight) / (640.f / 480.f);
-	float centreX = 640.f / 2.f;
-	float aspectRatio = vpWidth / vpHeight;
-	float ratio43 = 640.f / 480.f;
-	if (aspectRatio > ratio43)
-	{
-		RwD3D8Vertex* vertexHud = (RwD3D8Vertex*)(g_memory.Translate(rEax.u32));
-
-		for (int i = 0; i < 4; i++)
-		{
-			vertexHud[i].x = centreX + (vertexHud[i].x - centreX) / stretchFactor;
-		}
-	}
+	float savedX[CSDVertexCount];
+	UnstretchPrimitive(g_memory.Translate(rEax.u32), CSDVertexCount, CSD_ALIGN_CENTER, savedX);
 }
 
 
