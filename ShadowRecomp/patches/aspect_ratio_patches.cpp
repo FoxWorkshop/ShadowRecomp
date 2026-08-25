@@ -472,6 +472,8 @@ void Draw(X86Context& ctx, uint8_t* base, X86Func* original, void* vertexData, u
 		modifier = g_sceneModifier.value();
 	}
 
+	auto vpWidth = float(Video::s_viewportWidth);
+	auto vpHeight = float(Video::s_viewportHeight);
 
 	// Remove all flags if the aspect ratio is above 16:9.
 	if ((modifier.Flags & CSD_MODIFIER_ULTRAWIDE_ONLY) != 0 && g_aspectRatio <= WIDE_ASPECT_RATIO)
@@ -488,6 +490,27 @@ void Draw(X86Context& ctx, uint8_t* base, X86Func* original, void* vertexData, u
 		// Skip drawing this cast.
 		return;
 	}
+
+	bool shouldBeSkipped = false;
+	const bool isCentered = Config::UIAlignmentMode.Value == EUIAlignmentMode::Centre;
+	const bool canUnstretch = ((modifier.Flags & CSD_MODIFIER_PRESEVE_4_3_SCALE) != 0);
+
+	if (isCentered && canUnstretch)
+	{
+		for (int i = 0; i < CSDVertexCount; i++)
+		{
+			auto vertex = (RwD3D8Vertex*)vertexData + i;
+			if (vertex)
+			{
+				if (vertex[i].x < -10.f || vertex[i].x > 640 + 20.f)
+				{
+					shouldBeSkipped = true;
+					break;
+				}
+			}
+		}
+	}
+
 
 
 	auto drawOriginal = [&]()
@@ -525,13 +548,41 @@ void Draw(X86Context& ctx, uint8_t* base, X86Func* original, void* vertexData, u
 		}
 	}
 
+
+
 	float originalX[CSDVertexCount];
-	bool unstretched = UnstretchPrimitive(vertexData, CSDVertexCount, modifier.Flags, originalX);
+	bool unstretched = false;
+
+	if (canUnstretch)
+		unstretched = UnstretchPrimitive(vertexData, CSDVertexCount, modifier.Flags, originalX);
+
+	if ((modifier.Flags & CSD_MODIFIER_PRESEVE_4_3_SCALE) != 0)
+	{
+
+		float aspectRatio = vpWidth / vpHeight;
+		float ratio43 = 640.f / 480.f;
+		if (aspectRatio > ratio43)
+		{
+			if (isCentered)
+			{
+				// skip draw call until vertex are meant to be visible. 
+				// This fixes hud elements that have animation and end showing up when they 
+				// shouldn't due to vertex pos adjust.
+
+				if (shouldBeSkipped)
+				{
+					return;
+				}
+			}
+		}
+	}
 
 	drawOriginal();
 
+
 	if (unstretched)
 		RestorePrimitiveX(vertexData, CSDVertexCount, originalX);
+
 
 	if ((modifier.Flags & CSD_HIDE_PAUSE) != 0)
 	{
@@ -577,6 +628,43 @@ void DrawHudMidAsmHook(X86Register& rEax)
 
 	float savedX[CSDVertexCount];
 	UnstretchPrimitive(g_memory.Translate(rEax.u32), CSDVertexCount, CSD_ALIGN_CENTER, savedX);
+}
+
+
+// the enemy HP bar isn't like regular HUD elements: every frame the game projects the enemy's world position
+// to the screen (see sub_285930 and sub_2D5D0) and places the bar wherever the enemy is.
+// The projection uses the camera's own fov, which we never widen. thus, we cannot patch it at vertex levels,
+// so we will do it the old way.
+
+void HpBarProjectionMidAsmHook(X86Register& rEsi, X86Register& rEax)
+{
+	if (g_hudUnstretchX >= 1.0f)
+		return;
+
+	auto base = g_memory.base;
+
+	// rEax = SonicteamUSA::System::Camera::GetScreenRectangle(screenType)
+	float rectX = float(int32_t(X86_LOAD_U32(rEax.u32)));
+	float rectW = float(int32_t(X86_LOAD_U32(rEax.u32 + 8)));
+	float centreX = rectX + rectW * 0.5f;
+
+	// esi + 0x2C = projected screen X, still to be culled against the screen rect below
+	float screenX = X86_LOAD_F32(rEsi.u32 + 0x2C);
+	X86_STORE_F32(rEsi.u32 + 0x2C, centreX + (screenX - centreX) * g_hudUnstretchX);
+}
+
+// the game scales the bar against a fixed 640x480 space (rect.w * scale / 640, rect.h * scale / 480),
+// and the 2D layer then stretches that space over the whole viewport, so like everything else here
+// the bar comes out too wide on wide screens. squeeze X back to square pixels.
+void HpBarScaleMidAsmHook(X86Register& rEsi)
+{
+	if (g_hudUnstretchX >= 1.0f || Config::UIAlignmentMode.Value == EUIAlignmentMode::Stretch)
+		return;
+
+	auto base = g_memory.base;
+
+	// esi + 0x38 = scale X, consumed by the CSD SetScale call further down.
+	X86_STORE_F32(rEsi.u32 + 0x38, X86_LOAD_F32(rEsi.u32 + 0x38) * g_hudUnstretchX);
 }
 
 
@@ -799,6 +887,99 @@ const xxHashMap<CsdModifier> g_csdModifiers =
 	{ HashStr("csdFiles/pause/pause.xncp/Pause/ChangeMission/arrow_right"), { CSD_HIDE_PAUSE | CSD_MOVE_BOTTOM } },
 	{ HashStr("csdFiles/pause/pause.xncp/Pause/SRText/text"), { CSD_HIDE_PAUSE | CSD_MOVE_BOTTOM } },
 	{ HashStr("csdFiles/pause/pause.xncp/Pause/SRText/button"), { CSD_HIDE_PAUSE | CSD_MOVE_BOTTOM } },
+
+	// hud scaling
+	{ HashStr("csdFiles/InfoWindow.xncp/Ring"), { CSD_MODIFIER_PRESEVE_4_3_SCALE } },
+	{ HashStr("csdFiles/InfoWindow.xncp/Ring/Null_0000"), { CSD_MODIFIER_PRESEVE_4_3_SCALE } },
+	{ HashStr("csdFiles/InfoWindow.xncp/Ring/Null_0000/ring"), { CSD_MODIFIER_PRESEVE_4_3_SCALE } },
+	{ HashStr("csdFiles/InfoWindow.xncp/Zanki"), { CSD_MODIFIER_PRESEVE_4_3_SCALE } },
+	{ HashStr("csdFiles/InfoWindow.xncp/Zanki/Null_0000"), { CSD_MODIFIER_PRESEVE_4_3_SCALE } },
+	{ HashStr("csdFiles/InfoWindow.xncp/Zanki/Null_0000/key"), { CSD_MODIFIER_PRESEVE_4_3_SCALE } },
+	{ HashStr("csdFiles/InfoWindow.xncp/Zanki/Null_0000/zanki"), { CSD_MODIFIER_PRESEVE_4_3_SCALE } },
+
+	{ HashStr("csdFiles/CommandWindow.xncp/CarMeter"), { CSD_MODIFIER_PRESEVE_4_3_SCALE } },
+	{ HashStr("csdFiles/CommandWindow.xncp/CarMeter/outline"), { CSD_MODIFIER_PRESEVE_4_3_SCALE } },
+	{ HashStr("csdFiles/CommandWindow.xncp/CarMeter/meter_bg"), { CSD_MODIFIER_PRESEVE_4_3_SCALE } },
+	{ HashStr("csdFiles/CommandWindow.xncp/CarMeter/meter"), { CSD_MODIFIER_PRESEVE_4_3_SCALE } },
+	{ HashStr("csdFiles/CommandWindow.xncp/Car_BCom"), { CSD_MODIFIER_PRESEVE_4_3_SCALE } },
+	{ HashStr("csdFiles/CommandWindow.xncp/Car_BCom/Null"), { CSD_MODIFIER_PRESEVE_4_3_SCALE } },
+	{ HashStr("csdFiles/CommandWindow.xncp/Car_BCom/Null/button2"), { CSD_MODIFIER_PRESEVE_4_3_SCALE } },
+	{ HashStr("csdFiles/CommandWindow.xncp/Car_BCom/Null/icon_car"), { CSD_MODIFIER_PRESEVE_4_3_SCALE } },
+	{ HashStr("csdFiles/CommandWindow.xncp/Weapon"), { CSD_MODIFIER_PRESEVE_4_3_SCALE } },
+	{ HashStr("csdFiles/CommandWindow.xncp/Weapon/weapon"), { CSD_MODIFIER_PRESEVE_4_3_SCALE } },
+	{ HashStr("csdFiles/CommandWindow.xncp/Weapon/weapon/button1"), { CSD_MODIFIER_PRESEVE_4_3_SCALE } },
+	{ HashStr("csdFiles/CommandWindow.xncp/Weapon/weapon/icon_gun"), { CSD_MODIFIER_PRESEVE_4_3_SCALE } },
+	{ HashStr("csdFiles/CommandWindow.xncp/Window"), { CSD_MODIFIER_PRESEVE_4_3_SCALE } },
+	{ HashStr("csdFiles/CommandWindow.xncp/Window/window"), { CSD_MODIFIER_PRESEVE_4_3_SCALE } },
+	{ HashStr("csdFiles/CommandWindow.xncp/Window/window/window2"), { CSD_MODIFIER_PRESEVE_4_3_SCALE } },
+	{ HashStr("csdFiles/CommandWindow.xncp/Window/window/window1"), { CSD_MODIFIER_PRESEVE_4_3_SCALE } },
+	{ HashStr("csdFiles/CommandWindow.xncp/Window/window/info_bg2"), { CSD_MODIFIER_PRESEVE_4_3_SCALE } },
+	{ HashStr("csdFiles/CommandWindow.xncp/Window/window/info_bg"), { CSD_MODIFIER_PRESEVE_4_3_SCALE } },
+
+	{ HashStr("csdFiles/HeroGauge.xncp/Scene_0000"), { CSD_MODIFIER_PRESEVE_4_3_SCALE } },
+	{ HashStr("csdFiles/HeroGauge.xncp/Scene_0000/bar_bg"), { CSD_MODIFIER_PRESEVE_4_3_SCALE } },
+	{ HashStr("csdFiles/HeroGauge.xncp/Scene_0000/meter_main1"), { CSD_MODIFIER_PRESEVE_4_3_SCALE } },
+	{ HashStr("csdFiles/HeroGauge.xncp/Scene_0000/meter_main2"), { CSD_MODIFIER_PRESEVE_4_3_SCALE } },
+	{ HashStr("csdFiles/HeroGauge.xncp/Scene_0000/meter_main3"), { CSD_MODIFIER_PRESEVE_4_3_SCALE } },
+	{ HashStr("csdFiles/HeroGauge.xncp/Scene_0000/bar"), { CSD_MODIFIER_PRESEVE_4_3_SCALE } },
+	{ HashStr("csdFiles/HeroGauge.xncp/Scene_0000/meter_RSide"), { CSD_MODIFIER_PRESEVE_4_3_SCALE } },
+	{ HashStr("csdFiles/HeroGauge.xncp/Scene_0000/meter_side"), { CSD_MODIFIER_PRESEVE_4_3_SCALE } },
+
+	{ HashStr("csdFiles/DarkGauge.xncp/Scene_0000"), { CSD_MODIFIER_PRESEVE_4_3_SCALE } },
+	{ HashStr("csdFiles/DarkGauge.xncp/Scene_0000/meter_bg"), { CSD_MODIFIER_PRESEVE_4_3_SCALE } },
+	{ HashStr("csdFiles/DarkGauge.xncp/Scene_0000/main1"), { CSD_MODIFIER_PRESEVE_4_3_SCALE } },
+	{ HashStr("csdFiles/DarkGauge.xncp/Scene_0000/main2"), { CSD_MODIFIER_PRESEVE_4_3_SCALE } },
+	{ HashStr("csdFiles/DarkGauge.xncp/Scene_0000/main3"), { CSD_MODIFIER_PRESEVE_4_3_SCALE } },
+	{ HashStr("csdFiles/DarkGauge.xncp/Scene_0000/meter"), { CSD_MODIFIER_PRESEVE_4_3_SCALE } },
+	{ HashStr("csdFiles/DarkGauge.xncp/Scene_0000/side1"), { CSD_MODIFIER_PRESEVE_4_3_SCALE } },
+	{ HashStr("csdFiles/DarkGauge.xncp/Scene_0000/side2"), { CSD_MODIFIER_PRESEVE_4_3_SCALE } },
+
+	{ HashStr("csdFiles/Hissatu_Hero.xncp/HissatuHero/XButton"), { CSD_MODIFIER_PRESEVE_4_3_SCALE | CSD_MODIFIER_CB } },
+	{ HashStr("csdFiles/Hissatu_Hero.xncp/HissatuHero/Eff_X"), { CSD_MODIFIER_PRESEVE_4_3_SCALE | CSD_MODIFIER_CB } },
+
+	{ HashStr("csdFiles/Hissatu_Dark.xncp/HissatuDark/YButton"), { CSD_MODIFIER_PRESEVE_4_3_SCALE } },
+	{ HashStr("csdFiles/Hissatu_Dark.xncp/HissatuDark/Eff_Y"), { CSD_MODIFIER_PRESEVE_4_3_SCALE } },
+
+	{ HashStr("csdFiles/TWindow.xncp/TargetWindow"), { CSD_MODIFIER_PRESEVE_4_3_SCALE } },
+	{ HashStr("csdFiles/TWindow.xncp/TargetWindow/TargetDark/Null_dark"), { CSD_MODIFIER_PRESEVE_4_3_SCALE } },
+	{ HashStr("csdFiles/TWindow.xncp/TargetWindow/TargetDark/Null_dark/dark_icon"), { CSD_MODIFIER_PRESEVE_4_3_SCALE } },
+	{ HashStr("csdFiles/TWindow.xncp/TargetWindow/TargetDark/Null_dark/Cast_0005"), { CSD_MODIFIER_PRESEVE_4_3_SCALE } },
+	{ HashStr("csdFiles/TWindow.xncp/TargetWindow/TargetDark/Null_dark/Cast_0005/Cast_0006"), { CSD_MODIFIER_PRESEVE_4_3_SCALE } },
+	{ HashStr("csdFiles/TWindow.xncp/TargetWindow/TargetHero"), { CSD_MODIFIER_PRESEVE_4_3_SCALE } },
+	{ HashStr("csdFiles/TWindow.xncp/TargetWindow/TargetHero/Null_hero"), { CSD_MODIFIER_PRESEVE_4_3_SCALE } },
+	{ HashStr("csdFiles/TWindow.xncp/TargetWindow/TargetHero/Null_hero/hero_icon"), { CSD_MODIFIER_PRESEVE_4_3_SCALE } },
+	{ HashStr("csdFiles/TWindow.xncp/TargetWindow/TargetHero/Null_hero/Cast_0003"), { CSD_MODIFIER_PRESEVE_4_3_SCALE } },
+	{ HashStr("csdFiles/TWindow.xncp/TargetWindow/TargetHero/Null_hero/Cast_0003/Cast_0004"), { CSD_MODIFIER_PRESEVE_4_3_SCALE } },
+
+	{ HashStr("csdFiles/2P_Ring.xncp/Ring1P/Null_ring/ring"), { CSD_MODIFIER_PRESEVE_4_3_SCALE } },
+	{ HashStr("csdFiles/2P_Ring.xncp/Ring2P/Null_ring/ring"), { CSD_MODIFIER_PRESEVE_4_3_SCALE } },
+	{ HashStr("csdFiles/2P_CommandWindow.xncp/Window/window/info_bg"), { CSD_MODIFIER_PRESEVE_4_3_SCALE } },
+	{ HashStr("csdFiles/2P_CommandWindow.xncp/Window/window/info_bg2"), { CSD_MODIFIER_PRESEVE_4_3_SCALE } },
+	{ HashStr("csdFiles/2P_CommandWindow.xncp/Window/window/window1"), { CSD_MODIFIER_PRESEVE_4_3_SCALE } },
+	{ HashStr("csdFiles/2P_CommandWindow.xncp/Window/window/window2"), { CSD_MODIFIER_PRESEVE_4_3_SCALE } },
+	{ HashStr("csdFiles/2P_CommandWindow.xncp/Weapon/weapon/icon_gun"), { CSD_MODIFIER_PRESEVE_4_3_SCALE } },
+	{ HashStr("csdFiles/2P_CommandWindow.xncp/Weapon/weapon/button1"), { CSD_MODIFIER_PRESEVE_4_3_SCALE } },
+	{ HashStr("csdFiles/2P_CommandWindow.xncp/Car_BCom/Null/icon_car"), { CSD_MODIFIER_PRESEVE_4_3_SCALE } },
+	{ HashStr("csdFiles/2P_CommandWindow.xncp/Car_BCom/Null/button2"), { CSD_MODIFIER_PRESEVE_4_3_SCALE } },
+	{ HashStr("csdFiles/2P_CommandWindow.xncp/CarMeter/outline"), { CSD_MODIFIER_PRESEVE_4_3_SCALE } },
+	{ HashStr("csdFiles/2P_CommandWindow.xncp/CarMeter/meter_bg"), { CSD_MODIFIER_PRESEVE_4_3_SCALE } },
+	{ HashStr("csdFiles/2P_CommandWindow.xncp/CarMeter/meter"), { CSD_MODIFIER_PRESEVE_4_3_SCALE } },
+
+
+	{ HashStr("csdFiles/2P_Ring.xncp/Ring1P/Null_ring/ring"), { CSD_MODIFIER_PRESEVE_4_3_SCALE } },
+	{ HashStr("csdFiles/2P_Ring.xncp/Ring2P/Null_ring/ring"), { CSD_MODIFIER_PRESEVE_4_3_SCALE } },
+	{ HashStr("csdFiles/2P_CommandWindow.xncp/Window/window/info_bg"), { CSD_MODIFIER_PRESEVE_4_3_SCALE } },
+	{ HashStr("csdFiles/2P_CommandWindow.xncp/Window/window/info_bg2"), { CSD_MODIFIER_PRESEVE_4_3_SCALE } },
+	{ HashStr("csdFiles/2P_CommandWindow.xncp/Window/window/window1"), { CSD_MODIFIER_PRESEVE_4_3_SCALE } },
+	{ HashStr("csdFiles/2P_CommandWindow.xncp/Window/window/window2"), { CSD_MODIFIER_PRESEVE_4_3_SCALE } },
+	{ HashStr("csdFiles/2P_CommandWindow.xncp/Weapon/weapon/icon_gun"), { CSD_MODIFIER_PRESEVE_4_3_SCALE } },
+	{ HashStr("csdFiles/2P_CommandWindow.xncp/Weapon/weapon/button1"), { CSD_MODIFIER_PRESEVE_4_3_SCALE } },
+	{ HashStr("csdFiles/2P_CommandWindow.xncp/Car_BCom/Null/icon_car"), { CSD_MODIFIER_PRESEVE_4_3_SCALE } },
+	{ HashStr("csdFiles/2P_CommandWindow.xncp/Car_BCom/Null/button2"), { CSD_MODIFIER_PRESEVE_4_3_SCALE } },
+	{ HashStr("csdFiles/2P_CommandWindow.xncp/CarMeter/outline"), { CSD_MODIFIER_PRESEVE_4_3_SCALE } },
+	{ HashStr("csdFiles/2P_CommandWindow.xncp/CarMeter/meter_bg"), { CSD_MODIFIER_PRESEVE_4_3_SCALE } },
+	{ HashStr("csdFiles/2P_CommandWindow.xncp/CarMeter/meter"), { CSD_MODIFIER_PRESEVE_4_3_SCALE } },
+
 };
 
 std::optional<CsdModifier> FindCsdModifier(uint32_t data)
@@ -865,7 +1046,7 @@ static void StretchViewWindow(uint32_t camera, float aspectRatio, float relative
 		X86_STORE_F32(camera + rwCameraViewWindow, X86_LOAD_F32(camera + rwCameraViewWindow) * relativeAspectRatio);
 	}
 	else {
- 		// Vert+
+		// Vert+
 		X86_STORE_F32(camera + rwCameraViewWindow + 4, X86_LOAD_F32(camera + rwCameraViewWindow + 4) / relativeAspectRatio);
 	}
 }
@@ -884,7 +1065,7 @@ static void StretchRecipViewWindow(uint32_t camera, float aspectRatio, float rel
 		X86_STORE_F32(camera + rwCameraRecipViewWindow, X86_LOAD_F32(camera + rwCameraRecipViewWindow) * relativeAspectRatio);
 	}
 	else
-	{ 
+	{
 		// Vert+
 		X86_STORE_F32(camera + rwCameraRecipViewWindow + 4, X86_LOAD_F32(camera + rwCameraRecipViewWindow + 4) / relativeAspectRatio);
 	}
