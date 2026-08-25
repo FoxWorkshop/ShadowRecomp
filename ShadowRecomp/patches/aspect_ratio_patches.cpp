@@ -419,7 +419,7 @@ static bool UnstretchPrimitive(void* vertexData, uint32_t count, int64_t flags, 
 	if (g_hudUnstretchX >= 1.0f || Config::UIAlignmentMode.Value == EUIAlignmentMode::Stretch)
 		return false;
 
-	if ((flags & CSD_STRETCH_HORIZONTAL) != 0)
+	if ((flags & CSD_STRETCH_HORIZONTAL) != 0 && Config::UIAlignmentMode.Value != EUIAlignmentMode::Centre)
 		return false;
 
 	float minX = FLT_MAX;
@@ -937,7 +937,6 @@ const xxHashMap<CsdModifier> g_csdModifiers =
 
 	{ HashStr("csdFiles/Hissatu_Hero.xncp/HissatuHero/XButton"), { CSD_MODIFIER_PRESEVE_4_3_SCALE } },
 	{ HashStr("csdFiles/Hissatu_Hero.xncp/HissatuHero/XButton/Eff_X"), { CSD_MODIFIER_PRESEVE_4_3_SCALE} },
-
 	{ HashStr("csdFiles/Hissatu_Dark.xncp/HissatuDark/YButton"), { CSD_MODIFIER_PRESEVE_4_3_SCALE } },
 	{ HashStr("csdFiles/Hissatu_Dark.xncp/HissatuDark/YButton/Eff_Y"), { CSD_MODIFIER_PRESEVE_4_3_SCALE } },
 
@@ -951,6 +950,39 @@ const xxHashMap<CsdModifier> g_csdModifiers =
 	{ HashStr("csdFiles/TWindow.xncp/TargetWindow/TargetHero/Null_hero/hero_icon"), { CSD_MODIFIER_PRESEVE_4_3_SCALE } },
 	{ HashStr("csdFiles/TWindow.xncp/TargetWindow/TargetHero/Null_hero/Cast_0003"), { CSD_MODIFIER_PRESEVE_4_3_SCALE } },
 	{ HashStr("csdFiles/TWindow.xncp/TargetWindow/TargetHero/Null_hero/Cast_0003/Cast_0004"), { CSD_MODIFIER_PRESEVE_4_3_SCALE } },
+
+	{ HashStr("csdFiles/BossGauge.xncp/Scene_0000/bg"), { CSD_MODIFIER_PRESEVE_4_3_SCALE | CSD_STRETCH_HORIZONTAL } },
+	{ HashStr("csdFiles/BossGauge.xncp/Scene_0000/m1"), { CSD_MODIFIER_PRESEVE_4_3_SCALE | CSD_STRETCH_HORIZONTAL } },
+	{ HashStr("csdFiles/BossGauge.xncp/Scene_0000/m2"), { CSD_MODIFIER_PRESEVE_4_3_SCALE | CSD_STRETCH_HORIZONTAL } },
+	{ HashStr("csdFiles/BossGauge.xncp/Scene_0000/m3"), { CSD_MODIFIER_PRESEVE_4_3_SCALE  | CSD_STRETCH_HORIZONTAL} },
+	{ HashStr("csdFiles/BossGauge.xncp/Scene_0000/meter"), { CSD_MODIFIER_PRESEVE_4_3_SCALE | CSD_STRETCH_HORIZONTAL } },
+	{ HashStr("csdFiles/BossGauge.xncp/Scene_0000/left_edge"), { CSD_MODIFIER_PRESEVE_4_3_SCALE | CSD_STRETCH_HORIZONTAL } },
+	{ HashStr("csdFiles/BossGauge.xncp/Scene_0000/right_edge"), { CSD_MODIFIER_PRESEVE_4_3_SCALE | CSD_STRETCH_HORIZONTAL } },
+
+
+	{ HashStr("csdFiles/EggBoss.xncp/1/Null_display_sml/sicon1"), { CSD_MODIFIER_PRESEVE_4_3_SCALE | CSD_STRETCH_HORIZONTAL } },
+	{ HashStr("csdFiles/EggBoss.xncp/1/Null_display_sml"), { CSD_MODIFIER_PRESEVE_4_3_SCALE | CSD_STRETCH_HORIZONTAL } },
+	{ HashStr("csdFiles/EggBoss.xncp/2/Null_display_sml/sicon2"), { CSD_MODIFIER_PRESEVE_4_3_SCALE | CSD_STRETCH_HORIZONTAL } },
+	{ HashStr("csdFiles/EggBoss.xncp/2/Null_display_sml"), { CSD_MODIFIER_PRESEVE_4_3_SCALE | CSD_STRETCH_HORIZONTAL } },
+	{ HashStr("csdFiles/EggBoss.xncp/3/Null_display_sml/sicon3"), { CSD_MODIFIER_PRESEVE_4_3_SCALE | CSD_STRETCH_HORIZONTAL } },
+	{ HashStr("csdFiles/EggBoss.xncp/3/Null_display_sml"), { CSD_MODIFIER_PRESEVE_4_3_SCALE | CSD_STRETCH_HORIZONTAL } },
+	{ HashStr("csdFiles/EggBoss.xncp/DisplayLg/Null_display_lg/light1"), { CSD_MODIFIER_PRESEVE_4_3_SCALE | CSD_STRETCH_HORIZONTAL } },
+	{ HashStr("csdFiles/EggBoss.xncp/DisplayLg/Null_display_lg/icon3"), { CSD_MODIFIER_PRESEVE_4_3_SCALE | CSD_STRETCH_HORIZONTAL } },
+	{ HashStr("csdFiles/EggBoss.xncp/DisplayLg/Null_display_lg/icon2"), { CSD_MODIFIER_PRESEVE_4_3_SCALE | CSD_STRETCH_HORIZONTAL } },
+	{ HashStr("csdFiles/EggBoss.xncp/DisplayLg/Null_display_lg/icon1"), { CSD_MODIFIER_PRESEVE_4_3_SCALE | CSD_STRETCH_HORIZONTAL } },
+	{ HashStr("csdFiles/EggBoss.xncp/DisplayLg/Null_display_lg/frame_rt"), { CSD_MODIFIER_PRESEVE_4_3_SCALE | CSD_STRETCH_HORIZONTAL } },
+	{ HashStr("csdFiles/EggBoss.xncp/DisplayLg/Null_display_lg/frame_cnt"), { CSD_MODIFIER_PRESEVE_4_3_SCALE | CSD_STRETCH_HORIZONTAL } },
+	{ HashStr("csdFiles/EggBoss.xncp/DisplayLg/Null_display_lg/frame_lft"), { CSD_MODIFIER_PRESEVE_4_3_SCALE | CSD_STRETCH_HORIZONTAL } },
+	{ HashStr("csdFiles/EggBoss.xncp/DisplayLg/Null_display_lg"), { CSD_MODIFIER_PRESEVE_4_3_SCALE | CSD_STRETCH_HORIZONTAL } },
+	{ HashStr("csdFiles/EggBoss.xncp/DisplayLg/Null_kira/kira5"), { CSD_MODIFIER_PRESEVE_4_3_SCALE | CSD_STRETCH_HORIZONTAL } },
+	{ HashStr("csdFiles/EggBoss.xncp/DisplayLg/Null_kira/kira4"), { CSD_MODIFIER_PRESEVE_4_3_SCALE | CSD_STRETCH_HORIZONTAL } },
+	{ HashStr("csdFiles/EggBoss.xncp/DisplayLg/Null_kira/kira3"), { CSD_MODIFIER_PRESEVE_4_3_SCALE | CSD_STRETCH_HORIZONTAL } },
+	{ HashStr("csdFiles/EggBoss.xncp/DisplayLg/Null_kira/kira2"), { CSD_MODIFIER_PRESEVE_4_3_SCALE | CSD_STRETCH_HORIZONTAL } },
+	{ HashStr("csdFiles/EggBoss.xncp/DisplayLg/Null_kira/kira1"), { CSD_MODIFIER_PRESEVE_4_3_SCALE | CSD_STRETCH_HORIZONTAL } },
+	{ HashStr("csdFiles/EggBoss.xncp/DisplayLg/Null_kira"), { CSD_MODIFIER_PRESEVE_4_3_SCALE | CSD_STRETCH_HORIZONTAL } },
+	{ HashStr("csdFiles/EggBoss.xncp/DisplaySml/Null_display_sml/frame_sml"), { CSD_MODIFIER_PRESEVE_4_3_SCALE | CSD_STRETCH_HORIZONTAL } },
+	{ HashStr("csdFiles/EggBoss.xncp/DisplaySml/Null_display_sml"), { CSD_MODIFIER_PRESEVE_4_3_SCALE | CSD_STRETCH_HORIZONTAL } },
+
 
 	{ HashStr("csdFiles/2P_Ring.xncp/Ring1P/Null_ring/ring"), { CSD_MODIFIER_PRESEVE_4_3_SCALE } },
 	{ HashStr("csdFiles/2P_Ring.xncp/Ring2P/Null_ring/ring"), { CSD_MODIFIER_PRESEVE_4_3_SCALE } },
