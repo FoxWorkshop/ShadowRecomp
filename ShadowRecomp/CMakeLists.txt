@@ -138,6 +138,7 @@ set(SHADOW_RECOMP_PATCHES_CXX_SOURCES
     "patches/aspect_ratio_patches.cpp"
     "patches/fps_patches.cpp"
     "patches/collision_patches.cpp"
+    "patches/animated_texture_patches.cpp"
     "patches/frontend_listener.cpp"
     "patches/pause_patches.cpp"
     "patches/prompt_patches.cpp"
