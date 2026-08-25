@@ -27,7 +27,7 @@
 #include <gpu/frame_pacing/timer_resolution.h>
 #include <patches/pause_patches.h>
 #include <patches/bloom_patches.h>
-#include <patches/wide_fov_patches.h>
+
 
 #if defined(_WIN32) && defined(SHADOW_RECOMP_D3D12)
 static std::array<std::string_view, 3> g_D3D12RequiredModules =
@@ -275,7 +275,6 @@ int main(int argc, char* argv[])
     ReloadedValuePatches();
     PausePatchesInit();
     BloomConfigValueChangedCallback(&Config::BloomIntensity);
-    WideFOVConfigValueChangedCallback(&Config::WideFOV);
 
     //launch the Start function of the game
     isHostThread = true;

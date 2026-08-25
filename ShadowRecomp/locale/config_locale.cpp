@@ -719,17 +719,6 @@ CONFIG_DEFINE_LOCALE(BloomIntensity)
 };
 
 // Japanese Notes: This localization should include furigana.
-CONFIG_DEFINE_LOCALE(WideFOV)
-{
-    { ELanguage::English, { "Wide FOV", "Expand the field of view for widescreen displays." } },
-    { ELanguage::Japanese, { "Wide FOV", "" } },
-    { ELanguage::German,   { "Weites Sichtfeld", "Erweitert das Sichtfeld für Breitbildanzeigen." } },
-    { ELanguage::French,   { "Champ de vision large", "Élargit le champ de vision pour les écrans larges." } },
-    { ELanguage::Spanish,  { "Campo de visión amplio", "Amplía el campo de visión para pantallas panorámicas." } },
-    { ELanguage::Italian,  { "Campo visivo ampio", "Espande il campo visivo per schermi widescreen." } }
-};
-
-// Japanese Notes: This localization should include furigana.
 CONFIG_DEFINE_LOCALE(EnablePartnerIntro)
 {
     { ELanguage::English, { "Partner Intro", "Show partner's introduction when they are first met." } },
