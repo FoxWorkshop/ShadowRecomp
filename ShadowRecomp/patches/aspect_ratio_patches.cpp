@@ -497,12 +497,12 @@ void Draw(X86Context& ctx, uint8_t* base, X86Func* original, void* vertexData, u
 
 	if (isCentered && canUnstretch)
 	{
-		for (int i = 0; i < CSDVertexCount; i++)
-		{
+			for (int i = 0; i < CSDVertexCount; i++)
+			{
 			auto vertex = (RwD3D8Vertex*)vertexData + i;
 			if (vertex)
 			{
-				if (vertex[i].x < -10.f || vertex[i].x > 640 + 20.f)
+				if (vertex[i].x < -10.f || vertex[i].x > widthMin + 20.f)
 				{
 					shouldBeSkipped = true;
 					break;
@@ -934,11 +934,12 @@ const xxHashMap<CsdModifier> g_csdModifiers =
 	{ HashStr("csdFiles/DarkGauge.xncp/Scene_0000/side1"), { CSD_MODIFIER_PRESEVE_4_3_SCALE } },
 	{ HashStr("csdFiles/DarkGauge.xncp/Scene_0000/side2"), { CSD_MODIFIER_PRESEVE_4_3_SCALE } },
 
-	{ HashStr("csdFiles/Hissatu_Hero.xncp/HissatuHero/XButton"), { CSD_MODIFIER_PRESEVE_4_3_SCALE | CSD_MODIFIER_CB } },
-	{ HashStr("csdFiles/Hissatu_Hero.xncp/HissatuHero/Eff_X"), { CSD_MODIFIER_PRESEVE_4_3_SCALE | CSD_MODIFIER_CB } },
+
+	{ HashStr("csdFiles/Hissatu_Hero.xncp/HissatuHero/XButton"), { CSD_MODIFIER_PRESEVE_4_3_SCALE } },
+	{ HashStr("csdFiles/Hissatu_Hero.xncp/HissatuHero/XButton/Eff_X"), { CSD_MODIFIER_PRESEVE_4_3_SCALE} },
 
 	{ HashStr("csdFiles/Hissatu_Dark.xncp/HissatuDark/YButton"), { CSD_MODIFIER_PRESEVE_4_3_SCALE } },
-	{ HashStr("csdFiles/Hissatu_Dark.xncp/HissatuDark/Eff_Y"), { CSD_MODIFIER_PRESEVE_4_3_SCALE } },
+	{ HashStr("csdFiles/Hissatu_Dark.xncp/HissatuDark/YButton/Eff_Y"), { CSD_MODIFIER_PRESEVE_4_3_SCALE } },
 
 	{ HashStr("csdFiles/TWindow.xncp/TargetWindow"), { CSD_MODIFIER_PRESEVE_4_3_SCALE } },
 	{ HashStr("csdFiles/TWindow.xncp/TargetWindow/TargetDark/Null_dark"), { CSD_MODIFIER_PRESEVE_4_3_SCALE } },
