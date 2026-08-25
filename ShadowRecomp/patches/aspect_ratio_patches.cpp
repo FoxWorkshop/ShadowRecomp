@@ -1139,5 +1139,27 @@ X86_FUNC(sub_2DB9C0)
 	}
 }
 
+// The game draws a quad in front of the game camera and scale it, but this only work for 4:3, 
+// this is used for the red filter of the camera in Gun Fortress. 
+// We can edit the math and apply the same stretch the projection got with the new aspect ratio (right before the matrix scale call).
+void WatchCameraFilterScaleMidAsmHook(X86Register& esp)
+{
+	float aspectRatio = g_aspectRatio;
+	auto base = g_memory.base;
+
+	const float relativeAspectRatio = GetRelativeAspectRatio(aspectRatio);
+
+	// esp+0 = X scale, esp+4 = Y scale, esp+8 = Z scale (1.0f).
+
+	if (aspectRatio > nativeAspectRatio) // horizontal
+	{
+		X86_STORE_F32(esp.u32, X86_LOAD_F32(esp.u32) * relativeAspectRatio);
+	}
+	else // graw the quad vertically
+	{
+		X86_STORE_F32(esp.u32 + 4, X86_LOAD_F32(esp.u32 + 4) / relativeAspectRatio);
+	}
+}
+
 /*** END Render at any Aspect Ratio ***/
 

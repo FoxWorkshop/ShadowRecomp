@@ -847,6 +847,12 @@ name = "HpBarScaleMidAsmHook"
 address = 0x285AAD
 registers = ["r4"]
 
+# Watch camera red alert filter (Gun Fortress) 
+[[midasm_hook]]
+name = "WatchCameraFilterScaleMidAsmHook"
+address = 0x21BAAD
+registers = ["r7"]
+
 # Inlined Homing Attack Speed 1000f -> 2000f [Reloaded Phys]
 [[midasm_hook]]
 name = "HomingAttackSpeedMidAsmHook"
