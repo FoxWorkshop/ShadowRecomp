@@ -653,6 +653,52 @@ void HpBarScaleMidAsmHook(X86Register& rEsi)
 }
 
 
+// Weapon lock-on reticle (This includes birbo targets in the ark)
+// Those have the same problem than enemy hp bar above
+void LockOnProjectionMidAsmHook(X86Register& rEax, X86Register& rEsp)
+{
+	if (g_hudUnstretchX >= 1.0f)
+		return;
+
+	//eax is camera's screen rectangle
+	// esp + 8 is the project screen X
+	auto base = g_memory.base;
+
+	float rectX = float(int32_t(X86_LOAD_U32(rEax.u32)));
+	float rectW = float(int32_t(X86_LOAD_U32(rEax.u32 + 8)));
+	float centreX = rectX + rectW * 0.5f;
+
+	float screenX = X86_LOAD_F32(rEsp.u32 + 8);
+	X86_STORE_F32(rEsp.u32 + 8, centreX + (screenX - centreX) * g_hudUnstretchX);
+}
+
+// sub_268FD0 creates one reticle (quad) which isn't called, so it's safe to patch the corners here
+static constexpr uint32_t LockOnStride = 28u;
+static constexpr uint32_t LockOnVertexCount = 4u;
+X86_FUNC_IMPL(__imp__sub_268FD0);
+X86_FUNC(sub_268FD0)
+{
+	uint32_t vertices = X86_LOAD_U32(ctx.esp.u32 + 4);
+	uint32_t centre = X86_LOAD_U32(ctx.esp.u32 + 8); //projected center the corners are offset from
+
+	__imp__sub_268FD0(ctx, base);
+
+	if (!vertices || !centre)
+		return;
+
+	if (g_hudUnstretchX >= 1.0f || Config::UIAlignmentMode.Value == EUIAlignmentMode::Stretch)
+		return;
+
+	float centreX = X86_LOAD_F32(centre);
+
+	for (uint32_t i = 0; i < LockOnVertexCount; i++)
+	{
+		uint32_t vertexX = vertices + i * LockOnStride;
+		X86_STORE_F32(vertexX, centreX + (X86_LOAD_F32(vertexX) - centreX) * g_hudUnstretchX);
+	}
+}
+
+
 // the game often use a quad model to draw a picture on the screen, usually to show Shadow memories, 
 // but the quad model is not stretched to fit the screen, thus any high resolution won't cover the whole screen
 // we can fix that by stretching the vertex
