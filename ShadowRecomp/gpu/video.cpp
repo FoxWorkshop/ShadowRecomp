@@ -275,7 +275,6 @@ static bool g_vertexShaderConstantsAnyDirty = true;
 static uint32_t g_vertexShaderConstantBankShadow[2][HOST_D3DVS_CONSTREG_FULL * 4];
 
 uint32_t g_PixelShader;
-static uint64_t g_lastPixelShaderConstants;
 static bool g_pixelShaderConstantsAnyDirty = true;
 
 uint32_t psh_constants[PSH_XBOX_CONSTANT_MAX][4]; // (slot of 4 because one register = 4 bytes)
@@ -4056,8 +4055,8 @@ X86_FUNC_IMPL(__imp__sub_3DC790);
 X86_FUNC(sub_3DC790)
 {
 	__imp__sub_3DC790(ctx, base);
-	UpdatePixelShaderConstant(psh_constants);
-	g_pixelShaderConstantsAnyDirty = true;
+	if (UpdatePixelShaderConstant(psh_constants))
+		g_pixelShaderConstantsAnyDirty = true;
 
 }
 
@@ -7684,7 +7683,6 @@ static void FlushRenderStateForMainThread(LocalRenderCommandQueue& queue)
 	}
 
 
-	XXH64_hash_t hash;
 	const bool fixedConstantBank = g_Xbox_VertexShaderMode == VertexShaderMode::FixedFunction;
 	if (g_vertexShaderConstantsAnyDirty)
 	{
@@ -7692,25 +7690,19 @@ static void FlushRenderStateForMainThread(LocalRenderCommandQueue& queue)
 		// last upload to that bank, so switching shader modes does not
 		// resend the full constant block.
 		const uint32_t bankIndex = fixedConstantBank ? 1 : 0;
-		bool changedConstants[HOST_D3DVS_CONSTREG_FULL]{};
-		for (int i = 0; i < HOST_D3DVS_CONSTREG_FULL; i++)
-		{
-			if (vsh_constants_dirty[i] && memcmp(&vsh_constants[i][0],
-				&g_vertexShaderConstantBankShadow[bankIndex][i * 4], sizeof(vsh_constants[i])) != 0)
-			{
-				changedConstants[i] = true;
-				memcpy(&g_vertexShaderConstantBankShadow[bankIndex][i * 4],
-					&vsh_constants[i][0], sizeof(vsh_constants[i]));
-			}
-			vsh_constants_dirty[i] = false;
-		}
-
 		int batchStartIndex = -1;
 		for (int i = 0; i < HOST_D3DVS_CONSTREG_FULL; i++)
 		{
-			if (batchStartIndex == -1 && changedConstants[i])
-				batchStartIndex = i;
-			else if (batchStartIndex != -1 && !changedConstants[i])
+			const bool changed = vsh_constants_dirty[i] && memcmp(&vsh_constants[i][0],
+				&g_vertexShaderConstantBankShadow[bankIndex][i * 4], sizeof(vsh_constants[i])) != 0;
+			if (changed)
+			{
+				memcpy(&g_vertexShaderConstantBankShadow[bankIndex][i * 4],
+					&vsh_constants[i][0], sizeof(vsh_constants[i]));
+				if (batchStartIndex == -1)
+					batchStartIndex = i;
+			}
+			else if (batchStartIndex != -1)
 			{
 				int count = i - batchStartIndex;
 				auto& cmd = queue.enqueue();
@@ -7722,6 +7714,7 @@ static void FlushRenderStateForMainThread(LocalRenderCommandQueue& queue)
 				cmd.setVertexShaderConstants.isFixedFunc = fixedConstantBank;
 				batchStartIndex = -1;
 			}
+			vsh_constants_dirty[i] = false;
 		}
 		if (batchStartIndex != -1)
 		{
@@ -7740,17 +7733,12 @@ static void FlushRenderStateForMainThread(LocalRenderCommandQueue& queue)
 	//SetPixelShaderConstants
 	if (g_pixelShaderConstantsAnyDirty)
 	{
-		{ RtScopeTimer _h(g_gtHashingAccum); hash = XXH3_64bits(&psh_constants[0][0], sizeof(psh_constants)); }
-		if (g_lastPixelShaderConstants != hash)
-		{
-			auto& cmd = queue.enqueue();
-			cmd.type = RenderCommandType::SetPixelShaderConstants;
-			cmd.setPixelShaderConstants.memory =
-				g_intermediaryUploadAllocator.allocate(&psh_constants[0][0], PSH_XBOX_CONSTANT_MAX * sizeof(float) * 4);
-			cmd.setPixelShaderConstants.index = 0;
-			cmd.setPixelShaderConstants.size = PSH_XBOX_CONSTANT_MAX;
-			g_lastPixelShaderConstants = hash;
-		}
+		auto& cmd = queue.enqueue();
+		cmd.type = RenderCommandType::SetPixelShaderConstants;
+		cmd.setPixelShaderConstants.memory =
+			g_intermediaryUploadAllocator.allocate(&psh_constants[0][0], PSH_XBOX_CONSTANT_MAX * sizeof(float) * 4);
+		cmd.setPixelShaderConstants.index = 0;
+		cmd.setPixelShaderConstants.size = PSH_XBOX_CONSTANT_MAX;
 		g_pixelShaderConstantsAnyDirty = false;
 	}
 }

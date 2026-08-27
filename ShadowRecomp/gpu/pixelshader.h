@@ -1,6 +1,6 @@
 
 
-void UpdatePixelShaderConstant(uint32_t(*psh_constants)[4]);
+bool UpdatePixelShaderConstant(uint32_t(*psh_constants)[4]);
 void UpdatePixelShaderCacheEntryNew(GuestShader* shader, const uint64_t key);
 uint64_t GetPixelShaderKey(const uint32_t pXboxPixelShaderDef);
 GuestShader* FindPixelShaderCacheEntryNew(const uint32_t pXboxPixelShaderDef);
