@@ -2,7 +2,7 @@
 #include "ubershader_catalog.h"
 #include "gpu/shared_constants.h"
 #include <rapidhash.h>
-#include <cstring>
+#include <cassert>
 #include "shader/fixed_function_pixel_shader/variants/generated/fixed_function_pixel_shader_variants.generated.h"
 
 namespace
@@ -39,21 +39,31 @@ namespace FixedFunctionPixelShaderVariants
     FixedFunctionPixelShaderState Capture(const SharedConstants& constants)
     {
         FixedFunctionPixelShaderState state{};
-        memcpy(state.color_op, constants.color_op, sizeof(state.color_op));
-        memcpy(state.color_arg0, constants.color_arg0, sizeof(state.color_arg0));
-        memcpy(state.color_arg1, constants.color_arg1, sizeof(state.color_arg1));
-        memcpy(state.color_arg2, constants.color_arg2, sizeof(state.color_arg2));
-        memcpy(state.alpha_op, constants.alpha_op, sizeof(state.alpha_op));
-        memcpy(state.alpha_arg0, constants.alpha_arg0, sizeof(state.alpha_arg0));
-        memcpy(state.alpha_arg1, constants.alpha_arg1, sizeof(state.alpha_arg1));
-        memcpy(state.alpha_arg2, constants.alpha_arg2, sizeof(state.alpha_arg2));
-        memcpy(state.result_arg, constants.result_arg, sizeof(state.result_arg));
-        memcpy(state.texture_sample_type, constants.TextureSampleType, sizeof(state.texture_sample_type));
-        state.specular_enable = constants.SpecularEnable;
-        state.fog_enable = constants.FogEnable;
-        state.fog_table_mode = constants.FogTableMode;
-        state.alpha_test_enable = constants.alphaTestEnable;
-        state.alpha_func = constants.alphaFunc;
+        // A source value above 255 would wrap and merge distinct states.
+        auto narrow = [](uint32_t value)
+        {
+            assert(value <= UINT8_MAX);
+            return static_cast<uint8_t>(value);
+        };
+
+        for (uint32_t i = 0; i < FixedFunctionPixelShaderState::TextureStageCount; i++)
+        {
+            state.color_op[i] = narrow(constants.color_op[i]);
+            state.color_arg0[i] = narrow(constants.color_arg0[i]);
+            state.color_arg1[i] = narrow(constants.color_arg1[i]);
+            state.color_arg2[i] = narrow(constants.color_arg2[i]);
+            state.alpha_op[i] = narrow(constants.alpha_op[i]);
+            state.alpha_arg0[i] = narrow(constants.alpha_arg0[i]);
+            state.alpha_arg1[i] = narrow(constants.alpha_arg1[i]);
+            state.alpha_arg2[i] = narrow(constants.alpha_arg2[i]);
+            state.result_arg[i] = narrow(constants.result_arg[i]);
+            state.texture_sample_type[i] = narrow(constants.TextureSampleType[i]);
+        }
+        state.specular_enable = narrow(constants.SpecularEnable);
+        state.fog_enable = narrow(constants.FogEnable);
+        state.fog_table_mode = narrow(constants.FogTableMode);
+        state.alpha_test_enable = narrow(constants.alphaTestEnable);
+        state.alpha_func = narrow(constants.alphaFunc);
         return state;
     }
 

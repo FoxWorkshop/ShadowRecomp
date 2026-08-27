@@ -362,9 +362,12 @@ def cpp_array(values):
 
 
 def cpp_state(state):
-    """Renders a configuration as a C++ initializer, scalars, then arrays, then tail fields."""
+    """Renders a configuration as a C++ initializer, scalars, then arrays, then tail fields.
+
+    The texture_transform_projected entry (state[14]) has no struct field, so
+    it is skipped."""
     scalars = [str(value) for value in state[:12]]
-    arrays = [cpp_array(values) for values in state[12:18]]
+    arrays = [cpp_array(state[index]) for index in (12, 13, 15, 16, 17)]
     tail = [str(value) for value in state[18:]]
     return "{" + ",".join(scalars + arrays + tail) + "}"
 

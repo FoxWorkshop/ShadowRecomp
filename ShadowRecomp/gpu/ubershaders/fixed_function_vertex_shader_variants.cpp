@@ -22,7 +22,8 @@ namespace
 
         static uint64_t Hash(const FixedFunctionVertexShaderControlState& state)
         {
-            const uint64_t hash = rapidhash(&state, sizeof(state));
+            const FixedFunctionVertexShaderControlState normalized = Normalize(state);
+            const uint64_t hash = rapidhash(&normalized, sizeof(normalized));
             return hash != 0 ? hash : 1; // 0 is special cased for the fallback.
         }
 
@@ -66,7 +67,6 @@ namespace
             for (uint32_t stage = 0; stage < FixedFunctionVertexShaderControlState::TextureStageCount; stage++)
             {
                 state.texture_transform_count[stage] = state.texture_transform_count[stage] != 0;
-                state.texture_transform_projected[stage] = 0;
                 uint32_t generation = state.texcoord_generation[stage];
                 if (generation == 0)
                 {

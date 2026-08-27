@@ -70,9 +70,9 @@ def load_states(path):
     Raises RuntimeError when a record has an unsupported version or a stage
     count other than four, or when two distinct configurations share one
     hash. Malformed JSON raises json.JSONDecodeError. Recorded hashes are
-    the catalog state hashes, computed over the configuration's 45 control
-    words in C++ struct order; the C++ runtime verifies them against its
-    own rapidhash in debug builds."""
+    the catalog state hashes, computed over the configuration's 45 bytes
+    in C++ struct order; the C++ runtime verifies them against its own
+    rapidhash in debug builds."""
     states = []
     hashes = {}
 

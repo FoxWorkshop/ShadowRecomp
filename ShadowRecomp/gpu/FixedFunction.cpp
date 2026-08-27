@@ -658,27 +658,33 @@ ShaderVariantKey UpdateFixedFunctionVertexShaderState(size_t Handle, bool isPSFi
 		// Move current fixed-function controls shader selector state.
 		// We can then pick the optimised shader.
 		FixedFunctionVertexShaderControlState controlState{};
-		controlState.vertex_blend_matrix_count = (uint32_t)ffShaderState.Modes.VertexBlend_NrOfMatrices;
-		controlState.vertex_blend_calc_last_weight = (uint32_t)ffShaderState.Modes.VertexBlend_CalcLastWeight;
-		controlState.lighting_enable = (uint32_t)ffShaderState.Modes.Lighting;
-		controlState.two_sided_lighting_enable = (uint32_t)ffShaderState.Modes.TwoSidedLighting;
-		controlState.local_viewer_enable = (uint32_t)ffShaderState.Modes.LocalViewer;
-		controlState.normalize_normals_enable = (uint32_t)ffShaderState.Modes.NormalizeNormals;
-		controlState.ambient_material_source = (uint32_t)ffShaderState.Modes.AmbientMaterialSource;
-		controlState.diffuse_material_source = (uint32_t)ffShaderState.Modes.DiffuseMaterialSource;
-		controlState.specular_material_source = (uint32_t)ffShaderState.Modes.SpecularMaterialSource;
-		controlState.emissive_material_source = (uint32_t)ffShaderState.Modes.EmissiveMaterialSource;
-		controlState.fog_enable = (uint32_t)ffShaderState.Fog.Enable;
-		controlState.fog_depth_mode = (uint32_t)ffShaderState.Fog.DepthMode;
+		// A source value above 255 would wrap and merge distinct states.
+		auto narrow = [](float value)
+		{
+			assert(value <= 255.f && value >= 0.f);
+			return (uint8_t)value;
+		};
+
+		controlState.vertex_blend_matrix_count = narrow(ffShaderState.Modes.VertexBlend_NrOfMatrices);
+		controlState.vertex_blend_calc_last_weight = narrow(ffShaderState.Modes.VertexBlend_CalcLastWeight);
+		controlState.lighting_enable = narrow(ffShaderState.Modes.Lighting);
+		controlState.two_sided_lighting_enable = narrow(ffShaderState.Modes.TwoSidedLighting);
+		controlState.local_viewer_enable = narrow(ffShaderState.Modes.LocalViewer);
+		controlState.normalize_normals_enable = narrow(ffShaderState.Modes.NormalizeNormals);
+		controlState.ambient_material_source = narrow(ffShaderState.Modes.AmbientMaterialSource);
+		controlState.diffuse_material_source = narrow(ffShaderState.Modes.DiffuseMaterialSource);
+		controlState.specular_material_source = narrow(ffShaderState.Modes.SpecularMaterialSource);
+		controlState.emissive_material_source = narrow(ffShaderState.Modes.EmissiveMaterialSource);
+		controlState.fog_enable = narrow(ffShaderState.Fog.Enable);
+		controlState.fog_depth_mode = narrow(ffShaderState.Fog.DepthMode);
 		for (uint32_t i = 0; i < FixedFunctionVertexShaderControlState::LightCount; i++)
-			controlState.light_type[i] = (uint32_t)ffShaderState.Lights[i].DirectionVN.w;
+			controlState.light_type[i] = narrow(ffShaderState.Lights[i].DirectionVN.w);
 		for (uint32_t i = 0; i < FixedFunctionVertexShaderControlState::TextureStageCount; i++)
 		{
-			controlState.texture_transform_count[i] = (uint32_t)ffShaderState.TextureStates[i].TextureTransformFlagsCount;
-			controlState.texture_transform_projected[i] = (uint32_t)ffShaderState.TextureStates[i].TextureTransformFlagsProjected;
-			controlState.texcoord_index[i] = (uint32_t)ffShaderState.TextureStates[i].TexCoordIndex;
-			controlState.texcoord_generation[i] = (uint32_t)ffShaderState.TextureStates[i].TexCoordIndexGen;
-			controlState.texcoord_component_count[i] = (uint32_t)ffShaderState.TexCoordComponentCount[i];
+			controlState.texture_transform_count[i] = narrow(ffShaderState.TextureStates[i].TextureTransformFlagsCount);
+			controlState.texcoord_index[i] = narrow(ffShaderState.TextureStates[i].TexCoordIndex);
+			controlState.texcoord_generation[i] = narrow(ffShaderState.TextureStates[i].TexCoordIndexGen);
+			controlState.texcoord_component_count[i] = narrow(ffShaderState.TexCoordComponentCount[i]);
 		}
 		controlState.vertex_register_default_mask = vertexRegisterDefaultMask;
 		controlState.point_sprite_enable = PointSpriteEnable;
