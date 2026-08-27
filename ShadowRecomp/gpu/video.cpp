@@ -262,6 +262,8 @@ static uint32_t* g_currentPaletteData;
 static uint32_t g_vertexShaderConstants[HOST_D3DVS_CONSTREG_FULL * 4];
 static uint32_t g_vertexShaderConstantsFixed[HOST_D3DVS_CONSTREG_FULL * 4];
 static uint32_t g_fixedFunctionVertexRegisterDefaultMask = 0xFFFF;
+static VertexDeclarationKey g_fixedFunctionVertexDeclarationKey;
+static bool g_hasFixedFunctionVertexDeclarationKey;
 static uint32_t g_pixelShaderConstants[PSH_XBOX_CONSTANT_MAX * 4];
 static SharedConstants g_sharedConstants; //TextureStage operation data, indice etc. Used with texture descriptor
 static bool g_fixedFunctionPixelShaderStateDirty = true;
@@ -3598,15 +3600,22 @@ void UpdateHostVertexDeclaration(HostVertexDeclaration* pHostVertexDeclaration)
 		{
 			//printf("vRegisterInDeclaration %d, %f\n", i, vertexDefaultFlags[i]);
 		}
-		vsh_constants_dirty[HOST_D3DVS_CONSTREG_VREGDEFAULTS_FLAG_BASE + i] = true;
 	}
-	g_fixedFunctionVertexRegisterDefaultMask = vertexRegisterDefaultMask;
-	MarkFixedFunctionVertexShaderVariantDirty();
+	if (!g_hasFixedFunctionVertexDeclarationKey ||
+		g_fixedFunctionVertexDeclarationKey != pHostVertexDeclaration->Key)
+	{
+		g_fixedFunctionVertexDeclarationKey = pHostVertexDeclaration->Key;
+		g_hasFixedFunctionVertexDeclarationKey = true;
+		g_fixedFunctionVertexRegisterDefaultMask = vertexRegisterDefaultMask;
+		MarkFixedFunctionVertexShaderVariantDirty();
+	}
 
 
 	//192 + 16 = 208 vRegisterDefaultFlagsPacked
-	CopyVertexShaderConstant(HOST_D3DVS_CONSTREG_VREGDEFAULTS_FLAG_BASE, (DWORD*)vertexDefaultFlags, HOST_D3DVS_CONSTREG_VREGDEFAULTS_FLAG_SIZE);
-	vsh_constants[HOST_D3DVS_CONSTREG_VREGDEFAULTS_FLAG_BASE][0] = vsh_constants[HOST_D3DVS_CONSTREG_VREGDEFAULTS_FLAG_BASE][0];
+	if (memcmp(&vsh_constants[HOST_D3DVS_CONSTREG_VREGDEFAULTS_FLAG_BASE][0], vertexDefaultFlags,
+		sizeof(vertexDefaultFlags)) != 0)
+		CopyVertexShaderConstant(HOST_D3DVS_CONSTREG_VREGDEFAULTS_FLAG_BASE, (DWORD*)vertexDefaultFlags,
+			HOST_D3DVS_CONSTREG_VREGDEFAULTS_FLAG_SIZE);
 }
 
 
@@ -3810,15 +3819,18 @@ void UpdateHostViewPortOffsetAndScaleConstants()
 	float screenspaceScale[4] = { xboxScreenspaceWidth / 2,  -xboxScreenspaceHeight / 2, zOutputScale, 1 };
 	float screenspaceOffset[4] = { xboxScreenspaceWidth / 2 + aaOffsetX, xboxScreenspaceHeight / 2 + aaOffsetY, 0, 0 };
 
-	CopyVertexShaderConstant(HOST_D3DVS_SCREENSPACE_SCALE_BASE, (DWORD*)screenspaceScale, HOST_D3DVS_NORMALIZE_SCALE_SIZE);
-	CopyVertexShaderConstant(HOST_D3DVS_SCREENSPACE_OFFSET_BASE, (DWORD*)screenspaceOffset, HOST_D3DVS_NORMALIZE_OFFSET_SIZE);
+	if (memcmp(&vsh_constants[HOST_D3DVS_SCREENSPACE_SCALE_BASE][0], screenspaceScale, sizeof(screenspaceScale)) != 0)
+		CopyVertexShaderConstant(HOST_D3DVS_SCREENSPACE_SCALE_BASE, (DWORD*)screenspaceScale, HOST_D3DVS_NORMALIZE_SCALE_SIZE);
+	if (memcmp(&vsh_constants[HOST_D3DVS_SCREENSPACE_OFFSET_BASE][0], screenspaceOffset, sizeof(screenspaceOffset)) != 0)
+		CopyVertexShaderConstant(HOST_D3DVS_SCREENSPACE_OFFSET_BASE, (DWORD*)screenspaceOffset, HOST_D3DVS_NORMALIZE_OFFSET_SIZE);
 	// Store viewport offset and scale in constant registers 58 (c-38) and
 	// 59 (c-37) used for screen space transformation.
 	// We only do this if X_D3DSCM_NORESERVEDCONSTANTS is not set,
 	// since enabling this flag frees up these registers for shader use
 	if (!(g_Xbox_VertexShaderConstantMode & X_D3DSCM_NORESERVEDCONSTANTS))
 	{
-		CopyVertexShaderConstant(X_D3DSCM_RESERVED_CONSTANT_SCALE_CORRECTED, reinterpret_cast<DWORD*>(vScaleOffset), 2);
+		if (memcmp(&vsh_constants[X_D3DSCM_RESERVED_CONSTANT_SCALE_CORRECTED][0], vScaleOffset, sizeof(vScaleOffset)) != 0)
+			CopyVertexShaderConstant(X_D3DSCM_RESERVED_CONSTANT_SCALE_CORRECTED, reinterpret_cast<DWORD*>(vScaleOffset), 2);
 	}
 }
 
@@ -6868,6 +6880,9 @@ X86_FUNC(sub_3CFCD0)
 	//we let the original code run first (todo check if that's needed)
 	__imp__sub_3CFCD0(ctx, base);
 
+
+	if (memcmp(&g_Transforms[State], pMatrix, sizeof(*pMatrix)) == 0)
+		return;
 
 	g_Transforms[State] = *pMatrix;
 	MarkFixedFunctionVertexShaderStateDirty();
