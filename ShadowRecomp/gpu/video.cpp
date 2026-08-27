@@ -7535,28 +7535,14 @@ static RenderBorderColor ConvertBorderColor(uint32_t value)
 }
 
 
-bool isTextureStageStateDirty()
+struct TextureStageDirtyState
 {
-	for (uint32_t i = 0; i < 4; i++)
-	{
-		for (uint32_t j = 0; j < X_D3DTSS_MAX; j++)
-		{
-			auto lastState = g_dirty_texture_stage_states[i * X_D3DTSS_MAX + j];
-			int curState = g_texture_stage_states[i * X_D3DTSS_MAX + j];
+	bool any;
+	bool fixedFunctionVertex;
+};
 
-			if (lastState != curState)
-				return true;
-		}
-	}
-
-	return false;
-}
-
-static bool IsFixedFunctionVertexTextureStateDirty()
+static TextureStageDirtyState GetTextureStageDirtyState()
 {
-	if (g_texture_stage_states == nullptr)
-		return false;
-
 	for (uint32_t i = 0; i < 4; i++)
 	{
 		const auto offset = i * X_D3DTSS_MAX;
@@ -7564,10 +7550,25 @@ static bool IsFixedFunctionVertexTextureStateDirty()
 			g_texture_stage_states[offset + X_D3DTSS_TEXTURETRANSFORMFLAGS] ||
 			g_dirty_texture_stage_states[offset + X_D3DTSS_TEXCOORDINDEX] !=
 			g_texture_stage_states[offset + X_D3DTSS_TEXCOORDINDEX])
-			return true;
+			return { true, true };
 	}
 
-	return false;
+	for (uint32_t i = 0; i < 4; i++)
+	{
+		for (uint32_t j = 0; j < X_D3DTSS_MAX; j++)
+		{
+			if (j == X_D3DTSS_TEXTURETRANSFORMFLAGS || j == X_D3DTSS_TEXCOORDINDEX)
+				continue;
+
+			auto lastState = g_dirty_texture_stage_states[i * X_D3DTSS_MAX + j];
+			int curState = g_texture_stage_states[i * X_D3DTSS_MAX + j];
+
+			if (lastState != curState)
+				return { true, false };
+		}
+	}
+
+	return {};
 }
 
 inline DWORD GetXboxCommonResourceType(const xbox::dword_xt XboxResource_Common)
@@ -7629,7 +7630,8 @@ static void FlushRenderStateForMainThread(LocalRenderCommandQueue& queue)
 {
 	RtScopeTimer _stateFlushScope(g_gtStateFlushAccum);
 	UpdateAllRenderState();
-	if (IsFixedFunctionVertexTextureStateDirty())
+	const auto textureStageDirty = GetTextureStageDirtyState();
+	if (textureStageDirty.fixedFunctionVertex)
 		MarkFixedFunctionVertexShaderVariantDirty();
 
 	if (g_Xbox_VertexShaderMode == VertexShaderMode::FixedFunction)
@@ -7651,7 +7653,7 @@ static void FlushRenderStateForMainThread(LocalRenderCommandQueue& queue)
 		UpdateHostViewPortOffsetAndScaleConstants();
 	}
 
-	if (isTextureStageStateDirty() == true)
+	if (textureStageDirty.any)
 	{
 		auto base = g_memory.base;
 		for (uint32_t i = 0; i < 4; i++)
