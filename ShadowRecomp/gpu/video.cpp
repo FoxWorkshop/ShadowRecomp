@@ -6875,6 +6875,7 @@ X86_FUNC(sub_3CFCD0)
 	if (State == X_D3DTS_VIEW)
 	{
 		bWorldViewDirty.fill(true);
+		MarkFixedFunctionVertexShaderLightsDirty();
 	}
 	if ((X_D3DTS_WORLD <= State) && (State <= X_D3DTS_WORLD3))
 	{		

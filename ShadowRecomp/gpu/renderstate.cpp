@@ -284,6 +284,10 @@ void UpdateAllRenderState()
 		}
 
 		//Set the host render state
+		// Specular enable is baked into the cached light block
+		if (RenderState == X_D3DRS_SPECULARENABLE)
+			MarkFixedFunctionVertexShaderLightsDirty();
+
 		switch (RenderState)
 		{
 		// Fixed-function states that only refresh uploaded shader constants.

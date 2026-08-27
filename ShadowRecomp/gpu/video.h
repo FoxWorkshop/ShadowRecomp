@@ -713,8 +713,8 @@ struct D3D8LightState {
 
 	D3D8LightState();
 
-	// Enable a light
-	void EnableLight(uint32_t index, bool enable);
+	// Enable a light. Returns true when the enabled light set or order changed.
+	bool EnableLight(uint32_t index, bool enable);
 };
 
 void LightEnable(uint32_t Index, int32_t bEnable);

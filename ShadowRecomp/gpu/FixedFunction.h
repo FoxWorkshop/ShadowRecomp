@@ -19,6 +19,10 @@ void MarkFixedFunctionVertexShaderStateDirty();
 // Schedules a refresh that also reselects the specialized vertex shader.
 void MarkFixedFunctionVertexShaderVariantDirty();
 
+// Schedules a rebuild of the fixed-function light block only; the light
+// inputs are the view transform, specular enable, and enabled light data.
+void MarkFixedFunctionVertexShaderLightsDirty();
+
 extern std::array<bool, 4> bWorldViewDirty;
 
 

@@ -75,7 +75,7 @@ D3D8LightState::D3D8LightState() {
 	EnabledLights.fill(-1);
 }
 
-void D3D8LightState::EnableLight(uint32_t index, bool enable) {
+bool D3D8LightState::EnableLight(uint32_t index, bool enable) {
 	// Since Xbox only supports 8 lights, we keep track of the 8 most recently enabled lights
 	// Lights are ordered oldest to newest, with disabled lights at the end
 
@@ -84,6 +84,10 @@ void D3D8LightState::EnableLight(uint32_t index, bool enable) {
 
 		// If the light is already in the enabled lights
 		if (EnabledLights[i] == index) {
+			// Re-enabling the newest light leaves the set and order unchanged
+			if (enable && i == EnabledLightCount - 1)
+				return false;
+
 			// Either way we move this light to the end
 			std::rotate(std::begin(EnabledLights) + i, std::begin(EnabledLights) + i + 1, std::begin(EnabledLights) + EnabledLightCount);
 
@@ -93,7 +97,7 @@ void D3D8LightState::EnableLight(uint32_t index, bool enable) {
 				EnabledLights[EnabledLightCount - 1] = -1;
 				EnabledLightCount--;
 			}
-			return;
+			return true;
 		}
 	}
 
@@ -109,8 +113,10 @@ void D3D8LightState::EnableLight(uint32_t index, bool enable) {
 			EnabledLights[0] = index;
 			std::rotate(std::begin(EnabledLights), std::begin(EnabledLights) + 1, std::end(EnabledLights));
 		}
+		return true;
 	}
 
+	return false;
 }
 
 
@@ -121,6 +127,9 @@ D3D8LightState g_LightState = D3D8LightState();
 // access this can only run on one thread at a time- promise!
 static bool g_fixedFunctionVertexShaderVariantDirty = true;
 static bool g_fixedFunctionVertexShaderStateDirty = true;
+static bool g_fixedFunctionVertexShaderMaterialDirty = true;
+static bool g_fixedFunctionVertexShaderLightsDirty = true;
+static XMFLOAT4 g_fixedFunctionLightAmbient;
 static ShaderVariantKey g_fixedFunctionVertexShaderVariant = GenericShaderVariant;
 
 void MarkFixedFunctionVertexShaderStateDirty()
@@ -134,10 +143,19 @@ void MarkFixedFunctionVertexShaderVariantDirty()
 	MarkFixedFunctionVertexShaderStateDirty();
 }
 
+void MarkFixedFunctionVertexShaderLightsDirty()
+{
+	g_fixedFunctionVertexShaderLightsDirty = true;
+	MarkFixedFunctionVertexShaderStateDirty();
+}
+
 void LightEnable(uint32_t Index, int32_t bEnable)
 {
-	g_LightState.EnableLight(Index, bEnable);
-	MarkFixedFunctionVertexShaderVariantDirty();
+	if (g_LightState.EnableLight(Index, bEnable))
+	{
+		MarkFixedFunctionVertexShaderLightsDirty();
+		MarkFixedFunctionVertexShaderVariantDirty();
+	}
 }
 
 std::array<bool, 4> bWorldViewDirty;
@@ -315,7 +333,15 @@ extern std::array<D3DMATRIX, X_D3DTS_MAX> g_Transforms;
 
 void UpdateMaterial(Material* pMaterial)
 {
-	MarkFixedFunctionVertexShaderStateDirty();
+	auto& material = ffShaderState.Materials[0];
+	if (memcmp(&material.Diffuse, &pMaterial->Diffuse, sizeof(D3DCOLORVALUE)) == 0 &&
+		memcmp(&material.Ambient, &pMaterial->Ambient, sizeof(D3DCOLORVALUE)) == 0 &&
+		memcmp(&material.Specular, &pMaterial->Specular, sizeof(D3DCOLORVALUE)) == 0 &&
+		memcmp(&material.Emissive, &pMaterial->Emissive, sizeof(D3DCOLORVALUE)) == 0 &&
+		memcmp(&material.Power.r, &pMaterial->Power.r, sizeof(material.Power.r)) == 0)
+		return;
+
+	g_fixedFunctionVertexShaderMaterialDirty = true;
 	ffShaderState.Materials[0].Ambient = pMaterial->Ambient;
 	ffShaderState.Materials[0].Diffuse = pMaterial->Diffuse;
 	ffShaderState.Materials[0].Specular = pMaterial->Specular;
@@ -325,13 +351,24 @@ void UpdateMaterial(Material* pMaterial)
 
 void UpdateLightData(uint32_t index, X_D3DLIGHT8* pLight)
 {
-	MarkFixedFunctionVertexShaderStateDirty();
-	if (g_LightState.Lights[index].Type != pLight->Type)
-		MarkFixedFunctionVertexShaderVariantDirty();
+	auto& light = g_LightState.Lights[index];
+	if (memcmp(&light, pLight, sizeof(light)) == 0)
+		return;
+
+	const bool typeChanged = light.Type != pLight->Type;
 	g_LightState.Lights[index] = *pLight;
+	if (std::find(g_LightState.EnabledLights.begin(),
+		g_LightState.EnabledLights.begin() + g_LightState.EnabledLightCount, index) ==
+		g_LightState.EnabledLights.begin() + g_LightState.EnabledLightCount)
+		return;
+
+	MarkFixedFunctionVertexShaderLightsDirty();
+	if (typeChanged)
+		MarkFixedFunctionVertexShaderVariantDirty();
 }
 
-void UpdateFixedFunctionShaderLight(int d3dLightIndex, Light* pShaderLight, DirectX::XMFLOAT4* pLightAmbient) {
+void UpdateFixedFunctionShaderLight(int d3dLightIndex, Light* pShaderLight,
+	DirectX::XMFLOAT4* pLightAmbient, DirectX::FXMMATRIX view, bool specularEnable) {
 	if (d3dLightIndex == -1)
 	{
 		pShaderLight->DirectionVN.w = 0; // Disable the light
@@ -339,17 +376,16 @@ void UpdateFixedFunctionShaderLight(int d3dLightIndex, Light* pShaderLight, Dire
 	}
 
 	auto d3dLight = &g_LightState.Lights[d3dLightIndex];
-	auto viewTransform = XMLoadFloat4x4((XMFLOAT4X4*)&g_Transforms[X_D3DTS_VIEW]);
-
 
 	// TODO remove D3DX usage
 	// Pre-transform light position to viewspace
 	// Transform light position into view space
-	XMVECTOR pos = XMLoadFloat3((XMFLOAT3*)&d3dLight->Position);
-	XMMATRIX view = XMLoadFloat4x4((XMFLOAT4X4*)&viewTransform);
-
-	XMVECTOR positionV = XMVector3Transform(pos, view);
-	XMStoreFloat3((XMFLOAT3*)&pShaderLight->PositionV, positionV);
+	if (d3dLight->Type != D3DLIGHT_DIRECTIONAL)
+	{
+		XMVECTOR pos = XMLoadFloat3((XMFLOAT3*)&d3dLight->Position);
+		XMVECTOR positionV = XMVector3Transform(pos, view);
+		XMStoreFloat3((XMFLOAT3*)&pShaderLight->PositionV, positionV);
+	}
 
 	// Transform light direction into view space (ignore translation)
 	XMVECTOR dir = XMLoadFloat3((XMFLOAT3*)&d3dLight->Direction);
@@ -360,26 +396,29 @@ void UpdateFixedFunctionShaderLight(int d3dLightIndex, Light* pShaderLight, Dire
 
 	XMStoreFloat3((XMFLOAT3*)&pShaderLight->DirectionVN, directionV);
 
-
-	bool SpecularEnable = GetGuestRenderState(X_D3DRS_SPECULARENABLE) != FALSE;
-
 	// Map D3D light to state struct
 	pShaderLight->DirectionVN.w = (float)((int)d3dLight->Type); //DirectionVN.w = type
 	pShaderLight->Diffuse = toVector(d3dLight->Diffuse);
-	pShaderLight->Specular = SpecularEnable ? toVector(d3dLight->Specular) : toVector(0);
-	pShaderLight->PositionV.w = d3dLight->Range; //PositionV = range
-	pShaderLight->Attenuation.w = d3dLight->Falloff; //Attenuation.w = falloff
-	pShaderLight->Attenuation.x = d3dLight->Attenuation0;
-	pShaderLight->Attenuation.y = d3dLight->Attenuation1;
-	pShaderLight->Attenuation.z = d3dLight->Attenuation2;
+	pShaderLight->Specular = specularEnable ? toVector(d3dLight->Specular) : toVector(0);
+	if (d3dLight->Type != D3DLIGHT_DIRECTIONAL)
+	{
+		pShaderLight->PositionV.w = d3dLight->Range; //PositionV = range
+		pShaderLight->Attenuation.x = d3dLight->Attenuation0;
+		pShaderLight->Attenuation.y = d3dLight->Attenuation1;
+		pShaderLight->Attenuation.z = d3dLight->Attenuation2;
+	}
 
 	pLightAmbient->x += d3dLight->Ambient.r;
 	pLightAmbient->y += d3dLight->Ambient.g;
 	pLightAmbient->z += d3dLight->Ambient.b;
 
-	auto cosHalfPhi = cos(d3dLight->Phi / 2);
-	pShaderLight->SpotParams.x = cosHalfPhi; //SpotParams.x = CosHalfPhi
-	pShaderLight->SpotParams.y = cos(d3dLight->Theta / 2) - cos(d3dLight->Phi / 2); //SpotParams.y = SpotIntensityDivisor
+	if (d3dLight->Type == D3DLIGHT_SPOT)
+	{
+		pShaderLight->Attenuation.w = d3dLight->Falloff; //Attenuation.w = falloff
+		auto cosHalfPhi = cos(d3dLight->Phi / 2);
+		pShaderLight->SpotParams.x = cosHalfPhi; //SpotParams.x = CosHalfPhi
+		pShaderLight->SpotParams.y = cos(d3dLight->Theta / 2) - cosHalfPhi; //SpotParams.y = SpotIntensityDivisor
+	}
 }
 
 
@@ -454,7 +493,16 @@ bool logIndexedPrimitive = false;
 ShaderVariantKey UpdateFixedFunctionVertexShaderState(size_t Handle, bool isPSFixed, uint32_t vertexRegisterDefaultMask)
 {
 	if (!g_fixedFunctionVertexShaderStateDirty)
+	{
+		// Upload only the material registers when the rest of the state is clean.
+		if (g_fixedFunctionVertexShaderMaterialDirty)
+		{
+			constexpr int materialRegister = offsetof(FixedFunctionVertexShaderState, Materials) / 16;
+			CopyVertexShaderConstant(materialRegister, (DWORD*)&ffShaderState.Materials[0], sizeof(Material) / 16);
+			g_fixedFunctionVertexShaderMaterialDirty = false;
+		}
 		return g_fixedFunctionVertexShaderVariant;
+	}
 
 	// Vertex blending
 	// Prepare vertex blending mode variables used in transforms, below
@@ -629,26 +677,30 @@ ShaderVariantKey UpdateFixedFunctionVertexShaderState(size_t Handle, bool isPSFi
 	}
 
 	// Update lights
-	auto LightAmbient = XMFLOAT4(0.f, 0.f, 0.f, 0.f);
-	for (size_t i = 0; i < 8; i++)
+	// The shader reads the light block and ambient totals only when lighting
+	// is enabled, so skip both when it is disabled.
+	if (ffShaderState.Modes.Lighting)
 	{
-		UpdateFixedFunctionShaderLight(g_LightState.EnabledLights[i], &ffShaderState.Lights[i], &LightAmbient);
+		if (g_fixedFunctionVertexShaderLightsDirty)
+		{
+			g_fixedFunctionLightAmbient = XMFLOAT4(0.f, 0.f, 0.f, 0.f);
+			const XMMATRIX lightView = XMLoadFloat4x4((XMFLOAT4X4*)&g_Transforms[X_D3DTS_VIEW]);
+			const bool specularEnable = GetGuestRenderState(X_D3DRS_SPECULARENABLE) != FALSE;
+			for (size_t i = 0; i < 8; i++)
+				UpdateFixedFunctionShaderLight(g_LightState.EnabledLights[i], &ffShaderState.Lights[i],
+					&g_fixedFunctionLightAmbient, lightView, specularEnable);
+			g_fixedFunctionVertexShaderLightsDirty = false;
+		}
+
+		XMFLOAT4 Ambient = toVector(GetGuestRenderState(X_D3DRS_AMBIENT));
+		XMFLOAT4 BackAmbient = toVector(GetGuestRenderState(X_D3DRS_BACKAMBIENT));
+		XMVECTOR vLightAmbient = XMLoadFloat4(&g_fixedFunctionLightAmbient);
+
+		XMStoreFloat4((XMFLOAT4*)&ffShaderState.TotalLightsAmbient.Front,
+			XMVectorAdd(vLightAmbient, XMLoadFloat4(&Ambient)));
+		XMStoreFloat4((XMFLOAT4*)&ffShaderState.TotalLightsAmbient.Back,
+			XMVectorAdd(vLightAmbient, XMLoadFloat4(&BackAmbient)));
 	}
-
-	XMFLOAT4 Ambient = toVector(GetGuestRenderState(X_D3DRS_AMBIENT));
-	XMFLOAT4 BackAmbient = toVector(GetGuestRenderState(X_D3DRS_BACKAMBIENT));
-
-	XMVECTOR vLightAmbient = XMLoadFloat4(&LightAmbient);
-	XMVECTOR vAmbient = XMLoadFloat4(&Ambient);
-
-	XMVECTOR vFront = XMVectorAdd(vLightAmbient, vAmbient);
-
-	XMStoreFloat4((XMFLOAT4*)&ffShaderState.TotalLightsAmbient.Front, vFront);
-
-	XMVECTOR vBackAmbient = XMLoadFloat4(&BackAmbient);
-	XMVECTOR vBack = XMVectorAdd(vLightAmbient, vBackAmbient);
-
-	XMStoreFloat4((XMFLOAT4*)&ffShaderState.TotalLightsAmbient.Back, vBack);
 
 	// Misc flags
 	ffShaderState.Modes.NormalizeNormals = (float)GetGuestRenderState(X_D3DRS_NORMALIZENORMALS);
@@ -699,6 +751,7 @@ ShaderVariantKey UpdateFixedFunctionVertexShaderState(size_t Handle, bool isPSFi
 	const int fixedFunctionStateSize = (sizeof(FixedFunctionVertexShaderState) + slotSize - 1) / slotSize;
 	CopyVertexShaderConstant(0, (DWORD*)&ffShaderState, fixedFunctionStateSize);
 	g_fixedFunctionVertexShaderStateDirty = false;
+	g_fixedFunctionVertexShaderMaterialDirty = false;
 
 	return g_fixedFunctionVertexShaderVariant;
 }
