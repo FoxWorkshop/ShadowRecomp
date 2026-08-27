@@ -6882,6 +6882,7 @@ X86_FUNC(sub_3CFCD0)
 	if (State == X_D3DTS_WORLD) // ensure this is the matrix used that run before rendering pause subtitles
 	{
 		AdjustSubtitlesPosition(matrixAddr);
+		UnstretchMenuTextTransform(matrixAddr);
 	}
 
 	//we let the original code run first (todo check if that's needed)

@@ -38,6 +38,10 @@ void App::Exit()
 
 }
 
+bool App::isInMainMenu() // 7 is library
+{
+	return s_gamemode == -1 || s_gamemode == 7;
+}
 
 int Window_OnSDLEvent(void*, SDL_Event* event);
 
@@ -59,7 +63,7 @@ X86_FUNC(sub_57630)
 
 	App::s_deltaTime = X86_LOAD_F32(0x541FA8);
 	App::s_time += App::s_deltaTime;
-
+	App::s_gamemode = X86_LOAD_U32(0x5022A4);
 	Video::BeginGameThreadProfiler();
 	__imp__sub_57630(ctx, base);
 	Video::EndGameThreadProfiler();

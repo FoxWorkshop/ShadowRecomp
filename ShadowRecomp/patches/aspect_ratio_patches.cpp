@@ -16,7 +16,6 @@
 static const uint8_t CSDVertexCount = 4u; // CSD always use 4 vertex count in this game
 bool readyToDebugConstant = false;
 bool s_pauseTextRemoved = false;
-bool s_ShouldPatchSubtitles = false;
 #define widthMin 640.f
 #define heightMin 480.f
 static Mutex g_pathMutex;
@@ -103,20 +102,6 @@ void AdjustSubtitlesPosition(uint32_t pMatrix)
 		_42 -= 0.03f * GetAddedPauseItemsCount(); // move down
 		X86_STORE_F32(pMatrix + 0x34, _42);
 	}
-	else if (s_ShouldPatchSubtitles)
-	{
-		auto vpWidth = float(Video::s_viewportWidth);
-		auto vpHeight = float(Video::s_viewportHeight);
-		float aspectRatio = vpWidth / vpHeight;
-		float ratio43 = 640.f / 480.f;
-		if (aspectRatio > ratio43)
-		{
-			float _41 = X86_LOAD_F32(pMatrix + 0x30);
-			_41 -= 0.05f;
-			X86_STORE_F32(pMatrix + 0x30, _41);
-		}
-	}
-
 }
 
 
@@ -497,8 +482,8 @@ void Draw(X86Context& ctx, uint8_t* base, X86Func* original, void* vertexData, u
 
 	if (isCentered && canUnstretch)
 	{
-			for (int i = 0; i < CSDVertexCount; i++)
-			{
+		for (int i = 0; i < CSDVertexCount; i++)
+		{
 			auto vertex = (RwD3D8Vertex*)vertexData + i;
 			if (vertex)
 			{
@@ -623,7 +608,7 @@ void CPlatformRWDrawPrimitive2DMidAsmHook2(X86Register& rEsi)
 
 void DrawHudMidAsmHook(X86Register& rEax)
 {
-	if (!rEax.u32)
+	if (!rEax.u32 || App::isInMainMenu()) // this affect text on stage select mode badly
 		return;
 
 	float savedX[CSDVertexCount];
@@ -954,7 +939,7 @@ const xxHashMap<CsdModifier> g_csdModifiers =
 	{ HashStr("csdFiles/BossGauge.xncp/Scene_0000/bg"), { CSD_MODIFIER_PRESEVE_4_3_SCALE | CSD_STRETCH_HORIZONTAL } },
 	{ HashStr("csdFiles/BossGauge.xncp/Scene_0000/m1"), { CSD_MODIFIER_PRESEVE_4_3_SCALE | CSD_STRETCH_HORIZONTAL } },
 	{ HashStr("csdFiles/BossGauge.xncp/Scene_0000/m2"), { CSD_MODIFIER_PRESEVE_4_3_SCALE | CSD_STRETCH_HORIZONTAL } },
-	{ HashStr("csdFiles/BossGauge.xncp/Scene_0000/m3"), { CSD_MODIFIER_PRESEVE_4_3_SCALE  | CSD_STRETCH_HORIZONTAL} },
+	{ HashStr("csdFiles/BossGauge.xncp/Scene_0000/m3"), { CSD_MODIFIER_PRESEVE_4_3_SCALE | CSD_STRETCH_HORIZONTAL} },
 	{ HashStr("csdFiles/BossGauge.xncp/Scene_0000/meter"), { CSD_MODIFIER_PRESEVE_4_3_SCALE | CSD_STRETCH_HORIZONTAL } },
 	{ HashStr("csdFiles/BossGauge.xncp/Scene_0000/left_edge"), { CSD_MODIFIER_PRESEVE_4_3_SCALE | CSD_STRETCH_HORIZONTAL } },
 	{ HashStr("csdFiles/BossGauge.xncp/Scene_0000/right_edge"), { CSD_MODIFIER_PRESEVE_4_3_SCALE | CSD_STRETCH_HORIZONTAL } },
@@ -1208,5 +1193,36 @@ void RainEffectScaleMidAsmHook(X86Register& esp)
 	StretchFullScreenQuadScale(esp.u32);
 }
 
+// Patch the text draw in the main menu (score in stage select, level name etc.)
+// The font system (bitmap) draws every string as Rt2d geometry which is pushed through 3D Space.
+// Each glyph quad is set up by the world matrix then puts the geometry in a 2D space. 
+// However the widescreen projection stretch the scene which doesn't work at high res
+// we can patch the world matrix's active axis with the relative aspect ratio to unstretch the text.
+
+void UnstretchMenuTextTransform(uint32_t pMatrix)
+{
+	auto base = g_memory.base;
+
+	if (!App::isInMainMenu() || pMatrix == 0)
+		return;
+
+	float aspectRatio;
+	if (!TryGetAspectRatio(aspectRatio))
+		return;
+
+	const float relativeAspectRatio = GetRelativeAspectRatio(aspectRatio);
+
+	//Column of the 4x4 world matrix gives the axis the projection originally stretched
+	const bool horizontal = aspectRatio > nativeAspectRatio;
+	const uint32_t column = horizontal ? 0 : 4;
+
+	for (uint32_t row = 0; row < 4; row++)
+	{
+		const uint32_t element = pMatrix + row * 0x10 + column;
+		const float value = X86_LOAD_F32(element);
+
+		X86_STORE_F32(element, horizontal ? value * relativeAspectRatio : value / relativeAspectRatio);
+	}
+}
 /*** END Render at any Aspect Ratio ***/
 
