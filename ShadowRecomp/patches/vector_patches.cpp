@@ -20,6 +20,6 @@ X86_FUNC(sub_30ECB0)
 	const double xx = (double)x * x;
 	const double yy = (double)y * y;
 	const double zz = (double)z * z;
-	ctx.fpu.push((long double)(xx + yy + zz));
+	ctx.fpu.push((x87_float)(xx + yy + zz));
 	ctx.esp.u32 += 0x4;
 }
