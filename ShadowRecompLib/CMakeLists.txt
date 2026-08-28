@@ -57,3 +57,10 @@ add_library(ShadowRecompLib
 
 target_include_directories(ShadowRecompLib PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
 target_precompile_headers(ShadowRecompLib PUBLIC "x86/x86_recomp_shared.h")
+
+# Speed hack: x87 emulation in double instead of long double.
+# MSVC long double is already 64-bit, so this only affects GCC/Clang.
+option(X87_DOUBLE_PRECISION "x87 emulation in double instead of long double" ON)
+if (X87_DOUBLE_PRECISION)
+    target_compile_definitions(ShadowRecompLib PUBLIC X87_DOUBLE_PRECISION)
+endif()
