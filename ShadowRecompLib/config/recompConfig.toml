@@ -2,6 +2,7 @@
 file_path = "../private/default.xbe"
 out_directory_path = "../x86"
 switch_table_file_path = "jumpTable.toml"
+fast_trig = true #64-bit instead of 80-bit x87 trig for speed
 tls_indexAddress = 0x5599A8
 
 functions = [
