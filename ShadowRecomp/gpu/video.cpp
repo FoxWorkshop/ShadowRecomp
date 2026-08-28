@@ -5021,7 +5021,7 @@ void Video::Present()
 
 		static FramePacer loadingFramePacer;
 		loadingFramePacer.SetFpsLimit(60.0);
-		loadingFramePacer.EndFrame(false);
+		loadingFramePacer.EndFrame(FramePacer::WaitMode::SleepOnly);
 	}
 	else
 	{
@@ -5035,7 +5035,7 @@ void Video::Present()
 		{
 			static FramePacer framePacer;
 			framePacer.SetFpsLimit(targetFps);
-			framePacer.EndFrame(true);
+			framePacer.EndFrame(FramePacer::WaitMode::SleepThenSpin);
 		}
 	}
 
@@ -6078,33 +6078,17 @@ static void ProcUnlockTextureRect(const RenderCommand& cmd)
 	CopyDynamicTextureToGPU(args.texture);
 }
 
-// This function is needed for ADX and FMV decoding, as they rely on the VBlank timing to update their buffers.
-// We fake vblank with a hybrid sleep + spin-wait to maintain precise timing across platforms.
-void BlockUntilVerticalBlank()
+// This function is needed for ADX and FMV decoding, as they rely on the vblank
+// timing to update their buffers. We fake a 60Hz vblank signal; sleep-only
+// pacing keeps the decoding threads off the CPU (no spinning or yielding).
+void CRI_BlockUntilVerticalBlank()
 {
-	using namespace std::chrono;
+	// Per-thread pacer: each decoding thread holds its own vblank phase, and
+	// the pacer's oversleep compensation keeps the 60Hz period drift-free.
+	thread_local FramePacer vblankPacer;
 
-	static constexpr auto VBLANK_DURATION = microseconds(16667);
-
-	thread_local steady_clock::time_point lastCall = {};
-
-	auto now = steady_clock::now();
-
-	if (lastCall != steady_clock::time_point{})
-	{
-		auto target = lastCall + VBLANK_DURATION;
-		auto remaining = target - now;
-		if (remaining > microseconds(500))
-		{
-			auto sleepDur = duration_cast<milliseconds>(remaining - 2ms);
-			if (sleepDur > 0ms)
-				std::this_thread::sleep_for(sleepDur);
-			while (steady_clock::now() < target)
-				std::this_thread::yield();
-		}
-	}
-
-	lastCall = steady_clock::now();
+	vblankPacer.SetFpsLimit(60.0);
+	vblankPacer.EndFrame(FramePacer::WaitMode::SleepOnly);
 }
 
 
@@ -9476,7 +9460,7 @@ GUEST_FUNCTION_HOOK_STDCALL(sub_3D4740, D3DDevice_BeginPush);
 GUEST_FUNCTION_HOOK_STDCALL(sub_3D4760, D3DDevice_EndPush);
 
 // adx and fmv decoding requires vblank signal
-GUEST_FUNCTION_HOOK(sub_3CFE70, BlockUntilVerticalBlank);
+GUEST_FUNCTION_HOOK(sub_3CFE70, CRI_BlockUntilVerticalBlank);
 
 
 //texture stuff
