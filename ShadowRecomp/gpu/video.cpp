@@ -666,7 +666,6 @@ bool is_vulkan()
 }
 
 
-static std::thread::id g_presentThreadId = std::this_thread::get_id();
 static std::atomic<bool> g_readyForCommands;
 static std::atomic<bool> g_commandListOpen{false};
 static std::atomic<bool> g_inPresent{false};
@@ -697,7 +696,6 @@ static void WaitForPresentDuringLoading()
 void Guard_Rendering()
 {
 	g_readyForCommands.wait(false);
-	g_presentThreadId = std::this_thread::get_id();
 }
 
 static ankerl::unordered_dense::map<RenderTexture*, RenderTextureLayout> g_barrierMap;
