@@ -18,6 +18,24 @@ class FramePacer
 {
 public:
     /**
+     * \brief How the remaining time to the next frame is waited out.
+     */
+    enum class WaitMode
+    {
+        /** \brief Sleeps most of it, then spins (yielding between
+         * iterations) through the final slice. Most precise; negligible
+         * CPU load. */
+        SleepThenSpin,
+
+        /** \brief Sleeps most of it, then yields through the final slice. */
+        SleepThenYield,
+
+        /** \brief Sleeps all of it; never spins or yields. Cheapest for
+         * background threads; can wake up to one sleep quantum late. */
+        SleepOnly
+    };
+
+    /**
      * \brief Sets the current framerate cap.
      * \param fpsLimit The framerate cap in frames per second. Values of zero
      * or below are ignored.
@@ -28,30 +46,30 @@ public:
      * \brief Marks the end of an individual frame/recurring piece of logic
      * to be performed/executed. You should put this at the end of a
      * reoccuring loop.
-     * \param spin
-     *     If true, uses an alternative timing method where CPU briefly spins
-     *     (performs junk calculations) after sleeping slightly less time
-     *     until it is precisely the time to start the next frame.
-     * 
-     *     Increases accuracy at the expense of negligible CPU load.
-     * \param allowThreadYieldInSpin
-     *     If true allows the thread to yield when spinning.
-     *     Only set this to false if the CPU is maxed out (>95% usage).
+     * \param waitMode How the remaining wait time is spent. See WaitMode.
      */
-    void EndFrame(bool spin, bool allowThreadYieldInSpin = true);
+    void EndFrame(WaitMode waitMode);
 
 private:
     /**
      * \brief Pauses execution for the remaining of the time until the next
      * frame begins.
      * \param durationMs The time in milliseconds to pause for.
-     * \param spin See EndFrame.
-     * \param allowThreadYieldInSpin See EndFrame.
+     * \param waitMode See EndFrame.
      */
-    void Sleep(double durationMs, bool spin, bool allowThreadYieldInSpin);
+    void Sleep(double durationMs, WaitMode waitMode);
+
+    /* Waits out the duration per WaitMode::SleepOnly. */
+    void SleepOnly(double durationMs);
+
+    /* Waits out the duration per WaitMode::SleepThenSpin. */
+    void SleepThenSpin(double durationMs);
+
+    /* Waits out the duration per WaitMode::SleepThenYield. */
+    void SleepThenYield(double durationMs);
 
     /* Spins until it is time to begin the next frame. */
-    void Spin(double durationMs, bool allowThreadYieldInSpin);
+    void Spin(double durationMs);
 
     static double ElapsedMsSince(std::chrono::steady_clock::time_point start)
     {
