@@ -8840,12 +8840,32 @@ X86_FUNC(sub_2E6140)
 
 void CopyVertexShaderConstant(int32_t Register, DWORD* pConstantData, const uint32_t count)
 {
-	float* float_vsh_constants = (float*)&(vsh_constants[Register][0]);
-	memcpy(float_vsh_constants, pConstantData, count * sizeof(float) * 4);
-
+	// Skip registers whose values did not change.
+	// Must also match both bank shadows. While the flush
+	// uploads against the active bank only, a stale
+	// other-bank shadow still needs the dirty flag.
+	bool anyChanged = false;
 	for (DWORD i = 0; i < count; i++)
-		vsh_constants_dirty[Register + i] = true;
-	g_vertexShaderConstantsAnyDirty = true;
+	{
+		const DWORD* src = &pConstantData[i * 4];
+		uint32_t* dst = &vsh_constants[Register + i][0];
+
+		if (memcmp(dst, src, sizeof(float) * 4) != 0)
+		{
+			memcpy(dst, src, sizeof(float) * 4);
+			vsh_constants_dirty[Register + i] = true;
+			anyChanged = true;
+		}
+		else if (memcmp(&g_vertexShaderConstantBankShadow[0][(Register + i) * 4], src, sizeof(float) * 4) != 0 ||
+			memcmp(&g_vertexShaderConstantBankShadow[1][(Register + i) * 4], src, sizeof(float) * 4) != 0)
+		{
+			vsh_constants_dirty[Register + i] = true;
+			anyChanged = true;
+		}
+	}
+
+	if (anyChanged)
+		g_vertexShaderConstantsAnyDirty = true;
 }
 
 void LogFloat4(const char* name, const float* values, int count = 1) {
