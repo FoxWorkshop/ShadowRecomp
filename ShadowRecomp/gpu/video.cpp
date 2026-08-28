@@ -14,6 +14,9 @@
 #include "swizzle.h"
 #include "FixedFunction.h"
 #include "renderstate.h"
+#include "shared_constants.h"
+#include "ubershaders/fixed_function_pixel_shader_variants.h"
+#include "ubershaders/fixed_function_vertex_shader_variants.h"
 #include "frame_pacing/frame_pacer.h"
 #include <app.h>
 #include <bc_diff.h>
@@ -62,8 +65,8 @@ static bool useLowSpec = false;
 #endif
 
 #ifdef SHADOW_RECOMP_D3D12
-#include "shader/FixedFunctionVertexShader.hlsl.dxil.h"
-#include "shader/FixedFunctionPixelShader.hlsl.dxil.h"
+#include "ubershaders/shader/FixedFunctionVertexShader.hlsl.dxil.h"
+#include "ubershaders/shader/FixedFunctionPixelShader.hlsl.dxil.h"
 #include "shader/PassthroughVertexShader.hlsl.dxil.h"
 
 #include "shader/copy_vs.hlsl.dxil.h"
@@ -89,9 +92,9 @@ static bool useLowSpec = false;
 #include "shader/R2D_vs1.hlsl.dxil.h"
 #endif
 
-#include "shader/FixedFunctionVertexShader.hlsl.spirv.h"
+#include "ubershaders/shader/FixedFunctionVertexShader.hlsl.spirv.h"
 #include "shader/PassthroughVertexShader.hlsl.spirv.h"
-#include "shader/FixedFunctionPixelShader.hlsl.spirv.h"
+#include "ubershaders/shader/FixedFunctionPixelShader.hlsl.spirv.h"
 
 #include "shader/copy_vs.hlsl.spirv.h"
 #include "shader/copy_color_ps.hlsl.spirv.h"
@@ -163,6 +166,8 @@ struct PipelineState
 	GuestShader* pixelShader = nullptr;
 	//bool isFixedFunctionVS = false;
 	bool isFixedFunctionPS = false;
+	ShaderVariantKey vertexShaderVariant = GenericShaderVariant;
+	ShaderVariantKey pixelShaderVariant = GenericShaderVariant;
 	VertexShaderMode vertexShaderType;
 	GuestVertexDeclaration* vertexDeclaration = nullptr;
 	bool zEnable = false;
@@ -207,6 +212,7 @@ struct UploadAllocation
 };
 
 static_assert(sizeof(uint32_t) == 4, "expect 4-byte uint");
+static_assert(TexSlotMax == SharedTextureSlotCount);
 
 struct TextureCombinerState {
 	uint32_t color_op = 1;
@@ -218,57 +224,6 @@ struct TextureCombinerState {
 	uint32_t alpha_arg1 = D3DTA_TEXTURE;
 	uint32_t alpha_arg2 = D3DTA_CURRENT;
 	uint32_t texcoord_index = 0;
-};
-
-struct SharedConstants
-{
-	uint32_t texture2DIndices[TexSlotMax];
-	uint32_t texture3DIndices[TexSlotMax];
-	uint32_t textureCubeIndices[TexSlotMax];
-	uint32_t samplerIndices[TexSlotMax];
-
-	//TextureCombinerState combiners[16]; 
-
-	uint32_t color_op[TexSlotMax];
-	uint32_t color_arg0[TexSlotMax];
-	uint32_t color_arg1[TexSlotMax];
-	uint32_t color_arg2[TexSlotMax];
-
-	uint32_t alpha_op[TexSlotMax];
-	uint32_t alpha_arg0[TexSlotMax];
-	uint32_t alpha_arg1[TexSlotMax];
-	uint32_t alpha_arg2[TexSlotMax];
-	uint32_t result_arg[TexSlotMax];
-	//uint32_t texcoord_index[TexSlotMax];
-
-	uint32_t TextureSampleType[TexSlotMax];
-
-
-	// TEXTURETRANSFORMFLAGS handled by the VS
-	uint32_t BUMPENVMAT00[TexSlotMax];
-	uint32_t BUMPENVMAT01[TexSlotMax];
-	uint32_t BUMPENVMAT11[TexSlotMax];
-	uint32_t BUMPENVMAT10[TexSlotMax];
-	uint32_t BUMPENVLSCALE[TexSlotMax];
-	uint32_t BUMPENVLOFFSET[TexSlotMax];
-	uint32_t TEXCOORDINDEX[TexSlotMax]; 	//handled by the VS
-
-	// BORDERCOLOR set on sampler
-
-	float TextureFactor[4]; //RGBA
-	uint32_t SpecularEnable;
-	uint32_t FogEnable;
-	uint32_t FogTableMode;
-	uint32_t FogDensity;
-	uint32_t FogStart;
-	uint32_t FogEnd;
-	float FogColor[3];
-
-	uint32_t alphaTestEnable;
-	uint32_t alphaFunc; // D3DCMP_* comparison function
-	float alphaRef; // Reference value (0.0 - 1.0)
-
-	float alphaThreshold;
 };
 
 struct RenderViewport_r
@@ -306,16 +261,23 @@ static uint32_t* g_currentPaletteData;
 //constants are variable send to the GPU
 static uint32_t g_vertexShaderConstants[HOST_D3DVS_CONSTREG_FULL * 4];
 static uint32_t g_vertexShaderConstantsFixed[HOST_D3DVS_CONSTREG_FULL * 4];
+static uint32_t g_fixedFunctionVertexRegisterDefaultMask = 0xFFFF;
+static VertexDeclarationKey g_fixedFunctionVertexDeclarationKey;
+static bool g_hasFixedFunctionVertexDeclarationKey;
 static uint32_t g_pixelShaderConstants[PSH_XBOX_CONSTANT_MAX * 4];
 static SharedConstants g_sharedConstants; //TextureStage operation data, indice etc. Used with texture descriptor
+static bool g_fixedFunctionPixelShaderStateDirty = true;
+// Last variant key sent to the render thread via SetVertexShaderVariant.
+static ShaderVariantKey g_lastSentVertexShaderVariant = GenericShaderVariant;
 
 uint32_t vsh_constants[HOST_D3DVS_CONSTREG_FULL][4]; //xbox registers (192) + host registers (slot of 4 because one register = 4 bytes)
 bool vsh_constants_dirty[HOST_D3DVS_CONSTREG_FULL];
+static bool g_vertexShaderConstantsAnyDirty = true;
 
-static uint64_t g_lastVertexShaderConstants; //used to check for update so we don't upload every frame
+static uint32_t g_vertexShaderConstantBankShadow[2][HOST_D3DVS_CONSTREG_FULL * 4];
 
 uint32_t g_PixelShader;
-static uint64_t g_lastPixelShaderConstants;
+static bool g_pixelShaderConstantsAnyDirty = true;
 
 uint32_t psh_constants[PSH_XBOX_CONSTANT_MAX][4]; // (slot of 4 because one register = 4 bytes)
 bool psh_constants_dirty[PSH_XBOX_CONSTANT_MAX];
@@ -680,8 +642,8 @@ static ankerl::unordered_dense::set<const RenderTexture*> g_clearedRenderTargets
 
 float GetRenderTargetHeight()
 {
-	if (g_renderTarget->height)
-		return g_renderTarget->height;
+	if (g_next_RenderTarget != nullptr && g_next_RenderTarget->height)
+		return g_next_RenderTarget->height;
 
 	printf("ERROR no render target found\n");
 	return 0.0f;
@@ -892,7 +854,7 @@ static std::unique_ptr<RenderPipeline> CreateGraphicsPipeline(const PipelineStat
 static void SanitizePipelineState(PipelineState& pipelineState);
 
 static constexpr uint32_t PIPELINE_CACHE_MAGIC = 0x31435053;
-static constexpr uint32_t PIPELINE_CACHE_VERSION = 2;
+static constexpr uint32_t PIPELINE_CACHE_VERSION = 4;
 static constexpr size_t MAX_VERTEX_ELEMENTS = 32;
 
 #pragma pack(push, 1)
@@ -964,7 +926,9 @@ static bool BuildPipelineCacheEntry(const PipelineState& pipelineState, Pipeline
 	if (pipelineState.vertexShaderType == VertexShaderMode::FixedFunction ||
 		pipelineState.vertexShaderType == VertexShaderMode::Passthrough)
 	{
-		outEntry.vertexShaderHash = 0;
+		outEntry.vertexShaderHash = pipelineState.vertexShaderType == VertexShaderMode::FixedFunction
+			? pipelineState.vertexShaderVariant
+			: 0;
 	}
 	else if (pipelineState.vertexShader != nullptr)
 	{
@@ -980,7 +944,7 @@ static bool BuildPipelineCacheEntry(const PipelineState& pipelineState, Pipeline
 
 	if (pipelineState.isFixedFunctionPS)
 	{
-		outEntry.pixelShaderHash = 0;
+		outEntry.pixelShaderHash = pipelineState.pixelShaderVariant;
 	}
 	else if (pipelineState.pixelShader != nullptr)
 	{
@@ -1232,8 +1196,36 @@ static void LoadAndPrecompilePipelines()
 	LOGFN("PipelineCache: Precompiled {} pipelines ({} skipped) in {:.2f} ms", compiled, skipped, totalElapsed);
 }
 
+// Returns false for cache entries whose fixed-function shaders were saved
+// with a generic variant key; those entries cannot reproduce the specialized
+// pipelines actually used at runtime.
+static bool HasSpecializedCacheEntryVariants(const PipelineCacheEntry& entry)
+{
+	if (entry.vertexShaderMode == VertexShaderMode::FixedFunction && entry.vertexShaderHash == GenericShaderVariant)
+		return false;
+	if (entry.isFixedFunctionPS && entry.pixelShaderHash == GenericShaderVariant)
+		return false;
+	return true;
+}
+
+// Maps cache entry hashes to variant keys, falling back to the generic
+// shader for hashes missing from the generated catalogs.
+static void ApplyCacheEntryVariants(const PipelineCacheEntry& entry, PipelineState& pipelineState)
+{
+	pipelineState.vertexShaderVariant = entry.vertexShaderMode == VertexShaderMode::FixedFunction &&
+		FixedFunctionVertexShaderVariants::Contains(entry.vertexShaderHash)
+		? entry.vertexShaderHash
+		: GenericShaderVariant;
+	pipelineState.pixelShaderVariant = entry.isFixedFunctionPS && FixedFunctionPixelShaderVariants::Contains(entry.pixelShaderHash)
+		? entry.pixelShaderHash
+		: GenericShaderVariant;
+}
+
 static bool TryCompileFromCacheEntry(const PipelineCacheEntry& entry)
 {
+	if (!HasSpecializedCacheEntryVariants(entry))
+		return false;
+
 	GuestShader* vertexShader = nullptr;
 	GuestShader* pixelShader = nullptr;
 
@@ -1280,6 +1272,7 @@ static bool TryCompileFromCacheEntry(const PipelineCacheEntry& entry)
 	pipelineState.pixelShader = pixelShader;
 	pipelineState.vertexDeclaration = vertexDecl;
 	pipelineState.isFixedFunctionPS = entry.isFixedFunctionPS;
+	ApplyCacheEntryVariants(entry, pipelineState);
 	pipelineState.vertexShaderType = entry.vertexShaderMode;
 	pipelineState.zEnable = entry.zEnable;
 	pipelineState.zWriteEnable = entry.zWriteEnable;
@@ -1338,6 +1331,9 @@ static void PrecompileStaticPipelines()
 	auto entries = reinterpret_cast<const PipelineCacheEntry*>(g_staticPipelineCacheData);
 	for (size_t i = 0; i < g_staticPipelineCacheCount; i++)
 	{
+		if (!HasSpecializedCacheEntryVariants(entries[i]))
+			continue;
+
 		if (TryCompileFromCacheEntry(entries[i]))
 			compiled++;
 		else
@@ -1352,6 +1348,8 @@ static void PrecompileStaticPipelines()
 		for (size_t i = 0; i < g_staticPipelineCacheCount; i++)
 		{
 			PipelineCacheEntry entry = entries[i];
+			if (!HasSpecializedCacheEntryVariants(entry))
+				continue;
 			entry.pipelineHash = ComputePipelineEntryHash(entry);
 			g_pipelineCacheEntries.emplace(entry.pipelineHash, entry);
 		}
@@ -1367,7 +1365,12 @@ static ankerl::unordered_dense::map<uint64_t, std::vector<PipelineCacheEntry>> g
 
 static void EnqueueDeferredPipeline(const PipelineCacheEntry& entry)
 {
-	if (entry.vertexShaderHash != 0 && FindShaderCacheEntry(entry.vertexShaderHash) == nullptr)
+	if (!HasSpecializedCacheEntryVariants(entry))
+		return;
+
+	if (entry.vertexShaderMode != VertexShaderMode::FixedFunction &&
+		entry.vertexShaderMode != VertexShaderMode::Passthrough &&
+		entry.vertexShaderHash != 0 && FindShaderCacheEntry(entry.vertexShaderHash) == nullptr)
 	{
 		std::lock_guard lock(g_pendingCacheMutex);
 		g_pendingVS[entry.vertexShaderHash].push_back(entry);
@@ -1460,6 +1463,7 @@ static void CompilePendingPipelinesForShader(uint64_t runtimeHash, GuestShader* 
 		pipelineState.pixelShader = pixelShader;
 		pipelineState.vertexDeclaration = vertexDecl;
 		pipelineState.isFixedFunctionPS = entry.isFixedFunctionPS;
+		ApplyCacheEntryVariants(entry, pipelineState);
 		pipelineState.vertexShaderType = entry.vertexShaderMode;
 		pipelineState.zEnable = entry.zEnable;
 		pipelineState.zWriteEnable = entry.zWriteEnable;
@@ -1741,6 +1745,7 @@ enum class RenderCommandType
 	SetTextureStageState,
 	SetBooleans,
 	SetVertexShaderConstants,
+	SetVertexShaderVariant,
 	SetPixelShaderConstants,
 	AddPipeline,
 	DrawPrimitive,
@@ -1930,6 +1935,11 @@ struct RenderCommand
 
 		struct
 		{
+			ShaderVariantKey key;
+		} setVertexShaderVariant;
+
+		struct
+		{
 			uint8_t* memory;
 			uint32_t index;
 			uint32_t size;
@@ -2085,6 +2095,16 @@ static RenderStencilOp ConvertStencilOp(uint32_t stencilOp)
 //todo implement AlphaToCoverage once MSAA is a thing, until then it's worthless.
 #define SPEC_CONSTANT_ALPHA_TEST        (1 << 2)
 #define SPEC_CONSTANT_ALPHA_TO_COVERAGE (1 << 3)
+// Records a change to shared pixel shader constants.
+// `changed` comes from a SetDirtyValue call; controls that feed the
+// fixed-function selector also reselect the specialized pixel shader.
+static void MarkSharedPixelConstantsDirty(bool changed, bool affectsSelector)
+{
+	g_dirtyStates.sharedConstants |= changed;
+	if (affectsSelector)
+		g_fixedFunctionPixelShaderStateDirty |= changed;
+}
+
 static void SetAlphaTestMode(bool enable)
 {
 	uint32_t specConstants = 0;
@@ -2103,7 +2123,9 @@ static void SetAlphaTestMode(bool enable)
 
 	specConstants |= (g_pipelineState.specConstants & ~(SPEC_CONSTANT_ALPHA_TEST | SPEC_CONSTANT_ALPHA_TO_COVERAGE));
 
-	SetDirtyValue(g_dirtyStates.sharedConstants, g_sharedConstants.alphaTestEnable, uint32_t(enable != 0));
+	bool selectorDirty = false;
+	SetDirtyValue(selectorDirty, g_sharedConstants.alphaTestEnable, uint32_t(enable != 0));
+	MarkSharedPixelConstantsDirty(selectorDirty, true);
 	//SetDirtyValue(g_dirtyStates.pipelineState, g_pipelineState.enableAlphaToCoverage, enableAlphaToCoverage);
 	//SetDirtyValue(g_dirtyStates.pipelineState, g_pipelineState.specConstants, specConstants);
 }
@@ -2371,7 +2393,9 @@ static void ProcSetRenderState(const RenderCommand& cmd)
 	}
 	case X_D3DRS_ALPHAFUNC:
 	{
-		SetDirtyValue(g_dirtyStates.sharedConstants, g_sharedConstants.alphaFunc, (uint32_t)ConvertD3DCMP(value));
+		bool selectorDirty = false;
+		SetDirtyValue(selectorDirty, g_sharedConstants.alphaFunc, (uint32_t)ConvertD3DCMP(value));
+		MarkSharedPixelConstantsDirty(selectorDirty, true);
 		break;
 	}
 	case X_D3DRS_ALPHATESTENABLE:
@@ -2421,8 +2445,12 @@ static void ProcSetRenderState(const RenderCommand& cmd)
 	break;
 	//fog is handled in shader constant directly
 	case X_D3DRS_FOGTABLEMODE:
-		SetDirtyValue(g_dirtyStates.sharedConstants, g_sharedConstants.FogTableMode, value);
+	{
+		bool selectorDirty = false;
+		SetDirtyValue(selectorDirty, g_sharedConstants.FogTableMode, value);
+		MarkSharedPixelConstantsDirty(selectorDirty, true);
 		break;
+	}
 	case X_D3DRS_FOGDENSITY:
 		SetDirtyValue(g_dirtyStates.sharedConstants, g_sharedConstants.FogDensity, value);
 		break;
@@ -2449,11 +2477,19 @@ static void ProcSetRenderState(const RenderCommand& cmd)
 	}
 	break;
 	case X_D3DRS_FOGENABLE:
-		SetDirtyValue(g_dirtyStates.sharedConstants, g_sharedConstants.FogEnable, value);
+	{
+		bool selectorDirty = false;
+		SetDirtyValue(selectorDirty, g_sharedConstants.FogEnable, value);
+		MarkSharedPixelConstantsDirty(selectorDirty, true);
 		break;
+	}
 	case X_D3DRS_SPECULARENABLE:
-		SetDirtyValue(g_dirtyStates.sharedConstants, g_sharedConstants.SpecularEnable, value);
+	{
+		bool selectorDirty = false;
+		SetDirtyValue(selectorDirty, g_sharedConstants.SpecularEnable, value);
+		MarkSharedPixelConstantsDirty(selectorDirty, true);
 		break;
+	}
 	}
 
 	/**case D3DRS_SCISSORTESTENABLE:
@@ -3240,6 +3276,8 @@ bool Video::CreateHostDevice(const char* sdlVideoDriver, bool graphicsApiRetry)
 #endif
 
 	g_capabilities = g_device->getCapabilities();
+	FixedFunctionVertexShaderVariants::Initialize(g_device.get(), g_vulkan);
+	FixedFunctionPixelShaderVariants::Initialize(g_device.get(), g_vulkan);
 
 	LoadEmbeddedResources();
 
@@ -3552,20 +3590,32 @@ void UpdateHostVertexDeclaration(HostVertexDeclaration* pHostVertexDeclaration)
 	// HLSL shaders need to know whether to use vertex data or default vertex shader values
 	// Any register not in the vertex declaration should be set to the default value
 	float vertexDefaultFlags[X_VSH_MAX_ATTRIBUTES];
+	uint32_t vertexRegisterDefaultMask = 0;
 	for (int32_t i = 0; i < X_VSH_MAX_ATTRIBUTES; i++)
 	{
 		vertexDefaultFlags[i] = pHostVertexDeclaration->vRegisterInDeclaration[i] ? 0.0f : 1.0f;
+		if (!pHostVertexDeclaration->vRegisterInDeclaration[i])
+			vertexRegisterDefaultMask |= 1u << i;
 		if (logIndexedPrimitive)
 		{
 			//printf("vRegisterInDeclaration %d, %f\n", i, vertexDefaultFlags[i]);
 		}
-		vsh_constants_dirty[HOST_D3DVS_CONSTREG_VREGDEFAULTS_FLAG_BASE + i] = true;
+	}
+	if (!g_hasFixedFunctionVertexDeclarationKey ||
+		g_fixedFunctionVertexDeclarationKey != pHostVertexDeclaration->Key)
+	{
+		g_fixedFunctionVertexDeclarationKey = pHostVertexDeclaration->Key;
+		g_hasFixedFunctionVertexDeclarationKey = true;
+		g_fixedFunctionVertexRegisterDefaultMask = vertexRegisterDefaultMask;
+		MarkFixedFunctionVertexShaderVariantDirty();
 	}
 
 
 	//192 + 16 = 208 vRegisterDefaultFlagsPacked
-	CopyVertexShaderConstant(HOST_D3DVS_CONSTREG_VREGDEFAULTS_FLAG_BASE, (DWORD*)vertexDefaultFlags, HOST_D3DVS_CONSTREG_VREGDEFAULTS_FLAG_SIZE);
-	vsh_constants[HOST_D3DVS_CONSTREG_VREGDEFAULTS_FLAG_BASE][0] = vsh_constants[HOST_D3DVS_CONSTREG_VREGDEFAULTS_FLAG_BASE][0];
+	if (memcmp(&vsh_constants[HOST_D3DVS_CONSTREG_VREGDEFAULTS_FLAG_BASE][0], vertexDefaultFlags,
+		sizeof(vertexDefaultFlags)) != 0)
+		CopyVertexShaderConstant(HOST_D3DVS_CONSTREG_VREGDEFAULTS_FLAG_BASE, (DWORD*)vertexDefaultFlags,
+			HOST_D3DVS_CONSTREG_VREGDEFAULTS_FLAG_SIZE);
 }
 
 
@@ -3769,15 +3819,18 @@ void UpdateHostViewPortOffsetAndScaleConstants()
 	float screenspaceScale[4] = { xboxScreenspaceWidth / 2,  -xboxScreenspaceHeight / 2, zOutputScale, 1 };
 	float screenspaceOffset[4] = { xboxScreenspaceWidth / 2 + aaOffsetX, xboxScreenspaceHeight / 2 + aaOffsetY, 0, 0 };
 
-	CopyVertexShaderConstant(HOST_D3DVS_SCREENSPACE_SCALE_BASE, (DWORD*)screenspaceScale, HOST_D3DVS_NORMALIZE_SCALE_SIZE);
-	CopyVertexShaderConstant(HOST_D3DVS_SCREENSPACE_OFFSET_BASE, (DWORD*)screenspaceOffset, HOST_D3DVS_NORMALIZE_OFFSET_SIZE);
+	if (memcmp(&vsh_constants[HOST_D3DVS_SCREENSPACE_SCALE_BASE][0], screenspaceScale, sizeof(screenspaceScale)) != 0)
+		CopyVertexShaderConstant(HOST_D3DVS_SCREENSPACE_SCALE_BASE, (DWORD*)screenspaceScale, HOST_D3DVS_NORMALIZE_SCALE_SIZE);
+	if (memcmp(&vsh_constants[HOST_D3DVS_SCREENSPACE_OFFSET_BASE][0], screenspaceOffset, sizeof(screenspaceOffset)) != 0)
+		CopyVertexShaderConstant(HOST_D3DVS_SCREENSPACE_OFFSET_BASE, (DWORD*)screenspaceOffset, HOST_D3DVS_NORMALIZE_OFFSET_SIZE);
 	// Store viewport offset and scale in constant registers 58 (c-38) and
 	// 59 (c-37) used for screen space transformation.
 	// We only do this if X_D3DSCM_NORESERVEDCONSTANTS is not set,
 	// since enabling this flag frees up these registers for shader use
 	if (!(g_Xbox_VertexShaderConstantMode & X_D3DSCM_NORESERVEDCONSTANTS))
 	{
-		CopyVertexShaderConstant(X_D3DSCM_RESERVED_CONSTANT_SCALE_CORRECTED, reinterpret_cast<DWORD*>(vScaleOffset), 2);
+		if (memcmp(&vsh_constants[X_D3DSCM_RESERVED_CONSTANT_SCALE_CORRECTED][0], vScaleOffset, sizeof(vScaleOffset)) != 0)
+			CopyVertexShaderConstant(X_D3DSCM_RESERVED_CONSTANT_SCALE_CORRECTED, reinterpret_cast<DWORD*>(vScaleOffset), 2);
 	}
 }
 
@@ -3833,6 +3886,7 @@ void UpdateVertexShader(uint32_t Handle)
 		else {
 
 			g_Xbox_VertexShaderMode = VertexShaderMode::FixedFunction;
+			MarkFixedFunctionVertexShaderStateDirty();
 
 		}
 	}
@@ -4013,7 +4067,8 @@ X86_FUNC_IMPL(__imp__sub_3DC790);
 X86_FUNC(sub_3DC790)
 {
 	__imp__sub_3DC790(ctx, base);
-	UpdatePixelShaderConstant(psh_constants);
+	if (UpdatePixelShaderConstant(psh_constants))
+		g_pixelShaderConstantsAnyDirty = true;
 
 }
 
@@ -4021,7 +4076,11 @@ static void ProcSetPixelShader(const RenderCommand& cmd)
 {
 	GuestShader* shader = cmd.setPixelShader.shader;
 	SetDirtyValue(g_dirtyStates.pipelineState, g_pipelineState.pixelShader, shader);
-	SetDirtyValue(g_dirtyStates.pipelineState, g_pipelineState.isFixedFunctionPS, cmd.setPixelShader.isFixed);
+	bool fixedFunctionChanged = false;
+	SetDirtyValue(fixedFunctionChanged, g_pipelineState.isFixedFunctionPS, cmd.setPixelShader.isFixed);
+	g_dirtyStates.pipelineState |= fixedFunctionChanged;
+	if (fixedFunctionChanged && cmd.setPixelShader.isFixed)
+		g_fixedFunctionPixelShaderStateDirty = true;
 }
 
 //SetStreamSource
@@ -6234,15 +6293,20 @@ static void SetTextureInRenderThread(uint32_t index, GuestTexture* texture, cons
 
 	auto viewDimension = texture != nullptr ? texture->viewDimension : RenderTextureViewDimension::UNKNOWN;
 
+	uint32_t sampleType;
 	if (texture)
 	{
-		g_sharedConstants.TextureSampleType[index] = (uint32_t)(viewDimension)-1;
+		sampleType = (uint32_t)(viewDimension)-1;
 		UpdateHostTextureScaling(texture, isFixed);
 	}
 	else
 	{
-		g_sharedConstants.TextureSampleType[index] = 0;
+		sampleType = 0;
 	}
+
+	bool selectorDirty = false;
+	SetDirtyValue(selectorDirty, g_sharedConstants.TextureSampleType[index], sampleType);
+	MarkSharedPixelConstantsDirty(selectorDirty, index < FixedFunctionPixelShaderState::TextureStageCount);
 
 	SetDirtyValue(g_dirtyStates.sharedConstants, g_sharedConstants.texture2DIndices[index],
 		viewDimension == RenderTextureViewDimension::TEXTURE_2D ? texture->descriptorIndex : TEXTURE_DESCRIPTOR_NULL_TEXTURE_2D);
@@ -6357,6 +6421,7 @@ void D3DDevice_SetRenderTarget(GuestSurface* surface, GuestSurface* pNewZStencil
 
 	//SetDefaultViewport((GuestDevice*)g_memory.Translate(device), newDepthStencil);
 	g_next_RenderTarget = newSurface;
+	MarkFixedFunctionVertexShaderStateDirty();
 
 	//X86_STORE_U32(device + 0x954, surface->width);
 	//X86_STORE_U32(device + 0x958, surface->height);
@@ -6816,16 +6881,30 @@ X86_FUNC(sub_3CFCD0)
 	__imp__sub_3CFCD0(ctx, base);
 
 
+	if (memcmp(&g_Transforms[State], pMatrix, sizeof(*pMatrix)) == 0)
+		return;
+
 	g_Transforms[State] = *pMatrix;
+
+	// World and texture matrix updates only feed the transform registers;
+	// other kinds also affect lighting, fog or the shader variant.
+	if ((X_D3DTS_TEXTURE0 <= State && State <= X_D3DTS_TEXTURE3) ||
+		(X_D3DTS_WORLD <= State && State <= X_D3DTS_WORLD3))
+		MarkFixedFunctionVertexShaderTransformsDirty();
+	else
+		MarkFixedFunctionVertexShaderStateDirty();
 
 	if (State == X_D3DTS_VIEW)
 	{
 		bWorldViewDirty.fill(true);
+		MarkFixedFunctionVertexShaderLightsDirty();
 	}
 	if ((X_D3DTS_WORLD <= State) && (State <= X_D3DTS_WORLD3))
 	{		
 		bWorldViewDirty[State - X_D3DTS_WORLD] = true;
 	}
+	if (State == X_D3DTS_PROJECTION)
+		MarkFixedFunctionVertexShaderVariantDirty();
 }
 
 
@@ -6899,15 +6978,20 @@ struct LocalRenderCommandQueue
 	RenderCommand commands[20];
 	uint32_t count = 0;
 
-	RenderCommand& enqueue()
-	{
-		assert(count < std::size(commands));
-		return commands[count++];
-	}
-
 	void submit()
 	{
+		if (count == 0)
+			return;
+
 		g_renderQueue.enqueue_bulk(commands, count);
+		count = 0;
+	}
+
+	RenderCommand& enqueue()
+	{
+		if (count == std::size(commands))
+			submit();
+		return commands[count++];
 	}
 };
 
@@ -7122,9 +7206,13 @@ static void SanitizePipelineState(PipelineState& pipelineState)
 	if (pipelineState.vertexShaderType == VertexShaderMode::FixedFunction ||
 		pipelineState.vertexShaderType == VertexShaderMode::Passthrough)
 		pipelineState.vertexShader = nullptr;
+	if (pipelineState.vertexShaderType != VertexShaderMode::FixedFunction)
+		pipelineState.vertexShaderVariant = GenericShaderVariant;
 
 	if (pipelineState.isFixedFunctionPS)
 		pipelineState.pixelShader = nullptr;
+	else
+		pipelineState.pixelShaderVariant = GenericShaderVariant;
 
 	if (!pipelineState.zEnable && !pipelineState.stencilEnable)
 	{
@@ -7200,7 +7288,9 @@ static std::unique_ptr<RenderPipeline> CreateGraphicsPipeline(const PipelineStat
 	}
 	else if (pipelineState.vertexShaderType == VertexShaderMode::FixedFunction)
 	{
-		desc.vertexShader = FixedFuncVS.get();
+		desc.vertexShader = FixedFunctionVertexShaderVariants::Resolve(pipelineState.vertexShaderVariant);
+		if (desc.vertexShader == nullptr)
+			desc.vertexShader = FixedFuncVS.get();
 	}
 	else
 	{
@@ -7208,7 +7298,16 @@ static std::unique_ptr<RenderPipeline> CreateGraphicsPipeline(const PipelineStat
 	}
 
 
-	desc.pixelShader = pipelineState.isFixedFunctionPS ? FixedFuncPS.get() : GetOrLinkShader(pipelineState.pixelShader, pipelineState.specConstants);//pipelineState.pixelShader != nullptr ? GetOrLinkShader(pipelineState.pixelShader, pipelineState.specConstants) : nullptr;
+	if (pipelineState.isFixedFunctionPS)
+	{
+		desc.pixelShader = FixedFunctionPixelShaderVariants::Resolve(pipelineState.pixelShaderVariant);
+		if (desc.pixelShader == nullptr)
+			desc.pixelShader = FixedFuncPS.get();
+	}
+	else
+	{
+		desc.pixelShader = GetOrLinkShader(pipelineState.pixelShader, pipelineState.specConstants);
+	}
 	desc.depthFunction = pipelineState.zFunc;
 	desc.depthEnabled = pipelineState.zEnable; //Xbox likes to enable ZEnable without a depth stencil
 	desc.depthWriteEnabled = pipelineState.zWriteEnable;
@@ -7459,21 +7558,40 @@ static RenderBorderColor ConvertBorderColor(uint32_t value)
 }
 
 
-bool isTextureStageStateDirty()
+struct TextureStageDirtyState
 {
+	bool any;
+	bool fixedFunctionVertex;
+};
+
+static TextureStageDirtyState GetTextureStageDirtyState()
+{
+	for (uint32_t i = 0; i < 4; i++)
+	{
+		const auto offset = i * X_D3DTSS_MAX;
+		if (g_dirty_texture_stage_states[offset + X_D3DTSS_TEXTURETRANSFORMFLAGS] !=
+			g_texture_stage_states[offset + X_D3DTSS_TEXTURETRANSFORMFLAGS] ||
+			g_dirty_texture_stage_states[offset + X_D3DTSS_TEXCOORDINDEX] !=
+			g_texture_stage_states[offset + X_D3DTSS_TEXCOORDINDEX])
+			return { true, true };
+	}
+
 	for (uint32_t i = 0; i < 4; i++)
 	{
 		for (uint32_t j = 0; j < X_D3DTSS_MAX; j++)
 		{
+			if (j == X_D3DTSS_TEXTURETRANSFORMFLAGS || j == X_D3DTSS_TEXCOORDINDEX)
+				continue;
+
 			auto lastState = g_dirty_texture_stage_states[i * X_D3DTSS_MAX + j];
 			int curState = g_texture_stage_states[i * X_D3DTSS_MAX + j];
 
 			if (lastState != curState)
-				return true;
+				return { true, false };
 		}
 	}
 
-	return false;
+	return {};
 }
 
 inline DWORD GetXboxCommonResourceType(const xbox::dword_xt XboxResource_Common)
@@ -7535,17 +7653,30 @@ static void FlushRenderStateForMainThread(LocalRenderCommandQueue& queue)
 {
 	RtScopeTimer _stateFlushScope(g_gtStateFlushAccum);
 	UpdateAllRenderState();
+	const auto textureStageDirty = GetTextureStageDirtyState();
+	if (textureStageDirty.fixedFunctionVertex)
+		MarkFixedFunctionVertexShaderVariantDirty();
 
 	if (g_Xbox_VertexShaderMode == VertexShaderMode::FixedFunction)
 	{
-		UpdateFixedFunctionVertexShaderState((size_t)g_memory.Translate(g_VertexShader_Handle), g_pipelineState.isFixedFunctionPS);
+		// Select the specialized shader for the current controls and forward
+		// changes to the render thread.
+		const auto variant = UpdateFixedFunctionVertexShaderState((size_t)g_memory.Translate(g_VertexShader_Handle),
+			g_pipelineState.isFixedFunctionPS, g_fixedFunctionVertexRegisterDefaultMask);
+		if (variant != g_lastSentVertexShaderVariant)
+		{
+			auto& cmd = queue.enqueue();
+			cmd.type = RenderCommandType::SetVertexShaderVariant;
+			cmd.setVertexShaderVariant.key = variant;
+			g_lastSentVertexShaderVariant = variant;
+		}
 	}
 	else
 	{
 		UpdateHostViewPortOffsetAndScaleConstants();
 	}
 
-	if (isTextureStageStateDirty() == true)
+	if (textureStageDirty.any)
 	{
 		auto base = g_memory.base;
 		for (uint32_t i = 0; i < 4; i++)
@@ -7577,64 +7708,55 @@ static void FlushRenderStateForMainThread(LocalRenderCommandQueue& queue)
 	}
 
 
-	XXH64_hash_t hash;
-	{ RtScopeTimer _h(g_gtHashingAccum); hash = XXH3_64bits(&vsh_constants[0][0], sizeof(vsh_constants)); }
-	bool isDirty = g_lastVertexShaderConstants != hash;
-
-	if (isDirty)
+	const bool fixedConstantBank = g_Xbox_VertexShaderMode == VertexShaderMode::FixedFunction;
+	if (g_vertexShaderConstantsAnyDirty)
 	{
-		int batchStartIndex = -1; // -1 means we aren't in a batch
-
+		// Each bank only uploads registers whose values changed since the
+		// last upload to that bank, so switching shader modes does not
+		// resend the full constant block.
+		const uint32_t bankIndex = fixedConstantBank ? 1 : 0;
+		int batchStartIndex = -1;
 		for (int i = 0; i < HOST_D3DVS_CONSTREG_FULL; i++)
 		{
-			if (batchStartIndex == -1 && vsh_constants_dirty[i])
+			const bool changed = vsh_constants_dirty[i] && memcmp(&vsh_constants[i][0],
+				&g_vertexShaderConstantBankShadow[bankIndex][i * 4], sizeof(vsh_constants[i])) != 0;
+			if (changed)
 			{
-				batchStartIndex = i; // Start a batch
+				memcpy(&g_vertexShaderConstantBankShadow[bankIndex][i * 4],
+					&vsh_constants[i][0], sizeof(vsh_constants[i]));
+				if (batchStartIndex == -1)
+					batchStartIndex = i;
 			}
-			else if (batchStartIndex != -1 && !vsh_constants_dirty[i])
+			else if (batchStartIndex != -1)
 			{
-				// Finish the batch
 				int count = i - batchStartIndex;
-
-
 				auto& cmd = queue.enqueue();
 				cmd.type = RenderCommandType::SetVertexShaderConstants;
 				cmd.setVertexShaderConstants.memory =
 					g_intermediaryUploadAllocator.allocate(&vsh_constants[batchStartIndex][0], count * sizeof(float) * 4);
 				cmd.setVertexShaderConstants.index = batchStartIndex;
 				cmd.setVertexShaderConstants.size = count;
-				cmd.setVertexShaderConstants.isFixedFunc = g_Xbox_VertexShaderMode == VertexShaderMode::FixedFunction;
-
+				cmd.setVertexShaderConstants.isFixedFunc = fixedConstantBank;
 				batchStartIndex = -1;
-
 			}
-
-			// Constant is no longer dirty
 			vsh_constants_dirty[i] = false;
 		}
-
-		// Final batch if loop ended while still in one
 		if (batchStartIndex != -1)
 		{
 			int count = HOST_D3DVS_CONSTREG_FULL - batchStartIndex;
-
 			auto& cmd = queue.enqueue();
 			cmd.type = RenderCommandType::SetVertexShaderConstants;
 			cmd.setVertexShaderConstants.memory =
 				g_intermediaryUploadAllocator.allocate(&vsh_constants[batchStartIndex][0], count * sizeof(float) * 4);
 			cmd.setVertexShaderConstants.index = batchStartIndex;
 			cmd.setVertexShaderConstants.size = count;
-			cmd.setVertexShaderConstants.isFixedFunc = g_Xbox_VertexShaderMode == VertexShaderMode::FixedFunction;
+			cmd.setVertexShaderConstants.isFixedFunc = fixedConstantBank;
 		}
-
-		g_lastVertexShaderConstants = hash;
+		g_vertexShaderConstantsAnyDirty = false;
 	}
 
 	//SetPixelShaderConstants
-	{ RtScopeTimer _h(g_gtHashingAccum); hash = XXH3_64bits(&psh_constants[0][0], sizeof(psh_constants)); }
-	isDirty = g_lastPixelShaderConstants != hash;
-
-	if (isDirty)
+	if (g_pixelShaderConstantsAnyDirty)
 	{
 		auto& cmd = queue.enqueue();
 		cmd.type = RenderCommandType::SetPixelShaderConstants;
@@ -7642,7 +7764,7 @@ static void FlushRenderStateForMainThread(LocalRenderCommandQueue& queue)
 			g_intermediaryUploadAllocator.allocate(&psh_constants[0][0], PSH_XBOX_CONSTANT_MAX * sizeof(float) * 4);
 		cmd.setPixelShaderConstants.index = 0;
 		cmd.setPixelShaderConstants.size = PSH_XBOX_CONSTANT_MAX;
-		g_lastPixelShaderConstants = hash;
+		g_pixelShaderConstantsAnyDirty = false;
 	}
 }
 
@@ -7653,6 +7775,16 @@ static void FlushRenderStateForRenderThread()
 {
 	RtScopeTimer _flushScope(g_rtFlushWorkAccum);
 	const bool isFixed = isFixedForRenderThread;
+	static bool lastConstantBankFixed;
+	static bool hasLastConstantBank;
+	// Switching between the fixed-function and programmable constant banks
+	// requires rebinding the other bank's constants.
+	if (!hasLastConstantBank || lastConstantBankFixed != isFixed)
+	{
+		g_dirtyStates.vertexShaderConstants = true;
+		lastConstantBankFixed = isFixed;
+		hasLastConstantBank = true;
+	}
 	auto renderTarget = g_pipelineState.colorWriteEnable ? g_renderTarget : nullptr;
 	auto depthStencil = g_pipelineState.zEnable || g_pipelineState.stencilEnable ? g_depthStencil : nullptr;
 
@@ -7678,6 +7810,14 @@ static void FlushRenderStateForRenderThread()
 
 	if (!g_pendingMsaaResolves.empty())
 		g_pendingMsaaResolves.clear();
+
+	if (g_pipelineState.isFixedFunctionPS && g_fixedFunctionPixelShaderStateDirty)
+	{
+		auto state = FixedFunctionPixelShaderVariants::Capture(g_sharedConstants);
+		auto variant = FixedFunctionPixelShaderVariants::Select(state);
+		SetDirtyValue(g_dirtyStates.pipelineState, g_pipelineState.pixelShaderVariant, variant);
+		g_fixedFunctionPixelShaderStateDirty = false;
+	}
 
 	AddBarrier(renderTarget, RenderTextureLayout::COLOR_WRITE);
 	AddBarrier(depthStencil, RenderTextureLayout::DEPTH_WRITE);
@@ -8539,6 +8679,7 @@ static void ProcSetTextureStageState(const RenderCommand& cmd)
 	SetDirtyValue(dirtyCombiner, g_sharedConstants.alpha_arg1[args.index], cmd.SetTextureStageState.D3DTSS_ALPHAARG1);
 	SetDirtyValue(dirtyCombiner, g_sharedConstants.alpha_arg2[args.index], cmd.SetTextureStageState.D3DTSS_ALPHAARG2);
 	SetDirtyValue(dirtyCombiner, g_sharedConstants.result_arg[args.index], cmd.SetTextureStageState.D3DTSS_RESULTARG);
+	MarkSharedPixelConstantsDirty(dirtyCombiner, args.index < FixedFunctionPixelShaderState::TextureStageCount);
 
 
 	bool dirtyTextureFlags = false;
@@ -8551,7 +8692,7 @@ static void ProcSetTextureStageState(const RenderCommand& cmd)
 	SetDirtyValue(dirtyTextureFlags, g_sharedConstants.TEXCOORDINDEX[args.index], cmd.SetTextureStageState.D3DTSS_TEXCOORDINDEX);
 
 
-	if (dirtyCombiner || dirtyTextureFlags)
+	if (dirtyTextureFlags)
 	{
 		g_dirtyStates.sharedConstants = true;
 	}
@@ -8567,6 +8708,11 @@ static void ProcSetVertexShaderConstants(const RenderCommand& cmd)
 	else
 		memcpy(&g_vertexShaderConstants[args.index * 4], args.memory, args.size * 4 * sizeof(float));
 	g_dirtyStates.vertexShaderConstants = true;
+}
+
+static void ProcSetVertexShaderVariant(const RenderCommand& cmd)
+{
+	SetDirtyValue(g_dirtyStates.pipelineState, g_pipelineState.vertexShaderVariant, cmd.setVertexShaderVariant.key);
 }
 
 
@@ -8644,6 +8790,7 @@ void CopyVertexShaderConstant(int32_t Register, DWORD* pConstantData, const uint
 
 	for (DWORD i = 0; i < count; i++)
 		vsh_constants_dirty[Register + i] = true;
+	g_vertexShaderConstantsAnyDirty = true;
 }
 
 void LogFloat4(const char* name, const float* values, int count = 1) {
@@ -9263,6 +9410,7 @@ static std::thread g_renderThread([]
 					case RenderCommandType::SetTexture:                    { g_stateChangeCount.fetch_add(1, std::memory_order_relaxed); RtScopeTimer _s(g_rtOtherCmdsAccum); ProcSetTexture(cmd); } break;
 					case RenderCommandType::SetTextureStageState:          { g_stateChangeCount.fetch_add(1, std::memory_order_relaxed); RtScopeTimer _s(g_rtOtherCmdsAccum); ProcSetTextureStageState(cmd); } break;
 					case RenderCommandType::SetVertexShaderConstants:      { g_stateChangeCount.fetch_add(1, std::memory_order_relaxed); RtScopeTimer _s(g_rtOtherCmdsAccum); ProcSetVertexShaderConstants(cmd); } break;
+					case RenderCommandType::SetVertexShaderVariant:        { g_stateChangeCount.fetch_add(1, std::memory_order_relaxed); RtScopeTimer _s(g_rtOtherCmdsAccum); ProcSetVertexShaderVariant(cmd); } break;
 					case RenderCommandType::SetPixelShaderConstants:       { g_stateChangeCount.fetch_add(1, std::memory_order_relaxed); RtScopeTimer _s(g_rtOtherCmdsAccum); ProcSetPixelShaderConstants(cmd); } break;
 					case RenderCommandType::DrawPrimitive:                 { g_drawCallCount.fetch_add(1, std::memory_order_relaxed); ProcDrawPrimitive(cmd); } break;
 					case RenderCommandType::DrawIndexedPrimitive:          { g_drawCallCount.fetch_add(1, std::memory_order_relaxed); ProcDrawIndexedPrimitive(cmd); } break;

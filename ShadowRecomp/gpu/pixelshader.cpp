@@ -70,7 +70,7 @@ static void UnpackColor(DWORD color, D3DXCOLOR* fColor)
 	fColor->a = ((color >> 24) & 0xFF) / 255.0f;
 }
 
-void UpdatePixelShaderConstant(uint32_t(*psh_constants)[4])
+bool UpdatePixelShaderConstant(uint32_t(*psh_constants)[4])
 {
 	D3DXCOLOR fColor[PSH_XBOX_CONSTANT_MAX];
 	memset(fColor, 0, sizeof(fColor));
@@ -160,8 +160,11 @@ void UpdatePixelShaderConstant(uint32_t(*psh_constants)[4])
 	fColor[PSH_XBOX_CONSTANT_FOGENABLE].b = 0;
 	fColor[PSH_XBOX_CONSTANT_FOGENABLE].a = 0;
 
-	float* float_vsh_constants = (float*)&(psh_constants[0][0]);
-	memcpy(float_vsh_constants, fColor, PSH_XBOX_CONSTANT_MAX * sizeof(float) * 4);
+	if (memcmp(&psh_constants[0][0], fColor, sizeof(fColor)) == 0)
+		return false;
+
+	memcpy(&psh_constants[0][0], fColor, sizeof(fColor));
+	return true;
 
 }
 

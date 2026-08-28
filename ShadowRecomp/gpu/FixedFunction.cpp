@@ -6,6 +6,7 @@
 #include <algorithm>
 #include <DirectXMath.h>
 #include "FixedFunction.h"
+#include "ubershaders/fixed_function_vertex_shader_variants.h"
 
 // original code (mostly) re used from CXBX Reloaded
 // Since modern API don't have a fixed function pipeline, we have to emulate it ourselves using shaders.
@@ -74,7 +75,7 @@ D3D8LightState::D3D8LightState() {
 	EnabledLights.fill(-1);
 }
 
-void D3D8LightState::EnableLight(uint32_t index, bool enable) {
+bool D3D8LightState::EnableLight(uint32_t index, bool enable) {
 	// Since Xbox only supports 8 lights, we keep track of the 8 most recently enabled lights
 	// Lights are ordered oldest to newest, with disabled lights at the end
 
@@ -83,6 +84,10 @@ void D3D8LightState::EnableLight(uint32_t index, bool enable) {
 
 		// If the light is already in the enabled lights
 		if (EnabledLights[i] == index) {
+			// Re-enabling the newest light leaves the set and order unchanged
+			if (enable && i == EnabledLightCount - 1)
+				return false;
+
 			// Either way we move this light to the end
 			std::rotate(std::begin(EnabledLights) + i, std::begin(EnabledLights) + i + 1, std::begin(EnabledLights) + EnabledLightCount);
 
@@ -92,7 +97,7 @@ void D3D8LightState::EnableLight(uint32_t index, bool enable) {
 				EnabledLights[EnabledLightCount - 1] = -1;
 				EnabledLightCount--;
 			}
-			return;
+			return true;
 		}
 	}
 
@@ -108,17 +113,56 @@ void D3D8LightState::EnableLight(uint32_t index, bool enable) {
 			EnabledLights[0] = index;
 			std::rotate(std::begin(EnabledLights), std::begin(EnabledLights) + 1, std::end(EnabledLights));
 		}
+		return true;
 	}
 
+	return false;
 }
 
 
 
 D3D8LightState g_LightState = D3D8LightState();
+// I (sewer) won't deny, that having these as static is a bit sus.
+// But fret not, D3D8 is singlethreaded in operation; all callers which
+// access this can only run on one thread at a time- promise!
+static bool g_fixedFunctionVertexShaderVariantDirty = true;
+static bool g_fixedFunctionVertexShaderStateDirty = true;
+static bool g_fixedFunctionVertexShaderTransformsDirty = true;
+static bool g_fixedFunctionVertexShaderMaterialDirty = true;
+static bool g_fixedFunctionVertexShaderLightsDirty = true;
+static XMFLOAT4 g_fixedFunctionLightAmbient;
+static ShaderVariantKey g_fixedFunctionVertexShaderVariant = GenericShaderVariant;
+
+void MarkFixedFunctionVertexShaderStateDirty()
+{
+	g_fixedFunctionVertexShaderStateDirty = true;
+}
+
+// World and texture matrix updates feed only the transform registers.
+void MarkFixedFunctionVertexShaderTransformsDirty()
+{
+	g_fixedFunctionVertexShaderTransformsDirty = true;
+}
+
+void MarkFixedFunctionVertexShaderVariantDirty()
+{
+	g_fixedFunctionVertexShaderVariantDirty = true;
+	MarkFixedFunctionVertexShaderStateDirty();
+}
+
+void MarkFixedFunctionVertexShaderLightsDirty()
+{
+	g_fixedFunctionVertexShaderLightsDirty = true;
+	MarkFixedFunctionVertexShaderStateDirty();
+}
 
 void LightEnable(uint32_t Index, int32_t bEnable)
 {
-	g_LightState.EnableLight(Index, bEnable);
+	if (g_LightState.EnableLight(Index, bEnable))
+	{
+		MarkFixedFunctionVertexShaderLightsDirty();
+		MarkFixedFunctionVertexShaderVariantDirty();
+	}
 }
 
 std::array<bool, 4> bWorldViewDirty;
@@ -161,7 +205,7 @@ struct Transforms
 {
 	XMFLOAT4X4 View;
 	XMFLOAT4X4 Projection;
-	XMFLOAT4X4 Texture[4]; // c8-c23 (4 matrices × 4 regs each)
+	XMFLOAT4X4 Texture[4]; // c8-c23 (4 matrices x 4 regs each)
 	XMFLOAT4X4 WorldView[4];
 	XMFLOAT4X4 WorldViewInverseTranspose[4];
 };
@@ -296,6 +340,15 @@ extern std::array<D3DMATRIX, X_D3DTS_MAX> g_Transforms;
 
 void UpdateMaterial(Material* pMaterial)
 {
+	auto& material = ffShaderState.Materials[0];
+	if (memcmp(&material.Diffuse, &pMaterial->Diffuse, sizeof(D3DCOLORVALUE)) == 0 &&
+		memcmp(&material.Ambient, &pMaterial->Ambient, sizeof(D3DCOLORVALUE)) == 0 &&
+		memcmp(&material.Specular, &pMaterial->Specular, sizeof(D3DCOLORVALUE)) == 0 &&
+		memcmp(&material.Emissive, &pMaterial->Emissive, sizeof(D3DCOLORVALUE)) == 0 &&
+		memcmp(&material.Power.r, &pMaterial->Power.r, sizeof(material.Power.r)) == 0)
+		return;
+
+	g_fixedFunctionVertexShaderMaterialDirty = true;
 	ffShaderState.Materials[0].Ambient = pMaterial->Ambient;
 	ffShaderState.Materials[0].Diffuse = pMaterial->Diffuse;
 	ffShaderState.Materials[0].Specular = pMaterial->Specular;
@@ -305,10 +358,24 @@ void UpdateMaterial(Material* pMaterial)
 
 void UpdateLightData(uint32_t index, X_D3DLIGHT8* pLight)
 {
+	auto& light = g_LightState.Lights[index];
+	if (memcmp(&light, pLight, sizeof(light)) == 0)
+		return;
+
+	const bool typeChanged = light.Type != pLight->Type;
 	g_LightState.Lights[index] = *pLight;
+	if (std::find(g_LightState.EnabledLights.begin(),
+		g_LightState.EnabledLights.begin() + g_LightState.EnabledLightCount, index) ==
+		g_LightState.EnabledLights.begin() + g_LightState.EnabledLightCount)
+		return;
+
+	MarkFixedFunctionVertexShaderLightsDirty();
+	if (typeChanged)
+		MarkFixedFunctionVertexShaderVariantDirty();
 }
 
-void UpdateFixedFunctionShaderLight(int d3dLightIndex, Light* pShaderLight, DirectX::XMFLOAT4* pLightAmbient) {
+void UpdateFixedFunctionShaderLight(int d3dLightIndex, Light* pShaderLight,
+	DirectX::XMFLOAT4* pLightAmbient, DirectX::FXMMATRIX view, bool specularEnable) {
 	if (d3dLightIndex == -1)
 	{
 		pShaderLight->DirectionVN.w = 0; // Disable the light
@@ -316,17 +383,16 @@ void UpdateFixedFunctionShaderLight(int d3dLightIndex, Light* pShaderLight, Dire
 	}
 
 	auto d3dLight = &g_LightState.Lights[d3dLightIndex];
-	auto viewTransform = XMLoadFloat4x4((XMFLOAT4X4*)&g_Transforms[X_D3DTS_VIEW]);
-
 
 	// TODO remove D3DX usage
 	// Pre-transform light position to viewspace
 	// Transform light position into view space
-	XMVECTOR pos = XMLoadFloat3((XMFLOAT3*)&d3dLight->Position);
-	XMMATRIX view = XMLoadFloat4x4((XMFLOAT4X4*)&viewTransform);
-
-	XMVECTOR positionV = XMVector3Transform(pos, view);
-	XMStoreFloat3((XMFLOAT3*)&pShaderLight->PositionV, positionV);
+	if (d3dLight->Type != D3DLIGHT_DIRECTIONAL)
+	{
+		XMVECTOR pos = XMLoadFloat3((XMFLOAT3*)&d3dLight->Position);
+		XMVECTOR positionV = XMVector3Transform(pos, view);
+		XMStoreFloat3((XMFLOAT3*)&pShaderLight->PositionV, positionV);
+	}
 
 	// Transform light direction into view space (ignore translation)
 	XMVECTOR dir = XMLoadFloat3((XMFLOAT3*)&d3dLight->Direction);
@@ -337,26 +403,29 @@ void UpdateFixedFunctionShaderLight(int d3dLightIndex, Light* pShaderLight, Dire
 
 	XMStoreFloat3((XMFLOAT3*)&pShaderLight->DirectionVN, directionV);
 
-
-	bool SpecularEnable = GetGuestRenderState(X_D3DRS_SPECULARENABLE) != FALSE;
-
 	// Map D3D light to state struct
 	pShaderLight->DirectionVN.w = (float)((int)d3dLight->Type); //DirectionVN.w = type
 	pShaderLight->Diffuse = toVector(d3dLight->Diffuse);
-	pShaderLight->Specular = SpecularEnable ? toVector(d3dLight->Specular) : toVector(0);
-	pShaderLight->PositionV.w = d3dLight->Range; //PositionV = range
-	pShaderLight->Attenuation.w = d3dLight->Falloff; //Attenuation.w = falloff
-	pShaderLight->Attenuation.x = d3dLight->Attenuation0;
-	pShaderLight->Attenuation.y = d3dLight->Attenuation1;
-	pShaderLight->Attenuation.z = d3dLight->Attenuation2;
+	pShaderLight->Specular = specularEnable ? toVector(d3dLight->Specular) : toVector(0);
+	if (d3dLight->Type != D3DLIGHT_DIRECTIONAL)
+	{
+		pShaderLight->PositionV.w = d3dLight->Range; //PositionV = range
+		pShaderLight->Attenuation.x = d3dLight->Attenuation0;
+		pShaderLight->Attenuation.y = d3dLight->Attenuation1;
+		pShaderLight->Attenuation.z = d3dLight->Attenuation2;
+	}
 
 	pLightAmbient->x += d3dLight->Ambient.r;
 	pLightAmbient->y += d3dLight->Ambient.g;
 	pLightAmbient->z += d3dLight->Ambient.b;
 
-	auto cosHalfPhi = cos(d3dLight->Phi / 2);
-	pShaderLight->SpotParams.x = cosHalfPhi; //SpotParams.x = CosHalfPhi
-	pShaderLight->SpotParams.y = cos(d3dLight->Theta / 2) - cos(d3dLight->Phi / 2); //SpotParams.y = SpotIntensityDivisor
+	if (d3dLight->Type == D3DLIGHT_SPOT)
+	{
+		pShaderLight->Attenuation.w = d3dLight->Falloff; //Attenuation.w = falloff
+		auto cosHalfPhi = cos(d3dLight->Phi / 2);
+		pShaderLight->SpotParams.x = cosHalfPhi; //SpotParams.x = CosHalfPhi
+		pShaderLight->SpotParams.y = cos(d3dLight->Theta / 2) - cosHalfPhi; //SpotParams.y = SpotIntensityDivisor
+	}
 }
 
 
@@ -428,40 +497,15 @@ int GetXboxVertexDataComponentCount(int32_t d3dvsdt)
 
 
 bool logIndexedPrimitive = false;
-void UpdateFixedFunctionVertexShaderState(size_t Handle, bool isPSFixed)
+
+// Recomputes the matrix registers from the current guest transforms.
+static void RecomputeFixedFunctionTransforms()
 {
-
-	// Vertex blending
-	// Prepare vertex blending mode variables used in transforms, below
-	auto VertexBlend = GetGuestRenderState(X_D3DRS_VERTEXBLEND);
-	// Xbox and host D3DVERTEXBLENDFLAGS :
-	//     D3DVBF_DISABLE           = 0 : 1 matrix,   0 weights => final weight 1
-	//     D3DVBF_1WEIGHTS          = 1 : 2 matrices, 1 weights => final weight calculated
-	//     D3DVBF_2WEIGHTS          = 3 : 3 matrices, 2 weights => final weight calculated
-	//     D3DVBF_3WEIGHTS          = 5 : 4 matrices, 3 weights => final weight calculated
-	// Xbox X_D3DVERTEXBLENDFLAGS :
-	//   X_D3DVBF_2WEIGHTS2MATRICES = 2 : 2 matrices, 2 weights
-	//   X_D3DVBF_3WEIGHTS3MATRICES = 4 : 3 matrices, 3 weights
-	//   X_D3DVBF_4WEIGHTS4MATRICES = 6 : 4 matrices, 4 weights
-	//
-	if (VertexBlend > X_D3DVBF_4WEIGHTS4MATRICES)
-		printf("X_D3DRS_VERTEXBLEND out of range\n");
-
 	// Note DX12 expects matrix to be column major for HLSL so we convert them with Transpose
 	// however this breaks Vulkan when multiplication with matrix and vector are involved,
 	// so make sure to not transpose if vulkan is used.
 	const bool vulkan = is_vulkan();
 
-	// Calculate the number of matrices, by adding the LSB to turn (0,1,3,5) and (0,2,4,6) into (0,2,4,6); Then divide by 2 to get (0,1,2,3), and add 1 to get 1, 2, 3 or 4 matrices :
-	auto NrBlendMatrices = ((VertexBlend + (VertexBlend & 1)) / 2) + 1;
-	// Looking at the above values, 0 or the LSB of VertexBlend signals that the final weight needs to be calculated from all previous weigths (deducting them all from an initial 1) :
-	auto CalcLastBlendWeight = (VertexBlend == X_D3DVBF_DISABLE) || (VertexBlend & 1);
-	// Copy the resulting values over to shader state :
-	ffShaderState.Modes.VertexBlend_NrOfMatrices = (float)NrBlendMatrices;
-	ffShaderState.Modes.VertexBlend_CalcLastWeight = (float)CalcLastBlendWeight;
-
-	// Transforms
-	// Transpose row major to column major for HLSL (unless Vulkan is used as explained above).
 	XMMATRIX projection = XMLoadFloat4x4((XMFLOAT4X4*)&g_Transforms[X_D3DTS_PROJECTION]); //first we read the projection matrix
 	XMMATRIX projectionT = vulkan ? projection : XMMatrixTranspose(projection); //then we transpose it
 	XMStoreFloat4x4((XMFLOAT4X4*)&ffShaderState.Transforms.Projection, projectionT); //finally we store it (overwrite previous data if any)
@@ -489,6 +533,56 @@ void UpdateFixedFunctionVertexShaderState(size_t Handle, bool isPSFixed)
 		XMMATRIX WorldViewInverseTransposeT = vulkan ? WorldViewInverseTranspose : XMMatrixTranspose(WorldViewInverseTranspose);
 		XMStoreFloat4x4((XMFLOAT4X4*)&ffShaderState.Transforms.WorldViewInverseTranspose[i], WorldViewInverseTransposeT);
 	}
+}
+
+ShaderVariantKey UpdateFixedFunctionVertexShaderState(size_t Handle, bool isPSFixed, uint32_t vertexRegisterDefaultMask)
+{
+	if (!g_fixedFunctionVertexShaderStateDirty)
+	{
+		// Upload only the dirty regions when the rest of the state is clean.
+		if (g_fixedFunctionVertexShaderTransformsDirty)
+		{
+			RecomputeFixedFunctionTransforms();
+			constexpr int transformRegisters = sizeof(Transforms) / 16;
+			CopyVertexShaderConstant(0, (DWORD*)&ffShaderState.Transforms, transformRegisters);
+			g_fixedFunctionVertexShaderTransformsDirty = false;
+		}
+
+		if (g_fixedFunctionVertexShaderMaterialDirty)
+		{
+			constexpr int materialRegister = offsetof(FixedFunctionVertexShaderState, Materials) / 16;
+			CopyVertexShaderConstant(materialRegister, (DWORD*)&ffShaderState.Materials[0], sizeof(Material) / 16);
+			g_fixedFunctionVertexShaderMaterialDirty = false;
+		}
+		return g_fixedFunctionVertexShaderVariant;
+	}
+
+	// Vertex blending
+	// Prepare vertex blending mode variables used in transforms, below
+	auto VertexBlend = GetGuestRenderState(X_D3DRS_VERTEXBLEND);
+	// Xbox and host D3DVERTEXBLENDFLAGS :
+	//     D3DVBF_DISABLE           = 0 : 1 matrix,   0 weights => final weight 1
+	//     D3DVBF_1WEIGHTS          = 1 : 2 matrices, 1 weights => final weight calculated
+	//     D3DVBF_2WEIGHTS          = 3 : 3 matrices, 2 weights => final weight calculated
+	//     D3DVBF_3WEIGHTS          = 5 : 4 matrices, 3 weights => final weight calculated
+	// Xbox X_D3DVERTEXBLENDFLAGS :
+	//   X_D3DVBF_2WEIGHTS2MATRICES = 2 : 2 matrices, 2 weights
+	//   X_D3DVBF_3WEIGHTS3MATRICES = 4 : 3 matrices, 3 weights
+	//   X_D3DVBF_4WEIGHTS4MATRICES = 6 : 4 matrices, 4 weights
+	//
+	if (VertexBlend > X_D3DVBF_4WEIGHTS4MATRICES)
+		printf("X_D3DRS_VERTEXBLEND out of range\n");
+
+	// Calculate the number of matrices, by adding the LSB to turn (0,1,3,5) and (0,2,4,6) into (0,2,4,6); Then divide by 2 to get (0,1,2,3), and add 1 to get 1, 2, 3 or 4 matrices :
+	auto NrBlendMatrices = ((VertexBlend + (VertexBlend & 1)) / 2) + 1;
+	// Looking at the above values, 0 or the LSB of VertexBlend signals that the final weight needs to be calculated from all previous weigths (deducting them all from an initial 1) :
+	auto CalcLastBlendWeight = (VertexBlend == X_D3DVBF_DISABLE) || (VertexBlend & 1);
+	// Copy the resulting values over to shader state :
+	ffShaderState.Modes.VertexBlend_NrOfMatrices = (float)NrBlendMatrices;
+	ffShaderState.Modes.VertexBlend_CalcLastWeight = (float)CalcLastBlendWeight;
+
+	// Transforms
+	RecomputeFixedFunctionTransforms();
 
 	// Lighting
 	// Point sprites aren't lit - 'each point is always rendered with constant colors.'
@@ -604,34 +698,82 @@ void UpdateFixedFunctionVertexShaderState(size_t Handle, bool isPSFixed)
 	}
 
 	// Update lights
-	auto LightAmbient = XMFLOAT4(0.f, 0.f, 0.f, 0.f);
-	for (size_t i = 0; i < 8; i++)
+	// The shader reads the light block and ambient totals only when lighting
+	// is enabled, so skip both when it is disabled.
+	if (ffShaderState.Modes.Lighting)
 	{
-		UpdateFixedFunctionShaderLight(g_LightState.EnabledLights[i], &ffShaderState.Lights[i], &LightAmbient);
+		if (g_fixedFunctionVertexShaderLightsDirty)
+		{
+			g_fixedFunctionLightAmbient = XMFLOAT4(0.f, 0.f, 0.f, 0.f);
+			const XMMATRIX lightView = XMLoadFloat4x4((XMFLOAT4X4*)&g_Transforms[X_D3DTS_VIEW]);
+			const bool specularEnable = GetGuestRenderState(X_D3DRS_SPECULARENABLE) != FALSE;
+			for (size_t i = 0; i < 8; i++)
+				UpdateFixedFunctionShaderLight(g_LightState.EnabledLights[i], &ffShaderState.Lights[i],
+					&g_fixedFunctionLightAmbient, lightView, specularEnable);
+			g_fixedFunctionVertexShaderLightsDirty = false;
+		}
+
+		XMFLOAT4 Ambient = toVector(GetGuestRenderState(X_D3DRS_AMBIENT));
+		XMFLOAT4 BackAmbient = toVector(GetGuestRenderState(X_D3DRS_BACKAMBIENT));
+		XMVECTOR vLightAmbient = XMLoadFloat4(&g_fixedFunctionLightAmbient);
+
+		XMStoreFloat4((XMFLOAT4*)&ffShaderState.TotalLightsAmbient.Front,
+			XMVectorAdd(vLightAmbient, XMLoadFloat4(&Ambient)));
+		XMStoreFloat4((XMFLOAT4*)&ffShaderState.TotalLightsAmbient.Back,
+			XMVectorAdd(vLightAmbient, XMLoadFloat4(&BackAmbient)));
 	}
-
-	XMFLOAT4 Ambient = toVector(GetGuestRenderState(X_D3DRS_AMBIENT));
-	XMFLOAT4 BackAmbient = toVector(GetGuestRenderState(X_D3DRS_BACKAMBIENT));
-
-	XMVECTOR vLightAmbient = XMLoadFloat4(&LightAmbient);
-	XMVECTOR vAmbient = XMLoadFloat4(&Ambient);
-
-	XMVECTOR vFront = XMVectorAdd(vLightAmbient, vAmbient);
-
-	XMStoreFloat4((XMFLOAT4*)&ffShaderState.TotalLightsAmbient.Front, vFront);
-
-	XMVECTOR vBackAmbient = XMLoadFloat4(&BackAmbient);
-	XMVECTOR vBack = XMVectorAdd(vLightAmbient, vBackAmbient);
-
-	XMStoreFloat4((XMFLOAT4*)&ffShaderState.TotalLightsAmbient.Back, vBack);
 
 	// Misc flags
 	ffShaderState.Modes.NormalizeNormals = (float)GetGuestRenderState(X_D3DRS_NORMALIZENORMALS);
+
+	if (g_fixedFunctionVertexShaderVariantDirty)
+	{
+		// Move current fixed-function controls shader selector state.
+		// We can then pick the optimised shader.
+		FixedFunctionVertexShaderControlState controlState{};
+		// A source value above 255 would wrap and merge distinct states.
+		auto narrow = [](float value)
+		{
+			assert(value <= 255.f && value >= 0.f);
+			return (uint8_t)value;
+		};
+
+		controlState.vertex_blend_matrix_count = narrow(ffShaderState.Modes.VertexBlend_NrOfMatrices);
+		controlState.vertex_blend_calc_last_weight = narrow(ffShaderState.Modes.VertexBlend_CalcLastWeight);
+		controlState.lighting_enable = narrow(ffShaderState.Modes.Lighting);
+		controlState.two_sided_lighting_enable = narrow(ffShaderState.Modes.TwoSidedLighting);
+		controlState.local_viewer_enable = narrow(ffShaderState.Modes.LocalViewer);
+		controlState.normalize_normals_enable = narrow(ffShaderState.Modes.NormalizeNormals);
+		controlState.ambient_material_source = narrow(ffShaderState.Modes.AmbientMaterialSource);
+		controlState.diffuse_material_source = narrow(ffShaderState.Modes.DiffuseMaterialSource);
+		controlState.specular_material_source = narrow(ffShaderState.Modes.SpecularMaterialSource);
+		controlState.emissive_material_source = narrow(ffShaderState.Modes.EmissiveMaterialSource);
+		controlState.fog_enable = narrow(ffShaderState.Fog.Enable);
+		controlState.fog_depth_mode = narrow(ffShaderState.Fog.DepthMode);
+		for (uint32_t i = 0; i < FixedFunctionVertexShaderControlState::LightCount; i++)
+			controlState.light_type[i] = narrow(ffShaderState.Lights[i].DirectionVN.w);
+		for (uint32_t i = 0; i < FixedFunctionVertexShaderControlState::TextureStageCount; i++)
+		{
+			controlState.texture_transform_count[i] = narrow(ffShaderState.TextureStates[i].TextureTransformFlagsCount);
+			controlState.texcoord_index[i] = narrow(ffShaderState.TextureStates[i].TexCoordIndex);
+			controlState.texcoord_generation[i] = narrow(ffShaderState.TextureStates[i].TexCoordIndexGen);
+			controlState.texcoord_component_count[i] = narrow(ffShaderState.TexCoordComponentCount[i]);
+		}
+		controlState.vertex_register_default_mask = vertexRegisterDefaultMask;
+		controlState.point_sprite_enable = PointSpriteEnable;
+		controlState.point_scale_enable = PointScaleEnable;
+		controlState.specular_enable = GetGuestRenderState(X_D3DRS_SPECULARENABLE) != FALSE;
+		g_fixedFunctionVertexShaderVariant = FixedFunctionVertexShaderVariants::Select(controlState);
+		g_fixedFunctionVertexShaderVariantDirty = false;
+	}
 
 	// Write fixed function state to shader constants
 	const int slotSize = 16;
 	const int fixedFunctionStateSize = (sizeof(FixedFunctionVertexShaderState) + slotSize - 1) / slotSize;
 	CopyVertexShaderConstant(0, (DWORD*)&ffShaderState, fixedFunctionStateSize);
+	g_fixedFunctionVertexShaderStateDirty = false;
+	g_fixedFunctionVertexShaderTransformsDirty = false;
+	g_fixedFunctionVertexShaderMaterialDirty = false;
 
+	return g_fixedFunctionVertexShaderVariant;
 }
-

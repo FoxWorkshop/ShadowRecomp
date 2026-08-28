@@ -1,4 +1,30 @@
-void UpdateFixedFunctionVertexShaderState(size_t Handle, bool isPSFixed);
+#include "ubershaders/shader_variant.h"
+
+// Rebuilds the fixed-function vertex shader state constants when dirty and
+// returns the variant key for the current controls.
+//
+// Parameters:
+// - `Handle` - guest vertex shader handle
+// - `isPSFixed` - pixel shader is fixed function; selects fog depth output
+//   over fog factor in the vertex shader
+// - `vertexRegisterDefaultMask` - marks vertex registers absent from the
+//   current vertex declaration
+//
+// Returns GenericShaderVariant when the state has no specialized variant.
+ShaderVariantKey UpdateFixedFunctionVertexShaderState(size_t Handle, bool isPSFixed, uint32_t vertexRegisterDefaultMask);
+
+// Schedules a refresh of the fixed-function vertex shader constants.
+void MarkFixedFunctionVertexShaderStateDirty();
+
+// Schedules a refresh of the transform registers only.
+void MarkFixedFunctionVertexShaderTransformsDirty();
+
+// Schedules a refresh that also reselects the specialized vertex shader.
+void MarkFixedFunctionVertexShaderVariantDirty();
+
+// Schedules a rebuild of the fixed-function light block only; the light
+// inputs are the view transform, specular enable, and enabled light data.
+void MarkFixedFunctionVertexShaderLightsDirty();
 
 extern std::array<bool, 4> bWorldViewDirty;
 
