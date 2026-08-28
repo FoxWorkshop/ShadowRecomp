@@ -8496,8 +8496,22 @@ void DrawIndexedPrimitive(X_D3DPRIMITIVETYPE PrimitiveType, uint32_t VertexCount
 
 	SetIndices(queue, bufferIndex);
 
+	// The index hash already guarantees the cached buffer matches this index
+	// data, so the min/max vertex range can be reused instead of rescanning
+	// every index on cache hits.
 	uint32_t minIdx = 0, maxIdx = 0;
-	ComputeIndexRange(pIndexData, 0, VertexCount, minIdx, maxIdx);
+	if (!bufferIndex->hasCachedIndexRange)
+	{
+		ComputeIndexRange(pIndexData, 0, VertexCount, minIdx, maxIdx);
+		bufferIndex->hasCachedIndexRange = true;
+		bufferIndex->cachedMinIndex = minIdx;
+		bufferIndex->cachedMaxIndex = maxIdx;
+	}
+	else
+	{
+		minIdx = bufferIndex->cachedMinIndex;
+		maxIdx = bufferIndex->cachedMaxIndex;
+	}
 
 	bool patched = false;
 

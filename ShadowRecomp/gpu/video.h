@@ -397,6 +397,12 @@ struct GuestBuffer : GuestResource
 	bool isVertexBuffer = false;
 	bool isDirty = false;
 	bool wasUploaded = false;
+
+	// Cached min/max of the index data for index buffers. Avoids rescanning
+	// the indices on every draw that hits the index buffer cache.
+	bool hasCachedIndexRange = false;
+	uint32_t cachedMinIndex = 0;
+	uint32_t cachedMaxIndex = 0;
 };
 
 // RenderTarget/DepthStencil
