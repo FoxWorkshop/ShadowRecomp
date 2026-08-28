@@ -601,6 +601,10 @@ struct IntermediaryUploadAllocator
 {
 	static constexpr size_t SIZE = 16 * 1024 * 1024;
 
+	// Guarded state: allocate() is called from guest draw threads while
+	// reset() is called from the Present thread, and guests can draw
+	// concurrently with each other.
+	std::mutex mutex;
 	std::vector<std::unique_ptr<uint8_t[]>> buffers;
 	uint32_t index = 0;
 	uint32_t offset = 0;
@@ -609,22 +613,29 @@ struct IntermediaryUploadAllocator
 	{
 		assert(size <= SIZE);
 
-		if (offset + size > SIZE)
+		uint8_t* result;
 		{
-			++index;
-			offset = 0;
+			std::lock_guard lock(mutex);
+
+			if (offset + size > SIZE)
+			{
+				++index;
+				offset = 0;
+			}
+
+			if (buffers.size() <= index)
+				buffers.resize(index + 1);
+
+			auto& buffer = buffers[index];
+			if (buffer == nullptr)
+				buffer = std::make_unique_for_overwrite<uint8_t[]>(SIZE);
+
+			result = buffer.get() + offset;
+			offset += ((size + 0xF) & ~0xF);
 		}
 
-		if (buffers.size() <= index)
-			buffers.resize(index + 1);
-
-		auto& buffer = buffers[index];
-		if (buffer == nullptr)
-			buffer = std::make_unique_for_overwrite<uint8_t[]>(SIZE);
-
-		auto result = buffer.get() + offset;
-		offset += ((size + 0xF) & ~0xF);
-
+		// After this line: caller owns [result, result + size) exclusively,
+		// memcpy below races with no one.
 		return result;
 	}
 
@@ -637,6 +648,7 @@ struct IntermediaryUploadAllocator
 
 	void reset()
 	{
+		std::lock_guard lock(mutex);
 		index = 0;
 		offset = 0;
 	}
@@ -5005,6 +5017,11 @@ void Video::Present()
 		g_gpuFrameProfiler.Set(double(frameTimestamps[1] - frameTimestamps[0]) / 1000000.0);
 	}
 
+	// Close the gate before resetting per-frame state: Guard_Rendering() must
+	// keep guests out while dirty states, upload allocators and quad index
+	// data are being reset. BeginCommandList reopens it on the render thread.
+	g_readyForCommands = false;
+
 	g_dirtyStates = DirtyStates(true);
 
 	g_uploadAllocators[g_frame].reset();
@@ -5017,7 +5034,6 @@ void Video::Present()
 		g_swapChain->wait();
 
 	CheckSwapChain();
-	g_readyForCommands = false;
 
 	cmd.type = RenderCommandType::BeginCommandList;
 	g_renderQueue.enqueue(cmd);
