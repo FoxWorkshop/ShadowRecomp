@@ -417,13 +417,24 @@ struct FrameAccumulator
 	}
 };
 
+static std::atomic<bool> g_detailedProfilerEnabled{ false };
+
 // RAII scope timer that adds elapsed time to a FrameAccumulator.
 struct RtScopeTimer
 {
 	std::chrono::steady_clock::time_point start;
 	FrameAccumulator& accum;
-	RtScopeTimer(FrameAccumulator& a) : start(std::chrono::steady_clock::now()), accum(a) {}
-	~RtScopeTimer() { accum.Add(std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - start).count()); }
+	bool enabled;
+	RtScopeTimer(FrameAccumulator& a) : accum(a), enabled(g_detailedProfilerEnabled.load(std::memory_order_relaxed))
+	{
+		if (enabled)
+			start = std::chrono::steady_clock::now();
+	}
+	~RtScopeTimer()
+	{
+		if (enabled)
+			accum.Add(std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - start).count());
+	}
 };
 
 static double g_applicationValues[PROFILER_VALUE_COUNT];
@@ -4164,6 +4175,7 @@ static void DrawProfiler()
 	}
 
 	g_profilerWasToggled = toggleProfiler;
+	g_detailedProfilerEnabled.store(g_profilerVisible, std::memory_order_relaxed);
 
 	if (!g_profilerVisible)
 		return;
