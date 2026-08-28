@@ -68,34 +68,19 @@ public:
 
     // Returns the program key selected by `state`, or GenericShaderVariant
     // when the state has no specialized program.
-    // The last lookup is memoized per thread, so repeated draws with an
-    // unchanged state cost one comparison.
     ShaderVariantKey Select(const StateType& state)
     {
-        thread_local StateType lastState{};
-        thread_local ShaderVariantKey lastKey = GenericShaderVariant;
-        thread_local bool hasLastState = false;
-
-        if (hasLastState && memcmp(&state, &lastState, sizeof(StateType)) == 0)
-            return lastKey;
-
         // Families whose Normalize returns a reference skip the state copy
-        // entirely; normalizing families pay one copy per lookup miss.
-        ShaderVariantKey key;
+        // entirely; normalizing families pay one copy per lookup.
         if constexpr (std::is_lvalue_reference_v<decltype(Family::Normalize(std::declval<const StateType&>()))>)
         {
-            key = Lookup(Family::Normalize(state));
+            return Lookup(Family::Normalize(state));
         }
         else
         {
             const StateType normalizedState = Family::Normalize(state);
-            key = Lookup(normalizedState);
+            return Lookup(normalizedState);
         }
-
-        lastState = state;
-        lastKey = key;
-        hasLastState = true;
-        return key;
     }
 
     // Returns true when `key` is the generic fallback or a known program key.
