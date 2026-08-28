@@ -7572,6 +7572,9 @@ struct TextureStageDirtyState
 
 static TextureStageDirtyState GetTextureStageDirtyState()
 {
+	if (memcmp(g_dirty_texture_stage_states, g_texture_stage_states, sizeof(g_dirty_texture_stage_states)) == 0)
+		return {};
+
 	for (uint32_t i = 0; i < 4; i++)
 	{
 		const auto offset = i * X_D3DTSS_MAX;
