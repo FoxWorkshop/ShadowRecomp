@@ -5028,12 +5028,12 @@ void Video::Present()
 		// Pace at the slower rate to avoid the busy wait in 0x56FC0
 		double targetFps = Config::FPS.Value;
 		float gameFps = GetInternalFrameRate();
-		if (gameFps > 0.0f && gameFps < targetFps)
-			targetFps = gameFps;
+	if (gameFps > 0.0f && gameFps < targetFps)
+		targetFps = gameFps;
 
-		if (targetFps >= FPS_MIN && targetFps < FPS_MAX)
-		{
-			static FramePacer framePacer;
+	if (targetFps >= FPS_MIN && targetFps < FPS_MAX)
+	{
+		static FramePacer framePacer;
 			framePacer.SetFpsLimit(targetFps);
 			framePacer.EndFrame(FramePacer::WaitMode::SleepThenSpin);
 		}
@@ -6079,15 +6079,15 @@ static void ProcUnlockTextureRect(const RenderCommand& cmd)
 }
 
 // This function is needed for ADX and FMV decoding, as they rely on the vblank
-// timing to update their buffers. We fake a 60Hz vblank signal; sleep-only
-// pacing keeps the decoding threads off the CPU (no spinning or yielding).
+// timing to update their buffers. We fake a vblank signal at the configured FPS
+// limit; sleep-only pacing keeps the decoding threads off the CPU.
 void CRI_BlockUntilVerticalBlank()
 {
 	// Per-thread pacer: each decoding thread holds its own vblank phase, and
-	// the pacer's oversleep compensation keeps the 60Hz period drift-free.
+	// the pacer's oversleep compensation keeps the period drift-free.
 	thread_local FramePacer vblankPacer;
 
-	vblankPacer.SetFpsLimit(60.0);
+	vblankPacer.SetFpsLimit(Config::FPS.Value);
 	vblankPacer.EndFrame(FramePacer::WaitMode::SleepOnly);
 }
 
