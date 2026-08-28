@@ -16,6 +16,9 @@ ShaderVariantKey UpdateFixedFunctionVertexShaderState(size_t Handle, bool isPSFi
 // Schedules a refresh of the fixed-function vertex shader constants.
 void MarkFixedFunctionVertexShaderStateDirty();
 
+// Schedules a refresh of the transform registers only.
+void MarkFixedFunctionVertexShaderTransformsDirty();
+
 // Schedules a refresh that also reselects the specialized vertex shader.
 void MarkFixedFunctionVertexShaderVariantDirty();
 

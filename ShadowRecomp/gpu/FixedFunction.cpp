@@ -127,6 +127,7 @@ D3D8LightState g_LightState = D3D8LightState();
 // access this can only run on one thread at a time- promise!
 static bool g_fixedFunctionVertexShaderVariantDirty = true;
 static bool g_fixedFunctionVertexShaderStateDirty = true;
+static bool g_fixedFunctionVertexShaderTransformsDirty = true;
 static bool g_fixedFunctionVertexShaderMaterialDirty = true;
 static bool g_fixedFunctionVertexShaderLightsDirty = true;
 static XMFLOAT4 g_fixedFunctionLightAmbient;
@@ -135,6 +136,12 @@ static ShaderVariantKey g_fixedFunctionVertexShaderVariant = GenericShaderVarian
 void MarkFixedFunctionVertexShaderStateDirty()
 {
 	g_fixedFunctionVertexShaderStateDirty = true;
+}
+
+// World and texture matrix updates feed only the transform registers.
+void MarkFixedFunctionVertexShaderTransformsDirty()
+{
+	g_fixedFunctionVertexShaderTransformsDirty = true;
 }
 
 void MarkFixedFunctionVertexShaderVariantDirty()
@@ -490,51 +497,15 @@ int GetXboxVertexDataComponentCount(int32_t d3dvsdt)
 
 
 bool logIndexedPrimitive = false;
-ShaderVariantKey UpdateFixedFunctionVertexShaderState(size_t Handle, bool isPSFixed, uint32_t vertexRegisterDefaultMask)
+
+// Recomputes the matrix registers from the current guest transforms.
+static void RecomputeFixedFunctionTransforms()
 {
-	if (!g_fixedFunctionVertexShaderStateDirty)
-	{
-		// Upload only the material registers when the rest of the state is clean.
-		if (g_fixedFunctionVertexShaderMaterialDirty)
-		{
-			constexpr int materialRegister = offsetof(FixedFunctionVertexShaderState, Materials) / 16;
-			CopyVertexShaderConstant(materialRegister, (DWORD*)&ffShaderState.Materials[0], sizeof(Material) / 16);
-			g_fixedFunctionVertexShaderMaterialDirty = false;
-		}
-		return g_fixedFunctionVertexShaderVariant;
-	}
-
-	// Vertex blending
-	// Prepare vertex blending mode variables used in transforms, below
-	auto VertexBlend = GetGuestRenderState(X_D3DRS_VERTEXBLEND);
-	// Xbox and host D3DVERTEXBLENDFLAGS :
-	//     D3DVBF_DISABLE           = 0 : 1 matrix,   0 weights => final weight 1
-	//     D3DVBF_1WEIGHTS          = 1 : 2 matrices, 1 weights => final weight calculated
-	//     D3DVBF_2WEIGHTS          = 3 : 3 matrices, 2 weights => final weight calculated
-	//     D3DVBF_3WEIGHTS          = 5 : 4 matrices, 3 weights => final weight calculated
-	// Xbox X_D3DVERTEXBLENDFLAGS :
-	//   X_D3DVBF_2WEIGHTS2MATRICES = 2 : 2 matrices, 2 weights
-	//   X_D3DVBF_3WEIGHTS3MATRICES = 4 : 3 matrices, 3 weights
-	//   X_D3DVBF_4WEIGHTS4MATRICES = 6 : 4 matrices, 4 weights
-	//
-	if (VertexBlend > X_D3DVBF_4WEIGHTS4MATRICES)
-		printf("X_D3DRS_VERTEXBLEND out of range\n");
-
 	// Note DX12 expects matrix to be column major for HLSL so we convert them with Transpose
 	// however this breaks Vulkan when multiplication with matrix and vector are involved,
 	// so make sure to not transpose if vulkan is used.
 	const bool vulkan = is_vulkan();
 
-	// Calculate the number of matrices, by adding the LSB to turn (0,1,3,5) and (0,2,4,6) into (0,2,4,6); Then divide by 2 to get (0,1,2,3), and add 1 to get 1, 2, 3 or 4 matrices :
-	auto NrBlendMatrices = ((VertexBlend + (VertexBlend & 1)) / 2) + 1;
-	// Looking at the above values, 0 or the LSB of VertexBlend signals that the final weight needs to be calculated from all previous weigths (deducting them all from an initial 1) :
-	auto CalcLastBlendWeight = (VertexBlend == X_D3DVBF_DISABLE) || (VertexBlend & 1);
-	// Copy the resulting values over to shader state :
-	ffShaderState.Modes.VertexBlend_NrOfMatrices = (float)NrBlendMatrices;
-	ffShaderState.Modes.VertexBlend_CalcLastWeight = (float)CalcLastBlendWeight;
-
-	// Transforms
-	// Transpose row major to column major for HLSL (unless Vulkan is used as explained above).
 	XMMATRIX projection = XMLoadFloat4x4((XMFLOAT4X4*)&g_Transforms[X_D3DTS_PROJECTION]); //first we read the projection matrix
 	XMMATRIX projectionT = vulkan ? projection : XMMatrixTranspose(projection); //then we transpose it
 	XMStoreFloat4x4((XMFLOAT4X4*)&ffShaderState.Transforms.Projection, projectionT); //finally we store it (overwrite previous data if any)
@@ -562,6 +533,56 @@ ShaderVariantKey UpdateFixedFunctionVertexShaderState(size_t Handle, bool isPSFi
 		XMMATRIX WorldViewInverseTransposeT = vulkan ? WorldViewInverseTranspose : XMMatrixTranspose(WorldViewInverseTranspose);
 		XMStoreFloat4x4((XMFLOAT4X4*)&ffShaderState.Transforms.WorldViewInverseTranspose[i], WorldViewInverseTransposeT);
 	}
+}
+
+ShaderVariantKey UpdateFixedFunctionVertexShaderState(size_t Handle, bool isPSFixed, uint32_t vertexRegisterDefaultMask)
+{
+	if (!g_fixedFunctionVertexShaderStateDirty)
+	{
+		// Upload only the dirty regions when the rest of the state is clean.
+		if (g_fixedFunctionVertexShaderTransformsDirty)
+		{
+			RecomputeFixedFunctionTransforms();
+			constexpr int transformRegisters = sizeof(Transforms) / 16;
+			CopyVertexShaderConstant(0, (DWORD*)&ffShaderState.Transforms, transformRegisters);
+			g_fixedFunctionVertexShaderTransformsDirty = false;
+		}
+
+		if (g_fixedFunctionVertexShaderMaterialDirty)
+		{
+			constexpr int materialRegister = offsetof(FixedFunctionVertexShaderState, Materials) / 16;
+			CopyVertexShaderConstant(materialRegister, (DWORD*)&ffShaderState.Materials[0], sizeof(Material) / 16);
+			g_fixedFunctionVertexShaderMaterialDirty = false;
+		}
+		return g_fixedFunctionVertexShaderVariant;
+	}
+
+	// Vertex blending
+	// Prepare vertex blending mode variables used in transforms, below
+	auto VertexBlend = GetGuestRenderState(X_D3DRS_VERTEXBLEND);
+	// Xbox and host D3DVERTEXBLENDFLAGS :
+	//     D3DVBF_DISABLE           = 0 : 1 matrix,   0 weights => final weight 1
+	//     D3DVBF_1WEIGHTS          = 1 : 2 matrices, 1 weights => final weight calculated
+	//     D3DVBF_2WEIGHTS          = 3 : 3 matrices, 2 weights => final weight calculated
+	//     D3DVBF_3WEIGHTS          = 5 : 4 matrices, 3 weights => final weight calculated
+	// Xbox X_D3DVERTEXBLENDFLAGS :
+	//   X_D3DVBF_2WEIGHTS2MATRICES = 2 : 2 matrices, 2 weights
+	//   X_D3DVBF_3WEIGHTS3MATRICES = 4 : 3 matrices, 3 weights
+	//   X_D3DVBF_4WEIGHTS4MATRICES = 6 : 4 matrices, 4 weights
+	//
+	if (VertexBlend > X_D3DVBF_4WEIGHTS4MATRICES)
+		printf("X_D3DRS_VERTEXBLEND out of range\n");
+
+	// Calculate the number of matrices, by adding the LSB to turn (0,1,3,5) and (0,2,4,6) into (0,2,4,6); Then divide by 2 to get (0,1,2,3), and add 1 to get 1, 2, 3 or 4 matrices :
+	auto NrBlendMatrices = ((VertexBlend + (VertexBlend & 1)) / 2) + 1;
+	// Looking at the above values, 0 or the LSB of VertexBlend signals that the final weight needs to be calculated from all previous weigths (deducting them all from an initial 1) :
+	auto CalcLastBlendWeight = (VertexBlend == X_D3DVBF_DISABLE) || (VertexBlend & 1);
+	// Copy the resulting values over to shader state :
+	ffShaderState.Modes.VertexBlend_NrOfMatrices = (float)NrBlendMatrices;
+	ffShaderState.Modes.VertexBlend_CalcLastWeight = (float)CalcLastBlendWeight;
+
+	// Transforms
+	RecomputeFixedFunctionTransforms();
 
 	// Lighting
 	// Point sprites aren't lit - 'each point is always rendered with constant colors.'
@@ -751,6 +772,7 @@ ShaderVariantKey UpdateFixedFunctionVertexShaderState(size_t Handle, bool isPSFi
 	const int fixedFunctionStateSize = (sizeof(FixedFunctionVertexShaderState) + slotSize - 1) / slotSize;
 	CopyVertexShaderConstant(0, (DWORD*)&ffShaderState, fixedFunctionStateSize);
 	g_fixedFunctionVertexShaderStateDirty = false;
+	g_fixedFunctionVertexShaderTransformsDirty = false;
 	g_fixedFunctionVertexShaderMaterialDirty = false;
 
 	return g_fixedFunctionVertexShaderVariant;

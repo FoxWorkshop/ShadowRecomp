@@ -6885,7 +6885,14 @@ X86_FUNC(sub_3CFCD0)
 		return;
 
 	g_Transforms[State] = *pMatrix;
-	MarkFixedFunctionVertexShaderStateDirty();
+
+	// World and texture matrix updates only feed the transform registers;
+	// other kinds also affect lighting, fog or the shader variant.
+	if ((X_D3DTS_TEXTURE0 <= State && State <= X_D3DTS_TEXTURE3) ||
+		(X_D3DTS_WORLD <= State && State <= X_D3DTS_WORLD3))
+		MarkFixedFunctionVertexShaderTransformsDirty();
+	else
+		MarkFixedFunctionVertexShaderStateDirty();
 
 	if (State == X_D3DTS_VIEW)
 	{
