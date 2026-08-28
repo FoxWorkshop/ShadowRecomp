@@ -7962,12 +7962,11 @@ static void ProcSetIndices(const RenderCommand& cmd)
 	SetDirtyValue(g_dirtyStates.indices, g_indexBufferView.size, args.indexBuffer != nullptr ? args.indexBuffer->dataSize : 0u);
 }
 
-static void SetIndices(GuestBuffer* buffer)
+static void SetIndices(LocalRenderCommandQueue& queue, GuestBuffer* buffer)
 {
-	RenderCommand cmd;
+	auto& cmd = queue.enqueue();
 	cmd.type = RenderCommandType::SetIndices;
 	cmd.setIndices.indexBuffer = buffer;
-	g_renderQueue.enqueue(cmd);
 }
 
 static void* LockBuffer(GuestBuffer* buffer, uint32_t flags)
@@ -8451,6 +8450,7 @@ void DrawIndexedPrimitive(X_D3DPRIMITIVETYPE PrimitiveType, uint32_t VertexCount
 {
 	RtScopeTimer _gtScope(g_gtDrawRecordingAccum);
 	WaitForPresentDuringLoading();
+	LocalRenderCommandQueue queue;
 
 #ifdef _DEBUG //this is a breakpoint spot for debugging the light issue with tails muzzle in circus park.
 	if (VertexCount == 45)
@@ -8494,7 +8494,7 @@ void DrawIndexedPrimitive(X_D3DPRIMITIVETYPE PrimitiveType, uint32_t VertexCount
 	}
 
 
-	SetIndices(bufferIndex);
+	SetIndices(queue, bufferIndex);
 
 	uint32_t minIdx = 0, maxIdx = 0;
 	ComputeIndexRange(pIndexData, 0, VertexCount, minIdx, maxIdx);
@@ -8525,17 +8525,15 @@ void DrawIndexedPrimitive(X_D3DPRIMITIVETYPE PrimitiveType, uint32_t VertexCount
 			return;
 
 
-		RenderCommand cmd;
+		auto& cmd = queue.enqueue();
 		cmd.type = RenderCommandType::SetStreamSource;
 		cmd.setStreamSource.StreamNumber = i;
 		cmd.setStreamSource.vertexBuffer = bufferCache;
 		cmd.setStreamSource.stride = alignedStride;
 
-		g_renderQueue.enqueue(cmd);
 	}
 
 
-	LocalRenderCommandQueue queue;
 	FlushRenderStateForMainThread(queue);
 
 	auto& cmd = queue.enqueue();
