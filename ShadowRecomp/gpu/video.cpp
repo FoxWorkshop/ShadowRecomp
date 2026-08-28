@@ -40,6 +40,7 @@
 #include <ui/imgui_utils.h>
 #include <ui/installer_wizard.h>
 #include <xxHashMap.h>
+#include <rapidhash.h>
 #include <patches/multi_core_patches.h>
 #include <user/achievement_manager.h>
 
@@ -456,7 +457,6 @@ static FrameAccumulator g_rtDrawCallAccum;
 static FrameAccumulator g_rtQueueWaitAccum;
 static FrameAccumulator g_gtDrawRecordingAccum;
 static FrameAccumulator g_gtStateFlushAccum;
-static FrameAccumulator g_gtHashingAccum;
 static FrameAccumulator g_rtOtherCmdsAccum;
 static FrameAccumulator g_rtDrawHandlerAccum;
 static FrameAccumulator g_rtBeginCmdListWorkAccum;
@@ -1601,6 +1601,21 @@ struct DerivedVertexBuffer
 };
 
 std::unordered_map<GuestBuffer*, std::vector<DerivedVertexBuffer>> VBsList;
+
+// Remembered vertex content hashes per guest buffer, dropped when that exact
+// buffer is locked or freed. The hash covers one byte range, so
+// offset + length fully identify it.
+struct VBRangeHash
+{
+	uint32_t offset;
+	uint32_t length;
+	uint64_t hash;
+};
+
+// Remembered content hashes per guest vertex buffer: lets repeated draws
+// skip rehashing until the buffer is locked or freed.
+static ankerl::unordered_dense::map<GuestBuffer*, std::vector<VBRangeHash>> g_vbTrustedHashes;
+
 std::vector<GuestResource*> g_tempUnreadyResource; // store VB that weren't ready to be deleted
 std::atomic<bool> g_pendingSurfaceResizeFlag = false; // flag used to trigger RT and Stencil recreation.
 static Mutex g_surfaceRTsMutex; // Multiple threads can access Surface RT so we can prevent a potential race issue with mutex
@@ -4188,7 +4203,6 @@ static void DrawProfiler()
 		double rtQueueWaitAvg = g_rtQueueWaitAccum.UpdateAndReturnAverage();
 		double gtDrawRecordingAvg = g_gtDrawRecordingAccum.UpdateAndReturnAverage();
 		double gtStateFlushAvg = g_gtStateFlushAccum.UpdateAndReturnAverage();
-		double gtHashingAvg = g_gtHashingAccum.UpdateAndReturnAverage();
 
 		if (ImGui::CollapsingHeader("Performance", ImGuiTreeNodeFlags_DefaultOpen))
 		{
@@ -4251,7 +4265,6 @@ static void DrawProfiler()
 					"GAME-THREAD BREAKDOWN (averages):\n"
 					"Draw Recording        {:.4g} ms\n"
 					"  State Flush         {:.4g} ms\n"
-					"  Hashing (XXH3)      {:.4g} ms\n"
 					"Present (in GT)       {:.4g} ms\n"
 					"Game Logic            {:.4g} ms\n"
 					"\n"
@@ -4279,7 +4292,7 @@ static void DrawProfiler()
 					g_drawCallCountSnapshot > 0 ? rtDrawCallAvg * 1000.0 / g_drawCallCountSnapshot : 0.0,
 					g_psoCacheHitsSnapshot, g_psoCacheHitsSnapshot + g_psoCacheMissesSnapshot,
 					(g_psoCacheHitsSnapshot + g_psoCacheMissesSnapshot) > 0 ? 100.0 * g_psoCacheHitsSnapshot / (g_psoCacheHitsSnapshot + g_psoCacheMissesSnapshot) : 0.0,
-					gtDrawRecordingAvg, gtStateFlushAvg, gtHashingAvg, presentAvg, std::max(gameThreadAvg - gtDrawRecordingAvg - presentAvg, 0.0),
+					gtDrawRecordingAvg, gtStateFlushAvg, presentAvg, std::max(gameThreadAvg - gtDrawRecordingAvg - presentAvg, 0.0),
 					g_frameIntervalMs, 1000.0 / std::max(g_frameIntervalMs, 0.001),
 					g_gpuFrameProfiler.value.load(), (g_gpuFrameProfiler.value.load() > 0.0 ? 1000.0 / g_gpuFrameProfiler.value.load() : 0.0),
 					g_renderDirectorProfiler.value.load(),
@@ -4434,15 +4447,13 @@ static void DrawProfiler()
 						ImGui::Text("%.1f%% / %.1f%%", gtCur > 0.0 ? (cur / gtCur * 100.0) : 0.0, gtAvg > 0.0 ? (avg / gtAvg * 100.0) : 0.0);
 					};
 
-					double drawRecCur = g_gtDrawRecordingAccum.value.load();
-					double stateFlushCur = g_gtStateFlushAccum.value.load();
-					double hashingCur = g_gtHashingAccum.value.load();
-					double presentCur = g_presentProfiler.value.load();
+				double drawRecCur = g_gtDrawRecordingAccum.value.load();
+				double stateFlushCur = g_gtStateFlushAccum.value.load();
+				double presentCur = g_presentProfiler.value.load();
 					double gameLogicCur = std::max(g_updateDirectorProfiler.value.load() - drawRecCur - presentCur, 0.0); // Game Thread includes present, so subtract (sub_57630)
 					double gameLogicAvg = std::max(gameThreadAvg - gtDrawRecordingAvg - presentAvg, 0.0);
 					drawGtRow("Draw Recording",   drawRecCur,                        gtDrawRecordingAvg);
 					drawGtRow("  State Flush",    stateFlushCur,                     gtStateFlushAvg);
-					drawGtRow("  Hashing (XXH3)", hashingCur,                        gtHashingAvg);
 					drawGtRow("Present (in GT)",  presentCur,                        presentAvg);
 					drawGtRow("Game Logic",      gameLogicCur,                      gameLogicAvg);
 					ImGui::EndTable();
@@ -4926,7 +4937,6 @@ void Video::EndGameThreadProfiler()
 	g_updateDirectorProfiler.End();
 	g_gtDrawRecordingAccum.SnapshotAndReset();
 	g_gtStateFlushAccum.SnapshotAndReset();
-	g_gtHashingAccum.SnapshotAndReset();
 }
 
 void Video::Present()
@@ -8259,9 +8269,6 @@ void DrawPrimitive(X_D3DPRIMITIVETYPE PrimitiveType, uint32_t StartVertex, uint3
 			unsigned long dataAddr = (unsigned long)GetDataFromXboxResource((X_D3DResource*)(g_Xbox_SetStreamSource[i].VertexBuffer));
 			uint8_t* pXboxVertexData = reinterpret_cast<uint8_t*>(g_memory.Translate(dataAddr));
 
-			XXH64_hash_t hash;
-			{ RtScopeTimer _h(g_gtHashingAccum); hash = XXH3_64bits(pXboxVertexData, g_Xbox_SetStreamSource[i].Stride); }
-
 			uint8_t* vertexParticles = nullptr;
 
 			// particles allocate memory every frame and we never pass our VB to the guest memory
@@ -8354,9 +8361,44 @@ GuestBuffer* GetGuestVertexBufferIndexed(int i, uint32_t minIdx, uint32_t maxIdx
 	pXboxVertexData += (minIdx * originalStride); //we only want to hash and copy the used vertices, the unused can be skipped.
 
 	const size_t originalSize = usedVertices * originalStride;
-	XXH64_hash_t hash;
-	{ RtScopeTimer _h(g_gtHashingAccum); hash = XXH3_64bits(pXboxVertexData, originalSize); }
 
+	// Lock-dirty: the content hash is remembered per drawn range and reused
+	// until this exact buffer is locked or freed.
+	const uint32_t rangeOffset = minIdx * originalStride;
+	const uint32_t rangeLength = usedVertices * originalStride;
+	uint64_t hash = 0;
+	bool hashTrusted = false;
+	auto& trustedRanges = g_vbTrustedHashes[g_Xbox_SetStreamSource[i].VertexBuffer];
+	for (const auto& trusted : trustedRanges)
+	{
+		if (trusted.offset == rangeOffset && trusted.length == rangeLength)
+		{
+			hash = trusted.hash;
+			hashTrusted = true;
+			break;
+		}
+	}
+
+	if (!hashTrusted)
+	{
+		// rapidhash over XXH3: these ranges average ~0.1 KB, where rapidhash's
+		// small-input path wins; XXH3 is faster only on large buffers.
+		hash = rapidhash(pXboxVertexData, originalSize);
+
+		// Same range drawn with new content replaces the stale entry.
+		bool replaced = false;
+		for (auto& trusted : trustedRanges)
+		{
+			if (trusted.offset == rangeOffset && trusted.length == rangeLength)
+			{
+				trusted.hash = hash;
+				replaced = true;
+				break;
+			}
+		}
+		if (!replaced)
+			trustedRanges.push_back({ rangeOffset, rangeLength, hash });
+	}
 
 	auto& bufferCache = g_indexedVertexBufferCache[hash];
 	if (bufferCache == nullptr)
@@ -8412,8 +8454,9 @@ void DrawIndexedPrimitive(X_D3DPRIMITIVETYPE PrimitiveType, uint32_t VertexCount
 	//shadow = 2192 vertex = stride 24 (32 with conversion)
 	//object (shadow eyes) = 91 vertex =  stride 24 (32 with conversion)
 
-	XXH64_hash_t hash;
-	{ RtScopeTimer _h(g_gtHashingAccum); hash = XXH3_64bits(pIndexData, VertexCount * sizeof(int16_t)); }
+	// rapidhash over XXH3: index lists average ~0.2 KB, where rapidhash's
+	// small-input path wins; XXH3 is faster only on large buffers.
+	uint64_t hash = rapidhash(pIndexData, VertexCount * sizeof(int16_t));
 	auto& bufferIndexCache = g_indexBufferCache[hash];
 
 	GuestBuffer* bufferIndex;
@@ -8749,6 +8792,7 @@ X86_FUNC(sub_2E6140)
 			}
 
 			VBsList.erase(resourcePtr);
+			g_vbTrustedHashes.erase(resourcePtr);
 		}
 
 		std::vector<GuestResource*> unready;
@@ -9231,10 +9275,16 @@ X86_FUNC(sub_2E6750)
 }
 
 
-//LockVertexBuffer
+//LockVertexBuffer(X_D3DResource* buffer, ...)
 X86_FUNC_IMPL(__imp__sub_3D5FE0);
 X86_FUNC(sub_3D5FE0)
 {
+	// The locked buffer's content may be overwritten, so drop only its
+	// remembered hashes. All other buffers keep theirs.
+	auto resource = X86_LOAD_U32(ctx.esp.u32 + 4);
+	if (resource)
+		g_vbTrustedHashes.erase((GuestBuffer*)(base + resource));
+
 	__imp__sub_3D5FE0(ctx, base);
 }
 
