@@ -69,7 +69,6 @@ static bool useLowSpec = false;
 #include "shader/copy_vs.hlsl.dxil.h"
 #include "shader/copy_color_ps.hlsl.dxil.h"
 #include "shader/copy_depth_ps.hlsl.dxil.h"
-#include "shader/enhanced_motion_blur_ps.hlsl.dxil.h"
 #include "shader/gamma_correction_ps.hlsl.dxil.h"
 
 #include "shader/imgui_ps.hlsl.dxil.h"
@@ -93,7 +92,6 @@ static bool useLowSpec = false;
 #include "shader/copy_vs.hlsl.spirv.h"
 #include "shader/copy_color_ps.hlsl.spirv.h"
 #include "shader/copy_depth_ps.hlsl.spirv.h"
-#include "shader/enhanced_motion_blur_ps.hlsl.spirv.h"
 #include "shader/gamma_correction_ps.hlsl.spirv.h"
 #include "shader/csd_filter_ps.hlsl.spirv.h"
 
@@ -2493,9 +2491,6 @@ static std::unique_ptr<RenderShader> FixedFuncPS = nullptr;
 
 static std::unique_ptr<GuestShader> g_csdFilterShader;
 static GuestShader* g_csdShader;
-
-static std::unique_ptr<GuestShader> g_enhancedMotionBlurShader;
-
 
 #ifdef SHADOW_RECOMP_D3D12
 

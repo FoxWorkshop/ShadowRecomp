@@ -617,7 +617,6 @@ compile_vertex_shader(copy_vs)
 compile_pixel_shader(copy_color_ps)
 compile_pixel_shader(copy_depth_ps)
 compile_pixel_shader(csd_filter_ps)
-compile_pixel_shader(enhanced_motion_blur_ps)
 
 compile_pixel_shader(gamma_correction_ps)
 compile_pixel_shader(imgui_ps)
