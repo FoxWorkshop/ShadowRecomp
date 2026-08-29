@@ -7,6 +7,7 @@
 #include <DirectXMath.h>
 #include "FixedFunction.h"
 #include "ubershaders/fixed_function_vertex_shader_variants.h"
+#include <kernel/function.h>
 
 // original code (mostly) re used from CXBX Reloaded
 // Since modern API don't have a fixed function pipeline, we have to emulate it ourselves using shaders.
@@ -777,3 +778,30 @@ ShaderVariantKey UpdateFixedFunctionVertexShaderState(size_t Handle, bool isPSFi
 
 	return g_fixedFunctionVertexShaderVariant;
 }
+
+//D3DDevice_LightEnable
+X86_FUNC_IMPL(__imp__sub_3D0B70);
+X86_FUNC(sub_3D0B70)
+{
+	uint32_t Index = GetHostParameter(1);
+	uint32_t bEnable = GetHostParameter(2);
+	__imp__sub_3D0B70(ctx, base);
+	LightEnable(Index, bEnable);
+}
+
+//D3DDevice_SetLight
+X86_FUNC_IMPL(__imp__sub_3D08B0);
+X86_FUNC(sub_3D08B0)
+{
+	uint32_t Index = GetHostParameter(1);
+	X_D3DLIGHT8* pLight = (X_D3DLIGHT8*)GetHostParameter(2, CallConvention::Stdcall, ParameterType::Pointer);
+	__imp__sub_3D08B0(ctx, base);
+	UpdateLightData(Index, pLight);
+}
+
+void SetMaterial(Material* pMaterial)
+{
+	UpdateMaterial(pMaterial);
+}
+
+GUEST_FUNCTION_HOOK_STDCALL(sub_3CFDF0, SetMaterial);

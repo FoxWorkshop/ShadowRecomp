@@ -385,8 +385,6 @@ struct GuestLockedRect
 // VertexBuffer/IndexBuffer
 struct GuestBuffer : GuestResource
 {
-
-
 	std::unique_ptr<RenderBuffer> buffer;
 	XXH64_hash_t hash = 0;
 	void* mappedMemory = nullptr;
@@ -1087,3 +1085,11 @@ bool is_vulkan();
 extern std::unique_ptr<GuestTexture> LoadCustomTexture(const uint8_t* data, size_t dataSize, RenderComponentMapping componentMapping = RenderComponentMapping());
 
 extern void VideoConfigValueChangedCallback(class IConfigDef* config);
+GuestBuffer* CreateVertexBuffer(uint32_t length);
+
+
+uint8_t* ApplyVertexPatch(uint8_t* vertexData, const uint8_t indexStream, const uint32_t VertexCount, const uint32_t originalStride, uint32_t alignedStride, bool useHostMemory = false);
+void UnlockVertexBuffer(GuestBuffer* buffer);
+
+void AddDestructResource(GuestResource* ressource);
+void* GetDataFromXboxResource(X_D3DResource* pXboxResource);

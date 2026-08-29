@@ -44,9 +44,6 @@
 #include <patches/multi_core_patches.h>
 #include <user/achievement_manager.h>
 
-
-
-
 const uint32_t GuestDevicePtrAddr = 0x3E0A18;
 const uint32_t GuestDeviceMemAddr = 0x3E0A20;
 const uint32_t PresentMemAddr = 0x55F718;
@@ -136,8 +133,7 @@ static bool useLowSpec = false;
 #include <patches/fps_patches.h>
 #include <ui/achievement_menu.h>
 #include <ui/achievement_overlay.h>
-
-
+#include "vertexbuffer.h"
 
 namespace plume
 {
@@ -285,23 +281,13 @@ bool psh_constants_dirty[PSH_XBOX_CONSTANT_MAX];
 
 std::array<D3DMATRIX, X_D3DTS_MAX> g_Transforms;
 
-
 static GuestTexture* g_textures[TexSlotMax];
 static RenderSamplerDesc g_samplerDescs[TexSlotMax];
 static TextureCombinerState g_sharedSamplerDescs[TexSlotMax];
 static GuestTexture* g_texturesPSDef[4];
 static bool g_scissorTestEnable = false;
 static RenderRect g_scissorRect;
-//static GuestBuffer* g_vertexBuffers[16];
 
-typedef struct _X_STREAMINPUT
-{
-	GuestBuffer* VertexBuffer;
-	UINT                Stride;
-
-} X_STREAMINPUT;
-
-X_STREAMINPUT g_Xbox_SetStreamSource[X_VSH_MAX_STREAMS];
 
 static RenderVertexBufferView g_vertexBufferViews[16];
 static RenderInputSlot g_inputSlots[16];
@@ -309,8 +295,6 @@ static RenderIndexBufferView g_indexBufferView({}, 0, RenderFormat::R16_UINT);
 
 int32_t* g_texture_stage_states = nullptr;
 int32_t g_dirty_texture_stage_states[4 * X_D3DTSS_MAX]; //128 because 4 stages * 32 texture stage state possible
-
-
 
 struct DirtyStates
 {
@@ -535,9 +519,7 @@ struct std::unique_ptr<RenderDescriptorSet> g_samplerDescriptorSet;
 
 static xxHashMap<std::pair<uint32_t, std::unique_ptr<RenderSampler>>> g_samplerStates;
 
-static xxHashMap<GuestBuffer*> g_indexedVertexBufferCache;
 static xxHashMap<GuestBuffer*> g_indexBufferCache;
-static xxHashMap<uint8_t*> g_vertexCache; //Draw Primitive seems to only use dynamic VB for particles, we will keep that as a warning if it ever stop.
 
 struct UploadBuffer
 {
@@ -1620,27 +1602,7 @@ struct PrimitiveIndexData
 
 static PrimitiveIndexData<X_D3DPT_QUADLIST> g_quadIndexData;
 
-struct DerivedVertexBuffer
-{
-	GuestBuffer* vertexBuffer;
-	uint64_t hash;
-};
 
-std::unordered_map<GuestBuffer*, std::vector<DerivedVertexBuffer>> VBsList;
-
-// Remembered vertex content hashes per guest buffer, dropped when that exact
-// buffer is locked or freed. The hash covers one byte range, so
-// offset + length fully identify it.
-struct VBRangeHash
-{
-	uint32_t offset;
-	uint32_t length;
-	uint64_t hash;
-};
-
-// Remembered content hashes per guest vertex buffer: lets repeated draws
-// skip rehashing until the buffer is locked or freed.
-static ankerl::unordered_dense::map<GuestBuffer*, std::vector<VBRangeHash>> g_vbTrustedHashes;
 
 std::vector<GuestResource*> g_tempUnreadyResource; // store VB that weren't ready to be deleted
 std::atomic<bool> g_pendingSurfaceResizeFlag = false; // flag used to trigger RT and Stencil recreation.
@@ -4124,21 +4086,6 @@ static void ProcSetPixelShader(const RenderCommand& cmd)
 		g_fixedFunctionPixelShaderStateDirty = true;
 }
 
-//SetStreamSource
-X86_FUNC_IMPL(__imp__sub_3D1E10);
-X86_FUNC(sub_3D1E10) {
-
-	auto StreamNumber = (uint32_t)GetHostParameter(1);
-	auto buffer = (GuestBuffer*)GetHostParameter(2, CallConvention::Stdcall, ParameterType::Pointer);
-	auto stride = (uint32_t)GetHostParameter(3);
-
-	g_Xbox_SetStreamSource[StreamNumber].VertexBuffer = buffer;
-	g_Xbox_SetStreamSource[StreamNumber].Stride = stride;
-
-	//we need to let the original code run otherwise this preven't other vertex buffer to be used
-	__imp__sub_3D1E10(ctx, base);
-}
-
 
 static void ProcSetStreamSource(const RenderCommand& cmd)
 {
@@ -5594,8 +5541,7 @@ static RenderHeapType GetBufferHeapType()
 }
 
 
-X86_FUNC_IMPL(__imp__sub_2E6750);
-static GuestBuffer* CreateVertexBuffer(uint32_t length)
+GuestBuffer* CreateVertexBuffer(uint32_t length)
 {
 	auto base = g_memory.base;
 	auto ctx = GetX86Context();
@@ -7714,27 +7660,7 @@ static TextureStageDirtyState GetTextureStageDirtyState()
 	return {};
 }
 
-inline DWORD GetXboxCommonResourceType(const xbox::dword_xt XboxResource_Common)
-{
-#define X_D3DCOMMON_TYPE_MASK          0x00070000
-	DWORD dwCommonType = XboxResource_Common & X_D3DCOMMON_TYPE_MASK;
-	return dwCommonType;
-}
 
-inline DWORD GetXboxCommonResourceType(X_D3DResource* pXboxResource)
-{
-	return GetXboxCommonResourceType(pXboxResource->Common);
-}
-
-void* GetDataFromXboxResource(X_D3DResource* pXboxResource)
-{
-
-	xbox::addr_xt pData = pXboxResource->Data;
-
-	DWORD dwCommonType = GetXboxCommonResourceType(pXboxResource);
-	pData |= PHYSICAL_MAP_BASE;
-	return (xbox::addr_xt*)pData;
-}
 
 inline int GetXboxPixelContainerDimensionCount(const X_D3DPixelContainer* pXboxPixelContainer)
 {
@@ -8178,7 +8104,7 @@ static void ProcUnlockBuffer32(const RenderCommand& cmd)
 	UnlockBuffer<uint32_t>(cmd.unlockBuffer.indexBuffer, false);
 }
 
-static void UnlockVertexBuffer(GuestBuffer* buffer)
+void UnlockVertexBuffer(GuestBuffer* buffer)
 {
 	UnlockBuffer<uint32_t>(buffer);
 }
@@ -8210,7 +8136,7 @@ static inline FLOAT PackedIntToFloat(const int32_t value, const FLOAT PosFactor,
 }
 
 //handle vertex format difference such as normalized short format
-uint8_t* ApplyVertexPatch(uint8_t* vertexData, const uint8_t indexStream, const uint32_t VertexCount, const uint32_t originalStride, uint32_t alignedStride, bool useHostMemory = false)
+uint8_t* ApplyVertexPatch(uint8_t* vertexData, const uint8_t indexStream, const uint32_t VertexCount, const uint32_t originalStride, uint32_t alignedStride, bool useHostMemory)
 {
 	size_t host_handle = (size_t)g_memory.Translate(g_VertexShader_Handle);
 	auto vertexElement = XSR_HostGetVertexDeclaration(host_handle, g_Xbox_VertexShaderMode == VertexShaderMode::FixedFunction);
@@ -8379,9 +8305,14 @@ void DrawPrimitive(X_D3DPRIMITIVETYPE PrimitiveType, uint32_t StartVertex, uint3
 
 	for (int i = 0; i < 16; i++)
 	{
-		if (g_Xbox_SetStreamSource[i].VertexBuffer)
+		auto xboxStreamSource = get_Xbox_SetStreamSource(i);
+
+		if (!xboxStreamSource)
+			continue;
+
+		if (xboxStreamSource->VertexBuffer)
 		{
-			auto alignedStride = AlignStride(g_Xbox_SetStreamSource[i].Stride);
+			auto alignedStride = AlignStride(xboxStreamSource->Stride);
 			size_t host_handle = (size_t)g_memory.Translate(g_VertexShader_Handle);
 			auto vertexElement = XSR_HostGetVertexDeclaration(host_handle, g_Xbox_VertexShaderMode == VertexShaderMode::FixedFunction);
 
@@ -8391,7 +8322,7 @@ void DrawPrimitive(X_D3DPRIMITIVETYPE PrimitiveType, uint32_t StartVertex, uint3
 			//if patching is needed the stride may be bigger so update it from the Vertex Declaration that we got earlier
 			alignedStride = pVertexShaderStreamInfo->HostVertexStride;
 
-			unsigned long dataAddr = (unsigned long)GetDataFromXboxResource((X_D3DResource*)(g_Xbox_SetStreamSource[i].VertexBuffer));
+			unsigned long dataAddr = (unsigned long)GetDataFromXboxResource((X_D3DResource*)(xboxStreamSource->VertexBuffer));
 			uint8_t* pXboxVertexData = reinterpret_cast<uint8_t*>(g_memory.Translate(dataAddr));
 
 			uint8_t* vertexParticles = nullptr;
@@ -8402,7 +8333,7 @@ void DrawPrimitive(X_D3DPRIMITIVETYPE PrimitiveType, uint32_t StartVertex, uint3
 			// so far testing shows that patching is always needed
 			if (bNeedVertexPatching)
 			{
-				const uint32_t originalStride = g_Xbox_SetStreamSource[i].Stride;
+				const uint32_t originalStride = xboxStreamSource->Stride;
 				vertexParticles = ApplyVertexPatch(pXboxVertexData, i, VertexCount, originalStride, alignedStride, true);
 			}
 			else
@@ -8448,112 +8379,6 @@ static void ProcDrawPrimitive(const RenderCommand& cmd)
 		commandList->drawInstanced(primitiveCount, 1, args.startVertex, 0);
 	}
 }
-
-static void ComputeIndexRange(const int16_t* indices, uint32_t startIndex, uint32_t indexCount, uint32_t& outMin, uint32_t& outMax)
-{
-
-	const int16_t* startPtr = indices + startIndex;
-	uint32_t minIdx = UINT32_MAX;
-	uint32_t maxIdx = 0;
-	for (uint32_t i = 0; i < indexCount; ++i)
-	{
-		uint32_t idx = (uint16_t)startPtr[i];
-		if (idx < minIdx)
-			minIdx = idx;
-
-		if (idx > maxIdx)
-			maxIdx = idx;
-	}
-
-	if (minIdx == UINT32_MAX)
-	{
-		minIdx = 0;
-		maxIdx = 0;
-	}
-
-	outMin = minIdx;
-	outMax = maxIdx;
-}
-
-GuestBuffer* GetGuestVertexBufferIndexed(int i, uint32_t minIdx, uint32_t maxIdx, uint32_t alignedStride)
-{
-	uint32_t usedVertices = maxIdx - minIdx + 1;
-	const uint32_t originalStride = g_Xbox_SetStreamSource[i].Stride;
-
-	unsigned long dataAddr = (unsigned long)GetDataFromXboxResource((X_D3DResource*)(g_Xbox_SetStreamSource[i].VertexBuffer));
-	uint8_t* pXboxVertexData = reinterpret_cast<uint8_t*>(g_memory.Translate(dataAddr));
-
-	pXboxVertexData += (minIdx * originalStride); //we only want to hash and copy the used vertices, the unused can be skipped.
-
-	const size_t originalSize = usedVertices * originalStride;
-
-	// Lock-dirty: the content hash is remembered per drawn range and reused
-	// until this exact buffer is locked or freed.
-	const uint32_t rangeOffset = minIdx * originalStride;
-	const uint32_t rangeLength = usedVertices * originalStride;
-	uint64_t hash = 0;
-	bool hashTrusted = false;
-	auto& trustedRanges = g_vbTrustedHashes[g_Xbox_SetStreamSource[i].VertexBuffer];
-	for (const auto& trusted : trustedRanges)
-	{
-		if (trusted.offset == rangeOffset && trusted.length == rangeLength)
-		{
-			hash = trusted.hash;
-			hashTrusted = true;
-			break;
-		}
-	}
-
-	if (!hashTrusted)
-	{
-		// rapidhash over XXH3: these ranges average ~0.1 KB, where rapidhash's
-		// small-input path wins; XXH3 is faster only on large buffers.
-		hash = rapidhash(pXboxVertexData, originalSize);
-
-		// Same range drawn with new content replaces the stale entry.
-		bool replaced = false;
-		for (auto& trusted : trustedRanges)
-		{
-			if (trusted.offset == rangeOffset && trusted.length == rangeLength)
-			{
-				trusted.hash = hash;
-				replaced = true;
-				break;
-			}
-		}
-		if (!replaced)
-			trustedRanges.push_back({ rangeOffset, rangeLength, hash });
-	}
-
-	auto& bufferCache = g_indexedVertexBufferCache[hash];
-	if (bufferCache == nullptr)
-	{
-		uint8_t* HostVertexData = ApplyVertexPatch(pXboxVertexData, i, usedVertices, originalStride, alignedStride);
-		const size_t size = usedVertices * alignedStride;
-		bufferCache = CreateVertexBuffer(size);
-
-		bufferCache->hash = hash;
-		if (HostVertexData == nullptr) //if patch didn't happen simply copy the vertex as they are
-		{
-			bufferCache->mappedMemory = g_userHeap.AllocPhysical(bufferCache->dataSize, 0x10);
-			memcpy(bufferCache->mappedMemory, pXboxVertexData, originalSize);
-		}
-		else
-		{
-			bufferCache->mappedMemory = HostVertexData; //we already have the vertex copied from the patch earlier so just assign them
-		}
-
-
-		auto& vbDerived = VBsList[g_Xbox_SetStreamSource[i].VertexBuffer];
-		DerivedVertexBuffer newDerivedVB = { bufferCache, hash };
-		vbDerived.push_back(newDerivedVB);
-
-		UnlockVertexBuffer(bufferCache); //send our VB to the GPU
-	}
-
-	return bufferCache;
-}
-
 
 //D3DDevice_DrawIndexedVertices (seems to be used to display message)
 //On Xbox, VertexCount = IndexCount, both are the same
@@ -8628,11 +8453,12 @@ void DrawIndexedPrimitive(X_D3DPRIMITIVETYPE PrimitiveType, uint32_t VertexCount
 
 	for (int i = 0; i < 16; i++)
 	{
+		auto xboxStreamSource = get_Xbox_SetStreamSource(i);
 
-		if (g_Xbox_SetStreamSource[i].VertexBuffer == nullptr)
+		if (!xboxStreamSource || xboxStreamSource->VertexBuffer == nullptr)
 			continue;
 
-		auto alignedStride = AlignStride(g_Xbox_SetStreamSource[i].Stride);
+		auto alignedStride = AlignStride(xboxStreamSource->Stride);
 
 		size_t host_handle = (size_t)g_memory.Translate(g_VertexShader_Handle);
 		auto vertexElement = XSR_HostGetVertexDeclaration(host_handle, g_Xbox_VertexShaderMode == VertexShaderMode::FixedFunction);
@@ -8909,7 +8735,7 @@ X86_FUNC(sub_3D5F10)
 	}
 }
 
-
+xxHashMap<GuestBuffer*>* get_indexedVertexBufferCache();
 //Free Vertex Buffer
 X86_FUNC_IMPL(__imp__sub_2E6140);
 X86_FUNC(sub_2E6140)
@@ -8917,21 +8743,7 @@ X86_FUNC(sub_2E6140)
 	auto resource = X86_LOAD_U32(ctx.esp.u32 + 4);
 	if (resource)
 	{
-		GuestBuffer* resourcePtr = (GuestBuffer*)(base + resource);
 
-		auto it = VBsList.find(resourcePtr);
-		if (it != VBsList.end())
-		{
-			for (auto& vec : it->second)
-			{
-				g_vertexCache.erase(vec.hash);
-				g_indexedVertexBufferCache.erase(vec.hash);
-				AddDestructResource(vec.vertexBuffer);
-			}
-
-			VBsList.erase(resourcePtr);
-			g_vbTrustedHashes.erase(resourcePtr);
-		}
 
 		std::vector<GuestResource*> unready;
 		{
@@ -8979,66 +8791,16 @@ void CopyVertexShaderConstant(int32_t Register, DWORD* pConstantData, const uint
 		g_vertexShaderConstantsAnyDirty = true;
 }
 
-void LogFloat4(const char* name, const float* values, int count = 1) {
-	for (int i = 0; i < count; i++) {
-		printf("%s[%d]: (%f, %f, %f, %f)\n",
-			name, i,
-			values[i * 4 + 0], values[i * 4 + 1],
-			values[i * 4 + 2], values[i * 4 + 3]);
-	}
-}
-
-// Function to log packed flags (treating as uint32 for bit inspection)
-void LogPackedFlags(const char* name, const float* values, int count = 4) {
-#ifdef _DEBUG
-	printf("%s (as float):\n", name);
-	LogFloat4(name, values, count);
-
-	printf("%s (as uint32 bits):\n", name);
-	for (int i = 0; i < count * 4; i++) {
-		int intValue = *(int*)&values[i];
-		printf("  [%d]: 0x%08X\n", i, intValue);
-	}
-#endif
-}
-
-
 void D3DDevice_SetVertexShaderConstant1Fast(int32_t Register, DWORD* pConstantData)
 {
 	float* constants = (float*)pConstantData;
 	CopyVertexShaderConstant(Register, pConstantData, 1);
 }
 
-
 void D3DDevice_SetVertexShaderConstantNotInlineFast(int32_t Register, DWORD* pConstantData, uint32_t ConstantCount)
 {
 	float* constants = (float*)pConstantData;
 	CopyVertexShaderConstant(Register, pConstantData, ConstantCount / 4);
-}
-
-//D3DDevice_LightEnable
-X86_FUNC_IMPL(__imp__sub_3D0B70);
-X86_FUNC(sub_3D0B70)
-{
-	uint32_t Index = GetHostParameter(1);
-	uint32_t bEnable = GetHostParameter(2);
-	__imp__sub_3D0B70(ctx, base);
-	LightEnable(Index, bEnable);
-}
-
-//D3DDevice_SetLight
-X86_FUNC_IMPL(__imp__sub_3D08B0);
-X86_FUNC(sub_3D08B0)
-{
-	uint32_t Index = GetHostParameter(1);
-	X_D3DLIGHT8* pLight = (X_D3DLIGHT8*)GetHostParameter(2, CallConvention::Stdcall, ParameterType::Pointer);
-	__imp__sub_3D08B0(ctx, base);
-	UpdateLightData(Index, pLight);
-}
-
-void SetMaterial(Material* pMaterial)
-{
-	UpdateMaterial(pMaterial);
 }
 
 
@@ -9395,7 +9157,6 @@ X86_FUNC(sub_3DA0A0)
 	X_D3DFORMAT Format = (X_D3DFORMAT)X86_LOAD_U32(ctx.esp.u32 + 16);
 	__imp__sub_3DA0A0(ctx, base);
 
-
 	ctx.esp.u32 -= 4;
 
 	X_D3DSurface* surface = (X_D3DSurface*)(g_memory.Translate(ctx.eax.u32));
@@ -9415,35 +9176,6 @@ X86_FUNC(sub_3DA0A0)
 	}
 
 	ctx.esp.u32 += 4;
-}
-
-// left over debugging
-
-//CreateVertexBuffer 
-X86_FUNC_IMPL(__imp__sub_2E6750);
-X86_FUNC(sub_2E6750)
-{
-	int size = X86_LOAD_U32(ctx.esp.u32 + 4);
-	size = (size + 31) & 0xFFFFFFE0;
-	__imp__sub_2E6750(ctx, base);
-	auto addr = ctx.eax.u32;
-	XD3DResource* buffer = (XD3DResource*)g_memory.Translate(addr);
-	//printf("Create VB %x - size: %d\n", (intptr_t)buffer, size);
-	//g_VBList.push_back({ buffer, nullptr, size });
-}
-
-
-//LockVertexBuffer(X_D3DResource* buffer, ...)
-X86_FUNC_IMPL(__imp__sub_3D5FE0);
-X86_FUNC(sub_3D5FE0)
-{
-	// The locked buffer's content may be overwritten, so drop only its
-	// remembered hashes. All other buffers keep theirs.
-	auto resource = X86_LOAD_U32(ctx.esp.u32 + 4);
-	if (resource)
-		g_vbTrustedHashes.erase((GuestBuffer*)(base + resource));
-
-	__imp__sub_3D5FE0(ctx, base);
 }
 
 
@@ -9663,8 +9395,6 @@ GUEST_FUNCTION_HOOK_STDCALL(sub_3D0CD0, SetTexture);
 GUEST_FUNCTION_HOOK_STDCALL(sub_3D0040, D3DDevice_SetRenderTarget);
 GUEST_FUNCTION_HOOK_STDCALL(sub_3DD810, LockTextureRect); //todo cube version?
 
-GUEST_FUNCTION_HOOK_STDCALL(sub_3CFDF0, SetMaterial);
-
 
 //Rendering
 GUEST_FUNCTION_HOOK_STDCALL(sub_3DC1F0, DrawIndexedPrimitive);
@@ -9683,12 +9413,9 @@ GUEST_FUNCTION_HOOK_STDCALL(sub_3D4760, D3DDevice_EndPush);
 // adx and fmv decoding requires vblank signal
 GUEST_FUNCTION_HOOK(sub_3CFE70, CRI_BlockUntilVerticalBlank);
 
-
 //texture stuff
 //GUEST_FUNCTION_HOOK_STDCALL(sub_3D2E90, D3DDevice_SetTextureStageStateNotInline);
-
 //GUEST_FUNCTION_HOOK_STDCALL(sub_3CFCD0, D3DDevice_SetTransform);
-
 
 //			==== STUB  ====
 GUEST_FUNCTION_HOOK(sub_3D3240, D3D_CommonSetDebugRegisters);
