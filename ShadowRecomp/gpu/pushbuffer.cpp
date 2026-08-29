@@ -200,9 +200,9 @@ void _rpSkinXboxSetMaterialColor(int32_t a1addr, int32_t a2)
 }
 
 
-// Begin and End push are essentially command system like DX12, this can be used for many things including draw. 
+// Begin and End push are essentially command system like DX12, this can be used for many things including draw.
 // see pushbuffer.cpp for more info, this patch here just make it so it won't crash when the game calls that.
-static DWORD* g_beginPush = nullptr;
+static thread_local DWORD* g_beginPush = nullptr;
 uint32_t D3DDevice_BeginPush(DWORD Count)
 {
 	auto pRet = (DWORD*)(g_userHeap.Alloc(sizeof(DWORD) * Count));
@@ -212,7 +212,7 @@ uint32_t D3DDevice_BeginPush(DWORD Count)
 
 void D3DDevice_EndPush(DWORD* pPush)
 {
-	if (pPush)
+	if (pPush && g_beginPush)
 	{
 		g_userHeap.Free(g_beginPush);
 		g_beginPush = nullptr;
