@@ -3076,7 +3076,7 @@ static void ApplyLowEndDefaults()
 	}
 }
 
-static GuestBuffer* CreateVertexBuffer(uint32_t length);
+GuestBuffer* CreateVertexBuffer(uint32_t length);
 
 bool Video::CreateHostDevice(const char* sdlVideoDriver, bool graphicsApiRetry)
 {
