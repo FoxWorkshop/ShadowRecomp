@@ -1,6 +1,8 @@
 #include "video.h"
 #include "renderstate.h"
 #include "FixedFunction.h"
+#include "nv2a.h"
+#include <kernel/function.h>
 
 //Since Xbox has a lot of arbitrary rules with RenderState, we can't just pass the state as they are for the host
 //Different methods exist to set a render state and some require conversion, this page will handle that
@@ -237,6 +239,29 @@ void* GetPixelShaderRenderStatePointer()
 }
 
 
+static void D3DDevice_SetRenderState_Simple(int32_t Method, int32_t Value)
+{
+	//Fetch the RenderState conversion info for the given input
+	int32_t GuestRenderStateIndex = -1;
+
+	for (int32_t i = X_D3DRS_PS_FIRST; i <= X_D3DRS_LAST; i++)
+	{
+		if (GetDxbxRenderStateInfo(i).M == PUSH_METHOD(Method))
+		{
+			GuestRenderStateIndex = i;
+			break;
+		}
+	}
+
+	if (GuestRenderStateIndex == -1) {
+		printf("RenderState_Simple could not be found in RenderState table Method %x, Value %x\n", Method, Value);
+		return;
+	}
+
+	SetGuestRenderState(GuestRenderStateIndex, Value);
+}
+
+
 bool GuestRenderStateExists(uint32_t State)
 {
 	if (g_RenderStateOffsets[State] >= 0) {
@@ -347,3 +372,7 @@ void InitGuestRenderStatePointer(uint32_t* ptr)
 {
 	g_renderState = (uint32_t*)ptr;
 }
+
+
+
+GUEST_FUNCTION_HOOK_FASTCALL(sub_3D2420, D3DDevice_SetRenderState_Simple);

@@ -199,4 +199,28 @@ void _rpSkinXboxSetMaterialColor(int32_t a1addr, int32_t a2)
 	CopyVertexShaderConstant(COLOR_CONST, (DWORD*)g_VSConstants, 1);
 }
 
+
+// Begin and End push are essentially command system like DX12, this can be used for many things including draw. 
+// see pushbuffer.cpp for more info, this patch here just make it so it won't crash when the game calls that.
+static DWORD* g_beginPush = nullptr;
+uint32_t D3DDevice_BeginPush(DWORD Count)
+{
+	auto pRet = (DWORD*)(g_userHeap.Alloc(sizeof(DWORD) * Count));
+	g_beginPush = (DWORD*)pRet;
+	return g_memory.MapVirtual(pRet);
+}
+
+void D3DDevice_EndPush(DWORD* pPush)
+{
+	if (pPush)
+	{
+		g_userHeap.Free(g_beginPush);
+		g_beginPush = nullptr;
+	}
+}
+
+
+GUEST_FUNCTION_HOOK_STDCALL(sub_3D4740, D3DDevice_BeginPush);
+GUEST_FUNCTION_HOOK_STDCALL(sub_3D4760, D3DDevice_EndPush);
+
 GUEST_FUNCTION_HOOK(sub_2C51C0, _rpSkinXboxSetMaterialColor);

@@ -1601,8 +1601,6 @@ struct PrimitiveIndexData
 
 static PrimitiveIndexData<X_D3DPT_QUADLIST> g_quadIndexData;
 
-
-
 std::vector<GuestResource*> g_tempUnreadyResource; // store VB that weren't ready to be deleted
 std::atomic<bool> g_pendingSurfaceResizeFlag = false; // flag used to trigger RT and Stencil recreation.
 static Mutex g_surfaceRTsMutex; // Multiple threads can access Surface RT so we can prevent a potential race issue with mutex
@@ -1947,8 +1945,6 @@ struct RenderCommand
 			uint32_t size;
 		} setPixelShaderConstants;
 	};
-
-
 };
 
 static RenderBlend ConvertBlendMode(uint32_t blendMode)
@@ -2144,35 +2140,6 @@ void SetRenderState(X_D3DRENDERSTATETYPE state, uint32_t value)
 	cmd.setRenderState.type = state;
 	cmd.setRenderState.value = value;
 	g_renderQueue.enqueue(cmd);
-}
-
-
-static void D3DDevice_SetRenderState_Simple(int32_t Method, int32_t Value)
-{
-	//Fetch the RenderState conversion info for the given input
-	int32_t GuestRenderStateIndex = -1;
-
-	for (int32_t i = X_D3DRS_PS_FIRST; i <= X_D3DRS_LAST; i++)
-	{
-		if (GetDxbxRenderStateInfo(i).M == PUSH_METHOD(Method))
-		{
-			GuestRenderStateIndex = i;
-			break;
-		}
-	}
-
-	if (GuestRenderStateIndex == -1) {
-		printf("RenderState_Simple could not be found in RenderState table Method %x, Value %x\n", Method, Value);
-		return;
-	}
-
-	SetGuestRenderState(GuestRenderStateIndex, Value);
-}
-
-
-static void SetRenderStateUnimplemented(GuestDevice* device, uint32_t value)
-{
-
 }
 
 static void ProcSetRenderState(const RenderCommand& cmd)
@@ -9067,24 +9034,6 @@ X86_FUNC(sub_3DA0A0)
 	ctx.esp.u32 += 4;
 }
 
-
-static DWORD* g_beginPush = nullptr;
-uint32_t D3DDevice_BeginPush(DWORD Count)
-{
-	auto pRet = (DWORD*)(g_userHeap.Alloc(sizeof(DWORD) * Count));
-	g_beginPush = (DWORD*)pRet;
-	return g_memory.MapVirtual(pRet);
-}
-
-void D3DDevice_EndPush(DWORD* pPush)
-{
-	if (pPush)
-	{
-		g_userHeap.Free(g_beginPush);
-		g_beginPush = nullptr;
-	}
-}
-
 // Stubbed DX8 functions
 
 DWORD* D3D_CommonSetDebugRegisters()
@@ -9135,7 +9084,6 @@ void VideoConfigValueChangedCallback(IConfigDef* config)
 		Video::ComputeViewportDimensions();
 	}
 }
-
 
 void Video::Shutdown()
 {
@@ -9266,13 +9214,10 @@ GUEST_FUNCTION_HOOK_STDCALL(sub_3D2280, SetVertexShader);
 GUEST_FUNCTION_HOOK_FASTCALL(sub_3D1CE0, D3DDevice_SetVertexShaderConstant1Fast);
 GUEST_FUNCTION_HOOK_FASTCALL(sub_3D1D30, D3DDevice_SetVertexShaderConstantNotInlineFast);
 
-
 GUEST_FUNCTION_HOOK_STDCALL(sub_3D0680, D3DDevice_SetViewport);
 GUEST_FUNCTION_HOOK_STDCALL(sub_3D6BF0, D3DDevice_Clear);
 
 GUEST_FUNCTION_HOOK_STDCALL(sub_3D5DB0, DestructResource);
-
-GUEST_FUNCTION_HOOK_FASTCALL(sub_3D2420, D3DDevice_SetRenderState_Simple);
 
 //Resource
 GUEST_FUNCTION_HOOK_STDCALL(sub_3DD710, CreateTexture_); //not used for 2D stuff at least.
@@ -9280,7 +9225,6 @@ GUEST_FUNCTION_HOOK_STDCALL(sub_3DA010, CreateSurfaceOfTexture);
 GUEST_FUNCTION_HOOK_STDCALL(sub_3D0CD0, SetTexture);
 GUEST_FUNCTION_HOOK_STDCALL(sub_3D0040, D3DDevice_SetRenderTarget);
 GUEST_FUNCTION_HOOK_STDCALL(sub_3DD810, LockTextureRect); //todo cube version?
-
 
 //Rendering
 GUEST_FUNCTION_HOOK_STDCALL(sub_3DC1F0, DrawIndexedPrimitive);
@@ -9291,10 +9235,6 @@ GUEST_FUNCTION_HOOK_STDCALL(sub_3DD560, D3DDevice_Swap); //Present
 
 // Misc
 
-// Begin and End push are essentially command system like DX12, this can be used for many things including draw. 
-// see pushbuffer.cpp for more info, this patch here just make it so it won't crash when the game calls that.
-GUEST_FUNCTION_HOOK_STDCALL(sub_3D4740, D3DDevice_BeginPush);
-GUEST_FUNCTION_HOOK_STDCALL(sub_3D4760, D3DDevice_EndPush);
 
 // adx and fmv decoding requires vblank signal
 GUEST_FUNCTION_HOOK(sub_3CFE70, CRI_BlockUntilVerticalBlank);
