@@ -18,17 +18,22 @@ void FreeVB(uint32_t resource)
 {
 	GuestBuffer* resourcePtr = (GuestBuffer*)g_memory.Translate(resource);
 
+	g_vbTrustedHashes.erase(resourcePtr);
+
 	auto it = VBsList.find(resourcePtr);
 	if (it != VBsList.end())
 	{
 		for (auto& vec : it->second)
 		{
-			g_indexedVertexBufferCache.erase(vec.hash);
+			auto cacheIt = g_indexedVertexBufferCache.find(vec.hash);
+			if (cacheIt == g_indexedVertexBufferCache.end() || cacheIt->second != vec.vertexBuffer)
+				continue;
+
+			g_indexedVertexBufferCache.erase(cacheIt);
 			AddDestructResource(vec.vertexBuffer);
 		}
 
-		VBsList.erase(resourcePtr);
-		g_vbTrustedHashes.erase(resourcePtr);
+		VBsList.erase(it);
 	}
 }
 
