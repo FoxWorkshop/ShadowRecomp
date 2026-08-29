@@ -53,7 +53,6 @@ const uint32_t g_DeferredTextureStateAddr = 0x3E0580;
 const uint32_t g_RenderStateAddr = 0x3E0780;
 const uint32_t g_cameraAddr = 0x540C40;
 
-bool LogVSConstants = false;
 static bool useLowSpec = false;
 
 #define DepthStencilFormat RenderFormat::D32_FLOAT
@@ -3940,84 +3939,7 @@ static void ProcSetVertexShader(const RenderCommand& cmd)
 
 }
 
-void SelectVertexShader(DWORD Handle, DWORD Address)
-{
-	g_Xbox_VertexShader_FunctionSlots_StartAddress = Address;
-	g_Xbox_VertexShaderMode = VertexShaderMode::ShaderProgram;
-	g_VertexShader_Handle = Handle;
-	UpdateVertexShader(Handle);
-}
 
-void LoadVertexShaderProgram(DWORD* pFunction, DWORD Address)
-{
-	auto tokens = (DWORD*)&pFunction[1];
-	auto shaderHeader = *((X_VSH_SHADER_HEADER*)pFunction);
-	SetVertexShaderSlots(tokens, Address, shaderHeader.NumInst);
-}
-
-void LoadVertexShader(DWORD Handle, DWORD Address)
-{
-	// Handle is always address of an X_D3DVertexShader struct, thus always or-ed with 1 (X_D3DFVF_RESERVED0)
-	// Address is the slot (offset) from which the program must be written onwards (as whole DWORDS)
-	// D3DDevice_LoadVertexShader pushes the program contained in the Xbox VertexShader struct to the NV2A
-
-	X_D3DVertexShader* pXboxVertexShader = VshHandleToXboxVertexShader((size_t)g_memory.Translate(Handle));
-
-	DWORD NrTokens;
-	DWORD* pNV2ATokens = GetVertexShaderTokens(pXboxVertexShader, &NrTokens);
-
-#if 1 // TODO : Remove dirty hack (?once CreateVertexShader trampolines to Xbox code that sets ProgramAndConstantsDwords correctly?) :
-	if (NrTokens == 0)
-		NrTokens = 10000;
-#endif
-
-	static unsigned ConstantAddress = 0;
-	DWORD* pEnd = pNV2ATokens + NrTokens;
-	while (pNV2ATokens < pEnd)
-	{
-		DWORD dwMethod, dwSubChannel, nrDWORDS;
-		D3DPUSH_DECODE(*pNV2ATokens++, dwMethod, dwSubChannel, nrDWORDS);
-		if (nrDWORDS == 0)
-		{
-			printf("Zero-length NV2A method detected!\n");
-			break;
-		}
-
-		switch (dwMethod) {
-		case NV2A_VP_UPLOAD_INST(0): { // = 0x00000B00
-			if ((nrDWORDS & 3) != 0)
-				printf("NV2A_VP_UPLOAD_INST arguments should be a multiple of 4!\n");
-
-			unsigned nrSlots = nrDWORDS / X_VSH_INSTRUCTION_SIZE;
-			SetVertexShaderSlots(pNV2ATokens, Address, nrSlots);
-			Address += nrSlots;
-			break;
-		}
-		case NV2A_VP_UPLOAD_CONST_ID: // = 0x00001EA4
-			if (nrDWORDS != 1)
-				printf("NV2A_VP_UPLOAD_CONST_ID should have one argument!\n");
-
-			ConstantAddress = *pNV2ATokens;
-			break;
-		case NV2A_VP_UPLOAD_CONST(0): { // = 0x00000B80
-			if ((nrDWORDS & 3) != 0)
-				printf("NV2A_VP_UPLOAD_CONST arguments should be a multiple of 4!\n");
-
-			unsigned nrConstants = nrDWORDS / X_VSH_INSTRUCTION_SIZE;
-			// TODO : FIXME : Implement and call SetVertexShaderConstants(pNV2ATokens, ConstantAddress, nrConstants);
-			ConstantAddress += nrConstants;
-			break;
-		}
-		default:
-			// TODO : Remove this break-out hack once NrTokens is reliable and instead have: DEFAULT_UNREACHABLE;
-			printf("Stopping at unexpected NV2A method\n");
-			pEnd = pNV2ATokens;
-			break;
-		}
-
-		pNV2ATokens += nrDWORDS;
-	}
-}
 
 // SetPixelShader
 X86_FUNC_IMPL(__imp__sub_3DC590);
@@ -4656,9 +4578,6 @@ double GetFPS()
 
 static void DrawFPS()
 {
-
-
-
 	double time = ImGui::GetTime();
 	static double updateTime = time;
 	static double fps = 0;
@@ -4954,10 +4873,7 @@ void Video::WaitOnSwapChain()
 static std::atomic<bool> g_executedCommandList;
 static std::atomic<bool> presentExecuted(true);
 
-
 static int g_drawPrimitiveUP_ID = 0;
-bool PresentAllowed = true;
-
 // Debug helper: dumps present/swap-chain/window state to stdout. Intended to
 // be called from a paused debugger via:
 //   (gdb) call VideoDebug_DumpPresentState()
@@ -4993,7 +4909,6 @@ void VideoDebug_DumpPresentState()
 		(int)!!(sdlFlags & SDL_WINDOW_MAXIMIZED),
 		(int)!!(sdlFlags & SDL_WINDOW_FULLSCREEN));
 	printf("  window size in pixels: %dx%d\n", winW, winH);
-	printf("  PresentAllowed=%d\n", (int)PresentAllowed);
 	printf("===================================\n");
 }
 
@@ -5246,15 +5161,6 @@ static void ProcBeginCommandList(const RenderCommand& cmd)
 	BeginCommandList();
 }
 
-static GuestSurface* GetBackBuffer()
-{
-	g_backBuffer->AddRef();
-	return g_backBuffer;
-}
-
-
-
-//todo finish
 void Video::ComputeViewportDimensions()
 {
 	uint32_t width = g_swapChain->getWidth();
@@ -5540,7 +5446,6 @@ static RenderHeapType GetBufferHeapType()
 	return g_capabilities.gpuUploadHeap ? RenderHeapType::GPU_UPLOAD : RenderHeapType::DEFAULT;
 }
 
-
 GuestBuffer* CreateVertexBuffer(uint32_t length)
 {
 	auto base = g_memory.base;
@@ -5568,8 +5473,6 @@ GuestBuffer* CreateVertexBuffer(uint32_t length)
 	return 0;
 }
 
-//it's possible that Shadow  don't have a CreateIndexBuffer function,
-// if that's confirmed, we will have to create it on the fly during rendering with a cache system.
 static GuestBuffer* CreateIndexBuffer(uint32_t IndexCount, X_D3DFORMAT format)
 {
 	uint32_t length = IndexCount * sizeof(int16_t);
@@ -8388,18 +8291,6 @@ void DrawIndexedPrimitive(X_D3DPRIMITIVETYPE PrimitiveType, uint32_t VertexCount
 	WaitForPresentDuringLoading();
 	LocalRenderCommandQueue queue;
 
-#ifdef _DEBUG //this is a breakpoint spot for debugging the light issue with tails muzzle in circus park.
-	if (VertexCount == 45)
-	{
-		printf("");
-	}
-	if (VertexCount == 417)
-	{
-		printf("");
-	}
-#endif
-
-
 	Guard_Rendering();
 
 	//shadow = 2192 vertex = stride 24 (32 with conversion)
@@ -8481,9 +8372,7 @@ void DrawIndexedPrimitive(X_D3DPRIMITIVETYPE PrimitiveType, uint32_t VertexCount
 		cmd.setStreamSource.StreamNumber = i;
 		cmd.setStreamSource.vertexBuffer = bufferCache;
 		cmd.setStreamSource.stride = alignedStride;
-
 	}
-
 
 	FlushRenderStateForMainThread(queue);
 
@@ -8735,7 +8624,7 @@ X86_FUNC(sub_3D5F10)
 	}
 }
 
-xxHashMap<GuestBuffer*>* get_indexedVertexBufferCache();
+
 //Free Vertex Buffer
 X86_FUNC_IMPL(__imp__sub_2E6140);
 X86_FUNC(sub_2E6140)
@@ -8743,7 +8632,7 @@ X86_FUNC(sub_2E6140)
 	auto resource = X86_LOAD_U32(ctx.esp.u32 + 4);
 	if (resource)
 	{
-
+		FreeVB(resource);
 
 		std::vector<GuestResource*> unready;
 		{
@@ -9374,9 +9263,6 @@ GUEST_FUNCTION_HOOK_STDCALL(sub_3DD950, SetResolution);
 
 //vertex shader
 GUEST_FUNCTION_HOOK_STDCALL(sub_3D2280, SetVertexShader);
-GUEST_FUNCTION_HOOK_STDCALL(sub_3D1F70, SelectVertexShader);
-GUEST_FUNCTION_HOOK_STDCALL(sub_3D1F00, LoadVertexShaderProgram);
-GUEST_FUNCTION_HOOK_STDCALL(sub_3D1EA0, LoadVertexShader);
 GUEST_FUNCTION_HOOK_FASTCALL(sub_3D1CE0, D3DDevice_SetVertexShaderConstant1Fast);
 GUEST_FUNCTION_HOOK_FASTCALL(sub_3D1D30, D3DDevice_SetVertexShaderConstantNotInlineFast);
 

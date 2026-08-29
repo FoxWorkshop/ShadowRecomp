@@ -28,3 +28,4 @@ struct X_STREAMINPUT
 void ComputeIndexRange(const int16_t* indices, uint32_t startIndex, uint32_t indexCount, uint32_t& outMin, uint32_t& outMax);
 GuestBuffer* GetGuestVertexBufferIndexed(int i, uint32_t minIdx, uint32_t maxIdx, uint32_t alignedStride);
 X_STREAMINPUT* get_Xbox_SetStreamSource(uint8_t id);
+void FreeVB(uint32_t resource);
