@@ -1227,3 +1227,8 @@ registers = ["r0"]
 name = "WeightFallMidAsmHook"
 address = 0x1C1563
 registers = ["r0"]
+
+[[midasm_hook]]
+name = "ContainerBehaviorFallMidAsmHook"
+address = 0x18FEE5
+registers = ["r4"]

@@ -409,3 +409,22 @@ void WeightFallMidAsmHook(X86Register& eax)
 }
 
 /**	--Weight Patch END-- */
+
+// 'ContainerBehavior' patch for fall speed
+// Behavior is used by Containers with type Normal, Hard, Unbreak, Crate, Weapon, Secret (aka Shadow Box)
+// ContainerBehavior
+// 0x20 = Y
+// 0x34 = Fall speed
+void ContainerBehaviorFallMidAsmHook(X86Register& esi)
+{
+	auto base = g_memory.base;
+	const float frames = X86_LOAD_F32(g_deltaTime) * 60.0f;
+
+	if (!(frames >= 0.0f) || std::fabs(frames - 1.0f) < 0.0001f)
+		return;
+
+	const uint32_t containerBehavior = esi.u32; // ContainerBehavior
+	const float fallSpeed = X86_LOAD_F32(containerBehavior + 0x34); // applies per frame, usually static per container type
+
+	X86_STORE_F32(containerBehavior + 0x20, X86_LOAD_F32(containerBehavior + 0x20) + fallSpeed * (frames - 1.0f));
+}
