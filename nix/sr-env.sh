@@ -39,9 +39,9 @@ sr_configure() {
     echo "shadowrecomp: dxc-linux missing (submodule initialization failed?)" >&2
     return 1
   fi
-  # Release builds get LTO everywhere else (see CMakePresets.json); match
+  # Release-family builds get LTO everywhere else (see CMakePresets.json); match
   # that here regardless of which entry point (configure-*/build-*) runs.
-  if [ "$type" = "Release" ]; then
+  if [ "$type" = "Release" ] || [ "$type" = "RelWithDebInfo" ]; then
     set -- "$@" -DCMAKE_INTERPROCEDURAL_OPTIMIZATION=ON
   fi
     cmake -S "$SR_ROOT" -B "$(sr_type_dir "$type")" -G Ninja \
