@@ -588,7 +588,10 @@ const xxHashMap<QuadStretchCalibration> g_pictureDff =
 {
 	{ HashStr("ARK!PICTURE!O!.DFF"), { 2.2f, 1.2f } }, // cosmic fall intro (height is ignored for some reason??)
 	{ HashStr("ARK!PICTURE!LOCATOR.DFF"), { 2.2f, 1.2f } },
-	{ HashStr("FLASH!BACK!PIC01!O!.DFF"), { 1.6f, 1.1f } },
+	{ HashStr("FLASH!BACK!PIC01!O!.DFF"), { 1.6f, 1.1f } }, // ev 6201, 6202, 6203 (lava shelter intro)
+	{ HashStr("FLASH!BACK!PIC02!O!.DFF"), { 1.6f, 1.1f } },
+	{ HashStr("FLASH!BACK!PIC03!O!.DFF"), { 1.6f, 1.1f } },
+	{ HashStr("FLASH!BACK!PIC04!O!.DFF"), { 1.6f, 1.1f } },
 	{ HashStr("ADV2!FLASH!BACK!PIC01!O!.DFF"), { 1.0f, 1.1f } },
 	{ HashStr("ADV2!FLASH!BACK!PIC02!O!.DFF"), { 1.0f, 1.1f } },
 	{ HashStr("ADV2!FLASH!BACK!PIC03!O!.DFF"), { 1.0f, 1.1f } },
