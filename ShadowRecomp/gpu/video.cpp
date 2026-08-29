@@ -71,10 +71,7 @@ static bool useLowSpec = false;
 #include "shader/copy_depth_ps.hlsl.dxil.h"
 #include "shader/enhanced_motion_blur_ps.hlsl.dxil.h"
 #include "shader/gamma_correction_ps.hlsl.dxil.h"
-#include "shader/gaussian_blur_3x3.hlsl.dxil.h"
-#include "shader/gaussian_blur_5x5.hlsl.dxil.h"
-#include "shader/gaussian_blur_7x7.hlsl.dxil.h"
-#include "shader/gaussian_blur_9x9.hlsl.dxil.h"
+
 #include "shader/imgui_ps.hlsl.dxil.h"
 #include "shader/imgui_vs.hlsl.dxil.h"
 #include "shader/csd_filter_ps.hlsl.dxil.h"
@@ -99,10 +96,7 @@ static bool useLowSpec = false;
 #include "shader/enhanced_motion_blur_ps.hlsl.spirv.h"
 #include "shader/gamma_correction_ps.hlsl.spirv.h"
 #include "shader/csd_filter_ps.hlsl.spirv.h"
-#include "shader/gaussian_blur_3x3.hlsl.spirv.h"
-#include "shader/gaussian_blur_5x5.hlsl.spirv.h"
-#include "shader/gaussian_blur_7x7.hlsl.spirv.h"
-#include "shader/gaussian_blur_9x9.hlsl.spirv.h"
+
 #include "shader/imgui_ps.hlsl.spirv.h"
 #include "shader/imgui_vs.hlsl.spirv.h"
 #include "shader/resolve_msaa_color_2x.hlsl.spirv.h"
@@ -2496,18 +2490,6 @@ static std::unique_ptr<RenderPipeline> g_renderTest;
 static std::unique_ptr<RenderShader> FixedFuncVS = nullptr;
 static std::unique_ptr<RenderShader> PassthroughVS = nullptr; //this is for vertex shader that don't have a program, similar to fixed, but vertex are already transformed.
 static std::unique_ptr<RenderShader> FixedFuncPS = nullptr;
-
-enum
-{
-	GAUSSIAN_BLUR_3X3,
-	GAUSSIAN_BLUR_5X5,
-	GAUSSIAN_BLUR_7X7,
-	GAUSSIAN_BLUR_9X9,
-	GAUSSIAN_BLUR_COUNT
-};
-
-
-static std::unique_ptr<GuestShader> g_gaussianBlurShaders[GAUSSIAN_BLUR_COUNT];
 
 static std::unique_ptr<GuestShader> g_csdFilterShader;
 static GuestShader* g_csdShader;
@@ -5683,13 +5665,6 @@ void SetResolution(int adapter, unsigned int a2, uint32_t a3)
 	X86_STORE_U32(a3 + (4 * 4), formatFlag);
 }
 
-int D3D_GetAdapterModeCount(int a1)
-{
-	printf("STUB D3D_GetAdapterModeCount\n");
-	return 4 * 1;
-}
-
-
 X_D3DFORMAT MapToLinearD3DFORMAT(X_D3DFORMAT a1)
 {
 	X_D3DFORMAT result;
@@ -6013,9 +5988,7 @@ static void CopyDynamicTextureToGPU(GuestTexture* tex)
 				copyTextureRegion(slices[j], (slices.size() * i) + j);
 		}
 	}
-
 }
-
 
 static void ProcUnlockTextureRect(const RenderCommand& cmd)
 {
@@ -8528,7 +8501,6 @@ static void ProcSetTextureStageState(const RenderCommand& cmd)
 	SetDirtyValue(dirtyCombiner, g_sharedConstants.result_arg[args.index], cmd.SetTextureStageState.D3DTSS_RESULTARG);
 	MarkSharedPixelConstantsDirty(dirtyCombiner, args.index < FixedFunctionPixelShaderState::TextureStageCount);
 
-
 	bool dirtyTextureFlags = false;
 	SetDirtyValue(dirtyTextureFlags, g_sharedConstants.BUMPENVMAT00[args.index], cmd.SetTextureStageState.D3DTSS_BUMPENVMAT00);
 	SetDirtyValue(dirtyTextureFlags, g_sharedConstants.BUMPENVMAT01[args.index], cmd.SetTextureStageState.D3DTSS_BUMPENVMAT01);
@@ -8660,7 +8632,6 @@ void D3DDevice_SetVertexShaderConstantNotInlineFast(int32_t Register, DWORD* pCo
 }
 
 
-
 unsigned int GetPixelContainerMipMapLevels(X_D3DPixelContainer* pPixelContainer)
 {
 	if (pPixelContainer->Size == 0)
@@ -8700,6 +8671,7 @@ void GetPixelContainerMeasures
 	if (XBFormatIsCompressed(X_Format))
 		*pRowPitch *= 4;
 }
+
 //we need to copy the palette data so we can convert properly when copy texture in the GPU
 
 //rwD3D8RasterLockPalette
@@ -9036,6 +9008,12 @@ X86_FUNC(sub_3DA0A0)
 
 // Stubbed DX8 functions
 
+int D3D_GetAdapterModeCount(int a1)
+{
+	printf("STUB D3D_GetAdapterModeCount\n");
+	return 4 * 1;
+}
+
 DWORD* D3D_CommonSetDebugRegisters()
 {
 	return 0;
@@ -9232,9 +9210,7 @@ GUEST_FUNCTION_HOOK_STDCALL(sub_3DC150, DrawPrimitive);
 GUEST_FUNCTION_HOOK_STDCALL(sub_3DBFE0, DrawPrimitiveUP);
 GUEST_FUNCTION_HOOK_STDCALL(sub_3DD560, D3DDevice_Swap); //Present
 
-
 // Misc
-
 
 // adx and fmv decoding requires vblank signal
 GUEST_FUNCTION_HOOK(sub_3CFE70, CRI_BlockUntilVerticalBlank);
