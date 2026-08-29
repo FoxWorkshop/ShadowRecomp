@@ -9,6 +9,9 @@
 uint32_t* g_renderState = nullptr; 
 std::array<uint64_t, X_D3DRS_LAST + 1> g_dirty_render_states;
 std::array<int32_t, X_D3DRS_LAST + 1>  g_RenderStateOffsets;
+static std::array<uint32_t, X_D3DRS_LAST + 1> g_renderStateSnapshot;
+static uint32_t g_renderStateCount;
+static bool g_renderStateSnapshotValid;
 
 const RenderStateInfo DxbxRenderStateInfo[1 + X_D3DRS_DONOTCULLUNCOMPRESSED] = {
 
@@ -224,6 +227,8 @@ void BuildRenderStateMappingTable()
 			XboxIndex++;
 		}
 	}
+	g_renderStateCount = XboxIndex;
+	g_renderStateSnapshotValid = false;
 }
 
 void* GetPixelShaderRenderStatePointer()
@@ -273,6 +278,9 @@ void UpdateAllRenderState()
 {
 	// Iterate through each RenderState and set the associated host render state
 	// We start counting at X_D3DRS_SIMPLE_FIRST, to skip the pixel shader renderstates handled elsewhere
+	if (g_renderStateSnapshotValid &&
+		memcmp(g_renderState, g_renderStateSnapshot.data(), g_renderStateCount * sizeof(uint32_t)) == 0)
+		return;
 
 	for (uint32_t RenderState = X_D3DRS_SIMPLE_FIRST; RenderState <= X_D3DRS_LAST; RenderState++)
 	{
@@ -330,6 +338,9 @@ void UpdateAllRenderState()
 		SetRenderState((X_D3DRENDERSTATETYPE)RenderState, Value);
 		g_dirty_render_states[RenderState] = Value;
 	}
+
+	memcpy(g_renderStateSnapshot.data(), g_renderState, g_renderStateCount * sizeof(uint32_t));
+	g_renderStateSnapshotValid = true;
 }
 
 void InitGuestRenderStatePointer(uint32_t* ptr)

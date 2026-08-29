@@ -366,11 +366,13 @@ struct Profiler
 	double values[PROFILER_VALUE_COUNT];
 	std::chrono::steady_clock::time_point start;
 	bool started = false;
+	bool active = false; // true between Begin and End; used to attribute queue waits
 
 	void Begin()
 	{
 		start = std::chrono::steady_clock::now();
 		started = true;
+		active = true;
 	}
 
 	void End()
@@ -378,6 +380,7 @@ struct Profiler
 		if (!started)
 			return;
 		value = std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - start).count();
+		active = false;
 	}
 
 	void Set(double v)
@@ -417,13 +420,24 @@ struct FrameAccumulator
 	}
 };
 
+static std::atomic<bool> g_detailedProfilerEnabled{ false };
+
 // RAII scope timer that adds elapsed time to a FrameAccumulator.
 struct RtScopeTimer
 {
 	std::chrono::steady_clock::time_point start;
 	FrameAccumulator& accum;
-	RtScopeTimer(FrameAccumulator& a) : start(std::chrono::steady_clock::now()), accum(a) {}
-	~RtScopeTimer() { accum.Add(std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - start).count()); }
+	bool enabled;
+	RtScopeTimer(FrameAccumulator& a) : accum(a), enabled(g_detailedProfilerEnabled.load(std::memory_order_relaxed))
+	{
+		if (enabled)
+			start = std::chrono::steady_clock::now();
+	}
+	~RtScopeTimer()
+	{
+		if (enabled)
+			accum.Add(std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - start).count());
+	}
 };
 
 static double g_applicationValues[PROFILER_VALUE_COUNT];
@@ -455,6 +469,8 @@ static FrameAccumulator g_rtPsoWorkAccum;
 static FrameAccumulator g_rtFlushWorkAccum;
 static FrameAccumulator g_rtDrawCallAccum;
 static FrameAccumulator g_rtQueueWaitAccum;
+// Queue idle while the render-thread frame bracket is open (inside Render-Thread Work).
+static FrameAccumulator g_rtQueueWaitInFrameAccum;
 static FrameAccumulator g_gtDrawRecordingAccum;
 static FrameAccumulator g_gtStateFlushAccum;
 static FrameAccumulator g_rtOtherCmdsAccum;
@@ -590,6 +606,10 @@ struct IntermediaryUploadAllocator
 {
 	static constexpr size_t SIZE = 16 * 1024 * 1024;
 
+	// Guarded state: allocate() is called from guest draw threads while
+	// reset() is called from the Present thread, and guests can draw
+	// concurrently with each other.
+	std::mutex mutex;
 	std::vector<std::unique_ptr<uint8_t[]>> buffers;
 	uint32_t index = 0;
 	uint32_t offset = 0;
@@ -598,22 +618,29 @@ struct IntermediaryUploadAllocator
 	{
 		assert(size <= SIZE);
 
-		if (offset + size > SIZE)
+		uint8_t* result;
 		{
-			++index;
-			offset = 0;
+			std::lock_guard lock(mutex);
+
+			if (offset + size > SIZE)
+			{
+				++index;
+				offset = 0;
+			}
+
+			if (buffers.size() <= index)
+				buffers.resize(index + 1);
+
+			auto& buffer = buffers[index];
+			if (buffer == nullptr)
+				buffer = std::make_unique_for_overwrite<uint8_t[]>(SIZE);
+
+			result = buffer.get() + offset;
+			offset += ((size + 0xF) & ~0xF);
 		}
 
-		if (buffers.size() <= index)
-			buffers.resize(index + 1);
-
-		auto& buffer = buffers[index];
-		if (buffer == nullptr)
-			buffer = std::make_unique_for_overwrite<uint8_t[]>(SIZE);
-
-		auto result = buffer.get() + offset;
-		offset += ((size + 0xF) & ~0xF);
-
+		// After this line: caller owns [result, result + size) exclusively,
+		// memcpy below races with no one.
 		return result;
 	}
 
@@ -626,6 +653,7 @@ struct IntermediaryUploadAllocator
 
 	void reset()
 	{
+		std::lock_guard lock(mutex);
 		index = 0;
 		offset = 0;
 	}
@@ -655,7 +683,6 @@ bool is_vulkan()
 }
 
 
-static std::thread::id g_presentThreadId = std::this_thread::get_id();
 static std::atomic<bool> g_readyForCommands;
 static std::atomic<bool> g_commandListOpen{false};
 static std::atomic<bool> g_inPresent{false};
@@ -686,7 +713,6 @@ static void WaitForPresentDuringLoading()
 void Guard_Rendering()
 {
 	g_readyForCommands.wait(false);
-	g_presentThreadId = std::this_thread::get_id();
 }
 
 static ankerl::unordered_dense::map<RenderTexture*, RenderTextureLayout> g_barrierMap;
@@ -4164,6 +4190,7 @@ static void DrawProfiler()
 	}
 
 	g_profilerWasToggled = toggleProfiler;
+	g_detailedProfilerEnabled.store(g_profilerVisible, std::memory_order_relaxed);
 
 	if (!g_profilerVisible)
 		return;
@@ -4201,6 +4228,7 @@ static void DrawProfiler()
 		double rtBeginCmdListWorkAvg = g_rtBeginCmdListWorkAccum.UpdateAndReturnAverage();
 		double rtDrawHandlerAvg = g_rtDrawHandlerAccum.UpdateAndReturnAverage();
 		double rtQueueWaitAvg = g_rtQueueWaitAccum.UpdateAndReturnAverage();
+		double rtQueueWaitInFrameAvg = g_rtQueueWaitInFrameAccum.UpdateAndReturnAverage();
 		double gtDrawRecordingAvg = g_gtDrawRecordingAccum.UpdateAndReturnAverage();
 		double gtStateFlushAvg = g_gtStateFlushAccum.UpdateAndReturnAverage();
 
@@ -4340,17 +4368,39 @@ static void DrawProfiler()
 						ImGui::TextUnformatted("N/A");
 				};
 
-				// Percentages are relative to parent; (Application == 100% of frame).
-				drawPerfRow("Application",                 g_frameIntervalMs,                         applicationAvg,        true, "Whole frame period, wall clock, Present to Present.\nGame-thread time only; async lanes below overlap it.");
-				drawPerfRow("    Game Thread",             g_updateDirectorProfiler.value.load(),     gameThreadAvg,         true, "Game update + draw submission + present.\nBrackets sub_57630 on the game thread.");
-				drawPerfRow("        Present",             g_presentProfiler.value.load(),            presentAvg,            true, "Video::Present: waits, swapchain submit, fence wait,\nsetup of the next frame.");
+				// Gray group label row; the value columns stay empty.
+				auto drawPerfGroup = [&](const char* label, const char* note = nullptr)
+				{
+					ImGui::TableNextColumn();
+					ImGui::TextDisabled("%s", label);
+
+					if (note != nullptr && ImGui::IsItemHovered())
+						ImGui::SetTooltip("%s", note);
+
+					ImGui::TableNextColumn();
+					ImGui::TableNextColumn();
+					ImGui::TableNextColumn();
+					ImGui::TableNextColumn();
+				};
+
+				// Percentages are shares of the frame period (Application).
+				drawPerfRow("Application",                 g_frameIntervalMs,                         applicationAvg,        true, "Whole frame period, wall clock, Present to Present.\n\nThe budget: compare the Work rows below against it.\nWall-clock thread totals are in Copy Stats.");
+				drawPerfGroup("Work (non-idle)",
+					"Busy time only: what each stage actually spends working.\n\nThe biggest Work row against Application is the bottleneck.");
+				drawPerfRow("    Game Thread",         std::max(g_updateDirectorProfiler.value.load() - g_presentProfiler.value.load(), 0.0), std::max(gameThreadAvg - presentAvg, 0.0), true, "Game logic plus draw recording.\n\nThe CPU work that builds the frame; its waiting lives in the Idle rows below.");
+				drawPerfRow("    Render Thread (async)", std::max(g_renderDirectorProfiler.value.load() - g_rtQueueWaitInFrameAccum.value.load(), 0.0), std::max(renderThreadWorkAvg - rtQueueWaitInFrameAvg, 0.0), true, "The render thread translating game commands into GPU API calls,\nwith its idle queue waits removed.\n\nRuns alongside the game thread; the wall-clock total is in Copy Stats.");
+				drawPerfRow("    GPU (async)",          g_gpuFrameProfiler.value.load(),           gpuFrameAvg,           true, "Time the GPU spends drawing the frame.\n\nMeasured with GPU timestamp queries; runs on its own clock,\noverlaps the frame period.");
+				drawPerfGroup("Idle",
+					"Waiting, not work: deliberate pacing or one stage blocked on another.\n\nIt does not count toward the Work rows above.");
+				drawPerfGroup("    Game Thread");
+				drawPerfRow("        Present",              g_presentProfiler.value.load(),            presentAvg,            false, "Video::Present on the game thread: waits, swapchain submit,\nframe limiter sleep, setup of the next frame.\n\nMostly waiting, not CPU work.\nThe (wait) rows below show which side it waited on.");
 				drawPerfRow("            Exec CmdList (wait)",   g_executeCmdListWaitProfiler.value.load(), executeCmdListWaitAvg,  false, "Blocked waiting for the render thread to finish\nthe command list.");
 				drawPerfRow("            Frame Fence (wait)",    g_frameFenceProfiler.value.load(),        frameFenceAvg,           false, "Blocked waiting for the GPU to finish an older frame\n(backpressure from the buffered-frame pipeline).");
 				drawPerfRow("            Swap Chain Acquire",     g_swapChainAcquireProfiler.value.load(),  swapChainAcquireAvg,    false, "Acquiring a free backbuffer image from the swap chain.");
 				drawPerfRow("            Begin CmdList (wait)",   g_beginCmdListWaitProfiler.value.load(),  beginCmdListWaitAvg,    false, "Blocked waiting for the render thread to open the\nnext command list.");
-				drawPerfRow("    Present Wait (wait)",      g_presentWaitProfiler.value.load(),        presentWaitAvg,         false, "VSync pacing: waiting on the swap chain between frames\n(only with vsync + presentWait).");
-				drawPerfRow("Render-Thread Work (async)", g_renderDirectorProfiler.value.load(),  renderThreadWorkAvg,   true, "Separate CPU thread translating game commands into\nGPU API calls. Async worker: overlaps the frame period,\ndoes not add to it.");
-				drawPerfRow("GPU Frame (async)",       g_gpuFrameProfiler.value.load(),           gpuFrameAvg,           true, "GPU execution time from timestamp queries.\nAsync worker: own clock domain, overlaps the frame period.");
+				drawPerfRow("        Present Wait (VSync)", g_presentWaitProfiler.value.load(),       presentWaitAvg,         false, "VSync pacing: waiting on the swap chain between frames\n(only with vsync + presentWait).");
+				drawPerfGroup("    Render Thread");
+				drawPerfRow("        Queue Wait",           g_rtQueueWaitInFrameAccum.value.load(),   rtQueueWaitInFrameAvg, false, "Starved render thread: commands exhausted, waiting for the\ngame thread to send more.\n\nSame value as Queue Wait (idle) in the Render-Thread Breakdown.");
 
 				ImGui::EndTable();
 			}
@@ -4362,15 +4412,19 @@ static void DrawProfiler()
 					ImGui::TableSetupColumn("Name");
 					ImGui::TableSetupColumn("Current");
 					ImGui::TableSetupColumn("Average");
-					ImGui::TableSetupColumn("% of RT Work");
+					ImGui::TableSetupColumn("% of Render Thread Work");
 					ImGui::TableHeadersRow();
 
-					auto drawRtRow = [&](const char* name, double cur, double avg)
+					auto drawRtRow = [&](const char* name, double cur, double avg, const char* note = nullptr)
 					{
 						double rtCur = g_renderDirectorProfiler.value.load();
 						double rtAvg = renderThreadWorkAvg;
 						ImGui::TableNextColumn();
 						ImGui::TextUnformatted(name);
+
+						if (note != nullptr && ImGui::IsItemHovered())
+							ImGui::SetTooltip("%s", note);
+
 						ImGui::TableNextColumn();
 						ImGui::Text("%.3f ms", cur);
 						ImGui::TableNextColumn();
@@ -4379,29 +4433,75 @@ static void DrawProfiler()
 						ImGui::Text("%.1f%% / %.1f%%", rtCur > 0.0 ? (cur / rtCur * 100.0) : 0.0, rtAvg > 0.0 ? (avg / rtAvg * 100.0) : 0.0);
 					};
 
-					// FlushWork is inclusive of PSO work
+					// Gray group label row; the value columns stay empty.
+					auto drawRtGroup = [&](const char* label)
+					{
+						ImGui::TableNextColumn();
+						ImGui::TextDisabled("%s", label);
+						ImGui::TableNextColumn();
+						ImGui::TableNextColumn();
+						ImGui::TableNextColumn();
+					};
+
+					// Roughly one frame on the render thread, in order: open the command
+					// list, apply state changes, run the draws. Idle time is grouped last.
 					double psoCur = g_rtPsoWorkAccum.value.load();
 					double flushCur = g_rtFlushWorkAccum.value.load();
-					drawRtRow("PSO Work",          psoCur,                               rtPsoWorkAvg);
-					drawRtRow("Per-Draw Flush",    flushCur,                             rtFlushWorkAvg);
-					drawRtRow("  (excl. PSO)",     std::max(flushCur - psoCur, 0.0),     std::max(rtFlushWorkAvg - rtPsoWorkAvg, 0.0));
-					drawRtRow("Draw Calls (API)",  g_rtDrawCallAccum.value.load(),       rtDrawCallAvg);
-					drawRtRow("Other Cmds",        g_rtOtherCmdsAccum.value.load(),      rtOtherCmdsAvg);
-					drawRtRow("Begin CmdList Work",g_rtBeginCmdListWorkAccum.value.load(), rtBeginCmdListWorkAvg);
-					drawRtRow("Queue Wait (starved)", g_rtQueueWaitAccum.value.load(), rtQueueWaitAvg);
-					// Draw Handlers total is inclusive of FlushWork + DrawCall + pre-work
 					double drawHandlerCur = g_rtDrawHandlerAccum.value.load();
 					double drawCallCur = g_rtDrawCallAccum.value.load();
-					drawRtRow("Draw Handlers (total)", drawHandlerCur,                    rtDrawHandlerAvg);
-					drawRtRow("  Draw Pre-Work",     std::max(drawHandlerCur - flushCur - drawCallCur, 0.0),
-						std::max(rtDrawHandlerAvg - rtFlushWorkAvg - rtDrawCallAvg, 0.0));
+					drawRtGroup("Work (non-idle)");
+					drawRtRow("Begin CmdList Work", g_rtBeginCmdListWorkAccum.value.load(), rtBeginCmdListWorkAvg,
+						"Resetting the command list for the next frame and freeing\n"
+						"one-frame resources.\n\n"
+						"Runs outside the main render-thread timer, so it comes on top\n"
+						"of Render-Thread Work.");
+					drawRtRow("Other Cmds", g_rtOtherCmdsAccum.value.load(), rtOtherCmdsAvg,
+						"Every command that is not a draw: texture and shader binds,\n"
+						"constant uploads, clears, viewport changes, cleanup.\n\n"
+						"High values mean too many small state changes between draws.");
+					// Draw Handlers total is inclusive of pre-work + FlushWork + DrawCall.
+					drawRtRow("Draw Handlers (total)", drawHandlerCur, rtDrawHandlerAvg,
+						"All time spent handling draw commands on the render thread.\n"
+						"Covers setup, state flush and the driver draw call.\n\n"
+						"Split into the three rows below.");
+					drawRtRow("  Draw Pre-Work", std::max(drawHandlerCur - flushCur - drawCallCur, 0.0),
+						std::max(rtDrawHandlerAvg - rtFlushWorkAvg - rtDrawCallAvg, 0.0),
+						"Draw handler time minus flush and driver draw call.\n\n"
+						"Leftover per-draw handling: primitive conversion and small\n"
+						"checks before the draw goes out.");
+					// FlushWork is inclusive of PSO work.
+					drawRtRow("  Per-Draw Flush", flushCur, rtFlushWorkAvg,
+						"Applying everything that changed before a draw can run:\n"
+						"barriers, multisample (MSAA) resolves, bindings, constants.\n\n"
+						"Includes PSO Work; the rows below split it out.");
+					drawRtRow("    PSO Work", psoCur, rtPsoWorkAvg,
+						"PSO = Pipeline State Object: the complete GPU setup for one draw,\n"
+						"including shaders, blend and depth handling.\n"
+						"This row is the cache lookup for that setup, plus building it on a miss.\n\n"
+						"High values mean cache misses or first-time shader builds.");
+					drawRtRow("    (excl. PSO)", std::max(flushCur - psoCur, 0.0), std::max(rtFlushWorkAvg - rtPsoWorkAvg, 0.0),
+						"Per-Draw Flush with the PSO time removed.\n\n"
+						"Isolates the cost of applying state from pipeline lookups.");
+					drawRtRow("  Draw Calls (API)", drawCallCur, rtDrawCallAvg,
+						"Time inside the actual GPU driver draw call.\n\n"
+						"High here with many draws means the driver call itself is\n"
+						"expensive, often from frequent state changes between draws.");
+					drawRtGroup("Idle");
+					drawRtRow("Queue Wait (idle)", g_rtQueueWaitInFrameAccum.value.load(), rtQueueWaitInFrameAvg,
+						"Idle while the frame is open: the render thread ran out of\n"
+						"commands and waits for the game thread to send more.\n\n"
+						"Not real work. High values mean the render thread is starved\n"
+						"and the bottleneck is earlier in the pipeline.\n"
+						"Waits while the next command list is still closed are excluded.");
 					// Begin CmdList Work runs OUTSIDE the g_renderDirectorProfiler bracket.
-					double totalAcctCur = flushCur + drawCallCur + g_rtOtherCmdsAccum.value.load() + g_rtBeginCmdListWorkAccum.value.load() + g_rtQueueWaitAccum.value.load();
-					double totalAcctAvg = rtFlushWorkAvg + rtDrawCallAvg + rtOtherCmdsAvg + rtBeginCmdListWorkAvg + rtQueueWaitAvg;
+					double totalAcctCur = flushCur + drawCallCur + g_rtOtherCmdsAccum.value.load() + g_rtBeginCmdListWorkAccum.value.load() + g_rtQueueWaitInFrameAccum.value.load();
+					double totalAcctAvg = rtFlushWorkAvg + rtDrawCallAvg + rtOtherCmdsAvg + rtBeginCmdListWorkAvg + rtQueueWaitInFrameAvg;
 					ImGui::TableNextColumn(); ImGui::TextDisabled("Total Acct.");
+					if (ImGui::IsItemHovered())
+						ImGui::SetTooltip("%s", "Sum of the rows above: flush, draws, other commands,\ncommand list open and queue wait.\n\nCompare with Render-Thread Work to see how much of the\nrender thread's time is explained.");
 					ImGui::TableNextColumn(); ImGui::TextDisabled("%.3f ms", totalAcctCur);
 					ImGui::TableNextColumn(); ImGui::TextDisabled("%.3f ms", totalAcctAvg);
-					ImGui::TableNextColumn(); ImGui::TextDisabled("(vs RT Work: %.3f ms)", renderThreadWorkAvg);
+					ImGui::TableNextColumn(); ImGui::TextDisabled("(vs Render-Thread Work: %.3f ms)", renderThreadWorkAvg);
 
 					ImGui::EndTable();
 				}
@@ -4433,12 +4533,16 @@ static void DrawProfiler()
 					ImGui::TableSetupColumn("% of Game Thread");
 					ImGui::TableHeadersRow();
 
-					auto drawGtRow = [&](const char* name, double cur, double avg)
+					auto drawGtRow = [&](const char* name, double cur, double avg, const char* note = nullptr)
 					{
 						double gtCur = g_updateDirectorProfiler.value.load();
 						double gtAvg = gameThreadAvg;
 						ImGui::TableNextColumn();
 						ImGui::TextUnformatted(name);
+
+						if (note != nullptr && ImGui::IsItemHovered())
+							ImGui::SetTooltip("%s", note);
+
 						ImGui::TableNextColumn();
 						ImGui::Text("%.3f ms", cur);
 						ImGui::TableNextColumn();
@@ -4447,15 +4551,30 @@ static void DrawProfiler()
 						ImGui::Text("%.1f%% / %.1f%%", gtCur > 0.0 ? (cur / gtCur * 100.0) : 0.0, gtAvg > 0.0 ? (avg / gtAvg * 100.0) : 0.0);
 					};
 
-				double drawRecCur = g_gtDrawRecordingAccum.value.load();
-				double stateFlushCur = g_gtStateFlushAccum.value.load();
-				double presentCur = g_presentProfiler.value.load();
+					double drawRecCur = g_gtDrawRecordingAccum.value.load();
+					double stateFlushCur = g_gtStateFlushAccum.value.load();
+					double presentCur = g_presentProfiler.value.load();
 					double gameLogicCur = std::max(g_updateDirectorProfiler.value.load() - drawRecCur - presentCur, 0.0); // Game Thread includes present, so subtract (sub_57630)
 					double gameLogicAvg = std::max(gameThreadAvg - gtDrawRecordingAvg - presentAvg, 0.0);
-					drawGtRow("Draw Recording",   drawRecCur,                        gtDrawRecordingAvg);
-					drawGtRow("  State Flush",    stateFlushCur,                     gtStateFlushAvg);
-					drawGtRow("Present (in GT)",  presentCur,                        presentAvg);
-					drawGtRow("Game Logic",      gameLogicCur,                      gameLogicAvg);
+					// Roughly one frame on the game thread, in order: run the game logic,
+					// record draws, then hand the frame over (mostly waiting).
+					drawGtRow("Game Logic",      gameLogicCur,                      gameLogicAvg,
+						"Everything else the game does in a frame: simulation, scripts,\n"
+						"animation, collision.\n\n"
+						"Computed as the wall-clock Game Thread total minus Draw Recording minus Present.");
+					drawGtRow("Draw Recording",   drawRecCur,                        gtDrawRecordingAvg,
+						"The game thread converting its draw calls into commands for the\n"
+						"render thread: vertex data copies, vertex patching, queueing.\n\n"
+						"Runs while the game builds the frame. Includes State Flush.");
+					drawGtRow("  State Flush",    stateFlushCur,                     gtStateFlushAvg,
+						"Sending the settings that changed since the last draw:\n"
+						"textures, shaders, constants, blend modes.");
+					drawGtRow("Present",            presentCur,                        presentAvg,
+						"Handing the finished frame over: waiting for the render thread\n"
+						"and the GPU, showing the image, then pacing to the target FPS.\n\n"
+						"Mostly waiting, not CPU work.\n"
+						"The (wait) rows under Present in the main table show which\n"
+						"side it waited on.");
 					ImGui::EndTable();
 				}
 			}
@@ -4995,6 +5114,11 @@ void Video::Present()
 		g_gpuFrameProfiler.Set(double(frameTimestamps[1] - frameTimestamps[0]) / 1000000.0);
 	}
 
+	// Close the gate before resetting per-frame state: Guard_Rendering() must
+	// keep guests out while dirty states, upload allocators and quad index
+	// data are being reset. BeginCommandList reopens it on the render thread.
+	g_readyForCommands = false;
+
 	g_dirtyStates = DirtyStates(true);
 
 	g_uploadAllocators[g_frame].reset();
@@ -5007,7 +5131,6 @@ void Video::Present()
 		g_swapChain->wait();
 
 	CheckSwapChain();
-	g_readyForCommands = false;
 
 	cmd.type = RenderCommandType::BeginCommandList;
 	g_renderQueue.enqueue(cmd);
@@ -7560,6 +7683,9 @@ struct TextureStageDirtyState
 
 static TextureStageDirtyState GetTextureStageDirtyState()
 {
+	if (memcmp(g_dirty_texture_stage_states, g_texture_stage_states, sizeof(g_dirty_texture_stage_states)) == 0)
+		return {};
+
 	for (uint32_t i = 0; i < 4; i++)
 	{
 		const auto offset = i * X_D3DTSS_MAX;
@@ -7947,12 +8073,11 @@ static void ProcSetIndices(const RenderCommand& cmd)
 	SetDirtyValue(g_dirtyStates.indices, g_indexBufferView.size, args.indexBuffer != nullptr ? args.indexBuffer->dataSize : 0u);
 }
 
-static void SetIndices(GuestBuffer* buffer)
+static void SetIndices(LocalRenderCommandQueue& queue, GuestBuffer* buffer)
 {
-	RenderCommand cmd;
+	auto& cmd = queue.enqueue();
 	cmd.type = RenderCommandType::SetIndices;
 	cmd.setIndices.indexBuffer = buffer;
-	g_renderQueue.enqueue(cmd);
 }
 
 static void* LockBuffer(GuestBuffer* buffer, uint32_t flags)
@@ -8436,6 +8561,7 @@ void DrawIndexedPrimitive(X_D3DPRIMITIVETYPE PrimitiveType, uint32_t VertexCount
 {
 	RtScopeTimer _gtScope(g_gtDrawRecordingAccum);
 	WaitForPresentDuringLoading();
+	LocalRenderCommandQueue queue;
 
 #ifdef _DEBUG //this is a breakpoint spot for debugging the light issue with tails muzzle in circus park.
 	if (VertexCount == 45)
@@ -8479,10 +8605,24 @@ void DrawIndexedPrimitive(X_D3DPRIMITIVETYPE PrimitiveType, uint32_t VertexCount
 	}
 
 
-	SetIndices(bufferIndex);
+	SetIndices(queue, bufferIndex);
 
+	// The index hash already guarantees the cached buffer matches this index
+	// data, so the min/max vertex range can be reused instead of rescanning
+	// every index on cache hits.
 	uint32_t minIdx = 0, maxIdx = 0;
-	ComputeIndexRange(pIndexData, 0, VertexCount, minIdx, maxIdx);
+	if (!bufferIndex->hasCachedIndexRange)
+	{
+		ComputeIndexRange(pIndexData, 0, VertexCount, minIdx, maxIdx);
+		bufferIndex->hasCachedIndexRange = true;
+		bufferIndex->cachedMinIndex = minIdx;
+		bufferIndex->cachedMaxIndex = maxIdx;
+	}
+	else
+	{
+		minIdx = bufferIndex->cachedMinIndex;
+		maxIdx = bufferIndex->cachedMaxIndex;
+	}
 
 	bool patched = false;
 
@@ -8510,17 +8650,15 @@ void DrawIndexedPrimitive(X_D3DPRIMITIVETYPE PrimitiveType, uint32_t VertexCount
 			return;
 
 
-		RenderCommand cmd;
+		auto& cmd = queue.enqueue();
 		cmd.type = RenderCommandType::SetStreamSource;
 		cmd.setStreamSource.StreamNumber = i;
 		cmd.setStreamSource.vertexBuffer = bufferCache;
 		cmd.setStreamSource.stride = alignedStride;
 
-		g_renderQueue.enqueue(cmd);
 	}
 
 
-	LocalRenderCommandQueue queue;
 	FlushRenderStateForMainThread(queue);
 
 	auto& cmd = queue.enqueue();
@@ -8813,12 +8951,32 @@ X86_FUNC(sub_2E6140)
 
 void CopyVertexShaderConstant(int32_t Register, DWORD* pConstantData, const uint32_t count)
 {
-	float* float_vsh_constants = (float*)&(vsh_constants[Register][0]);
-	memcpy(float_vsh_constants, pConstantData, count * sizeof(float) * 4);
-
+	// Skip registers whose values did not change.
+	// Must also match both bank shadows. While the flush
+	// uploads against the active bank only, a stale
+	// other-bank shadow still needs the dirty flag.
+	bool anyChanged = false;
 	for (DWORD i = 0; i < count; i++)
-		vsh_constants_dirty[Register + i] = true;
-	g_vertexShaderConstantsAnyDirty = true;
+	{
+		const DWORD* src = &pConstantData[i * 4];
+		uint32_t* dst = &vsh_constants[Register + i][0];
+
+		if (memcmp(dst, src, sizeof(float) * 4) != 0)
+		{
+			memcpy(dst, src, sizeof(float) * 4);
+			vsh_constants_dirty[Register + i] = true;
+			anyChanged = true;
+		}
+		else if (memcmp(&g_vertexShaderConstantBankShadow[0][(Register + i) * 4], src, sizeof(float) * 4) != 0 ||
+			memcmp(&g_vertexShaderConstantBankShadow[1][(Register + i) * 4], src, sizeof(float) * 4) != 0)
+		{
+			vsh_constants_dirty[Register + i] = true;
+			anyChanged = true;
+		}
+	}
+
+	if (anyChanged)
+		g_vertexShaderConstantsAnyDirty = true;
 }
 
 void LogFloat4(const char* name, const float* values, int count = 1) {
@@ -9393,8 +9551,20 @@ static std::thread g_renderThread([]
 		{
 			size_t count;
 			{
-				RtScopeTimer _qw(g_rtQueueWaitAccum);
+				// Idle accounting: total queue wait, plus the slice inside the open
+				// frame bracket (g_renderDirectorProfiler.Begin to End).
+				const bool profEnabled = g_detailedProfilerEnabled.load(std::memory_order_relaxed);
+				const auto waitStart = profEnabled ? std::chrono::steady_clock::now() : std::chrono::steady_clock::time_point{};
 				count = g_renderQueue.wait_dequeue_bulk(commands, std::size(commands));
+
+				if (profEnabled)
+				{
+					const double waitMs = std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - waitStart).count();
+					g_rtQueueWaitAccum.Add(waitMs);
+
+					if (g_renderDirectorProfiler.active)
+						g_rtQueueWaitInFrameAccum.Add(waitMs);
+				}
 			}
 			for (size_t i = 0; i < count; i++)
 			{
@@ -9420,6 +9590,7 @@ static std::thread g_renderThread([]
 					g_rtDrawCallAccum.SnapshotAndReset();
 					g_rtDrawHandlerAccum.SnapshotAndReset();
 					g_rtQueueWaitAccum.SnapshotAndReset();
+					g_rtQueueWaitInFrameAccum.SnapshotAndReset();
 					g_renderDirectorProfiler.End();
 					ProcExecuteCommandList(cmd); break;
 				case RenderCommandType::BeginCommandList:
