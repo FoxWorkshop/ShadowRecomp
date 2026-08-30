@@ -15,6 +15,7 @@
 #include "FixedFunction.h"
 #include "renderstate.h"
 #include "shared_constants.h"
+#include "staged_uploads.h"
 #include "ubershaders/fixed_function_pixel_shader_variants.h"
 #include "ubershaders/fixed_function_vertex_shader_variants.h"
 #include "frame_pacing/frame_pacer.h"
@@ -190,14 +191,6 @@ struct PipelineState
 	uint32_t specConstants = 0;
 };
 #pragma pack(pop)
-
-struct UploadAllocation
-{
-	const RenderBuffer* buffer;
-	uint64_t offset;
-	uint8_t* memory;
-	uint64_t deviceAddress;
-};
 
 static_assert(sizeof(uint32_t) == 4, "expect 4-byte uint");
 static_assert(TexSlotMax == SharedTextureSlotCount);
@@ -633,6 +626,8 @@ struct IntermediaryUploadAllocator
 };
 
 static IntermediaryUploadAllocator g_intermediaryUploadAllocator;
+
+static StagedBufferUploadAllocator g_stagedBufferUploads[NUM_FRAMES];
 
 static std::vector<GuestResource*> g_tempResources[NUM_FRAMES];
 static std::vector<std::unique_ptr<RenderBuffer>> g_tempBuffers[NUM_FRAMES];
@@ -1748,6 +1743,7 @@ enum class RenderCommandType
 	SetStreamSource,
 	SetIndices,
 	SetPixelShader,
+	StagedCopy,
 
 };
 
@@ -1777,6 +1773,14 @@ struct RenderCommand
 		{
 			GuestBuffer* indexBuffer;
 		} unlockBuffer;
+
+		struct
+		{
+			GuestBuffer* dst;
+			const RenderBuffer* srcBuffer;
+			uint64_t srcOffset;
+			uint32_t size;
+		} stagedCopy;
 
 		struct
 		{
@@ -4929,6 +4933,7 @@ void Video::Present()
 
 	g_uploadAllocators[g_frame].reset();
 	g_intermediaryUploadAllocator.reset();
+	g_stagedBufferUploads[g_frame].reset();
 	g_quadIndexData.reset();
 
 
@@ -7870,33 +7875,53 @@ void* LockVertexBuffer(GuestBuffer* buffer, uint32_t flags2)
 }
 
 
-template<typename T>
+// Sends the CPU copy of a guest buffer to the GPU.
+// Callers: game thread (useCopyQueue = true) or render thread (false).
+//
+// Why staging: the game thread is the bottleneck. Staged uploads cost it
+// ~0.5us per buffer; a synchronous copy would block it for ~20us of
+// driver calls.
+//
+// Paths:
+// - Integrated GPU: shared memory, write the GPU buffer directly.
+// - Discrete GPU, fits staging: stage bytes + queue a StagedCopy command.
+// - Too big, or render-thread caller: one dedicated upload buffer.
 static void UnlockBuffer(GuestBuffer* buffer, bool useCopyQueue)
 {
-
-	auto copyBuffer = [&](T* dest)
+	auto copyBuffer = [&](void* dest)
 		{
-
-			auto src = reinterpret_cast<const T*>(buffer->mappedMemory);
-
-			for (size_t i = 0; i < buffer->dataSize; i += sizeof(T))
-			{
-				*dest = *src;
-				++dest;
-				++src;
-			}
-
+			memcpy(dest, buffer->mappedMemory, buffer->dataSize);
 		};
 
 	if (useCopyQueue && g_capabilities.gpuUploadHeap)
 	{
-		copyBuffer(reinterpret_cast<T*>(buffer->buffer->map()));
-		buffer->buffer->unmap();
+		// Shared CPU/GPU memory (iGPU): We can write directly; since it's in RAM.
+		// We ballin'
+		if (buffer->persistentMap == nullptr)
+			buffer->persistentMap = buffer->buffer->map(); // cache
+
+		copyBuffer(buffer->persistentMap);
+	}
+	else if (useCopyQueue && buffer->dataSize <= StagedBufferUploadAllocator::SIZE)
+	{
+		// Game thread: reserve staging bytes, memcpy, push one command.
+		auto allocation = g_stagedBufferUploads[g_frame].allocate(buffer->dataSize, 0x4, *g_device);
+		memcpy(allocation.memory, buffer->mappedMemory, buffer->dataSize);
+
+		RenderCommand cmd;
+		cmd.type = RenderCommandType::StagedCopy;
+		cmd.stagedCopy.dst = buffer;
+		cmd.stagedCopy.srcBuffer = allocation.buffer;
+		cmd.stagedCopy.srcOffset = allocation.offset;
+		cmd.stagedCopy.size = buffer->dataSize;
+		g_renderQueue.enqueue(cmd);
 	}
 	else
 	{
+		// Oversize uploads and render-thread callers: one dedicated upload
+		// buffer for this copy.
 		auto uploadBuffer = g_device->createBuffer(RenderBufferDesc::UploadBuffer(buffer->dataSize));
-		copyBuffer(reinterpret_cast<T*>(uploadBuffer->map()));
+		copyBuffer(uploadBuffer->map());
 		uploadBuffer->unmap();
 
 		if (useCopyQueue)
@@ -7923,28 +7948,88 @@ static void UnlockBuffer(GuestBuffer* buffer, bool useCopyQueue)
 }
 
 
-template<typename T>
 static void UnlockBuffer(GuestBuffer* buffer)
 {
 	if (!buffer->lockedReadOnly)
 	{
-		UnlockBuffer<T>(buffer, true);
+		UnlockBuffer(buffer, true);
 	}
 }
 
 static void ProcUnlockBuffer16(const RenderCommand& cmd)
 {
-	UnlockBuffer<uint16_t>(cmd.unlockBuffer.indexBuffer, false);
+	UnlockBuffer(cmd.unlockBuffer.indexBuffer, false);
 }
 
 static void ProcUnlockBuffer32(const RenderCommand& cmd)
 {
-	UnlockBuffer<uint32_t>(cmd.unlockBuffer.indexBuffer, false);
+	UnlockBuffer(cmd.unlockBuffer.indexBuffer, false);
+}
+
+// Moves staged upload bytes into their final GPU buffers. Runs on the
+// render thread.
+//
+// Steps for one group of consecutive staged copies:
+// 1. Mark every destination buffer writable.
+// 2. Copy all the staged bytes.
+// 3. Mark every destination buffer readable again.
+//
+// Grouping keeps the GPU sync stops per frame low: a handful per group
+// instead of two per copy.
+static void ProcStagedCopyRange(RenderCommand* commands, size_t count)
+{
+	if (!g_commandListOpen)
+	{
+		// The frame's command list is closed, so it cannot record the
+		// copies. Do a small standalone copy for each upload instead so the
+		// data still arrives.
+		for (size_t i = 0; i < count; i++)
+		{
+			auto& args = commands[i].stagedCopy;
+			ExecuteCopyCommandList([&]
+				{
+					g_copyCommandList->copyBufferRegion(args.dst->buffer->at(0), args.srcBuffer->at(args.srcOffset), args.size);
+				});
+		}
+		return;
+	}
+
+	auto& commandList = g_commandLists[g_frame];
+
+	// Barriers are submitted in groups of at most this many.
+	constexpr size_t BARRIER_GROUP = 16;
+	RenderBufferBarrier barriers[BARRIER_GROUP];
+
+	auto submitBarriers = [&](RenderBarrierStages stage, RenderBufferAccessBits access)
+		{
+			size_t remaining = count;
+			auto* cmds = commands;
+			while (remaining > 0)
+			{
+				size_t group = remaining < BARRIER_GROUP ? remaining : BARRIER_GROUP;
+				for (size_t i = 0; i < group; i++)
+					barriers[i] = RenderBufferBarrier(cmds[i].stagedCopy.dst->buffer.get(), access);
+
+				commandList->barriers(stage, barriers, uint32_t(group));
+				cmds += group;
+				remaining -= group;
+			}
+		};
+
+	submitBarriers(RenderBarrierStage::COPY, RenderBufferAccess::WRITE);
+
+	for (size_t i = 0; i < count; i++)
+	{
+		auto& args = commands[i].stagedCopy;
+		commandList->copyBufferRegion(args.dst->buffer->at(0), args.srcBuffer->at(args.srcOffset), args.size);
+	}
+
+	submitBarriers(RenderBarrierStage::GRAPHICS, RenderBufferAccess::READ);
 }
 
 void UnlockVertexBuffer(GuestBuffer* buffer)
 {
-	UnlockBuffer<uint32_t>(buffer);
+	UnlockBuffer(buffer);
 }
 
 static void* LockIndexBuffer(GuestBuffer* buffer, uint32_t flags)
@@ -7954,7 +8039,7 @@ static void* LockIndexBuffer(GuestBuffer* buffer, uint32_t flags)
 
 static void UnlockIndexBuffer(GuestBuffer* buffer)
 {
-	UnlockBuffer<uint16_t>(buffer);
+	UnlockBuffer(buffer);
 }
 
 //D3D12 requires vertex buffer strides to be aligned to 4 bytes unlike Xbox, so we need to fix that when needed
@@ -8241,7 +8326,6 @@ void DrawIndexedPrimitive(X_D3DPRIMITIVETYPE PrimitiveType, uint32_t VertexCount
 	{
 		bufferIndex = CreateIndexBuffer(VertexCount, X_D3DFMT_INDEX16);
 
-		bufferIndexCache = bufferIndex;
 		bufferIndex->hash = hash;
 
 		auto memory = LockIndexBuffer(bufferIndex, 0);
@@ -8249,6 +8333,10 @@ void DrawIndexedPrimitive(X_D3DPRIMITIVETYPE PrimitiveType, uint32_t VertexCount
 		memcpy(memory, pIndexData, sizeof(int16_t) * VertexCount);
 
 		UnlockIndexBuffer(bufferIndex);
+
+		// Publish only after the upload is queued, so another thread can
+		// never draw with a buffer whose GPU copy is not on the queue yet.
+		bufferIndexCache = bufferIndex;
 	}
 	else
 	{
@@ -9119,6 +9207,20 @@ static std::thread g_renderThread([]
 				case RenderCommandType::UnlockTextureRect:                 { g_stateChangeCount.fetch_add(1, std::memory_order_relaxed); RtScopeTimer _s(g_rtOtherCmdsAccum); ProcUnlockTextureRect(cmd); } break;
 				case RenderCommandType::UnlockBuffer16:                    { g_stateChangeCount.fetch_add(1, std::memory_order_relaxed); RtScopeTimer _s(g_rtOtherCmdsAccum); ProcUnlockBuffer16(cmd); } break;
 				case RenderCommandType::UnlockBuffer32:                    { g_stateChangeCount.fetch_add(1, std::memory_order_relaxed); RtScopeTimer _s(g_rtOtherCmdsAccum); ProcUnlockBuffer32(cmd); } break;
+				case RenderCommandType::StagedCopy:
+					{
+						RtScopeTimer _s(g_rtOtherCmdsAccum);
+
+						// Handle every consecutive staged copy in one group.
+						size_t stagedCount = 1;
+						while (i + stagedCount < count && commands[i + stagedCount].type == RenderCommandType::StagedCopy)
+							++stagedCount;
+
+						g_stateChangeCount.fetch_add(stagedCount, std::memory_order_relaxed);
+						g_totalCommandCount.fetch_add(stagedCount - 1, std::memory_order_relaxed);
+						ProcStagedCopyRange(&commands[i], stagedCount);
+						i += stagedCount - 1;
+					} break;
 				case RenderCommandType::ExecuteCommandList:
 					g_drawCallCountSnapshot = g_drawCallCount.exchange(0, std::memory_order_relaxed);
 					g_stateChangeCountSnapshot = g_stateChangeCount.exchange(0, std::memory_order_relaxed);
