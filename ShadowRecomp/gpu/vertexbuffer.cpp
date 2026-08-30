@@ -191,25 +191,28 @@ GuestBuffer* GetGuestVertexBufferIndexed(int i, uint32_t minIdx, uint32_t maxIdx
 	{
 		uint8_t* HostVertexData = ApplyVertexPatch(pXboxVertexData, i, usedVertices, originalStride, alignedStride);
 		const size_t size = usedVertices * alignedStride;
-		bufferCache = CreateVertexBuffer(size);
+		auto newBuffer = CreateVertexBuffer(size);
 
-		bufferCache->hash = hash;
+		newBuffer->hash = hash;
 		if (HostVertexData == nullptr) //if patch didn't happen simply copy the vertex as they are
 		{
-			bufferCache->mappedMemory = g_userHeap.AllocPhysical(bufferCache->dataSize, 0x10);
-			memcpy(bufferCache->mappedMemory, pXboxVertexData, originalSize);
+			newBuffer->mappedMemory = g_userHeap.AllocPhysical(newBuffer->dataSize, 0x10);
+			memcpy(newBuffer->mappedMemory, pXboxVertexData, originalSize);
 		}
 		else
 		{
-			bufferCache->mappedMemory = HostVertexData; //we already have the vertex copied from the patch earlier so just assign them
+			newBuffer->mappedMemory = HostVertexData; //we already have the vertex copied from the patch earlier so just assign them
 		}
 
+		UnlockVertexBuffer(newBuffer); //send our VB to the GPU
 
+		// Publish only after the upload is queued, so another thread can
+		// never draw with a buffer whose GPU copy is not on the queue yet.
 		auto& vbDerived = VBsList[g_Xbox_SetStreamSource[i].VertexBuffer];
-		DerivedVertexBuffer newDerivedVB = { bufferCache, hash };
+		DerivedVertexBuffer newDerivedVB = { newBuffer, hash };
 		vbDerived.push_back(newDerivedVB);
 
-		UnlockVertexBuffer(bufferCache); //send our VB to the GPU
+		bufferCache = newBuffer;
 	}
 
 	return bufferCache;
