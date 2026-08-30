@@ -15,6 +15,7 @@
 #include <unordered_map>
 #include <type_traits>
 #include <cassert>
+#include <bit>
 
 enum CallConvention
 {
@@ -472,6 +473,7 @@ T GuestToHostFunction(const TFunction& func, TArgs&&... argv)
 * paramID - the parameter ID requested, example if you want to grab the first argument of the function, pick 1, if you want the second 2 etc.
 * funcType - specify the function type, cdecl, stdcall etc. Default to Cdecl and does not work with usercall and userpurge at the moment
 * ParamType - specify if the parameter is a int, a float or a pointer using ParameterType enum. Default to int.
+* Float parameters are returned as raw bits; use GetHostParameterFloat to get the value as a float.
 */
 inline uintptr_t GetHostParameter(int8_t paramID, CallConvention funcType = CallConvention::Cdecl, ParameterType ParamType = ParameterType::Integer, ParameterSize paramSize = ParameterSize::U32)
 {
@@ -497,10 +499,6 @@ inline uintptr_t GetHostParameter(int8_t paramID, CallConvention funcType = Call
                 return 0;
 
             return (uintptr_t)g_memory.Translate(ptr);
-        }
-        else if (ParamType == ParameterType::Float)
-        {
-            return (uintptr_t)X86_LOAD_F32(ctx->esp.u32 + (4 * paramID));
         }
         else
         {
@@ -528,10 +526,6 @@ inline uintptr_t GetHostParameter(int8_t paramID, CallConvention funcType = Call
 
             return (uintptr_t)g_memory.Translate(ptr);
         }
-        else if (ParamType == ParameterType::Float)
-        {
-            return (uintptr_t)X86_LOAD_F32(ctx->esp.u32 + (4 * (paramID - 1)));
-		}
         else
         {
             return (uintptr_t)X86_LOAD_U32(ctx->esp.u32 + (4 * (paramID - 1)));
@@ -547,8 +541,6 @@ inline uintptr_t GetHostParameter(int8_t paramID, CallConvention funcType = Call
 
                 return (uintptr_t)g_memory.Translate(ctx->ecx.u32);
             }
-            else if (ParamType == ParameterType::Float)
-                return (uintptr_t)X86_LOAD_F32(ctx->ecx.u32);
             else
                 return (uintptr_t)X86_LOAD_U32(ctx->ecx.u32);
         }
@@ -561,8 +553,6 @@ inline uintptr_t GetHostParameter(int8_t paramID, CallConvention funcType = Call
 
                 return (uintptr_t)g_memory.Translate(ctx->edx.u32);
             }
-            else if (ParamType == ParameterType::Float)
-                return (uintptr_t)X86_LOAD_F32(ctx->edx.u32);
             else
                 return (uintptr_t)X86_LOAD_U32(ctx->edx.u32);
         }
@@ -576,15 +566,17 @@ inline uintptr_t GetHostParameter(int8_t paramID, CallConvention funcType = Call
 
                 return (uintptr_t)g_memory.Translate(ptr);
             }
-            else if (ParamType == ParameterType::Float)
-                return (uintptr_t)X86_LOAD_F32(ctx->esp.u32 + (4 * (paramID - 2)));
             else
                 return (uintptr_t)X86_LOAD_U32(ctx->esp.u32 + (4 * (paramID - 2)));
         }
 
        break;
     }
+}
 
+inline float GetHostParameterFloat(int8_t paramID, CallConvention funcType = CallConvention::Cdecl)
+{
+    return std::bit_cast<float>(static_cast<uint32_t>(GetHostParameter(paramID, funcType, ParameterType::Float)));
 }
 
 X86_FUNC(StubWithCleanStack);
