@@ -632,7 +632,7 @@ static StagedBufferUploadAllocator g_stagedBufferUploads[NUM_FRAMES];
 static std::vector<GuestResource*> g_tempResources[NUM_FRAMES];
 static std::vector<std::unique_ptr<RenderBuffer>> g_tempBuffers[NUM_FRAMES];
 
-// RT tracking to deal with edge bleed issue
+// RTs that are already zeroed this frame (see ProcSetRenderTarget)
 static ankerl::unordered_dense::set<const RenderTexture*> g_clearedRenderTargetsThisFrame;
 
 
@@ -3025,28 +3025,8 @@ static void BeginCommandList()
 	commandList->setGraphicsDescriptorSet(g_textureDescriptorSet.get(), 2); //texture cube
 	commandList->setGraphicsDescriptorSet(g_samplerDescriptorSet.get(), 3); //sampler
 
-	// Prevent edge bleed (thanks sonic team >_>)
+
 	g_clearedRenderTargetsThisFrame.clear();
-
-	AddBarrier(g_backBuffer, RenderTextureLayout::COLOR_WRITE);
-	FlushBarriers();
-
-	{
-		auto& clearFB = g_backBuffer->framebuffers[g_backBuffer->texture];
-		if (!clearFB)
-		{
-			RenderFramebufferDesc fbDesc;
-			fbDesc.colorAttachments = const_cast<const RenderTexture**>(&g_backBuffer->texture);
-			fbDesc.colorAttachmentsCount = 1;
-			clearFB = g_device->createFramebuffer(fbDesc);
-		}
-
-		commandList->setFramebuffer(clearFB.get());
-		commandList->clearColor(0, RenderColor(0.0f, 0.0f, 0.0f, 0.0f));
-		commandList->setFramebuffer(nullptr);
-	}
-
-	g_clearedRenderTargetsThisFrame.insert(g_backBuffer->texture);
 
 	g_commandListOpen = true;
 	g_readyForCommands = true;
@@ -5582,10 +5562,17 @@ static void FlushViewport(const bool isFixed)
 	viewport.x *= scaleX;
 	viewport.y *= scaleY;
 
-	// The Xbox half-pixel viewport offset is needed for bloom
-	// Need to scale otherwise at higher res bloom will drift left / up
-	viewport.x += 0.5f * scaleX;
-	viewport.y += 0.5f * scaleY;
+	// The Xbox half-pixel viewport offset reproduces the "vertex pos in a pixel centre" rule, so it has to be scaled.
+	// However, scaling it cost coverage, some pixels of the target go unwritten because the guest's
+	// fullscreen quads stop half a guest pixel short of the edge. This is handled by a separate fix in the Pixel Shader.
+	// The backbuffer is the only exception since nothing sample it.
+
+	const bool isBackBuffer = (g_renderTarget == g_backBuffer);
+	const float halfPixelX = isBackBuffer ? 0.5f : 0.5f * scaleX;
+	const float halfPixelY = isBackBuffer ? 0.5f : 0.5f * scaleY;
+
+	viewport.x += halfPixelX;
+	viewport.y += halfPixelY;
 
 	if (isFixed == false)
 	{
@@ -6222,6 +6209,36 @@ static void SetTextureInRenderThread(uint32_t index, GuestTexture* texture, cons
 
 	SetDirtyValue(g_dirtyStates.sharedConstants, g_sharedConstants.textureCubeIndices[index], texture != nullptr &&
 		viewDimension == RenderTextureViewDimension::TEXTURE_CUBE ? texture->descriptorIndex : TEXTURE_DESCRIPTOR_NULL_TEXTURE_CUBE);
+
+
+	float texCoordMinX = 0.0f;
+	float texCoordMinY = 0.0f;
+
+	// Render Targets carry an unwritten border from the half-pixel viewport offset
+	// We can patch this by telling the pixel shader where the usable area start and skip the dead borders.
+
+	// Helper function to get where the new area start.
+	// The border is 0.5 * scale host texels wide.
+	if (texture != nullptr && texture->isRenderTarget)
+	{
+		const auto getFirstLiveTexel = [](uint32_t hostSize, uint32_t guestSize) -> float
+			{
+				if (hostSize == 0 || guestSize == 0)
+					return 0.0f;
+
+				const float scale = float(hostSize) / float(guestSize);
+				const float deadTexels = std::ceil(0.5f * scale - 0.5f); 
+
+				return (deadTexels + 0.5f) / float(hostSize);
+			};
+
+		texCoordMinX = getFirstLiveTexel(texture->width, texture->g_width);
+		texCoordMinY = getFirstLiveTexel(texture->height, texture->g_height);
+	}
+
+	SetDirtyValue(g_dirtyStates.sharedConstants, g_sharedConstants.texCoordMin[index][0], texCoordMinX);
+	SetDirtyValue(g_dirtyStates.sharedConstants, g_sharedConstants.texCoordMin[index][1], texCoordMinY);
+
 }
 
 
@@ -6350,7 +6367,10 @@ static void ProcSetRenderTarget(const RenderCommand& cmd)
 	SetDirtyValue(g_dirtyStates.pipelineState, g_pipelineState.renderTargetFormat, args.renderTarget != nullptr ? args.renderTarget->format : RenderFormat::UNKNOWN);
 	SetDirtyValue(g_dirtyStates.pipelineState, g_pipelineState.sampleCount, args.renderTarget != nullptr ? args.renderTarget->sampleCount : RenderSampleCount::COUNT_1);
 
-	// Hack: Prevent edge bleed (thanks sonic team >_>)
+	// Clear / Zero each RT once per frame before anything draws into it
+	// This will wipe last frame of bloom leftover.
+	// The game never really clear this surface itself, it relies on background covering the viewport
+	// which is often incorrect (like when a stage load.)
 	if (args.renderTarget != nullptr && args.renderTarget->texture != nullptr &&
 	    g_clearedRenderTargetsThisFrame.insert(args.renderTarget->texture).second)
 	{
