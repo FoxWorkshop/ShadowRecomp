@@ -495,6 +495,19 @@ FindHandle* XFindFirstFile(const char* lpFileName, WIN32_FIND_DATAA* lpFindFileD
 		// Handle directory search
 		FindHandle findHandle(resolvedPathStr);
 
+		// Detect save data operations 'u:\*' and gate to 'save' folder
+		if (originalPath == "u:\\*")
+		{
+			const std::filesystem::path savePath = GetSavePath(false);
+			findHandle.searchResult.clear();
+			std::error_code ec;
+			if (std::filesystem::is_directory(savePath, ec))
+			{
+				findHandle.searchResult.emplace(savePath.filename().u8string(), std::make_pair(0, true));
+			}
+			findHandle.iterator = findHandle.searchResult.begin();
+		}
+
 		if (findHandle.searchResult.empty())
 			return GetInvalidKernelObject<FindHandle>();
 
