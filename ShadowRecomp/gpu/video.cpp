@@ -7915,12 +7915,8 @@ static void UnlockBuffer(GuestBuffer* buffer, bool useCopyQueue)
 
 	if (useCopyQueue && g_capabilities.gpuUploadHeap)
 	{
-		// Shared CPU/GPU memory (iGPU): We can write directly; since it's in RAM.
-		// We ballin'
-		if (buffer->persistentMap == nullptr)
-			buffer->persistentMap = buffer->buffer->map(); // cache
-
-		copyBuffer(buffer->persistentMap);
+		copyBuffer(buffer->buffer->map());
+		buffer->buffer->unmap();
 	}
 	else if (useCopyQueue && buffer->dataSize <= StagedBufferUploadAllocator::SIZE)
 	{
