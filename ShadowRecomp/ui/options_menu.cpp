@@ -539,6 +539,7 @@ static void DrawOption
 					// released lock, restore old value
 					config->Value = s_oldValue;
 
+					BloomConfigValueChangedCallback(config);
 					VideoConfigValueChangedCallback(config);
 
 					if (config->Callback)
@@ -561,6 +562,7 @@ static void DrawOption
 				{
 					config->MakeDefault();
 
+					BloomConfigValueChangedCallback(config);
 					VideoConfigValueChangedCallback(config);
 
 					if (config->Callback)
