@@ -3,10 +3,100 @@
 #include <ui/message_window.h>
 #include <user/config.h>
 
-static int messageID[] = { 6062, 6068, 6075, 6081, 6092 };
-const int messageIDLength = 5;
-static int g_CreateSaveMessageResult = -1;
-static int g_CreateSaveMessageFailedResult = -1;
+static constexpr uint32_t GUEST_MESSAGE_DESCRIPTORS = 0x47AB08;
+static constexpr uint32_t GUEST_MESSAGE_DESCRIPTOR_SIZE = 0x24;
+
+static constexpr uint32_t MESSAGE_REQUESTED = 0x08;
+static constexpr uint32_t MESSAGE_DISPLAYED = 0x0C;
+static constexpr uint32_t MESSAGE_SELECTION = 0x10;
+static constexpr uint32_t MESSAGE_RESULT = 0x14;
+static constexpr uint32_t MESSAGE_OPEN = 0x18;
+static constexpr uint32_t MESSAGE_FINISHED = 0x2C;
+
+static constexpr uint32_t DESCRIPTOR_TEXT_ID = 0x00;
+static constexpr uint32_t DESCRIPTOR_OPTION_COUNT = 0x04;
+static constexpr uint32_t DESCRIPTOR_DEFAULT_OPTION = 0x08;
+static constexpr uint32_t DESCRIPTOR_OPTION_TEXT_IDS = 0x10;
+static constexpr uint32_t DESCRIPTOR_RESULT_CODES = 0x1C;
+
+// Helper function to get a message from the game using its ID.
+static std::u16string GetGuestText(uint8_t* base, int32_t textID)
+{
+	auto singleton = X86_LOAD_U32(0x54C900);
+
+	if (singleton == 0)
+		return {};
+
+	auto owner = X86_LOAD_U32(singleton + 0x20);
+
+	if (owner == 0)
+		return {};
+
+	auto entry = GuestToHostFunction<uint32_t, CallConvention::Thiscall>(sub_1E0E0, owner, uint32_t(textID), 1u, 0u);
+
+	if (entry == 0)
+		entry = GuestToHostFunction<uint32_t, CallConvention::Thiscall>(sub_1E0E0, owner, uint32_t(textID), 0u, 0u);
+
+	if (entry == 0)
+		return {};
+
+	auto text = X86_LOAD_U32(entry);
+
+	if (text == 0)
+		return {};
+
+	return reinterpret_cast<const char16_t*>(base + text);
+}
+
+struct CustomMessage
+{
+	int32_t TextID;
+	const char* LocaleKey;
+};
+
+static const CustomMessage g_customMessages[] =
+{
+	{ 6068, "Title_Message_CreateSave" },
+	{ 6070, "Title_Message_CreateSaveFailed" },
+	{ 6081, "Title_Message_CreateSave" },
+	//{ 6090, "Title_Message_CreateSave" }, // load save
+
+};
+
+static const CustomMessage* FindCustomMessage(int32_t textID)
+{
+	for (auto& message : g_customMessages)
+	{
+		if (message.TextID == textID)
+			return &message;
+	}
+
+	return nullptr;
+}
+
+// Get common buttons used for message / prompt
+static const char* GetOptionLocaleKey(int32_t textID)
+{
+	switch (textID)
+	{
+	case 6047:
+		return "Common_Yes";
+	case 6048:
+		return "Common_No";
+	case 6049:
+		return "Common_Ok";
+	default:
+		return nullptr;
+	}
+}
+
+static int g_messageResult = -1;
+static int32_t g_messageIndex = -1;
+
+static int32_t GetMessageTextID(uint8_t* base, int32_t index)
+{
+	return int32_t(X86_LOAD_U32(GUEST_MESSAGE_DESCRIPTORS + index * GUEST_MESSAGE_DESCRIPTOR_SIZE + DESCRIPTOR_TEXT_ID));
+}
 
 // skip error message save
 X86_FUNC_IMPL(__imp__sub_2A6530);
@@ -26,7 +116,7 @@ static bool g_shouldPreventPrompt = false;
 
 // player quit prompt
 X86_FUNC_IMPL(__imp__sub_5A7B0);
-X86_FUNC(sub_5A7B0)	
+X86_FUNC(sub_5A7B0)
 {
 	g_shouldPreventPrompt = Config::ConfirmationPrompt.Value == false;
 	__imp__sub_5A7B0(ctx, base);
@@ -66,55 +156,117 @@ X86_FUNC(sub_2A5B60)
 	__imp__sub_2A5B60(ctx, base);
 }
 
-static bool ProcessCreateSaveMessage()
+// Builds the buttons the message originally use
+// This is used for text replacement that require an input from user (e.g: ok, yes / no etc.)
+
+static std::vector<std::string> GetMessageOptions(uint8_t* base, uint32_t descriptor)
 {
-	std::array<std::string, 2> options = { Localise("Common_Yes"), Localise("Common_No") };
-	MessageWindow::Open(Localise("Title_Message_CreateSave"), &g_CreateSaveMessageResult, options, 0, 1, true);
-	return true;
+	std::vector<std::string> options;
+
+	auto optionCount = int32_t(X86_LOAD_U32(descriptor + DESCRIPTOR_OPTION_COUNT));
+
+	for (int32_t i = 0; i < optionCount; i++)
+	{
+		auto textID = int32_t(X86_LOAD_U32(descriptor + DESCRIPTOR_OPTION_TEXT_IDS + i * 4));
+
+		if (auto localeKey = GetOptionLocaleKey(textID))
+			options.push_back(Localise(localeKey));
+		else
+			options.push_back(std::to_string(textID));
+	}
+
+	return options;
 }
 
-static bool ProcessFailedCreateSaveMessage()
+static void CloseCustomMessage()
 {
-	std::array<std::string, 1> options = { Localise("Common_Ok") };
-	MessageWindow::Open(Localise("Title_Message_CreateSaveFailed"), &g_CreateSaveMessageFailedResult, options, 0, 1, true);
-	return true;
+	if (MessageWindow::s_isVisible)
+		MessageWindow::Close(true);
+
+	g_messageResult = -1;
+	g_messageIndex = -1;
 }
 
-static int g_currentMessageID = 0;
+
+// Text and buttons
+
+static bool g_suppressedGuestText = false;
+
+bool DrawAdvertiseMessageMidAsmHook(X86Register& esi)
+{
+	auto base = g_memory.base;
+
+	g_suppressedGuestText = FindCustomMessage(int32_t(X86_LOAD_U32(esi.u32))) != nullptr;
+
+	return g_suppressedGuestText;
+}
+
 // draw message
 X86_FUNC_IMPL(__imp__sub_2A6020);
 X86_FUNC(sub_2A6020)
 {
 	X86Context ctxBackup = ctx;
 
+	// The function adds an SEH frame and only unlinks it on the paths that reach its
+	// end, so we have to backup and restore it in case of early return.
+	auto sehBackup = X86_LOAD_U32(ctx.kpcr_ptr);
+
 	__imp__sub_2A6020(ctx, base);
 
-	if (g_currentMessageID) // if we used a custom message, function will return early, we need to fix registers and esp
+	if (g_suppressedGuestText) // custom message was used, meaning we returned early, fix esp and reg
 	{
 		ctx = ctxBackup;
-		ctx.esp.u32 += 4;
-		g_currentMessageID = 0;
+		ctx.AddEsp(1);
+		X86_STORE_U32(ctx.kpcr_ptr, sehBackup);
+		g_suppressedGuestText = false;
 	}
-
 }
 
-bool DrawAdvertiseMessageMidAsmHook(X86Register& esi)
-{
-	auto base = g_memory.base;
-	g_currentMessageID = X86_LOAD_U32(esi.u32);
 
-	switch (g_currentMessageID)
+static void ShowCustomMessage(uint8_t* base, const CustomMessage& custom, uint32_t message, int32_t index)
+{
+	auto descriptor = GUEST_MESSAGE_DESCRIPTORS + index * GUEST_MESSAGE_DESCRIPTOR_SIZE;
+
+	// make sure our custom message only draw when the message box animation has advanced enough
+	// e.g if opening, draw late, and if closing, stop rendering when the
+	// message box size is small enough
+	if (X86_LOAD_F32(message + MESSAGE_OPEN) < 1.0f)
 	{
-	default:
-		break;
-	case 6070:
-		return ProcessFailedCreateSaveMessage();
-	case 6068:
-	case 6081:
-		return ProcessCreateSaveMessage();
+		if (MessageWindow::s_isVisible)
+			MessageWindow::Close(true);
+
+		return;
 	}
 
+	auto options = GetMessageOptions(base, descriptor);
+	auto lastOption = std::max(int32_t(options.size()) - 1, 0);
+	auto selection = std::clamp(int32_t(X86_LOAD_U32(message + MESSAGE_SELECTION)), 0, lastOption);
 
-	g_currentMessageID = 0;
-	return false;
+	MessageWindow::Open(Localise(custom.LocaleKey), &g_messageResult, options, selection, lastOption, true, true);
+	MessageWindow::SetSelection(selection); // set user's input for button choice
+}
+
+// hack: prevent the game to draw its own text replace with our own one instead
+X86_FUNC_IMPL(__imp__sub_2A5DD0);
+X86_FUNC(sub_2A5DD0)
+{
+	auto message = ctx.ecx.u32;
+
+	__imp__sub_2A5DD0(ctx, base);
+
+	auto displayed = int32_t(X86_LOAD_U32(message + MESSAGE_DISPLAYED));
+	auto custom = displayed >= 0 ? FindCustomMessage(GetMessageTextID(base, displayed)) : nullptr;
+
+	if (custom == nullptr || displayed != g_messageIndex)
+	{
+		if (g_messageIndex >= 0) // The game closed our message or swapped it.
+			CloseCustomMessage();
+
+		if (custom == nullptr)
+			return;
+
+		g_messageIndex = displayed;
+	}
+
+	ShowCustomMessage(base, *custom, message, displayed);
 }
