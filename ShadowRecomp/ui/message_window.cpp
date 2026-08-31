@@ -329,7 +329,7 @@ static void ResetSelection()
 
 bool MessageWindow::Open(std::string text, int* result, std::span<std::string> buttons, int defaultButtonIndex, int cancelButtonIndex, bool hideFrame, bool guestHasControl)
 {
-	if (!g_isAwaitingResult && *result == -1)
+	if (!g_isAwaitingResult && !g_isClosing && *result == -1)
 	{
 
 		g_isControlsReady = false;
@@ -376,6 +376,7 @@ void MessageWindow::Draw()
 	if (g_isClosing && (ImGui::GetTime() - g_time) > (1.0 / 60.0) * 15.f)
 	{
 		g_isAwaitingResult = false;
+		g_isClosing = false;
 		s_isVisible = false;
 		return;
 	}
@@ -526,5 +527,8 @@ void MessageWindow::Close(bool immediate)
 	// Just like above: make sure our custom message only draw when the 
 	// message box animation has advanced enough, unless there is no anim.
 	if (immediate)
+	{
+		g_isClosing = false;
 		s_isVisible = false;
+	}
 }

@@ -54,12 +54,13 @@ struct CustomMessage
 	const char* LocaleKey;
 };
 
+
 static const CustomMessage g_customMessages[] =
 {
 	{ 6068, "Title_Message_CreateSave" },
 	{ 6070, "Title_Message_CreateSaveFailed" },
 	{ 6081, "Title_Message_CreateSave" },
-	//{ 6090, "Title_Message_CreateSave" }, // load save
+	{ 6090, "Title_Message_LoadSave"},
 
 };
 
