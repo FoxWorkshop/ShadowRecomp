@@ -94,7 +94,7 @@ struct PushConstants
 
 // compute offset of cN.component
 #define V_CBUFFER_OFFSET(cN, comp) ((cN)*16 + ((comp) == 'x' ? 0 : (comp) == 'y' ? 4 : (comp) == 'z' ? 8 : 12))
-
+#define V_ARRAY_OFFSET(cn, slot) ((cn)*16 + (slot)*16)
 
 #define texture2D_0   vk::RawBufferLoad<uint>(g_PushConstants.SharedConstants + V_CBUFFER_OFFSET(0, 'x') )
 #define texture2D_1   vk::RawBufferLoad<uint>(g_PushConstants.SharedConstants + V_CBUFFER_OFFSET(0, 'y') )
@@ -104,6 +104,9 @@ struct PushConstants
 #define texture3D_0   vk::RawBufferLoad<uint>(g_PushConstants.SharedConstants + V_CBUFFER_OFFSET(4, 'x') )
 
 #define textureCube_0   vk::RawBufferLoad<uint>(g_PushConstants.SharedConstants + V_CBUFFER_OFFSET(8, 'x') )
+
+// two stages per register: stage i is at element (i >> 1), .xy for even, .zw for odd
+#define texCoordMin_(i) vk::RawBufferLoad<float4>(g_PushConstants.SharedConstants + V_ARRAY_OFFSET(89, i))
 
 #define sampler_0  vk::RawBufferLoad<uint>(g_PushConstants.SharedConstants + V_CBUFFER_OFFSET(12, 'x') )
 #define sampler_1  vk::RawBufferLoad<uint>(g_PushConstants.SharedConstants + V_CBUFFER_OFFSET(12, 'y') )
@@ -295,15 +298,29 @@ cbuffer SharedConstants : register(b2, space4)
     uint alphaTestEnable : packoffset(c87.y);
     uint alphaFunc : packoffset(c87.z);
     float alphaRef : packoffset(c87.w);
- 
-       
+      
 
     float alphaThreshold : packoffset(c88.z);
     
-    //TextureCombinerState combiners[16] : packoffset(c14);
+    float4 texCoordMin__[8] : packoffset(c89); // per stage texture coordinate lower bound (c89-96), two stages per register
+
 };
 
+#define texCoordMin_(i) texCoordMin__[i]
+
 #endif
+
+
+// edge bleed fix
+// Smallest texture coordinate that is safe to sample for this stage
+// Those are not null only for RT that have the RT edge bleed (garbage data top left)
+// see texCoordMin in SharedConstants struct on the CPU side
+
+float2 GetTexCoordMin(uint slot)
+{
+    float4 packed = texCoordMin_(slot >> 1);
+    return (slot & 1) ? packed.zw : packed.xy;
+}
 
 uint GetTextureStage(uint slot, uint type)
 {

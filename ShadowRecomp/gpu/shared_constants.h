@@ -53,4 +53,12 @@ struct SharedConstants
     float alphaRef; // reference value, 0.0 - 1.0
 
     float alphaThreshold;
+
+    uint32_t texCoordMinPadding[3]; //for shader alignment 
+
+    // We originally offsets every viewport by half pixel to reproduce Xbox's vertex pos
+    // however, that half pixel once upscaled by higher res becomes full pixels at the left and top of every 
+    // Render Target that no draw ever covers, showing what we call "edge bleed".
+    // We can fix that by clamping UV for each RT so the shader won't read the edge bleed data.
+    float texCoordMin[SharedTextureSlotCount][2]; 
 };

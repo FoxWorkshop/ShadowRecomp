@@ -191,9 +191,17 @@ TextureArgs ExecuteTextureStage(
         t = float4(1, 1, 1, 1);
     }
     else if (type == SAMPLE_2D)
-    {    
+    {   
+        // Edge bleed fix: Make sure to not read the unwritten border of upscaled render target
+        // We guard regular tex, if they get a zero bound, we can keep their negative coordinate and thus their
+        //  wrap addressing.
+        float2 uv = TexCoords[i].xy + offset.xy;
+        const float2 texCoordMin = GetTexCoordMin(i);
+        if (texCoordMin.x > 0.0f)
+            uv = max(uv, texCoordMin);
+        
         t = g_Texture2DDescriptorHeap[GetTextureStage(i, type)].Sample(g_SamplerDescriptorHeap[GetSamplerState(i)],
-        TexCoords[i].xy + offset.xy);
+        uv);
     }
     else if (type == SAMPLE_3D)
     {
