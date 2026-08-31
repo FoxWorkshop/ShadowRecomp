@@ -388,9 +388,6 @@ struct GuestBuffer : GuestResource
 	std::unique_ptr<RenderBuffer> buffer;
 	XXH64_hash_t hash = 0;
 	void* mappedMemory = nullptr;
-	// Permanent CPU write access to the GPU buffer. Only used on integrated
-	// GPUs, where the GPU buffer can be written directly.
-	void* persistentMap = nullptr;
 	uint32_t dataSize = 0;
 	RenderFormat format = RenderFormat::UNKNOWN;
 	uint32_t guestFormat = 0;
