@@ -4,6 +4,8 @@
 #include <user/paths.h>
 #include <gpu/video.h>
 
+#include <cmath>
+
 std::vector<IConfigDef*> g_configDefinitions;
 
 #define CONFIG_DEFINE_ENUM_TEMPLATE(type) \
@@ -750,7 +752,9 @@ void Config::CreateCallbacks()
                     auto displayModes = GameWindow::GetDisplayModes();
                     auto& mode = displayModes[value];
                     auto centre = SDL_WINDOWPOS_CENTERED_DISPLAY(GameWindow::GetDisplay());
-                    GameWindow::SetDimensions(mode.w, mode.h, centre, centre);
+                    auto scale = GameWindow::GetDisplayScale();
+
+                    GameWindow::SetDimensions((int)lround(mode.w / scale), (int)lround(mode.h / scale), centre, centre);
                     if (App::s_isInit)
                         g_pendingSurfaceResizeFlag = true;
                 });

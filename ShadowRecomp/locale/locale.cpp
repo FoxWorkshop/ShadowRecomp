@@ -232,24 +232,24 @@ std::unordered_map<std::string_view, std::unordered_map<ELanguage, std::string>>
 	{
 		"Options_Name_WindowSize",
 		{
-			{ ELanguage::English,  "Window Size" },
-			{ ELanguage::Japanese, "ウィンドウサイズ" },
-			{ ELanguage::German,   "Fenstergröße" },
-			{ ELanguage::French,   "Taille de la fenêtre" },
-			{ ELanguage::Spanish,  "Tamaño de ventana" },
-			{ ELanguage::Italian,  "Dimensioni della finestra" }
+			{ ELanguage::English,  "Resolution" },
+			{ ELanguage::Japanese, "解像度" },
+			{ ELanguage::German,   "Auflösung" },
+			{ ELanguage::French,   "Résolution" },
+			{ ELanguage::Spanish,  "Resolución" },
+			{ ELanguage::Italian,  "Risoluzione" }
 		}
 	},
 	{
 		// Japanese Notes: This localization should include furigana.
 		"Options_Desc_WindowSize",
 		{
-			{ ELanguage::English,  "Adjust the size of the game window in windowed mode." },
-			{ ELanguage::Japanese, "ゲームの\u200Bウィンドウサイズを\u200B[設定:せってい]できます" },
-			{ ELanguage::German,   "Passe die Fenstergröße des Spiels im Fenstermodus an." },
+			{ ELanguage::English,  "Adjust the resolution of the game in windowed mode." },
+			{ ELanguage::Japanese, "ゲームの\u200B[解像度:かいぞうど]を\u200B[設定:せってい]できます" },
+			{ ELanguage::German,   "Passe die Auflösung des Spiels im Fenstermodus an." },
 			{ ELanguage::French,   "Définir la résolution de jeu en mode fenêtré." },
-			{ ELanguage::Spanish,  "Ajusta el tamaño de la ventana de juego en modo ventana." },
-			{ ELanguage::Italian,  "Regola la dimensione della finestra del gioco in modalità finestra." }
+			{ ELanguage::Spanish,  "Ajusta la resolución del juego en modo ventana." },
+			{ ELanguage::Italian,  "Regola la risoluzione del gioco in modalità finestra." }
 		}
 	},
 	{

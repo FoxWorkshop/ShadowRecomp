@@ -456,12 +456,12 @@ CONFIG_DEFINE_LOCALE(Subtitles)
 // Japanese Notes: This localization should include furigana.
 CONFIG_DEFINE_LOCALE(WindowSize)
 {
-    { ELanguage::English, { "Window Size", "Adjust the size of the game window in windowed mode." } },
-    { ELanguage::Japanese, { "ウィンドウサイズ", "ウィンドウ\u200Bモードでの\u200Bゲームの\u200Bウィンドウサイズを\u200B[調整:ちょうせい]できます" } },
-    { ELanguage::German,   { "Fenstergröße", "Ändere die Größe des Spielfensters im Fenstermodus." } },
-    { ELanguage::French,   { "Taille de la fenêtre", "Modifie la taille de la fenêtre de jeu en mode fenêtré." } },
-    { ELanguage::Spanish,  { "Tamaño de ventana", "Ajusta el tamaño de la ventana de juego." } },
-    { ELanguage::Italian,  { "Dimensioni finestra", "Regola le dimensioni della finestra del gioco in modalità finestra." } }
+    { ELanguage::English, { "Resolution", "Adjust the resolution of the game in windowed mode." } },
+    { ELanguage::Japanese, { "解像度", "ウィンドウ\u200Bモードでの\u200Bゲームの\u200B[解像度:かいぞうど]を\u200B[調整:ちょうせい]できます" } },
+    { ELanguage::German,   { "Auflösung", "Ändere die Auflösung des Spiels im Fenstermodus." } },
+    { ELanguage::French,   { "Résolution", "Modifie la résolution du jeu en mode fenêtré." } },
+    { ELanguage::Spanish,  { "Resolución", "Ajusta la resolución del juego en modo ventana." } },
+    { ELanguage::Italian,  { "Risoluzione", "Regola la risoluzione del gioco in modalità finestra." } }
 };
 
 // Japanese Notes: This localization should include furigana.

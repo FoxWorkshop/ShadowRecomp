@@ -747,11 +747,8 @@ static void DrawOption
 		{
 			if (Config::Fullscreen)
 			{
-				int displayW, displayH;
-
-				GameWindow::GetSizeInPixels(&displayW, &displayH);
-
-				valueText = fmt::format("{}x{}", displayW, displayH);
+				// Show the real rendered resolution, like the profiler does.
+				valueText = fmt::format("{}x{}", Video::s_viewportWidth, Video::s_viewportHeight);
 			}
 			else
 			{
@@ -765,7 +762,8 @@ static void DrawOption
 				}
 				else
 				{
-					valueText = fmt::format("{}x{}", GameWindow::s_width, GameWindow::s_height);
+					// Show the real rendered resolution, like the profiler does.
+					valueText = fmt::format("{}x{}", Video::s_viewportWidth, Video::s_viewportHeight);
 				}
 			}
 

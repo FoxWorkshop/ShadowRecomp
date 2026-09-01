@@ -5,6 +5,8 @@
 #include <sdl_listener.h>
 #include <SDL_syswm.h>
 
+#include <cmath>
+
 #if _WIN32
 #include <dwmapi.h>
 #include <shellscalingapi.h>
@@ -125,7 +127,14 @@ int Window_OnSDLEvent(void*, SDL_Event* event)
 
         case SDL_WINDOWEVENT_RESIZED:
             m_isResizing = true;
-            Config::WindowSize = -1;
+
+            if (Config::WindowSize >= 0 &&
+                (event->window.data1 != GameWindow::s_width ||
+                    event->window.data2 != GameWindow::s_height))
+            {
+                Config::WindowSize = -1;
+            }
+
             GameWindow::s_width = event->window.data1;
             GameWindow::s_height = event->window.data2;
             GameWindow::SetTitle(fmt::format("{} - [{}x{}]", GameWindow::GetTitle(), GameWindow::s_width, GameWindow::s_height).c_str());
@@ -471,12 +480,28 @@ void GameWindow::SetDisplay(int displayIndex)
     }
 }
 
+float GameWindow::GetDisplayScale()
+{
+    if (s_pWindow == nullptr)
+        return 1.0f;
+
+    int w, h, wInPixels, hInPixels;
+    SDL_GetWindowSize(s_pWindow, &w, &h);
+    SDL_GetWindowSizeInPixels(s_pWindow, &wInPixels, &hInPixels);
+
+    if (w <= 0 || h <= 0)
+        return 1.0f;
+
+    return (float(wInPixels) / float(w) + float(hInPixels) / float(h)) * 0.5f;
+}
+
 std::vector<SDL_DisplayMode> GameWindow::GetDisplayModes(bool ignoreInvalidModes, bool ignoreRefreshRates)
 {
     auto result = std::vector<SDL_DisplayMode>();
     auto uniqueResolutions = std::set<std::pair<int, int>>();
     auto displayIndex = GetDisplay();
     auto modeCount = SDL_GetNumDisplayModes(displayIndex);
+    auto scale = GetDisplayScale();
 
     if (modeCount <= 0)
         return result;
@@ -496,7 +521,10 @@ std::vector<SDL_DisplayMode> GameWindow::GetDisplayModes(bool ignoreInvalidModes
 
                 if (SDL_GetDesktopDisplayMode(displayIndex, &desktopMode) == 0)
                 {
-                    if (mode.w >= desktopMode.w || mode.h >= desktopMode.h)
+                    auto desktopW = (int)lround(desktopMode.w * scale);
+                    auto desktopH = (int)lround(desktopMode.h * scale);
+
+                    if (mode.w >= desktopW && mode.h >= desktopH)
                         continue;
                 }
             }
@@ -525,14 +553,17 @@ int GameWindow::FindNearestDisplayMode()
 {
     auto result = -1;
     auto displayModes = GetDisplayModes();
+    auto scale = GetDisplayScale();
+    auto refWidth = (int)lround(s_width * scale);
+    auto refHeight = (int)lround(s_height * scale);
     auto currentDiff = std::numeric_limits<int>::max();
 
     for (int i = 0; i < displayModes.size(); i++)
     {
         auto& mode = displayModes[i];
 
-        auto widthDiff = abs(mode.w - s_width);
-        auto heightDiff = abs(mode.h - s_height);
+        auto widthDiff = abs(mode.w - refWidth);
+        auto heightDiff = abs(mode.h - refHeight);
         auto totalDiff = widthDiff + heightDiff;
 
         if (totalDiff < currentDiff)
