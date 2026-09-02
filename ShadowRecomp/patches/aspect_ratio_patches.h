@@ -53,6 +53,11 @@ enum CsdFlags : uint64_t
 
     CSD_STRETCH = CSD_STRETCH_HORIZONTAL | CSD_STRETCH_VERTICAL,
 
+    // Scale the element uniformly around the centre of the screen so a whole layout keeps its 4:3
+    // proportions, whatever the user picked for UI alignment and whatever the display resolution
+    // is. Meant for screens that read as one picture (menus, results, pause) rather than for HUD
+    // widgets, which follow the alignment setting instead. Usually set for a whole file through
+    // g_csdFileModifiers; CSD_STRETCH_HORIZONTAL on an individual cast opts it back out.
     CSD_SCALE = MAKE_BITFLAG64(6),
 
     CSD_EXTEND_LEFT = MAKE_BITFLAG64(7),

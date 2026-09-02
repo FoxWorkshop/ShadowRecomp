@@ -371,7 +371,8 @@ static constexpr float CSD_ANCHOR_RIGHT = widthMin;
 
 static float ResolveAnchorX(int64_t flags, float minX, float maxX)
 {
-	if (Config::UIAlignmentMode.Value == EUIAlignmentMode::Centre)
+
+	if ((flags & CSD_SCALE) != 0 || Config::UIAlignmentMode.Value == EUIAlignmentMode::Centre)
 		return CSD_ANCHOR_CENTRE;
 
 	if ((flags & CSD_ALIGN_LEFT) != 0)
@@ -400,11 +401,19 @@ static bool UnstretchPrimitive(void* vertexData, uint32_t count, int64_t flags, 
 	if (verts == nullptr || count == 0)
 		return false;
 
+
+	const bool uniformScale = (flags & CSD_SCALE) != 0;
+
 	// 4:3 or narrower, or the user asked for the original stretched look.
-	if (g_hudUnstretchX >= 1.0f || Config::UIAlignmentMode.Value == EUIAlignmentMode::Stretch)
+	if (g_hudUnstretchX >= 1.0f)
 		return false;
 
-	if ((flags & CSD_STRETCH_HORIZONTAL) != 0 && Config::UIAlignmentMode.Value != EUIAlignmentMode::Centre)
+	if (!uniformScale && Config::UIAlignmentMode.Value == EUIAlignmentMode::Stretch)
+		return false;
+
+
+	if ((flags & CSD_STRETCH_HORIZONTAL) != 0 &&
+		(uniformScale || Config::UIAlignmentMode.Value != EUIAlignmentMode::Centre))
 		return false;
 
 	float minX = FLT_MAX;
@@ -478,9 +487,10 @@ void Draw(X86Context& ctx, uint8_t* base, X86Func* original, void* vertexData, u
 
 	bool shouldBeSkipped = false;
 	const bool isCentered = Config::UIAlignmentMode.Value == EUIAlignmentMode::Centre;
-	const bool canUnstretch = ((modifier.Flags & CSD_MODIFIER_PRESEVE_4_3_SCALE) != 0);
+	const bool preserve43 = ((modifier.Flags & CSD_MODIFIER_PRESEVE_4_3_SCALE) != 0);
+	const bool canUnstretch = preserve43 || ((modifier.Flags & CSD_SCALE) != 0);
 
-	if (isCentered && canUnstretch)
+	if (isCentered && preserve43)
 	{
 		for (int i = 0; i < CSDVertexCount; i++)
 		{
@@ -605,14 +615,14 @@ void CPlatformRWDrawPrimitive2DMidAsmHook2(X86Register& rEsi)
 	Draw(*ctx, base, __imp__sub_2ECC80, g_memory.Translate(rEsi.u32), 28);
 }
 
-
+static bool g_isInStageMode = false;
 void DrawHudMidAsmHook(X86Register& rEax)
 {
-	if (!rEax.u32 || App::isInMainMenu()) // this affect text on stage select mode badly
+	if (!rEax.u32 || App::isInMainMenu() && !g_isInStageMode) // this affect text on stage select mode badly
 		return;
 
 	float savedX[CSDVertexCount];
-	UnstretchPrimitive(g_memory.Translate(rEax.u32), CSDVertexCount, CSD_ALIGN_CENTER, savedX);
+		UnstretchPrimitive(g_memory.Translate(rEax.u32), CSDVertexCount, CSD_ALIGN_CENTER, savedX);
 }
 
 
@@ -1239,6 +1249,15 @@ void RainEffectScaleMidAsmHook(X86Register& esp)
 	StretchFullScreenQuadScale(esp.u32);
 }
 
+
+X86_FUNC_IMPL(__imp__sub_29A850);
+X86_FUNC(sub_29A850)
+{
+	g_isInStageMode = true;
+	__imp__sub_29A850(ctx, base);
+	g_isInStageMode = false;
+}
+
 // Patch the text draw in the main menu (score in stage select, level name etc.)
 // The font system (bitmap) draws every string as Rt2d geometry which is pushed through 3D Space.
 // Each glyph quad is set up by the world matrix then puts the geometry in a 2D space. 
@@ -1249,7 +1268,7 @@ void UnstretchMenuTextTransform(uint32_t pMatrix)
 {
 	auto base = g_memory.base;
 
-	if (!App::isInMainMenu() || pMatrix == 0)
+	if (!App::isInMainMenu() && !g_isInStageMode || pMatrix == 0)
 		return;
 
 	float aspectRatio;
