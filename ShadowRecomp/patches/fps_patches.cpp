@@ -11,7 +11,7 @@ void SetFramerateMidAsmHook()
 	auto base = g_memory.base;
 	if (g_isEventPlaying == false)
 	{
-		X86_STORE_U32(g_refRate, Config::FPS);
+		X86_STORE_U32(g_refRate, (uint32_t)GetTargetFPS());
 	}
 }
 
@@ -118,7 +118,7 @@ void FpsConfigValueChangedCallback(IConfigDef* config)
 // Only enabling for 61+ FPS to avoid the slight camera 'drop' for slide while this is active.
 bool HighFramerateCollisionFixMidAsmHook()
 {
-	return Config::FPS.Value >= 61.0f;
+	return GetTargetFPS() >= 61.0;
 }
 
 // Common platforms that are used in many different stages

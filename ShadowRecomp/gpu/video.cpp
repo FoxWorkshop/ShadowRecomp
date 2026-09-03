@@ -4504,6 +4504,25 @@ double GetFPS()
 	return s_fps;
 }
 
+// The configured FPS, or the display refresh rate when VSync is on.
+double GetTargetFPS()
+{
+	double fps = Config::FPS.Value;
+	if (!Config::VSync)
+		return fps;
+
+	// SDL caches display modes in memory; this is a cheap read.
+	SDL_DisplayMode mode;
+	int displayIndex = GameWindow::GetDisplay();
+	if (displayIndex >= 0 && SDL_GetCurrentDisplayMode(displayIndex, &mode) == 0 &&
+		mode.refresh_rate > 0 && fps > mode.refresh_rate)
+	{
+		return mode.refresh_rate;
+	}
+
+	return fps;
+}
+
 static void DrawFPS()
 {
 	double time = ImGui::GetTime();
@@ -5988,15 +6007,15 @@ static void ProcUnlockTextureRect(const RenderCommand& cmd)
 }
 
 // This function is needed for ADX and FMV decoding, as they rely on the vblank
-// timing to update their buffers. We fake a vblank signal at the configured FPS
-// limit; sleep-only pacing keeps the decoding threads off the CPU.
+// timing to update their buffers. We fake a vblank signal at the target
+// framerate; sleep-only pacing keeps the decoding threads off the CPU.
 void CRI_BlockUntilVerticalBlank()
 {
 	// Per-thread pacer: each decoding thread holds its own vblank phase, and
 	// the pacer's oversleep compensation keeps the period drift-free.
 	thread_local FramePacer vblankPacer;
 
-	vblankPacer.SetFpsLimit(Config::FPS.Value);
+	vblankPacer.SetFpsLimit(GetTargetFPS());
 	vblankPacer.EndFrame(FramePacer::WaitMode::SleepOnly);
 }
 
