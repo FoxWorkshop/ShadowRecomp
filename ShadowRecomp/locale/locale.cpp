@@ -776,20 +776,34 @@ std::unordered_map<std::string_view, std::unordered_map<ELanguage, std::string>>
 			{ ELanguage::Italian,  "I file di salvataggio sembrano danneggiati\ne non possono essere caricati." }
 		}
 	},
+	{
+		// Notes: message appears when creating a save file at the title screen.
+		// Note, the game exclusively use "Game Data" when referring to save file, please re use this for consistency.
+		// Japanese Notes: This localization should include furigana.
+		"Title_Message_LoadSave",
 		{
-			// Notes: message appears when creating a save file at the title screen.
-			// Note, the game exclusively use "Game Data" when referring to save file, please re use this for consistency.
-			// Japanese Notes: This localization should include furigana.
-			"Title_Message_LoadSave",
-			{
-				{ ELanguage::English,  "Do you want to load Game Data?" },
-				{ ELanguage::Japanese, "Do you want to load Game Data?" },
-				{ ELanguage::German,   "Do you want to load Game Data?" },
-				{ ELanguage::French,   "Souhaitez-vous charger les\n données de jeu?" },
-				{ ELanguage::Spanish,  "Do you want to load Game Data?" },
-				{ ELanguage::Italian,  "Do you want to load Game Data?" },
-			}
-		},
+			{ ELanguage::English,  "Do you want to load Game Data?" },
+			{ ELanguage::Japanese, "Do you want to load Game Data?" },
+			{ ELanguage::German,   "Do you want to load Game Data?" },
+			{ ELanguage::French,   "Souhaitez-vous charger les\n données de jeu?" },
+			{ ELanguage::Spanish,  "Do you want to load Game Data?" },
+			{ ELanguage::Italian,  "Do you want to load Game Data?" },
+		}
+	},
+	{
+		// Notes: message appears when creating a save file at the title screen.
+		// Note, the game exclusively use "Game Data" when referring to save file, please re use this for consistency.
+		// Japanese Notes: This localization should include furigana.
+		"Title_Message_ContinueWithoutSave",
+		{
+			{ ELanguage::English,  "Continue without saving ?" }, // there is a space added before the question mark to match the original game text, even in english.
+			{ ELanguage::Japanese, "Continue without saving ?" },
+			{ ELanguage::German,   "Continue without saving ?" },
+			{ ELanguage::French,   "Continuez sans sauvegarder ?" },
+			{ ELanguage::Spanish,  "Continue without saving ?" },
+			{ ELanguage::Italian,  "Continue without saving ?" },
+		}
+	},
 	{
 		// Notes: message appears when ACH-DATA is corrupted (mismatching file size, bad signature, incorrect version or invalid checksum) upon pressing start at the title screen.
 		// To make this occur, open the file in any editor and just remove a large chunk of data.

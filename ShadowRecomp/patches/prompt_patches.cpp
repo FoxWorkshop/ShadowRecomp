@@ -61,6 +61,7 @@ static const CustomMessage g_customMessages[] =
 	{ 6070, "Title_Message_CreateSaveFailed" },
 	{ 6081, "Title_Message_CreateSave" },
 	{ 6090, "Title_Message_LoadSave"},
+	{ 5490, "Title_Message_ContinueWithoutSave"},
 
 };
 
