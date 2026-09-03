@@ -4947,17 +4947,17 @@ void Video::Present()
 		loadingFramePacer.SetFpsLimit(60.0);
 		loadingFramePacer.EndFrame(FramePacer::WaitMode::SleepOnly);
 	}
-	else
+	else if (!Config::VSync) // If VSync enabled, then it is the frame pacer itself.
 	{
-		// Pace at the slower rate to avoid the busy wait in 0x56FC0
+		// Pace at the slower rate to avoid the busy wait in 0x56FC0.
 		double targetFps = Config::FPS.Value;
 		float gameFps = GetInternalFrameRate();
-	if (gameFps > 0.0f && gameFps < targetFps)
-		targetFps = gameFps;
+		if (gameFps > 0.0f && gameFps < targetFps)
+			targetFps = gameFps;
 
-	if (targetFps >= FPS_MIN && targetFps < FPS_MAX)
-	{
-		static FramePacer framePacer;
+		if (targetFps >= FPS_MIN && targetFps < FPS_MAX)
+		{
+			static FramePacer framePacer;
 			framePacer.SetFpsLimit(targetFps);
 			framePacer.EndFrame(FramePacer::WaitMode::SleepThenSpin);
 		}
