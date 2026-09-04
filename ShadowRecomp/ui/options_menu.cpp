@@ -4,6 +4,7 @@
 #include <gpu/video.h>
 #include <res/images/common/TitleBg.png.h>
 #include <res/images/common/Options.png.h>
+#include <res/images/common/options_icons.png.h>
 #include <res/images/common/Options2.png.h>
 #include <res/images/common/gamemenu.png.h>
 #include <res/images/common/arrow.png.h>
@@ -27,12 +28,21 @@
 #include <patches/pause_patches.h>
 
 
+#define OPTIONS_CATEGORY_STYLE_ICON      0
+#define OPTIONS_CATEGORY_STYLE_ICON_TEXT 1
+
+#ifndef OPTIONS_CATEGORY_STYLE
+#define OPTIONS_CATEGORY_STYLE OPTIONS_CATEGORY_STYLE_ICON_TEXT
+#endif
+
 static constexpr int MAX_VISIBLE_ROWS = 5;
 static IConfigDef* g_optionCurrent{};
 static bool g_optionCanReset{};
 static std::unique_ptr<GuestTexture> g_upTexOptionsBG{};
-static std::unique_ptr<GuestTexture> g_upTexBGMenuList{};
-static std::unique_ptr<GuestTexture> g_upTexBGOptions{}; // flame, options logo, hud etc.
+static std::unique_ptr<GuestTexture> g_upTexOptionsBG2{};
+
+static std::unique_ptr<GuestTexture> g_upTexOptionsIcons{};
+static std::unique_ptr<GuestTexture> g_upTexOptionsText{}; // flame, options logo, hud etc.
 static std::unique_ptr<GuestTexture> g_upTexGameMenuText{}; // select, exit text etc.
 static std::unique_ptr<GuestTexture> g_upTexArrow{};
 static ImFont* g_fntSeurat;
@@ -105,6 +115,90 @@ static std::string& GetCategoryDescription(OptionsMenuCategory category)
 	}
 
 	return g_localeMissing;
+}
+
+static constexpr int ICON_ATLAS_WIDTH = 165;
+static constexpr int ICON_ATLAS_HEIGHT = 414;
+static constexpr int ICON_CELL_SIZE = 82;
+static constexpr int ICON_CELL_PITCH = 83;
+
+static constexpr float LEGACY_ICON_SIZE = 79.0f;
+static constexpr float LEGACY_ICON_PITCH = 92.0f;
+static constexpr float LEGACY_ICON_SELECTED_SCALE = 1.05f;
+
+static constexpr float INLINE_ICON_SIZE = 36.0f;
+static constexpr float INLINE_ICON_GAP = 10.0f;
+
+static constexpr float CATEGORY_COLUMN_CENTRE_X = 171.0f;
+
+
+static constexpr float OPTIONS_PANEL_WIDTH_RATIO = 0.55f;
+
+static constexpr float CATEGORY_EDGE_MARGIN = 12.0f;
+
+
+static constexpr float CATEGORY_STACK_CENTRE_Y = 250.0f;
+static constexpr float CATEGORY_STACK_HEIGHT = 320.0f;
+
+static int GetCategoryIconRow(OptionsMenuCategory category)
+{
+	switch (category)
+	{
+	case OptionsMenuCategory::System: return 0; 
+	case OptionsMenuCategory::Input:  return 1; 
+	case OptionsMenuCategory::Audio:  return 2; 
+	case OptionsMenuCategory::Video:  return 3; 
+	case OptionsMenuCategory::Misc:   return 4; 
+	case OptionsMenuCategory::Debug:  return 0; 
+	}
+
+	return 0;
+}
+
+static std::tuple<ImVec2, ImVec2> GetCategoryIconUVs(OptionsMenuCategory category, bool isCurrent)
+{
+	const int cellX = isCurrent ? ICON_CELL_PITCH : 0;
+	const int cellY = GetCategoryIconRow(category) * ICON_CELL_PITCH;
+
+	return PIXELS_TO_UV_COORDS(ICON_ATLAS_WIDTH, ICON_ATLAS_HEIGHT, cellX, cellY, ICON_CELL_SIZE, ICON_CELL_SIZE);
+}
+
+static bool IsCategoryVisible(OptionsMenuCategory category)
+{
+	// Don't show debug option if locked
+	if (!OptionsMenu::s_isDebugUnlocked && category == OptionsMenuCategory::Debug)
+		return false;
+
+	// Don't show legacy options during gameplay
+	if (OptionsMenu::s_isPause && category == OptionsMenuCategory::Misc)
+		return false;
+
+	return true;
+}
+
+
+static float ClampBand(float left, float width, float bandLeft, float bandRight)
+{
+	if (left + width > bandRight)
+		left = bandRight - width;
+
+	if (left < bandLeft)
+		left = bandLeft;
+
+	return left;
+}
+
+static int GetVisibleCategoryCount()
+{
+	int count = 0;
+
+	for (int i = 0; i < (int)OptionsMenuCategory::Count; i++)
+	{
+		if (IsCategoryVisible((OptionsMenuCategory)i))
+			count++;
+	}
+
+	return count;
 }
 
 static bool CheckAndDiscard(bool& value)
@@ -389,8 +483,9 @@ static void DrawOption
 
 
 	// options name variables
+	const float fontOptionSize = g_fntSeuratSize - 4.f;
 	auto titleText = config->GetNameLocalised(Config::Language);
-	auto titleTextSize = g_fntSeurat->CalcTextSizeA(g_fntSeuratSize, FLT_MAX, 0, titleText.c_str());
+	auto titleTextSize = g_fntSeurat->CalcTextSizeA(fontOptionSize, FLT_MAX, 0, titleText.c_str());
 	ImVec2 titlePos = { titleBgEdgeMin.x, titleBgEdgeMin.y + Scale(8) };
 	auto isTitleRightFade = !isMiddleRow && OptionsMenu::s_flowState == OptionsMenuFlowState::OptionCursor;
 	auto titleAreaStart = titlePos.x;
@@ -433,7 +528,7 @@ static void DrawOption
 		ImVec2 scrolledTitlePos = { titlePos.x - scrollX, titlePos.y };
 
 
-		AddTextWithOutline(drawList, g_fntSeurat, g_fntSeuratSize, scrolledTitlePos, TexColor,
+		AddTextWithOutline(drawList, g_fntSeurat, fontOptionSize, scrolledTitlePos, TexColor,
 			TextoutlineColor, titleText.c_str(), 1.f, outlineOffset, outlineOffset);
 
 		drawList->PopClipRect();
@@ -445,7 +540,7 @@ static void DrawOption
 			? TruncateTextWithEllipsis(g_fntSeurat, g_fntSeuratSize, titleText, titleAreaWidth)
 			: titleText;
 
-		AddTextWithOutline(drawList, g_fntSeurat, g_fntSeuratSize, titlePos, TexColor,
+		AddTextWithOutline(drawList, g_fntSeurat, fontOptionSize, titlePos, TexColor,
 			TextoutlineColor, displayTitle.c_str(), 1.f, outlineOffset, outlineOffset);
 
 
@@ -793,8 +888,8 @@ static void DrawOption
 
 	SetShaderModifier(IMGUI_SHADER_MODIFIER_LOW_QUALITY_TEXT);
 
-
-	auto rawValueSize = g_fntSeurat->CalcTextSizeA(g_fntSeuratSize, FLT_MAX, 0.0f, valueText.data());
+	const float fontValueSize = g_fntSeuratSize - 12.f;
+	auto rawValueSize = g_fntSeurat->CalcTextSizeA(fontValueSize, FLT_MAX, 0.0f, valueText.data());
 	bool overflows = rawValueSize.x > valueAreaWidth;
 
 	ImVec2 valuePos = { valueAreaEnd - rawValueSize.x, titlePos.y };
@@ -836,7 +931,7 @@ static void DrawOption
 			drawList->PushClipRect({ valueAreaStart, clipRectMin.y }, { valueAreaEnd, clipRectMax.y }, true);
 
 
-			AddTextWithOutline(drawList, g_fntSeurat, g_fntSeuratSize, valuePos, IM_COL32(255, 255, 255, isAccessible ? 255 : 127),
+			AddTextWithOutline(drawList, g_fntSeurat, fontValueSize, valuePos, IM_COL32(255, 255, 255, isAccessible ? 255 : 127),
 				TextoutlineColor, valueText.data(), 1.f, outlineOffset, outlineOffset);
 
 			drawList->PopClipRect();
@@ -845,14 +940,14 @@ static void DrawOption
 		{
 			// selected or doesn't fit fine: truncate with ellipsis if needed
 			std::string displayText = overflows
-				? TruncateTextWithEllipsis(g_fntSeurat, g_fntSeuratSize, valueText, valueAreaWidth)
+				? TruncateTextWithEllipsis(g_fntSeurat, fontValueSize, valueText, valueAreaWidth)
 				: valueText;
 
 			// Recalculate position for truncated text (centered)
-			auto displaySize = g_fntSeurat->CalcTextSizeA(g_fntSeuratSize, FLT_MAX, 0.0f, displayText.data());
+			auto displaySize = g_fntSeurat->CalcTextSizeA(fontValueSize, FLT_MAX, 0.0f, displayText.data());
 			valuePos.x = valueAreaCenter - (displaySize.x * 0.5f);
 
-			AddTextWithOutline(drawList, g_fntSeurat, g_fntSeuratSize, valuePos, IM_COL32(255, 255, 255, isAccessible ? 255 : 127),
+			AddTextWithOutline(drawList, g_fntSeurat, fontValueSize, valuePos, IM_COL32(255, 255, 255, isAccessible ? 255 : 127),
 				TextoutlineColor, displayText.data(), 1.f, outlineOffset, outlineOffset);
 
 		}
@@ -873,6 +968,7 @@ static void DrawGoToLegacyOption
 	ImVec2 max
 )
 {
+
 	auto drawList = ImGui::GetBackgroundDrawList();
 	auto clipRectMin = drawList->GetClipRectMin();
 	auto clipRectMax = drawList->GetClipRectMax();
@@ -886,7 +982,7 @@ static void DrawGoToLegacyOption
 	// original offset from the container
 	float optionsOffsetX = Scale(170);
 	float optionsOffsetY = Scale(23);
-
+	const float fontOptionSize = g_fntSeuratSize - 4.f;
 	// removing offset will make option draw right when the container starts, so we add an extra scale to make it fit inside.
 	min.x -= optionsOffsetX - Scale(10);
 	max.x -= Scale(10);
@@ -933,7 +1029,7 @@ static void DrawGoToLegacyOption
 
 
 	auto titleText = Localise("Options_Name_LegacyMenu");
-	auto titleTextSize = g_fntSeurat->CalcTextSizeA(g_fntSeuratSize, FLT_MAX, 0, titleText.c_str());
+	auto titleTextSize = g_fntSeurat->CalcTextSizeA(fontOptionSize, FLT_MAX, 0, titleText.c_str());
 
 	ImVec2 titlePos = { titleBgEdgeMin.x, titleBgEdgeMin.y + Scale(8) };
 
@@ -946,7 +1042,7 @@ static void DrawGoToLegacyOption
 
 	auto TextoutlineColor = isHoverOrSelected ? IM_COL32(0, 0, 60, 44) : IM_COL32(0, 0, 0, 44);
 	auto TexColor = isHoverOrSelected ? IM_COL32(234, 234, 69, 255) : IM_COL32(255, 255, 255, 255);
-	AddTextWithOutline(drawList, g_fntSeurat, g_fntSeuratSize, titlePos, TexColor,
+	AddTextWithOutline(drawList, g_fntSeurat, fontOptionSize, titlePos, TexColor,
 		TextoutlineColor, titleText.c_str(), 1.f, outlineOffset, outlineOffset);
 	
 
@@ -1264,7 +1360,7 @@ void DrawBackground(bool isPause = false)
 		ImVec2 optionsMin = { 0, min.y + Scale(10) };
 		ImVec2 optionsMax = { optionsMin.x + optionsWidth, optionsMin.y + optionsHeight };
 
-		drawList->AddImage(g_upTexBGOptions.get(), optionsMin, optionsMax, GET_UV_COORDS(optionsUVs), IM_COL32(255, 255, 255, 128));
+		drawList->AddImage(g_upTexOptionsText.get(), optionsMin, optionsMax, GET_UV_COORDS(optionsUVs), IM_COL32(255, 255, 255, 128));
 	}
 }
 
@@ -1322,7 +1418,7 @@ void DrawAnimatedFire(ImVec2 min, ImVec2 max)
 	ImVec2 containerMax = { barScreenX, barScreenH };
 
 
-	drawList->AddImage(g_upTexBGOptions.get(), containerMin, containerMax, GET_UV_COORDS(fireUVs), IM_COL32(255, 255, 255, 255));
+	drawList->AddImage(g_upTexOptionsText.get(), containerMin, containerMax, GET_UV_COORDS(fireUVs), IM_COL32(255, 255, 255, 255));
 
 	SetShaderModifier(IMGUI_SHADER_MODIFIER_NONE);
 }
@@ -1333,7 +1429,7 @@ void DrawMenuListContainer(ImVec2 min, ImVec2 max)
 	auto& res = ImGui::GetIO().DisplaySize;
 
 	auto containerUVs = PIXELS_TO_UV_COORDS(512, 512, 0, 247, 274, 264);
-	auto containerWidth = res.x * 0.55f;
+	auto containerWidth = res.x * OPTIONS_PANEL_WIDTH_RATIO;
 	auto containerHeight = res.y;
 	auto containerOffsetX = Scale(1);
 	auto containerOffsetY = Scale(136);
@@ -1355,7 +1451,7 @@ void DrawMenuListContainer(ImVec2 min, ImVec2 max)
 	ImVec2 containerMin = { containerCurrentX, min.y + containerOffsetY };
 	ImVec2 containerMax = { containerCurrentX + containerWidth, containerMin.y + containerHeight };
 
-	drawList->AddImage(g_upTexBGMenuList.get(), containerMin, containerMax, GET_UV_COORDS(containerUVs));
+	drawList->AddImage(g_upTexOptionsBG2.get(), containerMin, containerMax, GET_UV_COORDS(containerUVs));
 
 	if (t < 1.f)
 		return;
@@ -1381,57 +1477,119 @@ static void DrawCategories(ImVec2 min, ImVec2 max)
 {
 	auto drawList = ImGui::GetBackgroundDrawList();
 
-
-	auto categoryWidth = Scale(560);
-	auto categoryHeight = Scale(47);
-
 	if (g_categoryIndex == -1)
-	{
 		g_categoryIndex = 0;
 
+	// support for 4:3 stuff so it doesn't go off screen
+	const float centreX = min.x + Scale(CATEGORY_COLUMN_CENTRE_X);
+
+	auto& displaySize = ImGui::GetIO().DisplaySize;
+	const float safeLeft = (min.x > 0.0f ? min.x : 0.0f) + Scale(CATEGORY_EDGE_MARGIN);
+	const float safeRight = displaySize.x * (1.0f - OPTIONS_PANEL_WIDTH_RATIO) - Scale(CATEGORY_EDGE_MARGIN);
+
+#if OPTIONS_CATEGORY_STYLE == OPTIONS_CATEGORY_STYLE_ICON
+
+	
+	int visibleCount = GetVisibleCategoryCount();
+
+	if (visibleCount < 1)
+		visibleCount = 1;
+
+	const float pitchRatio = LEGACY_ICON_PITCH / LEGACY_ICON_SIZE;
+	const float fittedSize = CATEGORY_STACK_HEIGHT / (pitchRatio * (visibleCount - 1) + 1.0f);
+	const float iconUnits = fittedSize < LEGACY_ICON_SIZE ? fittedSize : LEGACY_ICON_SIZE;
+	const float pitchUnits = iconUnits * pitchRatio;
+	const float stackUnits = pitchUnits * (visibleCount - 1) + iconUnits;
+	const float firstRowCentreUnits = CATEGORY_STACK_CENTRE_Y - stackUnits * 0.5f + iconUnits * 0.5f;
+
+	
+	const float widestPlate = Scale(iconUnits) * LEGACY_ICON_SELECTED_SCALE;
+	const float columnCentreX = ClampBand(centreX - widestPlate * 0.5f, widestPlate, safeLeft, safeRight) + widestPlate * 0.5f;
+
+#else
+
+
+	float maxTextWidth = 0.0f;
+
+	for (int i = 0; i < (int)OptionsMenuCategory::Count; i++)
+	{
+		if (!IsCategoryVisible((OptionsMenuCategory)i))
+			continue;
+
+		auto name = RemoveRubyAnnotations(GetCategoryName((OptionsMenuCategory)i).c_str()).first;
+		auto width = g_fntSeurat->CalcTextSizeA(g_fntSeuratSize, FLT_MAX, 0.0f, name.c_str()).x;
+
+		if (width > maxTextWidth)
+			maxTextWidth = width;
 	}
 
-	for (size_t i = 0; i < (size_t)OptionsMenuCategory::Count; i++)
+	const float safeWidth = safeRight - safeLeft;
+
+	float groupWidth = Scale(INLINE_ICON_SIZE) + Scale(INLINE_ICON_GAP) + maxTextWidth;
+
+
+	// ensure we don't go out of bound part 2
+	const float fitScale = (groupWidth > safeWidth && groupWidth > 0.0f) ? safeWidth / groupWidth : 1.0f;
+
+	const float fontSize = g_fntSeuratSize * fitScale;
+	const float iconSize = Scale(INLINE_ICON_SIZE) * fitScale;
+	const float iconGap = Scale(INLINE_ICON_GAP) * fitScale;
+
+	groupWidth *= fitScale;
+
+	const float groupLeft = ClampBand(centreX - groupWidth * 0.5f, groupWidth, safeLeft, safeRight);
+	const float textLeft = groupLeft + iconSize + iconGap;
+
+#endif
+
+	int visibleIndex = 0;
+
+	for (int i = 0; i < (int)OptionsMenuCategory::Count; i++)
 	{
-		// Don't show debug category if locked.
-		if (!OptionsMenu::s_isDebugUnlocked && (OptionsMenuCategory)i == OptionsMenuCategory::Debug)
+		auto category = (OptionsMenuCategory)i;
+
+		if (!IsCategoryVisible(category))
 			continue;
 
-		if (OptionsMenu::s_isPause && (OptionsMenuCategory)i == OptionsMenuCategory::Misc) // do not allow legacy options during gameplay
-			continue;
+		const bool isCurrent = i == g_categoryIndex;
+		auto iconUVs = GetCategoryIconUVs(category, isCurrent);
 
-		auto isCurrent = i == g_categoryIndex;
-		auto categoryOffsetY = Scale(48) * i;
+#if OPTIONS_CATEGORY_STYLE == OPTIONS_CATEGORY_STYLE_ICON
 
-		ImVec2 categoryMin = { min.x + Scale(42), min.y + Scale(147) + categoryOffsetY };
-		ImVec2 categoryMax = { categoryMin.x + categoryWidth, categoryMin.y + categoryHeight };
+		auto rowCentreY = min.y + Scale(firstRowCentreUnits + pitchUnits * visibleIndex);
+		auto drawSize = Scale(iconUnits) * (isCurrent ? LEGACY_ICON_SELECTED_SCALE : 1.0f);
 
+		ImVec2 iconMin = { columnCentreX - drawSize * 0.5f, rowCentreY - drawSize * 0.5f };
+		ImVec2 iconMax = { iconMin.x + drawSize, iconMin.y + drawSize };
 
-		// drawList->AddImage(g_upTexMainMenu7.get(), categoryMin, categoryMax, GET_UV_COORDS(isCurrent ? selectedUVs : unselectedUVs));
+		drawList->AddImage(g_upTexOptionsIcons.get(), iconMin, iconMax, GET_UV_COORDS(iconUVs));
 
+#else
 
-		auto text = GetCategoryName((OptionsMenuCategory)i);
-		auto textSize = g_fntSeurat->CalcTextSizeA(g_fntSeuratSize, FLT_MAX, 0.0f, text.c_str());
+		auto rowCentreY = min.y + Scale(153.0f + 48.f * visibleIndex); // gap between each category
 
-		/**SetShaderModifier(IMGUI_SHADER_MODIFIER_LOW_QUALITY_TEXT);
-		drawList->AddText(g_fntSeurat, g_fntSeuratSize, { categoryMin.x + Scale(129), categoryMin.y + Scale(6) }, isCurrent ? IM_COL32(234, 234, 69, 255) : IM_COL32(255, 255, 255, 255), text.c_str());
-		SetShaderModifier(IMGUI_SHADER_MODIFIER_NONE);*/
+		ImVec2 iconMin = { groupLeft, rowCentreY - iconSize * 0.5f };
+		ImVec2 iconMax = { iconMin.x + iconSize, iconMin.y + iconSize };
+
+		drawList->AddImage(g_upTexOptionsIcons.get(), iconMin, iconMax, GET_UV_COORDS(iconUVs));
+
+		const std::string text = GetCategoryName(category);
+		auto textSize = g_fntSeurat->CalcTextSizeA(fontSize, FLT_MAX, 0.0f, RemoveRubyAnnotations(text.c_str()).first.c_str());
 
 		SetShaderModifier(IMGUI_SHADER_MODIFIER_LOW_QUALITY_TEXT);
-
 
 		DrawRubyAnnotatedText
 		(
 			g_fntSeurat,
-			g_fntSeuratSize,
+			fontSize,
 			max.x / 2,
-			{ categoryMin.x + Scale(129), categoryMin.y + Scale(6) },
+			{ textLeft + textSize.x * 0.5f, rowCentreY },
 			5.f,
 			text.c_str(),
 
 			[=](const char* str, ImVec2 pos)
 			{
-				DrawTextWithShadow(g_fntSeurat, g_fntSeuratSize, pos, isCurrent ? IM_COL32(234, 234, 69, 255) : IM_COL32(255, 255, 255, 255), str, 1.f, 0.5f);
+				DrawTextWithShadow(g_fntSeurat, fontSize, pos, isCurrent ? IM_COL32(234, 234, 69, 255) : IM_COL32(255, 255, 255, 255), str, 1.f, 0.5f);
 			},
 			[=](const char* str, float size, ImVec2 pos)
 			{
@@ -1442,6 +1600,10 @@ static void DrawCategories(ImVec2 min, ImVec2 max)
 			);
 
 		SetShaderModifier(IMGUI_SHADER_MODIFIER_NONE);
+
+#endif
+
+		visibleIndex++;
 	}
 
 	if (OptionsMenu::s_flowState == OptionsMenuFlowState::CategoryCursor)
@@ -1807,8 +1969,9 @@ void OptionsMenu::Init()
 {
 	optionDescription = "";
 	g_upTexOptionsBG = LOAD_ZSTD_TEXTURE(g_options_bg);
-	g_upTexBGMenuList = LOAD_ZSTD_TEXTURE(g_optionsIcons);
-	g_upTexBGOptions = LOAD_ZSTD_TEXTURE(g_optionsText);
+	g_upTexOptionsBG2 = LOAD_ZSTD_TEXTURE(g_options_bg2);
+	g_upTexOptionsIcons = LOAD_ZSTD_TEXTURE(g_optionsIcons);
+	g_upTexOptionsText = LOAD_ZSTD_TEXTURE(g_optionsText);
 	g_upTexArrow = LOAD_ZSTD_TEXTURE(g_arrow);
 
 	g_fntSeurat = ImFontAtlasSnapshot::GetFont("FOT-SeuratPro-DB.otf");

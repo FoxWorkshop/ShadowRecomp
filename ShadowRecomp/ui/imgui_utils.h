@@ -5,8 +5,8 @@
 #include <gpu/video.h>
 
 #define PIXELS_TO_UV_COORDS(textureWidth, textureHeight, x, y, width, height) \
-    std::make_tuple(ImVec2((float)x / (float)textureWidth, (float)y / (float)textureHeight), \
-                    ImVec2(((float)x + (float)width) / (float)textureWidth, ((float)y + (float)height) / (float)textureHeight))
+    std::make_tuple(ImVec2((float)(x) / (float)(textureWidth), (float)(y) / (float)(textureHeight)), \
+                    ImVec2(((float)(x) + (float)(width)) / (float)(textureWidth), ((float)(y) + (float)(height)) / (float)(textureHeight)))
 
 #define GET_UV_COORDS(tuple) std::get<0>(tuple), std::get<1>(tuple)
 

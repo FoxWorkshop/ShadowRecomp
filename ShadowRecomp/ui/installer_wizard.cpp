@@ -24,7 +24,7 @@
 #include <decompressor.h>
 
 static std::unique_ptr<GuestTexture> g_upTexOptionsBG{};
-static std::unique_ptr<GuestTexture> g_upTexBGMenuList{};
+static std::unique_ptr<GuestTexture> g_upTexOptionsBG2{};
 
 enum class WizardPage
 {
@@ -1157,5 +1157,5 @@ void InstallerWizard::Init()
 {
 	g_fntSeurat = ImFontAtlasSnapshot::GetFont("FOT-SeuratPro-DB.otf");
 	g_upTexOptionsBG = LOAD_ZSTD_TEXTURE(g_options_bg);
-	g_upTexBGMenuList = LOAD_ZSTD_TEXTURE(g_optionsIcons);
+	g_upTexOptionsBG2 = LOAD_ZSTD_TEXTURE(g_options_bg2);
 }
