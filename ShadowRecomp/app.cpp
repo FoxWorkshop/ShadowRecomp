@@ -46,9 +46,10 @@ X86_FUNC(sub_57630)
 {
 	Video::WaitOnSwapChain();
 
-	if (Config::FPS >= FPS_MIN && Config::FPS < FPS_MAX)
+	double targetFps = GetTargetFPS();
+	if (targetFps >= FPS_MIN && targetFps < FPS_MAX)
 	{
-		double targetDeltaTime = 1.0 / Config::FPS;
+		double targetDeltaTime = 1.0 / targetFps;
 
 		auto frameTime_HHC = X86_LOAD_F32(0x541FA8);
 		if (abs(frameTime_HHC - targetDeltaTime) < 0.00001)
