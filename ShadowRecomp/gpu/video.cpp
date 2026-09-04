@@ -4504,6 +4504,22 @@ double GetFPS()
 	return s_fps;
 }
 
+// The refresh rate (Hz) of the display holding the game window, or 0 when
+// the display or its mode cannot be determined.
+static double GetDisplayRefreshRate()
+{
+	// SDL caches display modes in memory; this is a cheap read.
+	SDL_DisplayMode mode;
+	int displayIndex = GameWindow::GetDisplay();
+	if (displayIndex >= 0 && SDL_GetCurrentDisplayMode(displayIndex, &mode) == 0 &&
+		mode.refresh_rate > 0)
+	{
+		return (double)mode.refresh_rate;
+	}
+
+	return 0.0;
+}
+
 // The configured FPS, or the display refresh rate when VSync is on.
 double GetTargetFPS()
 {
@@ -4511,14 +4527,9 @@ double GetTargetFPS()
 	if (!Config::VSync)
 		return fps;
 
-	// SDL caches display modes in memory; this is a cheap read.
-	SDL_DisplayMode mode;
-	int displayIndex = GameWindow::GetDisplay();
-	if (displayIndex >= 0 && SDL_GetCurrentDisplayMode(displayIndex, &mode) == 0 &&
-		mode.refresh_rate > 0 && fps > mode.refresh_rate)
-	{
-		return mode.refresh_rate;
-	}
+	double refreshRate = GetDisplayRefreshRate();
+	if (refreshRate > 0.0 && fps > refreshRate)
+		return refreshRate;
 
 	return fps;
 }
@@ -4966,7 +4977,8 @@ void Video::Present()
 		loadingFramePacer.SetFpsLimit(60.0);
 		loadingFramePacer.EndFrame(FramePacer::WaitMode::SleepOnly);
 	}
-	else if (!Config::VSync) // If VSync enabled, then it is the frame pacer itself.
+	// A cap below the refresh rate still needs the frame pacer.
+	else if (!Config::VSync || Config::FPS.Value < GetDisplayRefreshRate())
 	{
 		// Pace at the slower rate to avoid the busy wait in 0x56FC0.
 		double targetFps = Config::FPS.Value;
