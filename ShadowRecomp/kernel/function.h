@@ -152,7 +152,7 @@ struct ArgTranslator
         }
 
         const uint32_t stack_ptr = ctx.esp.u32;
-        *reinterpret_cast<uint32_t*>(base + stack_ptr + 4 + (arg * 4)) = value;
+        *reinterpret_cast<uint32_t*>(base + stack_ptr + (arg * 4)) = value;
     }
 
     static float GetFloatArgumentValue(const X86Context& ctx, uint8_t* base, size_t arg, size_t argCount = 0, CallConvention cc = Cdecl) noexcept
@@ -218,7 +218,7 @@ struct ArgTranslator
         }
 
         const uint32_t stack_ptr = ctx.esp.u32;
-        *reinterpret_cast<float*>(base + stack_ptr + 4 + (arg * 4)) = value;
+        *reinterpret_cast<float*>(base + stack_ptr + (arg * 4)) = value;
     }
 
 
@@ -437,6 +437,7 @@ T GuestToHostFunction(const TFunction& func, TArgs&&... argv)
     X86Context newCtx{}; // Create a fresh context
     newCtx.esp = currentCtx.esp;
     newCtx.ebp = currentCtx.ebp;
+    newCtx.kpcr_ptr = currentCtx.kpcr_ptr;
     // Copy other necessary registers
 
     // Set up the arguments
