@@ -88,3 +88,5 @@ struct X_DSBUFFERDESC
     uint32_t           dwInputMixBin;
 };
 
+
+int32_t IDirectSoundBuffer_SetVolume(int32_t keyDevice, int32_t lVolume);

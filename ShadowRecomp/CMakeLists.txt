@@ -139,6 +139,7 @@ set(SHADOW_RECOMP_PATCHES_CXX_SOURCES
     "patches/bloom_patches.cpp"
     "patches/multi_core_patches.cpp"
     "patches/aspect_ratio_patches.cpp"
+    "patches/audio_patches.cpp"
     "patches/fps_patches.cpp"
     "patches/collision_patches.cpp"
     "patches/animated_texture_patches.cpp"
