@@ -1232,3 +1232,17 @@ registers = ["r0"]
 name = "ContainerBehaviorFallMidAsmHook"
 address = 0x18FEE5
 registers = ["r4"]
+
+[[midasm_hook]]
+name = "ShadowMotionBlinkPhaseMidAsmHook"
+address = 0x9C82F
+registers = ["r4"]
+jump_address_on_true = 0x9C83E
+jump_address_on_false = 0x9C831
+
+[[midasm_hook]]
+name = "NpcMotionBlinkPhaseMidAsmHook"
+address = 0xAD747
+registers = ["r4"]
+jump_address_on_true = 0xAD749
+jump_address_on_false = 0xAD757

@@ -428,3 +428,36 @@ void ContainerBehaviorFallMidAsmHook(X86Register& esi)
 
 	X86_STORE_F32(containerBehavior + 0x20, X86_LOAD_F32(containerBehavior + 0x20) + fallSpeed * (frames - 1.0f));
 }
+
+
+/**	--Damage blink patch START-- */
+
+static bool DamageBlinkPhaseHidden(uint32_t player, uint32_t motion)
+{
+	auto base = g_memory.base;
+	const float remaining = player != 0 ? X86_LOAD_F32(player + 0x27C) : 0.0f;
+
+	// anything that the game would not treat as a valid remaining time should use the original logic
+	if (!(remaining > 0.0f) || remaining > 1.0e6f)
+		return (X86_LOAD_U32(motion + 0x3EC) & 1) != 0;
+
+	return (static_cast<int>(remaining * 60.0f + 0.25f) & 1) != 0;
+}
+
+// ShadowMotion::Exec, the counter above still run and can be used here to patch the timing being wrong at > 60 fps
+// False = run original code
+bool ShadowMotionBlinkPhaseMidAsmHook(X86Register& esi)
+{
+	auto base = g_memory.base;
+	return DamageBlinkPhaseHidden(X86_LOAD_U32(esi.u32 + 0x58), esi.u32);
+}
+
+// Partners have similar blink logic than Shadow 
+// False = run original code
+bool NpcMotionBlinkPhaseMidAsmHook(X86Register& esi)
+{
+	auto base = g_memory.base;
+	return DamageBlinkPhaseHidden(X86_LOAD_U32(esi.u32 + 0x458), esi.u32);
+}
+
+/* --Damage blink patch END-- */
