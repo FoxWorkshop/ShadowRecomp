@@ -1246,3 +1246,8 @@ address = 0xAD747
 registers = ["r4"]
 jump_address_on_true = 0xAD749
 jump_address_on_false = 0xAD757
+
+[[midasm_hook]]
+name = "JetEffectRestoreFourthFlameMidAsmHook"
+address = 0x8DCA0
+registers = ["r4"]

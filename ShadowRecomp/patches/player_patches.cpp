@@ -1,3 +1,4 @@
+#include <kernel/function.h>
 #include <ui/game_window.h>
 #include <user/config.h>
 #include <app.h>
@@ -146,3 +147,27 @@ X86_FUNC(sub_9FC00)
 	X86_STORE_U32(0x5456D0, res);
 }
 #endif
+
+// Originally clones SHADOW_FOOTEFF_R.DFF 3 times, make it clone a 4th and assign to slot 0x68 (bone 10).
+// Constructor: 0x8DB90 [aka anonymous_namespace::Jet::Jet]
+// NOTE: Destructor/Hide/Show don't need patches because the game expects all 4 slots to be filled but 4th is null in OG
+// Destructor: 0x8D6B0
+// Show Flame: 0x8CC50
+// Hide Flame: 0x8CC80
+// Slots: 0x5C (bone 7), 0x60 (bone 8), 0x64 (bone 9), 0x68 (bone 10)
+void JetEffectRestoreFourthFlameMidAsmHook(X86Register& esi)
+{
+	auto base = g_memory.base;
+	const uint32_t jet = esi.u32;
+	const uint32_t firstFlame = X86_LOAD_U32(jet + 0x5C);
+	if (firstFlame != 0 && X86_LOAD_U32(jet + 0x68) == 0)
+	{
+		// 0x2CB460 - model clone func
+		// TODO: Probably re-use this for Awake effect clone too for MP patches
+		const uint32_t clone = GuestToHostFunction<uint32_t, CallConvention::Cdecl>(sub_2CB460, firstFlame);
+		if (clone != 0)
+		{
+			X86_STORE_U32(jet + 0x68, clone);
+		}
+	}
+}
