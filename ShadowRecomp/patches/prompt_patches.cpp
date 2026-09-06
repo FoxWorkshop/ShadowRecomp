@@ -59,6 +59,7 @@ static const CustomMessage g_customMessages[] =
 {
 	{ 6068, "Title_Message_CreateSave" },
 	{ 6070, "Title_Message_CreateSaveFailed" },
+	{ 6073, "Title_Message_SaveDamaged" },
 	{ 6081, "Title_Message_CreateSave" },
 	{ 6090, "Title_Message_LoadSave"},
 	{ 5490, "Title_Message_ContinueWithoutSave"},
@@ -139,6 +140,9 @@ X86_FUNC_IMPL(__imp__sub_2A6D00);
 X86_FUNC(sub_2A6D00)
 {
 	g_shouldPreventPrompt = Config::ConfirmationPrompt.Value == false;
+	int mode = GetHostParameter(2, CallConvention::Thiscall);
+	if (mode == 3 || mode == 18)
+		g_shouldPreventPrompt = false; // if user's save data is damaged, we should let the prompt draw to inform user.
 	__imp__sub_2A6D00(ctx, base);
 	g_shouldPreventPrompt = false;
 }

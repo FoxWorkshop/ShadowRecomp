@@ -764,16 +764,14 @@ std::unordered_map<std::string_view, std::unordered_map<ELanguage, std::string>>
 		}
 	},
 	{
-		// Notes: message appears when SYS-DATA is corrupted (mismatching file size) upon pressing start at the title screen.
-		// To make this occur, open the file in any editor and just remove a large chunk of data.
-		"Title_Message_SaveDataCorrupt",
+		"Title_Message_SaveDamaged",
 		{
-			{ ELanguage::English,  "The save file appears to be\ncorrupted and cannot be loaded." },
-			{ ELanguage::Japanese, "ゲームデータの読み込みに失敗しました。\nこのまま続けるとゲームデータをセーブすることはできません" },
-			{ ELanguage::German,   "Diese Speicherdatei ist beschädigt\nund kann nicht geladen werden." },
-			{ ELanguage::French,   "Le fichier de sauvegarde semble être\nendommagé et ne peut être chargé." },
-			{ ELanguage::Spanish,  "El archivo parece estar dañado\ny no se puede cargar." },
-			{ ELanguage::Italian,  "I file di salvataggio sembrano danneggiati\ne non possono essere caricati." }
+			{ ELanguage::English,  "The Game Data is damaged\nand cannot be used.\nPress A button to continue." },
+			{ ELanguage::Japanese, "The Game Data is damaged\nand cannot be used.\nPress A button to continue." },
+			{ ELanguage::German,   "The Game Data is damaged\nand cannot be used.\nPress A button to continue." },
+			{ ELanguage::French,   "Les données de jeu sont endommagées.\nAppuyer sur A pour continuer." },
+			{ ELanguage::Spanish,  "The Game Data is damaged\nand cannot be used.\nPress A button to continue." },
+			{ ELanguage::Italian,  "The Game Data is damaged\nand cannot be used.\nPress A button to continue." },
 		}
 	},
 	{
