@@ -66,13 +66,17 @@ int32_t IDirectSoundBuffer_Unlock(int32_t keyBuffer, void* ppvAudioPtr1, int32_t
 HRESULT IDirectSoundBuffer_GetStatus(int32_t keyBuffer, uint32_t* pdwStatus)
 {
 	auto pThis = GetCurrentSoundBuffer(keyBuffer);
+	auto base = g_memory.base;
 
 	if (!pThis)
+	{
+		if (pdwStatus)
+			X86_STORE_U32(g_memory.MapVirtual(pdwStatus), 0);
+
 		return E_FAIL;
+	}
 
 	auto res = pThis->GetStatus(pdwStatus);
-	auto base = g_memory.base;
-	auto ptr = pdwStatus;
 
 	X86_STORE_U32(g_memory.MapVirtual(pdwStatus), res);
 	return S_OK;

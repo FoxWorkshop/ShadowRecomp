@@ -10,6 +10,7 @@
 #include <fstream>
 #include <DirectXMath.h>
 #include <unordered_set>
+#include <atomic>
 #include <os/logger.h>
 #include <user/config.h>
 #include <ui/game_window.h>
@@ -26,7 +27,9 @@
 #define DSoundBufferGetPCMBufferSize(EmuFlags, size) (EmuFlags & DSE_FLAG_XADPCM) > 0 ? DWORD((size / float(XBOX_ADPCM_SRCSIZE)) * XBOX_ADPCM_DSTSIZE) : size
 #define DSoundBufferGetXboxBufferSize(EmuFlags, size) (EmuFlags & DSE_FLAG_XADPCM) > 0 ? DWORD((size / float(XBOX_ADPCM_DSTSIZE)) * XBOX_ADPCM_SRCSIZE) : size
 
-bool PlayMusic = false;
+// Set by TObjBGMPlayer hook and used by SHTHR_SOUNDBUFFER_Impl::Play
+// which runs on the ADX Vsync thread, has to be atomic because it can run on multiple threads
+std::atomic<bool> PlayMusic{ false };
 SHTHR_SOUNDDEVICE* ppDS = nullptr;
 static volatile bool g_audioThreadShouldExit;
 
@@ -101,6 +104,7 @@ private:
 
 	int mChannelCount = 0;
 	int mFrequency = 0;
+	int mOriginalFrequency = 0;
 	int mFormat = 0;
 
 	int mVolume = 0;
@@ -360,6 +364,7 @@ SHTHR_SOUNDBUFFER_Impl::SHTHR_SOUNDBUFFER_Impl(SHTHR_SOUNDDEVICE_Impl* parent, X
 	mCaps = desc->dwFlags;
 	mChannelCount = desc->lpwfxFormat->nChannels;
 	mFrequency = desc->lpwfxFormat->nSamplesPerSec;
+	mOriginalFrequency = mFrequency;
 	memset(&mAudioCVT, 0, sizeof(mAudioCVT));
 
 	mBufferSize = desc->dwBufferBytes;
@@ -376,6 +381,8 @@ SHTHR_SOUNDBUFFER_Impl::SHTHR_SOUNDBUFFER_Impl(SHTHR_SOUNDDEVICE_Impl* parent, X
 }
 
 std::unordered_map<int32_t, SHTHR_SOUNDBUFFER*> SoundBufferList;
+// The game uses the soundBuffer list with multiple threads at once
+static std::mutex SoundBufferListMutex;
 
 SHTHR_SOUNDBUFFER_Impl::~SHTHR_SOUNDBUFFER_Impl()
 {
@@ -387,13 +394,18 @@ SHTHR_SOUNDBUFFER_Impl::~SHTHR_SOUNDBUFFER_Impl()
 		mBuffer = nullptr;
 	}
 
-	auto guestMemory = g_memory.Translate(keyBuffer);
-	if (guestMemory)
+	// locked
 	{
-		g_userHeap.Free(guestMemory);
-	}
+		std::lock_guard<std::mutex> lock(SoundBufferListMutex);
 
-	SoundBufferList.erase(keyBuffer);
+		SoundBufferList.erase(keyBuffer);
+
+		auto guestMemory = g_memory.Translate(keyBuffer);
+		if (guestMemory)
+		{
+			g_userHeap.Free(guestMemory);
+		}
+	}
 
 	if (mAudioStream != nullptr)
 	{
@@ -411,10 +423,14 @@ SHTHR_SOUNDBUFFER_Impl::~SHTHR_SOUNDBUFFER_Impl()
 
 SHTHR_SOUNDBUFFER* GetCurrentSoundBuffer(const int32_t key)
 {
-	return SoundBufferList[key];
+	// just to be safe
+	std::lock_guard<std::mutex> lock(SoundBufferListMutex);
+
+	auto it = SoundBufferList.find(key);
+	return it != SoundBufferList.end() ? it->second : nullptr;
 }
 
-static int globalSoundID = 0;
+static std::atomic<int> globalSoundID{ 0 };
 int32_t SHTHR_SOUNDDEVICE_Impl::CreateSoundBuffer(X_DSBUFFERDESC* ppDesc, SHTHR_SOUNDBUFFER** ppBuffer)
 {
 	if (!mDeviceID)
@@ -440,13 +456,22 @@ int32_t SHTHR_SOUNDDEVICE_Impl::CreateSoundBuffer(X_DSBUFFERDESC* ppDesc, SHTHR_
 	}
 
 	//alloc memory for the guest so it can hold the key of the map for this sound buffer
-	auto ptr = g_userHeap.Alloc(sizeof(int));
-	if (!ptr)
-		return -1;
+	int32_t key = 0;
+	{
+		std::lock_guard<std::mutex> lock(SoundBufferListMutex);
 
-	auto key = g_memory.MapVirtual(ptr);
-	SoundBufferList[key] = buffer;
-	buffer->SetBufferKey(key);
+		auto ptr = g_userHeap.Alloc(sizeof(int));
+		if (!ptr)
+		{
+			delete buffer;
+			return -1;
+		}
+
+		key = g_memory.MapVirtual(ptr);
+		buffer->SetBufferKey(key);
+		SoundBufferList[key] = buffer;
+	}
+
 	buffer->mSoundID = globalSoundID++;
 
 	mutex.lock();
@@ -733,7 +758,7 @@ PullResult SHTHR_SOUNDBUFFER_Impl::Pull(unsigned char* data, int32_t size)
 
 	if (this->isStreaming)
 	{
-	
+
 		if (this->mSourceType == SOURCE_TYPE_MUSIC)
 		{
 
@@ -917,10 +942,9 @@ int SHTHR_SOUNDBUFFER_Impl::Play(int dwReserved1, int dwPriority, uint32_t dwFla
 	// but this is the best I have until we figure out properly how to identify voice and music 
 	if (this->isStreaming)
 	{
-		if (PlayMusic)
+		if (PlayMusic.exchange(false))
 		{
 			mSourceType = SOURCE_TYPE_MUSIC;
-			PlayMusic = false;
 			mForceUpdateVolume = true; // because the game re use same buffer for different sound / music always fire a volume update once.
 		}
 		else if (mSourceType != SOURCE_TYPE_MUSIC)
@@ -1029,6 +1053,10 @@ int SHTHR_SOUNDBUFFER_Impl::SetFrequency(int lFrequency)
 {
 	std::lock_guard<std::mutex> lock(mutex);
 
+	// Dsound does restore the buffer's native rate originally
+	if (lFrequency == 0)
+		lFrequency = mOriginalFrequency;
+
 	if (lFrequency < 100 || lFrequency > 200000)
 		return -1;
 
@@ -1095,7 +1123,7 @@ int SHTHR_SOUNDDEVICE_Impl::PullThreadFunc()
 			auto result = queue->Pull(src_buf.data(), FILL_CHUNK_BYTES);
 			if (result.bytesRead > 0)
 			{
-			float finalVol = result.mixVolume * GetMasterVolume();
+				float finalVol = result.mixVolume * GetMasterVolume();
 				finalVol = std::min(finalVol, (float)SDL_MIX_MAXVOLUME);
 
 
