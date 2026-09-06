@@ -764,16 +764,75 @@ std::unordered_map<std::string_view, std::unordered_map<ELanguage, std::string>>
 		}
 	},
 	{
-		// Notes: message appears when SYS-DATA is corrupted (mismatching file size) upon pressing start at the title screen.
-		// To make this occur, open the file in any editor and just remove a large chunk of data.
-		"Title_Message_SaveDataCorrupt",
+		"Title_Message_SaveDamaged",
 		{
-			{ ELanguage::English,  "The save file appears to be\ncorrupted and cannot be loaded." },
-			{ ELanguage::Japanese, "ゲームデータの読み込みに失敗しました。\nこのまま続けるとゲームデータをセーブすることはできません" },
-			{ ELanguage::German,   "Diese Speicherdatei ist beschädigt\nund kann nicht geladen werden." },
-			{ ELanguage::French,   "Le fichier de sauvegarde semble être\nendommagé et ne peut être chargé." },
-			{ ELanguage::Spanish,  "El archivo parece estar dañado\ny no se puede cargar." },
-			{ ELanguage::Italian,  "I file di salvataggio sembrano danneggiati\ne non possono essere caricati." }
+			{ ELanguage::English,  "The Game Data is damaged\nand cannot be used.\nPress A button to continue." },
+			{ ELanguage::Japanese, "The Game Data is damaged\nand cannot be used.\nPress A button to continue." },
+			{ ELanguage::German,   "The Game Data is damaged\nand cannot be used.\nPress A button to continue." },
+			{ ELanguage::French,   "Les données de jeu sont endommagées.\nAppuyer sur A pour continuer." },
+			{ ELanguage::Spanish,  "The Game Data is damaged\nand cannot be used.\nPress A button to continue." },
+			{ ELanguage::Italian,  "The Game Data is damaged\nand cannot be used.\nPress A button to continue." },
+		}
+	},
+	{
+		"Title_Message_OverwriteSave",
+		{
+			{ ELanguage::English,  "Do you wish to overwrite the Game Data?\nCaution! This will overwrite any\nprevious Game Data present." },
+			{ ELanguage::Japanese, "Do you wish to overwrite the Game Data?\nCaution! This will overwrite any\nprevious Game Data present." },
+			{ ELanguage::German,   "Do you wish to overwrite the Game Data?\nCaution! This will overwrite any\nprevious Game Data present." },
+			{ ELanguage::French,   "Voulez-vous écraser les données de jeu ?\nAttention, cela écrasera toutes les données de jeu précédentes." },
+			{ ELanguage::Spanish,  "Do you wish to overwrite the Game Data?\nCaution! This will overwrite any\nprevious Game Data present." },
+			{ ELanguage::Italian,  "Do you wish to overwrite the Game Data?\nCaution! This will overwrite any\nprevious Game Data present." },
+		}
+	},
+	{
+		"Legacy_Options_Message_OverwriteSave",
+		{
+			{ ELanguage::English,  "Do you want to load Game Data?\nCaution! This will overwrite any\nprevious Game Data present." },
+			{ ELanguage::Japanese, "Do you want to load Game Data?\nCaution! This will overwrite any\nprevious Game Data present." },
+			{ ELanguage::German,   "Do you want to load Game Data?\nCaution! This will overwrite any\nprevious Game Data present." },
+			{ ELanguage::French,   "Voulez-vous charger les données de jeu ?\nAttention, cela écrasera toutes les données de jeu précédentes." },
+			{ ELanguage::Spanish,  "Do you want to load Game Data?\nCaution! This will overwrite any\nprevious Game Data present." },
+			{ ELanguage::Italian,  "Do you want to load Game Data?\nCaution! This will overwrite any\nprevious Game Data present." },
+		}
+	},
+	{
+		"Legacy_Options_Message_LoadSaveOK",
+		{
+			{ ELanguage::English,  "Load successful." },
+			{ ELanguage::Japanese, "Load successful." },
+			{ ELanguage::German,   "Load successful." },
+			{ ELanguage::French,   "Chargement réussi." },
+			{ ELanguage::Spanish,  "Load successful." },
+			{ ELanguage::Italian,  "Load successful." },
+		}
+	},
+	{
+		// Notes: message appears when creating a save file at the title screen.
+		// Note, the game exclusively use "Game Data" when referring to save file, please re use this for consistency.
+		// Japanese Notes: This localization should include furigana.
+		"Title_Message_LoadSave",
+		{
+			{ ELanguage::English,  "Do you want to load Game Data?" },
+			{ ELanguage::Japanese, "Do you want to load Game Data?" },
+			{ ELanguage::German,   "Do you want to load Game Data?" },
+			{ ELanguage::French,   "Souhaitez-vous charger les\n données de jeu?" },
+			{ ELanguage::Spanish,  "Do you want to load Game Data?" },
+			{ ELanguage::Italian,  "Do you want to load Game Data?" },
+		}
+	},
+	{
+		// Notes: message appears when creating a save file at the title screen.
+		// Note, the game exclusively use "Game Data" when referring to save file, please re use this for consistency.
+		// Japanese Notes: This localization should include furigana.
+		"Title_Message_ContinueWithoutSave",
+		{
+			{ ELanguage::English,  "Continue without saving ?" }, // there is a space added before the question mark to match the original game text, even in english.
+			{ ELanguage::Japanese, "Continue without saving ?" },
+			{ ELanguage::German,   "Continue without saving ?" },
+			{ ELanguage::French,   "Continuez sans sauvegarder ?" },
+			{ ELanguage::Spanish,  "Continue without saving ?" },
+			{ ELanguage::Italian,  "Continue without saving ?" },
 		}
 	},
 	{

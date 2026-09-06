@@ -9,7 +9,6 @@
 #include <input/padstate.h>
 
 
-
 constexpr double OVERLAY_CONTAINER_COMMON_MOTION_START = 0;
 constexpr double OVERLAY_CONTAINER_COMMON_MOTION_END = 11;
 constexpr double OVERLAY_CONTAINER_OUTRO_FADE_START = 0;
@@ -47,7 +46,8 @@ static bool g_upWasHeld;
 static bool g_downWasHeld;
 static bool g_leftWasHeld;
 static bool g_rightWasHeld;
-static bool g_msgOnly = false;
+static bool g_hideFrame = false;
+static bool g_guestHasControl = false;
 const float sclFontSize = 25.f;
 
 
@@ -271,7 +271,7 @@ void DrawGameStyleMessageBox(ImVec2 center, ImVec2 size)
 	ImVec2 min = { center.x - size.x * 0.5f, center.y - size.y * 0.5f };
 	ImVec2 max = { center.x + size.x * 0.5f, center.y + size.y * 0.5f };
 
-	if (g_msgOnly)
+	if (g_hideFrame)
 	{
 		max.x += 1.f;
 		max.y += 1.f;
@@ -324,12 +324,12 @@ static void ResetSelection()
 	g_joypadAxis = {};
 	g_isAccepted = false;
 	g_isDeclined = false;
-	g_msgOnly = false;
+	g_hideFrame = false;
 }
 
-bool MessageWindow::Open(std::string text, int* result, std::span<std::string> buttons, int defaultButtonIndex, int cancelButtonIndex, bool msgOnly)
+bool MessageWindow::Open(std::string text, int* result, std::span<std::string> buttons, int defaultButtonIndex, int cancelButtonIndex, bool hideFrame, bool guestHasControl)
 {
-	if (!g_isAwaitingResult && *result == -1)
+	if (!g_isAwaitingResult && !g_isClosing && *result == -1)
 	{
 
 		g_isControlsReady = false;
@@ -348,7 +348,10 @@ bool MessageWindow::Open(std::string text, int* result, std::span<std::string> b
 
 		ResetSelection();
 
-		g_msgOnly = msgOnly;
+
+		g_result = -1;
+		g_hideFrame = hideFrame;
+		g_guestHasControl = guestHasControl;
 		g_isAwaitingResult = true;
 	}
 
@@ -373,6 +376,7 @@ void MessageWindow::Draw()
 	if (g_isClosing && (ImGui::GetTime() - g_time) > (1.0 / 60.0) * 15.f)
 	{
 		g_isAwaitingResult = false;
+		g_isClosing = false;
 		s_isVisible = false;
 		return;
 	}
@@ -441,6 +445,9 @@ void MessageWindow::Draw()
 		for (auto& button : g_buttons)
 			DrawButton(rowCount++, windowMarginY, itemWidth, itemHeight, button);
 
+		if (g_guestHasControl)
+			return;
+
 		auto leftIsHeld = g_joypadAxis.x > 0.5f;
 		auto rightIsHeld = g_joypadAxis.x < -0.5f;
 		auto scrollLeft = !g_leftWasHeld && leftIsHeld;
@@ -461,8 +468,7 @@ void MessageWindow::Draw()
 
 		if (scrollLeft || scrollRight)
 		{
-			if (g_msgOnly == false)
-				Game_PlaySound("cursor");
+			Game_PlaySound("cursor");
 			g_prevSelectedRowIndex = prevSelectedRowIndex;
 			g_joypadAxis.x = 0;
 		}
@@ -473,8 +479,8 @@ void MessageWindow::Draw()
 		if (g_isDeclined)
 		{
 			g_selectedRowIndex = g_cancelButtonIndex;
-			if (g_msgOnly == false)
-				Game_PlaySound("cancel");
+			g_result = g_cancelButtonIndex;
+			Game_PlaySound("cancel");
 			MessageWindow::Close();
 			g_isDeclined = false;
 		}
@@ -487,25 +493,23 @@ void MessageWindow::Draw()
 		if (g_selectedRowIndex != -1 && g_isAccepted && !g_isClosing)
 		{
 			g_result = g_selectedRowIndex;
-			if (g_msgOnly == false)
-			{
-				if (g_selectedRowIndex != g_cancelButtonIndex)
-					Game_PlaySound("decide");
-				else
-					Game_PlaySound("cancel");
-			}
+			if (g_selectedRowIndex != g_cancelButtonIndex)
+				Game_PlaySound("decide");
+			else
+				Game_PlaySound("cancel");
 			MessageWindow::Close();
 		}
 
 	}
-
-
 }
 
 
+void MessageWindow::SetSelection(int index)
+{
+	g_selectedRowIndex = index;
+}
 
-
-void MessageWindow::Close()
+void MessageWindow::Close(bool immediate)
 {
 	if (!g_isClosing)
 	{
@@ -520,4 +524,11 @@ void MessageWindow::Close()
 		//ButtonGuide::Close();
 	}
 
+	// Just like above: make sure our custom message only draw when the 
+	// message box animation has advanced enough, unless there is no anim.
+	if (immediate)
+	{
+		g_isClosing = false;
+		s_isVisible = false;
+	}
 }
