@@ -19,41 +19,11 @@ static constexpr uint32_t DESCRIPTOR_DEFAULT_OPTION = 0x08;
 static constexpr uint32_t DESCRIPTOR_OPTION_TEXT_IDS = 0x10;
 static constexpr uint32_t DESCRIPTOR_RESULT_CODES = 0x1C;
 
-// Helper function to get a message from the game using its ID.
-static std::u16string GetGuestText(uint8_t* base, int32_t textID)
-{
-	auto singleton = X86_LOAD_U32(0x54C900);
-
-	if (singleton == 0)
-		return {};
-
-	auto owner = X86_LOAD_U32(singleton + 0x20);
-
-	if (owner == 0)
-		return {};
-
-	auto entry = GuestToHostFunction<uint32_t, CallConvention::Thiscall>(sub_1E0E0, owner, uint32_t(textID), 1u, 0u);
-
-	if (entry == 0)
-		entry = GuestToHostFunction<uint32_t, CallConvention::Thiscall>(sub_1E0E0, owner, uint32_t(textID), 0u, 0u);
-
-	if (entry == 0)
-		return {};
-
-	auto text = X86_LOAD_U32(entry);
-
-	if (text == 0)
-		return {};
-
-	return reinterpret_cast<const char16_t*>(base + text);
-}
-
 struct CustomMessage
 {
 	int32_t TextID;
 	const char* LocaleKey;
 };
-
 
 static const CustomMessage g_customMessages[] =
 {
@@ -63,7 +33,9 @@ static const CustomMessage g_customMessages[] =
 	{ 6073, "Title_Message_SaveDamaged" },
 	{ 6081, "Title_Message_CreateSave" },
 	{ 6090, "Title_Message_LoadSave"},
+	{ 6091, "Legacy_Options_Message_OverwriteSave"},
 	{ 5490, "Title_Message_ContinueWithoutSave"},
+	{ 5520, "Legacy_Options_Message_LoadSaveOK"},
 };
 
 static const CustomMessage* FindCustomMessage(int32_t textID)
