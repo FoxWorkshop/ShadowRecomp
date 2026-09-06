@@ -775,6 +775,17 @@ std::unordered_map<std::string_view, std::unordered_map<ELanguage, std::string>>
 		}
 	},
 	{
+		"Title_Message_OverwriteSave",
+		{
+			{ ELanguage::English,  "Do you wish to overwrite the existing Game Data?\nCaution! This will overwrite any\nprevious Game Data present." },
+			{ ELanguage::Japanese, "Do you wish to overwrite the existing Game Data?\nCaution! This will overwrite any\nprevious Game Data present." },
+			{ ELanguage::German,   "Do you wish to overwrite the existing Game Data?\nCaution! This will overwrite any\nprevious Game Data present." },
+			{ ELanguage::French,   "Voulez-vous écraser les données de jeu existantes ?\nAttention, cela écrasera toutes les données de jeu précédentes." },
+			{ ELanguage::Spanish,  "Do you wish to overwrite the existing Game Data?\nCaution! This will overwrite any\nprevious Game Data present." },
+			{ ELanguage::Italian,  "Do you wish to overwrite the existing Game Data?\nCaution! This will overwrite any\nprevious Game Data present." },
+		}
+	},
+	{
 		// Notes: message appears when creating a save file at the title screen.
 		// Note, the game exclusively use "Game Data" when referring to save file, please re use this for consistency.
 		// Japanese Notes: This localization should include furigana.

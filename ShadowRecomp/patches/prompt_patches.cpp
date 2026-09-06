@@ -58,12 +58,12 @@ struct CustomMessage
 static const CustomMessage g_customMessages[] =
 {
 	{ 6068, "Title_Message_CreateSave" },
+	{ 6069, "Title_Message_OverwriteSave" },
 	{ 6070, "Title_Message_CreateSaveFailed" },
 	{ 6073, "Title_Message_SaveDamaged" },
 	{ 6081, "Title_Message_CreateSave" },
 	{ 6090, "Title_Message_LoadSave"},
 	{ 5490, "Title_Message_ContinueWithoutSave"},
-
 };
 
 static const CustomMessage* FindCustomMessage(int32_t textID)
