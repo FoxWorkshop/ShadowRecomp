@@ -777,12 +777,12 @@ std::unordered_map<std::string_view, std::unordered_map<ELanguage, std::string>>
 	{
 		"Title_Message_OverwriteSave",
 		{
-			{ ELanguage::English,  "Do you wish to overwrite the existing Game Data?\nCaution! This will overwrite any\nprevious Game Data present." },
-			{ ELanguage::Japanese, "Do you wish to overwrite the existing Game Data?\nCaution! This will overwrite any\nprevious Game Data present." },
-			{ ELanguage::German,   "Do you wish to overwrite the existing Game Data?\nCaution! This will overwrite any\nprevious Game Data present." },
-			{ ELanguage::French,   "Voulez-vous écraser les données de jeu existantes ?\nAttention, cela écrasera toutes les données de jeu précédentes." },
-			{ ELanguage::Spanish,  "Do you wish to overwrite the existing Game Data?\nCaution! This will overwrite any\nprevious Game Data present." },
-			{ ELanguage::Italian,  "Do you wish to overwrite the existing Game Data?\nCaution! This will overwrite any\nprevious Game Data present." },
+			{ ELanguage::English,  "Do you wish to overwrite the Game Data?\nCaution! This will overwrite any\nprevious Game Data present." },
+			{ ELanguage::Japanese, "Do you wish to overwrite the Game Data?\nCaution! This will overwrite any\nprevious Game Data present." },
+			{ ELanguage::German,   "Do you wish to overwrite the Game Data?\nCaution! This will overwrite any\nprevious Game Data present." },
+			{ ELanguage::French,   "Voulez-vous écraser les données de jeu ?\nAttention, cela écrasera toutes les données de jeu précédentes." },
+			{ ELanguage::Spanish,  "Do you wish to overwrite the Game Data?\nCaution! This will overwrite any\nprevious Game Data present." },
+			{ ELanguage::Italian,  "Do you wish to overwrite the Game Data?\nCaution! This will overwrite any\nprevious Game Data present." },
 		}
 	},
 	{
