@@ -4575,6 +4575,11 @@ static void DrawFPS()
 
 static void DrawImGui()
 {
+
+	// Must happen on this thread, before NewFrame the SDL event watch can run on the main thread or via SDL_PushEvent on a guest thread 
+	// and ImGui's input queue is originally not thread safe. We drain the queue here to ensure that all events are processed before NewFrame.
+	GameWindow::DrainImGuiEvents();
+
 	ImGui_ImplSDL2_NewFrame();
 
 	auto& io = ImGui::GetIO();

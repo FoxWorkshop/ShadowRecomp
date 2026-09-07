@@ -19,8 +19,65 @@
 bool m_isFullscreenKeyReleased = true;
 bool m_isResizing = false;
 
+// SDL dispatches event watches on whichever thread pumps or pushes, this ends not being thread safe.
+// We need to queue events and use mutex to ensure thread safety.
+static std::mutex s_imguiEventMutex;
+static std::vector<SDL_Event> s_imguiEvents;
+
+
+static constexpr size_t IMGUI_EVENT_QUEUE_LIMIT = 4096; // arbitrary limits
+
+
+// ensure that we only bounds events that can potentially crash
+// like if DrawImGui stops running (loading screen, stalled swap chain) while input continue to be processed
+static bool IsImGuiBackendEvent(const SDL_Event& event)
+{
+    switch (event.type)
+    {
+    case SDL_MOUSEMOTION:
+    case SDL_MOUSEWHEEL:
+    case SDL_MOUSEBUTTONDOWN:
+    case SDL_MOUSEBUTTONUP:
+    case SDL_TEXTINPUT:
+    case SDL_KEYDOWN:
+    case SDL_KEYUP:
+    case SDL_WINDOWEVENT:
+    case SDL_CONTROLLERDEVICEADDED:
+    case SDL_CONTROLLERDEVICEREMOVED:
+        return true;
+    default:
+        return false;
+    }
+}
+
+void GameWindow::DrainImGuiEvents()
+{
+    std::vector<SDL_Event> eventsToProcess;
+    {
+        std::lock_guard<std::mutex> lock(s_imguiEventMutex);
+        eventsToProcess.swap(s_imguiEvents);
+	}
+
+    if (ImGui::GetCurrentContext() == nullptr || ImGui::GetIO().BackendPlatformUserData == nullptr)
+		return;
+
+    for (auto& event : eventsToProcess)
+    {
+		ImGui_ImplSDL2_ProcessEvent(&event);
+    }
+}
+
 int Window_OnSDLEvent(void*, SDL_Event* event)
 {
+	// Queue ImGui backend events
+    if (IsImGuiBackendEvent(*event))
+    {
+        std::lock_guard<std::mutex> lock(s_imguiEventMutex);
+
+        if (s_imguiEvents.size() < IMGUI_EVENT_QUEUE_LIMIT)
+            s_imguiEvents.push_back(*event);
+	}
+
     if (ImGui::GetIO().BackendPlatformUserData != nullptr)
         ImGui_ImplSDL2_ProcessEvent(event);
 

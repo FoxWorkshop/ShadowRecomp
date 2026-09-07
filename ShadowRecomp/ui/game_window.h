@@ -50,4 +50,5 @@ public:
     static bool IsPositionValid();
     static void Init(const char* sdlVideoDriver = nullptr);
     static void Update();
+    static void DrainImGuiEvents();
 };
