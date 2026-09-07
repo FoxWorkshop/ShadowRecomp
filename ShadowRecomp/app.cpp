@@ -11,6 +11,7 @@
 #include <audio/driver/sdl2_driver.h>
 #include <cpu/guest_thread.h>
 #include <gpu/frame_pacing/timer_resolution.h>
+#include <input/input.h>
 
 static std::thread::id g_mainThreadId = std::this_thread::get_id();
 
@@ -106,6 +107,7 @@ void UpdateSDLEventsMidAsmHook()
 			SDL_PumpEvents();
 			SDL_FlushEvents(SDL_FIRSTEVENT, SDL_LASTEVENT);
 			GameWindow::Update();
+			input::Update();
 		}
 
 		SDL_WaitEventTimeout(&event, 8);

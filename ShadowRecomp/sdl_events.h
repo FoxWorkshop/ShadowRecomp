@@ -4,10 +4,6 @@
 #include <ui/game_window.h>
 #include <app.h>
 
-enum SDL_USER_
-{
-    SDL_USER_CHAOSMODE = SDL_USEREVENT + 1,
-};
 
 inline void SDL_ResizeEvent(SDL_Window* pWindow, int width, int height)
 {
@@ -30,17 +26,5 @@ inline void SDL_MoveEvent(SDL_Window* pWindow, int x, int y)
     event.window.data1 = x;
     event.window.data2 = y;
 
-    SDL_PushEvent(&event);
-}
-
-inline void SDL_User_ChaosMode(ELedAura chaosMode)
-{
-    SDL_Event event{};
-    event.type = SDL_USER_CHAOSMODE;
-
-    if ((int)chaosMode < 0 || (int)chaosMode > 2)
-		chaosMode = ELedAura::LED_AURA_NEUTRAL;
-
-    event.user.code = (Sint32)chaosMode;
     SDL_PushEvent(&event);
 }

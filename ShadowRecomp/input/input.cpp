@@ -345,7 +345,8 @@ static void SetControllerInputDevice(Controller* controller)
 
 static void SetControllerChaosModeLED(Controller& controller, ELedAura mode)
 {
-	return;
+	if (!controller.controller)
+		return;
 
 	switch (mode)
 	{
@@ -368,37 +369,127 @@ static void SetControllerChaosModeLED(Controller& controller, ELedAura mode)
 	}
 }
 
+// ds4 / ds5 led color aura fixes
+// uses mutex to avoid deadlock
+// when touching goal ring, the async / event thread start to be used which can easily deadlock with SDLs stuff
+static std::mutex s_deferredMutex;
+static bool s_devicesDirty = true;
+static bool s_stopVibration = false;
+static bool s_hideCursorForController = false;
+static SDL_JoystickID s_pendingActiveController = -1;
+static std::atomic<bool> s_auraDirty = true;
+
+static void SyncControllers()
+{
+	for (auto& controller : g_controllers)
+	{
+		if (!controller.controller || !SDL_GameControllerGetAttached(controller.controller))
+			continue;
+
+
+		if (g_activeController == &controller)
+			g_activeController = nullptr;
+
+		controller.Close();
+	}
+
+	for (int i = 0; i < SDL_NumJoysticks(); i++)
+	{
+
+		if (!SDL_IsGameController(i))
+			continue;
+
+		auto controller = Controller(i);
+
+		if (!controller.controller || FindController(SDL_JoystickGetDeviceInstanceID(i)))
+			continue;
+
+
+		const auto freeIndex = FindFreeController();
+
+		if (freeIndex == -1)
+			break;
+
+		g_controllers[freeIndex] = Controller(i);
+
+	}
+
+	// a new pad was added which has no aura yet
+	s_auraDirty = true;
+}
+
+static void ApplyChaosAura()
+{
+	static ELedAura s_appliedAura = LED_AURA_NEUTRAL;
+	const auto aura = App::s_chaosMode.load(std::memory_order_relaxed);
+	const bool forced = s_auraDirty.exchange(false);
+
+	if (!forced && aura == s_appliedAura)
+		return;
+
+	s_appliedAura = aura;
+
+	for (auto& controller : g_controllers)
+		SetControllerChaosModeLED(controller, aura);
+}
+
+void input::SetChaosAura(ELedAura mode)
+{
+	if ((int)mode < LED_AURA_NEUTRAL || (int)mode > LED_AURA_VILLAIN)
+		mode = LED_AURA_NEUTRAL;
+
+	App::s_chaosMode.store(mode, std::memory_order_relaxed);
+}
+
+void input::Update()
+{
+	bool devicesDirty, stopVibration, hideCursor;
+	SDL_JoystickID pendingActive;
+
+	{
+		std::lock_guard<std::mutex> lock(s_deferredMutex);
+
+		devicesDirty = std::exchange(s_devicesDirty, false);
+		stopVibration = std::exchange(s_stopVibration, false);
+		hideCursor = std::exchange(s_hideCursorForController, false);
+		pendingActive = std::exchange(s_pendingActiveController, (SDL_JoystickID)-1);
+	}
+
+
+	if (devicesDirty)
+		SyncControllers();
+
+	if (stopVibration)
+	{
+		for (auto& controller : g_controllers)
+			controller.SetVibration({ 0, 0 });
+	}
+
+	if (hideCursor && !GameWindow::s_isFullscreenCursorVisible)
+		SDL_ShowCursor(SDL_DISABLE);
+
+	if (pendingActive != -1)
+	{
+		if (auto* controller = FindController(pendingActive))
+			SetControllerInputDevice(controller);
+	}
+
+	ApplyChaosAura();
+}
 
 int Input_OnSDLEvent(void*, SDL_Event* event)
 {
 	switch (event->type)
 	{
 	case SDL_CONTROLLERDEVICEADDED:
-	{
-		const auto freeIndex = FindFreeController();
-
-		if (freeIndex != -1)
-		{
-			auto controller = Controller(event->cdevice.which);
-
-			g_controllers[freeIndex] = controller;
-			SetControllerChaosModeLED(controller, App::s_chaosMode);
-
-		}
-
-		break;
-	}
-
 	case SDL_CONTROLLERDEVICEREMOVED:
 	{
-		auto* controller = FindController(event->cdevice.which);
-
-		if (controller)
-			controller->Close();
+		// opening or closing a pad could deadlock in specific situation so best to play safe
+		std::lock_guard lock(s_deferredMutex);
+		s_devicesDirty = true;
 
 		break;
 	}
-
 	case SDL_CONTROLLERBUTTONDOWN:
 	case SDL_CONTROLLERBUTTONUP:
 	case SDL_CONTROLLERAXISMOTION:
@@ -413,9 +504,9 @@ int Input_OnSDLEvent(void*, SDL_Event* event)
 			if (event->type == SDL_CONTROLLERAXISMOTION && abs(event->caxis.value) <= 8000)
 				break;
 
-			if (!GameWindow::s_isFullscreenCursorVisible)
-				SDL_ShowCursor(SDL_DISABLE);
-			SetControllerInputDevice(controller);
+			std::lock_guard lock(s_deferredMutex);
+			s_hideCursorForController = true;
+			s_pendingActiveController = controller->id;
 		}
 
 		break;
@@ -455,24 +546,12 @@ int Input_OnSDLEvent(void*, SDL_Event* event)
 		if (event->window.event == SDL_WINDOWEVENT_FOCUS_LOST)
 		{
 			// Stop vibrating controllers on focus lost.
-			for (auto& controller : g_controllers)
-				controller.SetVibration({ 0, 0 });
-
+			std::lock_guard lock(s_deferredMutex);
+			s_stopVibration = true;
 		}
 
 		break;
 	}
-
-
-	case SDL_USER_CHAOSMODE:
-	{
-		for (auto& controller : g_controllers)
-			SetControllerChaosModeLED(controller, (ELedAura)event->user.code);
-
-		break;
-	}
-
-
 	}
 
 	return 0;
@@ -499,6 +578,7 @@ void input::Init()
 
 	SDL_Init(SDL_INIT_JOYSTICK | SDL_INIT_GAMECONTROLLER);
 
+	input::Update(); // just to ensure controller is available frame 1
 }
 
 uint32_t input::GetState(uint32_t dwUserIndex, XINPUT_STATE* pState)

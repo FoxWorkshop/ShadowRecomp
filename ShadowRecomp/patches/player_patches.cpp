@@ -3,6 +3,7 @@
 #include <user/config.h>
 #include <app.h>
 #include <sdl_events.h>
+#include <input/input.h>
 #include "global.h"
 
 PlayerShadow* playerPtr[4] = {};
@@ -39,20 +40,20 @@ X86_FUNC_IMPL (__imp__sub_8E690);
 X86_FUNC (sub_8E690)
 {
 	isAwakeAboutToInvoke = true;
-	//auto mode = X86_LOAD_U32(ctx.esp.u32 + 16);
+	auto mode = X86_LOAD_U32(ctx.esp.u32 + 16);
 	__imp__sub_8E690(ctx, base);
-	//App::s_chaosMode = mode == 0 ? ELedAura::LED_AURA_VILLAIN : ELedAura::LED_AURA_HERO;
-	//SDL_User_ChaosMode(App::s_chaosMode);
+
+	input::SetChaosAura(mode == 0 ? ELedAura::LED_AURA_VILLAIN : ELedAura::LED_AURA_HERO);
+
 }
 
 //Awake destructor
-// X86_FUNC_IMPL(__imp__sub_8E9A0);
-// X86_FUNC(sub_8E9A0)
-// {
-// 	__imp__sub_8E9A0(ctx, base);
-// 	App::s_chaosMode = ELedAura::LED_AURA_NEUTRAL;
-// 	SDL_User_ChaosMode(App::s_chaosMode);
-// }
+X86_FUNC_IMPL(__imp__sub_8E9A0);
+X86_FUNC(sub_8E9A0)
+{
+	__imp__sub_8E9A0(ctx, base);
+	App::s_chaosMode = ELedAura::LED_AURA_NEUTRAL;
+}
 
 X86_FUNC_IMPL(__imp__sub_96AD0);
 X86_FUNC(sub_96AD0)

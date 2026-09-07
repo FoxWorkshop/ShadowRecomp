@@ -1,4 +1,6 @@
 
+#include <app.h> 
+
 #define XINPUT_GAMEPAD_DPAD_UP        0x0001
 #define XINPUT_GAMEPAD_DPAD_DOWN      0x0002
 #define XINPUT_GAMEPAD_DPAD_LEFT      0x0004
@@ -89,7 +91,8 @@ namespace input
     extern EInputDeviceExplicit g_inputDeviceExplicit;
 
     void Init();
-
+    void Update();
+	void SetChaosAura(ELedAura mode);
     uint32_t GetState(uint32_t dwUserIndex, XINPUT_STATE* pState);
     uint32_t SetState(uint32_t dwUserIndex, XboxVibrationPacket* outPacket);
 }

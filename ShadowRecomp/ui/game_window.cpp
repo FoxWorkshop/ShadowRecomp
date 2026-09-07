@@ -205,10 +205,6 @@ int Window_OnSDLEvent(void*, SDL_Event* event)
 
         break;
     }
-    case SDL_USER_CHAOSMODE:
-        GameWindow::s_Icon = event->user.code;
-        GameWindow::SetIcon((ELedAura)GameWindow::s_Icon);
-        break;
   
     }
 

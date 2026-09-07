@@ -15,7 +15,7 @@ public:
     static inline bool s_isInit;
     static inline bool s_isLoading;
     static inline bool s_isSaving;
-	static inline ELedAura s_chaosMode = LED_AURA_NEUTRAL;
+	static inline std::atomic<ELedAura> s_chaosMode = LED_AURA_NEUTRAL;
 
     static inline ELanguage s_language;
     static inline EVoiceLanguage s_voiceLanguage;

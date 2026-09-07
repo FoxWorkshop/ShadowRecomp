@@ -10,6 +10,7 @@
 #include <ui/game_window.h>
 #include <ui/imgui_utils.h>
 #include <os/logger.h>
+#include <input/input.h>
 
 #include <thread>
 #include <atomic>
@@ -1122,6 +1123,7 @@ bool InstallerWizard::Run(std::filesystem::path installPath)
 		}
 
 		GameWindow::Update();
+		input::Update();
 		Video::Present();
 
 		std::this_thread::sleep_until(frameStart + frameTime);
