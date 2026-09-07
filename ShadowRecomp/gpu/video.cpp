@@ -734,6 +734,14 @@ static void FlushBarriers()
 	}
 }
 
+// Ensure g_barrierMap doesn't hold dead pointer for BeginCommandList and FlushBarriers
+
+static void DiscardStagedBarrier(GuestBaseTexture* texture)
+{
+	if (texture != nullptr && texture->textureHolder != nullptr)
+		g_barrierMap.erase(texture->textureHolder.get());
+}
+
 static std::unique_ptr<uint8_t[]> g_shaderCache;
 static std::unique_ptr<uint8_t[]> g_buttonBcDiff_GC;
 static std::unique_ptr<uint8_t[]> g_buttonBcDiff_PS2;
@@ -1608,19 +1616,45 @@ static void DestructTempResources()
 		{
 			const auto texture = reinterpret_cast<GuestTexture*>(resource);
 
+			valid = texture->shouldFreeMemory;
+			DiscardStagedBarrier(texture);
+			DiscardStagedBarrier(texture->patchedTexture.get());
+
+			{
+				std::lock_guard lock(g_surfaceRTsMutex);
+
+				for (auto* surface : texture->surfaceRTs)
+				{
+					if (surface->parentTexture == texture)
+						surface->parentTexture = nullptr;
+
+					if (surface->texture == texture->texture)
+					{
+						surface->framebuffers.clear();
+						surface->texture = nullptr;
+					}
+				}
+			}
+
 			if (texture->mappedMemory != nullptr)
 				g_userHeap.Free(texture->mappedMemory);
 
-			g_textureDescriptorAllocator.free(texture->descriptorIndex);
+			if (texture->descriptorIndex != NULL)
+			{
+				g_textureDescriptorSet->setTexture(texture->descriptorIndex, nullptr, {});
+				g_textureDescriptorAllocator.free(texture->descriptorIndex);
+			}
 
-			if (texture->patchedTexture != nullptr)
+			if (texture->patchedTexture != nullptr && texture->patchedTexture->descriptorIndex != NULL)
+			{
+				g_textureDescriptorSet->setTexture(texture->patchedTexture->descriptorIndex, nullptr, {});
 				g_textureDescriptorAllocator.free(texture->patchedTexture->descriptorIndex);
+			}
 
 
 			texture->~GuestTexture();
 			
 
-			valid = texture->shouldFreeMemory;
 			break;
 		}
 
@@ -1679,6 +1713,8 @@ static void DestructTempResources()
 				g_textureDescriptorSet->setTexture(surface->descriptorIndex, nullptr, {});
 				g_textureDescriptorAllocator.free(surface->descriptorIndex);
 			}
+
+			DiscardStagedBarrier(surface);
 
 			surface->~GuestSurface();
 
@@ -5801,26 +5837,35 @@ bool DestructResourceMidAsmHook(X86Register& esi)
 
 	auto resource = (GuestResource*)g_memory.Translate(esi.u32);
 
-	if (resource->type == ResourceType::Texture || resource->type == ResourceType::VolumeTexture)
+	switch (resource->type)
+	{
+	case ResourceType::Texture:
+	case ResourceType::VolumeTexture:
 	{
 		const auto texture = reinterpret_cast<GuestTexture*>(resource);
 
-		if (texture->isRenderTarget == false)
+		// cancel any queued resize, otherwise BeginCommandList recreates a texture that is
+		// already about to get destroyed.
 		{
-			printf("");
+			std::lock_guard lock(g_surfaceRTsMutex);
+			g_pendingTextureResizes.erase(texture);
 		}
-		int oldSize = g_pendingTextureResizes.size();
-		g_pendingTextureResizes.erase(texture);
-		if (oldSize == g_pendingTextureResizes.size())
-		{
-			// this wasn't a RT we can send it to delete
-			AddDestructResource(resource);
-			texture->shouldFreeMemory = true;
-			return true;
-		}
+
+		texture->shouldFreeMemory = true;
+	
+	}
+	break;
+	case ResourceType::RenderTarget:
+	case ResourceType::DepthStencil:
+		break;
+	default:
+
+		return false; // not something the host allocated so leave it alone, the guest will free it.
+
 	}
 
-	return false;
+	AddDestructResource(resource);
+	return true;
 }
 
 
