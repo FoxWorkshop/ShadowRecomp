@@ -106,7 +106,8 @@ enum class ETextureFiltering : uint32_t
 enum class EUIAlignmentMode : uint32_t
 {
     Edge,
-    Centre
+    Centre,
+    Stretch
 };
 
 template<typename T, bool isHidden = false>

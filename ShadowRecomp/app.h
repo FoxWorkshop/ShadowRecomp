@@ -21,7 +21,9 @@ public:
     static inline EVoiceLanguage s_voiceLanguage;
     static inline double s_deltaTime;
     static inline double s_time = 0.0; // How much time elapsed since the game started.
+    static inline int32_t s_gamemode = 0;
 
     static void Restart(std::vector<std::string> restartArgs = {});
     static void Exit();
+    static bool isInMainMenu();
 };

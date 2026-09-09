@@ -836,6 +836,35 @@ name = "DrawHudMidAsmHook"
 address = 0x281729
 registers = ["r0"]
 
+#Enemy HP bar scaling stuff 
+[[midasm_hook]]
+name = "HpBarProjectionMidAsmHook"
+address = 0x2859FA
+registers = ["r4", "r0"]
+
+[[midasm_hook]]
+name = "HpBarScaleMidAsmHook"
+address = 0x285AAD
+registers = ["r4"]
+
+# Lock-on reticle from weapons and birbo
+[[midasm_hook]]
+name = "LockOnProjectionMidAsmHook"
+address = 0x269293
+registers = ["r0", "r7"]
+
+# Watch camera red alert filter (Gun Fortress) 
+[[midasm_hook]]
+name = "WatchCameraFilterScaleMidAsmHook"
+address = 0x21BAAD
+registers = ["r7"]
+
+# Same 4:3-locked full-screen quad as the watch camera filter above
+[[midasm_hook]]
+name = "RainEffectScaleMidAsmHook"
+address = 0x1C8004
+registers = ["r7"]
+
 # Inlined Homing Attack Speed 1000f -> 2000f [Reloaded Phys]
 [[midasm_hook]]
 name = "HomingAttackSpeedMidAsmHook"

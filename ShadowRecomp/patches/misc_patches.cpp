@@ -3,7 +3,7 @@
 #include <user/config.h>
 #include <patches/global.h>
 
-extern bool s_ShouldPatchSubtitles;
+
 // Patch out logs Artificial Chaos can spew (causes crashes)
 X86_FUNC(sub_37EBE6)
 {
@@ -247,14 +247,6 @@ X86_FUNC(sub_1E5A0)
 	__imp__sub_1E5A0(ctx, base);
 }
 
-// MessageTaskExec
-X86_FUNC_IMPL(__imp__sub_59430);
-X86_FUNC(sub_59430)
-{
-	s_ShouldPatchSubtitles = Config::UIAlignmentMode.Value == EUIAlignmentMode::Centre;
-	__imp__sub_59430(ctx, base);
-	s_ShouldPatchSubtitles = false;
-}
 
 void DisableMessageMidAsmHook()
 {

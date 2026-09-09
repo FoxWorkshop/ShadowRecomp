@@ -16,7 +16,6 @@
 static const uint8_t CSDVertexCount = 4u; // CSD always use 4 vertex count in this game
 bool readyToDebugConstant = false;
 bool s_pauseTextRemoved = false;
-bool s_ShouldPatchSubtitles = false;
 #define widthMin 640.f
 #define heightMin 480.f
 static Mutex g_pathMutex;
@@ -76,6 +75,12 @@ void AspectRatioPatches::ComputeOffsets()
 
 	g_aspectRatioNarrowScale = std::clamp((g_aspectRatio - NARROW_ASPECT_RATIO) / (WIDE_ASPECT_RATIO - NARROW_ASPECT_RATIO), 0.0f, 1.0f);
 	g_aspectRatioNarrowMargin = std::lerp(50.0f, 0.0f, g_aspectRatioNarrowScale);
+
+	// The game draws all 2D in a fixed 640x480 space which ends being mapped in our viewport, 
+	// so anything authored for 4:3 leaves the screen stretched horizontally 
+	// Squeezing X by the inverse restores square pixels.
+	g_hudUnstretchX = std::min(1.0f, NARROW_ASPECT_RATIO / g_aspectRatio);
+
 	g_horzCentre = g_aspectRatioOffsetX + 640.0f * (1.0f - g_aspectRatioGameplayScale) * g_aspectRatioScale;
 	g_vertCentre = g_aspectRatioOffsetY + 360.0f * (1.0f - g_aspectRatioGameplayScale) * g_aspectRatioScale;
 	UpdateFontSize();
@@ -97,20 +102,6 @@ void AdjustSubtitlesPosition(uint32_t pMatrix)
 		_42 -= 0.03f * GetAddedPauseItemsCount(); // move down
 		X86_STORE_F32(pMatrix + 0x34, _42);
 	}
-	else if (s_ShouldPatchSubtitles)
-	{
-		auto vpWidth = float(Video::s_viewportWidth);
-		auto vpHeight = float(Video::s_viewportHeight);
-		float aspectRatio = vpWidth / vpHeight;
-		float ratio43 = 640.f / 480.f;
-		if (aspectRatio > ratio43)
-		{
-			float _41 = X86_LOAD_F32(pMatrix + 0x30);
-			_41 -= 0.05f;
-			X86_STORE_F32(pMatrix + 0x30, _41);
-		}
-	}
-
 }
 
 
@@ -372,12 +363,95 @@ void RenderCsdCastMidAsmHook(X86Register& rEsi)
 	g_castModifier = FindCsdModifier(rEsi.u32);
 }
 
+
+
+static constexpr float CSD_ANCHOR_LEFT = 0.0f;
+static constexpr float CSD_ANCHOR_CENTRE = widthMin / 2.0f;
+static constexpr float CSD_ANCHOR_RIGHT = widthMin;
+
+static float ResolveAnchorX(int64_t flags, float minX, float maxX)
+{
+
+	if ((flags & CSD_SCALE) != 0 || Config::UIAlignmentMode.Value == EUIAlignmentMode::Centre)
+		return CSD_ANCHOR_CENTRE;
+
+	if ((flags & CSD_ALIGN_LEFT) != 0)
+		return CSD_ANCHOR_LEFT;
+
+	if ((flags & CSD_ALIGN_RIGHT) != 0)
+		return CSD_ANCHOR_RIGHT;
+
+
+	float centre = (minX + maxX) * 0.5f;
+
+	if (centre < widthMin / 3.0f)
+		return CSD_ANCHOR_LEFT;
+
+	if (centre > widthMin * 2.0f / 3.0f)
+		return CSD_ANCHOR_RIGHT;
+
+	return CSD_ANCHOR_CENTRE;
+}
+
+
+static bool UnstretchPrimitive(void* vertexData, uint32_t count, int64_t flags, float* savedX)
+{
+	auto* verts = (RwD3D8Vertex*)vertexData;
+
+	if (verts == nullptr || count == 0)
+		return false;
+
+
+	const bool uniformScale = (flags & CSD_SCALE) != 0;
+
+	// 4:3 or narrower, or the user asked for the original stretched look.
+	if (g_hudUnstretchX >= 1.0f)
+		return false;
+
+	if (!uniformScale && Config::UIAlignmentMode.Value == EUIAlignmentMode::Stretch)
+		return false;
+
+
+	if ((flags & CSD_STRETCH_HORIZONTAL) != 0 &&
+		(uniformScale || Config::UIAlignmentMode.Value != EUIAlignmentMode::Centre))
+		return false;
+
+	float minX = FLT_MAX;
+	float maxX = -FLT_MAX;
+
+	for (uint32_t i = 0; i < count; i++)
+	{
+		minX = std::min(minX, verts[i].x);
+		maxX = std::max(maxX, verts[i].x);
+	}
+
+	// Primitives that already span the virtual screen are backgrounds, fades and letterbox bars.
+	// They are meant to cover the display, so leave them stretched.
+	if ((flags & CSD_FORCE_UNSTRETCH) == 0 && minX <= 1.0f && maxX >= widthMin - 1.0f)
+		return false;
+
+	float anchor = ResolveAnchorX(flags, minX, maxX);
+
+	for (uint32_t i = 0; i < count; i++)
+	{
+		savedX[i] = verts[i].x;
+		verts[i].x = anchor + (verts[i].x - anchor) * g_hudUnstretchX;
+	}
+
+	return true;
+}
+
+static void RestorePrimitiveX(void* vertexData, uint32_t count, const float* savedX)
+{
+	auto* verts = (RwD3D8Vertex*)vertexData;
+
+	for (uint32_t i = 0; i < count; i++)
+		verts[i].x = savedX[i];
+}
+
 void Draw(X86Context& ctx, uint8_t* base, X86Func* original, void* vertexData, uint32_t stride)
 {
 	CsdModifier modifier{};
-
-	auto vpWidth = float(Video::s_viewportWidth);
-	auto vpHeight = float(Video::s_viewportHeight);
 
 	if (g_castModifier.has_value())
 	{
@@ -392,6 +466,8 @@ void Draw(X86Context& ctx, uint8_t* base, X86Func* original, void* vertexData, u
 		modifier = g_sceneModifier.value();
 	}
 
+	auto vpWidth = float(Video::s_viewportWidth);
+	auto vpHeight = float(Video::s_viewportHeight);
 
 	// Remove all flags if the aspect ratio is above 16:9.
 	if ((modifier.Flags & CSD_MODIFIER_ULTRAWIDE_ONLY) != 0 && g_aspectRatio <= WIDE_ASPECT_RATIO)
@@ -409,6 +485,28 @@ void Draw(X86Context& ctx, uint8_t* base, X86Func* original, void* vertexData, u
 		return;
 	}
 
+	bool shouldBeSkipped = false;
+	const bool isCentered = Config::UIAlignmentMode.Value == EUIAlignmentMode::Centre;
+	const bool preserve43 = ((modifier.Flags & CSD_MODIFIER_PRESEVE_4_3_SCALE) != 0);
+	const bool canUnstretch = preserve43 || ((modifier.Flags & CSD_SCALE) != 0);
+
+	if (isCentered && preserve43)
+	{
+		for (int i = 0; i < CSDVertexCount; i++)
+		{
+			auto vertex = (RwD3D8Vertex*)vertexData + i;
+			if (vertex)
+			{
+				if (vertex[i].x < -10.f || vertex[i].x > widthMin + 20.f)
+				{
+					shouldBeSkipped = true;
+					break;
+				}
+			}
+		}
+	}
+
+
 
 	auto drawOriginal = [&]()
 		{
@@ -416,51 +514,6 @@ void Draw(X86Context& ctx, uint8_t* base, X86Func* original, void* vertexData, u
 			ctx.SubEsp(1);
 			original(ctx, base);
 		};
-
-	auto offsetX = 0.0f;
-	auto offsetY = 0.0f;
-	auto pivotX = 0.0f;
-	auto pivotY = 0.0f;
-	auto scaleX = 1.0f;
-	auto scaleY = 1.0f;
-
-	auto needsStretch = g_aspectRatio >= WIDE_ASPECT_RATIO;
-
-	if (needsStretch && (modifier.Flags & CSD_STRETCH_HORIZONTAL) != 0)
-	{
-		scaleX = vpWidth / 640.f;
-	}
-	else
-	{
-		scaleX = g_aspectRatioScale;
-
-	}
-
-	if ((modifier.Flags & CSD_STRETCH_VERTICAL) != 0)
-	{
-		scaleY = vpHeight / 480.f;
-	}
-	else
-	{
-		scaleY = g_aspectRatioScale;
-
-		if ((modifier.Flags & CSD_ALIGN_BOTTOM) != 0)
-			offsetY = g_aspectRatioOffsetY * 2.0f;
-		else if ((modifier.Flags & CSD_ALIGN_TOP) == 0)
-			offsetY = g_aspectRatioOffsetY;
-
-		if ((modifier.Flags & CSD_SCALE) != 0)
-		{
-			scaleY *= g_aspectRatioGameplayScale;
-
-			if ((modifier.Flags & CSD_ALIGN_BOTTOM) != 0)
-				offsetY += 480.f * (1.0f - g_aspectRatioGameplayScale) * g_aspectRatioScale;
-			else if ((modifier.Flags & CSD_ALIGN_TOP) == 0)
-				offsetY += g_vertCentre - g_aspectRatioOffsetY;
-
-			offsetY += pivotY * g_aspectRatioScale;
-		}
-	}
 
 	const bool isPauseBossWithExtendBottom = ((modifier.Flags & CSD_PAUSE_BOSS) != 0 && ((modifier.Flags & CSD_EXTEND_BOTTOM) != 0));
 
@@ -490,26 +543,41 @@ void Draw(X86Context& ctx, uint8_t* base, X86Func* original, void* vertexData, u
 		}
 	}
 
-	bool shouldBeSkipped = false;
-	// save original vertex values
-	float originalX[CSDVertexCount], originalY[CSDVertexCount];
-	memset(originalX, 0, sizeof(originalX));
-	memset(originalY, 0, sizeof(originalY));
-	for (int i = 0; i < CSDVertexCount; i++)
-	{
-		auto vertex = (RwD3D8Vertex*)vertexData + i;
-		if (vertex)
-		{
-			originalX[i] = vertex->x;
-			originalY[i] = vertex->y;
 
-			if (originalX[i] < -10.f || originalX[i] > 640 + 20.f)
-				shouldBeSkipped = true;
+
+	float originalX[CSDVertexCount];
+	bool unstretched = false;
+
+	if (canUnstretch)
+		unstretched = UnstretchPrimitive(vertexData, CSDVertexCount, modifier.Flags, originalX);
+
+	if ((modifier.Flags & CSD_MODIFIER_PRESEVE_4_3_SCALE) != 0)
+	{
+
+		float aspectRatio = vpWidth / vpHeight;
+		float ratio43 = 640.f / 480.f;
+		if (aspectRatio > ratio43)
+		{
+			if (isCentered)
+			{
+				// skip draw call until vertex are meant to be visible. 
+				// This fixes hud elements that have animation and end showing up when they 
+				// shouldn't due to vertex pos adjust.
+
+				if (shouldBeSkipped)
+				{
+					return;
+				}
+			}
 		}
 	}
 
-
 	drawOriginal();
+
+
+	if (unstretched)
+		RestorePrimitiveX(vertexData, CSDVertexCount, originalX);
+
 
 	if ((modifier.Flags & CSD_HIDE_PAUSE) != 0)
 	{
@@ -547,25 +615,96 @@ void CPlatformRWDrawPrimitive2DMidAsmHook2(X86Register& rEsi)
 	Draw(*ctx, base, __imp__sub_2ECC80, g_memory.Translate(rEsi.u32), 28);
 }
 
+static bool g_isInStageMode = false;
 void DrawHudMidAsmHook(X86Register& rEax)
 {
-	if (Config::UIAlignmentMode.Value != EUIAlignmentMode::Centre || !rEax.u32)
+	if (!rEax.u32 || App::isInMainMenu() && !g_isInStageMode) // this affect text on stage select mode badly
 		return;
 
-	auto vpWidth = float(Video::s_viewportWidth);
-	auto vpHeight = float(Video::s_viewportHeight);
-	float stretchFactor = (vpWidth / vpHeight) / (640.f / 480.f);
-	float centreX = 640.f / 2.f;
-	float aspectRatio = vpWidth / vpHeight;
-	float ratio43 = 640.f / 480.f;
-	if (aspectRatio > ratio43)
-	{
-		RwD3D8Vertex* vertexHud = (RwD3D8Vertex*)(g_memory.Translate(rEax.u32));
+	float savedX[CSDVertexCount];
+		UnstretchPrimitive(g_memory.Translate(rEax.u32), CSDVertexCount, CSD_ALIGN_CENTER, savedX);
+}
 
-		for (int i = 0; i < 4; i++)
-		{
-			vertexHud[i].x = centreX + (vertexHud[i].x - centreX) / stretchFactor;
-		}
+
+// the enemy HP bar isn't like regular HUD elements: every frame the game projects the enemy's world position
+// to the screen (see sub_285930 and sub_2D5D0) and places the bar wherever the enemy is.
+// The projection uses the camera's own fov, which we never widen. thus, we cannot patch it at vertex levels,
+// so we will do it the old way.
+
+void HpBarProjectionMidAsmHook(X86Register& rEsi, X86Register& rEax)
+{
+	if (g_hudUnstretchX >= 1.0f)
+		return;
+
+	auto base = g_memory.base;
+
+	// rEax = SonicteamUSA::System::Camera::GetScreenRectangle(screenType)
+	float rectX = float(int32_t(X86_LOAD_U32(rEax.u32)));
+	float rectW = float(int32_t(X86_LOAD_U32(rEax.u32 + 8)));
+	float centreX = rectX + rectW * 0.5f;
+
+	// esi + 0x2C = projected screen X, still to be culled against the screen rect below
+	float screenX = X86_LOAD_F32(rEsi.u32 + 0x2C);
+	X86_STORE_F32(rEsi.u32 + 0x2C, centreX + (screenX - centreX) * g_hudUnstretchX);
+}
+
+// the game scales the bar against a fixed 640x480 space (rect.w * scale / 640, rect.h * scale / 480),
+// and the 2D layer then stretches that space over the whole viewport, so like everything else here
+// the bar comes out too wide on wide screens. squeeze X back to square pixels.
+void HpBarScaleMidAsmHook(X86Register& rEsi)
+{
+	if (g_hudUnstretchX >= 1.0f || Config::UIAlignmentMode.Value == EUIAlignmentMode::Stretch)
+		return;
+
+	auto base = g_memory.base;
+
+	// esi + 0x38 = scale X, consumed by the CSD SetScale call further down.
+	X86_STORE_F32(rEsi.u32 + 0x38, X86_LOAD_F32(rEsi.u32 + 0x38) * g_hudUnstretchX);
+}
+
+
+// Weapon lock-on reticle (This includes birbo targets in the ark)
+// Those have the same problem than enemy hp bar above
+void LockOnProjectionMidAsmHook(X86Register& rEax, X86Register& rEsp)
+{
+	if (g_hudUnstretchX >= 1.0f)
+		return;
+
+	//eax is camera's screen rectangle
+	// esp + 8 is the project screen X
+	auto base = g_memory.base;
+
+	float rectX = float(int32_t(X86_LOAD_U32(rEax.u32)));
+	float rectW = float(int32_t(X86_LOAD_U32(rEax.u32 + 8)));
+	float centreX = rectX + rectW * 0.5f;
+
+	float screenX = X86_LOAD_F32(rEsp.u32 + 8);
+	X86_STORE_F32(rEsp.u32 + 8, centreX + (screenX - centreX) * g_hudUnstretchX);
+}
+
+// sub_268FD0 creates one reticle (quad) which isn't called, so it's safe to patch the corners here
+static constexpr uint32_t LockOnStride = 28u;
+static constexpr uint32_t LockOnVertexCount = 4u;
+X86_FUNC_IMPL(__imp__sub_268FD0);
+X86_FUNC(sub_268FD0)
+{
+	uint32_t vertices = X86_LOAD_U32(ctx.esp.u32 + 4);
+	uint32_t centre = X86_LOAD_U32(ctx.esp.u32 + 8); //projected center the corners are offset from
+
+	__imp__sub_268FD0(ctx, base);
+
+	if (!vertices || !centre)
+		return;
+
+	if (g_hudUnstretchX >= 1.0f || Config::UIAlignmentMode.Value == EUIAlignmentMode::Stretch)
+		return;
+
+	float centreX = X86_LOAD_F32(centre);
+
+	for (uint32_t i = 0; i < LockOnVertexCount; i++)
+	{
+		uint32_t vertexX = vertices + i * LockOnStride;
+		X86_STORE_F32(vertexX, centreX + (X86_LOAD_F32(vertexX) - centreX) * g_hudUnstretchX);
 	}
 }
 
@@ -789,6 +928,132 @@ const xxHashMap<CsdModifier> g_csdModifiers =
 	{ HashStr("csdFiles/pause/pause.xncp/Pause/ChangeMission/arrow_right"), { CSD_HIDE_PAUSE | CSD_MOVE_BOTTOM } },
 	{ HashStr("csdFiles/pause/pause.xncp/Pause/SRText/text"), { CSD_HIDE_PAUSE | CSD_MOVE_BOTTOM } },
 	{ HashStr("csdFiles/pause/pause.xncp/Pause/SRText/button"), { CSD_HIDE_PAUSE | CSD_MOVE_BOTTOM } },
+
+	// hud scaling
+	{ HashStr("csdFiles/InfoWindow.xncp/Ring"), { CSD_MODIFIER_PRESEVE_4_3_SCALE } },
+	{ HashStr("csdFiles/InfoWindow.xncp/Ring/Null_0000"), { CSD_MODIFIER_PRESEVE_4_3_SCALE } },
+	{ HashStr("csdFiles/InfoWindow.xncp/Ring/Null_0000/ring"), { CSD_MODIFIER_PRESEVE_4_3_SCALE } },
+	{ HashStr("csdFiles/InfoWindow.xncp/Zanki"), { CSD_MODIFIER_PRESEVE_4_3_SCALE } },
+	{ HashStr("csdFiles/InfoWindow.xncp/Zanki/Null_0000"), { CSD_MODIFIER_PRESEVE_4_3_SCALE } },
+	{ HashStr("csdFiles/InfoWindow.xncp/Zanki/Null_0000/key"), { CSD_MODIFIER_PRESEVE_4_3_SCALE } },
+	{ HashStr("csdFiles/InfoWindow.xncp/Zanki/Null_0000/zanki"), { CSD_MODIFIER_PRESEVE_4_3_SCALE } },
+
+	{ HashStr("csdFiles/CommandWindow.xncp/CarMeter"), { CSD_MODIFIER_PRESEVE_4_3_SCALE } },
+	{ HashStr("csdFiles/CommandWindow.xncp/CarMeter/outline"), { CSD_MODIFIER_PRESEVE_4_3_SCALE } },
+	{ HashStr("csdFiles/CommandWindow.xncp/CarMeter/meter_bg"), { CSD_MODIFIER_PRESEVE_4_3_SCALE } },
+	{ HashStr("csdFiles/CommandWindow.xncp/CarMeter/meter"), { CSD_MODIFIER_PRESEVE_4_3_SCALE } },
+	{ HashStr("csdFiles/CommandWindow.xncp/Car_BCom"), { CSD_MODIFIER_PRESEVE_4_3_SCALE } },
+	{ HashStr("csdFiles/CommandWindow.xncp/Car_BCom/Null"), { CSD_MODIFIER_PRESEVE_4_3_SCALE } },
+	{ HashStr("csdFiles/CommandWindow.xncp/Car_BCom/Null/button2"), { CSD_MODIFIER_PRESEVE_4_3_SCALE } },
+	{ HashStr("csdFiles/CommandWindow.xncp/Car_BCom/Null/icon_car"), { CSD_MODIFIER_PRESEVE_4_3_SCALE } },
+	{ HashStr("csdFiles/CommandWindow.xncp/Weapon"), { CSD_MODIFIER_PRESEVE_4_3_SCALE } },
+	{ HashStr("csdFiles/CommandWindow.xncp/Weapon/weapon"), { CSD_MODIFIER_PRESEVE_4_3_SCALE } },
+	{ HashStr("csdFiles/CommandWindow.xncp/Weapon/weapon/button1"), { CSD_MODIFIER_PRESEVE_4_3_SCALE } },
+	{ HashStr("csdFiles/CommandWindow.xncp/Weapon/weapon/icon_gun"), { CSD_MODIFIER_PRESEVE_4_3_SCALE } },
+	{ HashStr("csdFiles/CommandWindow.xncp/Window"), { CSD_MODIFIER_PRESEVE_4_3_SCALE } },
+	{ HashStr("csdFiles/CommandWindow.xncp/Window/window"), { CSD_MODIFIER_PRESEVE_4_3_SCALE } },
+	{ HashStr("csdFiles/CommandWindow.xncp/Window/window/window2"), { CSD_MODIFIER_PRESEVE_4_3_SCALE } },
+	{ HashStr("csdFiles/CommandWindow.xncp/Window/window/window1"), { CSD_MODIFIER_PRESEVE_4_3_SCALE } },
+	{ HashStr("csdFiles/CommandWindow.xncp/Window/window/info_bg2"), { CSD_MODIFIER_PRESEVE_4_3_SCALE } },
+	{ HashStr("csdFiles/CommandWindow.xncp/Window/window/info_bg"), { CSD_MODIFIER_PRESEVE_4_3_SCALE } },
+
+	{ HashStr("csdFiles/HeroGauge.xncp/Scene_0000"), { CSD_MODIFIER_PRESEVE_4_3_SCALE } },
+	{ HashStr("csdFiles/HeroGauge.xncp/Scene_0000/bar_bg"), { CSD_MODIFIER_PRESEVE_4_3_SCALE } },
+	{ HashStr("csdFiles/HeroGauge.xncp/Scene_0000/meter_main1"), { CSD_MODIFIER_PRESEVE_4_3_SCALE } },
+	{ HashStr("csdFiles/HeroGauge.xncp/Scene_0000/meter_main2"), { CSD_MODIFIER_PRESEVE_4_3_SCALE } },
+	{ HashStr("csdFiles/HeroGauge.xncp/Scene_0000/meter_main3"), { CSD_MODIFIER_PRESEVE_4_3_SCALE } },
+	{ HashStr("csdFiles/HeroGauge.xncp/Scene_0000/bar"), { CSD_MODIFIER_PRESEVE_4_3_SCALE } },
+	{ HashStr("csdFiles/HeroGauge.xncp/Scene_0000/meter_RSide"), { CSD_MODIFIER_PRESEVE_4_3_SCALE } },
+	{ HashStr("csdFiles/HeroGauge.xncp/Scene_0000/meter_side"), { CSD_MODIFIER_PRESEVE_4_3_SCALE } },
+
+	{ HashStr("csdFiles/DarkGauge.xncp/Scene_0000"), { CSD_MODIFIER_PRESEVE_4_3_SCALE } },
+	{ HashStr("csdFiles/DarkGauge.xncp/Scene_0000/meter_bg"), { CSD_MODIFIER_PRESEVE_4_3_SCALE } },
+	{ HashStr("csdFiles/DarkGauge.xncp/Scene_0000/main1"), { CSD_MODIFIER_PRESEVE_4_3_SCALE } },
+	{ HashStr("csdFiles/DarkGauge.xncp/Scene_0000/main2"), { CSD_MODIFIER_PRESEVE_4_3_SCALE } },
+	{ HashStr("csdFiles/DarkGauge.xncp/Scene_0000/main3"), { CSD_MODIFIER_PRESEVE_4_3_SCALE } },
+	{ HashStr("csdFiles/DarkGauge.xncp/Scene_0000/meter"), { CSD_MODIFIER_PRESEVE_4_3_SCALE } },
+	{ HashStr("csdFiles/DarkGauge.xncp/Scene_0000/side1"), { CSD_MODIFIER_PRESEVE_4_3_SCALE } },
+	{ HashStr("csdFiles/DarkGauge.xncp/Scene_0000/side2"), { CSD_MODIFIER_PRESEVE_4_3_SCALE } },
+
+
+	{ HashStr("csdFiles/Hissatu_Hero.xncp/HissatuHero/XButton"), { CSD_MODIFIER_PRESEVE_4_3_SCALE } },
+	{ HashStr("csdFiles/Hissatu_Hero.xncp/HissatuHero/XButton/Eff_X"), { CSD_MODIFIER_PRESEVE_4_3_SCALE} },
+	{ HashStr("csdFiles/Hissatu_Dark.xncp/HissatuDark/YButton"), { CSD_MODIFIER_PRESEVE_4_3_SCALE } },
+	{ HashStr("csdFiles/Hissatu_Dark.xncp/HissatuDark/YButton/Eff_Y"), { CSD_MODIFIER_PRESEVE_4_3_SCALE } },
+
+	{ HashStr("csdFiles/TWindow.xncp/TargetWindow"), { CSD_MODIFIER_PRESEVE_4_3_SCALE } },
+	{ HashStr("csdFiles/TWindow.xncp/TargetWindow/TargetDark/Null_dark"), { CSD_MODIFIER_PRESEVE_4_3_SCALE } },
+	{ HashStr("csdFiles/TWindow.xncp/TargetWindow/TargetDark/Null_dark/dark_icon"), { CSD_MODIFIER_PRESEVE_4_3_SCALE } },
+	{ HashStr("csdFiles/TWindow.xncp/TargetWindow/TargetDark/Null_dark/Cast_0005"), { CSD_MODIFIER_PRESEVE_4_3_SCALE } },
+	{ HashStr("csdFiles/TWindow.xncp/TargetWindow/TargetDark/Null_dark/Cast_0005/Cast_0006"), { CSD_MODIFIER_PRESEVE_4_3_SCALE } },
+	{ HashStr("csdFiles/TWindow.xncp/TargetWindow/TargetHero"), { CSD_MODIFIER_PRESEVE_4_3_SCALE } },
+	{ HashStr("csdFiles/TWindow.xncp/TargetWindow/TargetHero/Null_hero"), { CSD_MODIFIER_PRESEVE_4_3_SCALE } },
+	{ HashStr("csdFiles/TWindow.xncp/TargetWindow/TargetHero/Null_hero/hero_icon"), { CSD_MODIFIER_PRESEVE_4_3_SCALE } },
+	{ HashStr("csdFiles/TWindow.xncp/TargetWindow/TargetHero/Null_hero/Cast_0003"), { CSD_MODIFIER_PRESEVE_4_3_SCALE } },
+	{ HashStr("csdFiles/TWindow.xncp/TargetWindow/TargetHero/Null_hero/Cast_0003/Cast_0004"), { CSD_MODIFIER_PRESEVE_4_3_SCALE } },
+
+	{ HashStr("csdFiles/BossGauge.xncp/Scene_0000/bg"), { CSD_MODIFIER_PRESEVE_4_3_SCALE | CSD_STRETCH_HORIZONTAL } },
+	{ HashStr("csdFiles/BossGauge.xncp/Scene_0000/m1"), { CSD_MODIFIER_PRESEVE_4_3_SCALE | CSD_STRETCH_HORIZONTAL } },
+	{ HashStr("csdFiles/BossGauge.xncp/Scene_0000/m2"), { CSD_MODIFIER_PRESEVE_4_3_SCALE | CSD_STRETCH_HORIZONTAL } },
+	{ HashStr("csdFiles/BossGauge.xncp/Scene_0000/m3"), { CSD_MODIFIER_PRESEVE_4_3_SCALE | CSD_STRETCH_HORIZONTAL} },
+	{ HashStr("csdFiles/BossGauge.xncp/Scene_0000/meter"), { CSD_MODIFIER_PRESEVE_4_3_SCALE | CSD_STRETCH_HORIZONTAL } },
+	{ HashStr("csdFiles/BossGauge.xncp/Scene_0000/left_edge"), { CSD_MODIFIER_PRESEVE_4_3_SCALE | CSD_STRETCH_HORIZONTAL } },
+	{ HashStr("csdFiles/BossGauge.xncp/Scene_0000/right_edge"), { CSD_MODIFIER_PRESEVE_4_3_SCALE | CSD_STRETCH_HORIZONTAL } },
+
+
+	{ HashStr("csdFiles/EggBoss.xncp/1/Null_display_sml/sicon1"), { CSD_MODIFIER_PRESEVE_4_3_SCALE | CSD_STRETCH_HORIZONTAL } },
+	{ HashStr("csdFiles/EggBoss.xncp/1/Null_display_sml"), { CSD_MODIFIER_PRESEVE_4_3_SCALE | CSD_STRETCH_HORIZONTAL } },
+	{ HashStr("csdFiles/EggBoss.xncp/2/Null_display_sml/sicon2"), { CSD_MODIFIER_PRESEVE_4_3_SCALE | CSD_STRETCH_HORIZONTAL } },
+	{ HashStr("csdFiles/EggBoss.xncp/2/Null_display_sml"), { CSD_MODIFIER_PRESEVE_4_3_SCALE | CSD_STRETCH_HORIZONTAL } },
+	{ HashStr("csdFiles/EggBoss.xncp/3/Null_display_sml/sicon3"), { CSD_MODIFIER_PRESEVE_4_3_SCALE | CSD_STRETCH_HORIZONTAL } },
+	{ HashStr("csdFiles/EggBoss.xncp/3/Null_display_sml"), { CSD_MODIFIER_PRESEVE_4_3_SCALE | CSD_STRETCH_HORIZONTAL } },
+	{ HashStr("csdFiles/EggBoss.xncp/DisplayLg/Null_display_lg/light1"), { CSD_MODIFIER_PRESEVE_4_3_SCALE | CSD_STRETCH_HORIZONTAL } },
+	{ HashStr("csdFiles/EggBoss.xncp/DisplayLg/Null_display_lg/icon3"), { CSD_MODIFIER_PRESEVE_4_3_SCALE | CSD_STRETCH_HORIZONTAL } },
+	{ HashStr("csdFiles/EggBoss.xncp/DisplayLg/Null_display_lg/icon2"), { CSD_MODIFIER_PRESEVE_4_3_SCALE | CSD_STRETCH_HORIZONTAL } },
+	{ HashStr("csdFiles/EggBoss.xncp/DisplayLg/Null_display_lg/icon1"), { CSD_MODIFIER_PRESEVE_4_3_SCALE | CSD_STRETCH_HORIZONTAL } },
+	{ HashStr("csdFiles/EggBoss.xncp/DisplayLg/Null_display_lg/frame_rt"), { CSD_MODIFIER_PRESEVE_4_3_SCALE | CSD_STRETCH_HORIZONTAL } },
+	{ HashStr("csdFiles/EggBoss.xncp/DisplayLg/Null_display_lg/frame_cnt"), { CSD_MODIFIER_PRESEVE_4_3_SCALE | CSD_STRETCH_HORIZONTAL } },
+	{ HashStr("csdFiles/EggBoss.xncp/DisplayLg/Null_display_lg/frame_lft"), { CSD_MODIFIER_PRESEVE_4_3_SCALE | CSD_STRETCH_HORIZONTAL } },
+	{ HashStr("csdFiles/EggBoss.xncp/DisplayLg/Null_display_lg"), { CSD_MODIFIER_PRESEVE_4_3_SCALE | CSD_STRETCH_HORIZONTAL } },
+	{ HashStr("csdFiles/EggBoss.xncp/DisplayLg/Null_kira/kira5"), { CSD_MODIFIER_PRESEVE_4_3_SCALE | CSD_STRETCH_HORIZONTAL } },
+	{ HashStr("csdFiles/EggBoss.xncp/DisplayLg/Null_kira/kira4"), { CSD_MODIFIER_PRESEVE_4_3_SCALE | CSD_STRETCH_HORIZONTAL } },
+	{ HashStr("csdFiles/EggBoss.xncp/DisplayLg/Null_kira/kira3"), { CSD_MODIFIER_PRESEVE_4_3_SCALE | CSD_STRETCH_HORIZONTAL } },
+	{ HashStr("csdFiles/EggBoss.xncp/DisplayLg/Null_kira/kira2"), { CSD_MODIFIER_PRESEVE_4_3_SCALE | CSD_STRETCH_HORIZONTAL } },
+	{ HashStr("csdFiles/EggBoss.xncp/DisplayLg/Null_kira/kira1"), { CSD_MODIFIER_PRESEVE_4_3_SCALE | CSD_STRETCH_HORIZONTAL } },
+	{ HashStr("csdFiles/EggBoss.xncp/DisplayLg/Null_kira"), { CSD_MODIFIER_PRESEVE_4_3_SCALE | CSD_STRETCH_HORIZONTAL } },
+	{ HashStr("csdFiles/EggBoss.xncp/DisplaySml/Null_display_sml/frame_sml"), { CSD_MODIFIER_PRESEVE_4_3_SCALE | CSD_STRETCH_HORIZONTAL } },
+	{ HashStr("csdFiles/EggBoss.xncp/DisplaySml/Null_display_sml"), { CSD_MODIFIER_PRESEVE_4_3_SCALE | CSD_STRETCH_HORIZONTAL } },
+
+
+	{ HashStr("csdFiles/2P_Ring.xncp/Ring1P/Null_ring/ring"), { CSD_MODIFIER_PRESEVE_4_3_SCALE } },
+	{ HashStr("csdFiles/2P_Ring.xncp/Ring2P/Null_ring/ring"), { CSD_MODIFIER_PRESEVE_4_3_SCALE } },
+	{ HashStr("csdFiles/2P_CommandWindow.xncp/Window/window/info_bg"), { CSD_MODIFIER_PRESEVE_4_3_SCALE } },
+	{ HashStr("csdFiles/2P_CommandWindow.xncp/Window/window/info_bg2"), { CSD_MODIFIER_PRESEVE_4_3_SCALE } },
+	{ HashStr("csdFiles/2P_CommandWindow.xncp/Window/window/window1"), { CSD_MODIFIER_PRESEVE_4_3_SCALE } },
+	{ HashStr("csdFiles/2P_CommandWindow.xncp/Window/window/window2"), { CSD_MODIFIER_PRESEVE_4_3_SCALE } },
+	{ HashStr("csdFiles/2P_CommandWindow.xncp/Weapon/weapon/icon_gun"), { CSD_MODIFIER_PRESEVE_4_3_SCALE } },
+	{ HashStr("csdFiles/2P_CommandWindow.xncp/Weapon/weapon/button1"), { CSD_MODIFIER_PRESEVE_4_3_SCALE } },
+	{ HashStr("csdFiles/2P_CommandWindow.xncp/Car_BCom/Null/icon_car"), { CSD_MODIFIER_PRESEVE_4_3_SCALE } },
+	{ HashStr("csdFiles/2P_CommandWindow.xncp/Car_BCom/Null/button2"), { CSD_MODIFIER_PRESEVE_4_3_SCALE } },
+	{ HashStr("csdFiles/2P_CommandWindow.xncp/CarMeter/outline"), { CSD_MODIFIER_PRESEVE_4_3_SCALE } },
+	{ HashStr("csdFiles/2P_CommandWindow.xncp/CarMeter/meter_bg"), { CSD_MODIFIER_PRESEVE_4_3_SCALE } },
+	{ HashStr("csdFiles/2P_CommandWindow.xncp/CarMeter/meter"), { CSD_MODIFIER_PRESEVE_4_3_SCALE } },
+
+
+	{ HashStr("csdFiles/2P_Ring.xncp/Ring1P/Null_ring/ring"), { CSD_MODIFIER_PRESEVE_4_3_SCALE } },
+	{ HashStr("csdFiles/2P_Ring.xncp/Ring2P/Null_ring/ring"), { CSD_MODIFIER_PRESEVE_4_3_SCALE } },
+	{ HashStr("csdFiles/2P_CommandWindow.xncp/Window/window/info_bg"), { CSD_MODIFIER_PRESEVE_4_3_SCALE } },
+	{ HashStr("csdFiles/2P_CommandWindow.xncp/Window/window/info_bg2"), { CSD_MODIFIER_PRESEVE_4_3_SCALE } },
+	{ HashStr("csdFiles/2P_CommandWindow.xncp/Window/window/window1"), { CSD_MODIFIER_PRESEVE_4_3_SCALE } },
+	{ HashStr("csdFiles/2P_CommandWindow.xncp/Window/window/window2"), { CSD_MODIFIER_PRESEVE_4_3_SCALE } },
+	{ HashStr("csdFiles/2P_CommandWindow.xncp/Weapon/weapon/icon_gun"), { CSD_MODIFIER_PRESEVE_4_3_SCALE } },
+	{ HashStr("csdFiles/2P_CommandWindow.xncp/Weapon/weapon/button1"), { CSD_MODIFIER_PRESEVE_4_3_SCALE } },
+	{ HashStr("csdFiles/2P_CommandWindow.xncp/Car_BCom/Null/icon_car"), { CSD_MODIFIER_PRESEVE_4_3_SCALE } },
+	{ HashStr("csdFiles/2P_CommandWindow.xncp/Car_BCom/Null/button2"), { CSD_MODIFIER_PRESEVE_4_3_SCALE } },
+	{ HashStr("csdFiles/2P_CommandWindow.xncp/CarMeter/outline"), { CSD_MODIFIER_PRESEVE_4_3_SCALE } },
+	{ HashStr("csdFiles/2P_CommandWindow.xncp/CarMeter/meter_bg"), { CSD_MODIFIER_PRESEVE_4_3_SCALE } },
+	{ HashStr("csdFiles/2P_CommandWindow.xncp/CarMeter/meter"), { CSD_MODIFIER_PRESEVE_4_3_SCALE } },
+
 };
 
 std::optional<CsdModifier> FindCsdModifier(uint32_t data)
@@ -855,7 +1120,7 @@ static void StretchViewWindow(uint32_t camera, float aspectRatio, float relative
 		X86_STORE_F32(camera + rwCameraViewWindow, X86_LOAD_F32(camera + rwCameraViewWindow) * relativeAspectRatio);
 	}
 	else {
- 		// Vert+
+		// Vert+
 		X86_STORE_F32(camera + rwCameraViewWindow + 4, X86_LOAD_F32(camera + rwCameraViewWindow + 4) / relativeAspectRatio);
 	}
 }
@@ -874,7 +1139,7 @@ static void StretchRecipViewWindow(uint32_t camera, float aspectRatio, float rel
 		X86_STORE_F32(camera + rwCameraRecipViewWindow, X86_LOAD_F32(camera + rwCameraRecipViewWindow) * relativeAspectRatio);
 	}
 	else
-	{ 
+	{
 		// Vert+
 		X86_STORE_F32(camera + rwCameraRecipViewWindow + 4, X86_LOAD_F32(camera + rwCameraRecipViewWindow + 4) / relativeAspectRatio);
 	}
@@ -947,5 +1212,82 @@ X86_FUNC(sub_2DB9C0)
 	}
 }
 
+// The game draws a quad in front of the game camera and scale it, but this only work for 4:3, 
+// this is used for different effects, such as the camera in Gun Fortress or the rain in Sky Troops. 
+// We can edit the math and apply the same stretch the projection got with the new aspect ratio (right before the matrix scale call).
+
+static void StretchFullScreenQuadScale(uint32_t scaleArgs)
+{
+
+	float aspectRatio = g_aspectRatio;
+	auto base = g_memory.base;
+
+	const float relativeAspectRatio = GetRelativeAspectRatio(aspectRatio);
+
+	// esp+0 = X scale, esp+4 = Y scale, esp+8 = Z scale (1.0f).
+
+	if (aspectRatio > nativeAspectRatio) // horizontal
+	{
+		X86_STORE_F32(scaleArgs, X86_LOAD_F32(scaleArgs) * relativeAspectRatio);
+	}
+	else // graw the quad vertically
+	{
+		X86_STORE_F32(scaleArgs + 4, X86_LOAD_F32(scaleArgs + 4) / relativeAspectRatio);
+	}
+}
+
+// The camera that shows a red filter that covers the screen in Gun Fortress.
+void WatchCameraFilterScaleMidAsmHook(X86Register& esp)
+{
+	StretchFullScreenQuadScale(esp.u32);
+}
+
+// RainEffect (ctor sub_1C7C70) does the same thing for the rain overlay than the camera red filter in Gun Fortress
+// So we can just re use the same code
+void RainEffectScaleMidAsmHook(X86Register& esp)
+{
+	StretchFullScreenQuadScale(esp.u32);
+}
+
+
+X86_FUNC_IMPL(__imp__sub_29A850);
+X86_FUNC(sub_29A850)
+{
+	g_isInStageMode = true;
+	__imp__sub_29A850(ctx, base);
+	g_isInStageMode = false;
+}
+
+// Patch the text draw in the main menu (score in stage select, level name etc.)
+// The font system (bitmap) draws every string as Rt2d geometry which is pushed through 3D Space.
+// Each glyph quad is set up by the world matrix then puts the geometry in a 2D space. 
+// However the widescreen projection stretch the scene which doesn't work at high res
+// we can patch the world matrix's active axis with the relative aspect ratio to unstretch the text.
+
+void UnstretchMenuTextTransform(uint32_t pMatrix)
+{
+	auto base = g_memory.base;
+
+	if (!App::isInMainMenu() && !g_isInStageMode || pMatrix == 0)
+		return;
+
+	float aspectRatio;
+	if (!TryGetAspectRatio(aspectRatio))
+		return;
+
+	const float relativeAspectRatio = GetRelativeAspectRatio(aspectRatio);
+
+	//Column of the 4x4 world matrix gives the axis the projection originally stretched
+	const bool horizontal = aspectRatio > nativeAspectRatio;
+	const uint32_t column = horizontal ? 0 : 4;
+
+	for (uint32_t row = 0; row < 4; row++)
+	{
+		const uint32_t element = pMatrix + row * 0x10 + column;
+		const float value = X86_LOAD_F32(element);
+
+		X86_STORE_F32(element, horizontal ? value * relativeAspectRatio : value / relativeAspectRatio);
+	}
+}
 /*** END Render at any Aspect Ratio ***/
 
