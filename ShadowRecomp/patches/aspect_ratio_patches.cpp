@@ -735,10 +735,11 @@ const xxHashMap<QuadStretchCalibration> g_pictureDff =
 	{ HashStr("ADV2!FLASH!BACK!PIC02!O!.DFF"), { 1.0f, 1.1f } },
 	{ HashStr("ADV2!FLASH!BACK!PIC03!O!.DFF"), { 1.0f, 1.1f } },
 	{ HashStr("ADV2!FLASH!BACK!PIC04!O!.DFF"), { 1.0f, 1.1f } },
+	{ HashStr("HEROS!FLASH!BACK!PICA!O!.DFF"), { 1.2f, 1.1f } }, // ev 3101 prison island intro
+	{ HashStr("HEROS!FLASH!BACK!PICB!O!.DFF"), { 1.2f, 1.1f } }, // ev 3101 prison island intro
 	{ HashStr("BD!SHIP!PIC01!O!.DFF"), { 1.5f, 1.1f } }, // ev 4202 sky troops intro
 	{ HashStr("EGG!SHIP!PIC01!O!.DFF"), { 1.5f, 1.1f } }, // ev 4202 sky troops intro
 	{ HashStr("EGG!SHIP!PIC02!O!.DFF"), { 1.5f, 1.1f } }, // ev 4202 sky troops intro
-
 };
 
 void FindPictureBackgroundModel(X86Context* ctx, uint8_t* base)
