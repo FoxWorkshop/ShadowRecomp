@@ -376,7 +376,7 @@ static float ResolveAnchorX(int64_t flags, float minX, float maxX)
 }
 
 
-static bool UnstretchPrimitive(void* vertexData, uint32_t count, int64_t flags, float* savedX)
+static bool UnstretchPrimitive(void* vertexData, uint32_t count, int64_t flags, float* savedX, const std::optional<float>& anchorOverride = std::nullopt)
 {
 	auto* verts = (RwD3D8Vertex*)vertexData;
 
@@ -412,7 +412,8 @@ static bool UnstretchPrimitive(void* vertexData, uint32_t count, int64_t flags, 
 	if ((flags & CSD_FORCE_UNSTRETCH) == 0 && minX <= 1.0f && maxX >= widthMin - 1.0f)
 		return false;
 
-	float anchor = ResolveAnchorX(flags, minX, maxX);
+	// Use the anchor from the caller when it knows the whole element, else work it out here.
+	const float anchor = anchorOverride.value_or(ResolveAnchorX(flags, minX, maxX));
 
 	for (uint32_t i = 0; i < count; i++)
 	{
@@ -597,6 +598,58 @@ void CPlatformRWDrawPrimitive2DMidAsmHook2(X86Register& rEsi)
 	Draw(*ctx, base, __imp__sub_2ECC80, g_memory.Translate(rEsi.u32), 28);
 }
 
+// DrawNumberHud is also used on the stage select to show current record.
+// With high res, they don't align properly so we have to manually patch them
+// Each digit is a quad, so they end with a huge gap which we don't want.
+
+static constexpr uint32_t hudNumberGlyphWidth = 0x598; // scaled
+static constexpr uint32_t hudNumberGlyphScaleX = 0x08;
+static constexpr uint32_t hudNumberSpacing = 0x14;
+
+enum HudNumberAlign : uint32_t
+{
+	HudNumberAlign_Left = 0,
+	HudNumberAlign_Centre = 1,
+	HudNumberAlign_Right = 2,
+};
+
+static std::optional<float> g_hudNumberAnchor{};
+
+static void BeginHudNumber(uint32_t font, float x, uint32_t text, uint32_t align)
+{
+	g_hudNumberAnchor.reset();
+
+	if (font == 0 || text == 0 || g_hudUnstretchX >= 1.0f)
+		return;
+
+	auto base = g_memory.base;
+
+	const auto* str = (const char*)g_memory.Translate(text);
+	const float length = float(strlen(str));
+
+	if (length <= 0.0f)
+		return;
+
+	// Same layout as DrawNumberHud: one glyph per char, plus a gap between them.
+	const float glyphWidth = X86_LOAD_F32(font + hudNumberGlyphWidth) * X86_LOAD_F32(font + hudNumberGlyphScaleX);
+	const float width = (length - 1.0f) * X86_LOAD_F32(font + hudNumberSpacing) + length * glyphWidth;
+
+	const float left = x + (align == HudNumberAlign_Centre ? width * -0.5f : align == HudNumberAlign_Right ? -width : 0.0f);
+
+	g_hudNumberAnchor = ResolveAnchorX(CSD_ALIGN_CENTER, left, left + width);
+}
+
+// DrawNumberHud (this, x, y, text, align)
+X86_FUNC_IMPL(__imp__sub_281550);
+X86_FUNC(sub_281550)
+{
+	BeginHudNumber(ctx.ecx.u32, X86_LOAD_F32(ctx.esp.u32 + 4), X86_LOAD_U32(ctx.esp.u32 + 0xC), X86_LOAD_U32(ctx.esp.u32 + 0x10));
+
+	__imp__sub_281550(ctx, base);
+
+	g_hudNumberAnchor.reset();
+}
+
 static bool g_isInStageMode = false;
 void DrawHudMidAsmHook(X86Register& rEax)
 {
@@ -604,7 +657,7 @@ void DrawHudMidAsmHook(X86Register& rEax)
 		return;
 
 	float savedX[CSDVertexCount];
-	UnstretchPrimitive(g_memory.Translate(rEax.u32), CSDVertexCount, CSD_ALIGN_CENTER, savedX);
+	UnstretchPrimitive(g_memory.Translate(rEax.u32), CSDVertexCount, CSD_ALIGN_CENTER, savedX, g_hudNumberAnchor);
 }
 
 
@@ -1328,7 +1381,7 @@ static bool ShouldUnstretchRt2dFont()
 
 static void UnstretchRt2dVertices(uint32_t verts, uint32_t count)
 {
-	if (verts == 0 || count == 0 || count > 0x10000) 
+	if (verts == 0 || count == 0 || count > 0x10000)
 		return;
 
 	auto base = g_memory.base;
