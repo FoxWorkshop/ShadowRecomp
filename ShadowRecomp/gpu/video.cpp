@@ -516,6 +516,7 @@ struct UploadBuffer
 
 struct UploadAllocator
 {
+	std::mutex mutex;
 	std::vector<UploadBuffer> buffers;
 	uint32_t index = 0;
 	uint32_t offset = 0;
@@ -524,6 +525,7 @@ struct UploadAllocator
 	{
 		assert(size <= UploadBuffer::SIZE);
 
+		std::lock_guard lock(mutex);
 		offset = (offset + alignment - 1) & ~(alignment - 1);
 
 		if (offset + size > UploadBuffer::SIZE)
@@ -561,6 +563,7 @@ struct UploadAllocator
 
 	void reset()
 	{
+		std::lock_guard lock(mutex);
 		index = 0;
 		offset = 0;
 	}
@@ -4943,6 +4946,7 @@ void Video::Present()
 
 	DrawImGui();
 
+	g_readyForCommands = false;
 	cmd.type = RenderCommandType::ExecuteCommandList;
 	g_renderQueue.enqueue(cmd);
 
@@ -4974,11 +4978,6 @@ void Video::Present()
 		const uint64_t* frameTimestamps = g_queryPools[g_frame]->getResults();
 		g_gpuFrameProfiler.Set(double(frameTimestamps[1] - frameTimestamps[0]) / 1000000.0);
 	}
-
-	// Close the gate before resetting per-frame state: Guard_Rendering() must
-	// keep guests out while dirty states, upload allocators and quad index
-	// data are being reset. BeginCommandList reopens it on the render thread.
-	g_readyForCommands = false;
 
 	g_dirtyStates = DirtyStates(true);
 
@@ -5155,11 +5154,22 @@ static void ProcExecuteCommandList(const RenderCommand& cmd)
 	g_executedCommandList.notify_one();
 }
 
+// hold commands that arrive late (previously discarded)
+static std::vector<RenderCommand> g_deferredRenderCommands;
+
+static void ProcessRenderCommand(const RenderCommand& cmd);
+
 static void ProcBeginCommandList(const RenderCommand& cmd)
 {
 	RtScopeTimer _scope(g_rtBeginCmdListWorkAccum);
 	DestructTempResources();
 	BeginCommandList();
+
+	// Run deferred commands; TODO: Maybe just discard them like before, needs more testing
+	std::vector<RenderCommand> deferred = std::move(g_deferredRenderCommands);
+	g_deferredRenderCommands.clear();
+	for (const RenderCommand& deferredCmd : deferred)
+		ProcessRenderCommand(deferredCmd);
 }
 
 void Video::ComputeViewportDimensions()
@@ -9268,6 +9278,53 @@ public:
 };
 PipelineCacheSDLEventListener g_pipelineCacheSDLEventListener;
 
+static void ProcessRenderCommand(const RenderCommand& cmd)
+{
+	if (cmd.type != RenderCommandType::DestructResource && !g_commandListOpen)
+	{
+		static bool loggedDeferral = false;
+		if (!loggedDeferral)
+		{
+			loggedDeferral = true;
+			printf("[RenderThread] Deferring stale command. Command list is closed (type=%d)\n", (int)cmd.type);
+		}
+
+		g_deferredRenderCommands.push_back(cmd);
+		return;
+	}
+
+	switch (cmd.type)
+	{
+	case RenderCommandType::DestructResource:                  { g_stateChangeCount.fetch_add(1, std::memory_order_relaxed); RtScopeTimer _s(g_rtOtherCmdsAccum); ProcDestructResource(cmd); } break;
+	case RenderCommandType::UnlockTextureRect:                 { g_stateChangeCount.fetch_add(1, std::memory_order_relaxed); RtScopeTimer _s(g_rtOtherCmdsAccum); ProcUnlockTextureRect(cmd); } break;
+	case RenderCommandType::UnlockBuffer16:                    { g_stateChangeCount.fetch_add(1, std::memory_order_relaxed); RtScopeTimer _s(g_rtOtherCmdsAccum); ProcUnlockBuffer16(cmd); } break;
+	case RenderCommandType::UnlockBuffer32:                    { g_stateChangeCount.fetch_add(1, std::memory_order_relaxed); RtScopeTimer _s(g_rtOtherCmdsAccum); ProcUnlockBuffer32(cmd); } break;
+	case RenderCommandType::SetRenderState:                    { g_stateChangeCount.fetch_add(1, std::memory_order_relaxed); RtScopeTimer _s(g_rtOtherCmdsAccum); ProcSetRenderState(cmd); } break;
+	case RenderCommandType::DrawImGui:                         { g_stateChangeCount.fetch_add(1, std::memory_order_relaxed); RtScopeTimer _s(g_rtOtherCmdsAccum); ProcDrawImGui(cmd); } break;
+	case RenderCommandType::SetRenderTarget:                   { g_stateChangeCount.fetch_add(1, std::memory_order_relaxed); RtScopeTimer _s(g_rtOtherCmdsAccum); ProcSetRenderTarget(cmd); } break;
+	case RenderCommandType::SetDepthStencilSurface:            { g_stateChangeCount.fetch_add(1, std::memory_order_relaxed); RtScopeTimer _s(g_rtOtherCmdsAccum); ProcSetDepthStencilSurface(cmd); } break;
+	case RenderCommandType::ExecutePendingCopyRectsCommands:   { g_stateChangeCount.fetch_add(1, std::memory_order_relaxed); RtScopeTimer _s(g_rtOtherCmdsAccum); ProcExecutePendingCopyRectsCommands(cmd); } break;
+	case RenderCommandType::Clear:                             { g_stateChangeCount.fetch_add(1, std::memory_order_relaxed); RtScopeTimer _s(g_rtOtherCmdsAccum); ProcClear(cmd); } break;
+	case RenderCommandType::SetViewport:                       { g_stateChangeCount.fetch_add(1, std::memory_order_relaxed); RtScopeTimer _s(g_rtOtherCmdsAccum); ProcSetViewport(cmd); } break;
+	case RenderCommandType::SetTexture:                        { g_stateChangeCount.fetch_add(1, std::memory_order_relaxed); RtScopeTimer _s(g_rtOtherCmdsAccum); ProcSetTexture(cmd); } break;
+	case RenderCommandType::SetTextureStageState:              { g_stateChangeCount.fetch_add(1, std::memory_order_relaxed); RtScopeTimer _s(g_rtOtherCmdsAccum); ProcSetTextureStageState(cmd); } break;
+	case RenderCommandType::SetVertexShaderConstants:          { g_stateChangeCount.fetch_add(1, std::memory_order_relaxed); RtScopeTimer _s(g_rtOtherCmdsAccum); ProcSetVertexShaderConstants(cmd); } break;
+	case RenderCommandType::SetVertexShaderVariant:            { g_stateChangeCount.fetch_add(1, std::memory_order_relaxed); RtScopeTimer _s(g_rtOtherCmdsAccum); ProcSetVertexShaderVariant(cmd); } break;
+	case RenderCommandType::SetPixelShaderConstants:           { g_stateChangeCount.fetch_add(1, std::memory_order_relaxed); RtScopeTimer _s(g_rtOtherCmdsAccum); ProcSetPixelShaderConstants(cmd); } break;
+	case RenderCommandType::DrawPrimitive:                     { g_drawCallCount.fetch_add(1, std::memory_order_relaxed); ProcDrawPrimitive(cmd); } break;
+	case RenderCommandType::DrawIndexedPrimitive:              { g_drawCallCount.fetch_add(1, std::memory_order_relaxed); ProcDrawIndexedPrimitive(cmd); } break;
+	case RenderCommandType::DrawPrimitiveUP:                   { g_drawCallCount.fetch_add(1, std::memory_order_relaxed); ProcDrawPrimitiveUP(cmd); } break;
+	case RenderCommandType::SetVertexDeclaration:              { g_stateChangeCount.fetch_add(1, std::memory_order_relaxed); RtScopeTimer _s(g_rtOtherCmdsAccum); ProcSetVertexDeclaration(cmd); } break;
+	case RenderCommandType::SetVertexShader:                   { g_stateChangeCount.fetch_add(1, std::memory_order_relaxed); RtScopeTimer _s(g_rtOtherCmdsAccum); ProcSetVertexShader(cmd); } break;
+	case RenderCommandType::SetStreamSource:                   { g_stateChangeCount.fetch_add(1, std::memory_order_relaxed); RtScopeTimer _s(g_rtOtherCmdsAccum); ProcSetStreamSource(cmd); } break;
+	case RenderCommandType::SetIndices:                        { g_stateChangeCount.fetch_add(1, std::memory_order_relaxed); RtScopeTimer _s(g_rtOtherCmdsAccum); ProcSetIndices(cmd); } break;
+	case RenderCommandType::SetPixelShader:                    { g_stateChangeCount.fetch_add(1, std::memory_order_relaxed); RtScopeTimer _s(g_rtOtherCmdsAccum); ProcSetPixelShader(cmd); } break;
+	default:
+		assert(false && "Unrecognized render command type.");
+		break;
+	}
+}
+
 static std::thread g_renderThread([]
 	{
 #ifdef _WIN32
@@ -9303,10 +9360,6 @@ static std::thread g_renderThread([]
 
 				switch (cmd.type)
 				{
-				case RenderCommandType::DestructResource:                  { g_stateChangeCount.fetch_add(1, std::memory_order_relaxed); RtScopeTimer _s(g_rtOtherCmdsAccum); ProcDestructResource(cmd); } break;
-				case RenderCommandType::UnlockTextureRect:                 { g_stateChangeCount.fetch_add(1, std::memory_order_relaxed); RtScopeTimer _s(g_rtOtherCmdsAccum); ProcUnlockTextureRect(cmd); } break;
-				case RenderCommandType::UnlockBuffer16:                    { g_stateChangeCount.fetch_add(1, std::memory_order_relaxed); RtScopeTimer _s(g_rtOtherCmdsAccum); ProcUnlockBuffer16(cmd); } break;
-				case RenderCommandType::UnlockBuffer32:                    { g_stateChangeCount.fetch_add(1, std::memory_order_relaxed); RtScopeTimer _s(g_rtOtherCmdsAccum); ProcUnlockBuffer32(cmd); } break;
 				case RenderCommandType::StagedCopy:
 					{
 						RtScopeTimer _s(g_rtOtherCmdsAccum);
@@ -9342,37 +9395,7 @@ static std::thread g_renderThread([]
 					g_renderDirectorProfiler.Begin();
 					break;
 				default:
-					if (!g_commandListOpen)
-					{
-						printf("[RenderThread] Skipping stale command (type=%d) - command list closed\n", (int)cmd.type);
-						break;
-					}
-					switch (cmd.type)
-					{
-					case RenderCommandType::SetRenderState:                { g_stateChangeCount.fetch_add(1, std::memory_order_relaxed); RtScopeTimer _s(g_rtOtherCmdsAccum); ProcSetRenderState(cmd); } break;
-					case RenderCommandType::DrawImGui:                     { g_stateChangeCount.fetch_add(1, std::memory_order_relaxed); RtScopeTimer _s(g_rtOtherCmdsAccum); ProcDrawImGui(cmd); } break;
-					case RenderCommandType::SetRenderTarget:               { g_stateChangeCount.fetch_add(1, std::memory_order_relaxed); RtScopeTimer _s(g_rtOtherCmdsAccum); ProcSetRenderTarget(cmd); } break;
-					case RenderCommandType::SetDepthStencilSurface:        { g_stateChangeCount.fetch_add(1, std::memory_order_relaxed); RtScopeTimer _s(g_rtOtherCmdsAccum); ProcSetDepthStencilSurface(cmd); } break;
-					case RenderCommandType::ExecutePendingCopyRectsCommands: { g_stateChangeCount.fetch_add(1, std::memory_order_relaxed); RtScopeTimer _s(g_rtOtherCmdsAccum); ProcExecutePendingCopyRectsCommands(cmd); } break;
-					case RenderCommandType::Clear:                         { g_stateChangeCount.fetch_add(1, std::memory_order_relaxed); RtScopeTimer _s(g_rtOtherCmdsAccum); ProcClear(cmd); } break;
-					case RenderCommandType::SetViewport:                   { g_stateChangeCount.fetch_add(1, std::memory_order_relaxed); RtScopeTimer _s(g_rtOtherCmdsAccum); ProcSetViewport(cmd); } break;
-					case RenderCommandType::SetTexture:                    { g_stateChangeCount.fetch_add(1, std::memory_order_relaxed); RtScopeTimer _s(g_rtOtherCmdsAccum); ProcSetTexture(cmd); } break;
-					case RenderCommandType::SetTextureStageState:          { g_stateChangeCount.fetch_add(1, std::memory_order_relaxed); RtScopeTimer _s(g_rtOtherCmdsAccum); ProcSetTextureStageState(cmd); } break;
-					case RenderCommandType::SetVertexShaderConstants:      { g_stateChangeCount.fetch_add(1, std::memory_order_relaxed); RtScopeTimer _s(g_rtOtherCmdsAccum); ProcSetVertexShaderConstants(cmd); } break;
-					case RenderCommandType::SetVertexShaderVariant:        { g_stateChangeCount.fetch_add(1, std::memory_order_relaxed); RtScopeTimer _s(g_rtOtherCmdsAccum); ProcSetVertexShaderVariant(cmd); } break;
-					case RenderCommandType::SetPixelShaderConstants:       { g_stateChangeCount.fetch_add(1, std::memory_order_relaxed); RtScopeTimer _s(g_rtOtherCmdsAccum); ProcSetPixelShaderConstants(cmd); } break;
-					case RenderCommandType::DrawPrimitive:                 { g_drawCallCount.fetch_add(1, std::memory_order_relaxed); ProcDrawPrimitive(cmd); } break;
-					case RenderCommandType::DrawIndexedPrimitive:          { g_drawCallCount.fetch_add(1, std::memory_order_relaxed); ProcDrawIndexedPrimitive(cmd); } break;
-					case RenderCommandType::DrawPrimitiveUP:               { g_drawCallCount.fetch_add(1, std::memory_order_relaxed); ProcDrawPrimitiveUP(cmd); } break;
-					case RenderCommandType::SetVertexDeclaration:          { g_stateChangeCount.fetch_add(1, std::memory_order_relaxed); RtScopeTimer _s(g_rtOtherCmdsAccum); ProcSetVertexDeclaration(cmd); } break;
-					case RenderCommandType::SetVertexShader:               { g_stateChangeCount.fetch_add(1, std::memory_order_relaxed); RtScopeTimer _s(g_rtOtherCmdsAccum); ProcSetVertexShader(cmd); } break;
-					case RenderCommandType::SetStreamSource:               { g_stateChangeCount.fetch_add(1, std::memory_order_relaxed); RtScopeTimer _s(g_rtOtherCmdsAccum); ProcSetStreamSource(cmd); } break;
-					case RenderCommandType::SetIndices:                    { g_stateChangeCount.fetch_add(1, std::memory_order_relaxed); RtScopeTimer _s(g_rtOtherCmdsAccum); ProcSetIndices(cmd); } break;
-					case RenderCommandType::SetPixelShader:                { g_stateChangeCount.fetch_add(1, std::memory_order_relaxed); RtScopeTimer _s(g_rtOtherCmdsAccum); ProcSetPixelShader(cmd); } break;
-					default:
-						assert(false && "Unrecognized render command type.");
-						break;
-					}
+					ProcessRenderCommand(cmd);
 					break;
 				}
 			}
