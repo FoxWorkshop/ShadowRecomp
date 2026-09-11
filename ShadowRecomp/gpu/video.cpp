@@ -2905,6 +2905,9 @@ void RecreateGuestSurfaceTexture(GuestBaseTexture* tex, bool isRT)
 {
 	InvalidateFramebufferCache(tex->texture);
 
+	// explicitly discard the textureView
+	tex->textureView = nullptr;
+
 	auto targetLayout = (isRT == false)
 		? RenderTextureLayout::DEPTH_WRITE
 		: RenderTextureLayout::COLOR_WRITE;
@@ -2916,6 +2919,9 @@ void RecreateGuestSurfaceTexture(GuestBaseTexture* tex, bool isRT)
 	tex->textureHolder = g_device->createTexture(RenderTextureDesc::Texture2D(newWidth, newHeight, 1, tex->format, isRT ? RenderTextureFlag::RENDER_TARGET : RenderTextureFlag::DEPTH_TARGET));
 	tex->texture = tex->textureHolder.get();
 	tex->textureGeneration = NextGuestTextureGeneration();
+
+	if (tex->descriptorIndex != NULL)
+		g_textureDescriptorSet->setTexture(tex->descriptorIndex, tex->textureHolder.get(), RenderTextureLayout::SHADER_READ);
 
 	ExecuteInitCommandList([&] // Discard texture, this is needed, see the function DiscardInitRenderResource for more info. 
 		{
