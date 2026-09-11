@@ -6881,18 +6881,20 @@ X86_FUNC(sub_3CFCD0)
 
 	if (State == X_D3DTS_WORLD) // ensure this is the matrix used that run before rendering pause subtitles
 	{
-		UnstretchMenuTextTransform(matrixAddr);
 		AdjustSubtitlesPosition(matrixAddr);
 	}
 
 	//we let the original code run first (todo check if that's needed)
 	__imp__sub_3CFCD0(ctx, base);
 
-
 	if (memcmp(&g_Transforms[State], pMatrix, sizeof(*pMatrix)) == 0)
 		return;
 
 	g_Transforms[State] = *pMatrix;
+
+	// TODO: This is a hack to avoid the weirdness in Library Mode; We need to fix up Select Mode text anyway when Menu CSD work is done
+	if (State == X_D3DTS_WORLD)
+		UnstretchMenuTextTransform(g_Transforms[State].m[0]);
 
 	// World and texture matrix updates only feed the transform registers;
 	// other kinds also affect lighting, fog or the shader variant.

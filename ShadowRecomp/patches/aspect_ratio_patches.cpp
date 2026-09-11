@@ -1265,11 +1265,11 @@ X86_FUNC(sub_29A850)
 // However the widescreen projection stretch the scene which doesn't work at high res
 // we can patch the world matrix's active axis with the relative aspect ratio to unstretch the text.
 
-void UnstretchMenuTextTransform(uint32_t pMatrix)
+// TODO: This whole function will need to be done anyway after Menu CSD cleanup
+void UnstretchMenuTextTransform(float* matrix)
 {
-	auto base = g_memory.base;
-
-	if (!App::isInMainMenu() && !g_isInStageMode || pMatrix == 0)
+	// TODO: Library Mode was being included in isInMainMenu, hence why we check gamemode for menus (-1) instead now
+	if (App::s_gamemode != -1 && !g_isInStageMode || matrix == nullptr)
 		return;
 
 	float aspectRatio;
@@ -1280,14 +1280,12 @@ void UnstretchMenuTextTransform(uint32_t pMatrix)
 
 	//Column of the 4x4 world matrix gives the axis the projection originally stretched
 	const bool horizontal = aspectRatio > nativeAspectRatio;
-	const uint32_t column = horizontal ? 0 : 4;
-
+	const uint32_t column = horizontal ? 0 : 1;
 	for (uint32_t row = 0; row < 4; row++)
 	{
-		const uint32_t element = pMatrix + row * 0x10 + column;
-		const float value = X86_LOAD_F32(element);
-
-		X86_STORE_F32(element, horizontal ? value * relativeAspectRatio : value / relativeAspectRatio);
+		float& value = matrix[row * 4 + column];
+		// mutate host side only; not in guest mem
+		value = horizontal ? value * relativeAspectRatio : value / relativeAspectRatio;
 	}
 }
 /*** END Render at any Aspect Ratio ***/
