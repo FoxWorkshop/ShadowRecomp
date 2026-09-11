@@ -1604,6 +1604,40 @@ std::atomic<bool> g_pendingSurfaceResizeFlag = false; // flag used to trigger RT
 static Mutex g_surfaceRTsMutex; // Multiple threads can access Surface RT so we can prevent a potential race issue with mutex
 static Mutex g_tempUnreadyResourceMutex; // for destruct resource (VB, texture stuff)
 
+static std::atomic<uint64_t> g_guestTextureGeneration{ 1 };
+static uint64_t NextGuestTextureGeneration()
+{
+	return g_guestTextureGeneration.fetch_add(1, std::memory_order_relaxed);
+}
+
+// per surface
+static ankerl::unordered_dense::map<const RenderTexture*, ankerl::unordered_dense::set<GuestSurface*>> g_framebufferCacheUsers;
+
+static void InvalidateFramebufferCache(const RenderTexture* texture)
+{
+	const auto users = g_framebufferCacheUsers.find(texture);
+	if (users == g_framebufferCacheUsers.end())
+		return;
+
+	for (auto* container : users->second)
+		container->framebuffers.erase(texture);
+
+	g_framebufferCacheUsers.erase(users);
+}
+
+static void UnregisterFramebufferCacheContainer(GuestSurface* container)
+{
+	for (auto it = g_framebufferCacheUsers.begin(); it != g_framebufferCacheUsers.end();)
+	{
+		it->second.erase(container);
+
+		if (it->second.empty())
+			it = g_framebufferCacheUsers.erase(it);
+		else
+			++it;
+	}
+}
+
 static void DestructTempResources()
 {
 	bool valid = false;
@@ -1637,6 +1671,8 @@ static void DestructTempResources()
 						surface->texture = nullptr;
 					}
 				}
+
+				InvalidateFramebufferCache(texture->texture);
 			}
 
 			if (texture->mappedMemory != nullptr)
@@ -1697,6 +1733,8 @@ static void DestructTempResources()
 			const auto surface = reinterpret_cast<GuestSurface*>(resource);
 
 			std::lock_guard lock(g_surfaceRTsMutex);
+
+			UnregisterFramebufferCacheContainer(surface);
 
 			if (surface->parentTexture != nullptr)
 			{
@@ -2691,6 +2729,7 @@ static void CreateImGuiBackend()
 
 	g_imFontTexture->textureHolder = g_device->createTexture(textureDesc);
 	g_imFontTexture->texture = g_imFontTexture->textureHolder.get();
+	g_imFontTexture->textureGeneration = NextGuestTextureGeneration();
 
 	uint32_t rowPitch = (width * 4 + PITCH_ALIGNMENT - 1) & ~(PITCH_ALIGNMENT - 1);
 	uint32_t slicePitch = (rowPitch * height + PLACEMENT_ALIGNMENT - 1) & ~(PLACEMENT_ALIGNMENT - 1);
@@ -2864,6 +2903,7 @@ void DiscardInitRenderResource(RenderTexture* texture, const bool isRT)
 // we have to remade all RT and Depth stencil texture 
 void RecreateGuestSurfaceTexture(GuestBaseTexture* tex, bool isRT)
 {
+	InvalidateFramebufferCache(tex->texture);
 
 	auto targetLayout = (isRT == false)
 		? RenderTextureLayout::DEPTH_WRITE
@@ -2875,6 +2915,7 @@ void RecreateGuestSurfaceTexture(GuestBaseTexture* tex, bool isRT)
 	GetUpscaledSurfaceResolution(tex->g_width, tex->g_height, &newWidth, &newHeight);
 	tex->textureHolder = g_device->createTexture(RenderTextureDesc::Texture2D(newWidth, newHeight, 1, tex->format, isRT ? RenderTextureFlag::RENDER_TARGET : RenderTextureFlag::DEPTH_TARGET));
 	tex->texture = tex->textureHolder.get();
+	tex->textureGeneration = NextGuestTextureGeneration();
 
 	ExecuteInitCommandList([&] // Discard texture, this is needed, see the function DiscardInitRenderResource for more info. 
 		{
@@ -2976,6 +3017,7 @@ static void BeginCommandList()
 					for (auto* s : g_tex->surfaceRTs)
 					{
 						s->texture = g_tex->texture;
+						s->textureGeneration = g_tex->textureGeneration;
 						s->width = g_tex->width;
 						s->height = g_tex->height;
 					}
@@ -3033,6 +3075,7 @@ static void BeginCommandList()
 		g_backBuffer->texture = g_backBuffer->textureHolder.get();
 	}
 
+	g_backBuffer->textureGeneration = 0;
 	g_backBuffer->layout = RenderTextureLayout::UNKNOWN;
 
 	// Below is commented out as it was causing Stage1 textures to render as null for a few frames under certain camera angles
@@ -5093,12 +5136,12 @@ static void ProcExecuteCommandList(const RenderCommand& cmd)
 			constants.viewportHeight = Video::s_viewportHeight;
 
 			auto& framebuffer = g_backBuffer->framebuffers[swapChainTexture];
-			if (!framebuffer)
+			if (!framebuffer.framebuffer)
 			{
 				RenderFramebufferDesc desc;
 				desc.colorAttachments = const_cast<const RenderTexture**>(&swapChainTexture);
 				desc.colorAttachmentsCount = 1;
-				framebuffer = g_device->createFramebuffer(desc);
+				framebuffer = { g_device->createFramebuffer(desc), 0 };
 			}
 
 			RenderTextureBarrier srcBarriers[] =
@@ -5114,7 +5157,7 @@ static void ProcExecuteCommandList(const RenderCommand& cmd)
 			commandList->setGraphicsDescriptorSet(g_textureDescriptorSet.get(), 0);
 
 			SetRootDescriptor(g_uploadAllocators[g_frame].allocate(&constants, sizeof(constants), 0x100), 2);
-			commandList->setFramebuffer(framebuffer.get());
+			commandList->setFramebuffer(framebuffer.framebuffer.get());
 			commandList->setViewports(RenderViewport(0.0f, 0.0f, g_swapChain->getWidth(), g_swapChain->getHeight()));
 			commandList->setScissors(RenderRect(0, 0, g_swapChain->getWidth(), g_swapChain->getHeight()));
 			commandList->drawInstanced(6, 1, 0, 0);
@@ -5295,6 +5338,7 @@ static GuestTexture* CreateTexture(uint32_t width, uint32_t height, uint32_t dep
 
 	texture->textureHolder = g_device->createTexture(desc);
 	texture->texture = texture->textureHolder.get();
+	texture->textureGeneration = NextGuestTextureGeneration();
 
 	RenderTextureViewDesc viewDesc;
 	viewDesc.format = desc.format;
@@ -5352,6 +5396,7 @@ static bool LoadTexture(GuestTexture& texture, const uint8_t* data, size_t dataS
 		texture.height = height;
 		texture.textureHolder = g_device->createTexture(RenderTextureDesc::Texture2D(width, height, 1, RenderFormat::R8G8B8A8_UNORM));
 		texture.texture = texture.textureHolder.get();
+		texture.textureGeneration = NextGuestTextureGeneration();
 		texture.viewDimension = RenderTextureViewDimension::TEXTURE_2D;
 		texture.layout = RenderTextureLayout::COPY_DEST;
 
@@ -5528,6 +5573,7 @@ static GuestSurface* CreateSurface(uint32_t width, uint32_t height, X_D3DFORMAT 
 
 	surface->textureHolder = g_device->createTexture(desc);
 	surface->texture = surface->textureHolder.get();
+	surface->textureGeneration = NextGuestTextureGeneration();
 	surface->width = width;
 	surface->height = height;
 	surface->g_width = ogWidth;
@@ -5571,6 +5617,7 @@ static GuestSurface* GetSurfaceLevel(GuestTexture* texture, int32_t level, X_D3D
 
 
 	surface->texture = texture->texture;
+	surface->textureGeneration = texture->textureGeneration;
 	surface->width = mipWidth;
 	surface->height = mipHeight;
 	surface->g_width = texture->g_width;
@@ -6773,7 +6820,20 @@ static void SetFramebuffer(GuestSurface* renderTarget, GuestSurface* depthStenci
 		{
 			auto& framebuffer = framebufferContainer->framebuffers[framebufferKey];
 
-			if (framebuffer == nullptr)
+			if (framebufferKey != nullptr)
+				g_framebufferCacheUsers[framebufferKey].insert(framebufferContainer);
+
+			uint64_t textureGeneration = 0;
+			if (renderTarget != nullptr)
+			{
+				textureGeneration = renderTarget->textureGeneration;
+			}
+			else if (depthStencil != nullptr)
+			{
+				textureGeneration = depthStencil->textureGeneration;
+			}
+
+			if (framebuffer.framebuffer == nullptr || framebuffer.generation != textureGeneration)
 			{
 				RenderFramebufferDesc desc;
 
@@ -6786,13 +6846,13 @@ static void SetFramebuffer(GuestSurface* renderTarget, GuestSurface* depthStenci
 				if (depthStencil != nullptr)
 					desc.depthAttachment = depthStencil->texture;
 
-				framebuffer = g_device->createFramebuffer(desc);
+				framebuffer = { g_device->createFramebuffer(desc), textureGeneration };
 			}
 
-			if (g_framebuffer != framebuffer.get())
+			if (g_framebuffer != framebuffer.framebuffer.get())
 			{
-				commandList->setFramebuffer(framebuffer.get());
-				g_framebuffer = framebuffer.get();
+				commandList->setFramebuffer(framebuffer.framebuffer.get());
+				g_framebuffer = framebuffer.framebuffer.get();
 			}
 		}
 		else if (g_framebuffer != nullptr)

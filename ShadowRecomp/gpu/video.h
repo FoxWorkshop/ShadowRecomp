@@ -346,6 +346,7 @@ struct GuestBaseTexture : GuestResource
 {
 	std::unique_ptr<RenderTexture> textureHolder;
 	RenderTexture* texture = nullptr;
+	uint64_t textureGeneration = 0; //0 implies host owned
 	std::unique_ptr<RenderTextureView> textureView;
 	uint32_t width = 0; //host width res
 	uint32_t height = 0; //host height res
@@ -404,11 +405,17 @@ struct GuestBuffer : GuestResource
 	uint32_t cachedMaxIndex = 0;
 };
 
+struct GuestFramebufferCacheEntry
+{
+	std::unique_ptr<RenderFramebuffer> framebuffer;
+	uint64_t generation = 0;
+};
+
 // RenderTarget/DepthStencil
 struct GuestSurface : GuestBaseTexture
 {
 	uint32_t guestFormat = 0;
-	ankerl::unordered_dense::map<const RenderTexture*, std::unique_ptr<RenderFramebuffer>> framebuffers;
+	ankerl::unordered_dense::map<const RenderTexture*, GuestFramebufferCacheEntry> framebuffers;
 	RenderSampleCounts sampleCount = RenderSampleCount::COUNT_1;
 	ankerl::unordered_dense::set<GuestTexture*> destinationTextures;
 	GuestTexture* parentTexture = nullptr;
