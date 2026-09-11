@@ -28,10 +28,6 @@ struct AspectRatioPatches
 };
 void UpdateUserConfigConstant(bool toggle);
 
-// Widens the world matrix of a bitmap-font string back to the vanilla 4:3 layout.
-// No-op unless the current draw opted in (see s_unstretchMenuText in aspect_ratio_patches.cpp).
-void UnstretchMenuTextTransform(float* matrix);
-
 // -------------- CSD MODIFIERS --------------- //
 
 enum CsdFlags : uint64_t

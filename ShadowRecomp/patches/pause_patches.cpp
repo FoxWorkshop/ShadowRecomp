@@ -85,12 +85,6 @@ static bool g_inputAllowed = false;
 
 static bool g_isDrawingSubtitle = false;
 
-bool isDrawingPauseMenuSubtitle()
-{
-	return g_isDrawingSubtitle;
-}
-
-
 void TogglePauseCSD(bool toggle)
 {
 	g_pauseCSD = toggle;
@@ -438,7 +432,54 @@ X86_FUNC(sub_282F80)
 	g_isDrawingSubtitle = false;
 }
 
+// The pause menu draws text (current mission) using a function called DrawMessage (0x1E930). 
+// Because we increases the pause options count, the menu now overflows the subtitles and it is drawn on top of the game.
+// We patch this function to offset the Y position of the text on the RenderWare level, this avoid messing with directX matrix and corrupt the game.
 
+static constexpr uint32_t drawMessageArgY = 0x14; // ESP parameter offset in the stack of DrawMessage for the Y position of the text to draw.
+
+// Rt2d device state, (handled by Rt2dDeviceSetCamera (0x3081D0) and read by rt2dCTMGet (0x307E10).)
+static constexpr uint32_t rt2dCamera = 0x582604;
+static constexpr uint32_t rt2dDeviceWidth = 0x5824F4;
+static constexpr uint32_t rt2dDeviceHeight = 0x5824F8;
+static constexpr uint32_t rt2dFlatDepth = 0x5825D8;
+static constexpr uint32_t rwCameraProjectionType = 0x14;
+static constexpr uint32_t rwPARALLEL = 2;
+
+
+static constexpr float subtitleOffsetPerItem = 0.03f; 
+
+// Helper function to get the ratio of Rt2d units to world units, 
+// so we can scale the offset we measured in world units into Rt2d units.
+static float GetRt2dUnitsPerWorldUnit()
+{
+	auto base = g_memory.base;
+
+	const uint32_t camera = X86_LOAD_U32(rt2dCamera);
+
+	if (camera == 0)
+		return 0.0f;
+
+	const float flat = X86_LOAD_U32(camera + rwCameraProjectionType) == rwPARALLEL ? 1.0f : X86_LOAD_F32(rt2dFlatDepth);
+	const float worldPerRt2d = std::min(X86_LOAD_F32(rt2dDeviceWidth), X86_LOAD_F32(rt2dDeviceHeight)) * flat;
+
+	return worldPerRt2d != 0.0f ? 1.0f / worldPerRt2d : 0.0f;
+}
+
+// DrawMessage (used by both cutscene and pause menu)
+X86_FUNC_IMPL(__imp__sub_1E930);
+X86_FUNC(sub_1E930)
+{
+	if (g_isDrawingSubtitle)
+	{
+		const float offset = subtitleOffsetPerItem * GetAddedPauseItemsCount() * GetRt2dUnitsPerWorldUnit();
+		const uint32_t argY = ctx.esp.u32 + drawMessageArgY;
+
+		X86_STORE_F32(argY, X86_LOAD_F32(argY) - offset); // move down
+	}
+
+	__imp__sub_1E930(ctx, base);
+}
 
 void PausePatchesInit()
 {

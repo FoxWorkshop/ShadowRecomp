@@ -87,24 +87,6 @@ void AspectRatioPatches::ComputeOffsets()
 }
 
 
-// Used to detect when we're drawing subtitles, pause menu uses subtitles to display the current mission
-// because we move the pause background due to new options count, the subtitles get out of place, so we need to move them as well so they can fit the new BG position
-void AdjustSubtitlesPosition(uint32_t pMatrix)
-{
-	if (pMatrix == 0)
-		return;
-
-	auto base = g_memory.base;
-	if (isDrawingPauseMenuSubtitle())
-	{
-
-		float _42 = X86_LOAD_F32(pMatrix + 0x34);
-		_42 -= 0.03f * GetAddedPauseItemsCount(); // move down
-		X86_STORE_F32(pMatrix + 0x34, _42);
-	}
-}
-
-
 std::string NormalizeCSDPath(std::string& path)
 {
 	std::replace(path.begin(), path.end(), '\\', '/');
@@ -1307,28 +1289,100 @@ X86_FUNC(sub_29A850)
 // However the widescreen projection stretch the scene which doesn't work at high res
 // we can patch the world matrix's active axis with the relative aspect ratio to unstretch the text.
 
-// TODO: This whole function will need to be done anyway after Menu CSD cleanup
-void UnstretchMenuTextTransform(float* matrix)
-{
-	// TODO: Library Mode was being included in isInMainMenu, hence why we check gamemode for menus (-1) instead now
-	if (App::s_gamemode != -1 && !g_isInStageMode || matrix == nullptr)
-		return;
 
-	float aspectRatio;
+static constexpr uint32_t rt2dDeviceMatrix = 0x582510; // RwMatrix
+static constexpr uint32_t rwMatrixRightX = 0x00;
+static constexpr uint32_t rwMatrixUpY = 0x14;
+static constexpr uint32_t rwMatrixPosX = 0x30;
+static constexpr uint32_t rwMatrixPosY = 0x34;
+
+static constexpr uint32_t rwIm3DVertexStride = 36;
+
+struct Rt2dFontUnstretch
+{
+	bool active; // is building glyph geometry
+	bool horizontal; // which axis the projection stretched
+	float scale; // what to multiply that axis by to get the vanilla 4:3 proportions back
+};
+
+static Rt2dFontUnstretch g_rt2dFontUnstretch{};
+
+static bool ShouldUnstretchRt2dFont()
+{
+
+	if (App::s_gamemode != -1 && !g_isInStageMode)
+		return false;
+
+	float aspectRatio = 0.0f;
+
 	if (!TryGetAspectRatio(aspectRatio))
-		return;
+		return false;
 
 	const float relativeAspectRatio = GetRelativeAspectRatio(aspectRatio);
 
-	//Column of the 4x4 world matrix gives the axis the projection originally stretched
-	const bool horizontal = aspectRatio > nativeAspectRatio;
-	const uint32_t column = horizontal ? 0 : 1;
-	for (uint32_t row = 0; row < 4; row++)
+	g_rt2dFontUnstretch.horizontal = aspectRatio > nativeAspectRatio;
+	g_rt2dFontUnstretch.scale = g_rt2dFontUnstretch.horizontal ? relativeAspectRatio : 1.0f / relativeAspectRatio;
+
+	return true;
+}
+
+static void UnstretchRt2dVertices(uint32_t verts, uint32_t count)
+{
+	if (verts == 0 || count == 0 || count > 0x10000) 
+		return;
+
+	auto base = g_memory.base;
+
+	const bool horizontal = g_rt2dFontUnstretch.horizontal;
+	const float axisScale = X86_LOAD_F32(rt2dDeviceMatrix + (horizontal ? rwMatrixRightX : rwMatrixUpY));
+
+	// Rt2d has not mapped anything yet, so there is no screen centre to work with
+	if (axisScale == 0.0f)
+		return;
+
+	const float scale = g_rt2dFontUnstretch.scale;
+	const float pivot = -X86_LOAD_F32(rt2dDeviceMatrix + (horizontal ? rwMatrixPosX : rwMatrixPosY)) / axisScale;
+	const uint32_t component = horizontal ? 0 : 4;
+
+	for (uint32_t i = 0; i < count; i++)
 	{
-		float& value = matrix[row * 4 + column];
-		// mutate host side only; not in guest mem
-		value = horizontal ? value * relativeAspectRatio : value / relativeAspectRatio;
+		const uint32_t addr = verts + i * rwIm3DVertexStride + component;
+		X86_STORE_F32(addr, pivot + (X86_LOAD_F32(addr) - pivot) * scale);
 	}
 }
-/*** END Render at any Aspect Ratio ***/
 
+// rt2dFontShowBitmap
+X86_FUNC_IMPL(__imp__sub_3065C0);
+X86_FUNC(sub_3065C0)
+{
+	const Rt2dFontUnstretch previous = g_rt2dFontUnstretch;
+
+	g_rt2dFontUnstretch.active = ShouldUnstretchRt2dFont();
+	__imp__sub_3065C0(ctx, base);
+
+	g_rt2dFontUnstretch = previous;
+}
+
+// rt2dFontShowOutline (draws its glyphs as Rt2d paths (sub_308230) instead of quads
+X86_FUNC_IMPL(__imp__sub_304E70);
+X86_FUNC(sub_304E70)
+{
+	const Rt2dFontUnstretch previous = g_rt2dFontUnstretch;
+
+	g_rt2dFontUnstretch.active = ShouldUnstretchRt2dFont();
+	__imp__sub_304E70(ctx, base);
+
+	g_rt2dFontUnstretch = previous;
+}
+
+// RwIm3DTransform(verts, count, ltm, flags) which is basically SetTransform on the RenderWare Layer.
+
+X86_FUNC_IMPL(__imp__sub_2E1890);
+X86_FUNC(sub_2E1890)
+{
+	if (g_rt2dFontUnstretch.active)
+		UnstretchRt2dVertices(X86_LOAD_U32(ctx.esp.u32 + 4), X86_LOAD_U32(ctx.esp.u32 + 8));
+
+	__imp__sub_2E1890(ctx, base);
+}
+/*** END Render at any Aspect Ratio ***/
