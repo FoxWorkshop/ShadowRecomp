@@ -885,10 +885,9 @@ static void DrawOption
 
 	// Draw value
 
-
 	SetShaderModifier(IMGUI_SHADER_MODIFIER_LOW_QUALITY_TEXT);
 
-	const float fontValueSize = g_fntSeuratSize - 12.f;
+	const float fontValueSize = g_fntSeuratSize - Scale(5.33f);
 	auto rawValueSize = g_fntSeurat->CalcTextSizeA(fontValueSize, FLT_MAX, 0.0f, valueText.data());
 	bool overflows = rawValueSize.x > valueAreaWidth;
 
