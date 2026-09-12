@@ -463,6 +463,525 @@ bool NpcMotionBlinkPhaseMidAsmHook(X86Register& esi)
 
 /* --Damage blink patch END-- */
 
+// Helper to match exponential smoothing for vehicles
+static float ScaleFirstOrderLag(float before, float after, float retention, float frames)
+{
+	const float span = 1.0f - retention;
+	if (!(span > 0.0f))
+	{
+		return after;
+	}
+	return before - (before - after) * ((1.0f - std::pow(retention, frames)) / span);
+}
+
+
+/**	--Vehicle::AirSaucer Patch START-- */
+// Air Saucer (and affects Walker/WalkerCannon)
+// Mostly deltatime safe by default but has a bunch of per-frame ops
+//
+// Idle velocity damp @ sub_24C190
+// Grip lag & rider anchor chase @ sub_24BEC0
+// Heading turn @ sub_24C600
+//
+// Mover measurement scaling per frame suppression @ sub_24B5F0
+// Collision advance @ sub_327840 (scoped for sub_24B6F0)
+// Sweep slide gate / resting pad @ sub_24F900 (same idea as the fix for CarType)
+// Mover frame tick @ sub_24D590
+
+// Idle damp
+X86_FUNC_IMPL(__imp__sub_24C190);
+X86_FUNC(sub_24C190)
+{
+	const uint32_t self = ctx.ecx.u32;
+	const float velX = X86_LOAD_F32(self + 0x1C);
+	const float velY = X86_LOAD_F32(self + 0x20);
+	const float velZ = X86_LOAD_F32(self + 0x24);
+
+	__imp__sub_24C190(ctx, base);
+
+	const float frames = X86_LOAD_F32(g_deltaTime) * 60.0f;
+	if (!(frames > 0.0f) || std::fabs(frames - 1.0f) < 0.0001f)
+	{
+		return;
+	}
+	if (X86_LOAD_F32(self + 0x1C) == velX && X86_LOAD_F32(self + 0x20) == velY && X86_LOAD_F32(self + 0x24) == velZ)
+	{
+		return;
+	}
+
+	// Idle damp per frame while grounded
+	const float dampIdle = std::pow(0.7f, frames - 1.0f);
+	X86_STORE_F32(self + 0x1C, X86_LOAD_F32(self + 0x1C) * dampIdle);
+	X86_STORE_F32(self + 0x20, X86_LOAD_F32(self + 0x20) * dampIdle);
+	X86_STORE_F32(self + 0x24, X86_LOAD_F32(self + 0x24) * dampIdle);
+}
+
+// Per-frame
+// Lag 0x148
+// Grip factor 0x154
+// Carry the grip lag over the frame, then redo the anchor chase as if 60fps
+X86_FUNC_IMPL(__imp__sub_24BEC0);
+X86_FUNC(sub_24BEC0)
+{
+	constexpr uint32_t gripStepAddr = 0x46B380; // 0.1 (per frame)
+	constexpr uint32_t gripMaxAddr = 0x471B4C; // 0.96875
+	const uint32_t self = ctx.ecx.u32;
+	const float gripBefore = X86_LOAD_F32(self + 0x154);
+
+	__imp__sub_24BEC0(ctx, base);
+
+	const float frames = X86_LOAD_F32(g_deltaTime) * 60.0f;
+	if (!(frames > 0.0f) || std::fabs(frames - 1.0f) < 0.0001f)
+	{
+		return;
+	}
+
+	const float gripAfter = X86_LOAD_F32(self + 0x154);
+	const float grip = ScaleFirstOrderLag(gripBefore, gripAfter, 1.0f - X86_LOAD_F32(gripStepAddr), frames);
+	const float gripMax = X86_LOAD_F32(gripMaxAddr);
+	const float gripClamped = std::min(std::max(grip, 0.0f), gripMax);
+	X86_STORE_F32(self + 0x154, gripClamped);
+
+	// get pre-chase then apply as if 60
+	const float appliedFrac = std::min(frames * (1.0f - gripAfter), 1.0f);
+	const float anchorAfter[3] =
+	{
+		X86_LOAD_F32(self + 0x148),
+		X86_LOAD_F32(self + 0x14C),
+		X86_LOAD_F32(self + 0x150)
+	};
+
+	if (appliedFrac < 0.9999f)
+	{
+		const float target[3] =
+		{
+			X86_LOAD_F32(self + 4) + X86_LOAD_F32(self + 0x1C) * (1.0f / 128.0f),
+			X86_LOAD_F32(self + 8) + 5.0f + X86_LOAD_F32(self + 0x20) * (1.0f / 128.0f),
+			X86_LOAD_F32(self + 0xC) + X86_LOAD_F32(self + 0x24) * (1.0f / 128.0f)
+		};
+
+		const float remainFrac = 1.0f - appliedFrac;
+		if (remainFrac > 0.0001f) // avoid a snap
+		{
+			const float idealFrac = 1.0f / (1.0f + gripClamped / (frames * (1.0f - gripClamped)));
+
+			for (uint32_t i = 0; i < 3; i++)
+			{
+				const float anchorBefore = (anchorAfter[i] - appliedFrac * target[i]) / remainFrac;
+				X86_STORE_F32(self + 0x148 + i * 4, anchorBefore + (target[i] - anchorBefore) * idealFrac);
+			}
+
+			// shift by 2 in either direction
+			const float gapY = X86_LOAD_F32(self + 8) + 5.0f + X86_LOAD_F32(self + 0x20) * (1.0f / 128.0f) - X86_LOAD_F32(self + 0x14C);
+			X86_STORE_F32(self + 0x14C, X86_LOAD_F32(self + 0x14C) + gapY - std::min(2.0f, std::max(-2.0f, gapY)));
+		}
+	}
+}
+
+static uint32_t g_moverTick = 0;
+
+// Turn tilt snap fix
+X86_FUNC_IMPL(__imp__sub_24C600);
+X86_FUNC(sub_24C600)
+{
+	const uint32_t self = ctx.ecx.u32;
+	const float dt = X86_LOAD_F32(ctx.esp.u32 + 4);
+	const float frames = X86_LOAD_F32(g_deltaTime) * 60.0f;
+	const float yawBefore = X86_LOAD_F32(self + 0x11C);
+	const float grip = X86_LOAD_F32(self + 0x154);
+	const float rotSpeed = X86_LOAD_F32(0x471B10);
+	const float linearMax = (1.0f - grip) * dt * (rotSpeed * 0.017453294f);
+
+	__imp__sub_24C600(ctx, base);
+
+	if (frames >= 0.99f)
+	{
+		return;
+	}
+
+	const float yawAfter = X86_LOAD_F32(self + 0x11C);
+	float step = yawAfter - yawBefore;
+	if (step > 3.14159265f)
+	{
+		step -= 6.28318531f;
+	}
+	else if (step < -3.14159265f)
+	{
+		step += 6.28318531f;
+	}
+	if (step == 0.0f)
+	{
+		return;
+	}
+	if (std::fabs(step) >= linearMax * 0.999f) // already dt aligned
+	{
+		return;
+	}
+	X86_STORE_F32(self + 0x11C, yawBefore + step * frames);
+}
+
+// Fix flat grounded inconsistencies at high fps
+X86_FUNC_IMPL(__imp__sub_24B5F0);
+X86_FUNC(sub_24B5F0)
+{
+	static uint32_t s_moverLastFrame = 0xFFFFFFFF;
+	static uint32_t s_moverLastSelf = 0;
+	static float s_moverKeptVel[3] = { 0, 0, 0 };
+	const uint32_t self = ctx.ecx.u32;
+	const float velBefore[3] =
+	{
+		X86_LOAD_F32(self + 0x1C),
+		X86_LOAD_F32(self + 0x20),
+		X86_LOAD_F32(self + 0x24)
+	};
+
+	const float velDeltaSq = (velBefore[0] - s_moverKeptVel[0]) * (velBefore[0] - s_moverKeptVel[0])
+		+ (velBefore[1] - s_moverKeptVel[1]) * (velBefore[1] - s_moverKeptVel[1])
+		+ (velBefore[2] - s_moverKeptVel[2]) * (velBefore[2] - s_moverKeptVel[2]);
+	const bool keptVelStale = !(self == s_moverLastSelf && s_moverLastFrame == g_moverTick) || velDeltaSq > 100.0f; // determine when to accept new
+
+	__imp__sub_24B5F0(ctx, base);
+
+	if (keptVelStale)
+	{
+		// scale to 60 FPS
+		s_moverLastSelf = self;
+		s_moverLastFrame = g_moverTick;
+		const float frames = X86_LOAD_F32(g_deltaTime) * 60.0f;
+
+		if (frames < 0.99f)
+		{
+			// determine if we can skip friction (already works properly with delta)
+			const float hSpeedBefore = std::sqrt(velBefore[0] * velBefore[0] + velBefore[2] * velBefore[2]);
+			const float velLen = std::sqrt(velBefore[0] * velBefore[0] + velBefore[1] * velBefore[1] + velBefore[2] * velBefore[2]);
+			const float velDelta[3] =
+			{
+				X86_LOAD_F32(self + 0x1C) - velBefore[0],
+				X86_LOAD_F32(self + 0x20) - velBefore[1],
+				X86_LOAD_F32(self + 0x24) - velBefore[2]
+			};
+			const bool frictionLike = velLen > 20.0f
+			&& std::sqrt(velDelta[0] * velDelta[0] + velDelta[1] * velDelta[1] + velDelta[2] * velDelta[2]) < 0.15f * velLen
+			&& (velDelta[0] * velBefore[0] + velDelta[1] * velBefore[1] + velDelta[2] * velBefore[2]) < 0.0f;
+
+			for (int i = 0; i < 3; i++)
+			{
+				const uint32_t velAddr = self + 0x1C + i * 4;
+				const float delta = X86_LOAD_F32(velAddr) - velBefore[i];
+				float scale = frames;
+
+				if (frictionLike)
+				{
+					scale = 1.0f; // wall hit
+				}
+				else if (i != 1 && hSpeedBefore > 1.0f && std::fabs(delta) > 0.5f * hSpeedBefore)
+				{
+					scale = 1.0f; // horizontal bounce
+				}
+				X86_STORE_F32(velAddr, velBefore[i] + delta * scale);
+			}
+		}
+		s_moverKeptVel[0] = X86_LOAD_F32(self + 0x1C);
+		s_moverKeptVel[1] = X86_LOAD_F32(self + 0x20);
+		s_moverKeptVel[2] = X86_LOAD_F32(self + 0x24);
+	}
+	else
+	{
+		// discard and use prior data
+		X86_STORE_F32(self + 0x1C, s_moverKeptVel[0]);
+		X86_STORE_F32(self + 0x20, s_moverKeptVel[1]);
+		X86_STORE_F32(self + 0x24, s_moverKeptVel[2]);
+	}
+}
+
+// Main collision (generic integrator)
+// Function is v' = v*e^(-k*dt) + a/k*(1-e^(-k*dt)
+// TODO: Probably will need to extend this for other collision patches
+// 0x4 posPtr
+// 0x8 velPtr
+// 0xC accPtr
+// 0x10 k
+// 0x14 dt
+static int g_inSaucerCollision = 0;
+X86_FUNC_IMPL(__imp__sub_327840);
+X86_FUNC(sub_327840)
+{
+	const uint32_t args = ctx.esp.u32 + 4;
+	const uint32_t posPtr = X86_LOAD_U32(args);
+	const uint32_t velPtr = X86_LOAD_U32(args + 4);
+	const float k = X86_LOAD_F32(args + 0x10);
+	const float dt = X86_LOAD_F32(args + 0x14);
+	const float velBefore[3] =
+	{
+		X86_LOAD_F32(velPtr),
+		X86_LOAD_F32(velPtr + 4),
+		X86_LOAD_F32(velPtr + 8)
+	};
+	const float posBefore[3] =
+	{
+		X86_LOAD_F32(posPtr),
+		X86_LOAD_F32(posPtr + 4),
+		X86_LOAD_F32(posPtr + 8)
+	};
+	const float frames = dt * 60.0f;
+	const bool airSaucerHighFPSDetected = g_inSaucerCollision > 0 && k > 0.0f && dt > 0.0f && frames < 0.99f && frames > 0.01f;
+
+	__imp__sub_327840(ctx, base);
+
+	// fix Air Saucer slow crawling
+	if (airSaucerHighFPSDetected)
+	{
+		for (uint32_t i = 0; i < 3; i++)
+		{
+			const float velAfter = X86_LOAD_F32(velPtr + i * 4);
+			const float posAfter = X86_LOAD_F32(posPtr + i * 4);
+			const float velStep = velBefore[i] * dt;
+			float shrink = 1.0f;
+			if (std::fabs(velStep) > 1e-9f)
+			{
+				shrink = (posAfter - posBefore[i]) / velStep;
+				if (!(shrink > 0.0f) || shrink > 1.0f)
+				{
+					shrink = 1.0f;
+				}
+			}
+			const float shrinkFinal = shrink >= 0.95f ? std::pow(shrink, frames) : shrink;
+			X86_STORE_F32(posPtr + i * 4, posBefore[i] + velAfter * dt * shrinkFinal);
+		}
+	}
+}
+
+// Shared collide & slide, used by AirSaucer, Walker, WalkerCannon (aka GUN Jump Mechs)
+// Modify before call to sub_24E780
+X86_FUNC_IMPL(__imp__sub_24F900);
+X86_FUNC(sub_24F900)
+{
+	const float dt = X86_LOAD_F32(g_deltaTime);
+	float frames = dt * 60.0f;
+	if (!(frames > 0.0f))
+	{
+		frames = 1.0f;
+	}
+	frames = std::min(frames, 1.0f);
+	frames = std::max(frames, 0.05f);
+
+	constexpr uint32_t slideGateAddr = 0x42A18C;
+	constexpr float slideGateAt60 = 0.001f;
+	constexpr uint32_t saucerPadAddr = 0x51D3F4;
+	constexpr float saucerPadAt60 = 0.02f;
+	const uint32_t self = ctx.ecx.u32;
+	const uint32_t posAddr = X86_LOAD_U32(ctx.esp.u32 + 4);
+	const uint32_t dispAddr = X86_LOAD_U32(ctx.esp.u32 + 8);
+
+	// struct to track and re-attach to ground (higher fps = more precise collision = drops the pin = GG, fall through)
+	// this does cause a tiny bit of drift but that is a result of the collision step
+	static struct SaucerChase
+	{
+		uint32_t self;
+		uint32_t pinned;
+		float sink;
+		float kick;
+		float ride;
+		float slack;
+		float airTime;
+		uint32_t lastTick;
+
+		void reset()
+		{
+			pinned = 0;
+			sink = 0.0f;
+			kick = 0.0f;
+			ride = 0.0f;
+			slack = 0.0f;
+		}
+	} s_chase[16];
+	static int s_chaseCount = 0;
+
+	int slot = -1;
+	if (frames < 0.9999f)
+	{
+		for (int i = 0; i < s_chaseCount; i++)
+		{
+			if (s_chase[i].self == self)
+			{
+				slot = i;
+				break;
+			}
+		}
+		if (slot < 0 && s_chaseCount < 16)
+		{
+			slot = s_chaseCount++;
+			s_chase[slot].self = self;
+			s_chase[slot].reset();
+			s_chase[slot].airTime = 0.0f;
+			s_chase[slot].lastTick = 0;
+		}
+	}
+
+	if (slot >= 0)
+	{
+		const bool grounded = (X86_LOAD_U32(self + 0x1C) & 1u) != 0;
+		if (grounded)
+		{
+			s_chase[slot].airTime = 0.0f;
+		}
+		else if (s_chase[slot].lastTick != g_moverTick)
+		{
+			s_chase[slot].airTime += dt;
+		}
+		s_chase[slot].lastTick = g_moverTick;
+
+		// Double jump fix
+		if (!grounded && s_chase[slot].airTime <= dt * 1.5f)
+		{
+			const float reqX = X86_LOAD_F32(dispAddr), reqZ = X86_LOAD_F32(dispAddr + 8);
+			const uint32_t saucer = posAddr - 4;
+			const float velX = X86_LOAD_F32(saucer + 0x1C);
+			const float velZ = X86_LOAD_F32(saucer + 0x24);
+
+			if (std::fabs(reqX) + std::fabs(reqZ) < 0.005f && std::fabs(velX) + std::fabs(velZ) > 15.0f)
+			{
+				X86_STORE_F32(dispAddr, velX * dt);
+				X86_STORE_F32(dispAddr + 8, velZ * dt);
+			}
+		}
+	}
+
+	const float reqY = X86_LOAD_F32(dispAddr + 4);
+	const float posYBefore = X86_LOAD_F32(posAddr + 4);
+	bool chased = false;
+	float chaseExtY = 0.0f;
+	if (slot >= 0 && s_chase[slot].pinned != 0 && reqY < 0.0f)
+	{
+		// extended cast down to handle more precise coli
+		float extY;
+
+		if (s_chase[slot].kick > 0.001f)
+		{
+			extY = -(s_chase[slot].kick + 0.045f + 2.0f * s_chase[slot].sink);
+		}
+		else
+		{
+			extY = -frames * std::min(0.5f * 1301.0f / 3600.0f, 0.02f + 2.0f * s_chase[slot].sink + 0.025f);
+		}
+
+		// slow speed
+		const float dispXZ = std::sqrt(X86_LOAD_F32(dispAddr) * X86_LOAD_F32(dispAddr) + X86_LOAD_F32(dispAddr + 8) * X86_LOAD_F32(dispAddr + 8));
+		if (dt > 0.0f && dispXZ / dt < 250.0f)
+		{
+			const float pinStep = frames * 0.5f * 1301.0f / 3600.0f;
+			extY = std::min(extY, -pinStep);
+		}
+
+		if (reqY > extY)
+		{
+			chased = true;
+			chaseExtY = extY;
+			X86_STORE_F32(dispAddr + 4, extY);
+		}
+	}
+
+	const float restoreGate = X86_LOAD_F32(slideGateAddr);
+	const float restorePad = X86_LOAD_F32(saucerPadAddr);
+
+	X86_STORE_F32(slideGateAddr, slideGateAt60 * frames * frames * frames * frames);
+	X86_STORE_F32(saucerPadAddr, saucerPadAt60 * frames * frames);
+
+	__imp__sub_24F900(ctx, base);
+
+	X86_STORE_F32(slideGateAddr, restoreGate);
+	X86_STORE_F32(saucerPadAddr, restorePad);
+
+	const float appliedY = X86_LOAD_F32(posAddr + 4) - posYBefore;
+	if (chased && appliedY <= chaseExtY + 0.003f)
+	{
+		// handle no floor bug (collision miss, and jump being consumed bug)
+		const float naturalDrop = -reqY;
+		const float riding = s_chase[slot].ride;
+		const float drop = riding > naturalDrop ? riding : naturalDrop;
+
+		if (riding > 0.008f && s_chase[slot].slack > 0.0f)
+		{
+			s_chase[slot].slack -= drop;
+
+			X86_STORE_F32(posAddr + 4, posYBefore - drop);
+			X86_STORE_F32(dispAddr + 4, -drop);
+
+			// force grounded state
+			X86_STORE_U32(self + 0x1C, X86_LOAD_U32(self + 0x1C) | 1u);
+		}
+		else
+		{
+			X86_STORE_F32(posAddr + 4, posYBefore + reqY);
+			X86_STORE_F32(dispAddr + 4, reqY);
+		}
+	}
+
+	if (slot >= 0)
+	{
+		if (reqY > 0.000001f)
+		{
+			s_chase[slot].reset();
+		}
+		else
+		{
+			if ((X86_LOAD_U32(self + 0x1C) & 1) != 0)
+			{
+				s_chase[slot].sink = 0.0f;
+			}
+
+			if (reqY < -0.000001f)
+			{
+				// ride the floor at the rate it recedes with decay
+				s_chase[slot].ride = std::max(-reqY, s_chase[slot].ride * 0.85f);
+
+				if (appliedY > (chased ? chaseExtY : reqY) + 0.000001f)
+				{
+					// prevent sticking
+					s_chase[slot].pinned = 1;
+					s_chase[slot].sink = 0.0f;
+					s_chase[slot].kick = appliedY > 0.01f ? appliedY : 0.0f;
+					s_chase[slot].slack = 0.5f;
+				}
+				else
+				{
+					if (chased && s_chase[slot].slack > 0.0f)
+					{
+						s_chase[slot].sink = 0.0f;
+					}
+					else
+					{
+						s_chase[slot].sink += -reqY;
+					}
+
+					// ignore pin if sink is way off
+					if (s_chase[slot].sink > 0.05f + s_chase[slot].kick)
+					{
+						s_chase[slot].reset();
+					}
+				}
+			}
+		}
+	}
+}
+
+
+X86_FUNC_IMPL(__imp__sub_24B6F0);
+X86_FUNC(sub_24B6F0)
+{
+	++g_inSaucerCollision;
+	__imp__sub_24B6F0(ctx, base);
+	--g_inSaucerCollision;
+}
+
+X86_FUNC_IMPL(__imp__sub_24D590);
+X86_FUNC(sub_24D590)
+{
+	++g_moverTick;
+	__imp__sub_24D590(ctx, base);
+}
+/**	--Vehicle::AirSaucer Patch END-- */
+
 /**	--Vehicle::TVehicleCar Patch START-- */
 // TVehicleCar / CarType vehicles.
 // Affects 'Norael' (yes that is not a typo lol) aka Normal Car [Jeep], Open Car [Sports Car], Armed Car [Armored GUN Car], Bike [GUN Motorcycle]
@@ -492,17 +1011,6 @@ static const VehicleInputChannel g_vehicleInputChannels[] =
 	{ 0x68, 0x5F, 0x51CC30, 0x51CC34 }, // trigger
 	{ 0x6C, 0x60, 0x51CC28, 0x51CC2C }, // brake / reverse
 };
-
-// Helper to match exponential smoothing for vehicles
-static float ScaleFirstOrderLag(float before, float after, float retention, float frames)
-{
-	const float span = 1.0f - retention;
-	if (!(span > 0.0f))
-	{
-		return after;
-	}
-	return before - (before - after) * ((1.0f - std::pow(retention, frames)) / span);
-}
 
 X86_FUNC_IMPL(__imp__sub_243BB0);
 X86_FUNC(sub_243BB0)
@@ -639,7 +1147,6 @@ static bool VehicleShouldScaleAngleLag(uint32_t returnAddress)
 }
 
 // Shared angle smoother (TVehicle and other unknown objects use it)
-// TODO: May need to alter when implementing Air Saucer
 X86_FUNC_IMPL(__imp__sub_1D860);
 X86_FUNC(sub_1D860)
 {
@@ -746,7 +1253,7 @@ X86_FUNC(sub_245FB0)
 /**	--Vehicle::TVehicleCar Patch END-- */
 
 /**	--Library Cursor patch START-- */
- 
+
  // There is an issue with the cursor of the library menu at higher fps.
  // When player held the stick, it scrolls down way too fast
  // One press make it goes 4-5 items further instead of 1 like it should.
@@ -906,8 +1413,8 @@ X86_FUNC(sub_2A7560)
 	ctx.eax.u8_lo = 0; // this is a repeat from a duplicated frame, give up.
 }
 
-// The Library route list also add its own cooldown on top of all of this: 
-// after a single cursor move, it counts 2 frames before it starts to listen again for more. 
+// The Library route list also add its own cooldown on top of all of this:
+// after a single cursor move, it counts 2 frames before it starts to listen again for more.
 // Those two frames increment without delta time, which will also affect cursor speed in the end.
 
 X86_FUNC_IMPL(__imp__sub_291B70);
