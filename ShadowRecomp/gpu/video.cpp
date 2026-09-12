@@ -6366,13 +6366,16 @@ static void SetTextureInRenderThread(uint32_t index, GuestTexture* texture, cons
 	float texCoordMinX = 0.0f;
 	float texCoordMinY = 0.0f;
 
+
+	if (texture != nullptr)
+	{
 	// Render Targets carry an unwritten border from the half-pixel viewport offset
 	// We can patch this by telling the pixel shader where the usable area start and skip the dead borders.
 
+		if (texture->isRenderTarget)
+		{
 	// Helper function to get where the new area start.
 	// The border is 0.5 * scale host texels wide.
-	if (texture != nullptr && texture->isRenderTarget)
-	{
 		const auto getFirstLiveTexel = [](uint32_t hostSize, uint32_t guestSize) -> float
 			{
 				if (hostSize == 0 || guestSize == 0)
@@ -6386,6 +6389,16 @@ static void SetTextureInRenderThread(uint32_t index, GuestTexture* texture, cons
 
 		texCoordMinX = getFirstLiveTexel(texture->width, texture->g_width);
 		texCoordMinY = getFirstLiveTexel(texture->height, texture->g_height);
+	}
+		else if (texture->isFmv)
+		{
+			// FMV surface is 1024x512, but the video region is 640x480, since we upload the whole surface,
+			// we need to offset the texcoords by half a texel to avoid sampling garbage from the padding.
+			// (basically keep the filter kernel inside the video region, so the wrap around can no longer be reached.)
+			// Most FMVs don't have this issue, but I have seen it happen when the game play an event before an FMV, like the ark firing the laser.
+			texCoordMinX = 0.5f / float(texture->width);
+			texCoordMinY = 0.5f / float(texture->height);
+		}
 	}
 
 	SetDirtyValue(g_dirtyStates.sharedConstants, g_sharedConstants.texCoordMin[index][0], texCoordMinX);

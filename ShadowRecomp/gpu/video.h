@@ -375,6 +375,7 @@ struct GuestTexture : GuestBaseTexture
 	std::vector<struct GuestSurface*> surfaceRTs;
 	bool isRenderTarget = false;
 	bool shouldFreeMemory = false;
+	bool isFmv = false;
 };
 
 struct GuestLockedRect
