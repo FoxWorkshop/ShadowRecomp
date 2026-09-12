@@ -622,7 +622,7 @@ void DrawHudMidAsmHook(X86Register& rEax)
 		return;
 
 	float savedX[CSDVertexCount];
-		UnstretchPrimitive(g_memory.Translate(rEax.u32), CSDVertexCount, CSD_ALIGN_CENTER, savedX);
+	UnstretchPrimitive(g_memory.Translate(rEax.u32), CSDVertexCount, CSD_ALIGN_CENTER, savedX);
 }
 
 
@@ -709,15 +709,15 @@ X86_FUNC(sub_268FD0)
 }
 
 
-// the game often use a quad model to draw a picture on the screen, usually to show Shadow memories, 
+// the game often use a quad model to draw a picture on the screen, usually to show Shadow memories or space background, 
 // but the quad model is not stretched to fit the screen, thus any high resolution won't cover the whole screen
-// we can fix that by stretching the vertex
-// note: this is inconsistent, some cutscenes have it scaled properly, some don't, because of course they do.
+// we can fix that by stretching the vertex needed.
+// note: this is inconsistent, some cutscenes have the model stretched enough to cover width but not height, some the opposite, and sometimes both are wrong.
 
 struct QuadStretchCalibration
 {
-	float calibrationX = 1.0f; // multiplier on top of the base formula
-	float calibrationY = 1.0f;
+	float calibrationX = 1.0f; // horizontal multiplier at 16:9
+	float calibrationY = 1.0f; // aspect independent
 };
 
 
@@ -725,7 +725,7 @@ thread_local QuadStretchCalibration* g_currentQuadCallib = nullptr;
 
 const xxHashMap<QuadStretchCalibration> g_pictureDff =
 {
-	{ HashStr("ARK!PICTURE!O!.DFF"), { 2.2f, 1.2f } }, // cosmic fall intro (height is ignored for some reason??)
+	{ HashStr("ARK!PICTURE!O!.DFF"), { 2.2f, 1.2f } }, // ev 6301 cosmic fall intro (quad lies in XZ, height is verts.z)
 	{ HashStr("ARK!PICTURE!LOCATOR.DFF"), { 2.2f, 1.2f } },
 	{ HashStr("FLASH!BACK!PIC01!O!.DFF"), { 1.6f, 1.1f } }, // ev 6201, 6202, 6203 (lava shelter intro)
 	{ HashStr("FLASH!BACK!PIC02!O!.DFF"), { 1.6f, 1.1f } },
@@ -740,7 +740,21 @@ const xxHashMap<QuadStretchCalibration> g_pictureDff =
 	{ HashStr("BD!SHIP!PIC01!O!.DFF"), { 1.5f, 1.1f } }, // ev 4202 sky troops intro
 	{ HashStr("EGG!SHIP!PIC01!O!.DFF"), { 1.5f, 1.1f } }, // ev 4202 sky troops intro
 	{ HashStr("EGG!SHIP!PIC02!O!.DFF"), { 1.5f, 1.1f } }, // ev 4202 sky troops intro
+	{ HashStr("SPACE!PIC!O!.DFF.DFF"), { 1.0f, 1.2f } }, // ev 8204 epilogue
 };
+
+
+// Helper function to stretch picture vertex in cutscenes that need it
+// We can use the value tuned at 16:9 and re solve it for the current aspect ratio. (at 4:3 the stretch off to 0.75, at 16:10 it goes to 0.9375 etc.)
+
+static float PictureStretchX(float calibrationX)
+{
+	if (g_aspectRatio <= 0.0f) // ComputeOffsets didn't run yet
+		return calibrationX;
+
+	// make sure to never go below 1.0f, the quads only need growing.
+	return std::max(1.0f, calibrationX * (g_aspectRatio / WIDE_ASPECT_RATIO));
+}
 
 void FindPictureBackgroundModel(X86Context* ctx, uint8_t* base)
 {
@@ -772,29 +786,57 @@ void FindPictureBackgroundModel(X86Context* ctx, uint8_t* base)
 
 void StretchPictureVertex(uint32_t atomicAddr, uint8_t* base)
 {
-	if (g_currentQuadCallib)
+	if (!g_currentQuadCallib)
+		return;
+
+	auto geometryPtr = X86_LOAD_U32(atomicAddr + 0x18);
+	RpGeometry* geometry = (RpGeometry*)g_memory.Translate(geometryPtr);
+
+	// pic data is always 4 vertex
+	if (!geometry || geometry->numVertices != 4 || geometry->numMorphTargets != 1)
+		return;
+
+	auto morphTargetPtr = geometry->morphTarget.get();
+
+	if (morphTargetPtr)
 	{
-		auto geometryPtr = X86_LOAD_U32(atomicAddr + 0x18);
-		RpGeometry* geometry = (RpGeometry*)g_memory.Translate(geometryPtr);
-		if (geometry && geometry->numVertices == 4 && geometry->numMorphTargets == 1) // pic data is always 4 vertex
+		morphTargetPtr = morphTargetPtr;
+
+		if (morphTargetPtr)
 		{
-			auto morphTargetPtr = geometry->morphTarget.get();
+			RwV3d* verts = morphTargetPtr->verts.get();
 
-			if (morphTargetPtr)
+
+			// We can't blindly stretch the same vertex to stretch the models,
+			// the in-plane vertical axis is whichever of Y/Z actually spans, the other one is 
+			// the plane normal and is constant with all four corners.
+			float minY = verts[0].y;
+			float maxY = verts[0].y;
+			float minZ = verts[0].z;
+			float maxZ = verts[0].z;
+
+			for (int i = 1; i < geometry->numVertices; i++)
 			{
-				morphTargetPtr = morphTargetPtr;
-
-				if (morphTargetPtr)
-				{
-					RwV3d* verts = morphTargetPtr->verts.get();
-					for (int i = 0; i < geometry->numVertices; i++)
-					{
-						verts[i].x *= g_currentQuadCallib->calibrationX;
-						verts[i].y *= g_currentQuadCallib->calibrationY;
-					}
-
-				}
+				minY = std::min(minY, verts[i].y);
+				maxY = std::max(maxY, verts[i].y);
+				minZ = std::min(minZ, verts[i].z);
+				maxZ = std::max(maxZ, verts[i].z);
 			}
+
+			const bool verticalIsZ = (maxZ - minZ) > (maxY - minY);
+			const float stretchX = PictureStretchX(g_currentQuadCallib->calibrationX);
+			const float stretchY = g_currentQuadCallib->calibrationY;
+
+			for (int i = 0; i < geometry->numVertices; i++)
+			{
+				verts[i].x *= stretchX;
+				(verticalIsZ ? verts[i].z : verts[i].y) *= stretchY;
+			}
+
+			const float radiusScale = std::max(stretchX, stretchY);
+
+			if (radiusScale > 1.0f)
+				morphTargetPtr->boundingSphere.radius *= radiusScale;
 		}
 	}
 }
