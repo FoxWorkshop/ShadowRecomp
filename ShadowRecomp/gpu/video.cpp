@@ -2920,7 +2920,7 @@ void RecreateGuestSurfaceTexture(GuestBaseTexture* tex, bool isRT)
 	tex->texture = tex->textureHolder.get();
 	tex->textureGeneration = NextGuestTextureGeneration();
 
-	if (tex->descriptorIndex != NULL)
+	if (isRT && tex->descriptorIndex != NULL)
 		g_textureDescriptorSet->setTexture(tex->descriptorIndex, tex->textureHolder.get(), RenderTextureLayout::SHADER_READ);
 
 	ExecuteInitCommandList([&] // Discard texture, this is needed, see the function DiscardInitRenderResource for more info. 
@@ -2961,6 +2961,14 @@ void RecreateGuestSurfaceTexture(GuestBaseTexture* tex, bool isRT)
 
 	if (!isRT)
 	{
+		// needed for DX12 (handle null view race on boot)
+		RenderTextureViewDesc viewDesc;
+		viewDesc.dimension = RenderTextureViewDimension::TEXTURE_2D;
+		viewDesc.format = tex->format;
+		viewDesc.mipLevels = 1;
+		tex->textureView = tex->textureHolder->createTextureView(viewDesc);
+		// end null view DX12 patch
+
 		g_textureDescriptorSet->setTexture(tex->descriptorIndex, tex->textureHolder.get(), RenderTextureLayout::DEPTH_WRITE, tex->textureView.get());
 		AddBarrier(tex, RenderTextureLayout::DEPTH_READ);
 	}
