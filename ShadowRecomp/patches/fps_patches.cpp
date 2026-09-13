@@ -744,3 +744,197 @@ X86_FUNC(sub_245FB0)
 }
 
 /**	--Vehicle::TVehicleCar Patch END-- */
+
+/**	--Library Cursor patch START-- */
+ 
+ // There is an issue with the cursor of the library menu at higher fps.
+ // When player held the stick, it scrolls down way too fast
+ // One press make it goes 4-5 items further instead of 1 like it should.
+ // This is due to a counter that use raw frames to progress.
+ // We can patch this by forcing the counter to stick at 60 hz using delta time
+ // and let a repeat pass only on the frame where a counter actually moved.
+
+
+constexpr uint32_t g_menuGroupMasks = 0x47B698; // 8 directions group masks
+
+// 60 Hz leftovers per pad and group, as well as the groups that ticked this frame.
+// Technically only player 1 can control menu, but maybe one day we will have a way to do more so...
+static float g_menuHoldCarry[4][8];
+static uint8_t g_menuHoldTicked[4];
+
+// The pad task, runs once a frame. Redo its counter bumps in 60 Hz steps.
+X86_FUNC_IMPL(__imp__sub_2A7700);
+X86_FUNC(sub_2A7700)
+{
+	const uint32_t pad = ctx.ecx.u32;
+	uint16_t beforeState[4][8];
+
+	if (pad == 0)
+	{
+		__imp__sub_2A7700(ctx, base);
+		return;
+	}
+
+	for (uint32_t slot = 0; slot < 4; slot++)
+	{
+		for (uint32_t group = 0; group < 8; group++)
+			beforeState[slot][group] = X86_LOAD_U16(pad + 16 * slot + 2 * group);
+	}
+
+	__imp__sub_2A7700(ctx, base);
+
+	float frames = X86_LOAD_F32(g_deltaTime) * 60.0f;
+	if (frames <= 0.0f)
+		frames = 1.0f;
+
+	for (uint32_t slot = 0; slot < 4; slot++)
+	{
+		uint8_t ticked = 0;
+
+		for (uint32_t group = 0; group < 8; group++)
+		{
+			const uint32_t addr = pad + 16 * slot + 2 * group;
+			const uint16_t held = beforeState[slot][group];
+			const uint16_t pressed = X86_LOAD_U16(addr);
+			float &carry = g_menuHoldCarry[slot][group];
+
+			if (pressed == 0)
+			{
+				carry = 0.0f; // give up if the game already reset the counter
+				continue;
+			}
+
+			if (pressed != (uint16_t)(held + 1))
+				continue; // pad missing this frame, the game left the counter alone
+
+			if (held == 0)
+			{
+				// first frame of the hold, keep the game's own 1
+				carry = 0.0f;
+				ticked |= 1 << group;
+				continue;
+			}
+
+			carry += frames;
+
+			// keeps 60 fps on exactly one step per frame
+			const int steps = (int)(carry + 0.0001f);
+			carry -= steps;
+
+			if (steps > 0)
+				ticked |= 1 << group;
+
+			int value = held + steps;
+
+			if (value > 0x7000)
+				value = 0x7000; // never wrap
+
+			X86_STORE_U16(addr, (uint16_t)value);
+		}
+
+		g_menuHoldTicked[slot] = ticked;
+	}
+}
+
+// small recreation of sub_59F70 for convenience
+static bool MenuKeyPressed(uint8_t* base, uint32_t pad, uint32_t slot, uint32_t mask)
+{
+	const uint32_t pressed = X86_LOAD_U32(pad + 40 * slot + 88);
+
+	if ((mask & pressed) == mask)
+		return true;
+
+	if ((mask & 0x3C0) != 0 && (mask & 0x3C0 & pressed) == (mask & 0x3C0))
+		return true;
+
+	if ((mask & 0x3C0000) != 0 && (mask & 0x3C0000 & pressed) == (mask & 0x3C0000))
+		return true;
+
+	return false;
+}
+
+
+static bool MenuHoldTicked(uint8_t* base, uint32_t slot, uint32_t mask)
+{
+	const uint8_t ticked = g_menuHoldTicked[slot];
+
+	for (uint32_t group = 0; group < 8; group++)
+	{
+		// did one of the groups fired a tick on the 60 Hz clock
+		if ((ticked & (1 << group)) != 0 && (mask & X86_LOAD_U32(g_menuGroupMasks + group * 4)) != 0)
+			return true;
+	}
+
+	return false;
+}
+
+// Function that seems to handle the scrolling in the library based on input held
+// We can let the og code run for the math, we simply need to prevent it to continue scrolling if we reach extra frames.
+
+X86_FUNC_IMPL(__imp__sub_2A7560);
+X86_FUNC(sub_2A7560)
+{
+	const uint32_t pad = ctx.ecx.u32;
+	uint32_t slot = X86_LOAD_U32(ctx.esp.u32 + 4);
+	const uint32_t mask = X86_LOAD_U32(ctx.esp.u32 + 8);
+
+	__imp__sub_2A7560(ctx, base);
+
+	if (ctx.eax.u8_lo == 0 || pad == 0)
+		return;
+
+	// 6 and 7 means "the pad this menu owns"
+	if (slot == 6)
+		slot = X86_LOAD_U32(pad + 404);
+	else if (slot == 7)
+		slot = X86_LOAD_U32(pad + 408);
+
+	if (slot < 4)
+	{
+		if (MenuKeyPressed(base, pad, slot, mask) || MenuHoldTicked(base, slot, mask))
+			return;
+	}
+	else
+	{
+		for (uint32_t p = 0; p < 4; p++)
+		{
+			if (MenuKeyPressed(base, pad, p, mask) || MenuHoldTicked(base, p, mask))
+				return;
+		}
+	}
+
+	ctx.eax.u8_lo = 0; // this is a repeat from a duplicated frame, give up.
+}
+
+// The Library route list also add its own cooldown on top of all of this: 
+// after a single cursor move, it counts 2 frames before it starts to listen again for more. 
+// Those two frames increment without delta time, which will also affect cursor speed in the end.
+
+X86_FUNC_IMPL(__imp__sub_291B70);
+X86_FUNC(sub_291B70)
+{
+	const uint32_t self = ctx.ecx.u32;
+	const uint32_t before = self ? X86_LOAD_U32(self + 284) : 0;
+
+	__imp__sub_291B70(ctx, base);
+
+	if (self == 0)
+		return;
+
+	const uint32_t after = X86_LOAD_U32(self + 284);
+
+	if (after <= before)
+		return; // no cursor move this frame
+
+	const float frames = X86_LOAD_F32(g_deltaTime) * 60.0f;
+	if (frames <= 0.0f || frames >= 1.0f)
+		return;
+
+	uint32_t scaled = (uint32_t)(after / frames + 0.5f);
+	if (scaled > 64)
+		scaled = 64;
+
+	X86_STORE_U32(self + 284, scaled);
+}
+
+/**	--Library Cursor patch END-- */
