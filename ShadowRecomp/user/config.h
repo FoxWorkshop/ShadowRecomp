@@ -4,7 +4,9 @@
 #include <locale/locale.h>
 
 static constexpr int32_t FPS_MIN = 15;
+static constexpr int32_t FPS_MAXSoft = 241;
 static constexpr int32_t FPS_MAX = 960;
+static bool s_ExpandFPSLimit = false;
 
 class IConfigDef
 {

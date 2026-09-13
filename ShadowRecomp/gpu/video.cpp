@@ -5083,7 +5083,7 @@ void Video::Present()
 		if (gameFps > 0.0f && gameFps < targetFps)
 			targetFps = gameFps;
 
-		if (targetFps >= FPS_MIN && targetFps < FPS_MAX)
+		if (targetFps >= FPS_MIN && (targetFps < FPS_MAXSoft || targetFps < FPS_MAX && s_ExpandFPSLimit))
 		{
 			static FramePacer framePacer;
 			framePacer.SetFpsLimit(targetFps);

@@ -1156,7 +1156,7 @@ static void DrawOptions(ImVec2 minClipRect, ImVec2 maxClipRect, ImVec2 min, ImVe
 		DrawOption(rowCount++, &Config::ResolutionScale, true, min, max, nullptr, 0.25f, 1.0f, 2.0f);
 		DrawOption(rowCount++, &Config::Fullscreen, true, min, max, devReason);
 		DrawOption(rowCount++, &Config::VSync, true, min, max, nullptr);
-		DrawOption(rowCount++, &Config::FPS, true, min, max, nullptr, FPS_MIN, 120, FPS_MAX);
+		DrawOption(rowCount++, &Config::FPS, true, min, max, nullptr, FPS_MIN, 120, FPS_MAXSoft);
 		DrawOption(rowCount++, &Config::Brightness, true, min, max, nullptr);
 		DrawOption(rowCount++, &Config::AntiAliasing, false, min, max, devReason);
 		DrawOption(rowCount++, &Config::TextureFiltering, true, min, max, nullptr);

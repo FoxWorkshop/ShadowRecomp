@@ -52,7 +52,7 @@ X86_FUNC(sub_57630)
 	Video::WaitOnSwapChain();
 
 	double targetFps = GetTargetFPS();
-	if (targetFps >= FPS_MIN && targetFps < FPS_MAX)
+	if (targetFps >= FPS_MIN && (targetFps < FPS_MAXSoft || targetFps < FPS_MAX && s_ExpandFPSLimit))
 	{
 		double targetDeltaTime = 1.0 / targetFps;
 
@@ -61,6 +61,7 @@ X86_FUNC(sub_57630)
 			X86_STORE_F32(0x541FA8, targetDeltaTime);
 	}
 
+	s_ExpandFPSLimit = targetFps > FPS_MAXSoft;
 	App::s_deltaTime = X86_LOAD_F32(0x541FA8);
 	App::s_time += App::s_deltaTime;
 	App::s_gamemode = X86_LOAD_U32(0x5022A4);
