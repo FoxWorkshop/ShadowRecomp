@@ -45,10 +45,30 @@ X86_FUNC(sub_17C130)
 	__imp__sub_17C130(ctx, base);
 }
 
+// Shared AnimTask func (used by a lot of objects)
 X86_FUNC_IMPL(__imp__sub_17E290);
 X86_FUNC(sub_17E290)
 {
+	// deltatime patch (used by a lot of objects for fade and anim transitions)
+	const float dt = X86_LOAD_F32(ctx.esp.u32 + 4);
+	float frames = dt * 60.0f;
+	if (!(frames > 0.0f))
+	{
+		frames = 1.0f;
+	}
+	frames = std::min(frames, 1.0f);
+	const uint32_t rateAddr = ctx.ecx.u32 + 0x48;
+	const float restoreRate = X86_LOAD_F32(rateAddr);
+	if (std::fabs(frames - 1.0f) >= 0.0001f)
+	{
+		X86_STORE_F32(rateAddr, restoreRate * frames);
+	}
+
+	// Mark when the caller is sub_17E290 (for sub_17C130, to block the crappy DS1 fade bug Xbox has)
 	g_inSub17E290 = true;
 	__imp__sub_17E290(ctx, base);
 	g_inSub17E290 = false;
+
+	// deltatime patch
+	X86_STORE_F32(rateAddr, restoreRate);
 }
