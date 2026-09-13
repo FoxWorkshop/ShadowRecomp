@@ -6058,7 +6058,7 @@ static void CopyDynamicTextureToGPU(GuestTexture* tex)
 
 	// this function should only be used for FMV and nothing else, but just in case, we can have
 	// a small heuristic to ensure it's an FMV texture.
-	bool isFmv = isSwizzled && tex->depth == 1 && tex->width > 256 && tex->height > 256 && slices.size() == 1; // fmv tex should never use mipmap.
+	tex->isFmv = isSwizzled && tex->depth == 1 && tex->width > 256 && tex->height > 256 && slices.size() == 1; // fmv tex should never use mipmap.
 
 
 	auto allocation = g_uploadAllocators[g_frame].allocate(curDstOffset, PLACEMENT_ALIGNMENT);
