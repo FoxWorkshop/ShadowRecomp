@@ -708,14 +708,46 @@ const char* GetLayoutName(RenderTextureLayout layout)
 	}
 }
 
+// GetSurfaceLevel makes surfaces that uses an existing parent texture, so textureHolder is null.
+// If parent dies, or get resized, texture will point at freed memory without being null,
+// meaning we will barrier a dead resource. 
+// we can avoid that by getting the parent texture instead.
+static bool IsStaleAliasSurface(GuestBaseTexture* texture)
+{
+	if (texture->textureHolder != nullptr)
+		return false;
+
+	if (texture->type != ResourceType::RenderTarget && texture->type != ResourceType::DepthStencil)
+		return false;
+
+	const auto surface = static_cast<GuestSurface*>(texture);
+	const auto parent = surface->parentTexture;
+
+	return parent == nullptr || parent->texture != surface->texture
+		|| parent->textureGeneration != surface->textureGeneration;
+}
+
 static void AddBarrier(GuestBaseTexture* texture, RenderTextureLayout layout)
 {
-	if (texture != nullptr && texture->layout != layout)
+
+	if (texture == nullptr || texture->texture == nullptr)
+		return;
+
+	if (IsStaleAliasSurface(texture))
 	{
+		// Texture is gone, null it properly to avoid playing with dead memory.
+		// Would be nice to not have to do hacky fixes like that, but this is good enough for now.
+		texture->texture = nullptr;
+		return;
+	}
+
 		//printf("AddBarrier called, texture %x, current layout %d (%s) new layout requeted %d (%s) \n", texture->texture, texture->layout, GetLayoutName(texture->layout), layout, GetLayoutName(layout));
+	if (texture->layout != layout)
+	{
 		g_barrierMap[texture->texture] = layout;
 		texture->layout = layout;
 	}
+
 }
 
 static std::vector<RenderTextureBarrier> g_barriers;
@@ -741,7 +773,13 @@ static void FlushBarriers()
 
 static void DiscardStagedBarrier(GuestBaseTexture* texture)
 {
-	if (texture != nullptr && texture->textureHolder != nullptr)
+	if (texture == nullptr)
+		return;
+
+	if (texture->texture != nullptr)
+		g_barrierMap.erase(texture->texture);
+
+	if (texture->textureHolder != nullptr)
 		g_barrierMap.erase(texture->textureHolder.get());
 }
 
@@ -6520,7 +6558,7 @@ static void ProcSetRenderTarget(const RenderCommand& cmd)
 {
 	const auto& args = cmd.setRenderTarget;
 
-	if (g_renderTarget != args.renderTarget) //due to extensive ping pong with re use of previous RTs, we need to force shader_read to avoid race issues.
+	if (g_renderTarget != nullptr && g_renderTarget != args.renderTarget) //due to extensive ping pong with re use of previous RTs, we need to force shader_read to avoid race issues.
 	{
 		if (g_renderTarget->layout == RenderTextureLayout::COLOR_WRITE)
 		{
