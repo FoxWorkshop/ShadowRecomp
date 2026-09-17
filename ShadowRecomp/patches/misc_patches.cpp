@@ -253,6 +253,39 @@ void DisableMessageMidAsmHook()
 	shouldSkipMessage = Config::Subtitles.Value == 0;
 }
 
+// Fix the lock-on weapon laser draw hiding dropshadows
+// KageTask (draws the SDW_ALL)
+// Patch by forcing the render state to draw
+X86_FUNC_IMPL(__imp__sub_BF050);
+X86_FUNC(sub_BF050)
+{
+	uint32_t ecx = ctx.ecx.u32;
+	uint32_t setRenderState = X86_LOAD_U32(0x57DE20);
+	// KageTask just inherits last state, so when the laser draws the alpha applies to SDW_ALL too
+	if (setRenderState != 0)
+	{
+		struct { uint32_t state, value; } states[] =
+		{
+			{ 0x9, 2 },
+			{ 0xA, 5 },
+			{ 0xB, 6 },
+			{ 0xC, 0 },
+		}; // Thank you Donut (RWSTATE)
+
+		for (auto& s : states)
+		{
+			ctx.esp.u32 -= 8;
+			X86_STORE_U32(ctx.esp.u32 + 0, s.state);
+			X86_STORE_U32(ctx.esp.u32 + 4, s.value);
+			ctx.esp.u32 -= 4;
+			X86_CALL_FUNC(g_memory.FindFunction(setRenderState));
+			ctx.esp.u32 += 8;
+		}
+	}
+	ctx.ecx.u32 = ecx;
+	__imp__sub_BF050(ctx, base);
+}
+
 // helper function to find the current asset loaded from a .one file.
 char* TOneFileCheckFileName(TOneFile* this_, int32_t index)
 {
