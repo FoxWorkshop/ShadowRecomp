@@ -5668,6 +5668,11 @@ static GuestSurface* GetSurfaceLevel(GuestTexture* texture, int32_t level, X_D3D
 	);
 
 
+	surface->guestFormat = Format;
+	surface->sampleCount = RenderSampleCount::COUNT_1;
+	surface->guestResource.Format = Format;
+	std::lock_guard lock(g_surfaceRTsMutex);
+
 	surface->texture = texture->texture;
 	surface->textureGeneration = texture->textureGeneration;
 	surface->width = mipWidth;
@@ -5675,11 +5680,6 @@ static GuestSurface* GetSurfaceLevel(GuestTexture* texture, int32_t level, X_D3D
 	surface->g_width = texture->g_width;
 	surface->g_height = texture->g_height;
 	surface->format = texture->format;
-	surface->guestFormat = Format;
-	surface->sampleCount = RenderSampleCount::COUNT_1;
-
-	surface->guestResource.Format = Format;
-	std::lock_guard lock(g_surfaceRTsMutex);
 	surface->layout = texture->layout;
 
 	surface->parentTexture = texture;
