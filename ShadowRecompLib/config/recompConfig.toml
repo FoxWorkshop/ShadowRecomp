@@ -1302,3 +1302,8 @@ jump_address_on_true = 0x8E92A
 name = "IdleChaosPowersMusicMidAsmHook"
 address = 0x8EA5E
 jump_address_on_true = 0x8EA63
+
+[[midasm_hook]]
+name = "BombingWallBreakMidAsmHook"
+address = 0x222451
+registers = ["r2"]

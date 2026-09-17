@@ -86,3 +86,12 @@ X86_FUNC(sub_181CF0)
 	}
 	__imp__sub_181CF0(ctx, base);
 }
+
+// BombingWall filter patch for CB
+void BombingWallBreakMidAsmHook(X86Register& ecx)
+{
+	if (ecx.u32 & 0x10)
+	{
+		ecx.u32 |= 0x200;
+	}
+}
