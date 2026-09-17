@@ -53,7 +53,6 @@ CONFIG_DEFINE_LOCALISED("Audio", bool, IdleChaosPowersMusic, true, false);
 //CONFIG_DEFINE_ENUM_LOCALISED("Audio", EChannelConfiguration, ChannelConfiguration, EChannelConfiguration::Stereo);
 //CONFIG_DEFINE_LOCALISED("Audio", bool, MusicAttenuation, false);
 
-
 CONFIG_DEFINE("Video", std::string, GraphicsDevice, "", true);
 CONFIG_DEFINE_ENUM("Video", EGraphicsAPI, GraphicsAPI, EGraphicsAPI::Auto, true);
 CONFIG_DEFINE("Video", int32_t, WindowX, WINDOWPOS_CENTRED, false);
@@ -79,21 +78,18 @@ CONFIG_DEFINE_ENUM_LOCALISED("Video", EAntiAliasing, AntiAliasing, EAntiAliasing
 CONFIG_DEFINE("Video", uint32_t, AnisotropicFiltering, 16, false);
 CONFIG_DEFINE_ENUM_LOCALISED("Video", ETextureFiltering, TextureFiltering, ETextureFiltering::Auto, false);
 CONFIG_DEFINE_LOCALISED("Video", float, BloomIntensity, 0.7f, false);
-
 //CONFIG_DEFINE_ENUM_LOCALISED("Video", EShadowResolution, ShadowResolution, EShadowResolution::x4096);
-
 //CONFIG_DEFINE_ENUM("Video", EDepthOfFieldQuality, DepthOfFieldQuality, EDepthOfFieldQuality::Auto);
 //CONFIG_DEFINE_ENUM_LOCALISED("Video", EMotionBlur, MotionBlur, EMotionBlur::Original);
 //CONFIG_DEFINE_ENUM_LOCALISED("Video", ECutsceneAspectRatio, CutsceneAspectRatio, ECutsceneAspectRatio::Original);
 CONFIG_DEFINE_ENUM_LOCALISED("Video", EUIAlignmentMode, UIAlignmentMode, EUIAlignmentMode::Edge, false);
 
+CONFIG_DEFINE_LOCALISED("Misc", bool, ChaosPowerLEDSync, true, false);
 
 CONFIG_DEFINE_HIDDEN("Codes", bool, QuickBoot, false, false);
 CONFIG_DEFINE_HIDDEN("Codes", bool, InfiniteLives, false, false);
 CONFIG_DEFINE_HIDDEN("Codes", bool, AllStagesUnlocked, false, false);
 CONFIG_DEFINE_HIDDEN("Codes", bool, UseOfficialTitleOnTitleBar, false, false);
 CONFIG_DEFINE_HIDDEN("Codes", bool, EasyLastStoryUnlock, false, false);
-
-
 
 CONFIG_DEFINE("Update", time_t, LastChecked, 0, false);

@@ -1185,10 +1185,9 @@ static void DrawOptions(ImVec2 minClipRect, ImVec2 maxClipRect, ImVec2 min, ImVe
 	}
 	case OptionsMenuCategory::Misc:
 	{
+		DrawOption(rowCount++, &Config::ChaosPowerLEDSync, true, min, max);
 		DrawGoToLegacyOption(rowCount++, min, max);
-
 	}
-
 	}
 
 #undef ENUM_VALUE

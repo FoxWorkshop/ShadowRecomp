@@ -441,6 +441,16 @@ CONFIG_DEFINE_LOCALE(IdleChaosPowersMusic)
     { ELanguage::Italian,  { "TODO", "TODO" } }
 };
 
+CONFIG_DEFINE_LOCALE(ChaosPowerLEDSync)
+{
+    { ELanguage::English, { "Chaos Power LED Sync", "Sync the controller's LED colour with the active Chaos Power." } },
+    { ELanguage::Japanese, { "TODO", "TODO" } },
+    { ELanguage::German,   { "TODO", "TODO" } },
+    { ELanguage::French,   { "TODO", "TODO" } },
+    { ELanguage::Spanish,  { "TODO", "TODO" } },
+    { ELanguage::Italian,  { "TODO", "TODO" } }
+};
+
 // Japanese Notes: This localization should include furigana.
 CONFIG_DEFINE_LOCALE(VoiceLanguage)
 {

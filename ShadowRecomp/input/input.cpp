@@ -420,17 +420,24 @@ static void SyncControllers()
 
 static void ApplyChaosAura()
 {
+	if (!Config::ChaosPowerLEDSync.Value)
+	{
+		return;
+	}
+
 	static ELedAura s_appliedAura = LED_AURA_NEUTRAL;
 	const auto aura = App::s_chaosMode.load(std::memory_order_relaxed);
 	const bool forced = s_auraDirty.exchange(false);
-
 	if (!forced && aura == s_appliedAura)
+	{
 		return;
+	}
 
 	s_appliedAura = aura;
-
 	for (auto& controller : g_controllers)
+	{
 		SetControllerChaosModeLED(controller, aura);
+	}
 }
 
 void input::SetChaosAura(ELedAura mode)
