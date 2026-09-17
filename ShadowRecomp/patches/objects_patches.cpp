@@ -72,3 +72,17 @@ X86_FUNC(sub_17E290)
 	// deltatime patch
 	X86_STORE_F32(rateAddr, restoreRate);
 }
+
+// Reads ATTR_WORLDPARM UserData, RWAnalyze Chunk 0x11F, in DFF and LAND (Geometry) and maps to the correct render type (at 0x503620)
+// 0x7 -> maps to 9 "AL" (This is the bad/broken transparency mode on Xbox for BigFoot's Canopy)
+// 0x8 -> maps to 11 "M"
+// To fix the BigFoot, map all 0x7 to 0x8 to every DFF in the whole game
+X86_FUNC_IMPL(__imp__sub_181CF0);
+X86_FUNC(sub_181CF0)
+{
+	if (X86_LOAD_U32(ctx.esp.u32 + 4) == 0x7)
+	{
+		X86_STORE_U32(ctx.esp.u32 + 4, 0x8);
+	}
+	__imp__sub_181CF0(ctx, base);
+}
