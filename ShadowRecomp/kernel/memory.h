@@ -5,6 +5,15 @@
 #define MEM_RESERVE 0x00002000  
 #endif
 
+// Xbox address space map (the top of the 4 GB region is hardware, not RAM).
+// NV2A registers start at 0xFD000000 and the APU at 0xFE800000. 
+// XboxRecomp gives access in those ranges through g_nv2aPtr[off] and g_mmio[off].
+
+constexpr uint32_t NV2A_APERTURE_BASE = 0xFD000000u;
+constexpr uint32_t NV2A_APERTURE_SIZE = 0x01000000u;  // 16 MiB the real BAR0 size.
+constexpr uint32_t MMIO_APERTURE_BASE = 0xFE800000u;
+constexpr uint32_t MMIO_APERTURE_SIZE = 0x00800000u;  // 8 MiB
+
 struct Memory
 {
     uint8_t* base{};

@@ -19,15 +19,8 @@
 #include <gpu/renderstate.h>
 
 
-#define MMIO_BASE  0xFE800000
-#define MMIO_SIZE  0x00800000 
-uint8_t g_mmio[MMIO_SIZE];  // Global/shared MMIO region
-
-#define NV2A_DEVICE1_BASE 0xFD000000
-#define KiB(x) ((x) *    1024 ) // = 0x00000400
-#define MiB(x) ((x) * KiB(1024)) // = 0x00100000
-#define NV2A_DEVICE1_SIZE (MiB(7)) // = 0x00700000
-uint8_t g_nv2a[NV2A_DEVICE1_SIZE];
+// APU registers
+uint8_t g_mmio[MMIO_APERTURE_SIZE];
 
 uint32_t XboxSignatureKey[(X_D3DRS_LAST + 1) * 8];
 static std::atomic<uint32_t> g_keSetEventGeneration;

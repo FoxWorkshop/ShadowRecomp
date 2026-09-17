@@ -8,17 +8,25 @@ constexpr size_t XBE_END_ADDR = 0x006A1000ull;
 constexpr size_t HEAP_BEGIN = XBE_END_ADDR + 0x1000000; //Start heap way after XBE
 constexpr size_t HEAP_END = 0xA0000000;
 
+// The physical heap has to stop before the hardware apertures, otherwise we will
+// risk a memory overflow on top of the NV2A register region.
+constexpr size_t PHYSICAL_HEAP_END = NV2A_APERTURE_BASE;
+
 extern uint8_t* g_nv2aPtr;
 
 void Heap::Init()
 {
 	printf("Initializing Heap...\n");
 	heap = o1heapInit(g_memory.Translate(HEAP_BEGIN), HEAP_END - HEAP_BEGIN);
-	physicalHeap = o1heapInit(g_memory.Translate(HEAP_END), 0x100000000 - HEAP_END);
-	printf("Regular Heap: %p - %p\n", heap, (char*)heap + (HEAP_END - HEAP_BEGIN));
-	printf("Physical Heap: %p - %p\n", physicalHeap, (char*)physicalHeap + (0x100000000 - HEAP_END));
+	physicalHeap = o1heapInit(g_memory.Translate(HEAP_END), PHYSICAL_HEAP_END - HEAP_END);
+	printf("Regular Heap: guest 0x%08zX - 0x%08zX\n", HEAP_BEGIN, HEAP_END);
+	printf("Physical Heap: guest 0x%08zX - 0x%08zX\n", HEAP_END, PHYSICAL_HEAP_END);
+
+	// The game gets this pointer from D3DK::CMiniport::MapRegisters and then
+	// addresses NV2A registers off it.
+	g_nv2aPtr = (uint8_t*)g_memory.Translate(NV2A_APERTURE_BASE);
+	printf("NV2A aperture: guest 0x%08X - 0x%08X\n", NV2A_APERTURE_BASE, NV2A_APERTURE_BASE + NV2A_APERTURE_SIZE);
 	printf("Heap and Physical Heap Initialized\n");
-	g_nv2aPtr = (uint8_t*)g_userHeap.AllocPhysical(0x3000, 1);
 }
 
 void* Heap::Alloc(size_t size)
