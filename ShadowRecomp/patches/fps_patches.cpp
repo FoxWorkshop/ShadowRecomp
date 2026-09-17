@@ -1516,3 +1516,113 @@ X86_FUNC(sub_1DD140)
 	__imp__sub_1DD140(ctx, base);
 }
 /** --Catapult (aka Prison Island launch pads) Patch END-- */
+
+/** --Dash Ramp Patch START-- */
+
+// Object that launch Shadow far away (far farrrrrr... away!)
+// At higher FPS, collision can move player during a launch in specific stages / area.
+// This seems to happen because Shadow is still on the ground at launch time while the collision code is running faster (> 60 fps)
+// This is enough to affect the launch and can even kill player under specific situation (like in space gadget).
+// We can do a hacky method by adding a grace method where collision will be ignored for the first 1/60 s of launch, essentially matching the timing at 60 fps.
+// Would be nice to have a better way to fix this, but this is the only idea I had for now.
+
+static constexpr float g_launchGracePeriod = 1.0f / 60.0f;
+
+struct LaunchGrace
+{
+	uint32_t player;
+	float elapsed;
+};
+
+static LaunchGrace g_launchGrace[4] = {};
+
+static LaunchGrace* FindLaunchGrace(uint32_t player)
+{
+	if (player == NULL)
+		return nullptr;
+
+	for (auto& slot : g_launchGrace)
+	{
+		if (slot.player == player)
+			return &slot;
+	}
+	return nullptr;
+}
+
+// This is one of the function used to detect collision 
+// We can trick the game that no collision were found so we can progress fine
+// Hacky, but this is good enough for now.
+X86_FUNC_IMPL(__imp__sub_84E50);
+X86_FUNC(sub_84E50)
+{
+	const uint32_t playerData = X86_LOAD_U32(ctx.esp.u32 + 4);
+
+	if (playerData != NULL)
+	{
+		const LaunchGrace* grace = FindLaunchGrace(X86_LOAD_U32(playerData));
+
+		if (grace != nullptr && grace->elapsed < g_launchGracePeriod - 1.0e-6f)
+		{
+			ctx.eax.u32 = 0;
+			ctx.AddEsp(1);
+			return;
+		}
+	}
+
+	__imp__sub_84E50(ctx, base);
+}
+
+// Player::Behavior::Launch::Start
+X86_FUNC_IMPL(__imp__sub_76DE0);
+X86_FUNC(sub_76DE0)
+{
+	const uint32_t player = X86_LOAD_U32(ctx.ecx.u32 + 4);
+
+	LaunchGrace* grace = FindLaunchGrace(player);
+
+	if (grace == nullptr)
+		grace = &g_launchGrace[0]; // either player is not found or all players are using it, force player 1 slot as a failsafe.
+
+	grace->player = player;
+	grace->elapsed = 0.0f;
+
+	__imp__sub_76DE0(ctx, base);
+}
+
+// Player::Behavior::Launch::Exec
+// Delta time is added before the original runs, so at 60 FPS the grace period is already spent
+// by the time collision is reached and the skip above can never fire.
+X86_FUNC_IMPL(__imp__sub_76B20);
+X86_FUNC(sub_76B20)
+{
+	LaunchGrace* grace = FindLaunchGrace(X86_LOAD_U32(ctx.ecx.u32 + 4));
+
+	if (grace != nullptr)
+	{
+		const float deltatime = X86_LOAD_F32(ctx.esp.u32 + 4);
+
+		if (deltatime > 0.0f)
+			grace->elapsed += deltatime;
+		else
+			grace->elapsed = g_launchGracePeriod; 
+	}
+
+	__imp__sub_76B20(ctx, base);
+}
+
+// Player::Behavior::Launch::End
+X86_FUNC_IMPL(__imp__sub_76A70);
+X86_FUNC(sub_76A70)
+{
+	LaunchGrace* grace = FindLaunchGrace(X86_LOAD_U32(ctx.ecx.u32 + 4));
+
+	if (grace != nullptr)
+	{
+		grace->player = 0;
+		grace->elapsed = 0.0f;
+	}
+
+	__imp__sub_76A70(ctx, base);
+}
+
+/**	--Dash Ramp Patch END-- */
