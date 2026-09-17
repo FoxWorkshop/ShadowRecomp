@@ -1280,3 +1280,11 @@ jump_address_on_false = 0xAD757
 name = "JetEffectRestoreFourthFlameMidAsmHook"
 address = 0x8DCA0
 registers = ["r4"]
+
+
+#music race issue stuff
+[[midasm_hook]]
+name = "RnaPlayStateLatchMidAsmHook"
+address = 0x3313F0
+registers = ["r4"]
+jump_address_on_true = 0x331455

@@ -1,5 +1,6 @@
 #include <kernel/function.h>
 #include <audio/audio.h>
+#include <audio/driver/sdl2_driver.h>
 
 // It's no secret that this game has a lot of audio issues on the Xbox port
 // Sounds not looping properly, Distance for 3D Sound tend to break, volume issue and so on.
@@ -97,3 +98,67 @@ X86_FUNC(sub_25FEC0)
 	X86_STORE_U32(slot + SLOT_VOLUME, uint32_t(centibels));
 	IDirectSoundBuffer_SetVolume(int32_t(buffer), centibels);
 }
+
+
+/* --MUSIC RACE ISSUE PATCH-- */
+
+static constexpr uint32_t RNA_PORT = 0x50; // mwSnd port handle
+static constexpr uint32_t PORT_IN_USE = 0x04;
+static constexpr uint32_t PORT_BUFFER = 0x08; // used as a guest key for IDirectSoundBuffer
+static constexpr uint32_t MAX_PLAY_RETRIES = 16; // about 0.27s at 60Hz
+
+static std::unordered_map<uint32_t, uint32_t> g_rnaPlayRetries;
+static std::mutex g_rnaPlayRetriesMutex;
+
+static bool RnaPortIsPlaying(uint32_t rna)
+{
+	auto base = g_memory.base;
+
+	const uint32_t port = X86_LOAD_U32(rna + RNA_PORT);
+	if (!port)
+		return false;
+
+	// both are still empty while mwSndOpenPort runs, and the play gives up on them
+	if (!X86_LOAD_U32(port + PORT_IN_USE))
+		return false;
+
+	const uint32_t key = X86_LOAD_U32(port + PORT_BUFFER);
+	if (!key)
+		return false;
+
+	// also catches a dead key, or a play that never ran because SetFrequency failed first
+	auto* buffer = GetCurrentSoundBuffer(int32_t(key));
+
+	if (!buffer)
+		return false;
+
+	uint32_t status = 0;
+	return (buffer->GetStatus(&status) & X_DSBSTATUS_PLAYING) != 0;
+}
+
+// true means we skip it, so the game asks for the play again next vblank call
+bool RnaPlayStateLatchMidAsmHook(X86Register& esi)
+{
+	const uint32_t rna = esi.u32;
+
+	std::lock_guard<std::mutex> lock(g_rnaPlayRetriesMutex);
+
+	if (RnaPortIsPlaying(rna))
+	{
+		g_rnaPlayRetries.erase(rna);
+		return false;
+	}
+
+	uint32_t& retries = g_rnaPlayRetries[rna];
+	if (retries >= MAX_PLAY_RETRIES)
+	{
+		// give up and mark it like the game would, instead of asking all stage long
+		g_rnaPlayRetries.erase(rna);
+		return false;
+	}
+
+	++retries;
+	return true;
+}
+
+/* --END MUSIC RACE ISSUE PATCH-- */
