@@ -97,3 +97,10 @@ bool CollisionToleranceSlopeGateMidAsmHook(X86Register& esi)
 	g_rayHitPlayer = 0;
 	return true;
 }
+
+// Patch Coaster's bar collision to allow bullets
+void CoasterHangbarCollisionMidAsmHook(X86Register& esp)
+{
+	auto base = g_memory.base;
+	X86_STORE_U32(esp.u32, 0x40000);
+}
