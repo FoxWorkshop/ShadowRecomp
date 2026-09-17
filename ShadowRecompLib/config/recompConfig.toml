@@ -1292,3 +1292,13 @@ jump_address_on_true = 0x331455
 name = "CoasterHangbarCollisionMidAsmHook"
 address = 0x1E95F4
 registers = ["r7"]
+
+[[midasm_hook]]
+name = "IdleChaosPowersMusicMidAsmHook"
+address = 0x8E925
+jump_address_on_true = 0x8E92A
+
+[[midasm_hook]]
+name = "IdleChaosPowersMusicMidAsmHook"
+address = 0x8EA5E
+jump_address_on_true = 0x8EA63

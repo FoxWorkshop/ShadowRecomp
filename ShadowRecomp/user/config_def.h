@@ -49,6 +49,7 @@ CONFIG_DEFINE_LOCALISED("Audio", float, MusicVolume, 1.0f, false);
 CONFIG_DEFINE_LOCALISED("Audio", float, EffectsVolume, 0.5f, false);
 CONFIG_DEFINE_LOCALISED("Audio", float, VoicesVolume, 1.0f, false);
 CONFIG_DEFINE_LOCALISED("Audio", bool, MuteOnFocusLost, true, false);
+CONFIG_DEFINE_LOCALISED("Audio", bool, IdleChaosPowersMusic, true, false);
 //CONFIG_DEFINE_ENUM_LOCALISED("Audio", EChannelConfiguration, ChannelConfiguration, EChannelConfiguration::Stereo);
 //CONFIG_DEFINE_LOCALISED("Audio", bool, MusicAttenuation, false);
 

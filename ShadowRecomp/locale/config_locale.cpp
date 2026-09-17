@@ -431,6 +431,16 @@ CONFIG_DEFINE_LOCALE(MuteOnFocusLost)
     { ELanguage::Italian,  { "Audio muto con finestra inattiva", "Disattiva l'audio del gioco quando la finestra non è attiva." } }
 };
 
+CONFIG_DEFINE_LOCALE(IdleChaosPowersMusic)
+{
+    { ELanguage::English, { "Idle Chaos Powers Music", "The music that plays while Hero or Dark gauge is full." } },
+    { ELanguage::Japanese, { "TODO", "TODO" } },
+    { ELanguage::German,   { "TODO", "TODO" } },
+    { ELanguage::French,   { "TODO", "TODO" } },
+    { ELanguage::Spanish,  { "TODO", "TODO" } },
+    { ELanguage::Italian,  { "TODO", "TODO" } }
+};
+
 // Japanese Notes: This localization should include furigana.
 CONFIG_DEFINE_LOCALE(VoiceLanguage)
 {

@@ -1,6 +1,7 @@
 #include <kernel/function.h>
 #include <audio/audio.h>
 #include <audio/driver/sdl2_driver.h>
+#include <user/config.h>
 
 // It's no secret that this game has a lot of audio issues on the Xbox port
 // Sounds not looping properly, Distance for 3D Sound tend to break, volume issue and so on.
@@ -162,3 +163,8 @@ bool RnaPlayStateLatchMidAsmHook(X86Register& esi)
 }
 
 /* --END MUSIC RACE ISSUE PATCH-- */
+
+bool IdleChaosPowersMusicMidAsmHook()
+{
+	return !Config::IdleChaosPowersMusic;
+}
