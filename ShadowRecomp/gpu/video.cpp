@@ -5258,45 +5258,56 @@ void Video::ComputeViewportDimensions()
 	uint32_t height = g_swapChain->getHeight();
 	float aspectRatio = float(width) / float(height);
 
+	uint32_t numerator;
+	uint32_t denominator;
+
 	switch (Config::AspectRatio)
 	{
-	case EAspectRatio::Wide:
-	{
-		if (aspectRatio > WIDE_ASPECT_RATIO)
-		{
-			s_viewportWidth = height * 16 / 9;
-			s_viewportHeight = height;
-		}
-		else
-		{
-			s_viewportWidth = width;
-			s_viewportHeight = width * 9 / 16;
-		}
-
+	case EAspectRatio::Narrow5x4:
+		numerator = 5;
+		denominator = 4;
 		break;
-	}
 
-	case EAspectRatio::Narrow:
-	case EAspectRatio::OriginalNarrow:
-	{
-		if (aspectRatio > NARROW_ASPECT_RATIO)
-		{
-			s_viewportWidth = height * 4 / 3;
-			s_viewportHeight = height;
-		}
-		else
-		{
-			s_viewportWidth = width;
-			s_viewportHeight = width * 3 / 4;
-		}
-
+	case EAspectRatio::Original:
+		numerator = 4;
+		denominator = 3;
 		break;
-	}
+
+	case EAspectRatio::Wide16x10:
+		numerator = 16;
+		denominator = 10;
+		break;
+
+	case EAspectRatio::Wide16x9:
+		numerator = 16;
+		denominator = 9;
+		break;
+
+	case EAspectRatio::Wide21x9:
+		numerator = 21;
+		denominator = 9;
+		break;
 
 	default:
+		numerator = 0;
+		denominator = 0;
+		break;
+	}
+
+	if (denominator == 0)
+	{
 		s_viewportWidth = width;
 		s_viewportHeight = height;
-		break;
+	}
+	else if (aspectRatio > float(numerator) / float(denominator))
+	{
+		s_viewportWidth = height * numerator / denominator;
+		s_viewportHeight = height;
+	}
+	else
+	{
+		s_viewportWidth = width;
+		s_viewportHeight = width * denominator / numerator;
 	}
 
 	auto base = g_memory.base;

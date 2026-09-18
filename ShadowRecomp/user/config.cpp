@@ -312,9 +312,11 @@ CONFIG_DEFINE_ENUM_TEMPLATE(EWindowState)
 CONFIG_DEFINE_ENUM_TEMPLATE(EAspectRatio)
 {
     { "Auto", EAspectRatio::Auto },
-    { "16:9", EAspectRatio::Wide },
-    { "4:3",  EAspectRatio::Narrow },
-    { "Original 4:3",  EAspectRatio::OriginalNarrow },
+    { "4:3",  EAspectRatio::Original },
+    { "16:9", EAspectRatio::Wide16x9 },
+    { "16:10", EAspectRatio::Wide16x10 },
+    { "5:4",  EAspectRatio::Narrow5x4 },
+    { "21:9", EAspectRatio::Wide21x9 },
 };
 
 CONFIG_DEFINE_ENUM_TEMPLATE(ETripleBuffering)

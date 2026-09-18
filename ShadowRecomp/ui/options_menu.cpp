@@ -84,8 +84,19 @@ float m_descScrollDirection{ 1.0f };
 static double s_optionsOpenTime = -1.0;
 static double s_optionsCloseTime = -1.0;
 
-
-static std::string optionDescription = "";
+static std::string optionDescription;
+static void UpdateOptionDescription(const IConfigDef* config)
+{
+	optionDescription = config->GetDescription(Config::Language);
+	if (OptionsMenu::s_flowState == OptionsMenuFlowState::OptionSelected)
+	{
+		const auto valueDescription = config->GetValueDescription(Config::Language);
+		if (!valueDescription.empty())
+		{
+			optionDescription = valueDescription;
+		}
+	}
+}
 
 static std::string& GetCategoryName(OptionsMenuCategory category)
 {
@@ -567,7 +578,7 @@ static void DrawOption
 
 		if (OptionsMenu::s_flowState == OptionsMenuFlowState::OptionCursor || OptionsMenu::s_flowState == OptionsMenuFlowState::OptionSelected)
 		{
-			optionDescription = config->GetDescription(Config::Language);
+			UpdateOptionDescription(config);
 
 
 			if constexpr (std::is_same_v<T, float>)
@@ -590,22 +601,21 @@ static void DrawOption
 		if (isAccessible)
 		{
 			static T s_oldValue;
-
 			if (CheckAndDiscard(g_isAccepted))
 			{
 				Game_PlaySound("decide");
-		
 				if (OptionsMenu::s_flowState == OptionsMenuFlowState::OptionCursor)
 				{
 					g_leftWasHeld = false;
 					g_rightWasHeld = false;
 
-					//setValueDescription();
-
 					if (config->LockCallback)
+					{
 						config->LockCallback(config);
+					}
 
 					OptionsMenu::SetFlowState(OptionsMenuFlowState::OptionSelected);
+					UpdateOptionDescription(config);
 
 					isSelected = true;				
 					s_oldValue = config->Value;
@@ -617,7 +627,9 @@ static void DrawOption
 						VideoConfigValueChangedCallback(config);
 
 						if (config->ApplyCallback)
+						{
 							config->ApplyCallback(config);
+						}
 					}
 
 					OptionsMenu::SetFlowState(OptionsMenuFlowState::OptionCursor);
@@ -721,7 +733,7 @@ static void DrawOption
 
 					if (increment || decrement)
 					{
-						//setValueDescription();
+						UpdateOptionDescription(config);
 
 						Game_PlaySound("cursor");
 
