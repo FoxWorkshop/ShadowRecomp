@@ -58,10 +58,6 @@ static bool useLowSpec = false;
 
 #define DepthStencilFormat RenderFormat::D32_FLOAT
 
-#if defined(ASYNC_PSO_DEBUG) || defined(PSO_CACHING)
-#include <magic_enum/magic_enum.hpp>
-#endif
-
 #ifdef SHADOW_RECOMP_D3D12
 #include "ubershaders/shader/FixedFunctionVertexShader.hlsl.dxil.h"
 #include "ubershaders/shader/FixedFunctionPixelShader.hlsl.dxil.h"
@@ -2000,6 +1996,11 @@ struct RenderCommand
 			bool isFixed;
 		} setPixelShader;
 
+		struct
+		{
+			XXH64_hash_t hash;
+			RenderPipeline* pipeline;
+		} addPipeline;
 
 		struct
 		{
@@ -4751,22 +4752,6 @@ static void DrawImGui()
 
 	ResetImGuiCallbacks();
 
-#ifdef ASYNC_PSO_DEBUG
-	if (ImGui::Begin("Async PSO Stats"))
-	{
-		ImGui::Text("Pipelines Created In Render Thread: %d", g_pipelinesCreatedInRenderThread.load());
-		ImGui::Text("Pipelines Created Asynchronously: %d", g_pipelinesCreatedAsynchronously.load());
-		ImGui::Text("Pipelines Dropped: %d", g_pipelinesDropped.load());
-		ImGui::Text("Pipelines Currently Compiling: %d", g_pipelinesCurrentlyCompiling.load());
-		ImGui::Text("Compiling Pipeline Task Count: %d", g_compilingPipelineTaskCount.load());
-		ImGui::Text("Pending Pipeline Task Count: %d", g_pendingPipelineTaskCount.load());
-
-		std::lock_guard lock(g_debugMutex);
-		ImGui::TextUnformatted(g_pipelineDebugText.c_str());
-	}
-	ImGui::End();
-#endif
-
 	DrawPauseText();
 
 	AchievementMenu::Draw();
@@ -7411,10 +7396,6 @@ static void SanitizePipelineState(PipelineState& pipelineState)
 
 static std::unique_ptr<RenderPipeline> CreateGraphicsPipeline(const PipelineState& pipelineState)
 {
-#ifdef ASYNC_PSO_DEBUG
-	++g_pipelinesCurrentlyCompiling;
-#endif
-
 	RenderGraphicsPipelineDesc desc;
 	desc.pipelineLayout = g_pipelineLayout.get();
 
@@ -7512,11 +7493,79 @@ static std::unique_ptr<RenderPipeline> CreateGraphicsPipeline(const PipelineStat
 
 	auto pipeline = g_device->createGraphicsPipeline(desc);
 
-#ifdef ASYNC_PSO_DEBUG
-	--g_pipelinesCurrentlyCompiling;
+	return pipeline;
+}
+
+struct PipelineStateQueueItem
+{
+	XXH64_hash_t pipelineHash;
+	PipelineState pipelineState;
+};
+
+static moodycamel::BlockingConcurrentQueue<PipelineStateQueueItem> g_pipelineStateQueue;
+static xxHashMap<PipelineState> g_asyncPipelineStates;
+static bool g_renderThreadPipelinePending = false;
+
+static void CompilePipeline(XXH64_hash_t pipelineHash, const PipelineState& pipelineState)
+{
+	auto pipeline = CreateGraphicsPipeline(pipelineState);
+	RenderCommand cmd;
+	cmd.type = RenderCommandType::AddPipeline;
+	cmd.addPipeline.hash = pipelineHash;
+	cmd.addPipeline.pipeline = pipeline.release();
+	g_renderQueue.enqueue(cmd);
+}
+
+static void PipelineCompilerThread()
+{
+#ifdef _WIN32
+	SetThreadPriority(GetCurrentThread(), THREAD_PRIORITY_LOWEST);
+	GuestThread::SetThreadName(GetCurrentThreadId(), "Pipeline Compiler Thread");
 #endif
 
-	return pipeline;
+	while (true)
+	{
+		PipelineStateQueueItem queueItem;
+		g_pipelineStateQueue.wait_dequeue(queueItem);
+		CompilePipeline(queueItem.pipelineHash, queueItem.pipelineState);
+		std::this_thread::yield();
+	}
+}
+
+static std::vector<std::unique_ptr<std::thread>> g_pipelineCompilerThreads = []()
+{
+		std::vector<std::unique_ptr<std::thread>> threads(std::max(2u, (std::thread::hardware_concurrency() * 2) / 3));
+		for (auto& thread : threads)
+		{
+			thread = std::make_unique<std::thread>(PipelineCompilerThread);
+		}
+		return threads;
+}();
+
+static void EnqueueGraphicsPipelineCompilation(const PipelineState& pipelineState, XXH64_hash_t hash)
+{
+	if (g_asyncPipelineStates.emplace(hash, pipelineState).second)
+	{
+		g_pipelineStateQueue.enqueue({ hash, pipelineState });
+	}
+}
+
+static void ProcAddPipeline(const RenderCommand& cmd)
+{
+	auto& pipeline = g_pipelines[cmd.addPipeline.hash];
+	if (pipeline == nullptr)
+	{
+		pipeline = std::unique_ptr<RenderPipeline>(cmd.addPipeline.pipeline);
+	}
+	else
+	{
+		delete cmd.addPipeline.pipeline;
+	}
+
+	if (g_renderThreadPipelinePending)
+	{
+		g_dirtyStates.pipelineState = true;
+	}
 }
 
 static RenderPipeline* CreateGraphicsPipelineInRenderThread(PipelineState pipelineState)
@@ -7541,89 +7590,8 @@ static RenderPipeline* CreateGraphicsPipelineInRenderThread(PipelineState pipeli
 	auto& pipeline = g_pipelines[hash];
 	if (pipeline == nullptr)
 	{
-		auto pipeStart = std::chrono::steady_clock::now();
-		pipeline = CreateGraphicsPipeline(pipelineState);
-		auto pipeElapsed = std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - pipeStart).count();
-
-		LOGFN("CreateGraphicsPipeline: PIPELINE MISS hash={:016X} -> {:.2f} ms {}",
-			hash, pipeElapsed,
-			pipeElapsed > 0.5 ? "*** STUTTER ***" : "");
-
-#ifdef ASYNC_PSO_DEBUG
-		bool loading = *SWA::SGlobals::ms_IsLoading;
-
-		if (loading)
-			++g_pipelinesCreatedAsynchronously;
-		else
-			++g_pipelinesCreatedInRenderThread;
-
-		pipeline->setName(fmt::format("{} {} {} {:X}", loading ? "ASYNC" : "",
-			pipelineState.vertexShader->name, pipelineState.pixelShader != nullptr ? pipelineState.pixelShader->name : "<none>", hash));
-
-		if (!loading)
-		{
-			std::lock_guard lock(g_debugMutex);
-			g_pipelineDebugText = fmt::format(
-				"PipelineState {:X}:\n"
-				"  vertexShader: {}\n"
-				"  pixelShader: {}\n"
-				"  vertexDeclaration: {:X}\n"
-				"  zEnable: {}\n"
-				"  zWriteEnable: {}\n"
-				"  srcBlend: {}\n"
-				"  destBlend: {}\n"
-				"  cullMode: {}\n"
-				"  zFunc: {}\n"
-				"  alphaBlendEnable: {}\n"
-				"  blendOp: {}\n"
-				"  slopeScaledDepthBias: {}\n"
-				"  depthBias: {}\n"
-				"  srcBlendAlpha: {}\n"
-				"  destBlendAlpha: {}\n"
-				"  blendOpAlpha: {}\n"
-				"  colorWriteEnable: {:X}\n"
-				"  primitiveTopology: {}\n"
-				"  vertexStrides[0]: {}\n"
-				"  vertexStrides[1]: {}\n"
-				"  vertexStrides[2]: {}\n"
-				"  vertexStrides[3]: {}\n"
-				"  renderTargetFormat: {}\n"
-				"  depthStencilFormat: {}\n"
-				"  sampleCount: {}\n"
-				"  enableAlphaToCoverage: {}\n"
-				"  specConstants: {:X}\n",
-				hash,
-				pipelineState.vertexShader->name,
-				pipelineState.pixelShader != nullptr ? pipelineState.pixelShader->name : "<none>",
-				reinterpret_cast<size_t>(pipelineState.vertexDeclaration),
-				pipelineState.zEnable,
-				pipelineState.zWriteEnable,
-				magic_enum::enum_name(pipelineState.srcBlend),
-				magic_enum::enum_name(pipelineState.destBlend),
-				magic_enum::enum_name(pipelineState.cullMode),
-				magic_enum::enum_name(pipelineState.zFunc),
-				pipelineState.alphaBlendEnable,
-				magic_enum::enum_name(pipelineState.blendOp),
-				pipelineState.slopeScaledDepthBias,
-				pipelineState.depthBias,
-				magic_enum::enum_name(pipelineState.srcBlendAlpha),
-				magic_enum::enum_name(pipelineState.destBlendAlpha),
-				magic_enum::enum_name(pipelineState.blendOpAlpha),
-				pipelineState.colorWriteEnable,
-				magic_enum::enum_name(pipelineState.primitiveTopology),
-				pipelineState.vertexStrides[0],
-				pipelineState.vertexStrides[1],
-				pipelineState.vertexStrides[2],
-				pipelineState.vertexStrides[3],
-				magic_enum::enum_name(pipelineState.renderTargetFormat),
-				magic_enum::enum_name(pipelineState.depthStencilFormat),
-				pipelineState.sampleCount,
-				pipelineState.enableAlphaToCoverage,
-				pipelineState.specConstants)
-				+ g_pipelineDebugText;
-		}
-#endif
-
+		EnqueueGraphicsPipelineCompilation(pipelineState, hash);
+		LOGFN("CreateGraphicsPipeline: PIPELINE MISS hash={:016X}", hash);
 		RecordPipelineState(pipelineState);
 
 #ifdef PSO_CACHING
@@ -7965,17 +7933,28 @@ static void FlushRenderStateForRenderThread()
 
 	if (g_dirtyStates.pipelineState)
 	{
-		commandList->setPipeline(CreateGraphicsPipelineInRenderThread(g_pipelineState));
+		auto pipeline = CreateGraphicsPipelineInRenderThread(g_pipelineState);
+		if (pipeline != nullptr)
+		{
+			commandList->setPipeline(pipeline);
+			g_renderThreadPipelinePending = false;
 
-		// D3D12 resets the depth bias values. Check if they need to be set again.
-		if (g_capabilities.dynamicDepthBias && !g_vulkan)
-			g_dirtyStates.depthBias = (g_depthBias != g_pipelineState.depthBias) || (g_slopeScaledDepthBias != g_pipelineState.slopeScaledDepthBias);
+			// D3D12 resets the depth bias values. Check if they need to be set again.
+			if (g_capabilities.dynamicDepthBias && !g_vulkan)
+			{
+				g_dirtyStates.depthBias = (g_depthBias != g_pipelineState.depthBias) || (g_slopeScaledDepthBias != g_pipelineState.slopeScaledDepthBias);
+			}
+		}
+		else
+		{
+			g_renderThreadPipelinePending = true;
+		}
 	}
 
-
 	if (g_dirtyStates.depthBias && g_capabilities.dynamicDepthBias)
+	{
 		commandList->setDepthBias(g_depthBias, 0.0f, g_slopeScaledDepthBias);
-
+	}
 
 	if (g_dirtyStates.vertexShaderConstants)
 	{
@@ -7986,12 +7965,9 @@ static void FlushRenderStateForRenderThread()
 		}
 		else
 		{
-
 			auto vertexShaderConstants = g_uploadAllocators[g_frame].allocate(g_vertexShaderConstants, sizeof(g_vertexShaderConstants), 0x100);
 			SetRootDescriptor(vertexShaderConstants, 0);
 		}
-
-
 	}
 
 	if (g_dirtyStates.pixelShaderConstants)
@@ -8000,17 +7976,14 @@ static void FlushRenderStateForRenderThread()
 		SetRootDescriptor(pixelShaderConstants, 1);
 	}
 
-
 	if (g_dirtyStates.sharedConstants)
 	{
 		auto sharedConstants = g_uploadAllocators[g_frame].allocate(&g_sharedConstants, sizeof(g_sharedConstants), 0x100);
 		SetRootDescriptor(sharedConstants, 2);
 	}
 
-
 	if (g_dirtyStates.vertexStreamFirst <= g_dirtyStates.vertexStreamLast)
 	{
-
 		commandList->setVertexBuffers(
 			g_dirtyStates.vertexStreamFirst,
 			g_vertexBufferViews + g_dirtyStates.vertexStreamFirst,
@@ -8019,7 +7992,9 @@ static void FlushRenderStateForRenderThread()
 	}
 
 	if (g_dirtyStates.indices && (!g_vulkan || g_indexBufferView.buffer.ref != nullptr))
+	{
 		commandList->setIndexBuffer(&g_indexBufferView);
+	}
 
 	g_dirtyStates = DirtyStates(false);
 }
@@ -8521,6 +8496,11 @@ static void ProcDrawPrimitive(const RenderCommand& cmd)
 	isFixedForRenderThread = args.isFixed;
 	FlushRenderStateForRenderThread();
 
+	if (g_renderThreadPipelinePending)
+	{
+		return;
+	}
+
 	uint32_t primitiveCount = args.primitiveCount;
 	auto& commandList = g_commandLists[g_frame];
 	{
@@ -8643,6 +8623,12 @@ static void ProcDrawIndexedPrimitive(const RenderCommand& cmd)
 	SetPrimitiveType(args.primitiveType);
 	isFixedForRenderThread = args.isFixed;
 	FlushRenderStateForRenderThread();
+
+	if (g_renderThreadPipelinePending)
+	{
+		return;
+	}
+
 	{
 		RtScopeTimer _drawScope(g_rtDrawCallAccum);
 		g_commandLists[g_frame]->drawIndexedInstanced(args.primCount, 1, args.startIndex, args.baseVertexIndex, 0);
@@ -8726,6 +8712,10 @@ static void ProcDrawPrimitiveUP(const RenderCommand& cmd)
 	isFixedForRenderThread = args.isFixed;
 	FlushRenderStateForRenderThread();
 
+	if (g_renderThreadPipelinePending)
+	{
+		return;
+	}
 
 	uint32_t primitiveCount = args.primitiveCount;
 
@@ -9396,7 +9386,7 @@ PipelineCacheSDLEventListener g_pipelineCacheSDLEventListener;
 
 static void ProcessRenderCommand(const RenderCommand& cmd)
 {
-	if (cmd.type != RenderCommandType::DestructResource && !g_commandListOpen)
+	if (cmd.type != RenderCommandType::DestructResource && cmd.type != RenderCommandType::AddPipeline && !g_commandListOpen)
 	{
 		static bool loggedDeferral = false;
 		if (!loggedDeferral)
@@ -9404,7 +9394,6 @@ static void ProcessRenderCommand(const RenderCommand& cmd)
 			loggedDeferral = true;
 			printf("[RenderThread] Deferring stale command. Command list is closed (type=%d)\n", (int)cmd.type);
 		}
-
 		g_deferredRenderCommands.push_back(cmd);
 		return;
 	}
@@ -9435,6 +9424,7 @@ static void ProcessRenderCommand(const RenderCommand& cmd)
 	case RenderCommandType::SetStreamSource: { g_stateChangeCount.fetch_add(1, std::memory_order_relaxed); RtScopeTimer _s(g_rtOtherCmdsAccum); ProcSetStreamSource(cmd); } break;
 	case RenderCommandType::SetIndices: { g_stateChangeCount.fetch_add(1, std::memory_order_relaxed); RtScopeTimer _s(g_rtOtherCmdsAccum); ProcSetIndices(cmd); } break;
 	case RenderCommandType::SetPixelShader: { g_stateChangeCount.fetch_add(1, std::memory_order_relaxed); RtScopeTimer _s(g_rtOtherCmdsAccum); ProcSetPixelShader(cmd); } break;
+	case RenderCommandType::AddPipeline: { ProcAddPipeline(cmd); } break;
 	default:
 		assert(false && "Unrecognized render command type.");
 		break;

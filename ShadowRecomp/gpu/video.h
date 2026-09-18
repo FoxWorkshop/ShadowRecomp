@@ -464,9 +464,6 @@ struct GuestShader : GuestResource
 	std::vector<ComPtr<IDxcBlob>> shaderBlobs;
 	ComPtr<IDxcBlobEncoding> libraryBlob;
 #endif
-#ifdef ASYNC_PSO_DEBUG
-	const char* name = "<unknown>";
-#endif
 };
 
 typedef struct _X_D3DPIXELSHADERDEF
