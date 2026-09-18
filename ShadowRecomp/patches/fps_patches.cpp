@@ -115,10 +115,17 @@ void FpsConfigValueChangedCallback(IConfigDef* config)
 	}
 }
 
+// Set while the jump board patch is replaying a launch collision pass with 60 FPS geometry.
+// See the jump board patch further down
+static int g_launchCollisionPass = 0;
+
 // Pass the first collision sweep @ 0x85420 to run 0x84E50
 // Only enabling for 61+ FPS to avoid the slight camera 'drop' for slide while this is active.
 bool HighFramerateCollisionFixMidAsmHook()
 {
+	if (g_launchCollisionPass > 0)
+		return false;
+
 	return GetTargetFPS() >= 61.0;
 }
 
@@ -1517,13 +1524,15 @@ X86_FUNC(sub_1DD140)
 }
 /** --Catapult (aka Prison Island launch pads) Patch END-- */
 
-/** --Dash Ramp Patch START-- */
+/** --Jump Board Patch START-- */
 
 // Object that launch Shadow far away (far farrrrrr... away!)
-// At higher FPS, collision can move player during a launch in specific stages / area.
-// This seems to happen because Shadow is still on the ground at launch time while the collision code is running faster (> 60 fps)
-// This is enough to affect the launch and can even kill player under specific situation (like in space gadget).
-// We can do a hacky method by adding a grace method where collision will be ignored for the first 1/60 s of launch, essentially matching the timing at 60 fps.
+// Player collision is a swept move, it takes a line from where Shadow was to where he wants to be and
+// checks it consistently. The problem is, above 60 FPS, that line is too short and stays inside the ramp, 
+// so collision consistently pushes Shadow creating some kind of "bump" effect.
+// This can kill player under specific situation (like in space gadget). 
+// We can do a hacky workaround by adding a grace method where collision will be ignored for the first 1/60s of launch, then we can call 
+// the original function once to get the proper destination (like if the game was running at 60 fps).
 // Would be nice to have a better way to fix this, but this is the only idea I had for now.
 
 static constexpr float g_launchGracePeriod = 1.0f / 60.0f;
@@ -1532,6 +1541,10 @@ struct LaunchGrace
 {
 	uint32_t player;
 	float elapsed;
+	float sweepOrigin[3]; // (player+0xD0, which is basically old position)
+	bool originValid;
+	bool replayed;
+	int skipped;
 };
 
 static LaunchGrace g_launchGrace[4] = {};
@@ -1550,8 +1563,10 @@ static LaunchGrace* FindLaunchGrace(uint32_t player)
 }
 
 // This is one of the function used to detect collision 
-// We can trick the game that no collision were found so we can progress fine
+// We can trick the game that no collision were found for the first 1/60 of a second so we can progress
+// Then we run the original code once to store the intended destination
 // Hacky, but this is good enough for now.
+
 X86_FUNC_IMPL(__imp__sub_84E50);
 X86_FUNC(sub_84E50)
 {
@@ -1559,13 +1574,55 @@ X86_FUNC(sub_84E50)
 
 	if (playerData != NULL)
 	{
-		const LaunchGrace* grace = FindLaunchGrace(X86_LOAD_U32(playerData));
+		const uint32_t player = X86_LOAD_U32(playerData);
+		LaunchGrace* grace = FindLaunchGrace(player);
 
-		if (grace != nullptr && grace->elapsed < g_launchGracePeriod - 1.0e-6f)
+		if (grace != nullptr)
 		{
-			ctx.eax.u32 = 0;
-			ctx.AddEsp(1);
-			return;
+			// First pass of this launch will tell us where 60 FPS would start its sweep
+			if (!grace->originValid)
+			{
+				grace->sweepOrigin[0] = X86_LOAD_F32(player + 0xD0);
+				grace->sweepOrigin[1] = X86_LOAD_F32(player + 0xD4);
+				grace->sweepOrigin[2] = X86_LOAD_F32(player + 0xD8);
+				grace->originValid = true;
+			}
+
+			if (grace->elapsed < g_launchGracePeriod - 1.0e-6f)
+			{
+				grace->skipped++;
+				ctx.eax.u32 = 0;
+				ctx.AddEsp(1);
+				return;
+			}
+
+			// Grace just finished and we held passes back, so replay the one pass 60 FPS
+			// would have give us originally. 
+			if (grace->skipped > 0 && !grace->replayed)
+			{
+				grace->replayed = true;
+
+				const float saved[3] =
+				{
+					X86_LOAD_F32(player + 0xD0),
+					X86_LOAD_F32(player + 0xD4),
+					X86_LOAD_F32(player + 0xD8)
+				};
+
+				X86_STORE_F32(player + 0xD0, grace->sweepOrigin[0]);
+				X86_STORE_F32(player + 0xD4, grace->sweepOrigin[1]);
+				X86_STORE_F32(player + 0xD8, grace->sweepOrigin[2]);
+
+				g_launchCollisionPass++;
+				__imp__sub_84E50(ctx, base);
+				g_launchCollisionPass--;
+
+				// restore value (game should overwrite this right after, but just to be safe...)
+				X86_STORE_F32(player + 0xD0, saved[0]);
+				X86_STORE_F32(player + 0xD4, saved[1]);
+				X86_STORE_F32(player + 0xD8, saved[2]);
+				return;
+			}
 		}
 	}
 
@@ -1585,6 +1642,9 @@ X86_FUNC(sub_76DE0)
 
 	grace->player = player;
 	grace->elapsed = 0.0f;
+	grace->originValid = false;
+	grace->replayed = false;
+	grace->skipped = 0;
 
 	__imp__sub_76DE0(ctx, base);
 }
@@ -1620,9 +1680,12 @@ X86_FUNC(sub_76A70)
 	{
 		grace->player = 0;
 		grace->elapsed = 0.0f;
+		grace->originValid = false;
+		grace->replayed = false;
+		grace->skipped = 0;
 	}
 
 	__imp__sub_76A70(ctx, base);
 }
 
-/**	--Dash Ramp Patch END-- */
+/**	--Jump Board Patch END-- */
