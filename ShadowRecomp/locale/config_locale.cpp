@@ -443,7 +443,7 @@ CONFIG_DEFINE_LOCALE(IdleChaosPowersMusic)
 
 CONFIG_DEFINE_LOCALE(ChaosPowerLEDSync)
 {
-    { ELanguage::English, { "Chaos Power LED Sync", "Sync the controller's LED colour with the active Chaos Power." } },
+    { ELanguage::English, { "Chaos Power LED Sync", "Sync the controller's LED color with the active Chaos Power." } },
     { ELanguage::Japanese, { "TODO", "TODO" } },
     { ELanguage::German,   { "TODO", "TODO" } },
     { ELanguage::French,   { "TODO", "TODO" } },
@@ -506,61 +506,72 @@ CONFIG_DEFINE_LOCALE(AspectRatio)
     { ELanguage::Italian,  { "Rapporto d'aspetto", "Modifica il rapporto d'aspetto." } }
 };
 
-// Japanese Notes: This localization should include furigana in its description.
 CONFIG_DEFINE_ENUM_LOCALE(EAspectRatio)
 {
     {
         ELanguage::English,
         {
-            { EAspectRatio::Auto, { "AUTO", "Auto: the aspect ratio will dynamically adjust to the window size." } },
-            { EAspectRatio::Wide, { "16:9", "16:9: locks the game to a widescreen aspect ratio." } },
-            { EAspectRatio::Narrow, { "4:3", "4:3: locks the game to a narrow aspect ratio." } },
-            { EAspectRatio::OriginalNarrow, { "ORIGINAL 4:3", "Original 4:3: locks the game to a narrow aspect ratio and retains parity with the game's original implementation." } }
+            { EAspectRatio::Auto, { "AUTO", "Dynamically adjusts the aspect ratio to the window size." } },
+            { EAspectRatio::Original, { "4:3 (Original)", "The game's original aspect ratio." } },
+            { EAspectRatio::Wide16x9, { "16:9", "Force a 16:9 aspect ratio." } },
+            { EAspectRatio::Wide16x10, { "16:10", "Force a 16:10 aspect ratio." } },
+            { EAspectRatio::Narrow5x4, { "5:4", "Force a 5:4 aspect ratio." } },
+            { EAspectRatio::Wide21x9, { "21:9", "Force a 21:9 aspect ratio." } }
         }
     },
     {
         ELanguage::Japanese,
         {
-            { EAspectRatio::Auto, { "自動", "[自動:じどう]: アスペクト[比:ひ]は\u200Bウィンドウサイズに\u200B[合:あ]わせて\u200B[調整:ちょうせい]されます" } },
-            { EAspectRatio::Wide, { "16:9", "16:9: ワイドスクリーンの\u200Bアスペクト[比:ひ]に\u200B[固定:こてい]されます" } },
-            { EAspectRatio::Narrow, { "4:3", "4:3: ナローの\u200Bアスペクト[比:ひ]に\u200B[固定:こてい]されます" } },
-            { EAspectRatio::OriginalNarrow, { "オリジナル 4:3", "オリジナル 4:3: オリジナルの\u200Bアスペクト[比:ひ]に\u200B[固定:こてい]されます" } }
+            { EAspectRatio::Auto, { "自動", "TODO" } },
+            { EAspectRatio::Original, { "4:3 (Original)", "TODO" } },
+            { EAspectRatio::Wide16x9, { "16:9", "TODO" } },
+            { EAspectRatio::Wide16x10, { "16:10", "TODO" } },
+            { EAspectRatio::Narrow5x4, { "5:4", "TODO" } },
+            { EAspectRatio::Wide21x9, { "21:9", "TODO" } }
         }
     },
     {
         ELanguage::German,
         {
-            { EAspectRatio::Auto, { "AUTO", "Auto: Das Seitenverhältnis passt sich automatisch der Fenstergröße an." } },
-            { EAspectRatio::Wide, { "16:9", "16:9: Stellt das Spiel in einem Breitbildschirm-Format dar." } },
-            { EAspectRatio::Narrow, { "4:3", "4:3: Stellt das Spiel in einem Mittel-Format dar." } },
-            { EAspectRatio::OriginalNarrow, { "ORIGINAL 4:3", "Original 4:3: Stellt das Spiel in einem Mittel-Format dar, was der ursprünglichen Implementation originalgetreut bleibt." } }
+            { EAspectRatio::Auto, { "AUTO", "TODO" } },
+            { EAspectRatio::Original, { "4:3 (Original)", "TODO" } },
+            { EAspectRatio::Wide16x9, { "16:9", "TODO" } },
+            { EAspectRatio::Wide16x10, { "16:10", "TODO" } },
+            { EAspectRatio::Narrow5x4, { "5:4", "TODO" } },
+            { EAspectRatio::Wide21x9, { "21:9", "TODO" } }
         }
     },
     {
         ELanguage::French,
         {
-            { EAspectRatio::Auto, { "AUTO", "Auto : le format d'image s'adapte automatiquement à la taille de la fenêtre." } },
-            { EAspectRatio::Wide, { "16:9", "16:9 : force le jeu sur un format d'image large." } },
-            { EAspectRatio::Narrow, { "4:3", "4:3 : force le jeu sur un format d'image carré." } },
-            { EAspectRatio::OriginalNarrow, { "4:3 ORIGINAL", "4:3 original : force le jeu à un format d'image carré et conserve la parité avec l'implémentation d'origine du jeu." } }
+            { EAspectRatio::Auto, { "AUTO", "TODO" } },
+            { EAspectRatio::Original, { "4:3 (Original)", "TODO" } },
+            { EAspectRatio::Wide16x9, { "16:9", "TODO" } },
+            { EAspectRatio::Wide16x10, { "16:10", "TODO" } },
+            { EAspectRatio::Narrow5x4, { "5:4", "TODO" } },
+            { EAspectRatio::Wide21x9, { "21:9", "TODO" } }
         }
     },
     {
         ELanguage::Spanish,
         {
-            { EAspectRatio::Auto, { "AUTO", "Auto: la relación de aspecto se ajusta de forma dinámica al tamaño de la ventana." } },
-            { EAspectRatio::Wide, { "16:9", "16:9: muestra el juego en relación de aspecto de pantalla ancha." } },
-            { EAspectRatio::Narrow, { "4:3", "4:3: muestra el juego en relación de aspecto de pantalla estrecha." } },
-            { EAspectRatio::OriginalNarrow, { "ORIGINAL 4:3", "Original 4:3: muestra el juego en relación de aspecto de pantalla estrecha y mantiene paridad con la implementación original del juego." } }
+            { EAspectRatio::Auto, { "AUTO", "TODO" } },
+            { EAspectRatio::Original, { "4:3 (Original)", "TODO" } },
+            { EAspectRatio::Wide16x9, { "16:9", "TODO" } },
+            { EAspectRatio::Wide16x10, { "16:10", "TODO" } },
+            { EAspectRatio::Narrow5x4, { "5:4", "TODO" } },
+            { EAspectRatio::Wide21x9, { "21:9", "TODO" } }
         }
     },
     {
         ELanguage::Italian,
         {
-            { EAspectRatio::Auto, { "AUTO", "Auto: il rapporto d'aspetto verra cambiato automaticamente in base alle dimensioni della finestra." } },
-            { EAspectRatio::Wide, { "16:9", "16:9: blocca il gioco a un rapporto d'aspetto widescreen." } },
-            { EAspectRatio::Narrow, { "4:3", "4:3: blocca il gioco a un rapporto d'aspetto stretto." } },
-            { EAspectRatio::OriginalNarrow, { "4:3 ORIGINALE", "4:3 Originale: blocca il gioco a un rapporto d'aspetto stretto e mantiene la parità con l'implementazione originale del gioco." } }
+            { EAspectRatio::Auto, { "AUTO", "TODO" } },
+            { EAspectRatio::Original, { "4:3 (Originale)", "TODO" } },
+            { EAspectRatio::Wide16x9, { "16:9", "TODO" } },
+            { EAspectRatio::Wide16x10, { "16:10", "TODO" } },
+            { EAspectRatio::Narrow5x4, { "5:4", "TODO" } },
+            { EAspectRatio::Wide21x9, { "21:9", "TODO" } }
         }
     }
 };

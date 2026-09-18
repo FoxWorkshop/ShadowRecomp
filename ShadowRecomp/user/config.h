@@ -72,9 +72,11 @@ enum class EGraphicsAPI : uint32_t
 enum class EAspectRatio : uint32_t
 {
     Auto,
-    Wide,
-    Narrow,
-    OriginalNarrow
+    Original,
+    Wide16x9,
+    Wide16x10,
+    Narrow5x4,
+    Wide21x9
 };
 
 enum class EWindowState : uint32_t
