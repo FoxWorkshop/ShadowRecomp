@@ -670,16 +670,34 @@ static void DrawOption
 
 
 
-			if (isSelected)
+		if (isSelected)
+		{
+			auto increment = g_right;
+			auto decrement = g_left;
+
+			if (increment || decrement)
+				g_lastTappedTime = ImGui::GetTime();
+
+			if constexpr (std::is_same_v<T, int32_t>)
 			{
-				auto increment = g_right;
-				auto decrement = g_left;
+				if (config == &Config::FPS)
+				{
+					if (PJSPeripheral::IsJustPressed(0, PJSPeripheral::BTN_WHITE | PJSPeripheral::BTN_LEFT_TRIG))
+					{
+						Game_PlaySound("cursor");
+						config->Value = std::clamp(config->Value - 30, valueMin, valueMax);
+						FpsConfigValueChangedCallback(config);
+					}
+					else if (PJSPeripheral::IsJustPressed(0, PJSPeripheral::BTN_BLACK | PJSPeripheral::BTN_RIGHT_TRIG))
+					{
+						Game_PlaySound("cursor");
+						config->Value = std::clamp(config->Value + 30, valueMin, valueMax);
+						FpsConfigValueChangedCallback(config);
+					}
+				}
+			}
 
-				if (increment || decrement)
-					g_lastTappedTime = ImGui::GetTime();
-
-
-				if constexpr (std::is_enum_v<T>)
+			if constexpr (std::is_enum_v<T>)
 				{
 					auto it = config->EnumTemplateReverse.find(config->Value);
 
@@ -704,7 +722,6 @@ static void DrawOption
 					if (increment || decrement)
 					{
 						//setValueDescription();
-
 
 						Game_PlaySound("cursor");
 
@@ -1652,51 +1669,44 @@ void OptionsMenu::Draw()
 
 	case OptionsMenuState::Idle:
 	{
-		//if (s_commonMenu.IsOpen())
+		if (auto pInputState = PJSPeripheral::GetControllerSlot(0))
 		{
-			if (auto pInputState = PJSPeripheral::GetControllerSlot(0))
-			{
+			if (PJSPeripheral::IsHeld(0, PJSPeripheral::BTN_DPAD_UP) || -pInputState->leftY > 0.5f)
+				upIsHeld = true;
 
+			if (!g_upWasHeld && upIsHeld)
+				g_up = true;
 
-				if (PJSPeripheral::IsHeld(0, PJSPeripheral::BTN_DPAD_UP) || -pInputState->leftY > 0.5f)
-					upIsHeld = true;
+			if (PJSPeripheral::IsHeld(0, PJSPeripheral::BTN_DPAD_DOWN) || -pInputState->leftY < -0.5f)
+				downIsHeld = true;
 
-				if (!g_upWasHeld && upIsHeld)
-					g_up = true;
+			if (!g_downWasHeld && downIsHeld)
+				g_down = true;
 
-				if (PJSPeripheral::IsHeld(0, PJSPeripheral::BTN_DPAD_DOWN) || -pInputState->leftY < -0.5f)
-					downIsHeld = true;
+			if (PJSPeripheral::IsHeld(0, PJSPeripheral::BTN_DPAD_LEFT) || -pInputState->leftX > 0.5f)
+				leftIsHeld = true;
 
-				if (!g_downWasHeld && downIsHeld)
-					g_down = true;
+			if (!g_leftWasHeld && leftIsHeld)
+				g_left = true;
 
-				if (PJSPeripheral::IsHeld(0, PJSPeripheral::BTN_DPAD_LEFT) || -pInputState->leftX > 0.5f)
-					leftIsHeld = true;
+			if (PJSPeripheral::IsHeld(0, PJSPeripheral::BTN_DPAD_RIGHT) || -pInputState->leftX < -0.5f)
+				rightIsHeld = true;
 
-				if (!g_leftWasHeld && leftIsHeld)
-					g_left = true;
+			if (!g_rightWasHeld && rightIsHeld)
+				g_right = true;
 
-				if (PJSPeripheral::IsHeld(0, PJSPeripheral::BTN_DPAD_RIGHT) || -pInputState->leftX < -0.5f)
-					rightIsHeld = true;
+			if (PJSPeripheral::IsJustPressed(0, PJSPeripheral::BTN_A) || PJSPeripheral::IsJustPressed(0, PJSPeripheral::BTN_START))
+				g_isAccepted = true;
 
-				if (!g_rightWasHeld && rightIsHeld)
-					g_right = true;
+			if (PJSPeripheral::IsJustPressed(0, PJSPeripheral::BTN_B) || PJSPeripheral::IsJustPressed(0, PJSPeripheral::BTN_Y))
+				g_isDeclined = true;
 
-				if (PJSPeripheral::IsJustPressed(0, PJSPeripheral::BTN_A) || PJSPeripheral::IsJustPressed(0, PJSPeripheral::BTN_START))
-					g_isAccepted = true;
+			if (PJSPeripheral::IsJustPressed(0, PJSPeripheral::BTN_Y))
+				g_isLeaving = true;
 
-				if (PJSPeripheral::IsJustPressed(0, PJSPeripheral::BTN_B) || PJSPeripheral::IsJustPressed(0, PJSPeripheral::BTN_Y))
-					g_isDeclined = true;
-
-				if (PJSPeripheral::IsJustPressed(0, PJSPeripheral::BTN_Y))
-					g_isLeaving = true;
-
-				if (PJSPeripheral::IsJustPressed(0, PJSPeripheral::BTN_X))
-					g_isReset = true;
-			}
+			if (PJSPeripheral::IsJustPressed(0, PJSPeripheral::BTN_X))
+				g_isReset = true;
 		}
-
-
 		break;
 	}
 
@@ -1714,7 +1724,6 @@ void OptionsMenu::Draw()
 			{
 				GameMenuCommon::g_OptionsOpen = false;
 			}
-
 			s_isVisible = false;
 		}
 		break;
