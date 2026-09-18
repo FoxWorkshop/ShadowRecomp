@@ -155,8 +155,8 @@ public:
 		pad.wButtons |= TRANSLATE_INPUT(SDL_CONTROLLER_BUTTON_LEFTSTICK, XINPUT_GAMEPAD_LEFT_THUMB);
 		pad.wButtons |= TRANSLATE_INPUT(SDL_CONTROLLER_BUTTON_RIGHTSTICK, XINPUT_GAMEPAD_RIGHT_THUMB);
 
-		pad.bAnalogButtons[Buttons_White] = TRANSLATE_INPUT(SDL_CONTROLLER_BUTTON_LEFTSHOULDER, XINPUT_GAMEPAD_LEFT_SHOULDER);
-		pad.bAnalogButtons[Buttons_Black] = TRANSLATE_INPUT(SDL_CONTROLLER_BUTTON_RIGHTSHOULDER, XINPUT_GAMEPAD_RIGHT_SHOULDER);
+		pad.bAnalogButtons[Buttons_White] = SDL_GameControllerGetButton(controller, SDL_CONTROLLER_BUTTON_LEFTSHOULDER) ? 0xFF : 0;
+		pad.bAnalogButtons[Buttons_Black] = SDL_GameControllerGetButton(controller, SDL_CONTROLLER_BUTTON_RIGHTSHOULDER) ? 0xFF : 0;
 		pad.bAnalogButtons[Buttons_A] = SDL_GameControllerGetButton(controller, SDL_CONTROLLER_BUTTON_A) ? 0xFF : 0;
 		pad.bAnalogButtons[Buttons_B] = SDL_GameControllerGetButton(controller, SDL_CONTROLLER_BUTTON_B) ? 0xFF : 0;
 		pad.bAnalogButtons[Buttons_X] = SDL_GameControllerGetButton(controller, SDL_CONTROLLER_BUTTON_X) ? 0xFF : 0;
