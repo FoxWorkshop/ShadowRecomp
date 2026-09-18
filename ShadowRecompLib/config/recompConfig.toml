@@ -1307,3 +1307,8 @@ jump_address_on_true = 0x8EA63
 name = "BombingWallBreakMidAsmHook"
 address = 0x222451
 registers = ["r2"]
+
+[[midasm_hook]]
+name = "ExpertSelectMidAsmHook"
+address = 0x25862B
+registers = ["r3"]

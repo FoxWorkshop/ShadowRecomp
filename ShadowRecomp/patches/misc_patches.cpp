@@ -2,6 +2,7 @@
 #include <kernel/function.h>
 #include <user/config.h>
 #include <patches/global.h>
+#include <input/padstate.h>
 
 
 // Patch out logs Artificial Chaos can spew (causes crashes)
@@ -307,4 +308,17 @@ char* TOneFileCheckFileName(TOneFile* this_, int32_t index)
 		result = 0;
 
 	return result;
+}
+
+// Expert Select (port of Reloaded v1.2 version)
+// TODO: Do we want this in base, or as Reloaded only?
+// TODO: Note we should probably switch to Zetti's version before release
+// This one can apply to Story Mode too
+void ExpertSelectMidAsmHook(X86Register& edx)
+{
+	if (PJSPeripheral::IsHeld(0, PJSPeripheral::BTN_X))
+	{
+		auto base = g_memory.base;
+		X86_STORE_U8(edx.u32 + 0x59, 1);
+	}
 }
