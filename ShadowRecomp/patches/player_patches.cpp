@@ -4,6 +4,7 @@
 #include <app.h>
 #include <sdl_events.h>
 #include <input/input.h>
+#include <input/padstate.h>
 #include "global.h"
 
 PlayerShadow* playerPtr[4] = {};
@@ -171,4 +172,36 @@ void JetEffectRestoreFourthFlameMidAsmHook(X86Register& esi)
 			X86_STORE_U32(jet + 0x68, clone);
 		}
 	}
+}
+
+// CreateBehavior (all player actions)
+//
+// Table of all PlayerBehavior @ 0x4EEE58
+// 0x6 = JumpDash
+// 0x8 = HomingAttack
+// TODO: We will extend this further to enable state transitions like SpinDash->Slide etc in the future\
+// TODO: Probably move this to ReloadedPatches later, but for now keep it in
+X86_FUNC_IMPL(__imp__sub_977D0);
+X86_FUNC(sub_977D0)
+{
+	// esp+8 = BehaviorId
+	// ecx+4 = PlayerStruct targetted by Behavior
+	if (X86_LOAD_U32(ctx.esp.u32 + 8) == 8) // HomingAttack
+	{
+		uint32_t player = X86_LOAD_U32(ctx.ecx.u32 + 4);
+		for (uint32_t i = 0; i < 4; i++) // Checking player structs 1-4 TODO: Maybe grab the extended multiplayer value later?
+		{
+			if (g_playerStructAddrs[i] == player)
+			{
+				// TODO: Account for this if we do Action remapping; Input remapping should be fine to auto handle this
+				if (PJSPeripheral::IsHeld(i, PJSPeripheral::BTN_LEFT_TRIG) ||
+					PJSPeripheral::IsHeld(i, PJSPeripheral::BTN_WHITE))
+				{
+					X86_STORE_U32(ctx.esp.u32 + 8, 6); // Change target Behavior to JumpDash
+				}
+				break;
+			}
+		}
+	}
+	__imp__sub_977D0(ctx, base);
 }
