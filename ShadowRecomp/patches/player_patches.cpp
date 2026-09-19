@@ -11,8 +11,6 @@ PlayerShadow* playerPtr[4] = {};
 RwV3d* playerPos[4] = {};
 bool isAwakeAboutToInvoke = false;
 uint32_t g_playerStructAddrs[4] = {};
-static uint32_t s_playerSlotIndex = 0;
-static uint32_t s_knownCount = 0;
 
 void TeleportPlayersToP1()
 {
@@ -56,61 +54,66 @@ X86_FUNC(sub_8E9A0)
 	App::s_chaosMode = ELedAura::LED_AURA_NEUTRAL;
 }
 
+// Player ctor
 X86_FUNC_IMPL(__imp__sub_96AD0);
 X86_FUNC(sub_96AD0)
 {
 	auto playerAddr = ctx.ecx.u32;
 	__imp__sub_96AD0(ctx, base);
-
-	uint32_t slot = UINT32_MAX;
-
-	for (uint32_t i = 0; i < s_knownCount; i++)
+	int slot = -1;
+	int freeSlot = -1;
+	for (uint32_t i = 0; i < 4; i++)
 	{
+		// This should never happen (ctor on level init)
+		// But just incase (maybe something weird with extended multiplayer / events later)
 		if (g_playerStructAddrs[i] == playerAddr)
 		{
 			slot = i;
 			break;
 		}
+
+		if (g_playerStructAddrs[i] == 0 && freeSlot == -1)
+		{
+			freeSlot = i;
+		}
 	}
 
-	if (slot == UINT32_MAX)
+	if (slot == -1)
 	{
-		bool foundAny = false;
-		for (uint32_t i = 0; i < s_knownCount; i++)
-		{
-			if (g_playerStructAddrs[i] != 0)
-			{
-				foundAny = true;
-				break;
-			}
-		}
-
-		if (foundAny && s_knownCount >= g_multiplayerPlayerCount)
-		{
-			memset(g_playerStructAddrs, 0, sizeof(g_playerStructAddrs));
-			for (uint32_t i = 0; i < 4; i++)
-			{
-				playerPtr[i] = nullptr;
-				playerPos[i] = nullptr;
-			}
-			s_knownCount = 0;
-		}
-
-		slot = s_knownCount++;
+		slot = freeSlot;
 	}
 
-	s_playerSlotIndex = (slot + 1) % g_multiplayerPlayerCount;
-	g_playerStructAddrs[slot] = playerAddr;
+	if (slot == -1) // exit early (only track 4 slots)
+	{
+		return;
+	}
 
+	g_playerStructAddrs[slot] = playerAddr;
 	playerPtr[slot] = (PlayerShadow*)X86_LOAD_U32(playerAddr);
 	playerPos[slot] = (RwV3d*)g_memory.Translate(playerAddr + 4);
-#ifdef _DEBUG
 	printf("Player Slot %u Pointer %llx\n", slot, (intptr_t)playerPtr[slot]);
 	printf("Player Slot %u Pos Ptr %llx\n", slot, (intptr_t)playerPos[slot]);
-	printf("Last Shadow Pos x Ptr %llx\n", (intptr_t)&playerPos[slot]->x);
-	printf("Last Shadow Pos y Ptr %llx\n", (intptr_t)&playerPos[slot]->y);
-	printf("Last Shadow Pos z Ptr %llx\n", (intptr_t)&playerPos[slot]->z);
-#endif
+}
+
+// Player dtor @ sub_97320 (not this func)
+// Player ptr ctor created passed to sub_96B50 (this func), use to mark destroyed players
+X86_FUNC_IMPL(__imp__sub_96B50);
+X86_FUNC(sub_96B50)
+{
+	auto playerAddr = ctx.ecx.u32;
+	__imp__sub_96B50(ctx, base);
+
+	for (uint32_t i = 0; i < 4; i++)
+	{
+		if (g_playerStructAddrs[i] == playerAddr)
+		{
+			g_playerStructAddrs[i] = 0;
+			playerPtr[i] = nullptr;
+			playerPos[i] = nullptr;
+			printf("Player Slot %u Destroyed %x\n", i, playerAddr);
+			break;
+		}
+	}
 }
 
 //edit this if you want to set a specific start position for the player
