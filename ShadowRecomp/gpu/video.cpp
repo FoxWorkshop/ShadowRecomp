@@ -6173,16 +6173,26 @@ static void ProcUnlockTextureRect(const RenderCommand& cmd)
 	CopyDynamicTextureToGPU(args.texture);
 }
 
+// The two CRI ADX service threads that tick on the vblank
+static constexpr uint32_t ADXM_VSYNC_THREAD = 0x3291E0;
+static constexpr uint32_t ADXM_FS_THREAD = 0x329260;
+
 // This function is needed for ADX and FMV decoding, as they rely on the vblank
 // timing to update their buffers. We fake a vblank signal at the target
 // framerate; sleep-only pacing keeps the decoding threads off the CPU.
+//
+// ADX servers are the exception and must stay at 60 Hz: mwlRnaInsrtSlntDat (0x331300) is capped at 
+// 1024 frames a call, so below ~43 FPS it cannot keep up with 44100 Hz.
 void CRI_BlockUntilVerticalBlank()
 {
 	// Per-thread pacer: each decoding thread holds its own vblank phase, and
 	// the pacer's oversleep compensation keeps the period drift-free.
 	thread_local FramePacer vblankPacer;
 
-	vblankPacer.SetFpsLimit(GetTargetFPS());
+	const uint32_t entry = GuestThread::GetCurrentThreadEntry();
+	const bool isAdxServiceThread = entry == ADXM_VSYNC_THREAD || entry == ADXM_FS_THREAD;
+
+	vblankPacer.SetFpsLimit(isAdxServiceThread ? 60.0 : GetTargetFPS());
 	vblankPacer.EndFrame(FramePacer::WaitMode::SleepOnly);
 }
 

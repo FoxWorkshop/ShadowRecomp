@@ -47,6 +47,8 @@ struct GuestThread
     static GuestThreadHandle* Start(const GuestThreadParams& params, uint32_t* threadId);
 
     static uint32_t GetCurrentThreadId();
+
+    static uint32_t GetCurrentThreadEntry();
     //static void SetLastError(uint32_t error);
 
 #ifdef _WIN32

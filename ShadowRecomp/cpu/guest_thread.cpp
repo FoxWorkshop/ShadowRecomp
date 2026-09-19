@@ -310,10 +310,18 @@ uint32_t GuestThread::GetCurrentThreadId()
 	return GetThreadId(std::this_thread::get_id());
 }
 
+static thread_local uint32_t g_currentThreadEntry = 0;
+
+uint32_t GuestThread::GetCurrentThreadEntry()
+{
+	return g_currentThreadEntry;
+}
+
 uint32_t GuestThread::Start(const GuestThreadParams& params)
 {
 
 	//const auto procMask = (uint8_t)(params.flags >> 24);
+	g_currentThreadEntry = params.function;
 	GuestThreadContext ctx(params);
 
 	//ctx.x86Context.esp.u32 = (ctx.x86Context.esp.u32 - 16) & ~0xF;
