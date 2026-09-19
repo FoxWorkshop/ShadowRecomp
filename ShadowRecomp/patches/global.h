@@ -51,17 +51,10 @@ struct WeightedMesh
 
 typedef RwMatrixTag RwMatrix;
 
-struct PlayerShadow
-{
-	int32_t vfTable;
-	int32_t pos;
-};
-
-extern PlayerShadow* playerPtr[4];
-extern RwV3d* playerPos[4];
-extern uint32_t g_multiplayerPlayerCount;
 extern bool isAwakeAboutToInvoke;
+extern uint32_t g_multiplayerPlayerCount;
 extern uint32_t g_playerStructAddrs[4];
+RwV3d* GetPlayerPos(uint32_t slot);
 
 struct RwObject
 {

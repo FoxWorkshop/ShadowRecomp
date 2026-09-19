@@ -1,33 +1,36 @@
 #include <kernel/function.h>
-#include <ui/game_window.h>
-#include <user/config.h>
 #include <app.h>
 #include <sdl_events.h>
 #include <input/input.h>
 #include <input/padstate.h>
 #include "global.h"
 
-PlayerShadow* playerPtr[4] = {};
-RwV3d* playerPos[4] = {};
-bool isAwakeAboutToInvoke = false;
 uint32_t g_playerStructAddrs[4] = {};
+bool isAwakeAboutToInvoke = false;
+
+RwV3d* GetPlayerPos(uint32_t slot)
+{
+	return g_playerStructAddrs[slot] != 0 ? (RwV3d*)g_memory.Translate(g_playerStructAddrs[slot] + 4) : nullptr;
+}
 
 void TeleportPlayersToP1()
 {
 	static bool s_f5Held = false;
 	bool f5 = SDL_GetKeyboardState(nullptr)[SDL_SCANCODE_F5] != 0;
-	if (f5 && !s_f5Held && playerPos[0])
+	RwV3d* p1Pos = GetPlayerPos(0);
+	if (f5 && !s_f5Held && p1Pos)
 	{
-		float x = playerPos[0]->x;
-		float y = playerPos[0]->y;
-		float z = playerPos[0]->z;
+		float x = p1Pos->x;
+		float y = p1Pos->y;
+		float z = p1Pos->z;
 		for (uint32_t i = 1; i < g_multiplayerPlayerCount; i++)
 		{
-			if (playerPos[i])
+			RwV3d* pos = GetPlayerPos(i);
+			if (pos)
 			{
-				playerPos[i]->x = x;
-				playerPos[i]->y = y;
-				playerPos[i]->z = z;
+				pos->x = x;
+				pos->y = y;
+				pos->z = z;
 			}
 		}
 	}
@@ -89,10 +92,7 @@ X86_FUNC(sub_96AD0)
 	}
 
 	g_playerStructAddrs[slot] = playerAddr;
-	playerPtr[slot] = (PlayerShadow*)X86_LOAD_U32(playerAddr);
-	playerPos[slot] = (RwV3d*)g_memory.Translate(playerAddr + 4);
-	printf("Player Slot %u Pointer %llx\n", slot, (intptr_t)playerPtr[slot]);
-	printf("Player Slot %u Pos Ptr %llx\n", slot, (intptr_t)playerPos[slot]);
+	printf("Player Slot %u Struct %x Ptr %llx\n", slot, playerAddr, (intptr_t)GetPlayerPos(slot));
 }
 
 // Player dtor @ sub_97320 (not this func)
@@ -108,8 +108,6 @@ X86_FUNC(sub_96B50)
 		if (g_playerStructAddrs[i] == playerAddr)
 		{
 			g_playerStructAddrs[i] = 0;
-			playerPtr[i] = nullptr;
-			playerPos[i] = nullptr;
 			printf("Player Slot %u Destroyed %x\n", i, playerAddr);
 			break;
 		}
@@ -127,11 +125,12 @@ X86_FUNC(sub_90D10)
 
 	TeleportPlayersToP1();
 
-	if (playerPos[0] && !oncePos && mode == 2)
+	RwV3d* p1Pos = GetPlayerPos(0);
+	if (p1Pos && !oncePos && mode == 2)
 	{
-		/**playerPos[0]->x = 6.004902;
-		playerPos[0]->y = -494.980072;
-		playerPos[0]->z = -411.312012;
+		/**p1Pos->x = 6.004902;
+		p1Pos->y = -494.980072;
+		p1Pos->z = -411.312012;
 		oncePos = true;*/
 	}
 }

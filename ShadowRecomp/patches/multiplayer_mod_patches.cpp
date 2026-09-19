@@ -13,11 +13,10 @@ X86_FUNC(sub_12700)
 	{
 		for (uint32_t i = 1; i < g_multiplayerPlayerCount && ctx.eax.u8_lo == 0; i++)
 		{
-			if (!playerPos[i])
+			if (!GetPlayerPos(i))
 				continue;
 			ctx = beforeCTX;
-			auto playerPosGuest = g_memory.MapVirtual(playerPos[i]);
-			X86_STORE_U32(ctx.esp.u32 + 12, playerPosGuest);
+			X86_STORE_U32(ctx.esp.u32 + 12, g_playerStructAddrs[i] + 4);
 			__imp__sub_12700(ctx, base);
 		}
 	}
@@ -584,12 +583,13 @@ X86_FUNC(sub_2595A0)
 
 		for (uint32_t i = 2; i < g_multiplayerPlayerCount; i++)
 		{
-			if (!playerPos[i])
+			RwV3d* pos = GetPlayerPos(i);
+			if (!pos)
 				continue;
 
-			float dx = objX - playerPos[i]->x;
-			float dy = objY - playerPos[i]->y;
-			float dz = objZ - playerPos[i]->z;
+			float dx = objX - pos->x;
+			float dy = objY - pos->y;
+			float dz = objZ - pos->z;
 			float distSq = dx * dx + dy * dy + dz * dz;
 
 			if (distSq < thresholdSq)
@@ -618,12 +618,13 @@ X86_FUNC(sub_181F80)
 
 		for (uint32_t i = 2; i < g_multiplayerPlayerCount; i++)
 		{
-			if (!playerPos[i])
+			RwV3d* pos = GetPlayerPos(i);
+			if (!pos)
 				continue;
 
-			float dx = objX - playerPos[i]->x;
-			float dy = objY - playerPos[i]->y;
-			float dz = objZ - playerPos[i]->z;
+			float dx = objX - pos->x;
+			float dy = objY - pos->y;
+			float dz = objZ - pos->z;
 
 			if (thresholdSq > (dx * dx + dy * dy + dz * dz))
 			{
