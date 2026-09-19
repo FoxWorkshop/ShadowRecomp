@@ -344,7 +344,7 @@ CONFIG_DEFINE_ENUM_TEMPLATE(EUIAlignmentMode)
 {
     { "Edge", EUIAlignmentMode::Edge },
     { "Center",  EUIAlignmentMode::Centre },
-    { "Stretch",  EUIAlignmentMode::Stretch }
+    //{ "Stretch",  EUIAlignmentMode::Stretch } removed for now we will see if we restore it
 };
 
 
