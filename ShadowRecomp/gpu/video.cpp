@@ -6178,11 +6178,11 @@ static constexpr uint32_t ADXM_VSYNC_THREAD = 0x3291E0;
 static constexpr uint32_t ADXM_FS_THREAD = 0x329260;
 
 // This function is needed for ADX and FMV decoding, as they rely on the vblank
-// timing to update their buffers. We fake a vblank signal at the target
-// framerate; sleep-only pacing keeps the decoding threads off the CPU.
+// timing to update their buffers. We fake a vblank signal; sleep-only pacing
+// keeps the decoding threads off the CPU.
 //
 // ADX servers are the exception and must stay at 60 Hz: mwlRnaInsrtSlntDat (0x331300) is capped at 
-// 1024 frames a call, so below ~43 FPS it cannot keep up with 44100 Hz.
+// 1024 frames a call, so below ~43 FPS it cannot keep up with 44100 Hz. 
 void CRI_BlockUntilVerticalBlank()
 {
 	// Per-thread pacer: each decoding thread holds its own vblank phase, and
@@ -6192,7 +6192,9 @@ void CRI_BlockUntilVerticalBlank()
 	const uint32_t entry = GuestThread::GetCurrentThreadEntry();
 	const bool isAdxServiceThread = entry == ADXM_VSYNC_THREAD || entry == ADXM_FS_THREAD;
 
-	vblankPacer.SetFpsLimit(isAdxServiceThread ? 60.0 : GetTargetFPS());
+	const double vblankHz = std::max(GetTargetFPS(), 60.0); // account for both FMV at 30 fps and higher than 60
+
+	vblankPacer.SetFpsLimit(isAdxServiceThread ? 60.0 : vblankHz);
 	vblankPacer.EndFrame(FramePacer::WaitMode::SleepOnly);
 }
 
