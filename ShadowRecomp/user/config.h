@@ -107,6 +107,13 @@ enum class ETextureFiltering : uint32_t
 };
 
 
+enum class EFMVAspectRatio : uint32_t
+{
+    Stretched,
+    Fit,
+    Fill
+};
+
 enum class EUIAlignmentMode : uint32_t
 {
     Edge,

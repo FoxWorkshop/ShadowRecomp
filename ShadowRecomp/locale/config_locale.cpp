@@ -577,6 +577,70 @@ CONFIG_DEFINE_ENUM_LOCALE(EAspectRatio)
 };
 
 // Japanese Notes: This localization should include furigana.
+CONFIG_DEFINE_LOCALE(FMVAspectRatio)
+{
+    { ELanguage::English,  { "FMV Aspect Ratio", "Change how full motion videos fit the display." } },
+    { ELanguage::Japanese, { "FMV Aspect Ratio", "Change how full motion videos fit the display." } },
+    { ELanguage::German,   { "FMV Aspect Ratio", "Change how full motion videos fit the display." } },
+    { ELanguage::French,   { "FMV Aspect Ratio", "Change how full motion videos fit the display." } },
+    { ELanguage::Spanish,  { "FMV Aspect Ratio", "Change how full motion videos fit the display." } },
+    { ELanguage::Italian,  { "FMV Aspect Ratio", "Change how full motion videos fit the display." } }
+};
+
+// Japanese Notes: This localization should include furigana in its description.
+CONFIG_DEFINE_ENUM_LOCALE(EFMVAspectRatio)
+{
+    {
+        ELanguage::English,
+        {
+            { EFMVAspectRatio::Stretched, { "STRETCHED", "Stretched: the video is stretched to fill the display, as the original game does." } },
+            { EFMVAspectRatio::Fit,       { "FIT", "Fit: the video keeps its original shape and black bars fill the rest of the display." } },
+            { EFMVAspectRatio::Fill,      { "FILL", "Fill: the video keeps its original shape and is cropped to fill the display." } }
+        }
+    },
+    {
+        ELanguage::Japanese,
+        {
+            { EFMVAspectRatio::Stretched, { "STRETCHED", "Stretched: the video is stretched to fill the display, as the original game does." } },
+            { EFMVAspectRatio::Fit,       { "FIT", "Fit: the video keeps its original shape and black bars fill the rest of the display." } },
+            { EFMVAspectRatio::Fill,      { "FILL", "Fill: the video keeps its original shape and is cropped to fill the display." } }
+        }
+    },
+    {
+        ELanguage::German,
+        {
+            { EFMVAspectRatio::Stretched, { "STRETCHED", "Stretched: the video is stretched to fill the display, as the original game does." } },
+            { EFMVAspectRatio::Fit,       { "FIT", "Fit: the video keeps its original shape and black bars fill the rest of the display." } },
+            { EFMVAspectRatio::Fill,      { "FILL", "Fill: the video keeps its original shape and is cropped to fill the display." } }
+        }
+    },
+    {
+        ELanguage::French,
+        {
+            { EFMVAspectRatio::Stretched, { "STRETCHED", "Stretched: the video is stretched to fill the display, as the original game does." } },
+            { EFMVAspectRatio::Fit,       { "FIT", "Fit: the video keeps its original shape and black bars fill the rest of the display." } },
+            { EFMVAspectRatio::Fill,      { "FILL", "Fill: the video keeps its original shape and is cropped to fill the display." } }
+        }
+    },
+    {
+        ELanguage::Spanish,
+        {
+            { EFMVAspectRatio::Stretched, { "STRETCHED", "Stretched: the video is stretched to fill the display, as the original game does." } },
+            { EFMVAspectRatio::Fit,       { "FIT", "Fit: the video keeps its original shape and black bars fill the rest of the display." } },
+            { EFMVAspectRatio::Fill,      { "FILL", "Fill: the video keeps its original shape and is cropped to fill the display." } }
+        }
+    },
+    {
+        ELanguage::Italian,
+        {
+            { EFMVAspectRatio::Stretched, { "STRETCHED", "Stretched: the video is stretched to fill the display, as the original game does." } },
+            { EFMVAspectRatio::Fit,       { "FIT", "Fit: the video keeps its original shape and black bars fill the rest of the display." } },
+            { EFMVAspectRatio::Fill,      { "FILL", "Fill: the video keeps its original shape and is cropped to fill the display." } }
+        }
+    }
+};
+
+// Japanese Notes: This localization should include furigana.
 CONFIG_DEFINE_LOCALE(ResolutionScale)
 {
     { ELanguage::English, { "Resolution Scale", "Adjust the internal resolution of the game.\n\n" } },

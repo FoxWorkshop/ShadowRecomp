@@ -137,6 +137,7 @@ set(SHADOW_RECOMP_HID_CXX_SOURCES
 set(SHADOW_RECOMP_PATCHES_CXX_SOURCES
     "patches/start_patches.cpp"
     "patches/bloom_patches.cpp"
+    "patches/fmv_patches.cpp"
     "patches/multi_core_patches.cpp"
     "patches/aspect_ratio_patches.cpp"
     "patches/audio_patches.cpp"

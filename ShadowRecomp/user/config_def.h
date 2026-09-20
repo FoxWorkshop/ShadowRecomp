@@ -63,6 +63,7 @@ CONFIG_DEFINE("Video", int32_t, WindowHeight, 480, false);
 CONFIG_DEFINE_ENUM("Video", EWindowState, WindowState, EWindowState::Normal, false);
 CONFIG_DEFINE_LOCALISED("Video", int32_t, Monitor, 0, false);
 CONFIG_DEFINE_ENUM_LOCALISED("Video", EAspectRatio, AspectRatio, EAspectRatio::Auto, false);
+CONFIG_DEFINE_ENUM_LOCALISED("Video", EFMVAspectRatio, FMVAspectRatio, EFMVAspectRatio::Stretched, false);
 CONFIG_DEFINE_LOCALISED("Video", float, ResolutionScale, 1.0f, false);
 CONFIG_DEFINE_LOCALISED("Video", bool, Fullscreen, true, false);
 CONFIG_DEFINE_LOCALISED("Video", bool, VSync, true, false);

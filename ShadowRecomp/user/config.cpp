@@ -340,6 +340,13 @@ CONFIG_DEFINE_ENUM_TEMPLATE(ETextureFiltering)
     { "Linear",  ETextureFiltering::Linear }
 };
 
+CONFIG_DEFINE_ENUM_TEMPLATE(EFMVAspectRatio)
+{
+    { "Stretched", EFMVAspectRatio::Stretched },
+    { "Fit", EFMVAspectRatio::Fit },
+    { "Fill", EFMVAspectRatio::Fill }
+};
+
 CONFIG_DEFINE_ENUM_TEMPLATE(EUIAlignmentMode)
 {
     { "Edge", EUIAlignmentMode::Edge },
