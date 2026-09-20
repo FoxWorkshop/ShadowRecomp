@@ -1326,7 +1326,7 @@ jump_address_on_true = 0x1B9F69
 registers = ["r0"]
 
 [[midasm_hook]]
-name = "BKTankStopDamageFixMidAsmHook"
+name = "BKTankStopActionDamageFixMidAsmHook"
 address = 0x1CFE93
 jump_address_on_true = 0x1CFE99
 registers = ["r4"]
