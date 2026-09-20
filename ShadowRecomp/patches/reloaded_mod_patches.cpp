@@ -1,5 +1,6 @@
 #include "global.h"
 #include <kernel/function.h>
+#include <input/padstate.h>
 
 // Uncomment the define below to enable
 //#define EnableReloaded
@@ -13,6 +14,41 @@ void HomingAttackSpeedMidAsmHook(X86Register& esp)
     X86_STORE_F32(esp.u32, 2000.0f);
 #else
     X86_STORE_F32(esp.u32, 1000.0f);  // 0x447A0000, original
+#endif
+}
+
+// Circuit Speed Control
+// Electric::Apply @ sub_6F9E0
+// Spline::Circuit read speed @ 0x4EC5E8 (unused, we skip this now)
+void CircuitSpeedControlMidAsmHook(X86Register& ecx)
+{
+	auto ctx = GetX86Context();
+	auto base = g_memory.base;
+#ifdef EnableReloaded
+	// ecx = Behavior::ElectricCircuit
+	// ecx+4 = player instance
+	uint32_t player = X86_LOAD_U32(ecx.u32 + 4);
+	uint32_t padIndex = 0;
+	for (uint32_t i = 0; i < 4; i++)
+	{
+		if (g_playerStructAddrs[i] == player)
+		{
+			padIndex = i;
+			break;
+		}
+	}
+	float speed = 800.0f;
+	if (PJSPeripheral::IsHeld(padIndex, PJSPeripheral::BTN_A))
+	{
+		speed = 1600.0f;
+	}
+	else if (PJSPeripheral::IsHeld(padIndex, PJSPeripheral::BTN_X))
+	{
+		speed = 400.0f;
+	}
+	ctx->xmm[0].f32[0] = speed;
+#else
+	ctx->xmm[0].f32[0] = 800.0f;
 #endif
 }
 
@@ -47,8 +83,6 @@ void ReloadedValuePatches()
 
 	// Respawn at last activated checkpoint
 
-	// Hold L to JumpDash instead of HomingAttack
-
 	// Disable Slide on B-press on ground and state extension
 
 	// No Tri-Jump Exit
@@ -56,9 +90,6 @@ void ReloadedValuePatches()
 	// No Skidding
 
 	// GUNMech Physics Revamp
-
-
-	// Circuit Speed Control
 
 	// Jump Ball Turn Speed
 

@@ -1312,3 +1312,9 @@ registers = ["r2"]
 name = "ExpertSelectMidAsmHook"
 address = 0x25862B
 registers = ["r3"]
+
+[[midasm_hook]]
+name = "CircuitSpeedControlMidAsmHook"
+address = 0x6F9E0
+registers = ["r2"]
+jump_address = 0x6F9E8
