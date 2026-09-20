@@ -51,6 +51,35 @@ static int g_categoryIndex{ -1 };
 static int g_optionIndex{};
 static int g_optionCount{};
 
+static bool g_livePreviewHudHidden{};
+
+static bool IsLivePreviewActive()
+{
+	return OptionsMenu::s_isPause && OptionsMenu::s_flowState == OptionsMenuFlowState::OptionSelected
+		&& (g_optionCurrent == &Config::Brightness || g_optionCurrent == &Config::BloomIntensity);
+}
+
+void ToggleHud(bool toggle);
+static void BeginPauseHudHide()
+{
+	auto base = g_memory.base;
+
+	if (!g_livePreviewHudHidden && IsLivePreviewActive() && X86_LOAD_U8(0x54DE78) != 0)
+	{
+		ToggleHud(false);
+		g_livePreviewHudHidden = true;
+	}
+}
+
+static void EndPauseHudHide()
+{
+	if (g_livePreviewHudHidden)
+	{
+		ToggleHud(true);
+		g_livePreviewHudHidden = false;
+	}
+}
+
 static double g_stateTime{};
 static double g_categoryTime{};
 static double g_cursorArrowsTime{};
@@ -619,6 +648,8 @@ static void DrawOption
 
 					isSelected = true;				
 					s_oldValue = config->Value;
+					g_optionCurrent = config;
+					BeginPauseHudHide();
 				}
 				else
 				{
@@ -635,6 +666,7 @@ static void DrawOption
 					OptionsMenu::SetFlowState(OptionsMenuFlowState::OptionCursor);
 
 					isSelected = false;
+					EndPauseHudHide();
 				}
 			}
 			else if (CheckAndDiscard(g_isDeclined))
@@ -659,6 +691,7 @@ static void DrawOption
 				OptionsMenu::SetFlowState(OptionsMenuFlowState::OptionCursor);
 
 				isSelected = false;
+				EndPauseHudHide();
 			}
 
 			if (g_optionCanReset && CheckAndDiscard(g_isReset))
@@ -1328,6 +1361,10 @@ static void MoveCursor(int& cursorIndex, double& cursorTime, int min = 0, int ma
 
 void DrawBackground(bool isPause = false)
 {
+	if (IsLivePreviewActive())
+	{
+		return;
+	}
 
 	auto& res = ImGui::GetIO().DisplaySize;
 	auto drawList = ImGui::GetBackgroundDrawList();
@@ -1951,6 +1988,7 @@ void OptionsMenu::Close()
 		return;
 
 	g_isControlsVisible = false;
+	EndPauseHudHide();
 
 	if (s_isPause)
 	{
