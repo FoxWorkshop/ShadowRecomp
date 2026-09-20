@@ -1,5 +1,8 @@
+#include <cstring>
 #include <kernel/function.h>
 #include <user/config.h>
+#include <xbox.h>
+#include <patches/global.h>
 
 //HintRingInit aka the capsule with "?" 
 X86_FUNC_IMPL(__imp__sub_1A2350);
@@ -73,18 +76,44 @@ X86_FUNC(sub_17E290)
 	X86_STORE_F32(rateAddr, restoreRate);
 }
 
-// Reads ATTR_WORLDPARM UserData, RWAnalyze Chunk 0x11F, in DFF and LAND (Geometry) and maps to the correct render type (at 0x503620)
-// 0x7 -> maps to 9 "AL" (This is the bad/broken transparency mode on Xbox for BigFoot's Canopy)
-// 0x8 -> maps to 11 "M"
-// To fix the BigFoot, map all 0x7 to 0x8 to every DFF in the whole game
-X86_FUNC_IMPL(__imp__sub_181CF0);
-X86_FUNC(sub_181CF0)
+// Finds BIGFOOTCANOPY.DFF and change ATTR_WORLDPARM from 0x7 to 0x8 to fix broken transparency
+void BigfootCanopyOnClumpRead(X86Context* ctx, uint8_t* base)
 {
-	if (X86_LOAD_U32(ctx.esp.u32 + 4) == 0x7)
+	auto pOneFileAsync = (TOneFileAsync*)g_memory.Translate(ctx->ecx.u32);
+	if (pOneFileAsync)
 	{
-		X86_STORE_U32(ctx.esp.u32 + 4, 0x8);
+		auto pOneFile = pOneFileAsync->pOneFile.get();
+		if (pOneFile)
+		{
+			const auto assetName = TOneFileCheckFileName(pOneFile, pOneFileAsync->fid);
+			const uint32_t userDataOffset = X86_LOAD_U32(0x55FE40); // User Data PLG
+			if (assetName && pOneFileAsync->clump && userDataOffset &&
+				strcmp(assetName, "BIGFOOTCANOPY.DFF") == 0)
+			{
+				const uint32_t listEnd = pOneFileAsync->clump + 8;
+				uint32_t link = X86_LOAD_U32(listEnd);
+				for (int safety = 0; link && link != listEnd && safety < 64; safety++)
+				{
+					// iterate through all PLG and patch to 0x8
+					const uint32_t geometry = X86_LOAD_U32(link - 0x40 + 0x18);
+					const auto numEntries = (int32_t)X86_LOAD_U32(geometry + userDataOffset);
+					const uint32_t entries = X86_LOAD_U32(geometry + userDataOffset + 4);
+					for (int32_t i = 0; i < numEntries && entries; i++)
+					{
+						const uint32_t entry = entries + (uint32_t)i * 0x10;
+						const uint32_t name = X86_LOAD_U32(entry);
+						const uint32_t values = X86_LOAD_U32(entry + 0xC);
+
+						if (name && values && X86_LOAD_U32(values) == 0x7 && strcmp((const char*)g_memory.Translate(name), "ATTR_WORLDPARM.ATTR_WORLDPARM") == 0)
+						{
+							X86_STORE_U32(values, 0x8);
+						}
+					}
+					link = X86_LOAD_U32(link);
+				}
+			}
+		}
 	}
-	__imp__sub_181CF0(ctx, base);
 }
 
 // BombingWall filter patch for CB

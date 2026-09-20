@@ -1009,10 +1009,10 @@ X86_FUNC_IMPL(__imp__sub_1FE00);
 X86_FUNC(sub_1FE00)
 {
 	auto mode = X86_LOAD_U32(ctx.ecx.u32 + 0x28);
-
 	if (mode == 4)
 	{
 		FindPictureBackgroundModel(&ctx, base);
+		BigfootCanopyOnClumpRead(&ctx, base);
 	}
 
 	__imp__sub_1FE00(ctx, base);

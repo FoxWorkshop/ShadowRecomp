@@ -7,7 +7,6 @@ typedef float RwReal;
 #define RwInt32 int32_t
 #define RwUInt8 uint8_t
 
-
 struct RwV3d
 {
 	float x;
@@ -47,7 +46,6 @@ struct WeightedMesh
 	float nx, ny, nz;
 	float u, v;
 };
-
 
 typedef RwMatrixTag RwMatrix;
 
@@ -121,14 +119,12 @@ union RwStreamFile
 	xpointer<const void> constfpFile;
 };
 
-
 union RwStreamUnion
 {
 	RwStreamMemory memory;
 	RwStreamFile file;
 	uint8_t custom[0x14]; //RwStreamCustom
 };
-
 
 struct RwStream
 {
@@ -156,7 +152,6 @@ struct TOneFile
 	int32_t field_54;
 };
 
-
 struct TOneFileAsync
 {
 	uint8_t task[0x28];
@@ -175,13 +170,11 @@ struct TOneFileAsync
 	int32_t field_5C;
 };
 
-
 struct RwSphere
 {
 	RwV3d center;
 	RwReal radius;
 };
-
 
 struct RpMorphTarget
 {
@@ -191,5 +184,6 @@ struct RpMorphTarget
 	xpointer<RwV3d> normals;
 };
 
-
+struct X86Context;
 char* TOneFileCheckFileName(TOneFile* this_, int32_t index);
+void BigfootCanopyOnClumpRead(X86Context* ctx, uint8_t* base);
