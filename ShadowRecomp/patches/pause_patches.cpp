@@ -70,7 +70,7 @@ static inline bool g_animDonePlaying = false;
 
 static int8_t s_index = 0;
 static uint32_t g_pauseModeAddr = 0;
-static uint32_t g_CursorModeAddr = 0;
+static uint32_t g_pauseRestartAddr = 0;
 static bool g_up{};
 static bool g_upWasHeld{};
 static bool g_down{};
@@ -116,6 +116,58 @@ ImVec2 VirtualToScreen(float vx, float vy, ImVec2 displaySize)
 static float ScaleX(float vWidth, float displayWidth) { return (vWidth / 640.0f) * displayWidth; }
 static float ScaleY(float vHeight, float displayHeight) { return (vHeight / 480.0f) * displayHeight; }
 
+// The game removes "restart" option from the pause menu in 2 players mode or when player 1 has no life left
+static bool IsRestartAvailable()
+{
+	if (g_pauseRestartAddr == 0) // pause object not seen yet, assume vanilla menu
+		return true;
+
+	auto base = g_memory.base;
+
+	return X86_LOAD_U8(g_pauseRestartAddr) != 0;
+}
+
+static uint8_t BuildPauseItems(uint8_t(&items)[pauseItemsCount])
+{
+	uint8_t count = 0;
+
+	for (uint8_t i = 0; i < pauseItemsCount; i++)
+	{
+		if (i == SelRestart && !IsRestartAvailable())
+			continue;
+
+		items[count++] = i;
+	}
+
+	return count;
+}
+
+// The game only knows 3 options slots for the pause menu
+static uint32_t GetVanillaCursorIndex(int8_t selection)
+{
+	switch (selection)
+	{
+	case SelRestart:
+		return 1;
+	case SelQuit:
+		return 2;
+	default:
+		return 0;
+	}
+}
+
+
+static int8_t GetPauseItemRow(const uint8_t* items, uint8_t count, int8_t selection)
+{
+	for (uint8_t i = 0; i < count; i++)
+	{
+		if (items[i] == selection)
+			return (int8_t)i;
+	}
+
+	return 0;
+}
+
 void DrawPauseText()
 {
 	if (s_isVisible == false || g_pauseCSD == false) // ensure our CSD patch worked so we can draw pause text safely
@@ -130,7 +182,7 @@ void DrawPauseText()
 
 	if (g_pauseModeAddr)
 	{
-	
+
 		auto mode = X86_LOAD_U32(g_pauseModeAddr);
 		if (mode > 3 || s_OptionsRequest || s_AchievementRequest)
 		{
@@ -158,7 +210,7 @@ void DrawPauseText()
 	bool leftIsHeld = false;
 	bool rightIsHeld = false;
 
-	
+
 
 	if (auto pInputState = PJSPeripheral::GetControllerSlot(playerIndex))
 	{
@@ -197,34 +249,42 @@ void DrawPauseText()
 	auto scrollUp = g_up;
 	auto scrollDown = g_down;
 
+	uint8_t items[pauseItemsCount];
+	const uint8_t itemCount = BuildPauseItems(items);
+
+	int8_t row = GetPauseItemRow(items, itemCount, s_index);
+	s_index = items[row];
+
 	if (g_inputAllowed)
 	{
 		if (scrollUp)
 		{
-			--s_index;
-	
+			--row;
 
-			if (s_index < SelContinue)
+			if (row < 0)
 			{
-				s_index = pauseItemsCount - 1;
+				row = itemCount - 1;
 				Game_PlaySound("cursor");
 			}
-	
+
+			s_index = items[row];
 		}
 		else if (scrollDown)
 		{
-			++s_index;
+			++row;
 
-			if (s_index == SelQuit)
+			if (row < itemCount && items[row] == SelQuit)
 			{
 				Game_PlaySound("cursor");
 			}
 
-			if (s_index >= pauseItemsCount)
+			if (row >= itemCount)
 			{
-				s_index = SelContinue;
+				row = 0;
 				Game_PlaySound("cursor");
 			}
+
+			s_index = items[row];
 		}
 
 		if (g_isAccepted)
@@ -267,16 +327,17 @@ void DrawPauseText()
 	float screenY = VirtualToScreen(0, virtualStartY, res).y;
 
 
-	const char* menuItems[] = { Localise("Pause_Menu_Continue").c_str(), 
-		Localise("Pause_Menu_Restart").c_str(), Localise("Achievements_Name").c_str(), 
+	const char* menuItems[] = { Localise("Pause_Menu_Continue").c_str(),
+		Localise("Pause_Menu_Restart").c_str(), Localise("Achievements_Name").c_str(),
 		Localise("Pause_Menu_Options").c_str(), Localise("Pause_Menu_Quit").c_str()
 	};
 	float startY = screenY;
 	float spacing = ScaleY(20.0f, res.y);
 
-	for (int i = 0; i < pauseItemsCount; i++)
+	for (uint8_t i = 0; i < itemCount; i++)
 	{
-		uint8_t color = i == s_index ? 255 : 127;
+		uint8_t selection = items[i];
+		uint8_t color = selection == s_index ? 255 : 127;
 		float fontSize = Scale(Config::Language == ELanguage::Japanese ? 19 : 18);
 		//auto textSize = g_fntDFPZong->CalcTextSizeA(fontSize, FLT_MAX, 0.0f, s.c_str());
 		AddTextCentered(drawList, g_fntDFPZong, fontSize,
@@ -284,7 +345,7 @@ void DrawPauseText()
 			startY + i * spacing,
 			IM_COL32(color, color, color, 255),  // white text
 			IM_COL32(0, 0, 0, 255),        // black outline
-			menuItems[i]);
+			menuItems[selection]);
 	}
 
 	g_up = false;
@@ -307,6 +368,7 @@ X86_FUNC(sub_5AEE0)
 	auto flagdisabled = X86_LOAD_U8(ctx.ecx.u32 + 0x3C);
 
 	g_pauseModeAddr = ctx.ecx.u32 + 0x30;
+	g_pauseRestartAddr = ctx.ecx.u32 + 0x3D;
 	auto mode = X86_LOAD_U32(g_pauseModeAddr);
 
 	if (mode == ModeRunningP1 || mode == ModeRunningP2)
@@ -354,7 +416,7 @@ X86_FUNC(sub_5AEE0)
 			return;
 		}
 	}
-	
+
 
 
 
@@ -383,12 +445,9 @@ X86_FUNC(sub_5AAF0)
 		}
 
 
-		// Clamp our extended index into vanilla range before handing off
+		// Put our index back into vanilla range before handing off
 		if (s_index <= SelRestart || s_index == SelQuit)
-		{
-			int8_t shadowIndex = std::clamp((int)s_index, (int)0, (int)vanillaPauseItemsCount - 1);
-			X86_STORE_U32(cursorAddr, (uint32_t)shadowIndex);
-		}
+			X86_STORE_U32(cursorAddr, GetVanillaCursorIndex(s_index));
 
 		g_inputAllowed = g_animDonePlaying;
 	}
@@ -412,7 +471,7 @@ X86_FUNC(sub_5AAF0)
 			{
 				// Vanilla item is selected, we let the return value propagate to caller
 				// so it will handle Resume/Restart/Quit normally
-				X86_STORE_U32(cursorAddr, (uint32_t)s_index);
+				X86_STORE_U32(cursorAddr, GetVanillaCursorIndex(s_index));
 			}
 			else
 			{
@@ -447,7 +506,7 @@ static constexpr uint32_t rwCameraProjectionType = 0x14;
 static constexpr uint32_t rwPARALLEL = 2;
 
 
-static constexpr float subtitleOffsetPerItem = 0.03f; 
+static constexpr float subtitleOffsetPerItem = 0.03f;
 
 // Helper function to get the ratio of Rt2d units to world units, 
 // so we can scale the offset we measured in world units into Rt2d units.

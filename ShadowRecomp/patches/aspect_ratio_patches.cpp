@@ -15,7 +15,6 @@
 
 static const uint8_t CSDVertexCount = 4u; // CSD always use 4 vertex count in this game
 bool readyToDebugConstant = false;
-bool s_pauseTextRemoved = false;
 #define widthMin 640.f
 #define heightMin 480.f
 static Mutex g_pathMutex;
