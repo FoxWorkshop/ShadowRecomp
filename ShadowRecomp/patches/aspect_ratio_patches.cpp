@@ -1012,6 +1012,7 @@ X86_FUNC(sub_1FE00)
 	{
 		FindPictureBackgroundModel(&ctx, base);
 		BigfootCanopyOnClumpRead(&ctx, base);
+		ChaosEyeRotationOnClumpRead(&ctx, base);
 	}
 
 	__imp__sub_1FE00(ctx, base);

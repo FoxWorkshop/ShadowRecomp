@@ -116,6 +116,65 @@ void BigfootCanopyOnClumpRead(X86Context* ctx, uint8_t* base)
 	}
 }
 
+// Finds CHAOSEYE.DFF to fix the 90 degree bad rotation
+void ChaosEyeRotationOnClumpRead(X86Context* ctx, uint8_t* base)
+{
+	auto pOneFileAsync = (TOneFileAsync*)g_memory.Translate(ctx->ecx.u32);
+	if (pOneFileAsync)
+	{
+		auto pOneFile = pOneFileAsync->pOneFile.get();
+		if (pOneFile)
+		{
+			const auto assetName = TOneFileCheckFileName(pOneFile, pOneFileAsync->fid);
+			if (assetName && pOneFileAsync->clump && strcmp(assetName, "CHAOSEYE.DFF") == 0)
+			{
+				const uint32_t listEnd = pOneFileAsync->clump + 8;
+				const uint32_t link = X86_LOAD_U32(listEnd);
+				const uint32_t frame = link && link != listEnd ? X86_LOAD_U32(link - 0x40 + 0x4) : 0;
+				const uint32_t root = frame ? X86_LOAD_U32(frame + 0xA0) : 0;
+
+				// x is -1.0f for root
+				if (root && X86_LOAD_U32(root + 0x4) == 0 && X86_LOAD_F32(root + 0x30) == -1.0f)
+				{
+					// Grouped
+					X86_STORE_F32(root + 0x10, 1.0f);
+					X86_STORE_F32(root + 0x14, 0.0f);
+					X86_STORE_F32(root + 0x18, 0.0f);
+					X86_STORE_F32(root + 0x20, 0.0f);
+
+					X86_STORE_F32(root + 0x24, 1.0f);
+					X86_STORE_F32(root + 0x28, 0.0f);
+					X86_STORE_F32(root + 0x30, 0.0f);
+					X86_STORE_F32(root + 0x34, 0.0f);
+
+					X86_STORE_F32(root + 0x38, 1.0f);
+					X86_STORE_F32(root + 0x40, 0.0f);
+					X86_STORE_F32(root + 0x44, 0.0f);
+					X86_STORE_F32(root + 0x48, 0.0f);
+
+					for (uint32_t i = 0; i < 16; i++)
+					{
+						X86_STORE_U32(root + 0x50 + i * 4, X86_LOAD_U32(root + 0x10 + i * 4));
+					}
+
+					// Call RwFrameUpdateObject after
+					const auto eax = ctx->eax;
+					const auto ecx = ctx->ecx;
+					const auto edx = ctx->edx;
+					ctx->esp.u32 -= 4;
+					X86_STORE_U32(ctx->esp.u32, root);
+					ctx->esp.u32 -= 4;
+					sub_2E1300(*ctx, base);
+					ctx->esp.u32 += 4;
+					ctx->eax = eax;
+					ctx->ecx = ecx;
+					ctx->edx = edx;
+				}
+			}
+		}
+	}
+}
+
 // BombingWall filter patch for CB
 void BombingWallBreakMidAsmHook(X86Register& ecx)
 {
