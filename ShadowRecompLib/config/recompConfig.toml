@@ -1318,3 +1318,9 @@ name = "CircuitSpeedControlMidAsmHook"
 address = 0x6F9E0
 registers = ["r2"]
 jump_address = 0x6F9E8
+
+[[midasm_hook]]
+name = "BallSwitchTriggerMidAsmHook"
+address = 0x1B9F2C
+jump_address_on_true = 0x1B9F69
+registers = ["r0"]

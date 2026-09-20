@@ -95,3 +95,11 @@ void BombingWallBreakMidAsmHook(X86Register& ecx)
 		ecx.u32 |= 0x200;
 	}
 }
+
+// Switch attacker filter callback (Ball switch)
+// Extend to include melee swing (0x80) + melee generic (0x2)
+bool BallSwitchTriggerMidAsmHook(X86Register& eax)
+{
+	auto base = g_memory.base;
+	return eax.u32 != 0 && (X86_LOAD_U32(eax.u32 + 0x40) & 0x82) != 0;
+}
