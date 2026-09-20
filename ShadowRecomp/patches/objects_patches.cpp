@@ -132,3 +132,11 @@ bool BallSwitchTriggerMidAsmHook(X86Register& eax)
 	auto base = g_memory.base;
 	return eax.u32 != 0 && (X86_LOAD_U32(eax.u32 + 0x40) & 0x82) != 0;
 }
+
+// BKTank only responds to damage once in StopAction
+// Ignore it for StopAction (passing to damage callback)
+bool BKTankStopActionDamageFixMidAsmHook(X86Register& esi)
+{
+	auto base = g_memory.base;
+	return X86_LOAD_F32(esi.u32 + 0x28) > 0.0f;
+}
