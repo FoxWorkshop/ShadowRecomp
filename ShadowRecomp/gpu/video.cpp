@@ -2993,16 +2993,12 @@ void RecreateGuestSurfaceTexture(GuestBaseTexture* tex, bool isRT)
 		? RenderTextureLayout::DEPTH_WRITE
 		: RenderTextureLayout::COLOR_WRITE;
 
-
 	uint32_t newWidth, newHeight;
 
 	GetUpscaledSurfaceResolution(tex->g_width, tex->g_height, &newWidth, &newHeight);
 	tex->textureHolder = g_device->createTexture(RenderTextureDesc::Texture2D(newWidth, newHeight, 1, tex->format, isRT ? RenderTextureFlag::RENDER_TARGET : RenderTextureFlag::DEPTH_TARGET));
 	tex->texture = tex->textureHolder.get();
 	tex->textureGeneration = NextGuestTextureGeneration();
-
-	if (isRT && tex->descriptorIndex != NULL)
-		g_textureDescriptorSet->setTexture(tex->descriptorIndex, tex->textureHolder.get(), RenderTextureLayout::SHADER_READ);
 
 	// Keep this framebuffer alive until the GPU finishes clearing the texture.
 	std::unique_ptr<RenderFramebuffer> tempFB;
@@ -3034,13 +3030,13 @@ void RecreateGuestSurfaceTexture(GuestBaseTexture* tex, bool isRT)
 
 			g_initCommandList->setFramebuffer(nullptr);
 
-			g_initCommandList->barriers(RenderBarrierStage::GRAPHICS, RenderTextureBarrier(tex->textureHolder.get(), (isRT == false) ? RenderTextureLayout::DEPTH_WRITE : RenderTextureLayout::SHADER_READ));
+			g_initCommandList->barriers(RenderBarrierStage::GRAPHICS,
+				RenderTextureBarrier(tex->textureHolder.get(), RenderTextureLayout::SHADER_READ));
 		});
-
-
 
 	tex->width = newWidth;
 	tex->height = newHeight;
+	tex->layout = RenderTextureLayout::SHADER_READ;
 
 	if (!isRT)
 	{
@@ -3051,15 +3047,10 @@ void RecreateGuestSurfaceTexture(GuestBaseTexture* tex, bool isRT)
 		viewDesc.mipLevels = 1;
 		tex->textureView = tex->textureHolder->createTextureView(viewDesc);
 		// end null view DX12 patch
+	}
 
-		g_textureDescriptorSet->setTexture(tex->descriptorIndex, tex->textureHolder.get(), RenderTextureLayout::DEPTH_WRITE, tex->textureView.get());
-		AddBarrier(tex, RenderTextureLayout::DEPTH_READ);
-	}
-	else
-	{
-		g_textureDescriptorSet->setTexture(tex->descriptorIndex, tex->texture, RenderTextureLayout::SHADER_READ);
-		AddBarrier(tex, RenderTextureLayout::SHADER_READ);
-	}
+	g_textureDescriptorSet->setTexture(tex->descriptorIndex, tex->texture,
+		RenderTextureLayout::SHADER_READ, tex->textureView.get());
 }
 
 static void BeginCommandList()
@@ -3117,6 +3108,7 @@ static void BeginCommandList()
 						s->textureGeneration = g_tex->textureGeneration;
 						s->width = g_tex->width;
 						s->height = g_tex->height;
+						s->layout = g_tex->layout;
 					}
 				}
 			}
