@@ -1330,3 +1330,32 @@ name = "BKTankStopActionDamageFixMidAsmHook"
 address = 0x1CFE93
 jump_address_on_true = 0x1CFE99
 registers = ["r4"]
+
+# Start GUN Mech Vehicle Revamp (Reloaded) patches
+[[midasm_hook]]
+name = "WalkerHoverMoveMidAsmHook"
+address = 0x254B77
+registers = ["r4"]
+
+# 0x1 Jump
+[[midasm_hook]]
+name = "WalkerDismountAnywhereMidAsmHook"
+address = 0x2562A0
+jump_address_on_true = 0x255F9F
+jump_address_on_false = 0x255FB0
+
+# 0x2 Freefall
+[[midasm_hook]]
+name = "WalkerDismountAnywhereMidAsmHook"
+address = 0x2562AD
+jump_address_on_true = 0x255F9F
+jump_address_on_false = 0x255FB0
+
+# 0x5 Hover
+[[midasm_hook]]
+name = "WalkerDismountAnywhereMidAsmHook"
+address = 0x2562E7
+jump_address_on_true = 0x255F9F
+jump_address_on_false = 0x255FB0
+
+# End GUN Mech Vehicle Revamp (Reloaded) patches

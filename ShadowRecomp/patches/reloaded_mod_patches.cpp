@@ -3,7 +3,7 @@
 #include <input/padstate.h>
 
 // Uncomment the define below to enable
-//#define EnableReloaded
+#define EnableReloaded
 
 // Inlined Homing Attack Speed 1000f -> 2000f [Reloaded Phys]
 void HomingAttackSpeedMidAsmHook(X86Register& esp)
@@ -49,6 +49,51 @@ void CircuitSpeedControlMidAsmHook(X86Register& ecx)
 	ctx->xmm[0].f32[0] = speed;
 #else
 	ctx->xmm[0].f32[0] = 800.0f;
+#endif
+}
+
+// GUNMech Walker Revamp
+bool WalkerDismountAnywhereMidAsmHook()
+{
+#ifdef EnableReloaded
+	return true;
+#else
+	return false;
+#endif
+}
+
+void WalkerHoverMoveMidAsmHook(X86Register& esi)
+{
+#ifdef EnableReloaded
+	auto base = g_memory.base;
+	if ((X86_LOAD_U8(esi.u32 + 0x104) & 0x8) == 0)
+	{
+		return;
+	}
+
+	// Get the vehicle stats
+	const float friction = X86_LOAD_F32(esi.u32 + 0xE8);
+	const float driveMult = X86_LOAD_F32(esi.u32 + 0xE0);
+	const float walkFriction = X86_LOAD_F32(0x4721CC);
+
+	if (friction <= 0.0f || driveMult <= 0.0f || walkFriction <= 0.0f)
+	{
+		return;
+	}
+
+	const float speed = driveMult / walkFriction;
+	float stickX = X86_LOAD_F32(esi.u32 + 0xF8);
+	float stickZ = X86_LOAD_F32(esi.u32 + 0x100);
+
+	X86_STORE_F32(esi.u32 + 0x28, stickX * speed * friction);
+	X86_STORE_F32(esi.u32 + 0x30, stickZ * speed * friction);
+	X86_STORE_F32(esi.u32 + 0xE4, friction);
+	X86_STORE_F32(esi.u32 + 0xE8, friction);
+
+	// Rotation fix
+	X86_STORE_F32(esi.u32 + 0xF8, 0.0f);
+	X86_STORE_F32(esi.u32 + 0xFC, 0.0f);
+	X86_STORE_F32(esi.u32 + 0x100, 0.0f);
 #endif
 }
 
