@@ -1460,6 +1460,7 @@ static void CompilePendingPipelinesForShader(uint64_t runtimeHash, GuestShader* 
 	LOGFN("PipelineCache: Compiling {} deferred pipelines for {} runtime hash={:016X}",
 		pending.size(), isVertexShader ? "VS" : "PS", runtimeHash);
 
+	uint32_t redeferred = 0;
 	for (auto& entry : pending)
 	{
 		GuestShader* vertexShader = nullptr;
@@ -1483,6 +1484,9 @@ static void CompilePendingPipelinesForShader(uint64_t runtimeHash, GuestShader* 
 			}
 			else
 			{
+				std::lock_guard lock(g_pendingCacheMutex);
+				g_pendingVS[entry.vertexShaderHash].push_back(entry);
+				redeferred++;
 				continue;
 			}
 		}
@@ -1508,6 +1512,9 @@ static void CompilePendingPipelinesForShader(uint64_t runtimeHash, GuestShader* 
 			}
 			else
 			{
+				std::lock_guard lock(g_pendingCacheMutex);
+				g_pendingPS[entry.pixelShaderHash].push_back(entry);
+				redeferred++;
 				continue;
 			}
 		}
@@ -1571,6 +1578,11 @@ static void CompilePendingPipelinesForShader(uint64_t runtimeHash, GuestShader* 
 		{
 			pipeline = CreateGraphicsPipeline(pipelineState);
 		}
+	}
+
+	if (redeferred != 0)
+	{
+		LOGFN("PipelineCache: Re-deferred {} pending pipelines (paired shader not yet created)", redeferred);
 	}
 }
 
@@ -3755,6 +3767,8 @@ GuestShader* CreateShader(ResourceType resourceType)
 			shader->runtimeHash = hash;
 
 			findCache->guestShader = shader;
+
+			CompilePendingPipelinesForShader(hash, shader, isVertexShader);
 		}
 		else
 		{
@@ -7601,12 +7615,15 @@ static std::vector<std::unique_ptr<std::thread>> g_pipelineCompilerThreads = [](
 		return threads;
 }();
 
-static void EnqueueGraphicsPipelineCompilation(const PipelineState& pipelineState, XXH64_hash_t hash)
+static bool EnqueueGraphicsPipelineCompilation(const PipelineState& pipelineState, XXH64_hash_t hash)
 {
 	if (g_asyncPipelineStates.emplace(hash, pipelineState).second)
 	{
 		g_pipelineStateQueue.enqueue({ hash, pipelineState });
+		return true;
 	}
+
+	return false;
 }
 
 static void ProcAddPipeline(const RenderCommand& cmd)
@@ -7649,9 +7666,11 @@ static RenderPipeline* CreateGraphicsPipelineInRenderThread(PipelineState pipeli
 	auto& pipeline = g_pipelines[hash];
 	if (pipeline == nullptr)
 	{
-		EnqueueGraphicsPipelineCompilation(pipelineState, hash);
-		LOGFN("CreateGraphicsPipeline: PIPELINE MISS hash={:016X}", hash);
-		RecordPipelineState(pipelineState);
+		if (EnqueueGraphicsPipelineCompilation(pipelineState, hash))
+		{
+			LOGFN("CreateGraphicsPipeline: PIPELINE MISS hash={:016X}", hash);
+			RecordPipelineState(pipelineState);
+		}
 
 #ifdef PSO_CACHING
 		std::lock_guard lock(g_pipelineCacheMutex);
