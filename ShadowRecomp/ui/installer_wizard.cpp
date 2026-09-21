@@ -513,7 +513,7 @@ static void DrawDescription(std::string s, float alpha = 1.0f)
 	ImVec2 barMin = { barScreenX + Scale(30), barScreenY };
 	ImVec2 barMax = { res.x, barScreenY + barScreenH };
 	drawList->PushClipRect(barMin, barMax);
-	float fontSize = g_fntSeuratSize - 2.f;
+	float fontSize = Scale(18.0f) - 2.0f;
 	auto textSize = g_fntSeurat->CalcTextSizeA(fontSize, FLT_MAX, 0.0f, s.c_str());
 	float barWidth = res.x - barScreenX;
 
@@ -536,7 +536,6 @@ static void DrawDescription(std::string s, float alpha = 1.0f)
 		offsetScroll = elapsed > 0.0 ? fmod(elapsed * scrollSpeed, totalWidth) : 0.0f;
 	}
 	textPos.x -= offsetScroll;
-	SetShaderModifier(IMGUI_SHADER_MODIFIER_LOW_QUALITY_TEXT);
 	ImU32 descColor = IM_COL32(255, 255, 255, (int)(255 * alpha));
 	drawList->AddText(g_fntSeurat, fontSize, textPos, descColor, s.c_str());
 
@@ -546,7 +545,6 @@ static void DrawDescription(std::string s, float alpha = 1.0f)
 		ImVec2 loopPos = { textPos.x + totalWidth, textPos.y };
 		drawList->AddText(g_fntSeurat, fontSize, loopPos, descColor, s.c_str());
 	}
-	SetShaderModifier(IMGUI_SHADER_MODIFIER_NONE);
 	drawList->PopClipRect();
 }
 
