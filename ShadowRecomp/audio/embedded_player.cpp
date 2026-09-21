@@ -122,7 +122,7 @@ void EmbeddedPlayer::PlayMusic()
         Mix_PlayMusic(g_installerMusic, INT_MAX);
     }
 
-    Mix_VolumeMusic(GetMasterVolume() * Config::MusicVolume * MUSIC_VOLUME * MIX_MAX_VOLUME);
+    Mix_VolumeMusic(MIX_MAX_VOLUME);
 }
 
 void EmbeddedPlayer::FadeOutMusic()
