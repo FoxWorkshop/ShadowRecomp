@@ -16,6 +16,11 @@ extern uint8_t* g_nv2aPtr;
 
 void Heap::Init()
 {
+	if (heap != nullptr)
+	{
+		return;
+	}
+
 	printf("Initializing Heap...\n");
 	heap = o1heapInit(g_memory.Translate(HEAP_BEGIN), HEAP_END - HEAP_BEGIN);
 	physicalHeap = o1heapInit(g_memory.Translate(HEAP_END), PHYSICAL_HEAP_END - HEAP_END);

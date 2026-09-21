@@ -798,19 +798,18 @@ static void LoadEmbeddedResources()
 	}
 #endif
 
-
 	g_buttonBcDiff_GC = decompressZstd(g_button_bc_diff_gc, g_button_bc_diff_gc_uncompressed_size);
 	g_buttonBcDiff_PS2 = decompressZstd(g_button_bc_diff_ps2, g_button_bc_diff_ps2_uncompressed_size);
 }
 
-static void PrecompileShaders()
+constexpr float PIPELINE_PRECOMPILE_SHADER_STAGE_END = 0.55f;
+
+static void PrecompileShaders(const std::function<void(float)>& progress = {})
 {
 	auto totalStart = std::chrono::steady_clock::now();
-
 	for (size_t i = 0; i < g_shaderCacheEntryCount; i++)
 	{
 		auto& entry = g_shaderCacheEntries[i];
-
 		GuestShader* guestShader = g_userHeap.AllocPhysical<GuestShader>(ResourceType::VertexShader);
 		guestShader->shaderCacheEntry = &entry;
 		entry.guestShader = guestShader;
@@ -830,11 +829,13 @@ static void PrecompileShaders()
 				g_shaderCache.get() + entry.dxilOffset, entry.dxilSize, "main", RenderShaderFormat::DXIL);
 		}
 #endif
+		if (progress)
+		{
+			progress(PIPELINE_PRECOMPILE_SHADER_STAGE_END * (float)(i + 1) / (float)g_shaderCacheEntryCount);
+		}
 	}
-
 	auto totalElapsed = std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - totalStart).count();
-	LOGFN("PrecompileShaders: {} shaders in {:.2f} ms",
-		g_shaderCacheEntryCount, totalElapsed);
+	LOGFN("PrecompileShaders: {} shaders in {:.2f} ms", g_shaderCacheEntryCount, totalElapsed);
 }
 
 static std::unique_ptr<RenderPipeline> g_gammaCorrectionPipeline;
@@ -1149,7 +1150,7 @@ static void SavePipelineCache()
 	LOGFN("PipelineCache: Saved {} entries to {}", entryCount, path.string());
 }
 
-static void LoadAndPrecompilePipelines()
+static void PrecompileUserPipelines()
 {
 	auto path = GetPipelineCachePath();
 	if (!std::filesystem::exists(path))
@@ -1356,7 +1357,7 @@ static bool TryCompileFromCacheEntry(const PipelineCacheEntry& entry)
 	return false;
 }
 
-static void PrecompileStaticPipelines()
+static void PrecompileStaticPipelines(const std::function<void(float)>& progress = {})
 {
 	if constexpr (g_staticPipelineCacheCount == 0)
 		return;
@@ -1371,14 +1372,23 @@ static void PrecompileStaticPipelines()
 	for (size_t i = 0; i < g_staticPipelineCacheCount; i++)
 	{
 		if (!HasSpecializedCacheEntryVariants(entries[i]))
+		{
 			continue;
+		}
 
 		if (TryCompileFromCacheEntry(entries[i]))
+		{
 			compiled++;
+		}
 		else
 		{
 			EnqueueDeferredPipeline(entries[i]);
 			deferred++;
+		}
+
+		if (progress)
+		{
+			progress(PIPELINE_PRECOMPILE_SHADER_STAGE_END + (1.0f - PIPELINE_PRECOMPILE_SHADER_STAGE_END) * (float)(i + 1) / (float)g_staticPipelineCacheCount);
 		}
 	}
 
@@ -1388,7 +1398,9 @@ static void PrecompileStaticPipelines()
 		{
 			PipelineCacheEntry entry = entries[i];
 			if (!HasSpecializedCacheEntryVariants(entry))
+			{
 				continue;
+			}
 			entry.pipelineHash = ComputePipelineEntryHash(entry);
 			g_pipelineCacheEntries.emplace(entry.pipelineHash, entry);
 		}
@@ -1405,7 +1417,9 @@ static ankerl::unordered_dense::map<uint64_t, std::vector<PipelineCacheEntry>> g
 static void EnqueueDeferredPipeline(const PipelineCacheEntry& entry)
 {
 	if (!HasSpecializedCacheEntryVariants(entry))
+	{
 		return;
+	}
 
 	if (entry.vertexShaderMode != VertexShaderMode::FixedFunction &&
 		entry.vertexShaderMode != VertexShaderMode::Passthrough &&
@@ -1439,7 +1453,9 @@ static void CompilePendingPipelinesForShader(uint64_t runtimeHash, GuestShader* 
 	}
 
 	if (pending.empty())
+	{
 		return;
+	}
 
 	LOGFN("PipelineCache: Compiling {} deferred pipelines for {} runtime hash={:016X}",
 		pending.size(), isVertexShader ? "VS" : "PS", runtimeHash);
@@ -1462,9 +1478,13 @@ static void CompilePendingPipelinesForShader(uint64_t runtimeHash, GuestShader* 
 		{
 			auto findVS = FindShaderCacheEntry(entry.vertexShaderHash);
 			if (findVS != nullptr && findVS->guestShader != nullptr)
+			{
 				vertexShader = findVS->guestShader;
+			}
 			else
+			{
 				continue;
+			}
 		}
 		else
 		{
@@ -1483,18 +1503,26 @@ static void CompilePendingPipelinesForShader(uint64_t runtimeHash, GuestShader* 
 		{
 			auto findPS = FindShaderCacheEntry(entry.pixelShaderHash);
 			if (findPS != nullptr && findPS->guestShader != nullptr)
+			{
 				pixelShader = findPS->guestShader;
+			}
 			else
+			{
 				continue;
+			}
 		}
 
 		GuestVertexDeclaration* vertexDecl = FindVertexDeclarationByHash(entry.vertexDeclHash);
 		if (vertexDecl == nullptr)
 		{
 			if (entry.vertexElementCount > 0 && entry.vertexElementCount <= MAX_VERTEX_ELEMENTS)
+			{
 				vertexDecl = CreateVertexDeclarationWithoutAddRef(entry.vertexElements, entry.vertexShaderMode);
+			}
 			if (vertexDecl == nullptr)
+			{
 				continue;
+			}
 		}
 
 		PipelineState pipelineState;
@@ -1540,7 +1568,9 @@ static void CompilePendingPipelinesForShader(uint64_t runtimeHash, GuestShader* 
 		XXH64_hash_t hash = ComputePipelineStateHash(pipelineState);
 		auto& pipeline = g_pipelines[hash];
 		if (pipeline == nullptr)
+		{
 			pipeline = CreateGraphicsPipeline(pipelineState);
+		}
 	}
 }
 
@@ -5121,7 +5151,13 @@ void Video::PrecompileShadersAndPipelines()
 {
 	PrecompileShaders();
 	PrecompileStaticPipelines();
-	LoadAndPrecompilePipelines();
+	PrecompileUserPipelines();
+}
+
+void Video::PrecompileShadersAndPipelinesForInstall(const std::function<void(float)>& progress)
+{
+	PrecompileShaders(progress);
+	PrecompileStaticPipelines(progress);
 }
 
 static void SetRootDescriptor(const UploadAllocation& allocation, size_t index)

@@ -109,6 +109,9 @@ static float g_installerProgress = 0.0f;
 static std::atomic<float> g_installerProgressTarget{ 0.0f };
 static std::string g_installerCurrentFileName;
 static std::atomic<XisoExtract::Phase> g_installerPhase{ XisoExtract::Phase::Hashing };
+static std::atomic<bool> g_installerCompiling{ false };
+
+static constexpr float INSTALL_EXTRACT_RATIO_END = 0.8f;
 
 static bool g_currentCursorAccepted = false;
 static bool g_currentCursorBack = false;
@@ -355,21 +358,26 @@ static void InstallerThread()
 		{
 			g_installerCurrentFileName = progress.currentFileName;
 			g_installerPhase.store(progress.phase);
-
-			if (progress.phase == XisoExtract::Phase::Hashing)
-			{
-				g_installerProgressTarget.store(progress.ratio);
-			}
-			else
-			{
-				g_installerProgressTarget.store(progress.ratio);
-			}
+			g_installerProgressTarget.store(progress.ratio * INSTALL_EXTRACT_RATIO_END);
 		};
 
 	bool success = XisoExtract::Extract(g_isoPath, g_installPath, progressCallback);
-	g_installerProgressTarget.store(1.0f);
-	if (!success)
+	if (success)
 	{
+		g_installerCompiling.store(true);
+		g_installerCurrentFileName.clear();
+
+		Video::PrecompileShadersAndPipelinesForInstall([](float progress)
+			{
+				g_installerProgressTarget.store(INSTALL_EXTRACT_RATIO_END + (1.0f - INSTALL_EXTRACT_RATIO_END) * progress);
+			});
+
+		g_installerCompiling.store(false);
+		g_installerProgressTarget.store(1.0f);
+	}
+	else
+	{
+		g_installerProgressTarget.store(1.0f);
 		g_installerFailed.store(true);
 		g_installerErrorMessage = Localise("Installer_Message_InvalidFileSelected");
 	}
@@ -813,6 +821,7 @@ void InstallerWizard::Draw()
 				g_currentPage = WizardPage::Installing;
 				g_installerFinished.store(false);
 				g_installerFailed.store(false);
+				g_installerCompiling.store(false);
 				g_installerProgress = 0.0f;
 				g_installerProgressTarget.store(0.0f);
 				g_installerThread = std::make_unique<std::thread>(InstallerThread);
@@ -827,9 +836,19 @@ void InstallerWizard::Draw()
 		DrawDescription("Shadow the Hedgehog - Installer");
 
 		auto phase = g_installerPhase.load();
-		const char* headerText = (phase == XisoExtract::Phase::Hashing)
-			? Localise("Installer_Page_Verifying").c_str()
-			: Localise("Installer_Page_Installing").c_str();
+		const char* headerText;
+		if (g_installerCompiling.load())
+		{
+			headerText = Localise("Installer_Page_Compiling").c_str();
+		}
+		else if (phase == XisoExtract::Phase::Hashing)
+		{
+			headerText = Localise("Installer_Page_Verifying").c_str();
+		}
+		else
+		{
+			headerText = Localise("Installer_Page_Installing").c_str();
+		}
 
 		DrawTextParagraph(font, descFontSize, textMaxWidth, originMin, textMargin, headerText,
 			[&](const char* str, ImVec2 pos) { DrawTextBasic(g_fntSeurat, descFontSize, pos, IM_COL32(255, 255, 255, 255), str); });
@@ -842,7 +861,7 @@ void InstallerWizard::Draw()
 		float barWidth = panelWidth - barPadding * 2.0f;
 		float barHeight = Scale(24.0f);
 
-		if (phase != XisoExtract::Phase::Hashing)
+		if (phase != XisoExtract::Phase::Hashing && !g_installerCompiling.load())
 		{
 			if (!g_installerCurrentFileName.empty())
 			{
@@ -964,6 +983,7 @@ void InstallerWizard::Draw()
 			g_statusMessage.clear();
 			g_installerFinished.store(false);
 			g_installerFailed.store(false);
+			g_installerCompiling.store(false);
 			g_installerProgress = 0.0f;
 		}
 

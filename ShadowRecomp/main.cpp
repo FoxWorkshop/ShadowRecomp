@@ -218,6 +218,8 @@ int main(int argc, char* argv[])
             std::_Exit(1);
         }
 
+        g_userHeap.Init();
+
         if (!InstallerWizard::Run(GetGamePath()))
         {
             std::_Exit(0);

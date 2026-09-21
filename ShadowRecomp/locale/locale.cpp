@@ -436,6 +436,17 @@ std::unordered_map<std::string_view, std::unordered_map<ELanguage, std::string>>
         }
     },
     {
+        "Installer_Page_Compiling",
+        {
+            { ELanguage::English,  "Compiling shaders..." },
+            { ELanguage::Japanese, "Compiling shaders..." },
+            { ELanguage::German,   "Compiling shaders..." },
+            { ELanguage::French,   "Compiling shaders..." },
+            { ELanguage::Spanish,  "Compiling shaders..." },
+            { ELanguage::Italian,  "Compiling shaders..." }
+        }
+    },
+    {
         "Installer_Page_InstallSucceeded",
         {
             { ELanguage::English,  "Installation complete!\nThis project is brought to you by:" },

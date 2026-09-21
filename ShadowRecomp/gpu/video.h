@@ -1,6 +1,7 @@
 #pragma once
 
 #include <plume_render_interface.h>
+#include <functional>
 
 #define D3DCLEAR_TARGET  0x1
 #define D3DCLEAR_ZBUFFER 0x10
@@ -53,6 +54,7 @@ struct Video
 
 	static bool CreateHostDevice(const char* sdlVideoDriver, bool graphicsApiRetry);
 	static void PrecompileShadersAndPipelines();
+	static void PrecompileShadersAndPipelinesForInstall(const std::function<void(float)>& progress);
 	static void Present();
 	static void WaitOnSwapChain();
 	static void WaitForGPU();
