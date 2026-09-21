@@ -9,14 +9,14 @@
 // Callers must hold the lock that protects textures and viewport size.
 namespace surface_resize
 {
-// Scale to the viewport, rounding down, but keep at least the game's size.
+// Scale to the viewport, rounding down, with at least one pixel per side.
 // Game sizes are relative to the game's 640x480 frame.
 inline std::pair<uint32_t, uint32_t> UpscaledExtent(uint32_t guestWidth, uint32_t guestHeight,
 	uint32_t viewportWidth, uint32_t viewportHeight, float scale)
 {
 	const float width = (float(guestWidth) / 640.0f) * viewportWidth * scale;
 	const float height = (float(guestHeight) / 480.0f) * viewportHeight * scale;
-	return { std::max(uint32_t(width), guestWidth), std::max(uint32_t(height), guestHeight) };
+	return { std::max(uint32_t(width), 1u), std::max(uint32_t(height), 1u) };
 }
 
 // Update the viewport size and request a resize when it changes.
