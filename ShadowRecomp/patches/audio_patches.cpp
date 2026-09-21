@@ -1,4 +1,5 @@
 #include <kernel/function.h>
+#include <kernel/heap.h>
 #include <audio/audio.h>
 #include <audio/driver/sdl2_driver.h>
 #include <user/config.h>
@@ -168,3 +169,174 @@ bool IdleChaosPowersMusicMidAsmHook()
 {
 	return !Config::IdleChaosPowersMusic;
 }
+
+
+/* --GRIND RAIL SAMPLE PATCH-- */
+
+// The black comet stages all load bank79.pac for sound effect, however on Xbox that bank shipped with 
+// the regular grind rail sound in sample slots 0 and 1 instead of the organic grind rail instead.
+// Thankfully that sound still exist on a different bank, so we can patch this by loading that bank
+// and make the two wrong entries point at the right sound.
+
+// Additionally, the Death Ruins organic rails has missing loop flag and points so the sound never loop.
+// Bank71.pac is the only bank that still ships loop points properly for that sound, 
+// so we will reuse its values to fix that.
+
+// runtime sample table, filled by sub_25ECF0 and the play sfx functions.
+static constexpr uint32_t g_SAMPLE_TABLE = 0x550318;
+static constexpr uint32_t SAMPLE_BANK_STRIDE = 4096;
+static constexpr uint32_t SAMPLE_ENTRY_STRIDE = 32;
+static constexpr uint32_t SAMPLE_HEADER = 0x00; // WAVEFORMATEX, 32 bytes
+static constexpr uint32_t SAMPLE_DATA = 0x04;
+static constexpr uint32_t SAMPLE_SIZE = 0x08;
+static constexpr uint32_t SAMPLE_FLAGS = 0x0C; // bit 0 = loop
+static constexpr uint32_t SAMPLE_LOOP_START = 0x10;
+static constexpr uint32_t SAMPLE_LOOP_LENGTH = 0x14;
+static constexpr uint32_t SAMPLE_VALID = 0x1C; 
+
+static constexpr uint32_t STAGE_BANK_SLOT = 7;
+static constexpr uint32_t GRIND_LANDING = 0; // SE_Z0000_GRINDLANDING
+static constexpr uint32_t GRIND_LOOP = 1; // SE_Z0001_GRINDING
+static constexpr uint32_t GRIND2_LOOP = 3; // SE_Z0003_GRINDING2
+
+static constexpr uint32_t ORGANIC_GRIND_SIZE = 82988; 
+static constexpr uint32_t ORGANIC_GRIND_LOOP_START = 4;
+static constexpr uint32_t ORGANIC_GRIND_LOOP_LENGTH = 82972;
+
+static constexpr uint32_t g_FILE_LOADER = 0x537768; // sub_25F2F0 sets it up before any bank load
+static constexpr char ORGANIC_GRIND_BANK[] = "sound/bank7b.pac"; 
+
+
+static uint32_t LoadOrganicGrindBankSound()
+{
+	static uint32_t image = 0;
+
+	if (image)
+		return image;
+
+	auto base = g_memory.base;
+
+	const uint32_t loader = X86_LOAD_U32(g_FILE_LOADER);
+	if (!loader)
+		return 0;
+
+	// build string path dynamically
+	auto* path = static_cast<char*>(g_userHeap.Alloc(sizeof(ORGANIC_GRIND_BANK)));
+	memcpy(path, ORGANIC_GRIND_BANK, sizeof(ORGANIC_GRIND_BANK));
+
+	image = GuestToHostFunction<uint32_t, CallConvention::Thiscall>(sub_1A330, loader,
+		g_memory.MapVirtual(path), 0);
+
+	return image;
+}
+
+// bank layout: +0 count, +4 record table, +12 data start. 
+// records are 16 bytes, +1 index, +4 offset
+static uint32_t FindPacSample(uint32_t image, uint32_t index)
+{
+	auto base = g_memory.base;
+
+	const uint32_t count = X86_LOAD_U32(image);
+	const uint32_t records = image + X86_LOAD_U32(image + 0x4);
+	const uint32_t data = image + X86_LOAD_U32(image + 0xC);
+
+	for (uint32_t i = 0; i < count; ++i)
+	{
+		const uint32_t record = records + i * 16;
+
+		if (X86_LOAD_U8(record + 1) == index)
+			return data + X86_LOAD_U32(record + 4); // the 32 byte header, sample data follows it.
+	}
+
+	return 0;
+}
+
+static uint32_t StageBankEntry(uint32_t index)
+{
+	return g_SAMPLE_TABLE + STAGE_BANK_SLOT * SAMPLE_BANK_STRIDE + index * SAMPLE_ENTRY_STRIDE;
+}
+
+static void SetGrindLoopRegion(uint32_t entry)
+{
+	auto base = g_memory.base;
+
+	X86_STORE_U32(entry + SAMPLE_FLAGS, X86_LOAD_U32(entry + SAMPLE_FLAGS) | 1);
+	X86_STORE_U32(entry + SAMPLE_LOOP_START, ORGANIC_GRIND_LOOP_START);
+	X86_STORE_U32(entry + SAMPLE_LOOP_LENGTH, ORGANIC_GRIND_LOOP_LENGTH);
+}
+
+static void PointEntryAtSample(uint32_t entry, uint32_t header)
+{
+	auto base = g_memory.base;
+
+	X86_STORE_U32(entry + SAMPLE_HEADER, header);
+	X86_STORE_U32(entry + SAMPLE_VALID, header);
+	X86_STORE_U32(entry + SAMPLE_DATA, header + 32);
+	X86_STORE_U32(entry + SAMPLE_SIZE, X86_LOAD_U32(header + 28));
+}
+
+static void InstallOrganicGrindSound()
+{
+	auto base = g_memory.base;
+
+	// A mod may have already shipped a fixed bank79.
+	if (X86_LOAD_U32(StageBankEntry(GRIND_LOOP) + SAMPLE_SIZE) == ORGANIC_GRIND_SIZE)
+		return;
+
+	const uint32_t image = LoadOrganicGrindBankSound();
+	if (!image)
+		return;
+
+	const uint32_t landing = FindPacSample(image, GRIND_LANDING);
+	const uint32_t loop = FindPacSample(image, GRIND_LOOP);
+
+	if (!landing || !loop)
+		return;
+
+	PointEntryAtSample(StageBankEntry(GRIND_LANDING), landing);
+	PointEntryAtSample(StageBankEntry(GRIND_LOOP), loop);
+
+	// Bank7B has missing loop data for rail grinding
+	SetGrindLoopRegion(StageBankEntry(GRIND_LOOP));
+}
+
+// wherever the organic grind shows up in a stage bank, check and fix loop points and flag if needed
+static void RestoreGrindLoop(uint32_t index)
+{
+	auto base = g_memory.base;
+
+	const uint32_t entry = StageBankEntry(index);
+
+	if (!X86_LOAD_U32(entry + SAMPLE_VALID))
+		return;
+
+	if (X86_LOAD_U32(entry + SAMPLE_SIZE) != ORGANIC_GRIND_SIZE)
+		return;
+
+	if (X86_LOAD_U32(entry + SAMPLE_FLAGS) & 1)
+		return;
+
+	SetGrindLoopRegion(entry);
+}
+
+// InitSoundBank(slot, stageID)
+X86_FUNC_IMPL(__imp__sub_25F420);
+X86_FUNC(sub_25F420)
+{
+	const uint32_t slot = X86_LOAD_U32(ctx.esp.u32 + 0x4);
+	const int32_t stage = int32_t(X86_LOAD_U32(ctx.esp.u32 + 0x8));
+
+	__imp__sub_25F420(ctx, base);
+
+	if (slot != STAGE_BANK_SLOT)
+		return;
+
+	// black comet levels
+	if (stage == 601 || stage == 604 || stage == 700)
+		InstallOrganicGrindSound();
+
+	RestoreGrindLoop(GRIND_LOOP);
+	RestoreGrindLoop(GRIND2_LOOP);
+}
+
+/* --END GRIND RAIL SAMPLE PATCH-- */
