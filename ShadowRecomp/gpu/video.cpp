@@ -1,4 +1,5 @@
 #include "video.h"
+#include "surface_resize.h"
 
 #include "imgui/imgui_common.h"
 #include "imgui/imgui_snapshot.h"
@@ -1676,9 +1677,15 @@ struct PrimitiveIndexData
 static PrimitiveIndexData<X_D3DPT_QUADLIST> g_quadIndexData;
 
 std::vector<GuestResource*> g_tempUnreadyResource; // store VB that weren't ready to be deleted
-std::atomic<bool> g_pendingSurfaceResizeFlag = false; // flag used to trigger RT and Stencil recreation.
+// Resize the tracked textures and surfaces on the next frame.
+std::atomic<bool> g_pendingSurfaceResizeFlag = false;
 static Mutex g_surfaceRTsMutex; // Multiple threads can access Surface RT so we can prevent a potential race issue with mutex
 static Mutex g_tempUnreadyResourceMutex; // for destruct resource (VB, texture stuff)
+
+// Textures and surfaces to resize, protected by g_surfaceRTsMutex.
+// Add when ready to use; remove before freeing the resource.
+static ankerl::unordered_dense::set<GuestTexture*> g_resizableTextures;
+static ankerl::unordered_dense::set<GuestSurface*> g_resizableSurfaces;
 
 static std::atomic<uint64_t> g_guestTextureGeneration{ 1 };
 static uint64_t NextGuestTextureGeneration()
@@ -1735,6 +1742,7 @@ static void DestructTempResources()
 
 			{
 				std::lock_guard lock(g_surfaceRTsMutex);
+				g_resizableTextures.erase(texture);
 
 				for (auto* surface : texture->surfaceRTs)
 				{
@@ -1810,6 +1818,7 @@ static void DestructTempResources()
 
 			std::lock_guard lock(g_surfaceRTsMutex);
 
+			g_resizableSurfaces.erase(surface);
 			UnregisterFramebufferCacheContainer(surface);
 
 			if (surface->parentTexture != nullptr)
@@ -1860,8 +1869,6 @@ static void DestructTempResources()
 
 static ankerl::unordered_dense::set<GuestSurface*> g_pendingSurfaceCopies;
 static ankerl::unordered_dense::set<GuestSurface*> g_pendingMsaaResolves;
-static ankerl::unordered_dense::set<GuestTexture*> g_pendingTextureResizes;
-static GuestSurface* g_pendingStencilResize = nullptr; // the game only use one stencil
 
 
 enum class RenderCommandType
@@ -2929,9 +2936,20 @@ static void CheckSwapChain()
 	if (!g_swapChainValid)
 	{
 		Video::WaitForGPU();
-		g_backBuffer->framebuffers.clear();
-		if (g_pendingStencilResize)
-			g_pendingStencilResize->framebuffers.clear();
+		{
+			std::lock_guard lock(g_surfaceRTsMutex);
+			// These framebuffers may still use the old swapchain images.
+			g_backBuffer->framebuffers.clear();
+			for (auto* surface : g_resizableSurfaces)
+				surface->framebuffers.clear();
+			for (auto* texture : g_resizableTextures)
+			{
+				for (auto* alias : texture->surfaceRTs)
+				{
+					alias->framebuffers.clear();
+				}
+			}
+		}
 		g_swapChainValid = g_swapChain->resize();
 		g_needsResize = g_swapChainValid;
 	}
@@ -2950,18 +2968,14 @@ static void CheckSwapChain()
 	g_backBuffer->height = Video::s_viewportHeight;
 }
 
-// since the game has RT that don't always match full resolution (example 512x512 instead of 640x480)
-// we can adapt the math to match this behaviour with user's resolution
-void GetUpscaledSurfaceResolution(uint32_t widthOrigin, uint32_t heightOrigin,
+// Scale surfaces to the viewport while holding g_surfaceRTsMutex.
+static void GetUpscaledSurfaceResolution(uint32_t widthOrigin, uint32_t heightOrigin,
 	uint32_t* widthOut, uint32_t* heightOut)
 {
-	float percentW = (float)widthOrigin / 640.f;
-	float percentH = (float)heightOrigin / 480.f;
-	float resW = percentW * Video::s_viewportWidth * Config::ResolutionScale;
-	float resH = percentH * Video::s_viewportHeight * Config::ResolutionScale;
-
-	*widthOut = std::max((uint32_t)resW, widthOrigin);
-	*heightOut = std::max((uint32_t)resH, heightOrigin);
+	const auto [width, height] = surface_resize::UpscaledExtent(widthOrigin, heightOrigin,
+		Video::s_viewportWidth, Video::s_viewportHeight, Config::ResolutionScale.Value);
+	*widthOut = width;
+	*heightOut = height;
 }
 
 // This is needed because uninitialized RT / depth can crash the game under specific windows version if (and only if) VS is installed.
@@ -2980,10 +2994,13 @@ void DiscardInitRenderResource(RenderTexture* texture, const bool isRT)
 		});
 }
 
-// This is used when user request new resolution / aspect ratio
-// we have to remade all RT and Depth stencil texture 
-void RecreateGuestSurfaceTexture(GuestBaseTexture* tex, bool isRT)
+// This is used when user request new resolution / aspect ratio or when
+// the window changes size. We have to remake all RT and Depth stencil texture.
+//
+// Wait for GPU work to finish and hold g_surfaceRTsMutex before calling.
+static void RecreateGuestSurfaceTexture(GuestBaseTexture* tex, bool isRT)
 {
+	g_barrierMap.erase(tex->texture);
 	InvalidateFramebufferCache(tex->texture);
 
 	// explicitly discard the textureView
@@ -3065,13 +3082,14 @@ static void BeginCommandList()
 
 	if (g_swapChainValid)
 	{
+		// Keep other threads from changing the tracked resources during resize.
+		std::lock_guard lock(g_surfaceRTsMutex);
 		uint32_t width = Video::s_viewportWidth;
 		uint32_t height = Video::s_viewportHeight;
 
-		bool usingIntermediaryTexture = (width != g_swapChain->getWidth()) || (height != g_swapChain->getHeight()) ||
-			(abs(Config::Brightness.Value - 0.5f) > 0.001f) || g_pendingSurfaceResizeFlag;
-
-		if (g_pendingSurfaceResizeFlag)
+		// Clear the request first so a new request isn't lost.
+		const bool resizedSurfaces = g_pendingSurfaceResizeFlag.exchange(false);
+		if (resizedSurfaces)
 		{
 			for (size_t i = 0; i < NUM_FRAMES; i++)
 			{
@@ -3082,46 +3100,12 @@ static void BeginCommandList()
 				}
 			}
 
-			std::lock_guard lock(g_surfaceRTsMutex);
-
-			for (auto& g_tex : g_pendingTextureResizes)
-			{
-				g_barrierMap.erase(g_tex->texture);
-
-				if (g_tex->isRenderTarget)
-				{
-					for (auto* s : g_tex->surfaceRTs)
-					{
-						s->framebuffers.clear();
-						s->texture = nullptr;
-					}
-				}
-
-				RecreateGuestSurfaceTexture(g_tex, g_tex->isRenderTarget);
-
-
-				if (g_tex->isRenderTarget)
-				{
-					for (auto* s : g_tex->surfaceRTs)
-					{
-						s->texture = g_tex->texture;
-						s->textureGeneration = g_tex->textureGeneration;
-						s->width = g_tex->width;
-						s->height = g_tex->height;
-						s->layout = g_tex->layout;
-					}
-				}
-			}
-
-			if (g_pendingStencilResize)
-			{
-				g_barrierMap.erase(g_pendingStencilResize->texture);
-				RecreateGuestSurfaceTexture(g_pendingStencilResize, false);
-				g_pendingStencilResize->framebuffers.clear();
-			}
-
-			g_pendingSurfaceResizeFlag = false;
+			surface_resize::RecreateTracked(g_resizableTextures, g_resizableSurfaces,
+				DepthStencilFormat, RecreateGuestSurfaceTexture);
 		}
+
+		bool usingIntermediaryTexture = (width != g_swapChain->getWidth()) || (height != g_swapChain->getHeight()) ||
+			(abs(Config::Brightness.Value - 0.5f) > 0.001f) || resizedSurfaces;
 
 		if (usingIntermediaryTexture)
 		{
@@ -3134,6 +3118,8 @@ static void BeginCommandList()
 
 				Video::WaitForGPU(); // Fine to wait for GPU, this'll only happen during resize.
 
+				InvalidateFramebufferCache(g_intermediaryBackBufferTexture.get());
+				g_backBuffer->framebuffers.clear();
 				g_intermediaryBackBufferTexture = g_device->createTexture(RenderTextureDesc::Texture2D(width, height, 1, BACKBUFFER_FORMAT, RenderTextureFlag::RENDER_TARGET));
 
 				ExecuteInitCommandList([&] // Discard texture, this is needed, see the function DiscardInitRenderResource for more info. 
@@ -3147,8 +3133,6 @@ static void BeginCommandList()
 
 				g_intermediaryBackBufferTextureWidth = width;
 				g_intermediaryBackBufferTextureHeight = height;
-
-				g_backBuffer->framebuffers.clear();
 			}
 
 			g_backBuffer->texture = g_intermediaryBackBufferTexture.get();
@@ -3158,6 +3142,8 @@ static void BeginCommandList()
 			g_backBuffer->texture = g_swapChain->getTexture(g_backBufferIndex);
 		}
 
+		g_backBuffer->width = width;
+		g_backBuffer->height = height;
 	}
 	else
 	{
@@ -5338,20 +5324,20 @@ void Video::ComputeViewportDimensions()
 		break;
 	}
 
-	if (denominator == 0)
+	if (denominator != 0 && aspectRatio > float(numerator) / float(denominator))
 	{
-		s_viewportWidth = width;
-		s_viewportHeight = height;
+		width = height * numerator / denominator;
 	}
-	else if (aspectRatio > float(numerator) / float(denominator))
+	else if (denominator != 0)
 	{
-		s_viewportWidth = height * numerator / denominator;
-		s_viewportHeight = height;
+		height = width * denominator / numerator;
 	}
-	else
+
 	{
-		s_viewportWidth = width;
-		s_viewportHeight = width * denominator / numerator;
+		std::lock_guard lock(g_surfaceRTsMutex);
+		// The swapchain can change size without another window resize event.
+		surface_resize::SetViewportSize(s_viewportWidth, s_viewportHeight, width, height,
+			g_pendingSurfaceResizeFlag);
 	}
 
 	auto base = g_memory.base;
@@ -5392,6 +5378,11 @@ static RenderFormat ConvertFormat(X_D3DFORMAT format)
 //todo check if this is all correct
 static GuestTexture* CreateTexture(uint32_t width, uint32_t height, uint32_t depth, uint32_t levels, uint32_t usage, X_D3DFORMAT format, X_D3DRESOURCETYPE type)
 {
+	// Only resizable textures need the resize lock.
+	std::unique_lock resizeLock(g_surfaceRTsMutex, std::defer_lock);
+	if (usage == 1)
+		resizeLock.lock();
+
 	auto texture = g_userHeap.AllocPhysical<GuestTexture>(type == X_D3DRTYPE_VOLUMETEXTURE ? ResourceType::VolumeTexture : ResourceType::Texture);
 
 	texture->g_width = width; // store original info for resolution scaling later 
@@ -5406,7 +5397,6 @@ static GuestTexture* CreateTexture(uint32_t width, uint32_t height, uint32_t dep
 		GetUpscaledSurfaceResolution(width, height, &newWidth, &newHeight);
 		width = newWidth;
 		height = newHeight;
-		g_pendingTextureResizes.insert(texture);
 	}
 
 
@@ -5467,6 +5457,9 @@ static GuestTexture* CreateTexture(uint32_t width, uint32_t height, uint32_t dep
 
 
 	g_textureDescriptorSet->setTexture(texture->descriptorIndex, texture->texture, RenderTextureLayout::SHADER_READ, texture->textureView.get());
+
+	if (usage == 1)
+		g_resizableTextures.insert(texture);
 
 	return texture;
 }
@@ -5639,6 +5632,7 @@ static GuestBuffer* CreateIndexBuffer(uint32_t IndexCount, X_D3DFORMAT format)
 
 static GuestSurface* CreateSurface(uint32_t width, uint32_t height, X_D3DFORMAT format, bool formatSet = false)
 {
+	std::lock_guard resizeLock(g_surfaceRTsMutex);
 	auto ogFormat = formatSet ? static_cast<plume::RenderFormat>(format) : ConvertFormat(format);
 	auto isStencil = ogFormat == DepthStencilFormat;
 	uint32_t ogWidth = width;
@@ -5692,13 +5686,14 @@ static GuestSurface* CreateSurface(uint32_t width, uint32_t height, X_D3DFORMAT 
 	DiscardInitRenderResource(surface->texture, isRT);
 
 	surface->guestResource.Format = format;
-	g_pendingStencilResize = surface;
+	g_resizableSurfaces.insert(surface);
 	return surface;
 }
 
 static std::vector<GuestSurface*> g_surfaceCache;
 static GuestSurface* GetSurfaceLevel(GuestTexture* texture, int32_t level, X_D3DFORMAT Format)
 {
+	std::lock_guard lock(g_surfaceRTsMutex);
 	uint32_t mipWidth = std::max(1u, texture->width >> level);
 	uint32_t mipHeight = std::max(1u, texture->height >> level);
 
@@ -5711,7 +5706,6 @@ static GuestSurface* GetSurfaceLevel(GuestTexture* texture, int32_t level, X_D3D
 	surface->guestFormat = Format;
 	surface->sampleCount = RenderSampleCount::COUNT_1;
 	surface->guestResource.Format = Format;
-	std::lock_guard lock(g_surfaceRTsMutex);
 
 	surface->texture = texture->texture;
 	surface->textureGeneration = texture->textureGeneration;
@@ -5997,7 +5991,7 @@ bool DestructResourceMidAsmHook(X86Register& esi)
 		// already about to get destroyed.
 		{
 			std::lock_guard lock(g_surfaceRTsMutex);
-			g_pendingTextureResizes.erase(texture);
+			g_resizableTextures.erase(texture);
 		}
 
 		texture->shouldFreeMemory = true;
@@ -6006,7 +6000,11 @@ bool DestructResourceMidAsmHook(X86Register& esi)
 	break;
 	case ResourceType::RenderTarget:
 	case ResourceType::DepthStencil:
+	{
+		std::lock_guard lock(g_surfaceRTsMutex);
+		g_resizableSurfaces.erase(static_cast<GuestSurface*>(resource));
 		break;
+	}
 	default:
 
 		return false; // not something the host allocated so leave it alone, the guest will free it.
