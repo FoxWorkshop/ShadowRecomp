@@ -3004,6 +3004,8 @@ void RecreateGuestSurfaceTexture(GuestBaseTexture* tex, bool isRT)
 	if (isRT && tex->descriptorIndex != NULL)
 		g_textureDescriptorSet->setTexture(tex->descriptorIndex, tex->textureHolder.get(), RenderTextureLayout::SHADER_READ);
 
+	// Keep this framebuffer alive until the GPU finishes clearing the texture.
+	std::unique_ptr<RenderFramebuffer> tempFB;
 	ExecuteInitCommandList([&] // Discard texture, this is needed, see the function DiscardInitRenderResource for more info. 
 		{
 			g_initCommandList->barriers(RenderBarrierStage::GRAPHICS, RenderTextureBarrier(tex->textureHolder.get(), targetLayout));
@@ -3022,7 +3024,7 @@ void RecreateGuestSurfaceTexture(GuestBaseTexture* tex, bool isRT)
 
 			}
 
-			auto tempFB = g_device->createFramebuffer(fbDesc);
+			tempFB = g_device->createFramebuffer(fbDesc);
 			g_initCommandList->setFramebuffer(tempFB.get());
 
 			if (isRT == false)
