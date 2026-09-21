@@ -3028,7 +3028,7 @@ void RecreateGuestSurfaceTexture(GuestBaseTexture* tex, bool isRT)
 			g_initCommandList->setFramebuffer(tempFB.get());
 
 			if (isRT == false)
-				g_initCommandList->clearDepthStencil();
+				g_initCommandList->clearDepthStencil(true, false); // D32_FLOAT has no stencil.
 			else
 				g_initCommandList->clearColor();
 
@@ -7025,14 +7025,14 @@ static void ProcClear(const RenderCommand& cmd)
 	}
 
 	const bool clearDepth = (args.flags & X_D3DCLEAR_ZBUFFER) != 0;
-	const bool clearStencil = (args.flags & X_D3DCLEAR_STENCIL) != 0;
-	if (g_depthStencil != nullptr && (clearDepth || clearStencil))
+	// Ignore stencil clears: our D32_FLOAT textures only store depth.
+	if (g_depthStencil != nullptr && clearDepth)
 	{
 		if (!canClearInOnePass) {
 			SetFramebuffer(nullptr, g_depthStencil, true);
 		}
 
-		commandList->clearDepthStencil(clearDepth, clearStencil, args.z, args.stencil);
+		commandList->clearDepthStencil(true, false, args.z, args.stencil);
 	}
 }
 
