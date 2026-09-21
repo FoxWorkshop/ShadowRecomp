@@ -52,7 +52,6 @@
 #define CONFIG_DEFINE_ENUM_LOCALE(type) \
     CONFIG_ENUM_LOCALE(type) g_##type##_locale =
 
-// Japanese Notes: This localization should include furigana.
 CONFIG_DEFINE_LOCALE(Language)
 {
     { ELanguage::English, { "Language", "Change the language used for text and logos." } },
@@ -125,7 +124,6 @@ CONFIG_DEFINE_ENUM_LOCALE(EVoiceLanguage)
     },
 };
 
-// Japanese Notes: This localization should include furigana.
 CONFIG_DEFINE_LOCALE(Hints)
 {
     { ELanguage::English, { "Hints", "Show hints during gameplay." } },
@@ -136,7 +134,6 @@ CONFIG_DEFINE_LOCALE(Hints)
     { ELanguage::Italian,  { "Indizi", "Mostra degli indizzi durante il gioco." } }
 };
 
-// Japanese Notes: This localization should include furigana.
 CONFIG_DEFINE_LOCALE(AchievementNotifications)
 {
     { ELanguage::English, { "Achievement Notifications", "Show notifications for unlocking achievements.\n\nAchievements will still be rewarded with notifications disabled." } },
@@ -147,7 +144,6 @@ CONFIG_DEFINE_LOCALE(AchievementNotifications)
     { ELanguage::Italian,  { "Notifiche obiettivi", "Mostra delle notifiche quando sblocchi degli obiettivi.\n\nGli obiettivi verranno comunque assegnati anche con le notifiche disattivate." } }
 };
 
-// Japanese Notes: This localization should include furigana.
 CONFIG_DEFINE_LOCALE(ConfirmationPrompt)
 {
     { ELanguage::English,  { "Confirmation Prompts", "Shows confirmation prompts when loading a save file, exiting to the menu, restarting, and in other similar situations.\n\nDisabling this option replicates the behavior of the GameCube version." } },
@@ -158,7 +154,6 @@ CONFIG_DEFINE_LOCALE(ConfirmationPrompt)
     { ELanguage::Italian,  { "Confirmation Prompts", "Shows confirmation prompts when loading a save file, exiting to the menu, restarting, and in other similar situations.\n\nDisabling this option replicates the behavior of the GameCube version." } },
 };
 
-// Japanese Notes: This localization should include furigana.
 CONFIG_DEFINE_LOCALE(ControllerIcons)
 {
     { ELanguage::English, { "Controller Icons", "Change the icons to match your controller." } },
@@ -228,7 +223,6 @@ CONFIG_DEFINE_ENUM_LOCALE(EControllerIcons)
     }
 };
 
-// Japanese Notes: This localization should include furigana.
 CONFIG_DEFINE_LOCALE(HorizontalCamera1P)
 {
     { ELanguage::English, { "1P Horizontal Camera", "Change how the camera moves left and right." } },
@@ -239,7 +233,6 @@ CONFIG_DEFINE_LOCALE(HorizontalCamera1P)
     { ELanguage::Italian,  { "1P Telecamera orizzontale", "Modifica come la telecamera si muove da sinistra a destra." } }
 };
 
-// Japanese Notes: This localization should include furigana.
 CONFIG_DEFINE_LOCALE(HorizontalCamera2P)
 {
     { ELanguage::English, { "2P Horizontal Camera", "Change how the camera moves left and right." } },
@@ -250,7 +243,6 @@ CONFIG_DEFINE_LOCALE(HorizontalCamera2P)
     { ELanguage::Italian,  { "2P Telecamera orizzontale", "Modifica come la telecamera si muove da sinistra a destra." } }
 };
 
-// Japanese Notes: This localization should include furigana.
 CONFIG_DEFINE_LOCALE(HorizontalCamera3P)
 {
     { ELanguage::English, { "3P Horizontal Camera", "Change how the camera moves left and right." } },
@@ -261,7 +253,6 @@ CONFIG_DEFINE_LOCALE(HorizontalCamera3P)
     { ELanguage::Italian,  { "3P Telecamera orizzontale", "Modifica come la telecamera si muove da sinistra a destra." } }
 };
 
-// Japanese Notes: This localization should include furigana.
 CONFIG_DEFINE_LOCALE(HorizontalCamera4P)
 {
     { ELanguage::English, { "4P Horizontal Camera", "Change how the camera moves left and right." } },
@@ -321,7 +312,6 @@ CONFIG_DEFINE_ENUM_LOCALE(ECameraRotationMode)
 
 
 
-// Japanese Notes: This localization should include furigana.
 CONFIG_DEFINE_LOCALE(Vibration1P)
 {
     { ELanguage::English, { "1P Vibration", "Toggle controller vibration." } },
@@ -332,7 +322,6 @@ CONFIG_DEFINE_LOCALE(Vibration1P)
     { ELanguage::Italian,  { "1P Vibrazione", "Attiva/disattiva la vibrazione del controller." } }
 };
 
-// Japanese Notes: This localization should include furigana.
 CONFIG_DEFINE_LOCALE(Vibration2P)
 {
     { ELanguage::English, { "2P Vibration", "Toggle controller vibration." } },
@@ -343,7 +332,6 @@ CONFIG_DEFINE_LOCALE(Vibration2P)
     { ELanguage::Italian,  { "2P Vibrazione", "Attiva/disattiva la vibrazione del controller." } }
 };
 
-// Japanese Notes: This localization should include furigana.
 CONFIG_DEFINE_LOCALE(Vibration3P)
 {
     { ELanguage::English, { "3P Vibration", "Toggle controller vibration." } },
@@ -354,7 +342,6 @@ CONFIG_DEFINE_LOCALE(Vibration3P)
     { ELanguage::Italian,  { "3P Vibrazione", "Attiva/disattiva la vibrazione del controller." } }
 };
 
-// Japanese Notes: This localization should include furigana.
 CONFIG_DEFINE_LOCALE(Vibration4P)
 {
     { ELanguage::English, { "4P Vibration", "Toggle controller vibration." } },
@@ -365,7 +352,6 @@ CONFIG_DEFINE_LOCALE(Vibration4P)
     { ELanguage::Italian,  { "4P Vibrazione", "Attiva/disattiva la vibrazione del controller." } }
 };
 
-// Japanese Notes: This localization should include furigana.
 CONFIG_DEFINE_LOCALE(AllowBackgroundInput)
 {
     { ELanguage::English, { "Allow Background Input", "Allow controller input whilst the game window is unfocused." } },
@@ -376,7 +362,6 @@ CONFIG_DEFINE_LOCALE(AllowBackgroundInput)
     { ELanguage::Italian,  { "Input con la finestra inattiva", "Attiva/disattiva i tasti del controller mentre la finestra è inattiva." } }
 };
 
-// Japanese Notes: This localization should include furigana.
 CONFIG_DEFINE_LOCALE(MasterVolume)
 {
     { ELanguage::English, { "Master Volume", "Adjust the overall volume." } },
@@ -387,7 +372,6 @@ CONFIG_DEFINE_LOCALE(MasterVolume)
     { ELanguage::Italian,  { "Volume principale", "Regola il volume principale" } }
 };
 
-// Japanese Notes: This localization should include furigana.
 CONFIG_DEFINE_LOCALE(MusicVolume)
 {
     { ELanguage::English, { "Music Volume", "Adjust the volume for the music." } },
@@ -398,7 +382,6 @@ CONFIG_DEFINE_LOCALE(MusicVolume)
     { ELanguage::Italian,  { "Volume musica di sottofondo", "Regola il volume della musica di sottofondo." } }
 };
 
-// Japanese Notes: This localization should include furigana.
 CONFIG_DEFINE_LOCALE(EffectsVolume)
 {
     { ELanguage::English, { "Effects Volume", "Adjust the volume for sound effects." } },
@@ -409,7 +392,6 @@ CONFIG_DEFINE_LOCALE(EffectsVolume)
     { ELanguage::Italian,  { "Volume effetti sonori", "Regola il volume degli effetti sonori." } }
 };
 
-// Japanese Notes: This localization should include furigana.
 CONFIG_DEFINE_LOCALE(VoicesVolume)
 {
     { ELanguage::English, { "Voices Volume", "Adjust the volume for the voices." } },
@@ -420,7 +402,6 @@ CONFIG_DEFINE_LOCALE(VoicesVolume)
     { ELanguage::Italian,  { "Volume delle voci", "Regola il volume delle voci." } },
 };
 
-// Japanese Notes: This localization should include furigana.
 CONFIG_DEFINE_LOCALE(MuteOnFocusLost)
 {
     { ELanguage::English, { "Mute on Focus Lost", "Mute the game's audio when the window is not in focus." } },
@@ -451,7 +432,6 @@ CONFIG_DEFINE_LOCALE(ChaosPowerLEDSync)
     { ELanguage::Italian,  { "TODO", "TODO" } }
 };
 
-// Japanese Notes: This localization should include furigana.
 CONFIG_DEFINE_LOCALE(VoiceLanguage)
 {
     { ELanguage::English, { "Voice Language", "Change the language used for character voices." } },
@@ -462,7 +442,6 @@ CONFIG_DEFINE_LOCALE(VoiceLanguage)
     { ELanguage::Italian, { "Lingua delle voci", "Modifica la lingua utilizzata per le voci dei personaggi." } }
 };
 
-// Japanese Notes: This localization should include furigana.
 CONFIG_DEFINE_LOCALE(Subtitles)
 {
     { ELanguage::English, { "Subtitles", "Show subtitles during dialogue." } },
@@ -473,7 +452,6 @@ CONFIG_DEFINE_LOCALE(Subtitles)
     { ELanguage::Italian,  { "Sottotitoli", "Mostra i sottotitoli durante i dialoghi." } }
 };
 
-// Japanese Notes: This localization should include furigana.
 CONFIG_DEFINE_LOCALE(WindowSize)
 {
     { ELanguage::English, { "Resolution", "Adjust the resolution of the game in windowed mode." } },
@@ -484,7 +462,6 @@ CONFIG_DEFINE_LOCALE(WindowSize)
     { ELanguage::Italian,  { "Risoluzione", "Regola la risoluzione del gioco in modalità finestra." } }
 };
 
-// Japanese Notes: This localization should include furigana.
 CONFIG_DEFINE_LOCALE(Monitor)
 {
     { ELanguage::English, { "Monitor", "Change which monitor to display the game on." } },
@@ -495,7 +472,6 @@ CONFIG_DEFINE_LOCALE(Monitor)
     { ELanguage::Italian,  { "Schermo", "Cambia lo schermo su cui visualizzare il gioco." } }
 };
 
-// Japanese Notes: This localization should include furigana.
 CONFIG_DEFINE_LOCALE(AspectRatio)
 {
     { ELanguage::English, { "Aspect Ratio", "Change the aspect ratio." } },
@@ -576,7 +552,6 @@ CONFIG_DEFINE_ENUM_LOCALE(EAspectRatio)
     }
 };
 
-// Japanese Notes: This localization should include furigana.
 CONFIG_DEFINE_LOCALE(FMVAspectRatio)
 {
     { ELanguage::English,  { "FMV Aspect Ratio", "Change how full motion videos fit the display." } },
@@ -640,7 +615,6 @@ CONFIG_DEFINE_ENUM_LOCALE(EFMVAspectRatio)
     }
 };
 
-// Japanese Notes: This localization should include furigana.
 CONFIG_DEFINE_LOCALE(ResolutionScale)
 {
     { ELanguage::English, { "Resolution Scale", "Adjust the internal resolution of the game.\n\n" } },
@@ -651,7 +625,6 @@ CONFIG_DEFINE_LOCALE(ResolutionScale)
     { ELanguage::Italian, { "Scala risoluzione", "Regola la risoluzione interna del gioco.\n\n" } }
 };
 
-// Japanese Notes: This localization should include furigana.
 CONFIG_DEFINE_LOCALE(Fullscreen)
 {
     { ELanguage::English, { "Fullscreen", "Toggle between borderless fullscreen or windowed mode." } },
@@ -662,7 +635,6 @@ CONFIG_DEFINE_LOCALE(Fullscreen)
     { ELanguage::Italian,  { "Schermo pieno", "Attiva/disattiva tra modalità finestra senza cornice e modalità finestra." } }
 };
 
-// Japanese Notes: This localization should include furigana.
 CONFIG_DEFINE_LOCALE(VSync)
 {
     { ELanguage::English, { "V-Sync", "Synchronize the game to the refresh rate of the display to prevent screen tearing." } },
@@ -673,7 +645,6 @@ CONFIG_DEFINE_LOCALE(VSync)
     { ELanguage::Italian,  { "V-Sync", "Sincronizza il gioco con la frequenza d'aggiornamento del display per evitare lo screen tearing." } }
 };
 
-// Japanese Notes: This localization should include furigana.
 CONFIG_DEFINE_LOCALE(FPS)
 {
     { ELanguage::English, { "FPS", "Set the max frame rate the game can run at.\n\nWARNING: this may introduce glitches at frame rates higher than 60 FPS." } },
@@ -684,7 +655,6 @@ CONFIG_DEFINE_LOCALE(FPS)
     { ELanguage::Italian,  { "FPS", "Imposta il frame rate massimo del gioco.\n\nATTENZIONE: questa opzione può causare dei glitch a frame rate più alti di 60 FPS." } }
 };
 
-// Japanese Notes: This localization should include furigana.
 CONFIG_DEFINE_LOCALE(Brightness)
 {
     { ELanguage::English, { "Brightness", "Adjust the brightness level until the symbol on the left is barely visible." } },
@@ -695,7 +665,6 @@ CONFIG_DEFINE_LOCALE(Brightness)
     { ELanguage::Italian,  { "Luminosità", "Regola la luminosità dello schermo fino a quando il simbolo a sinistra diventa leggermente visibile." } }
 };
 
-// Japanese Notes: This localization should include furigana.
 CONFIG_DEFINE_LOCALE(AntiAliasing)
 {
     { ELanguage::English, { "Anti-Aliasing", "Adjust the amount of smoothing applied to jagged edges." } },
@@ -802,7 +771,6 @@ CONFIG_DEFINE_ENUM_LOCALE(ETextureFiltering)
     }
 };
 
-// Japanese Notes: This localization should include furigana.
 CONFIG_DEFINE_LOCALE(BloomIntensity)
 {
     { ELanguage::English, { "Bloom Intensity", "Adjust the intensity of the bloom effect." } },
@@ -813,7 +781,6 @@ CONFIG_DEFINE_LOCALE(BloomIntensity)
     { ELanguage::Italian,  { "Intensità del bloom", "Regola l'intensità dell'effetto bloom." } }
 };
 
-// Japanese Notes: This localization should include furigana.
 CONFIG_DEFINE_LOCALE(EnablePartnerIntro)
 {
     { ELanguage::English, { "Partner Intro", "Show partner's introduction when they are first met." } },
@@ -824,7 +791,6 @@ CONFIG_DEFINE_LOCALE(EnablePartnerIntro)
     { ELanguage::Italian,  { "", "" } }
 };
 
-// Japanese Notes: This localization should include furigana.
 CONFIG_DEFINE_LOCALE(UIAlignmentMode)
 {
     { ELanguage::English, { "UI Alignment Mode", "Change how the UI aligns with the display." } },

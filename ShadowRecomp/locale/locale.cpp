@@ -1,52 +1,7 @@
 #include <user/config.h>
 #include <locale/locale.h>
 
-/*
-	!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! LOCALISATION NOTES !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-
-	- Ensure brand names are always presented on the same line.
-
-	  Correct:
-	  This is a string that contains a brand name like
-	  Xbox, which is one of the few consoles to have a port of
-	  Shadow the Hedgehog.
-
-	  Incorrect:
-	  This is a string that contains a brand name like Xbox,
-	  which is one of the few consoles to have a port of Shadow
-	  the Hedgehog.
-
-	- Ensure your locale is added in the correct order following the language enum.
-
-	  Correct:
-	  {
-		  { ELanguage::English,  "Example" },
-		  { ELanguage::Japanese, "Example" },
-		  { ELanguage::German,   "Example" },
-		  { ELanguage::French,   "Example" },
-		  { ELanguage::Spanish,  "Example" },
-		  { ELanguage::Italian,  "Example" }
-	  }
-
-	  Incorrect:
-	  {
-		  { ELanguage::English,  "Example" },
-		  { ELanguage::French,   "Example" },
-		  { ELanguage::Spanish,  "Example" },
-		  { ELanguage::German,   "Example" },
-		  { ELanguage::Italian,  "Example" },
-		  { ELanguage::Japanese, "Example" }
-	  }
-
-	- Japanese localization should use furigana for message windows, options items,
-	options descriptions and installer text.
-
-	  Furigana should be included in the text as such:
-	  "[私:わたし]はジョージです。"
-
-	!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-*/
-
+// Japanese localization should use furigana for message windows, options items, options descriptions and installer text.
 std::unordered_map<std::string_view, std::unordered_map<ELanguage, std::string>> g_locale =
 {
 	{
@@ -93,7 +48,6 @@ std::unordered_map<std::string_view, std::unordered_map<ELanguage, std::string>>
 			{ ELanguage::Italian,  "COMANDI" }
 		}
 	},
-
 	{
 		"Options_Desc_Category_Input",
 		{
@@ -181,7 +135,7 @@ std::unordered_map<std::string_view, std::unordered_map<ELanguage, std::string>>
 			{ ELanguage::Spanish,  "Configuración de depuración" },
 			{ ELanguage::Italian,  "Impostazioni debug" }
 		}
-			},
+	},
 	{
 		"Options_Desc_Category_Debug",
 		{
@@ -217,7 +171,6 @@ std::unordered_map<std::string_view, std::unordered_map<ELanguage, std::string>>
 		}
 	},
 	{
-		// Japanese Notes: This localization should include furigana.
 		"Options_Desc_LegacyMenu",
 		{
 			{ ELanguage::English,  "Go to Legacy Options" },
@@ -228,7 +181,6 @@ std::unordered_map<std::string_view, std::unordered_map<ELanguage, std::string>>
 			{ ELanguage::Italian,  "Vai alle opzioni Legacy" }
 		}
 	},
-
 	{
 		"Options_Name_WindowSize",
 		{
@@ -241,7 +193,6 @@ std::unordered_map<std::string_view, std::unordered_map<ELanguage, std::string>>
 		}
 	},
 	{
-		// Japanese Notes: This localization should include furigana.
 		"Options_Desc_WindowSize",
 		{
 			{ ELanguage::English,  "Adjust the resolution of the game in windowed mode." },
@@ -254,7 +205,6 @@ std::unordered_map<std::string_view, std::unordered_map<ELanguage, std::string>>
 	},
 	{
 		// Notes: description for options that cannot be accessed anywhere but the title screen or world map (e.g. Language).
-		// Japanese Notes: This localization should include furigana.
 		"Options_Desc_NotAvailable",
 		{
 			{ ELanguage::English,  "This option is not available at this location." },
@@ -267,7 +217,6 @@ std::unordered_map<std::string_view, std::unordered_map<ELanguage, std::string>>
 	},
 	{
 		// Notes: currently the description for Window Size when in fullscreen.
-		// Japanese Notes: This localization should include furigana.
 		"Options_Desc_NotAvailableFullscreen",
 		{
 			{ ELanguage::English,  "This option is not available in fullscreen mode." },
@@ -280,7 +229,6 @@ std::unordered_map<std::string_view, std::unordered_map<ELanguage, std::string>>
 	},
 	{
 		// Notes: currently the description for Monitor when in fullscreen.
-		// Japanese Notes: This localization should include furigana.
 		"Options_Desc_NotAvailableWindowed",
 		{
 			{ ELanguage::English,  "This option is not available in windowed mode." },
@@ -293,7 +241,6 @@ std::unordered_map<std::string_view, std::unordered_map<ELanguage, std::string>>
 	},
 	{
 		// Notes: currently the description for Monitor when the user only has one display connected.
-		// Japanese Notes: This localization should include furigana.
 		"Options_Desc_NotAvailableHardware",
 		{
 			{ ELanguage::English,  "This option is not available with your current hardware configuration." },
@@ -305,34 +252,7 @@ std::unordered_map<std::string_view, std::unordered_map<ELanguage, std::string>>
 		}
 	},
 	{
-		// Notes: description for Transparency Anti-Aliasing when MSAA is disabled.
-		// Japanese Notes: This localization should include furigana.
-		"Options_Desc_NotAvailableMSAA",
-		{
-			{ ELanguage::English,  "This option is not available without MSAA." },
-			{ ELanguage::Japanese, "この\u200Bオプションは\u200BMSAAなしで\u200B[変更:へんこう]\u200Bできません" },
-			{ ELanguage::German,   "Diese Option ist ohne MSAA nicht verfügbar." },
-			{ ELanguage::French,   "Cette option n'est pas disponible sans MSAA." },
-			{ ELanguage::Spanish,  "Esta opción no está disponible sin MSAA." },
-			{ ELanguage::Italian,  "Questa opzione non è disponibile senza MSAA." }
-		}
-	},
-	{
-		// Notes: description for Music Attenuation when the user is not running a supported OS.
-		// Japanese Notes: This localization should include furigana.
-		"Options_Desc_OSNotSupported",
-		{
-			{ ELanguage::English,  "This option is not supported by your operating system." },
-			{ ELanguage::Japanese, "この\u200Bオプションは\u200B[現在:げんざい]の\u200BOSで\u200B[変更:へんこう]\u200Bできません" },
-			{ ELanguage::German,   "Diese Option wird von diesem Betriebssystem nicht unterstützt." },
-			{ ELanguage::French,   "Cette option n'est pas prise en charge par votre système d'exploitation." },
-			{ ELanguage::Spanish,  "Esta opción no está soportada por tu sistema operativo." },
-			{ ELanguage::Italian,  "Questa opzione non è disponibile con il tuo sistema operativo." }
-		}
-	},
-	{
 		// Notes: message appears when changing the Language option and backing out of the options menu.
-		// Japanese Notes: This localization should include furigana.
 		"Options_Message_Restart",
 		{
 			{ ELanguage::English,  "The game will now restart." },
@@ -345,7 +265,6 @@ std::unordered_map<std::string_view, std::unordered_map<ELanguage, std::string>>
 	},
 	{
 		// Notes: text in pause menu during gameplay
-		// Japanese Notes: This localization should include furigana.
 		"Pause_Menu_Continue",
 		{
 			{ ELanguage::English,  "resume" },
@@ -358,7 +277,6 @@ std::unordered_map<std::string_view, std::unordered_map<ELanguage, std::string>>
 	},
 	{
 		// Notes: text in pause menu during gameplay
-		// Japanese Notes: This localization should include furigana.
 		"Pause_Menu_Restart",
 		{
 			{ ELanguage::English,  "restart" },
@@ -371,7 +289,6 @@ std::unordered_map<std::string_view, std::unordered_map<ELanguage, std::string>>
 	},
 	{
 		// Notes: text in pause menu during gameplay
-		// Japanese Notes: This localization should include furigana.
 		"Pause_Menu_Options",
 		{
 			{ ELanguage::English,  "options" },
@@ -384,7 +301,6 @@ std::unordered_map<std::string_view, std::unordered_map<ELanguage, std::string>>
 	},
 	{
 		// Notes: text in pause menu during gameplay
-		// Japanese Notes: This localization should include furigana.
 		"Pause_Menu_Quit",
 		{
 			{ ELanguage::English,  "quit" },
@@ -431,28 +347,6 @@ std::unordered_map<std::string_view, std::unordered_map<ELanguage, std::string>>
 		}
 	},
 	{
-		"Installer_Header_Installer",
-		{
-			{ ELanguage::English,  "Installer" },
-			{ ELanguage::Japanese, "Install" },
-			{ ELanguage::German,   "Installation" },
-			{ ELanguage::French,   "Installateur" },
-			{ ELanguage::Spanish,  "Instalador" },
-			{ ELanguage::Italian,  "Installatore" },
-		},
-	},
-	{
-		"Installer_Header_Installing",
-		{
-			{ ELanguage::English,  "Installing" },
-			{ ELanguage::Japanese, "Install" },
-			{ ELanguage::German,   "Installation" },
-			{ ELanguage::French,   "Installation" },
-			{ ELanguage::Spanish,  "Instalando" },
-			{ ELanguage::Italian,  "Installando" },
-		}
-	},
-	{
 		"Installer_Header_Browse",
 		{
 			{ ELanguage::English,  "Browse" },
@@ -464,7 +358,6 @@ std::unordered_map<std::string_view, std::unordered_map<ELanguage, std::string>>
 		}
 	},
 	{
-		// Japanese Notes: This localization should include furigana.
 		"Installer_Page_SelectLanguage",
 		{
 			{ ELanguage::English,  "Please select a language." },
@@ -476,43 +369,40 @@ std::unordered_map<std::string_view, std::unordered_map<ELanguage, std::string>>
 		}
 	},
 	{
-		// Japanese Notes: This localization should include furigana.
 		"Installer_Page_Introduction",
 		{
 			{ ELanguage::English,  "Welcome to Shadow Recompiled!\n\nYou'll need an Xbox copy of\nShadow the Hedgehog in order to\nproceed with the installation." },
-			{ ELanguage::Japanese, "Shadow Recompiledへようこそ！\nインストールには\n[北米版:ほくべいばん]またはEU[版:ばん]のXbox[用:よう]\n「SHADOW THE HEDGEHOG」が[必要:ひつよう]です" },
-			{ ELanguage::German,   "Willkommen zu Shadow Recompiled!\nEs wird eine Xbox Kopie von Shadow the Hedgehog benötigt um mit der Installation fortfahren zu können." },
-			{ ELanguage::French,   "Bienvenue sur Shadow Recompiled !\n\nVous aurez besoin d'une copie de Shadow the Hedgehog pour Xbox\npour procéder à l'installation." },
-			{ ELanguage::Spanish,  "¡Bienvenido a Shadow Recompiled!\n\nNecesitas una copia de\nShadow the Hedgehog de Xbox\npara continuar con la instalación." },
-			{ ELanguage::Italian,  "Benvenuto a Shadow Recompiled!\n\nDovrai avere una copia di\nShadow the Hedgehog per la Xbox\nper proseguire con l'installazione." }
+			{ ELanguage::Japanese, "Welcome to Shadow Recompiled!\n\nYou'll need an Xbox copy of\nShadow the Hedgehog in order to\nproceed with the installation." },
+			{ ELanguage::German,   "Welcome to Shadow Recompiled!\n\nYou'll need an Xbox copy of\nShadow the Hedgehog in order to\nproceed with the installation." },
+			{ ELanguage::French,   "Welcome to Shadow Recompiled!\n\nYou'll need an Xbox copy of\nShadow the Hedgehog in order to\nproceed with the installation." },
+			{ ELanguage::Spanish,  "Welcome to Shadow Recompiled!\n\nYou'll need an Xbox copy of\nShadow the Hedgehog in order to\nproceed with the installation." },
+			{ ELanguage::Italian,  "Welcome to Shadow Recompiled!\n\nYou'll need an Xbox copy of\nShadow the Hedgehog in order to\nproceed with the installation." }
 		}
 	},
 	{
-		// Japanese Notes: This localization should include furigana.
+		// TODO: Do we want to support 'extracted' folder?
 		"Installer_Page_SelectGame",
 		{
-			{ ELanguage::English,  "Add the sources for the game." },
-			{ ELanguage::Japanese, "ゲームのソースを[追加:ついか]" },
-			{ ELanguage::German,   "Füge die Quellen für das Spiel hinzu." },
-			{ ELanguage::French,   "Ajouter les fichiers du jeu." },
-			{ ELanguage::Spanish,  "Añade las fuentes para el juego." },
-			{ ELanguage::Italian,  "Aggiungi le fonti per il gioco." }
+			{ ELanguage::English,  "Add the source for the game." },
+			{ ELanguage::Japanese, "Add the source for the game." },
+			{ ELanguage::German,   "Add the source for the game." },
+			{ ELanguage::French,   "Add the source for the game." },
+			{ ELanguage::Spanish,  "Add the source for the game." },
+			{ ELanguage::Italian,  "Add the source for the game." }
 		}
 	},
 	{
-		// Japanese Notes: This localization should include furigana.
 		"Installer_Page_NoFileSelected",
 		{
 			{ ELanguage::English,  "No file selected..." },
-			{ ELanguage::Japanese, "ファイルが選択されていません..." },
-			{ ELanguage::German,   "Keine Datei ausgewählt..." },
-			{ ELanguage::French,   "Aucun fichier sélectionné..." },
-			{ ELanguage::Spanish,  "Ningún archivo seleccionado..." },
-			{ ELanguage::Italian,  "Nessun file selezionato..." }
+			{ ELanguage::Japanese, "No file selected..." },
+			{ ELanguage::German,   "No file selected..." },
+			{ ELanguage::French,   "No file selected..." },
+			{ ELanguage::Spanish,  "No file selected..." },
+			{ ELanguage::Italian,  "No file selected..." }
 		}
 	},
 	{
-		// Japanese Notes: This localization should include furigana.
 		"Installer_Page_CheckSpace",
 		{
 			{ ELanguage::English,  "The content will be installed to the program's folder.\n\n" },
@@ -524,10 +414,9 @@ std::unordered_map<std::string_view, std::unordered_map<ELanguage, std::string>>
 		}
 	},
 	{
-		// Japanese Notes: This localization should include furigana.
 		"Installer_Page_Verifying",
 		{
-			{ ELanguage::English,  "Please wait while the disc image is being verified..." },
+			{ ELanguage::English,  "Please wait while content is being verified..." },
 			{ ELanguage::Japanese, "ディスクイメージの検証[中:ちゅう]はお[待:ま]ち\nください" },
 			{ ELanguage::German,   "Bitte warten. Das Disc-Image wird überprüft..." },
 			{ ELanguage::French,   "Veuillez patienter pendant la vérification de l'image du disque..." },
@@ -536,19 +425,17 @@ std::unordered_map<std::string_view, std::unordered_map<ELanguage, std::string>>
 		}
 	},
 	{
-		// Japanese Notes: This localization should include furigana.
 		"Installer_Page_Installing",
 		{
-			{ ELanguage::English,  "Please wait while the content is being installed..." },
-			{ ELanguage::Japanese, "コンテンツのインストール[中:ちゅう]はお[待:ま]ち\nください" },
-			{ ELanguage::German,   "Bitte warten. Der Inhalt wird installiert..." },
-			{ ELanguage::French,   "Veuillez patienter pendant l'installation du contenu..." },
-			{ ELanguage::Spanish,  "Por favor, espera mientras el contenido se instala... " },
-			{ ELanguage::Italian,  "Attendi mentre il contenuto viene installato... " }
+			{ ELanguage::English,  "Installing..." },
+			{ ELanguage::Japanese, "Installing..." },
+			{ ELanguage::German,   "Installing..." },
+			{ ELanguage::French,   "Installing..." },
+			{ ELanguage::Spanish,  "Installing..." },
+			{ ELanguage::Italian,  "Installing..." }
 		}
 	},
 	{
-		// Japanese Notes: This localization should include furigana.
 		"Installer_Page_InstallSucceeded",
 		{
 			{ ELanguage::English,  "Installation complete!\nThis project is brought to you by:" },
@@ -560,7 +447,6 @@ std::unordered_map<std::string_view, std::unordered_map<ELanguage, std::string>>
 		}
 	},
 	{
-		// Japanese Notes: This localization should include furigana.
 		"Installer_Page_InstallFailed",
 		{
 			{ ELanguage::English,  "Installation failed.\n\nAn unknown error occurred." },
@@ -594,7 +480,6 @@ std::unordered_map<std::string_view, std::unordered_map<ELanguage, std::string>>
 		}
 	},
 	{
-		// Japanese Notes: This localization should include furigana.
 		"Installer_Step_RequiredSpace",
 		{
 			{ ELanguage::English,  "Required space: %2.3f GiB" },
@@ -606,7 +491,6 @@ std::unordered_map<std::string_view, std::unordered_map<ELanguage, std::string>>
 		}
 	},
 	{
-		// Japanese Notes: This localization should include furigana.
 		"Installer_Step_AvailableSpace",
 		{
 			{ ELanguage::English,  "Available space: %2.3f GiB" },
@@ -618,7 +502,7 @@ std::unordered_map<std::string_view, std::unordered_map<ELanguage, std::string>>
 		}
 	},
 	{
-		"Installer_Button_Next", // back already exist in common
+		"Installer_Button_Next",
 		{
 			{ ELanguage::English,  "Next" },
 			{ ELanguage::Japanese, "次へ" },
@@ -685,7 +569,6 @@ std::unordered_map<std::string_view, std::unordered_map<ELanguage, std::string>>
 	},
 	{
 		// Notes: message appears when using the "Add Files" option and choosing any file that is not an Xbox game dump.
-		// Japanese Notes: This localization should include furigana.
 		"Installer_Message_InvalidFileSelected",
 		{
 			{ ELanguage::English,  "The selected file is not a valid Shadow the Hedgehog Xbox ISO.\nPlease provide a valid ISO file." },
@@ -697,8 +580,7 @@ std::unordered_map<std::string_view, std::unordered_map<ELanguage, std::string>>
 		}
 	},
 	{
-		// Notes: message appears when clicking the "Add Files" option for the first time.
-		// Japanese Notes: This localization should include furigana.
+		// TODO: UNUSED
 		"Installer_Message_FilePickerTutorial",
 		{
 			{ ELanguage::English,  "Select a digital dump with\ncontent from the game.\n\nThese files can be obtained from\nyour Xbox hard drive by\nfollowing the instructions on\nthe GitHub page.\n\nFor choosing a folder with extracted\nand unmodified game files, use\nthe \"Add Folder\" option instead." },
@@ -710,8 +592,7 @@ std::unordered_map<std::string_view, std::unordered_map<ELanguage, std::string>>
 		}
 	},
 	{
-		// Notes: message appears when clicking the "Add Folder" option for the first time.
-		// Japanese Notes: This localization should include furigana.
+		// TODO: Unused, if we support already extracted game, add it
 		"Installer_Message_FolderPickerTutorial",
 		{
 			{ ELanguage::English,  "Select a folder that contains the\nunmodified files that have been\nextracted from the game.\n\nThese files can be obtained from\nyour Xbox hard drive by\nfollowing the instructions on\nthe GitHub page.\n\nFor choosing a digital dump,\nuse the \"Add Files\" option instead." },
@@ -724,7 +605,6 @@ std::unordered_map<std::string_view, std::unordered_map<ELanguage, std::string>>
 	},
 	{
 		// Notes: message appears when pressing B at the title screen.
-		// Japanese Notes: This localization should include furigana.
 		"Title_Message_Quit",
 		{
 			{ ELanguage::English,  "Are you sure you want to quit the game?" },
@@ -738,7 +618,6 @@ std::unordered_map<std::string_view, std::unordered_map<ELanguage, std::string>>
 	{
 		// Notes: message appears when creating a save file at the title screen.
 		// Note, the game exclusively use "Game Data" when referring to save file, please re use this for consistency.
-		// Japanese Notes: This localization should include furigana.
 		"Title_Message_CreateSave",
 		{
 			{ ELanguage::English,  "There is no Game Data on your PC.\nSHADOW THE HEDGEHOG™\nsupports an autosave feature.\nDo you want to create Game Data?" },
@@ -752,8 +631,7 @@ std::unordered_map<std::string_view, std::unordered_map<ELanguage, std::string>>
 	{
 		// Notes: message appears when creating a save file at the title screen.
 		// Note, the game exclusively use "Game Data" when referring to save file, please re use this for consistency.
-		// Japanese Notes: This localization should include furigana.
-		"Title_Message_CreateSaveFailed",
+				"Title_Message_CreateSaveFailed",
 		{
 			{ ELanguage::English,  "Start the game without creating\nGame Data.\nProgress of the game will not be saved." },
 			{ ELanguage::Japanese, "" },
@@ -810,7 +688,6 @@ std::unordered_map<std::string_view, std::unordered_map<ELanguage, std::string>>
 	{
 		// Notes: message appears when creating a save file at the title screen.
 		// Note, the game exclusively use "Game Data" when referring to save file, please re use this for consistency.
-		// Japanese Notes: This localization should include furigana.
 		"Title_Message_LoadSave",
 		{
 			{ ELanguage::English,  "Do you want to load Game Data?" },
@@ -824,7 +701,6 @@ std::unordered_map<std::string_view, std::unordered_map<ELanguage, std::string>>
 	{
 		// Notes: message appears when creating a save file at the title screen.
 		// Note, the game exclusively use "Game Data" when referring to save file, please re use this for consistency.
-		// Japanese Notes: This localization should include furigana.
 		"Title_Message_ContinueWithoutSave",
 		{
 			{ ELanguage::English,  "Continue without saving ?" }, // there is a space added before the question mark to match the original game text, even in english.
@@ -838,8 +714,7 @@ std::unordered_map<std::string_view, std::unordered_map<ELanguage, std::string>>
 	{
 		// Notes: message appears when ACH-DATA is corrupted (mismatching file size, bad signature, incorrect version or invalid checksum) upon pressing start at the title screen.
 		// To make this occur, open the file in any editor and just remove a large chunk of data.
-		// Japanese Notes: This localization should include furigana.
-		"Title_Message_AchievementDataCorrupt",
+				"Title_Message_AchievementDataCorrupt",
 		{
 			{ ELanguage::English,  "The achievement data appears to be\ncorrupted and cannot be loaded.\n\nProceeding from this point will\nclear your achievement data." },
 			{ ELanguage::Japanese, "[実績:じっせき]データが[破損:はそん]しているため\n[読:よ]み[込:こ]むことができません\n\nこの[先:さき]に[進:すす]むと[実績:じっせき]データが\n[消去:しょうきょ]されます" },
@@ -852,7 +727,6 @@ std::unordered_map<std::string_view, std::unordered_map<ELanguage, std::string>>
 	{
 		// Notes: message appears when ACH-DATA cannot be loaded upon pressing start at the title screen.
 		// To make this occur, lock the ACH-DATA file using an external program so that it cannot be accessed by the game.
-		// Japanese Notes: This localization should include furigana.
 		"Title_Message_AchievementDataIOError",
 		{
 			{ ELanguage::English,  "The achievement data could not be loaded.\nYour achievements will not be saved." },
@@ -864,7 +738,6 @@ std::unordered_map<std::string_view, std::unordered_map<ELanguage, std::string>>
 		}
 	},
 	{
-		// Japanese Notes: This localization should include furigana.
 		"Title_Message_UpdateAvailable",
 		{
 			{ ELanguage::English,  "An update is available!\n\nWould you like to visit the\nreleases page to download it?" },
@@ -898,6 +771,7 @@ std::unordered_map<std::string_view, std::unordered_map<ELanguage, std::string>>
 		}
 	},
 	{
+		// TODO: UNUSED, Do we want an integrity check feature?
 		"IntegrityCheck_Success",
 		{
 			{ ELanguage::English,  "Installation check has finished.\n\nAll files seem to be correct.\n\nThe game will now close. Remove the launch argument to play the game." },
@@ -909,6 +783,7 @@ std::unordered_map<std::string_view, std::unordered_map<ELanguage, std::string>>
 		}
 	},
 	{
+		// TODO: UNUSED, Do we want an integrity check feature?
 		"IntegrityCheck_Failed",
 		{
 			{ ELanguage::English,  "Installation check has failed.\n\nError: %s\n\nThe game will now close. Try reinstalling the game by using the --install launch argument." },

@@ -1,7 +1,6 @@
 ﻿#include "installer_wizard.h"
 
 #include <nfd.h>
-
 #include <audio/embedded_player.h>
 #include <install/xiso_extract.h>
 #include <gpu/video.h>
@@ -11,7 +10,6 @@
 #include <ui/imgui_utils.h>
 #include <os/logger.h>
 #include <input/input.h>
-
 #include <thread>
 #include <atomic>
 #include <chrono>
@@ -31,7 +29,7 @@ enum class WizardPage
 {
 	SelectLanguage,
 	Introduction,
-	SelectISO,
+	SelectGame,
 	Installing,
 	InstallSucceeded,
 	InstallFailed,
@@ -43,7 +41,6 @@ enum class MessagePromptSource
 	Next,
 	Back
 };
-
 
 enum ButtonColumn
 {
@@ -86,8 +83,6 @@ constexpr float CONTAINER_Y = 100.f;
 constexpr float CONTAINER_WIDTH = 526.5f;
 constexpr float CONTAINER_HEIGHT = 246.0f;
 constexpr float SIDE_CONTAINER_WIDTH = CONTAINER_WIDTH / 2.0f;
-
-
 constexpr float CONTAINER_BUTTON_WIDTH = 250.0f;
 constexpr float CONTAINER_BUTTON_GAP = 9.0f;
 constexpr float BUTTON_HEIGHT = 22.0f;
@@ -131,14 +126,13 @@ static std::string& GetWizardText(WizardPage page)
 	case WizardPage::SelectLanguage: return Localise("Installer_Page_SelectLanguage");
 	case WizardPage::Introduction: return Localise("Installer_Page_Introduction");
 		// case WizardPage::CheckSpace: return Localise("Installer_Page_CheckSpace");
-	case WizardPage::SelectISO: return Localise("Installer_Page_SelectGame");
+	case WizardPage::SelectGame: return Localise("Installer_Page_SelectGame");
 	case WizardPage::Installing: return Localise("Installer_Page_Installing");
 	case WizardPage::InstallSucceeded: return Localise("Installer_Page_InstallSucceeded");
 	}
 
 	return g_localeMissing;
 }
-
 
 // These are ordered from bottom to top in a 3x2 grid.
 const char* LANGUAGE_TEXT[] =
@@ -160,8 +154,6 @@ const ELanguage LANGUAGE_ENUM[] =
 	ELanguage::Italian,
 	ELanguage::Japanese,
 };
-
-
 
 static double ComputeMotionInstaller(double timeAppear, double timeDisappear, double offset, double total)
 {
@@ -247,7 +239,6 @@ static void DrawButtonContainer(ImVec2 min, ImVec2 max, int baser, int baseg, fl
 static void ComputeButtonColumnCoordinates(ButtonColumn buttonColumn, ImVec2 panelMin, ImVec2 panelMax,
 	float& minX, float& maxX)
 {
-
 	float panelWidth = panelMax.x - panelMin.x;
 
 	// Scale button width proportionally to panel, with a cap so it
@@ -283,7 +274,6 @@ static ImVec2 ComputeTextSize(ImFont* font, const char* text, float size, float&
 	{
 		squashRatio = 1.0f;
 	}
-
 	return textSize;
 }
 
@@ -313,9 +303,7 @@ static void DrawButton(ImVec2 min, ImVec2 max, const char* buttonText, bool sour
 		io.MousePos.y >= min.y && io.MousePos.y <= max.y)
 	{
 		btnHovered = true;
-
 	}
-
 
 	if (btnHovered && io.MouseClicked[0])
 	{
@@ -326,8 +314,6 @@ static void DrawButton(ImVec2 min, ImVec2 max, const char* buttonText, bool sour
 
 	int baser = 0;
 	int baseg = 0;
-
-
 	DrawButtonContainer(min, max, baser, baseg, alpha);
 
 	ImFont* font = g_fntSeurat;
@@ -345,9 +331,6 @@ static void DrawButton(ImVec2 min, ImVec2 max, const char* buttonText, bool sour
 
 	SetOrigin({ min.x + textSize.x / 2.0f, min.y });
 	SetScale({ squashRatio, 1.0f });
-
-
-
 	int aText = (int)(255 * alpha);
 	DrawTextWithOutline
 	(
@@ -384,30 +367,24 @@ static void InstallerThread()
 		};
 
 	bool success = XisoExtract::Extract(g_isoPath, g_installPath, progressCallback);
-
 	g_installerProgressTarget.store(1.0f);
-
 	if (!success)
 	{
 		g_installerFailed.store(true);
 		g_installerErrorMessage = Localise("Installer_Message_InvalidFileSelected");
 	}
-
 	g_installerFinished.store(true);
 }
 
 static void DrawLanguagePicker(ImVec2 panelMin, ImVec2 panelMax)
 {
 	bool buttonPressed = false;
-
 	float panelWidth = panelMax.x - panelMin.x;
 	float panelHeight = panelMax.y - panelMin.y;
 
 	float buttonWidth = std::min(panelWidth * 0.38f, Scale(CONTAINER_BUTTON_WIDTH));
 	float buttonH = Scale(BUTTON_HEIGHT);
 	float gap = panelWidth * 0.08f;
-
-
 	float bottomMargin = panelHeight * 0.25f;
 	float rowStride = buttonH + Scale(CONTAINER_BUTTON_GAP);
 
@@ -420,8 +397,6 @@ static void DrawLanguagePicker(ImVec2 panelMin, ImVec2 panelMax)
 	{
 		float minX = (i < 3) ? leftMinX : rightMinX;
 		float maxX = (i < 3) ? leftMaxX : rightMaxX;
-
-
 		float minusY = rowStride * float(i % 3);
 		float btnMaxY = panelMax.y - bottomMargin - minusY;
 		float btnMinY = btnMaxY - buttonH;
@@ -434,13 +409,14 @@ static void DrawLanguagePicker(ImVec2 panelMin, ImVec2 panelMax)
 			LANGUAGE_ENUM[i] == ELanguage::English);
 
 		if (buttonPressed)
+		{
 			Config::Language = LANGUAGE_ENUM[i];
+		}
 	}
 }
 
 static void DrawNextButton(ImVec2& panelMin, ImVec2& panelMax, float alpha = 1.0f)
 {
-
 	auto& io = ImGui::GetIO();
 	auto drawList = ImGui::GetBackgroundDrawList();
 	auto& displaySize = io.DisplaySize;
@@ -470,12 +446,10 @@ static void DrawNextButton(ImVec2& panelMin, ImVec2& panelMax, float alpha = 1.0
 		Game_PlaySound("decide");
 		g_currentPage = (WizardPage)((int)g_currentPage + 1);
 	}
-
 }
 
 static void DrawPrevButton(ImVec2& panelMin, ImVec2& panelMax)
 {
-
 	auto& io = ImGui::GetIO();
 	auto drawList = ImGui::GetBackgroundDrawList();
 	auto& displaySize = io.DisplaySize;
@@ -536,18 +510,12 @@ static void DrawDescription(std::string s, float alpha = 1.0f)
 	float barScreenX = (barTexX / texHeight) * res.x;
 	float barScreenY = (barTexY / texHeight) * res.y;
 	float barScreenH = (barTexH / texHeight) * res.y;
-
 	ImVec2 barMin = { barScreenX + Scale(30), barScreenY };
 	ImVec2 barMax = { res.x, barScreenY + barScreenH };
-
 	drawList->PushClipRect(barMin, barMax);
-
-
 	float fontSize = g_fntSeuratSize - 2.f;
 	auto textSize = g_fntSeurat->CalcTextSizeA(fontSize, FLT_MAX, 0.0f, s.c_str());
-
 	float barWidth = res.x - barScreenX;
-
 
 	ImVec2 textPos = {
 		barScreenX + barWidth * 0.5f - textSize.x * 0.5f + Scale(15.f),  // centered within bar bounds
@@ -557,7 +525,6 @@ static void DrawDescription(std::string s, float alpha = 1.0f)
 	float offsetScroll = 0.0f;
 	float totalWidth = 0.0f;
 	bool isScrolling = textSize.x > barWidth - Scale(55.f);
-
 	if (isScrolling)
 	{
 		float gap = Scale(80.0f);
@@ -568,12 +535,8 @@ static void DrawDescription(std::string s, float alpha = 1.0f)
 		textPos.x = barMin.x + Scale(15.f);
 		offsetScroll = elapsed > 0.0 ? fmod(elapsed * scrollSpeed, totalWidth) : 0.0f;
 	}
-
 	textPos.x -= offsetScroll;
-
-
 	SetShaderModifier(IMGUI_SHADER_MODIFIER_LOW_QUALITY_TEXT);
-
 	ImU32 descColor = IM_COL32(255, 255, 255, (int)(255 * alpha));
 	drawList->AddText(g_fntSeurat, fontSize, textPos, descColor, s.c_str());
 
@@ -583,17 +546,12 @@ static void DrawDescription(std::string s, float alpha = 1.0f)
 		ImVec2 loopPos = { textPos.x + totalWidth, textPos.y };
 		drawList->AddText(g_fntSeurat, fontSize, loopPos, descColor, s.c_str());
 	}
-
 	SetShaderModifier(IMGUI_SHADER_MODIFIER_NONE);
-
 	drawList->PopClipRect();
 }
 
-
-
 static void DrawBackground(float alpha = 1.0f)
 {
-
 	auto& res = ImGui::GetIO().DisplaySize;
 	auto drawList = ImGui::GetBackgroundDrawList();
 
@@ -606,9 +564,6 @@ static void DrawBackground(float alpha = 1.0f)
 	ImVec2 centre = { res.x / 2.f, res.y / 2.f };
 	float scale = 1.0f;
 
-
-
-
 	drawList->AddImage
 	(
 		g_upTexOptionsBG.get(),
@@ -619,9 +574,7 @@ static void DrawBackground(float alpha = 1.0f)
 		IM_COL32(255, 255, 255, (int)(255 * alpha))
 	);
 
-
 	// draw Options Logo
-
 	if (scale >= 0.8f)
 	{
 		auto optionsUVs = PIXELS_TO_UV_COORDS(512, 512, 0, 0, 147, 448);
@@ -755,7 +708,7 @@ void InstallerWizard::Draw()
 		DrawNextButton(panelMin, panelMax);
 	}
 	break;
-	case WizardPage::SelectISO:
+	case WizardPage::SelectGame:
 	{
 
 		contentY += Scale(50.0f);
@@ -942,15 +895,11 @@ void InstallerWizard::Draw()
 
 	case WizardPage::InstallSucceeded:
 	{
-
-
-		auto foxDev = "FoxWorkShop";
+		auto foxDev = "FoxWorkshop";
 		bool playHovered = false;
-
 
 		auto foxSize = font->CalcTextSizeA(descFontSize, FLT_MAX, 0, foxDev);
 		drawList->AddText(font, descFontSize, ImVec2(centerX - foxSize.x * 0.5f, centerY - foxSize.y - Scale(48.0f)), IM_COL32(220, 255, 220, 255), foxDev);
-
 
 		float playBtnWidth = Scale(250.0f);
 		float playBtnHeight = Scale(58.0f);
@@ -976,7 +925,6 @@ void InstallerWizard::Draw()
 			Game_PlaySound("decide");
 			s_isVisible = false;
 		}
-
 		break;
 	}
 
@@ -1014,7 +962,7 @@ void InstallerWizard::Draw()
 				g_installerThread->join();
 			g_installerThread.reset();
 
-			g_currentPage = WizardPage::SelectISO;
+			g_currentPage = WizardPage::SelectGame;
 			g_statusMessage.clear();
 			g_installerFinished.store(false);
 			g_installerFailed.store(false);
