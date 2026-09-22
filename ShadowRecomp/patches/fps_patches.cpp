@@ -183,6 +183,20 @@ void UpDownReelAngleMidAsmHook(X86Register& edi)
 	}
 }
 
+void UpDownReelHangTurnMidAsmHook(X86Register& eax)
+{
+	auto base = g_memory.base;
+	const float frames = X86_LOAD_F32(g_deltaTime) * 60.0f;
+
+	if (!(frames > 0.0f) || std::fabs(frames - 1.0f) < 0.0001f)
+	{
+		return;
+	}
+
+	const float rate = std::bit_cast<float>(eax.u32) * frames;
+	eax.u32 = std::bit_cast<uint32_t>(rate);
+}
+
 /**	--SetStretchGrass Patch START-- */
 // aka death ruin object that launch you 
 // for some reason only the mode 5 of this object use delta time
