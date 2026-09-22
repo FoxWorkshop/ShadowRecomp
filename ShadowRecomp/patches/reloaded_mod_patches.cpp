@@ -3,7 +3,7 @@
 #include <input/padstate.h>
 
 // Uncomment the define below to enable
-#define EnableReloaded
+//#define EnableReloaded
 
 // Inlined Homing Attack Speed 1000f -> 2000f [Reloaded Phys]
 void HomingAttackSpeedMidAsmHook(X86Register& esp)
