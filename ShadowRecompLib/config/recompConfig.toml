@@ -1370,3 +1370,25 @@ name = "GunLiftAimMidAsmHook"
 address = 0x2245E5
 registers = ["r2", "r4"]
 jump_address_on_true = 0x224688
+
+# Gravity Fix
+[[midasm_hook]]
+name = "SlideCarryMidAsmHook"
+address = 0x7A87B
+registers = ["r4", "r7"]
+
+[[midasm_hook]]
+name = "SpinCarryMidAsmHook"
+address = 0x7BC36
+registers = ["r4", "r7"]
+
+[[midasm_hook]]
+name = "SlideCarryMidAsmHook"
+address = 0x7A87B
+registers = ["r4", "r7"]
+
+[[midasm_hook]]
+name = "SpinCarryMidAsmHook"
+address = 0x7BC36
+registers = ["r4", "r7"]
+# End Gravity Fix

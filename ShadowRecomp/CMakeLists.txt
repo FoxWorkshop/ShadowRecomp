@@ -155,6 +155,7 @@ set(SHADOW_RECOMP_PATCHES_CXX_SOURCES
     "patches/objects_patches.cpp"
     "patches/titlescreen_patches.cpp"
     "patches/unix_patches.cpp"
+    "patches/gravity_patches.cpp"
 )
 
 

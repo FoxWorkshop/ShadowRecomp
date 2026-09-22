@@ -200,7 +200,7 @@ struct ArgTranslator
             { ctx.ecx.u32 = value; return; }
 
             const uint32_t stack_ptr = ctx.esp.u32;
-            *reinterpret_cast<float*>(base + stack_ptr + ((arg - 1) * 4)) = value;
+            *reinterpret_cast<uint32_t*>(base + stack_ptr + ((arg - 1) * 4)) = value;
             return;
         }
 
@@ -213,12 +213,12 @@ struct ArgTranslator
             { ctx.edx.u32 = value; return; }
 
             const uint32_t stack_ptr = ctx.esp.u32;
-            *reinterpret_cast<float*>(base + stack_ptr + ((arg - 2) * 4)) = value;
+            *reinterpret_cast<uint32_t*>(base + stack_ptr + ((arg - 2) * 4)) = value;
             return;
         }
 
         const uint32_t stack_ptr = ctx.esp.u32;
-        *reinterpret_cast<float*>(base + stack_ptr + (arg * 4)) = value;
+        *reinterpret_cast<uint32_t*>(base + stack_ptr + (arg * 4)) = value;
     }
 
 
@@ -262,6 +262,10 @@ struct ArgTranslator
         else if constexpr (std::is_pointer_v<T>)
         {
             SetIntegerArgumentValue(ctx, base, idx, g_memory.MapVirtual(value), cc);
+        }
+        else if constexpr (is_float_v<T>)
+        {
+            SetFloatArgumentValue(ctx, base, idx, std::bit_cast<uint32_t>(value), cc);
         }
         else
         {
