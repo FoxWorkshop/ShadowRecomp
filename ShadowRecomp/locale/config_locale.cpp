@@ -657,12 +657,12 @@ CONFIG_DEFINE_LOCALE(FPS)
 
 CONFIG_DEFINE_LOCALE(Brightness)
 {
-    { ELanguage::English, { "Brightness", "Adjust the brightness level until the symbol on the left is barely visible." } },
-    { ELanguage::Japanese, { "[明:あか]るさの[設定:せってい]", "[画面:がめん]の\u200B[明:あか]るさを\u200B[調整:ちょうせい]できます" } },
-    { ELanguage::German,   { "Helligkeit", "Passe die Helligkeit des Spiels an bis das linke Symbol noch gerade so sichtbar ist." } },
-    { ELanguage::French,   { "Luminosité", "Réglez le niveau de luminosité jusqu'à ce que le symbole à gauche soit à peine visible." } },
-    { ELanguage::Spanish,  { "Brillo", "Ajusta el nivel de brillo hasta que el símbolo a la izquierda sea apenas visible." } },
-    { ELanguage::Italian,  { "Luminosità", "Regola la luminosità dello schermo fino a quando il simbolo a sinistra diventa leggermente visibile." } }
+    { ELanguage::English, { "Brightness", "Adjust the brightness level." } },
+    { ELanguage::Japanese, { "[明:あか]るさの[設定:せってい]", "Adjust the brightness level." } },
+    { ELanguage::German,   { "Helligkeit", "Adjust the brightness level." } },
+    { ELanguage::French,   { "Luminosité", "Adjust the brightness level." } },
+    { ELanguage::Spanish,  { "Brillo", "Adjust the brightness level." } },
+    { ELanguage::Italian,  { "Luminosità", "Adjust the brightness level." } }
 };
 
 CONFIG_DEFINE_LOCALE(AntiAliasing)
