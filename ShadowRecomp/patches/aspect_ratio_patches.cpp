@@ -1062,6 +1062,10 @@ X86_FUNC(sub_3D24B0)
 
 const xxHashMap<CsdModifier> g_csdModifiers =
 {
+	{ HashStr("csdFiles/Logo.xncp/XBox/sega"), { CSD_UNSTRETCH | CSD_ALIGN_CENTRE } },
+	{ HashStr("csdFiles/Logo.xncp/XBox/sonicteam"), { CSD_UNSTRETCH | CSD_ALIGN_CENTRE } },
+	{ HashStr("csdFiles/Logo.xncp/XBox/dolby"), { CSD_UNSTRETCH | CSD_ALIGN_CENTRE } },
+
 	// pause
 	{ HashStr("csdFiles/pause/pause.xncp/Pause/PauseText"), { CSD_SKIP | CSD_HIDE_PAUSE } },
 	{ HashStr("csdFiles/pause/pauseBoss.xncp/Pause/PauseText"), { CSD_SKIP | CSD_HIDE_PAUSE | CSD_PAUSE_BOSS } },
