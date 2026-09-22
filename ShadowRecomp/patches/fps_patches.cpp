@@ -1703,3 +1703,36 @@ X86_FUNC(sub_76A70)
 }
 
 /**	--Jump Board Patch END-- */
+
+// GUNLiftLocal / GUNLiftExpress aim speed
+// ecx = vehicle
+// 0x160 = vertical angle
+// 0x164 = horizontal angle
+// esi = command (aim / move command)
+// 0x14 = stickX
+// 0x1C = stickY
+bool GunLiftAimMidAsmHook(X86Register& ecx, X86Register& esi)
+{
+	auto base = g_memory.base;
+	const float frames = X86_LOAD_F32(g_deltaTime) * 60.0f;
+
+	// 60 FPS
+	if (!(frames > 0.0f) || std::fabs(frames - 1.0f) < 0.0001f)
+	{
+		return false;
+	}
+
+	// 61+ FPS
+	const uint32_t vehicle = ecx.u32;
+	const uint32_t command = esi.u32;
+	const float deg2rad = X86_LOAD_F32(0x47E0A4) * X86_LOAD_F32(0x42A880); // pi * 1/180
+	const float delta = deg2rad * X86_LOAD_F32(0x46D830) * frames; // 1.5 GUNLift sensitivity value
+	const float pitch = X86_LOAD_F32(vehicle + 0x160) + X86_LOAD_F32(command + 0x1C) * delta;
+	X86_STORE_F32(vehicle + 0x164, X86_LOAD_F32(vehicle + 0x164) - X86_LOAD_F32(command + 0x14) * delta);
+
+	const float minPitch = deg2rad * X86_LOAD_F32(0x46D828); // GUNLift min angle -10
+	const float maxPitch = deg2rad * X86_LOAD_F32(0x46D82C); // GUNLift max angle 60
+	X86_STORE_F32(vehicle + 0x160, std::min(std::max(pitch, minPitch), maxPitch));
+
+	return true;
+}

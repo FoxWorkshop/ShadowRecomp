@@ -1364,3 +1364,9 @@ jump_address_on_true = 0x255F9F
 jump_address_on_false = 0x255FB0
 
 # End GUN Mech Vehicle Revamp (Reloaded) patches
+
+[[midasm_hook]]
+name = "GunLiftAimMidAsmHook"
+address = 0x2245E5
+registers = ["r2", "r4"]
+jump_address_on_true = 0x224688
