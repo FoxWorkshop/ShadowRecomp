@@ -895,7 +895,7 @@ static std::unique_ptr<RenderPipeline> CreateGraphicsPipeline(const PipelineStat
 static void SanitizePipelineState(PipelineState& pipelineState);
 
 static constexpr uint32_t PIPELINE_CACHE_MAGIC = 0x31435053;
-static constexpr uint32_t PIPELINE_CACHE_VERSION = 4;
+static constexpr uint32_t PIPELINE_CACHE_VERSION = 1;
 static constexpr size_t MAX_VERTEX_ELEMENTS = 32;
 
 #pragma pack(push, 1)
