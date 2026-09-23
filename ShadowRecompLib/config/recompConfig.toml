@@ -1392,3 +1392,9 @@ name = "SpinCarryMidAsmHook"
 address = 0x7BC36
 registers = ["r4", "r7"]
 # End Gravity Fix
+
+[[midasm_hook]]
+name = "EggPierrotStageIdFixMidAsmHook"
+address = 0x142F01
+jump_address_on_true = 0x142F87
+registers = ["r0"]

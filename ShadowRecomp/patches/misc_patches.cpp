@@ -322,3 +322,11 @@ void ExpertSelectMidAsmHook(X86Register& edx)
 		X86_STORE_U8(edx.u32 + 0x59, 1);
 	}
 }
+
+// Fix EggPierrot wrong asset
+// sub_142ED0 picks which .ONE to load
+// Intercept and check for the typo (501 -> 511)
+bool EggPierrotStageIdFixMidAsmHook(X86Register& eax)
+{
+	return eax.u32 == 511;
+}
