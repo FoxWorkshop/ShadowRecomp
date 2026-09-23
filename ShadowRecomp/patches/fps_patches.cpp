@@ -1815,3 +1815,31 @@ void VineFireBallTravelMidAsmHook(X86Register& esi)
 		X86_STORE_F32(fireballPosition + i * 4, X86_LOAD_F32(fireballPosition + i * 4) + X86_LOAD_F32(vine + 0x38 + i * 4) * (frames - 1.0f));
 	}
 }
+
+/** --ScatteringWeapon weapon hang fix START-- */
+
+// Shadow Boxes create ScatteringWeapon
+// Higher FPS = higher chance for ray to hit while still mid-air. Funny enough early versions of Shadow have this
+// issue where the weapons collide with each other. Katana02 tends to get stuck the most at 240FPS
+// Threshold value is @ 0x2493B0
+// Restore for other funcs, as this may be a shared constant
+static const uint32_t g_weaponDropSettleThreshold = 0x46B380; // 0.1 (original threshold)
+void WeaponDropSettleThresholdMidAsmHook()
+{
+	auto base = g_memory.base;
+	const float frames = X86_LOAD_F32(g_deltaTime) * 60.0f;
+
+	if (!(frames > 0.0f) || std::fabs(frames - 1.0f) < 0.0001f)
+	{
+		return;
+	}
+	X86_STORE_F32(g_weaponDropSettleThreshold, 0.1f * frames);
+}
+
+void WeaponDropSettleThresholdRestoreMidAsmHook()
+{
+	auto base = g_memory.base;
+	X86_STORE_F32(g_weaponDropSettleThreshold, 0.1f);
+}
+
+/** --ScatteringWeapon landing Patch END-- */

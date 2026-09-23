@@ -1415,3 +1415,13 @@ registers = ["r5"]
 name = "VineFireBallTravelMidAsmHook"
 address = 0x1E35D3
 registers = ["r4"]
+
+# Start ScatteringWeapon (Shadow Box weapon drops) fixes
+[[midasm_hook]]
+name = "WeaponDropSettleThresholdMidAsmHook"
+address = 0x249510
+
+[[midasm_hook]]
+name = "WeaponDropSettleThresholdRestoreMidAsmHook"
+address = 0x249520
+# End ScatteringWeapon fixes
