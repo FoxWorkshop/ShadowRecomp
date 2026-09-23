@@ -1789,3 +1789,29 @@ void WatchCameraSightMoveMidAsmHook(X86Register& edi)
 }
 
 /** --SetWatchCamera Patch END-- */
+
+// Vine::FireBall::Exec @ 0x1E3540
+// AKA "Killer Plant"
+void VineFireBallTravelMidAsmHook(X86Register& esi)
+{
+	auto base = g_memory.base;
+	const float frames = X86_LOAD_F32(g_deltaTime) * 60.0f;
+
+	if (!(frames > 0.0f) || std::fabs(frames - 1.0f) < 0.0001f)
+	{
+		return;
+	}
+
+	const uint32_t vine = esi.u32;
+
+	if (X86_LOAD_U32(vine + 0x60) != 1) // state check for fireball
+	{
+		return;
+	}
+
+	const uint32_t fireballPosition = X86_LOAD_U32(vine + 0x48) + 4;
+	for (uint32_t i = 0; i < 3; i++)
+	{
+		X86_STORE_F32(fireballPosition + i * 4, X86_LOAD_F32(fireballPosition + i * 4) + X86_LOAD_F32(vine + 0x38 + i * 4) * (frames - 1.0f));
+	}
+}
