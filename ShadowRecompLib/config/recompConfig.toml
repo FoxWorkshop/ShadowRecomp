@@ -1398,3 +1398,15 @@ name = "EggPierrotStageIdFixMidAsmHook"
 address = 0x142F01
 jump_address_on_true = 0x142F87
 registers = ["r0"]
+
+# Start SetWatchCamera (GUN Fortress) fixes
+[[midasm_hook]]
+name = "SetWatchCameraSightChaseMidAsmHook"
+address = 0x21B69D
+registers = ["r4", "r7"]
+
+[[midasm_hook]]
+name = "SetWatchCameraSightMoveMidAsmHook"
+address = 0x21BD35
+registers = ["r5"]
+# End SetWatchCamera fixes
