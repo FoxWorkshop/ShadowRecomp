@@ -330,3 +330,55 @@ bool EggPierrotStageIdFixMidAsmHook(X86Register& eax)
 {
 	return eax.u32 == 511;
 }
+
+// Fix the Xbox exclusive 'more transparent/alpha' subtitle bug
+// sub_28D1E0 called by the SaveMessage is reused for the in-game Restart/Quit prompts
+// GC/PS2 don't have those prompts, so they never have the bug.
+// The last drawn element's alpha gets applied to the main brush as a result
+static void ResetMessageBrushColor()
+{
+	auto base = g_memory.base;
+	auto messageManager = X86_LOAD_U32(0x544F3C); // MessageManager
+	if (messageManager == 0)
+	{
+		return;
+	}
+
+	auto messageDisp = X86_LOAD_U32(messageManager + 0x10); // TMessageDisp
+	if (messageDisp == 0)
+	{
+		return;
+	}
+
+	auto brush = X86_LOAD_U32(messageDisp + 0x58); // Color
+	if (brush == 0)
+	{
+		return;
+	}
+
+	// Match default subtitle color 0xFEFEFEFE from TMessageDisp::InitBrush
+	for (auto corner : { brush + 0x00, brush + 0x30 })
+	{
+		X86_STORE_F32(corner + 0x0, 254.0f);
+		X86_STORE_F32(corner + 0x4, 254.0f);
+		X86_STORE_F32(corner + 0x8, 254.0f);
+		X86_STORE_F32(corner + 0xC, 254.0f);
+	}
+	for (auto delta : { brush + 0x18, brush + 0x48 })
+	{
+		X86_STORE_F32(delta + 0x0, 0.0f);
+		X86_STORE_F32(delta + 0x4, 0.0f);
+		X86_STORE_F32(delta + 0x8, 0.0f);
+		X86_STORE_F32(delta + 0xC, 0.0f);
+	}
+	X86_STORE_U32(brush + 0x60, 0xFEFEFEFE);
+	X86_STORE_U32(brush + 0x64, X86_LOAD_U32(brush + 0x64) & ~1u);
+}
+
+// MessageTaskExec
+X86_FUNC_IMPL(__imp__sub_59430);
+X86_FUNC(sub_59430)
+{
+	ResetMessageBrushColor();
+	__imp__sub_59430(ctx, base);
+}
