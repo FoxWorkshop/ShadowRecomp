@@ -1744,7 +1744,7 @@ bool GunLiftAimMidAsmHook(X86Register& ecx, X86Register& esi)
 // Subfuncs that do not (per frame instead)
 
 // Idle behavior @ 0x21B670
-void WatchCameraSightChaseMidAsmHook(X86Register& esi, X86Register& esp)
+void SetWatchCameraSightChaseMidAsmHook(X86Register& esi, X86Register& esp)
 {
 	auto base = g_memory.base;
 	const float frames = X86_LOAD_F32(g_deltaTime) * 60.0f;
@@ -1771,7 +1771,7 @@ void WatchCameraSightChaseMidAsmHook(X86Register& esi, X86Register& esp)
 }
 
 // Position update @ 0x21BCF0
-void WatchCameraSightMoveMidAsmHook(X86Register& edi)
+void SetWatchCameraSightMoveMidAsmHook(X86Register& edi)
 {
 	auto base = g_memory.base;
 	const float frames = X86_LOAD_F32(g_deltaTime) * 60.0f;
