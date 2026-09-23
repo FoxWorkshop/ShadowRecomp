@@ -1843,3 +1843,51 @@ void WeaponDropSettleThresholdRestoreMidAsmHook()
 }
 
 /** --ScatteringWeapon landing Patch END-- */
+
+/** --Belt::Effect (HomingAttack/TriJump/JumpDash/Slide/Spin trails) Patch START-- */
+
+std::unordered_map<uint32_t, float> g_beltTrailCarry; // map per BeltTask to support multiplayer
+// Belt::Exec
+bool BeltTrailPushMidAsmHook(X86Register& esi)
+{
+	auto base = g_memory.base;
+	const float frames = X86_LOAD_F32(g_deltaTime) * 60.0f;
+	if (!(frames > 0.0f) || std::fabs(frames - 1.0f) < 0.0001f)
+	{
+		return true;
+	}
+
+	float &carry = g_beltTrailCarry[esi.u32];
+	carry += frames;
+	if (carry >= 1.0f)
+	{
+		carry -= (float)(int)carry; // floor to int first
+		return true;
+	}
+	return false;
+}
+
+// Eff::Belt update @ 0x260670
+// Fade call @ 0x260716
+// Per frame fade of '8'
+void BeltTrailFadeMidAsmHook(X86Register& esi)
+{
+	auto base = g_memory.base;
+	const float frames = X86_LOAD_F32(g_deltaTime) * 60.0f;
+	if (!(frames > 0.0f) || std::fabs(frames - 1.0f) < 0.0001f)
+	{
+		return;
+	}
+
+	const int extra = std::max((int)(8.0f * (frames - 1.0f) + 0.5f), 0);
+	if (extra == 0)
+	{
+		return;
+	}
+
+	const uint32_t beltEff = esi.u32;
+	const int value = (int)X86_LOAD_U8(beltEff + 8) - extra;
+	X86_STORE_U8(beltEff + 8, (uint8_t)std::max(value, 0));
+}
+
+/** --Belt::Effect Patch END-- */

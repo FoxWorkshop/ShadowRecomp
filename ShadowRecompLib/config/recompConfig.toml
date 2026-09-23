@@ -1425,3 +1425,16 @@ address = 0x249510
 name = "WeaponDropSettleThresholdRestoreMidAsmHook"
 address = 0x249520
 # End ScatteringWeapon fixes
+
+# Start Belt::Eff fixes (jump dash, tri jump, spindash, slide trails)
+[[midasm_hook]]
+name = "BeltTrailPushMidAsmHook"
+address = 0x8CE23
+registers = ["r4"]
+jump_address_on_false = 0x8CE32
+
+[[midasm_hook]]
+name = "BeltTrailFadeMidAsmHook"
+address = 0x260712
+registers = ["r4"]
+# End Belt::Eff fixes
