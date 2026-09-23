@@ -1237,18 +1237,6 @@ static void PrecompileUserPipelines()
 	LOGFN("PipelineCache: Precompiled {} pipelines ({} skipped) in {:.2f} ms", compiled, skipped, totalElapsed);
 }
 
-// Returns false for cache entries whose fixed-function shaders were saved
-// with a generic variant key; those entries cannot reproduce the specialized
-// pipelines actually used at runtime.
-static bool HasSpecializedCacheEntryVariants(const PipelineCacheEntry& entry)
-{
-	if (entry.vertexShaderMode == VertexShaderMode::FixedFunction && entry.vertexShaderHash == GenericShaderVariant)
-		return false;
-	if (entry.isFixedFunctionPS && entry.pixelShaderHash == GenericShaderVariant)
-		return false;
-	return true;
-}
-
 // Maps cache entry hashes to variant keys, falling back to the generic
 // shader for hashes missing from the generated catalogs.
 static void ApplyCacheEntryVariants(const PipelineCacheEntry& entry, PipelineState& pipelineState)
@@ -1264,9 +1252,6 @@ static void ApplyCacheEntryVariants(const PipelineCacheEntry& entry, PipelineSta
 
 static bool TryCompileFromCacheEntry(const PipelineCacheEntry& entry)
 {
-	if (!HasSpecializedCacheEntryVariants(entry))
-		return false;
-
 	GuestShader* vertexShader = nullptr;
 	GuestShader* pixelShader = nullptr;
 
@@ -1372,11 +1357,6 @@ static void PrecompileStaticPipelines(const std::function<void(float)>& progress
 	auto entries = reinterpret_cast<const PipelineCacheEntry*>(g_staticPipelineCacheData);
 	for (size_t i = 0; i < g_staticPipelineCacheCount; i++)
 	{
-		if (!HasSpecializedCacheEntryVariants(entries[i]))
-		{
-			continue;
-		}
-
 		if (TryCompileFromCacheEntry(entries[i]))
 		{
 			compiled++;
@@ -1398,10 +1378,6 @@ static void PrecompileStaticPipelines(const std::function<void(float)>& progress
 		for (size_t i = 0; i < g_staticPipelineCacheCount; i++)
 		{
 			PipelineCacheEntry entry = entries[i];
-			if (!HasSpecializedCacheEntryVariants(entry))
-			{
-				continue;
-			}
 			entry.pipelineHash = ComputePipelineEntryHash(entry);
 			g_pipelineCacheEntries.emplace(entry.pipelineHash, entry);
 		}
@@ -1417,11 +1393,6 @@ static ankerl::unordered_dense::map<uint64_t, std::vector<PipelineCacheEntry>> g
 
 static void EnqueueDeferredPipeline(const PipelineCacheEntry& entry)
 {
-	if (!HasSpecializedCacheEntryVariants(entry))
-	{
-		return;
-	}
-
 	if (entry.vertexShaderMode != VertexShaderMode::FixedFunction &&
 		entry.vertexShaderMode != VertexShaderMode::Passthrough &&
 		entry.vertexShaderHash != 0 && FindShaderCacheEntry(entry.vertexShaderHash) == nullptr)
