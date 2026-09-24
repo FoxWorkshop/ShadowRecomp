@@ -705,7 +705,7 @@ static void BeginHudNumber(uint32_t font, float x, float y, uint32_t text, uint3
 {
 	g_hudNumber = {};
 
-	if (font == 0 || text == 0 || g_hudUnstretchX >= 1.0f)
+	if (font == 0 || text == 0 || (g_hudUnstretchX >= 1.0f && g_hudUnstretchY >= 1.0f))
 		return;
 
 	const uint64_t flags = GetHudNumberFlags(x, y, align);
@@ -1111,61 +1111,61 @@ const xxHashMap<CsdModifier> g_csdModifiers =
 
 
 	// InfoWindow.xncp
-	{ HashStr("csdFiles/InfoWindow.xncp/Ring"), { CSD_UNSTRETCH | CSD_ALIGN_AUTO_H } },
-	{ HashStr("csdFiles/InfoWindow.xncp/Ring/Null_0000"), { CSD_UNSTRETCH | CSD_ALIGN_AUTO_H } },
-	{ HashStr("csdFiles/InfoWindow.xncp/Ring/Null_0000/ring"), { CSD_UNSTRETCH | CSD_ALIGN_AUTO_H } },
-	{ HashStr("csdFiles/InfoWindow.xncp/Zanki"), { CSD_UNSTRETCH | CSD_ALIGN_AUTO_H } },
-	{ HashStr("csdFiles/InfoWindow.xncp/Zanki/Null_0000"), { CSD_UNSTRETCH | CSD_ALIGN_AUTO_H } },
-	{ HashStr("csdFiles/InfoWindow.xncp/Zanki/Null_0000/key"), { CSD_UNSTRETCH | CSD_ALIGN_AUTO_H } },
-	{ HashStr("csdFiles/InfoWindow.xncp/Zanki/Null_0000/zanki"), { CSD_UNSTRETCH | CSD_ALIGN_AUTO_H } },
+	{ HashStr("csdFiles/InfoWindow.xncp/Ring"), { CSD_UNSTRETCH | CSD_ALIGN_AUTO_H | CSD_ALIGN_BOTTOM } },
+	{ HashStr("csdFiles/InfoWindow.xncp/Ring/Null_0000"), { CSD_UNSTRETCH | CSD_ALIGN_AUTO_H | CSD_ALIGN_BOTTOM } },
+	{ HashStr("csdFiles/InfoWindow.xncp/Ring/Null_0000/ring"), { CSD_UNSTRETCH | CSD_ALIGN_AUTO_H | CSD_ALIGN_BOTTOM } },
+	{ HashStr("csdFiles/InfoWindow.xncp/Zanki"), { CSD_UNSTRETCH | CSD_ALIGN_AUTO_H | CSD_ALIGN_BOTTOM } },
+	{ HashStr("csdFiles/InfoWindow.xncp/Zanki/Null_0000"), { CSD_UNSTRETCH | CSD_ALIGN_AUTO_H | CSD_ALIGN_BOTTOM } },
+	{ HashStr("csdFiles/InfoWindow.xncp/Zanki/Null_0000/key"), { CSD_UNSTRETCH | CSD_ALIGN_AUTO_H | CSD_ALIGN_BOTTOM } },
+	{ HashStr("csdFiles/InfoWindow.xncp/Zanki/Null_0000/zanki"), { CSD_UNSTRETCH | CSD_ALIGN_AUTO_H | CSD_ALIGN_BOTTOM } },
 
 	// CommandWindow.xncp
-	{ HashStr("csdFiles/CommandWindow.xncp/CarMeter"), { CSD_UNSTRETCH | CSD_ALIGN_AUTO_H } },
-	{ HashStr("csdFiles/CommandWindow.xncp/CarMeter/outline"), { CSD_UNSTRETCH | CSD_ALIGN_AUTO_H } },
-	{ HashStr("csdFiles/CommandWindow.xncp/CarMeter/meter_bg"), { CSD_UNSTRETCH | CSD_ALIGN_AUTO_H } },
-	{ HashStr("csdFiles/CommandWindow.xncp/CarMeter/meter"), { CSD_UNSTRETCH | CSD_ALIGN_AUTO_H } },
-	{ HashStr("csdFiles/CommandWindow.xncp/Car_BCom"), { CSD_UNSTRETCH | CSD_ALIGN_AUTO_H } },
-	{ HashStr("csdFiles/CommandWindow.xncp/Car_BCom/Null"), { CSD_UNSTRETCH | CSD_ALIGN_AUTO_H } },
-	{ HashStr("csdFiles/CommandWindow.xncp/Car_BCom/Null/button2"), { CSD_UNSTRETCH | CSD_ALIGN_AUTO_H } },
-	{ HashStr("csdFiles/CommandWindow.xncp/Car_BCom/Null/icon_car"), { CSD_UNSTRETCH | CSD_ALIGN_AUTO_H } },
-	{ HashStr("csdFiles/CommandWindow.xncp/Weapon"), { CSD_UNSTRETCH | CSD_ALIGN_AUTO_H } },
-	{ HashStr("csdFiles/CommandWindow.xncp/Weapon/weapon"), { CSD_UNSTRETCH | CSD_ALIGN_AUTO_H } },
-	{ HashStr("csdFiles/CommandWindow.xncp/Weapon/weapon/button1"), { CSD_UNSTRETCH | CSD_ALIGN_AUTO_H } },
-	{ HashStr("csdFiles/CommandWindow.xncp/Weapon/weapon/icon_gun"), { CSD_UNSTRETCH | CSD_ALIGN_AUTO_H } },
-	{ HashStr("csdFiles/CommandWindow.xncp/Window"), { CSD_UNSTRETCH | CSD_ALIGN_AUTO_H } },
-	{ HashStr("csdFiles/CommandWindow.xncp/Window/window"), { CSD_UNSTRETCH | CSD_ALIGN_AUTO_H } },
-	{ HashStr("csdFiles/CommandWindow.xncp/Window/window/window2"), { CSD_UNSTRETCH | CSD_ALIGN_AUTO_H } },
-	{ HashStr("csdFiles/CommandWindow.xncp/Window/window/window1"), { CSD_UNSTRETCH | CSD_ALIGN_AUTO_H } },
-	{ HashStr("csdFiles/CommandWindow.xncp/Window/window/info_bg2"), { CSD_UNSTRETCH | CSD_ALIGN_AUTO_H } },
-	{ HashStr("csdFiles/CommandWindow.xncp/Window/window/info_bg"), { CSD_UNSTRETCH | CSD_ALIGN_AUTO_H } },
+	{ HashStr("csdFiles/CommandWindow.xncp/CarMeter"), { CSD_UNSTRETCH | CSD_ALIGN_AUTO_H | CSD_ALIGN_BOTTOM } },
+	{ HashStr("csdFiles/CommandWindow.xncp/CarMeter/outline"), { CSD_UNSTRETCH | CSD_ALIGN_AUTO_H | CSD_ALIGN_BOTTOM } },
+	{ HashStr("csdFiles/CommandWindow.xncp/CarMeter/meter_bg"), { CSD_UNSTRETCH | CSD_ALIGN_AUTO_H | CSD_ALIGN_BOTTOM } },
+	{ HashStr("csdFiles/CommandWindow.xncp/CarMeter/meter"), { CSD_UNSTRETCH | CSD_ALIGN_AUTO_H | CSD_ALIGN_BOTTOM } },
+	{ HashStr("csdFiles/CommandWindow.xncp/Car_BCom"), { CSD_UNSTRETCH | CSD_ALIGN_AUTO_H | CSD_ALIGN_BOTTOM } },
+	{ HashStr("csdFiles/CommandWindow.xncp/Car_BCom/Null"), { CSD_UNSTRETCH | CSD_ALIGN_AUTO_H | CSD_ALIGN_BOTTOM } },
+	{ HashStr("csdFiles/CommandWindow.xncp/Car_BCom/Null/button2"), { CSD_UNSTRETCH | CSD_ALIGN_AUTO_H | CSD_ALIGN_BOTTOM } },
+	{ HashStr("csdFiles/CommandWindow.xncp/Car_BCom/Null/icon_car"), { CSD_UNSTRETCH | CSD_ALIGN_AUTO_H | CSD_ALIGN_BOTTOM } },
+	{ HashStr("csdFiles/CommandWindow.xncp/Weapon"), { CSD_UNSTRETCH | CSD_ALIGN_AUTO_H | CSD_ALIGN_BOTTOM } },
+	{ HashStr("csdFiles/CommandWindow.xncp/Weapon/weapon"), { CSD_UNSTRETCH | CSD_ALIGN_AUTO_H | CSD_ALIGN_BOTTOM } },
+	{ HashStr("csdFiles/CommandWindow.xncp/Weapon/weapon/button1"), { CSD_UNSTRETCH | CSD_ALIGN_AUTO_H | CSD_ALIGN_BOTTOM } },
+	{ HashStr("csdFiles/CommandWindow.xncp/Weapon/weapon/icon_gun"), { CSD_UNSTRETCH | CSD_ALIGN_AUTO_H | CSD_ALIGN_BOTTOM } },
+	{ HashStr("csdFiles/CommandWindow.xncp/Window"), { CSD_UNSTRETCH | CSD_ALIGN_AUTO_H | CSD_ALIGN_BOTTOM } },
+	{ HashStr("csdFiles/CommandWindow.xncp/Window/window"), { CSD_UNSTRETCH | CSD_ALIGN_AUTO_H | CSD_ALIGN_BOTTOM } },
+	{ HashStr("csdFiles/CommandWindow.xncp/Window/window/window2"), { CSD_UNSTRETCH | CSD_ALIGN_AUTO_H | CSD_ALIGN_BOTTOM } },
+	{ HashStr("csdFiles/CommandWindow.xncp/Window/window/window1"), { CSD_UNSTRETCH | CSD_ALIGN_AUTO_H | CSD_ALIGN_BOTTOM } },
+	{ HashStr("csdFiles/CommandWindow.xncp/Window/window/info_bg2"), { CSD_UNSTRETCH | CSD_ALIGN_AUTO_H | CSD_ALIGN_BOTTOM } },
+	{ HashStr("csdFiles/CommandWindow.xncp/Window/window/info_bg"), { CSD_UNSTRETCH | CSD_ALIGN_AUTO_H | CSD_ALIGN_BOTTOM } },
 
 	// HeroGauge.xncp
-	{ HashStr("csdFiles/HeroGauge.xncp/Scene_0000"), { CSD_UNSTRETCH | CSD_ALIGN_CENTRE } },
-	{ HashStr("csdFiles/HeroGauge.xncp/Scene_0000/bar_bg"), { CSD_UNSTRETCH | CSD_ALIGN_CENTRE } },
-	{ HashStr("csdFiles/HeroGauge.xncp/Scene_0000/meter_main1"), { CSD_UNSTRETCH | CSD_ALIGN_CENTRE } },
-	{ HashStr("csdFiles/HeroGauge.xncp/Scene_0000/meter_main2"), { CSD_UNSTRETCH | CSD_ALIGN_CENTRE } },
-	{ HashStr("csdFiles/HeroGauge.xncp/Scene_0000/meter_main3"), { CSD_UNSTRETCH | CSD_ALIGN_CENTRE } },
-	{ HashStr("csdFiles/HeroGauge.xncp/Scene_0000/bar"), { CSD_UNSTRETCH | CSD_ALIGN_CENTRE } },
-	{ HashStr("csdFiles/HeroGauge.xncp/Scene_0000/meter_RSide"), { CSD_UNSTRETCH | CSD_ALIGN_CENTRE } },
-	{ HashStr("csdFiles/HeroGauge.xncp/Scene_0000/meter_side"), { CSD_UNSTRETCH | CSD_ALIGN_CENTRE } },
+	{ HashStr("csdFiles/HeroGauge.xncp/Scene_0000"), { CSD_UNSTRETCH | CSD_ALIGN_TOP_CENTRE } },
+	{ HashStr("csdFiles/HeroGauge.xncp/Scene_0000/bar_bg"), { CSD_UNSTRETCH | CSD_ALIGN_TOP_CENTRE } },
+	{ HashStr("csdFiles/HeroGauge.xncp/Scene_0000/meter_main1"), { CSD_UNSTRETCH | CSD_ALIGN_TOP_CENTRE } },
+	{ HashStr("csdFiles/HeroGauge.xncp/Scene_0000/meter_main2"), { CSD_UNSTRETCH | CSD_ALIGN_TOP_CENTRE } },
+	{ HashStr("csdFiles/HeroGauge.xncp/Scene_0000/meter_main3"), { CSD_UNSTRETCH | CSD_ALIGN_TOP_CENTRE } },
+	{ HashStr("csdFiles/HeroGauge.xncp/Scene_0000/bar"), { CSD_UNSTRETCH | CSD_ALIGN_TOP_CENTRE } },
+	{ HashStr("csdFiles/HeroGauge.xncp/Scene_0000/meter_RSide"), { CSD_UNSTRETCH | CSD_ALIGN_TOP_CENTRE } },
+	{ HashStr("csdFiles/HeroGauge.xncp/Scene_0000/meter_side"), { CSD_UNSTRETCH | CSD_ALIGN_TOP_CENTRE } },
 
 	// DarkGauge.xncp
-	{ HashStr("csdFiles/DarkGauge.xncp/Scene_0000"), { CSD_UNSTRETCH | CSD_ALIGN_CENTRE } },
-	{ HashStr("csdFiles/DarkGauge.xncp/Scene_0000/meter_bg"), { CSD_UNSTRETCH | CSD_ALIGN_CENTRE } },
-	{ HashStr("csdFiles/DarkGauge.xncp/Scene_0000/main1"), { CSD_UNSTRETCH | CSD_ALIGN_CENTRE } },
-	{ HashStr("csdFiles/DarkGauge.xncp/Scene_0000/main2"), { CSD_UNSTRETCH | CSD_ALIGN_CENTRE } },
-	{ HashStr("csdFiles/DarkGauge.xncp/Scene_0000/main3"), { CSD_UNSTRETCH | CSD_ALIGN_CENTRE } },
-	{ HashStr("csdFiles/DarkGauge.xncp/Scene_0000/meter"), { CSD_UNSTRETCH | CSD_ALIGN_CENTRE } },
-	{ HashStr("csdFiles/DarkGauge.xncp/Scene_0000/side1"), { CSD_UNSTRETCH | CSD_ALIGN_CENTRE } },
-	{ HashStr("csdFiles/DarkGauge.xncp/Scene_0000/side2"), { CSD_UNSTRETCH | CSD_ALIGN_CENTRE } },
+	{ HashStr("csdFiles/DarkGauge.xncp/Scene_0000"), { CSD_UNSTRETCH | CSD_ALIGN_TOP_CENTRE } },
+	{ HashStr("csdFiles/DarkGauge.xncp/Scene_0000/meter_bg"), { CSD_UNSTRETCH | CSD_ALIGN_TOP_CENTRE } },
+	{ HashStr("csdFiles/DarkGauge.xncp/Scene_0000/main1"), { CSD_UNSTRETCH | CSD_ALIGN_TOP_CENTRE } },
+	{ HashStr("csdFiles/DarkGauge.xncp/Scene_0000/main2"), { CSD_UNSTRETCH | CSD_ALIGN_TOP_CENTRE } },
+	{ HashStr("csdFiles/DarkGauge.xncp/Scene_0000/main3"), { CSD_UNSTRETCH | CSD_ALIGN_TOP_CENTRE } },
+	{ HashStr("csdFiles/DarkGauge.xncp/Scene_0000/meter"), { CSD_UNSTRETCH | CSD_ALIGN_TOP_CENTRE } },
+	{ HashStr("csdFiles/DarkGauge.xncp/Scene_0000/side1"), { CSD_UNSTRETCH | CSD_ALIGN_TOP_CENTRE } },
+	{ HashStr("csdFiles/DarkGauge.xncp/Scene_0000/side2"), { CSD_UNSTRETCH | CSD_ALIGN_TOP_CENTRE } },
 
 	// Hissatu_Hero.xncp
-	{ HashStr("csdFiles/Hissatu_Hero.xncp/HissatuHero/XButton"), { CSD_UNSTRETCH | CSD_ALIGN_CENTRE } },
-	{ HashStr("csdFiles/Hissatu_Hero.xncp/HissatuHero/XButton/Eff_X"), { CSD_UNSTRETCH | CSD_ALIGN_CENTRE } },
+	{ HashStr("csdFiles/Hissatu_Hero.xncp/HissatuHero/XButton"), { CSD_UNSTRETCH | CSD_ALIGN_TOP_CENTRE } },
+	{ HashStr("csdFiles/Hissatu_Hero.xncp/HissatuHero/XButton/Eff_X"), { CSD_UNSTRETCH | CSD_ALIGN_TOP_CENTRE } },
 
 	// Hissatu_Dark.xncp
-	{ HashStr("csdFiles/Hissatu_Dark.xncp/HissatuDark/YButton"), { CSD_UNSTRETCH | CSD_ALIGN_CENTRE } },
-	{ HashStr("csdFiles/Hissatu_Dark.xncp/HissatuDark/YButton/Eff_Y"), { CSD_UNSTRETCH | CSD_ALIGN_CENTRE } },
+	{ HashStr("csdFiles/Hissatu_Dark.xncp/HissatuDark/YButton"), { CSD_UNSTRETCH | CSD_ALIGN_TOP_CENTRE } },
+	{ HashStr("csdFiles/Hissatu_Dark.xncp/HissatuDark/YButton/Eff_Y"), { CSD_UNSTRETCH | CSD_ALIGN_TOP_CENTRE } },
 
 	// TWindow.xncp
 	{ HashStr("csdFiles/TWindow.xncp/TargetWindow"), { CSD_UNSTRETCH | CSD_ALIGN_AUTO_H } },
@@ -1180,21 +1180,21 @@ const xxHashMap<CsdModifier> g_csdModifiers =
 	{ HashStr("csdFiles/TWindow.xncp/TargetWindow/TargetHero/Null_hero/Cast_0003/Cast_0004"), { CSD_UNSTRETCH | CSD_ALIGN_AUTO_H } },
 
 	// 2P_Ring.xncp
-	{ HashStr("csdFiles/2P_Ring.xncp/Ring1P/Null_ring/ring"), { CSD_UNSTRETCH | CSD_ALIGN_AUTO_H } },
-	{ HashStr("csdFiles/2P_Ring.xncp/Ring2P/Null_ring/ring"), { CSD_UNSTRETCH | CSD_ALIGN_AUTO_H } },
+	{ HashStr("csdFiles/2P_Ring.xncp/Ring1P/Null_ring/ring"), { CSD_UNSTRETCH | CSD_ALIGN_AUTO_H | CSD_ALIGN_TOP } },
+	{ HashStr("csdFiles/2P_Ring.xncp/Ring2P/Null_ring/ring"), { CSD_UNSTRETCH | CSD_ALIGN_AUTO_H | CSD_ALIGN_TOP } },
 
 	// 2P_CommandWindow.xncp
-	{ HashStr("csdFiles/2P_CommandWindow.xncp/Window/window/info_bg"), { CSD_UNSTRETCH | CSD_ALIGN_AUTO_H } },
-	{ HashStr("csdFiles/2P_CommandWindow.xncp/Window/window/info_bg2"), { CSD_UNSTRETCH | CSD_ALIGN_AUTO_H } },
-	{ HashStr("csdFiles/2P_CommandWindow.xncp/Window/window/window1"), { CSD_UNSTRETCH | CSD_ALIGN_AUTO_H } },
-	{ HashStr("csdFiles/2P_CommandWindow.xncp/Window/window/window2"), { CSD_UNSTRETCH | CSD_ALIGN_AUTO_H } },
-	{ HashStr("csdFiles/2P_CommandWindow.xncp/Weapon/weapon/icon_gun"), { CSD_UNSTRETCH | CSD_ALIGN_AUTO_H } },
-	{ HashStr("csdFiles/2P_CommandWindow.xncp/Weapon/weapon/button1"), { CSD_UNSTRETCH | CSD_ALIGN_AUTO_H } },
-	{ HashStr("csdFiles/2P_CommandWindow.xncp/Car_BCom/Null/icon_car"), { CSD_UNSTRETCH | CSD_ALIGN_AUTO_H } },
-	{ HashStr("csdFiles/2P_CommandWindow.xncp/Car_BCom/Null/button2"), { CSD_UNSTRETCH | CSD_ALIGN_AUTO_H } },
-	{ HashStr("csdFiles/2P_CommandWindow.xncp/CarMeter/outline"), { CSD_UNSTRETCH | CSD_ALIGN_AUTO_H } },
-	{ HashStr("csdFiles/2P_CommandWindow.xncp/CarMeter/meter_bg"), { CSD_UNSTRETCH | CSD_ALIGN_AUTO_H } },
-	{ HashStr("csdFiles/2P_CommandWindow.xncp/CarMeter/meter"), { CSD_UNSTRETCH | CSD_ALIGN_AUTO_H } },
+	{ HashStr("csdFiles/2P_CommandWindow.xncp/Window/window/info_bg"), { CSD_UNSTRETCH | CSD_ALIGN_AUTO_H | CSD_ALIGN_BOTTOM } },
+	{ HashStr("csdFiles/2P_CommandWindow.xncp/Window/window/info_bg2"), { CSD_UNSTRETCH | CSD_ALIGN_AUTO_H | CSD_ALIGN_BOTTOM } },
+	{ HashStr("csdFiles/2P_CommandWindow.xncp/Window/window/window1"), { CSD_UNSTRETCH | CSD_ALIGN_AUTO_H | CSD_ALIGN_BOTTOM } },
+	{ HashStr("csdFiles/2P_CommandWindow.xncp/Window/window/window2"), { CSD_UNSTRETCH | CSD_ALIGN_AUTO_H | CSD_ALIGN_BOTTOM } },
+	{ HashStr("csdFiles/2P_CommandWindow.xncp/Weapon/weapon/icon_gun"), { CSD_UNSTRETCH | CSD_ALIGN_AUTO_H | CSD_ALIGN_BOTTOM } },
+	{ HashStr("csdFiles/2P_CommandWindow.xncp/Weapon/weapon/button1"), { CSD_UNSTRETCH | CSD_ALIGN_AUTO_H | CSD_ALIGN_BOTTOM } },
+	{ HashStr("csdFiles/2P_CommandWindow.xncp/Car_BCom/Null/icon_car"), { CSD_UNSTRETCH | CSD_ALIGN_AUTO_H | CSD_ALIGN_BOTTOM } },
+	{ HashStr("csdFiles/2P_CommandWindow.xncp/Car_BCom/Null/button2"), { CSD_UNSTRETCH | CSD_ALIGN_AUTO_H | CSD_ALIGN_BOTTOM } },
+	{ HashStr("csdFiles/2P_CommandWindow.xncp/CarMeter/outline"), { CSD_UNSTRETCH | CSD_ALIGN_AUTO_H | CSD_ALIGN_BOTTOM } },
+	{ HashStr("csdFiles/2P_CommandWindow.xncp/CarMeter/meter_bg"), { CSD_UNSTRETCH | CSD_ALIGN_AUTO_H | CSD_ALIGN_BOTTOM } },
+	{ HashStr("csdFiles/2P_CommandWindow.xncp/CarMeter/meter"), { CSD_UNSTRETCH | CSD_ALIGN_AUTO_H | CSD_ALIGN_BOTTOM } },
 };
 
 std::optional<CsdModifier> FindCsdModifier(uint32_t data)
