@@ -3,6 +3,7 @@
 #include <user/config.h>
 #include <patches/global.h>
 #include <input/padstate.h>
+#include "pause_patches.h"
 
 
 // Patch out logs Artificial Chaos can spew (causes crashes)
@@ -380,7 +381,9 @@ X86_FUNC_IMPL(__imp__sub_59430);
 X86_FUNC(sub_59430)
 {
 	ResetMessageBrushColor();
+	ToggleMessageTaskDraw(true);
 	__imp__sub_59430(ctx, base);
+	ToggleMessageTaskDraw(false);
 }
 
 // ElecCoreProgram::Exec

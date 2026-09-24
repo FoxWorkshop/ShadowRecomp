@@ -85,6 +85,7 @@ static bool g_inputAllowed = false;
 
 
 static bool g_isDrawingSubtitle = false;
+static bool g_isDrawingMessageTask = false;
 
 void TogglePauseCSD(bool toggle)
 {
@@ -94,6 +95,11 @@ void TogglePauseCSD(bool toggle)
 void TogglePauseBossCSD(bool toggle)
 {
 	g_pauseBoss = toggle;
+}
+
+void ToggleMessageTaskDraw(bool toggle)
+{
+	g_isDrawingMessageTask = toggle;
 }
 
 const uint8_t GetAddedPauseItemsCount()
@@ -539,27 +545,49 @@ static float GetRt2dHeight()
 	return shortSide != 0.0f ? height / shortSide : 1.0f;
 }
 
+// On a tall vertical res, the text only fills the middle of the screen, while the 3D view,
+// the pause menu and stretched FMVs cover the whole height. Push the text away from the center
+// by the same amount to fix it.
+static float PushAwayFromCentreY(float y)
+{
+	if (g_hudUnstretchY >= 1.0f)
+		return y;
+
+	const float centreY = GetRt2dHeight() * 0.5f;
+
+	return centreY + (y - centreY) / g_hudUnstretchY;
+}
+
+static constexpr uint32_t messageManager = 0x544F3C;
+static constexpr uint32_t messageManagerMovieMode = 0x31; // set by StageMovie while an FMV plays
+
+
+static bool ShouldPushMessageTaskText()
+{
+	auto base = g_memory.base;
+
+	const uint32_t manager = X86_LOAD_U32(messageManager);
+	const bool isMovie = manager != 0 && X86_LOAD_U8(manager + messageManagerMovieMode) != 0;
+
+	return !(isMovie && Config::FMVAspectRatio.Value == EFMVAspectRatio::Fit);
+}
+
 // DrawMessage (used by both cutscene and pause menu)
 X86_FUNC_IMPL(__imp__sub_1E930);
 X86_FUNC(sub_1E930)
 {
+	const uint32_t argY = ctx.esp.u32 + drawMessageArgY;
+
 	if (g_isDrawingSubtitle)
 	{
 		const float offset = subtitleOffsetPerItem * GetAddedPauseItemsCount() * GetRt2dUnitsPerWorldUnit();
-		const uint32_t argY = ctx.esp.u32 + drawMessageArgY;
 
-		float y = X86_LOAD_F32(argY) - offset; // move down
-
-		// on a window taller than 4:3, the text only fills the middle of the screen, but the pause menu 
-		// is stretched over the whole height. We can patch this by pushing the text away
-		// from the center by the same amount, this fix the broken current mission position on pause menu.
-		if (g_hudUnstretchY < 1.0f)
-		{
-			const float centreY = GetRt2dHeight() * 0.5f;
-			y = centreY + (y - centreY) / g_hudUnstretchY;
-		}
-
-		X86_STORE_F32(argY, y);
+		// move down, then follow the pause menu which is stretched over the whole height
+		X86_STORE_F32(argY, PushAwayFromCentreY(X86_LOAD_F32(argY) - offset));
+	}
+	else if (g_isDrawingMessageTask && ShouldPushMessageTaskText())
+	{
+		X86_STORE_F32(argY, PushAwayFromCentreY(X86_LOAD_F32(argY)));
 	}
 
 	__imp__sub_1E930(ctx, base);
