@@ -83,9 +83,16 @@ void SFXTimingMidAsmHook(X86Register &esi)
 
 	g_sfxTimers[esi.u32] += X86_LOAD_F32(g_deltaTime) * 60.f;
 	int steps = (int)(g_sfxTimers[esi.u32] + 0.5f); // use extra 0.5 for rounding, avoid having 0.999960 that prevent step to pass.
+
+	// Some sounds that loop uses a task that sets the timer back to 2 every frame.
+	// This creates a side effect: any slow frame or wrong rounding can make the sound stop and play 
+	// immediately again which acts like the sound played twice in a row.
+	// Ensure to never go faster than 1 per frame to prevent that.
+	steps = std::min(steps, 1);
+
 	if (steps > 0)
 	{
-		g_sfxTimers[esi.u32] -= steps;
+		g_sfxTimers[esi.u32] = std::min(g_sfxTimers[esi.u32] - steps, 1.0f);
 		int result = (int)timer - steps;
 		timer = (uint16_t)std::max(result, 0);
 	}
