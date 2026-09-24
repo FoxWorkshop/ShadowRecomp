@@ -199,7 +199,12 @@ TextureArgs ExecuteTextureStage(
         const float2 texCoordMin = GetTexCoordMin(i);
         if (texCoordMin.x > 0.0f)
             uv = max(uv, texCoordMin);
-        
+
+        // Extra clamp for FMVs with their aspect ratio set to "fit" while having a high resolution set (4k+).
+        const float2 texCoordMax = GetTexCoordMax(i);
+        if (texCoordMax.x > 0.0f)
+            uv = min(uv, texCoordMax);
+
         t = g_Texture2DDescriptorHeap[GetTextureStage(i, type)].Sample(g_SamplerDescriptorHeap[GetSamplerState(i)],
         uv);
     }

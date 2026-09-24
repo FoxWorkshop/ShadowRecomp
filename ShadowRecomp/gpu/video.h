@@ -13,6 +13,9 @@ constexpr DWORD X_D3DTS_STAGECOUNT = 4; // Dxbx addition
 extern uint32_t g_VertexShader_Handle;
 extern std::atomic<bool> g_pendingSurfaceResizeFlag;
 
+extern std::atomic<uint32_t> g_fmvFrameWidth;
+extern std::atomic<uint32_t> g_fmvFrameHeight;
+
 // Xbox vertex shader counts
 #define X_VSH_MAX_ATTRIBUTES          16
 #define X_VSH_MAX_STREAMS             16

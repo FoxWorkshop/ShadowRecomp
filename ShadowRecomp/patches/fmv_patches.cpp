@@ -1,6 +1,7 @@
 #include <kernel/function.h>
 #include <user/config.h>
 #include <patches/aspect_ratio_patches.h>
+#include <gpu/video.h>
 
 // The FMVs are mean to be played in 4:3 originally and thus, they stretch as the resolution increase.
 // The game uses two rasters (640x480 and 1024x512) and then draws the FMV as a single quad covering 
@@ -68,6 +69,10 @@ X86_FUNC(sub_24CF0)
 
     const uint32_t frameWidth = manager ? X86_LOAD_U32(manager + MovieFrameWidth) : 0;
     const uint32_t frameHeight = manager ? X86_LOAD_U32(manager + MovieFrameHeight) : 0;
+
+    // save current frame's width and height for the clamp fix later done in video.cpp (see SetTextureInRenderThread)
+    g_fmvFrameWidth = frameWidth;
+    g_fmvFrameHeight = frameHeight;
 
     const uint32_t rwGlobals = X86_LOAD_U32(RwGlobalsAddr);
     const uint32_t cameraRaster = rwGlobals ? X86_LOAD_U32(rwGlobals + RwGlobalsCameraRaster) : 0;

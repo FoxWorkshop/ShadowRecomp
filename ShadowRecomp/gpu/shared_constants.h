@@ -1,5 +1,6 @@
 #pragma once
 
+#include <cstddef>
 #include <cstdint>
 
 // Number of texture slots addressable by host shaders and shared constants.
@@ -60,5 +61,13 @@ struct SharedConstants
     // however, that half pixel once upscaled by higher res becomes full pixels at the left and top of every 
     // Render Target that no draw ever covers, showing what we call "edge bleed".
     // We can fix that by clamping UV for each RT so the shader won't read the edge bleed data.
-    float texCoordMin[SharedTextureSlotCount][2]; 
+    float texCoordMin[SharedTextureSlotCount][2];
+
+    // Same idea for the far edge (right side), though, this seems to only happen with FMVs at high resolution.
+    // its frame is inside a bigger power of two textures, so the last texel gets blended with the padding causing
+    // another bleed.
+    float texCoordMax[SharedTextureSlotCount][2];
 };
+
+static_assert(offsetof(SharedConstants, texCoordMin) == 89 * 16);
+static_assert(offsetof(SharedConstants, texCoordMax) == 97 * 16);

@@ -107,6 +107,7 @@ struct PushConstants
 
 // two stages per register: stage i is at element (i >> 1), .xy for even, .zw for odd
 #define texCoordMin_(i) vk::RawBufferLoad<float4>(g_PushConstants.SharedConstants + V_ARRAY_OFFSET(89, i))
+#define texCoordMax_(i) vk::RawBufferLoad<float4>(g_PushConstants.SharedConstants + V_ARRAY_OFFSET(97, i))
 
 #define sampler_0  vk::RawBufferLoad<uint>(g_PushConstants.SharedConstants + V_CBUFFER_OFFSET(12, 'x') )
 #define sampler_1  vk::RawBufferLoad<uint>(g_PushConstants.SharedConstants + V_CBUFFER_OFFSET(12, 'y') )
@@ -303,10 +304,12 @@ cbuffer SharedConstants : register(b2, space4)
     float alphaThreshold : packoffset(c88.z);
     
     float4 texCoordMin__[8] : packoffset(c89); // per stage texture coordinate lower bound (c89-96), two stages per register
+    float4 texCoordMax__[8] : packoffset(c97); // per stage upper bound (c97-104), same packing
 
 };
 
 #define texCoordMin_(i) texCoordMin__[i]
+#define texCoordMax_(i) texCoordMax__[i]
 
 #endif
 
@@ -319,6 +322,13 @@ cbuffer SharedConstants : register(b2, space4)
 float2 GetTexCoordMin(uint slot)
 {
     float4 packed = texCoordMin_(slot >> 1);
+    return (slot & 1) ? packed.zw : packed.xy;
+}
+
+// Largest safe texture coordinate, only set for the FMV texture
+float2 GetTexCoordMax(uint slot)
+{
+    float4 packed = texCoordMax_(slot >> 1);
     return (slot & 1) ? packed.zw : packed.xy;
 }
 

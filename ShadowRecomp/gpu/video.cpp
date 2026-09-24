@@ -1650,6 +1650,8 @@ static PrimitiveIndexData<X_D3DPT_QUADLIST> g_quadIndexData;
 std::vector<GuestResource*> g_tempUnreadyResource; // store VB that weren't ready to be deleted
 // Resize the tracked textures and surfaces on the next frame.
 std::atomic<bool> g_pendingSurfaceResizeFlag = false;
+std::atomic<uint32_t> g_fmvFrameWidth = 0;
+std::atomic<uint32_t> g_fmvFrameHeight = 0;
 static Mutex g_surfaceRTsMutex; // Multiple threads can access Surface RT so we can prevent a potential race issue with mutex
 static Mutex g_tempUnreadyResourceMutex; // for destruct resource (VB, texture stuff)
 
@@ -6425,6 +6427,8 @@ static void SetTextureInRenderThread(uint32_t index, GuestTexture* texture, cons
 
 	float texCoordMinX = 0.0f;
 	float texCoordMinY = 0.0f;
+	float texCoordMaxX = 0.0f;
+	float texCoordMaxY = 0.0f;
 
 
 	if (texture != nullptr)
@@ -6458,11 +6462,23 @@ static void SetTextureInRenderThread(uint32_t index, GuestTexture* texture, cons
 			// Most FMVs don't have this issue, but I have seen it happen when the game play an event before an FMV, like the ark firing the laser.
 			texCoordMinX = 0.5f / float(texture->width);
 			texCoordMinY = 0.5f / float(texture->height);
+
+			// The far edge has the same problem at high resolution (4k+), so clamp to the last texel center.
+			const uint32_t frameWidth = g_fmvFrameWidth.load();
+			const uint32_t frameHeight = g_fmvFrameHeight.load();
+
+			if (frameWidth != 0 && frameHeight != 0 && frameWidth <= texture->width && frameHeight <= texture->height)
+			{
+				texCoordMaxX = (float(frameWidth) - 0.5f) / float(texture->width);
+				texCoordMaxY = (float(frameHeight) - 0.5f) / float(texture->height);
+			}
 		}
 	}
 
 	SetDirtyValue(g_dirtyStates.sharedConstants, g_sharedConstants.texCoordMin[index][0], texCoordMinX);
 	SetDirtyValue(g_dirtyStates.sharedConstants, g_sharedConstants.texCoordMin[index][1], texCoordMinY);
+	SetDirtyValue(g_dirtyStates.sharedConstants, g_sharedConstants.texCoordMax[index][0], texCoordMaxX);
+	SetDirtyValue(g_dirtyStates.sharedConstants, g_sharedConstants.texCoordMax[index][1], texCoordMaxY);
 
 }
 
