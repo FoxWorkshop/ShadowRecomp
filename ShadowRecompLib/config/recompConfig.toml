@@ -1149,13 +1149,14 @@ name = "ModOverrideSizesMidAsmHook"
 address = 0x1F7D8
 registers = ["r6"]
 
-# Slope ground-stick fix for framerates above 60 FPS
+# Collision slopes ground-stick fix
 [[midasm_hook]]
-name = "HighFramerateCollisionFixMidAsmHook"
+name = "CollisionGroundStickMidAsmHook"
 address = 0x85420
 jump_address_on_true = 0x855E4
+registers = ["r4", "r7"]
 
-# Platforms stuff 
+# Platforms stuff
 [[midasm_hook]]
 name = "FootingMovableLinearMidAsmHook"
 address = 0x19C6EC

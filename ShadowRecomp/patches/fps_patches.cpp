@@ -119,14 +119,41 @@ void FpsConfigValueChangedCallback(IConfigDef* config)
 // See the jump board patch further down
 static int g_launchCollisionPass = 0;
 
-// Pass the first collision sweep @ 0x85420 to run 0x84E50
-// Only enabling for 61+ FPS to avoid the slight camera 'drop' for slide while this is active.
-bool HighFramerateCollisionFixMidAsmHook()
+// Collision patch globally, but sticking in here to check for the high FPS launch fix
+// Fix ray to ground 'stick'
+// Mainly for higher framerates, since even small slopes broke
+// Unlike the original 61FPS+ patch, I scope to non-grounded (no more camera, snap, or slide Y push issue!)
+// There are a few spots that originally break on 60 too (Space Gadget CC Orb area, Death Ruins spawn)
+bool CollisionGroundStickMidAsmHook(X86Register& esi, X86Register& esp)
 {
-	if (g_launchCollisionPass > 0)
-		return false;
+	auto base = g_memory.base;
 
-	return GetTargetFPS() >= 61.0;
+	// Don't interfere with the Launch fix
+	if (g_launchCollisionPass > 0)
+	{
+		return false;
+	}
+
+	const uint32_t player = X86_LOAD_U32(esi.u32);
+	if (player == NULL)
+	{
+		return false;
+	}
+
+	// Behavior is already Grounded
+	if ((X86_LOAD_U32(player + 0xa8) & 0x4) != 0)
+	{
+		return false;
+	}
+
+	// ray did not hit
+	if (X86_LOAD_U8(esp.u32 + 0x3f) == 0)
+	{
+		return false;
+	}
+
+	// skip to second sweep
+	return true;
 }
 
 // Common platforms that are used in many different stages
