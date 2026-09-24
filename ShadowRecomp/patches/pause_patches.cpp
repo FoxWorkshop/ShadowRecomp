@@ -527,6 +527,18 @@ static float GetRt2dUnitsPerWorldUnit()
 	return worldPerRt2d != 0.0f ? 1.0f / worldPerRt2d : 0.0f;
 }
 
+
+static float GetRt2dHeight()
+{
+	auto base = g_memory.base;
+
+	const float width = X86_LOAD_F32(rt2dDeviceWidth);
+	const float height = X86_LOAD_F32(rt2dDeviceHeight);
+	const float shortSide = std::min(width, height);
+
+	return shortSide != 0.0f ? height / shortSide : 1.0f;
+}
+
 // DrawMessage (used by both cutscene and pause menu)
 X86_FUNC_IMPL(__imp__sub_1E930);
 X86_FUNC(sub_1E930)
@@ -536,7 +548,18 @@ X86_FUNC(sub_1E930)
 		const float offset = subtitleOffsetPerItem * GetAddedPauseItemsCount() * GetRt2dUnitsPerWorldUnit();
 		const uint32_t argY = ctx.esp.u32 + drawMessageArgY;
 
-		X86_STORE_F32(argY, X86_LOAD_F32(argY) - offset); // move down
+		float y = X86_LOAD_F32(argY) - offset; // move down
+
+		// on a window taller than 4:3, the text only fills the middle of the screen, but the pause menu 
+		// is stretched over the whole height. We can patch this by pushing the text away
+		// from the center by the same amount, this fix the broken current mission position on pause menu.
+		if (g_hudUnstretchY < 1.0f)
+		{
+			const float centreY = GetRt2dHeight() * 0.5f;
+			y = centreY + (y - centreY) / g_hudUnstretchY;
+		}
+
+		X86_STORE_F32(argY, y);
 	}
 
 	__imp__sub_1E930(ctx, base);
