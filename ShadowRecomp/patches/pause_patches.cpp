@@ -2,6 +2,7 @@
 #include <ui/options_menu.h>
 
 #include "aspect_ratio_patches.h"
+#include "prompt_patches.h"
 #include <locale/locale.h>
 #include <gpu/video.h>
 #include <ui/imgui_utils.h>
@@ -182,9 +183,10 @@ void DrawPauseText()
 
 	if (g_pauseModeAddr)
 	{
-
+		// Picking "No" on the quit or restart prompt make our custom text of the pause menu
+		// overlapping the prompt text, so we hide it while any prompt is running.
 		auto mode = X86_LOAD_U32(g_pauseModeAddr);
-		if (mode > 3 || s_OptionsRequest || s_AchievementRequest)
+		if (mode > 3 || s_OptionsRequest || s_AchievementRequest || IsMessageBoxActive())
 		{
 			g_inputAllowed = false;
 			return;

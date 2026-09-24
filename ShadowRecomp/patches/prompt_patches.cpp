@@ -65,6 +65,27 @@ static const char* GetOptionLocaleKey(int32_t textID)
 	}
 }
 
+
+
+bool IsMessageBoxActive()
+{
+	auto base = g_memory.base;
+
+	auto managerPtr = X86_LOAD_U32(0x541F1C); // guest message manager ptr
+
+	if (managerPtr == 0)
+		return false;
+
+	auto message = X86_LOAD_U32(managerPtr);
+
+	if (message == 0)
+		return false;
+
+
+	// Ensure prompt animation is completely over, otherwise assume prompt is still running. 
+	return int32_t(X86_LOAD_U32(message + MESSAGE_DISPLAYED)) >= 0 || X86_LOAD_F32(message + MESSAGE_OPEN) > 0.0f;
+}
+
 static int g_messageResult = -1;
 static int32_t g_messageIndex = -1;
 
