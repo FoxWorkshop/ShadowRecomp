@@ -319,6 +319,75 @@ static void RestoreGrindLoop(uint32_t index)
 	SetGrindLoopRegion(entry);
 }
 
+/* --END GRIND RAIL SAMPLE PATCH-- */
+
+
+/* --DASH LOOP SEAM PATCH-- */
+
+// Spin dash and light dash make a small "tic" every time their loop fire on Xbox.
+// The loop points are correct, but because the Xbox samples were resampled, the seam lands in the wrong
+// region. We can move the points to a spot where the wave lines up, then fade the end of the loop properly.
+
+struct DashLoopFix
+{
+	uint32_t index;
+	uint32_t size; // sample bytes, used so if a mod replace the sounds, the loop patch won't run
+	uint32_t oldStart;
+	uint32_t oldLength;
+	uint32_t newStart;
+	uint32_t newLength;
+};
+
+static constexpr uint32_t PLAYER_BANK_SLOT = 3;
+static constexpr uint32_t LOOP_CROSSFADE_SAMPLES = 512; // about 10ms at 48kHz
+static constexpr uint16_t SAMPLE_FORMAT_PCM = 1; // WAVEFORMATEX tag thing
+
+// Memo: values are in bytes, the samples are 16 bit mono pcm
+static constexpr DashLoopFix g_dashLoopFixes[] =
+{
+	{ 14, 189160, 124112, 65044, 124406, 64744 }, // SE_SD14_SPINDASH1
+	{ 16, 188008, 117798, 70204, 118592, 68640 }, // SE_SD16_LIGHTDASH
+};
+
+static void FixDashLoopSeam(const DashLoopFix& fix)
+{
+	auto base = g_memory.base;
+
+	const uint32_t entry = g_SAMPLE_TABLE + PLAYER_BANK_SLOT * SAMPLE_BANK_STRIDE + fix.index * SAMPLE_ENTRY_STRIDE;
+	const uint32_t header = X86_LOAD_U32(entry + SAMPLE_VALID);
+
+	if (!header || X86_LOAD_U16(header) != SAMPLE_FORMAT_PCM)
+		return;
+
+	if (X86_LOAD_U32(entry + SAMPLE_SIZE) != fix.size
+		|| X86_LOAD_U32(entry + SAMPLE_LOOP_START) != fix.oldStart
+		|| X86_LOAD_U32(entry + SAMPLE_LOOP_LENGTH) != fix.oldLength)
+	{
+		return;
+	}
+
+	X86_STORE_U32(entry + SAMPLE_LOOP_START, fix.newStart);
+	X86_STORE_U32(entry + SAMPLE_LOOP_LENGTH, fix.newLength);
+
+	auto* samples = reinterpret_cast<int16_t*>(g_memory.Translate(X86_LOAD_U32(entry + SAMPLE_DATA)));
+	const uint32_t loopStart = fix.newStart / 2;
+	const uint32_t loopEnd = (fix.newStart + fix.newLength) / 2;
+
+	// the fade ends exactly on the sample before loop start
+	if (samples[loopEnd - 1] == samples[loopStart - 1] && samples[loopEnd - 2] == samples[loopStart - 2])
+		return;
+
+	for (uint32_t i = 0; i < LOOP_CROSSFADE_SAMPLES; ++i)
+	{
+		const int32_t from = samples[loopEnd - LOOP_CROSSFADE_SAMPLES + i];
+		const int32_t to = samples[loopStart - LOOP_CROSSFADE_SAMPLES + i];
+		samples[loopEnd - LOOP_CROSSFADE_SAMPLES + i] = int16_t(from + (to - from) * int32_t(i + 1) / int32_t(LOOP_CROSSFADE_SAMPLES));
+	}
+}
+
+/* --END DASH LOOP SEAM PATCH-- */
+
+
 // InitSoundBank(slot, stageID)
 X86_FUNC_IMPL(__imp__sub_25F420);
 X86_FUNC(sub_25F420)
@@ -327,6 +396,12 @@ X86_FUNC(sub_25F420)
 	const int32_t stage = int32_t(X86_LOAD_U32(ctx.esp.u32 + 0x8));
 
 	__imp__sub_25F420(ctx, base);
+
+	if (slot == PLAYER_BANK_SLOT)
+	{
+		for (const auto& fix : g_dashLoopFixes)
+			FixDashLoopSeam(fix);
+	}
 
 	if (slot != STAGE_BANK_SLOT)
 		return;
@@ -338,5 +413,3 @@ X86_FUNC(sub_25F420)
 	RestoreGrindLoop(GRIND_LOOP);
 	RestoreGrindLoop(GRIND2_LOOP);
 }
-
-/* --END GRIND RAIL SAMPLE PATCH-- */
