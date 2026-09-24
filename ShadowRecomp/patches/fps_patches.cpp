@@ -2272,3 +2272,62 @@ X86_FUNC(sub_2CA020)
 }
 
 /**	--UV Anim Baked Flipbook Patch END-- */
+
+/** --EnemyBase Rotation Patch START-- */
+static float EnemyTurnWrapAngle(float angle)
+{
+	if (angle > 3.14159265f)
+	{
+		angle -= 6.28318531f;
+	}
+	else if (angle < -3.14159265f)
+	{
+		angle += 6.28318531f;
+	}
+	return angle;
+}
+
+// EnemyBase Rotation To Target / Shared_RotateToPlayerCalc
+// Enemy Yaw = (enemy+0x30)->0x14
+// Target Yaw = (enemy+0x88)
+X86_FUNC_IMPL(__imp__sub_C23B0);
+X86_FUNC(sub_C23B0)
+{
+	const uint32_t enemy = ctx.ecx.u32;
+	const uint32_t enemyModel = X86_LOAD_U32(enemy + 0x30);
+
+	if (enemyModel == 0)
+	{
+		__imp__sub_C23B0(ctx, base);
+		return;
+	}
+
+	const float yawBefore = X86_LOAD_F32(enemyModel + 0x14);
+	const float target = X86_LOAD_F32(enemy + 0x88);
+	__imp__sub_C23B0(ctx, base);
+
+	const float frames = X86_LOAD_F32(g_deltaTime) * 60.0f;
+	if (!(frames > 0.0f) || std::fabs(frames - 1.0f) < 0.0001f)
+	{
+		return;
+	}
+
+	const float step = EnemyTurnWrapAngle(X86_LOAD_F32(enemyModel + 0x14) - yawBefore);
+	if (step == 0.0f)
+	{
+		return;
+	}
+
+	const float remaining = EnemyTurnWrapAngle(target - yawBefore);
+	float scaled = step * frames;
+	if (std::fabs(scaled) > std::fabs(remaining))
+	{
+		scaled = remaining;
+	}
+
+	const float yawAfter = EnemyTurnWrapAngle(yawBefore + scaled);
+	X86_STORE_F32(enemyModel + 0x14, yawAfter);
+	// Face target check (same constant)
+	ctx.eax.u8_lo = std::fabs(EnemyTurnWrapAngle(target - yawAfter)) < 0.017453294f ? 1 : 0;
+}
+/** --EnemyBase Rotation Patch END-- */
