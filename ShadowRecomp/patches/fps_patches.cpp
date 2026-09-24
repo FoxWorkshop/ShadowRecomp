@@ -1891,3 +1891,62 @@ void BeltTrailFadeMidAsmHook(X86Register& esi)
 }
 
 /** --Belt::Effect Patch END-- */
+
+/** --Destructible/Break object pieces Patch START-- */
+
+// Gadgets destroy and create several TObjEffCrash3DChildObj and TObjEffCrash3DRChildObj
+// Patch to do 60FPS step, similar to ScatterWeapon fix
+static std::unordered_map<uint32_t, float> g_debrisStepCarry;
+static void DebrisStepGate(X86Context& ctx, uint8_t* base, X86Func* original)
+{
+	const float frames = X86_LOAD_F32(g_deltaTime) * 60.0f;
+
+	// 60FPS
+	if (!(frames > 0.0f) || std::fabs(frames - 1.0f) < 0.0001f)
+	{
+		original(ctx, base);
+		return;
+	}
+
+	// 61+
+	if (g_debrisStepCarry.size() > 512) // clear if 512+ tasks
+	{
+		g_debrisStepCarry.clear();
+	}
+
+	const uint32_t debris = ctx.ecx.u32;
+	float &carry = g_debrisStepCarry[debris];
+	carry += frames;
+
+	if (carry < 1.0f)
+	{
+		ctx.AddEsp(2); // skip the call
+		return;
+	}
+
+	carry -= (float)(int)carry;
+
+	original(ctx, base);
+
+	// clean if destroyed
+	if ((X86_LOAD_U8(debris + 0xC) & 1) != 0)
+	{
+		g_debrisStepCarry.erase(debris);
+	}
+}
+
+// TObjEffCrash3DChildObj::Exec
+X86_FUNC_IMPL(__imp__sub_178850);
+X86_FUNC(sub_178850)
+{
+	DebrisStepGate(ctx, base, __imp__sub_178850);
+}
+
+// TObjEffCrash3DRChildObj::Exec
+X86_FUNC_IMPL(__imp__sub_178AD0);
+X86_FUNC(sub_178AD0)
+{
+	DebrisStepGate(ctx, base, __imp__sub_178AD0);
+}
+
+/** --Destructible/Break object pieces Patch END-- */
