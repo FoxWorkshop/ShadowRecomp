@@ -5739,8 +5739,8 @@ static void FlushViewport(const bool isFixed)
 
 	float scaleX = (float)g_renderTarget->width / (float)g_renderTarget->g_width;
 	float scaleY = (float)g_renderTarget->height / (float)g_renderTarget->g_height;
-	float width = (float)std::min(viewport.width, (DWORD)hostWidth - viewport.x);
-	float height = (float)std::min(viewport.height, (DWORD)hostHeight - viewport.y);
+	float width = (float)std::min(viewport.width, (DWORD)g_renderTarget->g_width - viewport.x);
+	float height = (float)std::min(viewport.height, (DWORD)g_renderTarget->g_height - viewport.y);
 
 
 	width *= scaleX;
@@ -5993,15 +5993,16 @@ X_D3DFORMAT GetXboxPixelContainerFormat(const uint32_t XboxPixelContainer_Format
 	return d3d_format;
 }
 
+// Always use guest size, a smaller host size overflow the buffer and corrupt memory.
 static uint32_t ComputeTexturePitch(GuestTexture* texture)
 {
-	return (texture->width * RenderFormatSize(texture->format) + PITCH_ALIGNMENT - 1) & ~(PITCH_ALIGNMENT - 1);
+	return (texture->g_width * RenderFormatSize(texture->format) + PITCH_ALIGNMENT - 1) & ~(PITCH_ALIGNMENT - 1);
 }
 
 static void LockTextureRect(GuestTexture* texture, int32_t level, GuestLockedRect* lockedRect, RECT* pRect, uint32_t flags)
 {
 	uint32_t pitch = ComputeTexturePitch(texture);
-	uint32_t slicePitch = pitch * texture->height;
+	uint32_t slicePitch = pitch * texture->g_height;
 
 	if (texture->mappedMemory == nullptr)
 	{
@@ -6472,8 +6473,9 @@ static void SetViewport(GuestViewport* viewport, GuestSurface* surface)
 	{
 		const bool isFixed = g_Xbox_VertexShaderMode == VertexShaderMode::FixedFunction;
 
-		uint32_t rtWidth = surface->width;
-		uint32_t rtHeight = surface->height;
+		// it's easier to let the game think we're still on the OG resolution, so use guest res.
+		uint32_t rtWidth = surface->g_width;
+		uint32_t rtHeight = surface->g_height;
 
 		//for some reason, og xbox can send int_max for width and height, likely to trigger a reset(?)
 		float width = (float)std::min(viewport->Width, (DWORD)rtWidth - viewport->X);
@@ -7569,14 +7571,14 @@ static void PipelineCompilerThread()
 }
 
 static std::vector<std::unique_ptr<std::thread>> g_pipelineCompilerThreads = []()
-{
+	{
 		std::vector<std::unique_ptr<std::thread>> threads(std::max(2u, (std::thread::hardware_concurrency() * 2) / 3));
 		for (auto& thread : threads)
 		{
 			thread = std::make_unique<std::thread>(PipelineCompilerThread);
 		}
 		return threads;
-}();
+	}();
 
 static bool EnqueueGraphicsPipelineCompilation(const PipelineState& pipelineState, XXH64_hash_t hash)
 {
