@@ -445,7 +445,8 @@ struct CsdSavedVertices
 };
 
 
-static bool UnstretchPrimitive(void* vertexData, uint32_t count, uint64_t flags, CsdSavedVertices& saved, const std::optional<CsdAnchor>& anchorOverrideX = std::nullopt)
+static bool UnstretchPrimitive(void* vertexData, uint32_t count, uint64_t flags, CsdSavedVertices& saved,
+	const std::optional<CsdAnchor>& anchorOverrideX = std::nullopt, const std::optional<CsdAnchor>& anchorOverrideY = std::nullopt)
 {
 	auto* verts = (RwD3D8Vertex*)vertexData;
 
@@ -486,7 +487,7 @@ static bool UnstretchPrimitive(void* vertexData, uint32_t count, uint64_t flags,
 		return false;
 
 	const CsdAnchor anchorX = anchorOverrideX.value_or(ResolveAnchorX(flags, minX, maxX));
-	const CsdAnchor anchorY = ResolveAnchorY(flags, minY, maxY);
+	const CsdAnchor anchorY = anchorOverrideY.value_or(ResolveAnchorY(flags, minY, maxY));
 
 	const float scaleX = unstretchX ? g_hudUnstretchX : 1.0f;
 	const float scaleY = unstretchY ? g_hudUnstretchY : 1.0f;
@@ -635,6 +636,8 @@ void CPlatformRWDrawPrimitive2DMidAsmHook2(X86Register& rEsi)
 
 static constexpr uint32_t hudNumberGlyphWidth = 0x598; // scaled
 static constexpr uint32_t hudNumberGlyphScaleX = 0x08;
+static constexpr uint32_t hudNumberGlyphHeight = 0x59C; // scaled
+static constexpr uint32_t hudNumberGlyphScaleY = 0x0C;
 static constexpr uint32_t hudNumberSpacing = 0x14;
 
 enum HudNumberAlign : uint32_t
@@ -697,9 +700,11 @@ struct HudNumberState
 {
 	uint64_t Flags{};
 	std::optional<CsdAnchor> Anchor{};
+	std::optional<CsdAnchor> AnchorY{};
 };
 
 static HudNumberState g_hudNumber{};
+static bool g_isInStageMode = false;
 
 static void BeginHudNumber(uint32_t font, float x, float y, uint32_t text, uint32_t align)
 {
@@ -727,8 +732,21 @@ static void BeginHudNumber(uint32_t font, float x, float y, uint32_t text, uint3
 
 	const float left = x + (align == HudNumberAlign_Centre ? width * -0.5f : align == HudNumberAlign_Right ? -width : 0.0f);
 
-	// one anchor for the whole string so the digits keep their spacing
 	g_hudNumber.Flags = flags;
+
+	// For now we aren't patching CSD on the stage select menu.
+	// So prevent moving the personal record of the player to avoid wrong offset.
+
+	if (g_isInStageMode)
+	{
+		const float glyphHeight = X86_LOAD_F32(font + hudNumberGlyphHeight) * X86_LOAD_F32(font + hudNumberGlyphScaleY);
+
+		g_hudNumber.Anchor = CsdAnchor{ x, x };
+		g_hudNumber.AnchorY = CsdAnchor{ y + glyphHeight, y + glyphHeight };
+		return;
+	}
+
+	// one anchor for the whole string so the digits keep their spacing
 	g_hudNumber.Anchor = ResolveAnchorX(flags, left, left + width);
 }
 
@@ -744,7 +762,6 @@ X86_FUNC(sub_281550)
 	g_hudNumber = {};
 }
 
-static bool g_isInStageMode = false;
 void DrawHudMidAsmHook(X86Register& rEax)
 {
 	if (!rEax.u32 || App::isInMainMenu() && !g_isInStageMode) // this affect text on stage select mode badly
@@ -752,7 +769,7 @@ void DrawHudMidAsmHook(X86Register& rEax)
 
 	// the digits are drawn right away, so there is nothing to restore after
 	CsdSavedVertices saved{};
-	UnstretchPrimitive(g_memory.Translate(rEax.u32), CSDVertexCount, g_hudNumber.Flags, saved, g_hudNumber.Anchor);
+	UnstretchPrimitive(g_memory.Translate(rEax.u32), CSDVertexCount, g_hudNumber.Flags, saved, g_hudNumber.Anchor, g_hudNumber.AnchorY);
 }
 
 
