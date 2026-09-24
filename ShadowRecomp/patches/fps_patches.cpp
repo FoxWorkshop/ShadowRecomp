@@ -2207,3 +2207,68 @@ X86_FUNC(sub_3167D0)
 	ctx.esp.u32 += 0x8;
 }
 /**	--Global FX Alpha Fade Patch END-- */
+
+/**	--UV Anim Baked Flipbook Patch START-- */
+
+// Some UV anims are "baked flipbooks" with a key every 1/60s. (e.g GunBeetle's electric shield through EFGUNTHUNDER.UVA)
+// RenderWare blends linearly between keys, so at any fps but 60, it lands between two keys and show half a row.
+// This creates some kind of weird visual effect, as if it was skipping frames.
+// Fix: hold the key instead of blending when two keys are 1/60s apart, same as what basically happens at 60fps.
+
+// UV anim keyframe (memo: +0x04 time, +0x08 to +0x1C six floats)
+static bool UVAnimHoldBakedKey(uint8_t* base, uint32_t out, uint32_t key0, uint32_t key1, float time)
+{
+	const float time0 = X86_LOAD_F32(key0 + 0x4);
+	const float span = X86_LOAD_F32(key1 + 0x4) - time0;
+
+	if (std::fabs(span - (1.0f / 60.0f)) > 0.0001f)
+		return false;
+
+	// 60 fps lands a tiny bit before the next key sometimes so treat it as the next key to be safe.
+	const uint32_t key = ((time - time0) / span >= 0.999f) ? key1 : key0;
+
+	for (uint32_t i = 0x8; i <= 0x1C; i += 4)
+	{
+		X86_STORE_U32(out + i, X86_LOAD_U32(key + i));
+	}
+
+	return true;
+}
+
+// UV anim param scheme (interpolate callback)
+X86_FUNC_IMPL(__imp__sub_2C9B50);
+X86_FUNC(sub_2C9B50)
+{
+	const uint32_t out = X86_LOAD_U32(ctx.esp.u32 + 0x4);
+	const uint32_t key0 = X86_LOAD_U32(ctx.esp.u32 + 0x8);
+	const uint32_t key1 = X86_LOAD_U32(ctx.esp.u32 + 0xC);
+	const float time = X86_LOAD_F32(ctx.esp.u32 + 0x10);
+
+	if (UVAnimHoldBakedKey(base, out, key0, key1, time))
+	{
+		ctx.esp.u32 += 0x4;
+		return;
+	}
+
+	__imp__sub_2C9B50(ctx, base);
+}
+
+// UV anim linear scheme (interpolate callback)
+X86_FUNC_IMPL(__imp__sub_2CA020);
+X86_FUNC(sub_2CA020)
+{
+	const uint32_t out = X86_LOAD_U32(ctx.esp.u32 + 0x4);
+	const uint32_t key0 = X86_LOAD_U32(ctx.esp.u32 + 0x8);
+	const uint32_t key1 = X86_LOAD_U32(ctx.esp.u32 + 0xC);
+	const float time = X86_LOAD_F32(ctx.esp.u32 + 0x10);
+
+	if (UVAnimHoldBakedKey(base, out, key0, key1, time))
+	{
+		ctx.esp.u32 += 0x4;
+		return;
+	}
+
+	__imp__sub_2CA020(ctx, base);
+}
+
+/**	--UV Anim Baked Flipbook Patch END-- */
