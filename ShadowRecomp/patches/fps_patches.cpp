@@ -1586,6 +1586,7 @@ struct LaunchGrace
 	bool originValid;
 	bool replayed;
 	int skipped;
+	bool selfTimed; // (For DarkSpin exit)
 };
 
 static LaunchGrace g_launchGrace[4] = {};
@@ -1606,7 +1607,7 @@ static LaunchGrace* FindLaunchGrace(uint32_t player)
 // This is one of the function used to detect collision 
 // We can trick the game that no collision were found for the first 1/60 of a second so we can progress
 // Then we run the original code once to store the intended destination
-// Hacky, but this is good enough for now.
+// Hacky, but this is good enough for now. (Used for both Jump Board and Dark Spin).
 
 X86_FUNC_IMPL(__imp__sub_84E50);
 X86_FUNC(sub_84E50)
@@ -1617,6 +1618,21 @@ X86_FUNC(sub_84E50)
 	{
 		const uint32_t player = X86_LOAD_U32(playerData);
 		LaunchGrace* grace = FindLaunchGrace(player);
+
+
+		if (grace != nullptr && grace->selfTimed)
+		{
+			const float deltatime = X86_LOAD_F32(X86_LOAD_U32(player + 0x60));
+			grace->elapsed += deltatime > 0.0f ? deltatime : g_launchGracePeriod;
+
+			// Nothing was held back here (60 FPS or lower), so there is nothing else to do.
+			if (grace->elapsed >= g_launchGracePeriod - 1.0e-6f && grace->skipped == 0)
+			{
+				*grace = {};
+				grace = nullptr;
+			}
+		}
+
 
 		if (grace != nullptr)
 		{
@@ -2369,3 +2385,40 @@ void BirdVehicleTurnScaleMidAsmHook(X86Register& esp)
 }
 
 /** --BirdBase Vehicle Patch END-- */
+
+
+/** --DarkSpin exit Patch START-- */
+
+// That red slime thing that Shadow absorb with a spin dash which carry him along a path.
+// Above 60 FPS, the jump at the end can make Shadow gets stuck on it depending on the stage (Death Ruins being an example).
+// Same fix than the jump board, but a bit simpler: we register a grace when it's about to bump Shadow, and the
+// original collision code does the rest.
+
+// Player::Behavior::DarkSpin::Exec
+X86_FUNC_IMPL(__imp__sub_6D700);
+X86_FUNC(sub_6D700)
+{
+	// State 2 is the last one, it always switches to Jump
+	if (X86_LOAD_U32(ctx.ecx.u32 + 0x5C) == 2)
+	{
+		const uint32_t player = X86_LOAD_U32(ctx.ecx.u32 + 4);
+		LaunchGrace* grace = FindLaunchGrace(player);
+
+		for (auto& slot : g_launchGrace)
+		{
+			if (grace == nullptr && slot.player == 0)
+				grace = &slot;
+		}
+
+		if (grace != nullptr && player != NULL)
+		{
+			*grace = {};
+			grace->player = player;
+			grace->selfTimed = true;
+		}
+	}
+
+	__imp__sub_6D700(ctx, base);
+}
+
+/** --DarkSpin exit Patch END-- */
