@@ -296,6 +296,14 @@ if (WIN32)
     if (${CMAKE_BUILD_TYPE} MATCHES "Release")
         target_link_options(ShadowRecomp PRIVATE "/SUBSYSTEM:WINDOWS" "/ENTRY:mainCRTStartup")
     endif()
+
+    # Link time increases build time in RelWithDebInfo by a lot without a cache
+    if (CMAKE_INTERPROCEDURAL_OPTIMIZATION AND CMAKE_LINKER MATCHES "lld-link")
+        target_link_options(ShadowRecomp PRIVATE
+            "/lldltocache:${CMAKE_BINARY_DIR}/lto.cache"
+            "/lldltocachepolicy:cache_size_bytes=4g:prune_after=72h"
+        )
+    endif()
 else()
     add_executable(ShadowRecomp ${SHADOW_RECOMP_CXX_SOURCES})
 endif()
