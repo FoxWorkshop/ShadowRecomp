@@ -1897,24 +1897,42 @@ bool BeltTrailPushMidAsmHook(X86Register& esi)
 // Eff::Belt update @ 0x260670
 // Fade call @ 0x260716
 // Per frame fade of '8'
+struct BeltFadeTiming
+{
+	std::chrono::steady_clock::time_point last;
+	float carry;
+};
+std::unordered_map<uint32_t, BeltFadeTiming> g_beltFadeTimings;
 void BeltTrailFadeMidAsmHook(X86Register& esi)
 {
 	auto base = g_memory.base;
-	const float frames = X86_LOAD_F32(g_deltaTime) * 60.0f;
-	if (!(frames > 0.0f) || std::fabs(frames - 1.0f) < 0.0001f)
-	{
-		return;
-	}
-
-	const int extra = std::max((int)(8.0f * (frames - 1.0f) + 0.5f), 0);
-	if (extra == 0)
-	{
-		return;
-	}
-
 	const uint32_t beltEff = esi.u32;
-	const int value = (int)X86_LOAD_U8(beltEff + 8) - extra;
+	const auto now = std::chrono::steady_clock::now();
+
+	if (g_beltFadeTimings.size() > 64)
+	{
+		g_beltFadeTimings.clear(); // stale entries of dead effects, safe to reset
+	}
+
+	// if not tracked, skip our delta
+	auto [it, first] = g_beltFadeTimings.try_emplace(beltEff, now, 0.0f);
+	if (first)
+	{
+		return;
+	}
+
+	const double elapsed = std::chrono::duration<double>(now - it->second.last).count();
+	it->second.last = now;
+	const float total = std::min((float)(elapsed * 60.0), 4.0f) * 8.0f + it->second.carry;
+	const int step = (int)total;
+	it->second.carry = total - step;
+
+	const int value = std::min((int)X86_LOAD_U8(beltEff + 8) + (8 - step), 255);
 	X86_STORE_U8(beltEff + 8, (uint8_t)std::max(value, 0));
+	if (X86_LOAD_U8(beltEff + 8) == 0)
+	{
+		g_beltFadeTimings.erase(beltEff);
+	}
 }
 
 /** --Belt::Effect Patch END-- */
