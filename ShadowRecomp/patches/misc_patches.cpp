@@ -382,3 +382,37 @@ X86_FUNC(sub_59430)
 	ResetMessageBrushColor();
 	__imp__sub_59430(ctx, base);
 }
+
+// ElecCoreProgram::Exec
+// Fix the mission counter increment being skipped
+// 0x44 = destroyed
+// 0x2E4 = hp (total HP @ 0x46B86C)
+X86_FUNC_IMPL(__imp__sub_1F89B0);
+X86_FUNC(sub_1F89B0)
+{
+	auto elecCore = ctx.ecx.u32;
+	if (X86_LOAD_U32(elecCore  + 0x44) == 1 && X86_LOAD_F32(elecCore  + 0x2E4) >= X86_LOAD_F32(0x46B86C))
+	{
+		auto missionMgr = X86_LOAD_U32(0x541FA4); // MissionManagerTask
+		if (missionMgr != 0)
+		{
+			auto mission = X86_LOAD_U32(missionMgr + 8);
+			auto handle = X86_LOAD_U32(missionMgr + 0xC);
+			if (mission != 0 && handle != 0 && X86_LOAD_U32(mission + 0xC) != 1) // already completed check
+			{
+				// Set the counter BEFORE clearing the mission (OG has this too, but its in the wrong branch)
+				X86_STORE_U8(mission + 0x14, 1);
+				auto vtable = X86_LOAD_U32(mission);
+				auto addCount = X86_LOAD_U32(vtable + 0x1C); // CountMission::AddCount
+				ctx.esp.u32 -= 8;
+				X86_STORE_U32(ctx.esp.u32 + 0, 1); // count
+				X86_STORE_U32(ctx.esp.u32 + 4, 0); // affinity (dark)
+				ctx.ecx.u32 = mission;
+				ctx.esp.u32 -= 4;
+				X86_CALL_INDIRECT_FUNC(addCount);
+			}
+		}
+	}
+	ctx.ecx.u32 = elecCore;
+	__imp__sub_1F89B0(ctx, base);
+}
