@@ -2349,3 +2349,23 @@ X86_FUNC(sub_C23B0)
 	ctx.eax.u8_lo = std::fabs(EnemyTurnWrapAngle(target - yawAfter)) < 0.017453294f ? 1 : 0;
 }
 /** --EnemyBase Rotation Patch END-- */
+
+/** --BirdBase Vehicle Rotation Fix Patch START-- */
+
+// BirdBase Vehicle aka the rideable BlackVolt / BlackHawk
+// Rotation update @ 0x251F00 (called by the bird Exec @ 0x253740)
+// Only the stick release rotation was not using delta time
+void BirdVehicleTurnScaleMidAsmHook(X86Register& esp)
+{
+	auto base = g_memory.base;
+	const float frames = X86_LOAD_F32(g_deltaTime) * 60.0f;
+	if (!(frames > 0.0f) || std::fabs(frames - 1.0f) < 0.0001f)
+	{
+		return;
+	}
+
+	const uint32_t rotationRate = esp.u32 + 0x10;
+	X86_STORE_F32(rotationRate, std::min(X86_LOAD_F32(rotationRate) * frames, 1.0f));
+}
+
+/** --BirdBase Vehicle Patch END-- */

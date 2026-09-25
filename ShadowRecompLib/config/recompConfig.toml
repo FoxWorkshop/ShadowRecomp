@@ -1439,3 +1439,15 @@ name = "BeltTrailFadeMidAsmHook"
 address = 0x260712
 registers = ["r4"]
 # End Belt::Eff fixes
+
+# Start BirdBase rotation on stick release fix
+[[midasm_hook]]
+name = "BirdVehicleTurnScaleMidAsmHook"
+address = 0x25217D
+registers = ["r7"]
+
+[[midasm_hook]]
+name = "BirdVehicleTurnScaleMidAsmHook"
+address = 0x2526D5
+registers = ["r7"]
+# End BirdBase rotation on stick release fix
