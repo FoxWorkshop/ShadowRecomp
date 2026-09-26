@@ -244,26 +244,33 @@ X86_FUNC(sub_2B47C0)
 	RegisterCsdFile(base, thisPtr, path);
 }
 
-// Some CSD uses a different function to be loaded (such as partner intro names).
+// Some CSD uses a different function to be loaded (such as partner intro names or mission result).
 // The file is read into a buffer first and then parsed (sub_2B4AC0), which never sees the path, so it get lost.
-// As a workaround, we copy the path when the request is queued and pick it back later when it's needed.
+// As a workaround, we can use the buffer as a key and copy the path in a map.
 static Mutex g_asyncCsdMutex;
 static std::unordered_map<uint32_t, std::string> g_asyncCsdPaths;
-static thread_local std::string g_asyncCsdPath;
 
-// queue a CSD file read (async system)
-X86_FUNC_IMPL(__imp__sub_1A3A0);
-X86_FUNC(sub_1A3A0)
+// TBGRead ctor (this, request, file handle)
+X86_FUNC_IMPL(__imp__sub_1A6D0);
+X86_FUNC(sub_1A6D0)
 {
 	auto request = X86_LOAD_U32(ctx.esp.u32 + 4);
 	auto pathAddr = request ? X86_LOAD_U32(request) : 0;
-	auto key = request ? X86_LOAD_U32(request + 0xC) : 0;
+	auto key = request ? X86_LOAD_U32(request + 4) : 0;
 
 	if (pathAddr && key)
 	{
 		std::string path = (const char*)g_memory.Translate(pathAddr);
 		std::string lower = path;
 		std::transform(lower.begin(), lower.end(), lower.begin(), [](unsigned char c) { return (char)std::tolower(c); });
+
+		// some CSD path get their slash flip, ensure accuracy.
+		std::replace(path.begin(), path.end(), '\\', '/');
+
+		auto rootPos = lower.find("csdfiles");
+
+		if (rootPos != std::string::npos)
+			path.erase(0, rootPos);
 
 		std::lock_guard lock(g_asyncCsdMutex);
 
@@ -273,46 +280,31 @@ X86_FUNC(sub_1A3A0)
 			g_asyncCsdPaths.erase(key);
 	}
 
-	__imp__sub_1A3A0(ctx, base);
+	__imp__sub_1A6D0(ctx, base);
 }
 
-// CSD Loack Callback
-static void BeginAsyncCsdLoad(X86Context& ctx, uint8_t* base)
-{
-	auto request = X86_LOAD_U32(ctx.esp.u32 + 4);
-	auto key = request ? X86_LOAD_U32(request + 0xC) : 0;
-
-	std::lock_guard lock(g_asyncCsdMutex);
-
-	auto findResult = g_asyncCsdPaths.find(key);
-	g_asyncCsdPath = findResult != g_asyncCsdPaths.end() ? findResult->second : std::string();
-}
-
-// NpcNameDisplay load callback (used by partner intro name)
-X86_FUNC_IMPL(__imp__sub_2870F0);
-X86_FUNC(sub_2870F0)
-{
-	BeginAsyncCsdLoad(ctx, base);
-	__imp__sub_2870F0(ctx, base);
-	g_asyncCsdPath.clear();
-}
-
-X86_FUNC_IMPL(__imp__sub_28AA30);
-X86_FUNC(sub_28AA30)
-{
-	BeginAsyncCsdLoad(ctx, base);
-	__imp__sub_28AA30(ctx, base);
-	g_asyncCsdPath.clear();
-}
-
-// CSD loader from memory (buffer, size, unk)
+// CSD loader from memory
 X86_FUNC_IMPL(__imp__sub_2B4AC0);
 X86_FUNC(sub_2B4AC0)
 {
 	std::lock_guard lock2(g_bufferMutex);
 
 	void* thisPtr = (void*)GetHostParameter(1, CallConvention::Thiscall, ParameterType::Pointer);
-	std::string path = g_asyncCsdPath;
+	auto buffer = X86_LOAD_U32(ctx.esp.u32 + 4);
+	std::string path;
+
+	{
+		// the buffer is freed right after parsing
+	std::lock_guard lock(g_asyncCsdMutex);
+
+		auto findResult = g_asyncCsdPaths.find(buffer);
+
+		if (findResult != g_asyncCsdPaths.end())
+{
+			path = std::move(findResult->second);
+			g_asyncCsdPaths.erase(findResult);
+}
+}
 
 	__imp__sub_2B4AC0(ctx, base);
 
