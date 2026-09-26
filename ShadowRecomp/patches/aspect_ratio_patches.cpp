@@ -211,6 +211,8 @@ void TraverseSceneNode(CSDSceneNode* node, const std::string& path)
 	}
 }
 
+static void RegisterCsdFile(uint8_t* base, void* thisPtr, const char* path);
+
 // CSD_LOADER
 X86_FUNC_IMPL(__imp__sub_2B47C0);
 X86_FUNC(sub_2B47C0)
@@ -239,6 +241,89 @@ X86_FUNC(sub_2B47C0)
 
 	auto pSuffix = s_languages[(int)Config::Language.Value];
 
+	RegisterCsdFile(base, thisPtr, path);
+}
+
+// Some CSD uses a different function to be loaded (such as partner intro names).
+// The file is read into a buffer first and then parsed (sub_2B4AC0), which never sees the path, so it get lost.
+// As a workaround, we copy the path when the request is queued and pick it back later when it's needed.
+static Mutex g_asyncCsdMutex;
+static std::unordered_map<uint32_t, std::string> g_asyncCsdPaths;
+static thread_local std::string g_asyncCsdPath;
+
+// queue a CSD file read (async system)
+X86_FUNC_IMPL(__imp__sub_1A3A0);
+X86_FUNC(sub_1A3A0)
+{
+	auto request = X86_LOAD_U32(ctx.esp.u32 + 4);
+	auto pathAddr = request ? X86_LOAD_U32(request) : 0;
+	auto key = request ? X86_LOAD_U32(request + 0xC) : 0;
+
+	if (pathAddr && key)
+	{
+		std::string path = (const char*)g_memory.Translate(pathAddr);
+		std::string lower = path;
+		std::transform(lower.begin(), lower.end(), lower.begin(), [](unsigned char c) { return (char)std::tolower(c); });
+
+		std::lock_guard lock(g_asyncCsdMutex);
+
+		if (lower.find(".xncp") != std::string::npos)
+			g_asyncCsdPaths[key] = std::move(path);
+		else
+			g_asyncCsdPaths.erase(key);
+	}
+
+	__imp__sub_1A3A0(ctx, base);
+}
+
+// CSD Loack Callback
+static void BeginAsyncCsdLoad(X86Context& ctx, uint8_t* base)
+{
+	auto request = X86_LOAD_U32(ctx.esp.u32 + 4);
+	auto key = request ? X86_LOAD_U32(request + 0xC) : 0;
+
+	std::lock_guard lock(g_asyncCsdMutex);
+
+	auto findResult = g_asyncCsdPaths.find(key);
+	g_asyncCsdPath = findResult != g_asyncCsdPaths.end() ? findResult->second : std::string();
+}
+
+// NpcNameDisplay load callback (used by partner intro name)
+X86_FUNC_IMPL(__imp__sub_2870F0);
+X86_FUNC(sub_2870F0)
+{
+	BeginAsyncCsdLoad(ctx, base);
+	__imp__sub_2870F0(ctx, base);
+	g_asyncCsdPath.clear();
+}
+
+X86_FUNC_IMPL(__imp__sub_28AA30);
+X86_FUNC(sub_28AA30)
+{
+	BeginAsyncCsdLoad(ctx, base);
+	__imp__sub_28AA30(ctx, base);
+	g_asyncCsdPath.clear();
+}
+
+// CSD loader from memory (buffer, size, unk)
+X86_FUNC_IMPL(__imp__sub_2B4AC0);
+X86_FUNC(sub_2B4AC0)
+{
+	std::lock_guard lock2(g_bufferMutex);
+
+	void* thisPtr = (void*)GetHostParameter(1, CallConvention::Thiscall, ParameterType::Pointer);
+	std::string path = g_asyncCsdPath;
+
+	__imp__sub_2B4AC0(ctx, base);
+
+	if (!thisPtr || path.empty())
+		return;
+
+	RegisterCsdFile(base, thisPtr, path.c_str());
+}
+
+static void RegisterCsdFile(uint8_t* base, void* thisPtr, const char* path)
+{
 	auto csdFileAddrPtr = X86_LOAD_U32(g_memory.MapVirtual((const uint8_t*)thisPtr + 4));
 
 	if (!csdFileAddrPtr)
@@ -809,6 +894,17 @@ void HpBarScaleMidAsmHook(X86Register& rEsi)
 	X86_STORE_F32(rEsi.u32 + 0x38, X86_LOAD_F32(rEsi.u32 + 0x38) * g_hudUnstretchX);
 }
 
+// Item reward icon from CP
+// sub_289970 builds a quad which gets stretched as resolution increase.
+// the quad is rebuilt every frame, so we can unstretch it right before the draw
+static constexpr uint32_t g_itemIconVertices = 0x559688;
+
+void ItemIconDrawMidAsmHook()
+{
+	CsdSavedVertices saved{};
+	UnstretchPrimitive(g_memory.Translate(g_itemIconVertices), CSDVertexCount, CSD_UNSTRETCH | CSD_ALIGN_BOTTOM_CENTRE, saved);
+}
+
 
 // Weapon lock-on reticle (This includes birbo targets in the ark)
 // Those have the same problem than enemy hp bar above
@@ -1212,6 +1308,31 @@ const xxHashMap<CsdModifier> g_csdModifiers =
 	{ HashStr("csdFiles/2P_CommandWindow.xncp/CarMeter/outline"), { CSD_UNSTRETCH | CSD_ALIGN_AUTO_H | CSD_ALIGN_BOTTOM } },
 	{ HashStr("csdFiles/2P_CommandWindow.xncp/CarMeter/meter_bg"), { CSD_UNSTRETCH | CSD_ALIGN_AUTO_H | CSD_ALIGN_BOTTOM } },
 	{ HashStr("csdFiles/2P_CommandWindow.xncp/CarMeter/meter"), { CSD_UNSTRETCH | CSD_ALIGN_AUTO_H | CSD_ALIGN_BOTTOM } },
+
+	// Partner intro name (NpcNameDisplay). each partner has its own file with the same layout
+	{ HashStr("csdFiles/Mchara_sonic.xncp/MissionCharacters"), { CSD_UNSTRETCH | CSD_ALIGN_AUTO_H } },
+	{ HashStr("csdFiles/Mchara_tails.xncp/MissionCharacters"), { CSD_UNSTRETCH | CSD_ALIGN_AUTO_H } },
+	{ HashStr("csdFiles/Mchara_knuckles.xncp/MissionCharacters"), { CSD_UNSTRETCH | CSD_ALIGN_AUTO_H } },
+	{ HashStr("csdFiles/MChara_amy.xncp/MissionCharacters"), { CSD_UNSTRETCH | CSD_ALIGN_AUTO_H } },
+	{ HashStr("csdFiles/Mchara_rouge.xncp/MissionCharacters"), { CSD_UNSTRETCH | CSD_ALIGN_AUTO_H } },
+	{ HashStr("csdFiles/Mchara_omega.xncp/MissionCharacters"), { CSD_UNSTRETCH | CSD_ALIGN_AUTO_H } },
+	{ HashStr("csdFiles/Mchara_vector.xncp/MissionCharacters"), { CSD_UNSTRETCH | CSD_ALIGN_AUTO_H } },
+	{ HashStr("csdFiles/Mchara_espio.xncp/MissionCharacters"), { CSD_UNSTRETCH | CSD_ALIGN_AUTO_H } },
+	{ HashStr("csdFiles/MChara_charmy.xncp/MissionCharacters"), { CSD_UNSTRETCH | CSD_ALIGN_AUTO_H } },
+	{ HashStr("csdFiles/Mchara_maria.xncp/MissionCharacters"), { CSD_UNSTRETCH | CSD_ALIGN_AUTO_H } },
+	{ HashStr("csdFiles/Mchara_eggman.xncp/MissionCharacters"), { CSD_UNSTRETCH | CSD_ALIGN_AUTO_H } },
+	{ HashStr("csdFiles/MChara_doomeye.xncp/MissionCharacters"), { CSD_UNSTRETCH | CSD_ALIGN_AUTO_H } },
+	{ HashStr("csdFiles/MChara.xncp/MissionCharacters"), { CSD_UNSTRETCH | CSD_ALIGN_AUTO_H } },
+
+	// Bosses intro name
+	{ HashStr("csdFiles/BChara_BBull.xncp/bchara"), { CSD_UNSTRETCH | CSD_ALIGN_AUTO_H } },
+	{ HashStr("csdFiles/BChara_EBreaker.xncp/bchara"), { CSD_UNSTRETCH | CSD_ALIGN_AUTO_H } },
+	{ HashStr("csdFiles/BChara_HDog.xncp/bchara"), { CSD_UNSTRETCH | CSD_ALIGN_AUTO_H } },
+	{ HashStr("csdFiles/BChara_BFalcon.xncp/bchara"), { CSD_UNSTRETCH | CSD_ALIGN_AUTO_H } },
+	{ HashStr("csdFiles/BChara_SandD.xncp/bchara"), { CSD_UNSTRETCH | CSD_ALIGN_AUTO_H } },
+	{ HashStr("csdFiles/BChara_BDoom.xncp/bchara"), { CSD_UNSTRETCH | CSD_ALIGN_AUTO_H } },
+	{ HashStr("csdFiles/BChara_EDealer.xncp/bchara"), { CSD_UNSTRETCH | CSD_ALIGN_AUTO_H } },
+	{ HashStr("csdFiles/BChara_DevDoom.xncp/bchara"), { CSD_UNSTRETCH | CSD_ALIGN_AUTO_H } },
 };
 
 std::optional<CsdModifier> FindCsdModifier(uint32_t data)

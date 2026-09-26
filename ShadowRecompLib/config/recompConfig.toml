@@ -847,6 +847,11 @@ name = "HpBarScaleMidAsmHook"
 address = 0x285AAD
 registers = ["r4"]
 
+# Checkpoint reward item icon
+[[midasm_hook]]
+name = "ItemIconDrawMidAsmHook"
+address = 0x289B54
+
 # Lock-on reticle from weapons and birbo
 [[midasm_hook]]
 name = "LockOnProjectionMidAsmHook"
