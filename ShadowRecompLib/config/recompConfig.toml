@@ -1452,3 +1452,17 @@ name = "BirdVehicleTurnScaleMidAsmHook"
 address = 0x2526D5
 registers = ["r7"]
 # End BirdBase rotation on stick release fix
+
+# Start Fire vacuum callback fix
+# WeaponVacuumPod::Exec
+[[midasm_hook]]
+name = "FireVacuumCallbackMidAsmHook"
+address = 0x26DBA0
+registers = ["r6", "r5"]
+
+# VacuumEggItem::Exec
+[[midasm_hook]]
+name = "FireVacuumCallbackMidAsmHook"
+address = 0x27370E
+registers = ["r6", "r5"]
+# End Fire vacuum callback fix

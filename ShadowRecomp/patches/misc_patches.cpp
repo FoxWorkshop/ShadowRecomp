@@ -419,3 +419,56 @@ X86_FUNC(sub_1F89B0)
 	ctx.ecx.u32 = elecCore;
 	__imp__sub_1F89B0(ctx, base);
 }
+
+// Fix the missing ScoreCommand if vacuum picks up fire (branch is skipped since owner check fails)
+// Fire VacuumCommand handler @ 0x1AA820
+// Fire attack callback @ 0x19B550
+X86_FUNC_IMPL(__imp__sub_5C4D0); // ScoreCommand
+void FireVacuumCallbackMidAsmHook(X86Register& ebp, X86Register& edi)
+{
+	auto ctx = GetX86Context();
+	auto base = g_memory.base;
+
+	// ebp = GadgetCharInfo (object being sucked)
+	// ebp+0x50 = GadgetID, 0x1A = Fire
+	// ebp+0x64 = CharCommandUnit, handler instance is 0x8 inside CharCommandUnit
+	// edi = Vacuum weapon instance (0xC = player who is holding it)
+	if (ebp.u32 == 0 || X86_LOAD_U32(ebp.u32 + 0x50) != 0x1A)
+	{
+		// skip if not fire
+		return;
+	}
+
+	auto cmdUnit = X86_LOAD_U32(ebp.u32 + 0x64);
+	if (cmdUnit == 0) // command null check (matching OG)
+	{
+		return;
+	}
+
+	auto node = X86_LOAD_U32(cmdUnit + 8);
+	if (node == 0 || X86_LOAD_U32(node) != 0x1AA820) { // check for Fire/PoisonGas handler
+		return;
+	}
+
+	// 0x466F6C = Fire & PoisonGas vtable (shared, but PoisonGas has no score attribute)
+	// fire+0x50 = state
+	auto fire = X86_LOAD_U32(node + 4);
+	if (X86_LOAD_U32(fire) != 0x466F6C || X86_LOAD_U32(fire + 0x50) != 1)
+	{
+		return;
+	}
+
+	// safety check if the vac command drops
+	if (X86_LOAD_U32(edi.u32 + 0xC) == 0)
+	{
+		return;
+	}
+
+	ctx->esp.u32 -= 4;
+	X86_STORE_U32(ctx->esp.u32, 0x1B); // score callback entry
+	ctx->esp.u32 -= 4;
+	X86_STORE_U32(ctx->esp.u32, edi.u32 + 0xC); // player instance
+	ctx->esp.u32 -= 4;
+	__imp__sub_5C4D0(*ctx, base);
+	ctx->esp.u32 += 8;
+}
