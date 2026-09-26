@@ -295,16 +295,16 @@ X86_FUNC(sub_2B4AC0)
 
 	{
 		// the buffer is freed right after parsing
-	std::lock_guard lock(g_asyncCsdMutex);
+		std::lock_guard lock(g_asyncCsdMutex);
 
 		auto findResult = g_asyncCsdPaths.find(buffer);
 
 		if (findResult != g_asyncCsdPaths.end())
-{
+		{
 			path = std::move(findResult->second);
 			g_asyncCsdPaths.erase(findResult);
-}
-}
+		}
+	}
 
 	__imp__sub_2B4AC0(ctx, base);
 
@@ -1167,9 +1167,37 @@ X86_FUNC(sub_3D24B0)
 
 const xxHashMap<CsdModifier> g_csdModifiers =
 {
+	// intro logo
 	{ HashStr("csdFiles/Logo.xncp/XBox/sega"), { CSD_UNSTRETCH | CSD_ALIGN_CENTRE } },
 	{ HashStr("csdFiles/Logo.xncp/XBox/sonicteam"), { CSD_UNSTRETCH | CSD_ALIGN_CENTRE } },
 	{ HashStr("csdFiles/Logo.xncp/XBox/dolby"), { CSD_UNSTRETCH | CSD_ALIGN_CENTRE } },
+
+	// game over
+	{ HashStr("csdFiles/GameOver.xncp/GameOver"), { CSD_UNSTRETCH | CSD_ALIGN_CENTRE } },
+	{ HashStr("csdFiles/GameOver.xncp/Loop"), { CSD_UNSTRETCH | CSD_ALIGN_AUTO_H } },
+
+	// mission failed
+	{ HashStr("csdFiles/MissionFailed_EN.xncp/mf"), { CSD_UNSTRETCH | CSD_ALIGN_CENTRE } },
+	{ HashStr("csdFiles/MissionFailed_FR.xncp/mf"), { CSD_UNSTRETCH | CSD_ALIGN_CENTRE } },
+	{ HashStr("csdFiles/MissionFailed_GE.xncp/mf"), { CSD_UNSTRETCH | CSD_ALIGN_CENTRE } },
+	{ HashStr("csdFiles/MissionFailed_IT.xncp/mf"), { CSD_UNSTRETCH | CSD_ALIGN_CENTRE } },
+	{ HashStr("csdFiles/MissionFailed_JP.xncp/mf"), { CSD_UNSTRETCH | CSD_ALIGN_CENTRE } },
+	{ HashStr("csdFiles/MissionFailed_SP.xncp/mf"), { CSD_UNSTRETCH | CSD_ALIGN_CENTRE } },
+
+	// mission result
+	{ HashStr("csdFiles/Result_EN.xncp/Main"), { CSD_UNSTRETCH | CSD_ALIGN_CENTRE } },
+	{ HashStr("csdFiles/Result_EN.xncp/Main/result"), { CSD_UNSTRETCH | CSD_ALIGN_LEFT } },
+	{ HashStr("csdFiles/Result_EN.xncp/Rank"), { CSD_UNSTRETCH | CSD_ALIGN_CENTRE } },
+	{ HashStr("csdFiles/Result_FR.xncp/Main"), { CSD_UNSTRETCH | CSD_ALIGN_CENTRE } },
+	{ HashStr("csdFiles/Result_FR.xncp/Rank"), { CSD_UNSTRETCH | CSD_ALIGN_CENTRE } },
+	{ HashStr("csdFiles/Result_GE.xncp/Main"), { CSD_UNSTRETCH | CSD_ALIGN_CENTRE } },
+	{ HashStr("csdFiles/Result_GE.xncp/Rank"), { CSD_UNSTRETCH | CSD_ALIGN_CENTRE } },
+	{ HashStr("csdFiles/Result_SP.xncp/Main"), { CSD_UNSTRETCH | CSD_ALIGN_CENTRE } },
+	{ HashStr("csdFiles/Result_SP.xncp/Rank"), { CSD_UNSTRETCH | CSD_ALIGN_CENTRE } },
+	{ HashStr("csdFiles/Result_IT.xncp/Main"), { CSD_UNSTRETCH | CSD_ALIGN_CENTRE } },
+	{ HashStr("csdFiles/Result_IT.xncp/Rank"), { CSD_UNSTRETCH | CSD_ALIGN_CENTRE } },
+	{ HashStr("csdFiles/Result_JP.xncp/Main"), { CSD_UNSTRETCH | CSD_ALIGN_CENTRE } },
+	{ HashStr("csdFiles/Result_JP.xncp/Rank"), { CSD_UNSTRETCH | CSD_ALIGN_CENTRE } },
 
 	// pause
 	{ HashStr("csdFiles/pause/pause.xncp/Pause/PauseText"), { CSD_SKIP | CSD_HIDE_PAUSE } },
