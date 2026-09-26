@@ -230,8 +230,11 @@ void ExtendedMultiplayerPlayerPositionIDOverrideContinue0MidAsmHook(X86Register&
         reg.u32 = s_extraPlayerPositionID_Continue0;
 }
 
+// Checkpoint Table @ 0x544FB8
+// Save Data @ 0x545780 (overflow read on P3/P4, so force to P2)
 bool ExtendedMultiplayerPlayerPositionLoopContinue0MidAsmHook(X86Register& eax, X86Register& esp)
 {
+    auto base = g_memory.base;
     if (!Config::ExtendedMultiplayer || g_multiplayerPlayerCount <= 2)
         return false;
 
@@ -243,7 +246,7 @@ bool ExtendedMultiplayerPlayerPositionLoopContinue0MidAsmHook(X86Register& eax, 
     if (s_extraPlayerPositionID_Continue0 <= g_multiplayerPlayerCount - 1)
     {
         esp.u32 += 12;
-        eax.u32 = s_extraPlayerPositionID_Continue0;
+        eax.u32 = X86_LOAD_U32(0x4EE658); // force read P2 data
         return true;
     }
 

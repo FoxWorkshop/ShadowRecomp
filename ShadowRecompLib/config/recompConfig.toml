@@ -943,10 +943,6 @@ address = 0x16F887
 registers = ["r7"]
 jump_address_on_true = 0x16F891
 
-[[midasm_hook]]
-name = "ExtendedMultiplayerPlayerPositionIDOverrideMidAsmHook"
-address = 0x16F71F
-registers = ["r0"]
 
 [[midasm_hook]]
 name = "ExtendedMultiplayerPlayerPositionIDOverrideMidAsmHook"
