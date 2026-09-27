@@ -572,3 +572,6 @@ void KatanaBulletSweepMidAsmHook(X86Register& esi)
 	X86_STORE_U32(ctx->esp.u32 + 0x08, outPtr);
 	X86_STORE_U32(ctx->esp.u32 + 0x0C, outPtr + 0x18);
 }
+
+// Remove the shared 'clear bit' for egg breaker breaking the glow effect
+void EggBreakerDigitizeEffectMidAsmHook() {}
