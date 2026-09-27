@@ -455,7 +455,16 @@ X86_FUNC(sub_5AAF0)
 
 		// Put our index back into vanilla range before handing off
 		if (s_index <= SelRestart || s_index == SelQuit)
+		{
 			X86_STORE_U32(cursorAddr, GetVanillaCursorIndex(s_index));
+		}
+		else if (X86_LOAD_U32(cursorAddr) == 0)
+		{
+			// under specific situation, the cursor hack can sometimes lead to having 
+			// the validation sfx play twice: first per the game and second per our new option check, 
+			// force value 1 so nothing play.
+			X86_STORE_U32(cursorAddr, 1);
+		}
 
 		g_inputAllowed = g_animDonePlaying;
 	}
