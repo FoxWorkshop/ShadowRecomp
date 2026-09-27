@@ -1303,6 +1303,12 @@ const xxHashMap<CsdModifier> g_csdModifiers =
 
 	// HUD widgets. these are small and stay in one corner, so the auto guess works fine
 
+	// Egg Dealer roulette UI
+	{ HashStr("csdFiles/EggBoss.xncp/DisplaySml"), { CSD_UNSTRETCH | CSD_ALIGN_RIGHT } },
+	{ HashStr("csdFiles/EggBoss.xncp/1"), { CSD_UNSTRETCH | CSD_ALIGN_RIGHT } },
+	{ HashStr("csdFiles/EggBoss.xncp/2"), { CSD_UNSTRETCH | CSD_ALIGN_RIGHT } },
+	{ HashStr("csdFiles/EggBoss.xncp/3"), { CSD_UNSTRETCH | CSD_ALIGN_RIGHT } },
+	{ HashStr("csdFiles/EggBoss.xncp/DisplayLg"), { CSD_UNSTRETCH | CSD_ALIGN_CENTRE_H } },
 
 	// InfoWindow.xncp
 	{ HashStr("csdFiles/InfoWindow.xncp/Ring"), { CSD_UNSTRETCH | CSD_ALIGN_AUTO_H | CSD_ALIGN_BOTTOM } },
