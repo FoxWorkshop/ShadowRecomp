@@ -46,14 +46,16 @@ X86_FUNC(sub_22D120)
 
 // Quick Boot
 // Force mode 3 on the boot intro to reach directly the title screen
+static constexpr uint32_t g_MenuModeRequest = 0x54BA10;
 static bool s_quickBootDone = false;
 X86_FUNC_IMPL(__imp__sub_29EA60);
 X86_FUNC(sub_29EA60)
 {
-	if (!s_quickBootDone && (Config::QuickBoot || QuickBootConfig))
-	{
-		auto ptr = X86_LOAD_U32(ctx.ecx.u32 + 4);
+	const bool quickBoot = Config::QuickBoot || QuickBootConfig;
+	auto ptr = X86_LOAD_U32(ctx.ecx.u32 + 4);
 
+	if (!s_quickBootDone && quickBoot)
+	{
 		if (X86_LOAD_U32(ptr + 0x64) < 3)
 			X86_STORE_U32(ptr + 0x64, 3);
 
@@ -61,6 +63,15 @@ X86_FUNC(sub_29EA60)
 	}
 
 	__imp__sub_29EA60(ctx, base);
+
+	// mode 3 asks again every frame until the menu manager swaps the task, so check every call
+	if (quickBoot && X86_LOAD_U32(ptr + 0x64) == 3)
+	{
+		auto menuMode = X86_LOAD_U32(g_MenuModeRequest);
+
+		if (menuMode && X86_LOAD_U32(menuMode) == 8)
+			X86_STORE_U32(menuMode, 1);
+	}
 }
 
 // Always allow skipping the title screen logos

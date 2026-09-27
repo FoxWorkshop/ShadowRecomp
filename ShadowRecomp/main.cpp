@@ -169,7 +169,7 @@ int main(int argc, char* argv[])
         useDefaultWorkingDirectory = useDefaultWorkingDirectory || (strcmp(argv[i], "--use-cwd") == 0);
         forceInstallationCheck = forceInstallationCheck || (strcmp(argv[i], "--install-check") == 0);
         graphicsApiRetry = graphicsApiRetry || (strcmp(argv[i], "--graphics-api-retry") == 0);
-        QuickBootConfig = (strcmp(argv[i], "--quickboot") == 0);
+        QuickBootConfig = QuickBootConfig || (strcmp(argv[i], "--quickboot") == 0);
 
         if (strcmp(argv[i], "--l") == 0 || strcmp(argv[i], "--level") == 0)
         {
