@@ -472,3 +472,65 @@ void FireVacuumCallbackMidAsmHook(X86Register& ebp, X86Register& edi)
 	__imp__sub_5C4D0(*ctx, base);
 	ctx->esp.u32 += 8;
 }
+
+// Katana Bullet frame update step (hooked func)
+// sub_27C2A0 is called right after with the collision check
+// Widen the collision sweep to match the visual effect
+// Bullet @ esi
+// BulletType @ esi+0x4C
+// Type 5 is Katana01, Type 6 is Katana02
+void KatanaBulletSweepMidAsmHook(X86Register& esi)
+{
+	auto ctx = GetX86Context();
+	auto base = g_memory.base;
+
+	auto bulletType = X86_LOAD_U32(esi.u32 + 0x4C);
+	if (bulletType != 5 && bulletType != 6)
+	{
+		return;
+	}
+
+	// out buffer @ esp
+	// old pos @ esp+0x8
+	// next frame pos @ esp+0xC
+	auto outPtr = X86_LOAD_U32(ctx->esp.u32);
+	auto posA = X86_LOAD_U32(ctx->esp.u32 + 0x08);
+	auto posB = X86_LOAD_U32(ctx->esp.u32 + 0x0C);
+
+	float ax = X86_LOAD_F32(posA + 0x0);
+	float az = X86_LOAD_F32(posA + 0x8);
+	float bx = X86_LOAD_F32(posB + 0x0);
+	float by = X86_LOAD_F32(posB + 0x4);
+	float bz = X86_LOAD_F32(posB + 0x8);
+
+	// sideways direction of the wave travel (ignoring y)
+	float px = -(bz - az);
+	float pz = (bx - ax);
+	float len = sqrtf(px * px + pz * pz);
+	if (len < 1e-4f)
+	{
+		px = 1.0f;
+		pz = 0.0f;
+	}
+	else
+	{
+		px /= len;
+		pz /= len;
+	}
+
+	// katana level 1 = 9 (18 full width)
+	// katana level 2 = 22 (44 full width)
+	float halfWidth = bulletType == 6 ? 22.0f : 9.0f;
+
+	// update the expanded range in out buffer
+	X86_STORE_F32(outPtr + 0x00, ax - px * halfWidth);
+	X86_STORE_F32(outPtr + 0x04, X86_LOAD_F32(posA + 0x4));
+	X86_STORE_F32(outPtr + 0x08, az - pz * halfWidth);
+	X86_STORE_F32(outPtr + 0x18, bx + px * halfWidth);
+	X86_STORE_F32(outPtr + 0x1C, by);
+	X86_STORE_F32(outPtr + 0x20, bz + pz * halfWidth);
+
+	// update sweep with new size
+	X86_STORE_U32(ctx->esp.u32 + 0x08, outPtr);
+	X86_STORE_U32(ctx->esp.u32 + 0x0C, outPtr + 0x18);
+}

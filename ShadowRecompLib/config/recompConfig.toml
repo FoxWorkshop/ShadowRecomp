@@ -1466,3 +1466,8 @@ name = "FireVacuumCallbackMidAsmHook"
 address = 0x27370E
 registers = ["r6", "r5"]
 # End Fire vacuum callback fix
+
+[[midasm_hook]]
+name = "KatanaBulletSweepMidAsmHook"
+address = 0x2776DA
+registers = ["r4"]
