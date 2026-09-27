@@ -858,6 +858,32 @@ name = "LockOnProjectionMidAsmHook"
 address = 0x269293
 registers = ["r0", "r7"]
 
+# Button prompt above air saucers and checkpoints
+[[midasm_hook]]
+name = "VHArrowProjectionMidAsmHook"
+address = 0x288D81
+registers = ["r0", "r7"]
+
+[[midasm_hook]]
+name = "VHArrowProjectionSplitMidAsmHook"
+address = 0x288EF8
+registers = ["r0", "r7"]
+
+[[midasm_hook]]
+name = "VHArrowScaleMidAsmHook"
+address = 0x288E0B
+registers = ["r7"]
+
+[[midasm_hook]]
+name = "VHArrowScaleMidAsmHook"
+address = 0x288FA7
+registers = ["r7"]
+
+[[midasm_hook]]
+name = "OneFileCsdBufferMidAsmHook"
+address = 0x2A0558
+registers = ["r0", "r6"]
+
 # Watch camera red alert filter (Gun Fortress) 
 [[midasm_hook]]
 name = "WatchCameraFilterScaleMidAsmHook"

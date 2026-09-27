@@ -283,6 +283,26 @@ X86_FUNC(sub_1A6D0)
 	__imp__sub_1A6D0(ctx, base);
 }
 
+// Stages .one archives can have CSD files too (like checkpoint warp menu).
+// sub_29FF30 read the entry into a buffer then parse it with sub_2B4AC0, so we can intercept the data safely here.
+// There is no path at all, so we just store the csd filename.
+// Memo: eax = buffer from TOneFileAsync::Create, ebp = archive entry name
+void OneFileCsdBufferMidAsmHook(X86Register& rEax, X86Register& rEbp)
+{
+	if (!rEax.u32 || !rEbp.u32)
+		return;
+
+	std::string path = (const char*)g_memory.Translate(rEbp.u32);
+	std::string lower = path;
+	std::transform(lower.begin(), lower.end(), lower.begin(), [](unsigned char c) { return (char)std::tolower(c); });
+
+	if (lower.find(".xncp") == std::string::npos)
+		return;
+
+	std::lock_guard lock(g_asyncCsdMutex);
+	g_asyncCsdPaths[rEax.u32] = std::move(path);
+}
+
 // CSD loader from memory
 X86_FUNC_IMPL(__imp__sub_2B4AC0);
 X86_FUNC(sub_2B4AC0)
@@ -943,6 +963,47 @@ X86_FUNC(sub_268FD0)
 	}
 }
 
+// Button prompt above air saucers, checkpoints etc.
+// This is originally a simple CSD, but the game places it like the enemy HP bar: it projects as if the screen was 4:3,
+// so it looks wrong at high resolution. The idea is to fix the position before the cull and squeeze 
+// the scale X value directly instead of the vertex.
+static void UnstretchVHArrowX(uint32_t screenRect, uint32_t screenX)
+{
+	if (g_hudUnstretchX >= 1.0f)
+		return;
+
+	auto base = g_memory.base;
+
+	float rectX = float(int32_t(X86_LOAD_U32(screenRect)));
+	float rectW = float(int32_t(X86_LOAD_U32(screenRect + 8)));
+	float centerX = rectX + rectW * 0.5f;
+
+	X86_STORE_F32(screenX, centerX + (X86_LOAD_F32(screenX) - centerX) * g_hudUnstretchX);
+}
+
+// Memo: eax = GetScreenRectangle(0), esp + 0x10 = projected screen X
+void VHArrowProjectionMidAsmHook(X86Register& rEax, X86Register& rEsp)
+{
+	UnstretchVHArrowX(rEax.u32, rEsp.u32 + 0x10);
+}
+
+// split screen variant for MP
+// Memo: esp+0xC = projected screen X, eax = GetScreenRectangle(screen).
+void VHArrowProjectionSplitMidAsmHook(X86Register& rEax, X86Register& rEsp)
+{
+	UnstretchVHArrowX(rEax.u32, rEsp.u32 + 0xC);
+}
+
+// Memo: esp = scale X pushed for sub_2BBB40, esp+4 = scale Y
+void VHArrowScaleMidAsmHook(X86Register& rEsp)
+{
+	if (g_hudUnstretchX >= 1.0f || Config::UIAlignmentMode.Value == EUIAlignmentMode::Stretch)
+		return;
+
+	auto base = g_memory.base;
+	X86_STORE_F32(rEsp.u32, X86_LOAD_F32(rEsp.u32) * g_hudUnstretchX);
+}
+
 
 // the game often use a quad model to draw a picture on the screen, usually to show Shadow memories or space background, 
 // but the quad model is not stretched to fit the screen, thus any high resolution won't cover the whole screen
@@ -1329,6 +1390,21 @@ const xxHashMap<CsdModifier> g_csdModifiers =
 	{ HashStr("csdFiles/2P_CommandWindow.xncp/CarMeter/meter_bg"), { CSD_UNSTRETCH | CSD_ALIGN_AUTO_H | CSD_ALIGN_BOTTOM } },
 	{ HashStr("csdFiles/2P_CommandWindow.xncp/CarMeter/meter"), { CSD_UNSTRETCH | CSD_ALIGN_AUTO_H | CSD_ALIGN_BOTTOM } },
 
+
+	// Checkpoint warp menu, no path here since those CSDs are loaded from the stage .one archive directly
+	{ HashStr("CHECKPOINT5.XNCP/Box"), { CSD_UNSTRETCH | CSD_ALIGN_CENTRE } },
+	{ HashStr("CHECKPOINT5.XNCP/Icons"), { CSD_UNSTRETCH | CSD_ALIGN_CENTRE } },
+	{ HashStr("CHECKPOINT5.XNCP/Shadow"), { CSD_UNSTRETCH | CSD_ALIGN_CENTRE } },
+	{ HashStr("CHECKPOINT6.XNCP/Box"), { CSD_UNSTRETCH | CSD_ALIGN_CENTRE } },
+	{ HashStr("CHECKPOINT6.XNCP/Icons"), { CSD_UNSTRETCH | CSD_ALIGN_CENTRE } },
+	{ HashStr("CHECKPOINT6.XNCP/Shadow"), { CSD_UNSTRETCH | CSD_ALIGN_CENTRE } },
+	{ HashStr("CHECKPOINT7.XNCP/Box"), { CSD_UNSTRETCH | CSD_ALIGN_CENTRE } },
+	{ HashStr("CHECKPOINT7.XNCP/Icons"), { CSD_UNSTRETCH | CSD_ALIGN_CENTRE } },
+	{ HashStr("CHECKPOINT7.XNCP/Shadow"), { CSD_UNSTRETCH | CSD_ALIGN_CENTRE } },
+	{ HashStr("CHECKPOINT8.XNCP/Box"), { CSD_UNSTRETCH | CSD_ALIGN_CENTRE } },
+	{ HashStr("CHECKPOINT8.XNCP/Icons"), { CSD_UNSTRETCH | CSD_ALIGN_CENTRE } },
+	{ HashStr("CHECKPOINT8.XNCP/Shadow"), { CSD_UNSTRETCH | CSD_ALIGN_CENTRE } },
+
 	// Partner intro name (NpcNameDisplay). each partner has its own file with the same layout
 	{ HashStr("csdFiles/Mchara_sonic.xncp/MissionCharacters"), { CSD_UNSTRETCH | CSD_ALIGN_AUTO_H } },
 	{ HashStr("csdFiles/Mchara_tails.xncp/MissionCharacters"), { CSD_UNSTRETCH | CSD_ALIGN_AUTO_H } },
@@ -1353,6 +1429,8 @@ const xxHashMap<CsdModifier> g_csdModifiers =
 	{ HashStr("csdFiles/BChara_BDoom.xncp/bchara"), { CSD_UNSTRETCH | CSD_ALIGN_AUTO_H } },
 	{ HashStr("csdFiles/BChara_EDealer.xncp/bchara"), { CSD_UNSTRETCH | CSD_ALIGN_AUTO_H } },
 	{ HashStr("csdFiles/BChara_DevDoom.xncp/bchara"), { CSD_UNSTRETCH | CSD_ALIGN_AUTO_H } },
+
+
 };
 
 std::optional<CsdModifier> FindCsdModifier(uint32_t data)
