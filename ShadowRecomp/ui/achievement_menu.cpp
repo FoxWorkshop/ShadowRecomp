@@ -17,6 +17,7 @@
 #include <input/padstate.h>
 #include <user/achievement_manager.h>
 #include "button_guide.h"
+#include <res/images/common/Achievements_pause.png.h>
 
 static double g_time{};
 static double g_rowSelectionTime{};
@@ -36,6 +37,7 @@ static int g_selectedIndex{};
 
 static std::unique_ptr<GuestTexture> g_TexAchievementBG{};
 static std::unique_ptr<GuestTexture> g_TexAchievementBtn{};
+static std::unique_ptr<GuestTexture> g_TexAchievementLogo{};
 static std::vector<std::tuple<Achievement, time_t>> g_achievements{};
 
 static constexpr int MAX_VISIBLE_ROWS = 4;
@@ -160,7 +162,8 @@ void AchievementMenu::Close()
 
 }
 static float g_bgScale = 1.0f;
-
+static ImVec2 containerTopMin;
+static ImVec2 containerTopMax;
 static void DrawContainer()
 {
 	if (g_bgScale < 0.9f)
@@ -197,19 +200,51 @@ static void DrawContainer()
 	auto topHeight = 10.f;
 	float topY = (res.y * 0.1f) - topHeight;
 
-	ImVec2 topMin = { leftMin.x, topY };
-	ImVec2 topMax = { topMin.x + topWidth, topMin.y + topHeight };
-	drawList->AddImage(g_TexAchievementBtn.get(), topMin, topMax, GET_UV_COORDS(topBarUVs));
+	containerTopMin = { leftMin.x, topY };
+	containerTopMax = { containerTopMin.x + topWidth, containerTopMin.y + topHeight };
+	drawList->AddImage(g_TexAchievementBtn.get(), containerTopMin, containerTopMax, GET_UV_COORDS(topBarUVs));
 
 
-	topMin.y = (res.y * 0.1f);
+	containerTopMin.y = (res.y * 0.1f);
 	drawList->AddLine(
-		{ topMin.x, topMin.y },  // left point
-		{ topMax.x, topMin.y },  // right point
+		{ containerTopMin.x, containerTopMin.y },  // left point
+		{ containerTopMax.x, containerTopMax.y },  // right point
 		IM_COL32(255, 255, 255, 100),
 		2.f // thickness
 	);
 
+}
+
+static void DrawAchievementLogo()
+{
+	if (g_bgScale < 0.9f)
+		return;
+
+	auto drawList = ImGui::GetBackgroundDrawList();
+
+	// Japanese re use the english text since the font doesn't support kanji, this match the original game behavior with "library" logo.
+	// French has no accent, this also match original game behavior since the font doesn't support those.
+	struct LogoRect { float x, y, w, h; };
+	LogoRect rect = { 79, 0, 187, 58 };
+
+	switch (Config::Language.Value)
+	{
+		case ELanguage::German:  rect = { 123, 119, 104, 57 }; break;
+		case ELanguage::French:  rect = { 129, 186, 95, 41 };  break;
+		case ELanguage::Spanish: rect = { 127, 242, 96, 55 };  break;
+		case ELanguage::Italian: rect = { 121, 300, 114, 50 }; break;
+	}
+
+
+	auto logoUVs = PIXELS_TO_UV_COORDS(350, 350, rect.x, rect.y, rect.w, rect.h);
+	auto logoWidth = Scale(rect.w * 0.8f);
+	auto logoHeight = Scale(rect.h * 0.8f);
+	auto barCentreY = containerTopMax.y - 5.f;
+
+	ImVec2 logoMin = { containerTopMin.x + Scale(40), barCentreY - logoHeight / 2.f };
+	ImVec2 logoMax = { logoMin.x + logoWidth, logoMin.y + logoHeight };
+
+	drawList->AddImage(g_TexAchievementLogo.get(), logoMin, logoMax, GET_UV_COORDS(logoUVs));
 }
 
 static void DrawBackground()
@@ -247,8 +282,8 @@ static void DrawBackground()
 		AchievementMenu::s_isVisible = false;
 	}
 
-
 	DrawContainer();
+	DrawAchievementLogo();
 }
 
 static bool CheckAndDiscard(bool& value)
@@ -596,5 +631,6 @@ void AchievementMenu::Init()
 {
 	g_TexAchievementBG = LOAD_ZSTD_TEXTURE(g_achievementBG);
 	g_TexAchievementBtn = LOAD_ZSTD_TEXTURE(g_achievementBtn);
+	g_TexAchievementLogo = LOAD_ZSTD_TEXTURE(g_pauseAchievements);
 	g_fntSeurat = ImFontAtlasSnapshot::GetFont("FOT-SeuratPro-DB.otf");
 }
