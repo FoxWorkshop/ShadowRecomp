@@ -89,6 +89,9 @@ enum CsdFlags : uint64_t
     CSD_EXTEND_BOTTOM = MAKE_BITFLAG64(15),
     CSD_MOVE_BOTTOM = MAKE_BITFLAG64(16),
 
+
+    CSD_CENTER_UNSTRETCH = CSD_UNSTRETCH | CSD_ALIGN_CENTRE,
+
     // Every flag that moves a primitive, one of them is enough to opt in.
     CSD_POSITIONING =
     CSD_UNSTRETCH | CSD_FORCE_UNSTRETCH |

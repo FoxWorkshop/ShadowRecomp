@@ -24,6 +24,9 @@ static const uint8_t vanillaPauseItemsCount = 3u;
 static const uint8_t pauseItemsCount = 5u;
 static const uint8_t addedPauseItemsCount = pauseItemsCount - vanillaPauseItemsCount;
 
+// (0.1562 * 640) = ~100
+static constexpr float vanillaPauseLabelWidth = 100.0f;
+
 enum PauseMode : uint8_t
 {
 	ModeRunningP1 = 2,
@@ -122,6 +125,15 @@ ImVec2 VirtualToScreen(float vx, float vy, ImVec2 displaySize)
 
 static float ScaleX(float vWidth, float displayWidth) { return (vWidth / 640.0f) * displayWidth; }
 static float ScaleY(float vHeight, float displayHeight) { return (vHeight / 480.0f) * displayHeight; }
+
+// technically should no longer be needed, but keep it for now just in case
+static bool IsPauseUnstretched()
+{
+	return Config::UIAlignmentMode.Value != EUIAlignmentMode::Stretch;
+}
+
+static float GetPauseScaleX() { return IsPauseUnstretched() ? g_hudUnstretchX : 1.0f; }
+static float GetPauseScaleY() { return IsPauseUnstretched() ? g_hudUnstretchY : 1.0f; }
 
 // The game removes "restart" option from the pause menu in 2 players mode or when player 1 has no life left
 static bool IsRestartAvailable()
@@ -330,6 +342,10 @@ void DrawPauseText()
 	float virtualItemSpacing = 20.0f; // pixels in 640x480 space
 	float virtualStartY = g_pauseBoss ? 200.f : 125.f;
 
+	// the pause "box" is unstretched around the center of the screen (640x480 layout)
+	const float scaleY = GetPauseScaleY();
+	virtualStartY = 240.0f + (virtualStartY - 240.0f) * scaleY;
+
 	// convert to screen space, centered horizontally
 
 	float screenY = VirtualToScreen(0, virtualStartY, res).y;
@@ -340,17 +356,33 @@ void DrawPauseText()
 		Localise("Pause_Menu_Options").c_str(), Localise("Pause_Menu_Quit").c_str()
 	};
 	float startY = screenY;
-	float spacing = ScaleY(20.0f, res.y);
+	float spacing = ScaleY(20.0f * scaleY, res.y);
+
+	// the pause box is a lot smaller once unstretched, so long strings need a smaller font.
+	float fontSize = Scale(Config::Language == ELanguage::Japanese ? 19 : 18);
+	const float maxTextWidth = ScaleX(vanillaPauseLabelWidth * GetPauseScaleX(), res.x);
+	float widestText = 0.0f;
+
+	for (uint8_t i = 0; i < itemCount; i++)
+		widestText = std::max(widestText, g_fntDFPZong->CalcTextSizeA(fontSize, FLT_MAX, 0.0f, menuItems[items[i]]).x);
+
+	// keep a smaller font if we exceed the size of the text
+	float rowOffsetY = 0.0f;
+
+	if (widestText > maxTextWidth)
+	{
+		const float fittedSize = fontSize * maxTextWidth / widestText;
+		rowOffsetY = (fontSize - fittedSize) * 0.5f;
+		fontSize = fittedSize;
+	}
 
 	for (uint8_t i = 0; i < itemCount; i++)
 	{
 		uint8_t selection = items[i];
 		uint8_t color = selection == s_index ? 255 : 127;
-		float fontSize = Scale(Config::Language == ELanguage::Japanese ? 19 : 18);
-		//auto textSize = g_fntDFPZong->CalcTextSizeA(fontSize, FLT_MAX, 0.0f, s.c_str());
 		AddTextCentered(drawList, g_fntDFPZong, fontSize,
 			res.x / 2.0f,
-			startY + i * spacing,
+			startY + i * spacing + rowOffsetY,
 			IM_COL32(color, color, color, 255),  // white text
 			IM_COL32(0, 0, 0, 255),        // black outline
 			menuItems[selection]);
@@ -592,7 +624,8 @@ X86_FUNC(sub_1E930)
 		const float offset = subtitleOffsetPerItem * GetAddedPauseItemsCount() * GetRt2dUnitsPerWorldUnit();
 
 		// move down, then follow the pause menu which is stretched over the whole height
-		X86_STORE_F32(argY, PushAwayFromCentreY(X86_LOAD_F32(argY) - offset));
+		const float y = X86_LOAD_F32(argY) - offset;
+		X86_STORE_F32(argY, IsPauseUnstretched() ? y : PushAwayFromCentreY(y));
 	}
 	else if (g_isDrawingMessageTask && ShouldPushMessageTaskText())
 	{
