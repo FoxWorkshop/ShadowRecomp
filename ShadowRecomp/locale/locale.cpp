@@ -277,12 +277,13 @@ std::unordered_map<std::string_view, std::unordered_map<ELanguage, std::string>>
     },
     {
         // Notes: text in pause menu during gameplay
+        // Font doesn't support accent so the typo in french is intended
         "Pause_Menu_Restart",
         {
             { ELanguage::English,  "restart" },
             { ELanguage::Japanese, "" },
             { ELanguage::German,   "neustart" },
-            { ELanguage::French,   "redémarrer" },
+            { ELanguage::French,   "redemarrer" },
             { ELanguage::Spanish,  "volver a empezar" },
             { ELanguage::Italian,  "ricomincia" }
         }
@@ -313,24 +314,26 @@ std::unordered_map<std::string_view, std::unordered_map<ELanguage, std::string>>
     },
     {
         // Notes: used for the button guide at the pause menu.
+        // This font doesn't support accent so the typo in french is intended.
         "Achievements_Name",
         {
             { ELanguage::English,  "achievements" },
             { ELanguage::Japanese, "実績" },
             { ELanguage::German,   "erfolge" },
-            { ELanguage::French,   "succès" },
+            { ELanguage::French,   "succes" }, 
             { ELanguage::Spanish,  "logros" },
             { ELanguage::Italian,  "obiettivi" }
         }
     },
     {
         // Notes: used for the header in the achievements menu.
+         // This font doesn't support accent so the typo in french is intended.
         "Achievements_Name_Uppercase",
         {
             { ELanguage::English,  "ACHIEVEMENTS" },
             { ELanguage::Japanese, "実績" },
             { ELanguage::German,   "ERFOLGE" },
-            { ELanguage::French,   "SUCCÈS" },
+            { ELanguage::French,   "SUCCES" },
             { ELanguage::Spanish,  "LOGROS" },
             { ELanguage::Italian,  "OBIETTIVI" }
         }
