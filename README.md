@@ -52,9 +52,9 @@ This project does not plan to support any more platforms other than Windows and 
 
 - [dreamsyntax](https://github.com/dreamsyntax): Second Developer, added linux and keyboard compatibility, provided multiplayer input and fixed various bugs. Also helped with Shadow knowledge and author of [Shadow Reloaded](https://github.com/ShadowTheHedgehogHacking/ShadowReloaded).
 
-- [DonutStopGaming](https://github.com/DonutStopGaming): Help with understanding RenderWare and finding Shadow functions.
+- [Sewer56](https://github.com/Sewer56): Third Developer, who joined relatively late, implemented better widescreen, significantly improved performance with shaders and added NixOS support for Linux.
 
-- [Sewer56](https://github.com/Sewer56): Tips to handle x86 recompilation including the idea of using [Zydis](https://github.com/zyantific/zydis) for XboxRecomp.
+- [DonutStopGaming](https://github.com/DonutStopGaming): Help with understanding RenderWare and finding Shadow functions.
 
 - [Deep-Sea Berry](https://github.com/Deep-SeaBerry): Artist behind the project logo.
 
@@ -70,6 +70,6 @@ This project does not plan to support any more platforms other than Windows and 
 
 - [Darío](https://github.com/DarioSamo): Creator of the graphics hardware abstraction layer [plume](https://github.com/renderbag/plume), used by the project's graphics backend.
 
-- MattKC: Useful explanation of Xbox's Push Buffers system on [his blog with Reburn3.](https://forum.mattkc.com/viewtopic.php?t=154)
+- [MattKC](itsmattkc): Useful explanation of Xbox's Push Buffers system on [his blog with Reburn3.](https://forum.mattkc.com/viewtopic.php?t=154)
 
 - [ocornut](https://github.com/ocornut): Creator of Dear ImGui, which is used as the backbone of the custom menus.
