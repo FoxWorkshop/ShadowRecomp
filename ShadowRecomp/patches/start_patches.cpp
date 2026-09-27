@@ -2,7 +2,7 @@
 #include <user/config.h>
 
 extern bool QuickBootConfig;
-extern int Ts_StageID; 
+extern int Ts_StageID;
 
 //stub unnecessary startup functions to force the game to boot
 
@@ -31,54 +31,33 @@ int sub_2B0164_r(int a1)
 	return TRUE;
 }
 
-//infinite lives todo implement properly as a cheat
-
+//infinite lives Cheat
 X86_FUNC_IMPL(__imp__sub_22D120);
 X86_FUNC(sub_22D120)
 {
 	if (Config::InfiniteLives)
 	{
-		auto lives = X86_LOAD_U32(ctx.esp.u32 + 4);
-		lives = 99;
-		X86_STORE_U32(ctx.esp.u32 + 4, lives);
+		if (Config::InfiniteLives && (int32_t)X86_LOAD_U32(ctx.esp.u32 + 4) < 0)
+			X86_STORE_U32(ctx.esp.u32 + 4, 0);
 	}
 
 	__imp__sub_22D120(ctx, base);
 }
 
-//skip FMV opening if QuickBoot is enabled
-X86_FUNC_IMPL(__imp__sub_24F80);
-X86_FUNC(sub_24F80)
-{
-	char* str = (char*)GetHostParameter(1, CallConvention::Cdecl, ParameterType::Pointer);
-
-	if ( (Config::QuickBoot.Value || QuickBootConfig) && str && !strcmp(str, "Op.sfd"))
-	{
-		ctx.eax.u32 = 0;
-		ctx.esp.u32 += 4;
-	
-		return;
-	}
-	else
-	{
-		__imp__sub_24F80(ctx, base);
-	}
-
-}
-//force menu mode to title screen
+// Quick Boot
+// Force mode 3 on the boot intro to reach directly the title screen
+static bool s_quickBootDone = false;
 X86_FUNC_IMPL(__imp__sub_29EA60);
 X86_FUNC(sub_29EA60)
 {
-
-	if (Config::QuickBoot.Value || QuickBootConfig)
+	if (!s_quickBootDone && (Config::QuickBoot || QuickBootConfig))
 	{
 		auto ptr = X86_LOAD_U32(ctx.ecx.u32 + 4);
-		auto mode = X86_LOAD_U32(ptr + 0x64);
 
-		if (mode < 2)
-		{
-			X86_STORE_U8(ptr + 0x64, 0x2);
-		}
+		if (X86_LOAD_U32(ptr + 0x64) < 3)
+			X86_STORE_U32(ptr + 0x64, 3);
+
+		s_quickBootDone = true;
 	}
 
 	__imp__sub_29EA60(ctx, base);

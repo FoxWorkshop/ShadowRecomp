@@ -735,8 +735,8 @@ jump_address_on_true = 0xA5BE4
 
 [[midasm_hook]]
 name = "SelectModeUnlockCheckBypassMidAsmHook"
-address = 0x29A460
-registers = ["r0"]
+address = 0x29A462
+jump_address_on_true = 0x29A464
 
 [[midasm_hook]]
 name = "GetCurrentDictionaryThreadMidAsmHook"

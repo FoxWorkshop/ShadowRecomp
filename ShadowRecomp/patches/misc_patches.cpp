@@ -70,15 +70,54 @@ bool SkipPartnerIntroMidAsmHook()
 	return !Config::EnablePartnerIntro;
 }
 
-void SelectModeUnlockCheckBypassMidAsmHook(X86Register& eax)
+// All Stages Unlocked cheat
+// GetStageId(row, column, onlyUnlocked)
+X86_FUNC_IMPL(__imp__sub_28D950);
+X86_FUNC(sub_28D950)
 {
 	if (Config::AllStagesUnlocked)
-	{
-		eax.u32 = 1;
-	}
+		X86_STORE_U8(ctx.esp.u32 + 0xC, 0);
+
+	__imp__sub_28D950(ctx, base);
 }
 
-bool EasierUnlockLastStoryMidAsmHook(X86Register & edi)
+// GetStageRouteId(row, column, onlyUnlocked)
+X86_FUNC_IMPL(__imp__sub_28D9E0);
+X86_FUNC(sub_28D9E0)
+{
+	if (Config::AllStagesUnlocked)
+		X86_STORE_U8(ctx.esp.u32 + 0xC, 0);
+
+	__imp__sub_28D9E0(ctx, base);
+}
+
+// GetBossStageId(index, onlyUnlocked)
+X86_FUNC_IMPL(__imp__sub_28DA70);
+X86_FUNC(sub_28DA70)
+{
+	if (Config::AllStagesUnlocked)
+		X86_STORE_U8(ctx.esp.u32 + 0x8, 0);
+
+	__imp__sub_28DA70(ctx, base);
+}
+
+// trick the game that we already visited each stage so the stage thumbnail show up on the menu
+X86_FUNC_IMPL(__imp__sub_2A0790);
+X86_FUNC(sub_2A0790)
+{
+	__imp__sub_2A0790(ctx, base);
+
+	if (Config::AllStagesUnlocked)
+		ctx.eax.u32 = 1;
+}
+
+// trick the game that stage is already unlocked 
+bool SelectModeUnlockCheckBypassMidAsmHook()
+{
+	return Config::AllStagesUnlocked;
+}
+
+bool EasierUnlockLastStoryMidAsmHook(X86Register& edi)
 {
 	if (Config::EasyLastStoryUnlock)
 	{
@@ -394,7 +433,7 @@ X86_FUNC_IMPL(__imp__sub_1F89B0);
 X86_FUNC(sub_1F89B0)
 {
 	auto elecCore = ctx.ecx.u32;
-	if (X86_LOAD_U32(elecCore  + 0x44) == 1 && X86_LOAD_F32(elecCore  + 0x2E4) >= X86_LOAD_F32(0x46B86C))
+	if (X86_LOAD_U32(elecCore + 0x44) == 1 && X86_LOAD_F32(elecCore + 0x2E4) >= X86_LOAD_F32(0x46B86C))
 	{
 		auto missionMgr = X86_LOAD_U32(0x541FA4); // MissionManagerTask
 		if (missionMgr != 0)
@@ -419,7 +458,6 @@ X86_FUNC(sub_1F89B0)
 	ctx.ecx.u32 = elecCore;
 	__imp__sub_1F89B0(ctx, base);
 }
-
 // Fix the missing ScoreCommand if vacuum picks up fire (branch is skipped since owner check fails)
 // Fire VacuumCommand handler @ 0x1AA820
 // Fire attack callback @ 0x19B550
