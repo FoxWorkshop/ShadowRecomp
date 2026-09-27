@@ -1036,7 +1036,7 @@ const xxHashMap<QuadStretchCalibration> g_pictureDff =
 	{ HashStr("BD!SHIP!PIC01!O!.DFF"), { 1.5f, 1.1f } }, // ev 4202 sky troops intro
 	{ HashStr("EGG!SHIP!PIC01!O!.DFF"), { 1.5f, 1.1f } }, // ev 4202 sky troops intro
 	{ HashStr("EGG!SHIP!PIC02!O!.DFF"), { 1.5f, 1.1f } }, // ev 4202 sky troops intro
-	{ HashStr("SPACE!PIC!O!.DFF"), { 1.0f, 1.2f } }, // ev 8204 epilogue
+	{ HashStr("SPACE!PIC!O!.DFF"), { 1.3f, 1.2f } }, // ev 8204 epilogue
 };
 
 
