@@ -293,6 +293,52 @@ std::unordered_map<std::string_view, std::unordered_map<ELanguage, std::string>>
         }
     },
     {
+        "Options_Name_SoundTest",
+        {
+            { ELanguage::English,  "Sound Test" },
+            { ELanguage::Japanese, "Sound Test" },
+            { ELanguage::German,   "Sound Test" },
+            { ELanguage::French,   "Test Audio" },
+            { ELanguage::Spanish,  "Sound Test" },
+            { ELanguage::Italian,  "Sound Test" }
+        }
+    },
+    {
+        // Notes: the list only grows with music the player has already heard in game.
+        "Options_Desc_SoundTest",
+        {
+            { ELanguage::English,  "Listen to the in-game music." },
+            { ELanguage::Japanese,  "Listen to the in-game music." },
+            { ELanguage::German,   "Höre die Musik des Spiels an." },
+            { ELanguage::French,   "Écoutez la musique du jeu." },
+            { ELanguage::Spanish,  "Escuchar la música del juego." },
+            { ELanguage::Italian,  "Ascolta la musica del gioco." }
+        }
+    },
+    {
+        "Options_Desc_SoundTest_Track",
+        {
+            { ELanguage::English,  "Select a track to play it." },
+            { ELanguage::Japanese, "Select a track to play it" },
+            { ELanguage::German,   "Select a track to play it." },
+            { ELanguage::French,   "Sélectionnez une musique pour la jouer." },
+            { ELanguage::Spanish,  "Select a track to play it." },
+            { ELanguage::Italian,  "Select a track to play it." },
+        }
+    },
+    {
+        // Notes: shown next to the sound test track that is currently playing.
+        "Options_Value_Playing",
+        {
+            { ELanguage::English,  "Playing" },
+            { ELanguage::Japanese, "再生中" },
+            { ELanguage::German,   "Läuft" },
+            { ELanguage::French,   "Lecture" },
+            { ELanguage::Spanish,  "Sonando" },
+            { ELanguage::Italian,  "In riproduzione" }
+        }
+    },
+    {
         "Options_Name_WindowSize",
         {
             { ELanguage::English,  "Resolution" },

@@ -50,4 +50,6 @@ public:
     static void SetFlowState(OptionsMenuFlowState flowState);
 
     static bool CanClose();
+
+    static void UpdateSoundTest();
 };

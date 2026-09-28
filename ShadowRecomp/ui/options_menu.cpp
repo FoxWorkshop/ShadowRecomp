@@ -1,6 +1,7 @@
 #include <ui/options_menu.h>
 #include <locale/locale.h>
 #include <kernel/memory.h>
+#include <kernel/function.h>
 #include <gpu/video.h>
 #include <res/images/common/TitleBg.png.h>
 #include <res/images/common/Options.png.h>
@@ -1042,130 +1043,304 @@ static void DrawOption
 
 }
 
-static void DrawGoToLegacyOption
+static float GetRowScrollOffset(float optionHeight)
+{
+	// Only scroll if page has more rows than the view.
+	if (g_optionCount <= MAX_VISIBLE_ROWS)
+		return 0.0f;
+
+	// Stop scrolling near bottom
+	if (g_optionIndex >= g_optionCount - (MAX_VISIBLE_ROWS - 1))
+		return -(g_optionCount - MAX_VISIBLE_ROWS) * optionHeight;
+
+	// Start scrolling around the middle
+	if (g_optionIndex >= 1)
+		return -(g_optionIndex - 1) * optionHeight;
+
+	return 0.0f;
+}
+
+
+static void DrawActionOption
 (
 	int rowIndex,
 	ImVec2 min,
-	ImVec2 max
+	const std::string& name,
+	const std::string& description,
+	bool isAccessible,
+	const std::string* inaccessibleReason,
+	const std::function<void()>& onAccept
 )
 {
-
 	auto drawList = ImGui::GetBackgroundDrawList();
-	auto clipRectMin = drawList->GetClipRectMin();
-	auto clipRectMax = drawList->GetClipRectMax();
 
-	auto optionMotionTime = 1.0f; // ComputeLinearMotion(g_categoryTime, 0, 5, OptionsMenu::s_state != OptionsMenuState::Idle);
-
-	auto optionHeight = Scale(56);
-	float offsetScroll = 0.0f;
-
-	bool isMiddleRow = false;
-	// original offset from the container
-	float optionsOffsetX = Scale(170);
-	float optionsOffsetY = Scale(23);
+	auto optionHeight = Scale(48);
 	const float fontOptionSize = g_fntSeuratSize - 4.f;
-	// removing offset will make option draw right when the container starts, so we add an extra scale to make it fit inside.
-	min.x -= optionsOffsetX - Scale(10);
-	max.x -= Scale(10);
-
-	// Only scroll if page has more than 3 items.
-	if (g_optionCount > MAX_VISIBLE_ROWS)
-	{
-		isMiddleRow = ((rowIndex - std::max(g_optionIndex - 1, 0)) % MAX_VISIBLE_ROWS) >= 1;
-
-		if (g_optionIndex >= g_optionCount - (MAX_VISIBLE_ROWS - 1))
-		{
-			// Stop scrolling near bottom to use cursor instead.
-			offsetScroll = -(g_optionCount - MAX_VISIBLE_ROWS) * optionHeight;
-			isMiddleRow = ((rowIndex - std::max(g_optionCount - MAX_VISIBLE_ROWS, 0)) % MAX_VISIBLE_ROWS) >= 1;
-		}
-		else if (g_optionIndex >= 1)
-		{
-			// Start scrolling from the middle item.
-			offsetScroll = -(g_optionIndex - 1) * optionHeight;
-		}
-	}
-	else
-	{
-		isMiddleRow = rowIndex >= 1;
-	}
-
-	auto offsetY = optionHeight * rowIndex + offsetScroll;
-	auto isCurrent = g_optionIndex == rowIndex;
-	auto isSelected = isCurrent && OptionsMenu::s_flowState == OptionsMenuFlowState::OptionSelected;
-	auto isHover = isCurrent && OptionsMenu::s_flowState == OptionsMenuFlowState::OptionCursor;
-	bool isHoverOrSelected = isSelected || isHover;
-
-	auto bgEdgeUVs = PIXELS_TO_UV_COORDS(256, 256, 1, 0, 51, 45);
-	auto bgStretchUVs = PIXELS_TO_UV_COORDS(256, 256, 51, 0, 51, 45);
-	auto bgWidth = Scale(50);
-	auto bgHeight = Scale(45);
-
-	ImVec2 titleBgEdgeMin = { min.x, min.y + offsetY };
-	ImVec2 titleBgEdgeMax = { titleBgEdgeMin.x + bgWidth, titleBgEdgeMin.y + bgHeight };
-	ImVec2 titleBgStretchMin = { titleBgEdgeMax.x, titleBgEdgeMin.y };
-	ImVec2 titleBgStretchMax = { max.x, max.y };
-	ImVec2 titleBgFadeMin = { titleBgStretchMax.x - Scale(300), titleBgStretchMax.y };
-	ImVec2 titleBgFadeMax = titleBgStretchMax;
-
-
-	auto titleText = Localise("Options_Name_LegacyMenu");
-	auto titleTextSize = g_fntSeurat->CalcTextSizeA(fontOptionSize, FLT_MAX, 0, titleText.c_str());
-
-	ImVec2 titlePos = { titleBgEdgeMin.x, titleBgEdgeMin.y + Scale(8) };
-
 	const float outlineOffset = 2.f;
 
-	auto isTitleRightFade = !isMiddleRow && OptionsMenu::s_flowState == OptionsMenuFlowState::OptionCursor;
+	// removing offset will make option draw right when the container starts, so we add an extra scale to make it fit inside.
+	min.x -= Scale(170) - Scale(10);
 
+	auto offsetY = optionHeight * rowIndex + GetRowScrollOffset(optionHeight);
+	auto isCurrent = g_optionIndex == rowIndex;
+	auto isHover = isCurrent && OptionsMenu::s_flowState == OptionsMenuFlowState::OptionCursor;
+
+	ImVec2 titlePos = { min.x, min.y + offsetY + Scale(8) };
 
 	SetShaderModifier(IMGUI_SHADER_MODIFIER_LOW_QUALITY_TEXT);
 
-	auto TextoutlineColor = isHoverOrSelected ? IM_COL32(0, 0, 60, 44) : IM_COL32(0, 0, 0, 44);
-	auto TexColor = isHoverOrSelected ? IM_COL32(234, 234, 69, 255) : IM_COL32(255, 255, 255, 255);
+	auto TextoutlineColor = isHover ? IM_COL32(0, 0, 60, 44) : IM_COL32(0, 0, 0, 44);
+	auto TexColor = isHover ? IM_COL32(234, 234, 69, 255) : IM_COL32(255, 255, 255, 255);
 	AddTextWithOutline(drawList, g_fntSeurat, fontOptionSize, titlePos, TexColor,
-		TextoutlineColor, titleText.c_str(), 1.f, outlineOffset, outlineOffset);
-	
+		TextoutlineColor, name.c_str(), 1.f, outlineOffset, outlineOffset);
 
 	SetShaderModifier(IMGUI_SHADER_MODIFIER_NONE);
 
+	if (!isCurrent)
+		return;
 
-	if (isCurrent)
+	optionDescription = isAccessible || !inaccessibleReason ? description : *inaccessibleReason;
+
+	if (CheckAndDiscard(g_isAccepted))
 	{
-		if (OptionsMenu::s_flowState == OptionsMenuFlowState::OptionCursor || OptionsMenu::s_flowState == OptionsMenuFlowState::OptionSelected)
-		{
-			optionDescription = Localise("Options_Desc_LegacyMenu");
-		}
-
-		if (CheckAndDiscard(g_isAccepted))
+		if (isAccessible)
 		{
 			Game_PlaySound("decide");
-
-
-			OptionsMenu::SetFlowState(OptionsMenuFlowState::CategoryCursor);
-			isSelected = true;
-			GameMenuCommon::g_LegacyOptions = true;
-			OptionsMenu::s_GoToLegacyMenu = true;
+			onAccept();
 		}
-		else if (CheckAndDiscard(g_isDeclined))
+		else
 		{
-			Game_PlaySound("cancel");
-
-			OptionsMenu::SetFlowState(OptionsMenuFlowState::OptionCursor);
-
-			isSelected = false;
-		}
-
-	}
-	else
-	{
-		if (CheckAndDiscard(g_isAccepted))
 			Game_PlaySound("cannot_decide");
+		}
+	}
+}
+
+static void GoToLegacyMenu()
+{
+	OptionsMenu::SetFlowState(OptionsMenuFlowState::CategoryCursor);
+	GameMenuCommon::g_LegacyOptions = true;
+	OptionsMenu::s_GoToLegacyMenu = true;
+}
+
+/* --- SOUND TEST REIMPLEMENTATION --- */
+
+// Reimplement the game's Sound Test in the custom options
+// Song only shows up when it has been played at least once in the game.
+static constexpr int g_SoundTestTrackCount = 55;
+static constexpr uint32_t g_soundTestFilenamesAddr = 0x4EB278;
+static constexpr int32_t g_SoundTestFirstMSGID = 6100;
+static constexpr uint32_t g_saveDataAddr = 0x549640;
+static constexpr uint32_t g_saveDataHeadTracks = 0x1714;
+static constexpr uint32_t g_menuTextAddr = 0x54BA14;
+static constexpr uint32_t g_fontMessageTable = 0x5C;
+
+
+enum BgmSlot
+{
+	bgmSlotStop = 0,
+	bgmSlotOptions = 3 // options menu music
+};
+
+enum SoundTestRequest
+{
+	soundTestRequestNone = -3,
+	soundTestRequestRestore = -2,
+	soundTestRequestPlayTrack = -1
+};
+
+
+static bool g_isSoundTest{};
+static int g_soundTestReturnIndex{};
+static int g_soundTestPlaying = -1;
+static bool g_soundTestChangedMusic{};
+static std::vector<int> g_soundTestTracks;
+static std::vector<std::string> g_soundTestNames;
+static std::atomic<int> g_soundTestRequest{ soundTestRequestNone };
+
+static bool IsSongUnlocked(int track)
+{
+	auto base = g_memory.base;
+
+	auto saveData = X86_LOAD_U32(g_saveDataAddr);
+	if (saveData == 0)
+		return false;
+
+	auto bits = X86_LOAD_U32(saveData + g_saveDataHeadTracks + 4 * (track / 32));
+	return (bits >> (track % 32)) & 1;
+}
+
+
+static std::string GetTrackName(int track)
+{
+	auto base = g_memory.base;
+
+	auto menuText = X86_LOAD_U32(g_menuTextAddr);
+	auto font = menuText ? X86_LOAD_U32(menuText) : 0;
+	auto table = font ? X86_LOAD_U32(font + g_fontMessageTable) : 0;
+
+	if (table)
+	{
+		auto count = (int32_t)X86_LOAD_U32(table);
+		auto textID = (g_SoundTestFirstMSGID + track) * 1000 + 100;
+
+		for (int32_t i = 0; i < count; i++)
+		{
+			auto record = table + 4 + i * 0x14;
+			if ((int32_t)X86_LOAD_U32(record + 4) != textID)
+				continue;
+
+			std::string name;
+			auto text = X86_LOAD_U32(record);
+
+			for (int j = 0; j < 128; j++)
+			{
+				uint32_t c = X86_LOAD_U16(text + j * 2);
+				if (c == 0)
+					break;
+
+				if (c >= 0xD800 && c < 0xDC00)
+				{
+					uint32_t low = X86_LOAD_U16(text + (j + 1) * 2);
+					c = 0x10000 + ((c - 0xD800) << 10) + (low - 0xDC00);
+					j++;
+				}
+
+				if (c >= 0x20)
+					AppendUtf8(name, c);
+			}
+
+			if (!name.empty())
+				return name;
+		}
+	}
+
+	std::string fileName = (const char*)g_memory.Translate(X86_LOAD_U32(g_soundTestFilenamesAddr + 4 * track));
+	return fileName.substr(0, fileName.find('.'));
+}
+
+static void OpenSoundTest()
+{
+	g_soundTestTracks.clear();
+	g_soundTestNames.clear();
+
+	for (int i = 0; i < g_SoundTestTrackCount; i++)
+	{
+		if (!IsSongUnlocked(i))
+			continue;
+
+		g_soundTestTracks.push_back(i);
+		g_soundTestNames.push_back(GetTrackName(i));
+	}
+
+	g_isSoundTest = true;
+	g_soundTestReturnIndex = g_optionIndex;
+	g_optionIndex = 0;
+	g_optionCount = (int)g_soundTestTracks.size();
+	g_cursorArrowsTime = ImGui::GetTime();
+	g_scrollArrowsTime = g_cursorArrowsTime;
+}
+
+static void CloseSoundTest()
+{
+	if (!g_isSoundTest)
+		return;
+
+	// put the options music back 
+	if (g_soundTestChangedMusic)
+		g_soundTestRequest = soundTestRequestRestore;
+
+	g_soundTestChangedMusic = false;
+	g_soundTestPlaying = -1;
+	g_isSoundTest = false;
+	g_optionIndex = g_soundTestReturnIndex;
+	g_cursorArrowsTime = ImGui::GetTime();
+	g_scrollArrowsTime = g_cursorArrowsTime;
+}
+
+void OptionsMenu::UpdateSoundTest()
+{
+	auto request = g_soundTestRequest.exchange(soundTestRequestNone);
+
+	if (request == soundTestRequestNone)
+		return;
+
+	auto base = g_memory.base;
+
+	// stop the current song, then play the requested track
+	auto bgmSlots = GuestToHostFunction<uint32_t>(sub_5CD00);
+	auto slot = request == soundTestRequestRestore ? bgmSlotOptions : bgmSlotStop;
+	GuestToHostFunction<void, CallConvention::Thiscall>(sub_28D8B0, bgmSlots, slot);
+
+	if (request >= 0)
+	{
+		auto fileName = X86_LOAD_U32(g_soundTestFilenamesAddr + 4 * request);
+		auto soundEffects = GuestToHostFunction<uint32_t>(sub_55B40);
+		GuestToHostFunction<void, CallConvention::Thiscall>(sub_25BE10, soundEffects, fileName);
+	}
+}
+
+static void DrawSoundTestTrack(int rowIndex, ImVec2 min, ImVec2 max)
+{
+	auto drawList = ImGui::GetBackgroundDrawList();
+
+	auto optionHeight = Scale(48);
+	const float fontOptionSize = g_fntSeuratSize - 4.f;
+	const float fontValueSize = g_fntSeuratSize - Scale(5.33f);
+	const float outlineOffset = 2.f;
+
+	min.x -= Scale(170) - Scale(10);
+	max.x -= Scale(10);
+
+	auto track = g_soundTestTracks[rowIndex];
+	auto isPlaying = g_soundTestPlaying == track;
+	auto offsetY = optionHeight * rowIndex + GetRowScrollOffset(optionHeight);
+	auto isCurrent = g_optionIndex == rowIndex;
+	auto isHover = isCurrent && OptionsMenu::s_flowState == OptionsMenuFlowState::OptionCursor;
+
+	float valueAreaWidth = Scale(105);
+	float valueAreaEnd = max.x - Scale(15);
+	float valueAreaStart = valueAreaEnd - valueAreaWidth;
+	float valueAreaCenter = valueAreaStart + (valueAreaWidth * 0.5f);
+
+	ImVec2 titlePos = { min.x, min.y + offsetY + Scale(8) };
+	auto titleAreaWidth = valueAreaStart - Scale(10) - titlePos.x;
+
+	auto TextoutlineColor = isHover ? IM_COL32(0, 0, 60, 44) : IM_COL32(0, 0, 0, 44);
+	auto TexColor = isHover ? IM_COL32(234, 234, 69, 255) : IM_COL32(255, 255, 255, 255);
+
+	SetShaderModifier(IMGUI_SHADER_MODIFIER_LOW_QUALITY_TEXT);
+
+	auto title = TruncateTextWithEllipsis(g_fntSeurat, fontOptionSize, g_soundTestNames[rowIndex], titleAreaWidth);
+	AddTextWithOutline(drawList, g_fntSeurat, fontOptionSize, titlePos, TexColor,
+		TextoutlineColor, title.c_str(), 1.f, outlineOffset, outlineOffset);
+
+	if (isPlaying)
+	{
+		auto valueText = TruncateTextWithEllipsis(g_fntSeurat, fontValueSize, Localise("Options_Value_Playing"), valueAreaWidth);
+		auto valueSize = g_fntSeurat->CalcTextSizeA(fontValueSize, FLT_MAX, 0.0f, valueText.c_str());
+		ImVec2 valuePos = { valueAreaCenter - valueSize.x * 0.5f, titlePos.y };
+
+		AddTextWithOutline(drawList, g_fntSeurat, fontValueSize, valuePos, IM_COL32(234, 234, 69, 255),
+			TextoutlineColor, valueText.c_str(), 1.f, outlineOffset, outlineOffset);
 	}
 
 	SetShaderModifier(IMGUI_SHADER_MODIFIER_NONE);
+
+	if (!isCurrent)
+		return;
+
+	optionDescription = Localise("Options_Desc_SoundTest_Track");
+
+	// Restart the track if player press A while it's already playing
+	if (CheckAndDiscard(g_isAccepted))
+	{
+		g_soundTestPlaying = track;
+		g_soundTestRequest = track;
+		g_soundTestChangedMusic = true;
+	}
 }
 
+/* --- SOUND TEST REIMPLEMENTATION END --- */
 
 static void ResetOptionSelection();
 
@@ -1717,6 +1892,15 @@ static void DrawOptions(ImVec2 minClipRect, ImVec2 maxClipRect, ImVec2 min, ImVe
 		break;
 
 	case OptionsMenuCategory::Audio:
+
+		if (g_isSoundTest) // sound test uses its own page for obvious reasons
+		{
+			for (size_t i = 0; i < g_soundTestTracks.size(); i++)
+				DrawSoundTestTrack(rowCount++, min, max);
+
+			break;
+		}
+
 		DrawOption(rowCount++, &Config::MasterVolume, true, min, max);
 		DrawOption(rowCount++, &Config::MusicVolume, true, min, max);
 		DrawOption(rowCount++, &Config::VoicesVolume, true, min, max);
@@ -1724,6 +1908,7 @@ static void DrawOptions(ImVec2 minClipRect, ImVec2 maxClipRect, ImVec2 min, ImVe
 		DrawOption(rowCount++, &Config::EffectsVolume, true, min, max);
 		DrawOption(rowCount++, &Config::MuteOnFocusLost, true, min, max);
 		DrawOption(rowCount++, &Config::IdleChaosPowersMusic, true, min, max);
+		DrawActionOption(rowCount++, min, Localise("Options_Name_SoundTest"), Localise("Options_Desc_SoundTest"), !OptionsMenu::s_isPause, cmnReason, OpenSoundTest);
 		break;
 
 	case OptionsMenuCategory::Video:
@@ -1777,13 +1962,14 @@ static void DrawOptions(ImVec2 minClipRect, ImVec2 maxClipRect, ImVec2 min, ImVe
 	case OptionsMenuCategory::Misc:
 	{
 		DrawOption(rowCount++, &Config::ChaosPowerLEDSync, true, min, max);
-		DrawGoToLegacyOption(rowCount++, min, max);
+		DrawActionOption(rowCount++, min, Localise("Options_Name_LegacyMenu"), Localise("Options_Desc_LegacyMenu"), true, nullptr, GoToLegacyMenu);
 	}
 	}
 
 #undef ENUM_VALUE
 
-	g_optionCount = rowCount;
+	// in case this is open mid draw
+	g_optionCount = g_isSoundTest ? (int)g_soundTestTracks.size() : rowCount;
 
 	drawList->PopClipRect();
 
@@ -2478,6 +2664,12 @@ void OptionsMenu::Draw()
 				g_scrollArrowsTime = g_cursorArrowsTime;
 			});
 
+		if (g_isSoundTest && CheckAndDiscard(g_isDeclined))
+		{
+			Game_PlaySound("cancel");
+			CloseSoundTest();
+		}
+
 		if (CheckAndDiscard(g_isDeclined))
 		{
 			Game_PlaySound("cancel");
@@ -2538,6 +2730,7 @@ void OptionsMenu::Open(bool isPause)
 	s_GoToLegacyMenu = false;
 	g_isRemapMenu = false;
 	g_captureState = EBindingCaptureState::Idle;
+	CloseSoundTest();
 	// Update stored values for config definitions
 	// to check if their values have changed later.
 	for (auto& def : g_configDefinitions)
@@ -2592,6 +2785,7 @@ void OptionsMenu::Close()
 
 	g_isControlsVisible = false;
 	EndPauseHudHide();
+	CloseSoundTest();
 
 	if (s_isPause)
 	{
