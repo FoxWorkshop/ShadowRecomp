@@ -1511,3 +1511,138 @@ name = "EggBreakerDigitizeEffectMidAsmHook"
 address = 0xFF8FD
 jump_address = 0xFF903
 # End EggBreaker0411 eff fix patch
+
+# Start SFX slot limit patch
+# 32 sfx to 59 sfx slots
+## slot assignment funcs
+# scan count @ sub_25BBF0
+[[midasm_hook]]
+name = "SESlotScanCountMidAsmHook"
+address = 0x25BD0C
+registers = ["r7"]
+
+# index wrap @ sub_25BBF0
+[[midasm_hook]]
+name = "SESlotIndexWrapMidAsmHook"
+address = 0x25BD6F
+registers = ["r2", "r0"]
+jump_address_on_true = 0x25BD75
+jump_address_on_false = 0x25BD71
+
+# search start wrap @ sub_25BBF0
+[[midasm_hook]]
+name = "SESlotSearchStartWrapMidAsmHook"
+address = 0x25BD94
+registers = ["r0", "r5"]
+jump_address_on_true = 0x25BD9A
+jump_address_on_false = 0x25BD96
+
+## slot table definition funcs (initializing available size)
+# allocation size @ sub_25B480
+[[midasm_hook]]
+name = "SESlotTableSizeMidAsmHook"
+address = 0x25B4D3
+registers = ["r7"]
+
+# count @ sub_25B480
+[[midasm_hook]]
+name = "SESlotTableCountMidAsmHook"
+address = 0x25B503
+registers = ["r0", "r7"]
+
+## sound management (start/stop, invoke etc)
+# init @ sub_25B480
+[[midasm_hook]]
+name = "SESlotLoopMidAsmHook"
+address = 0x25B537
+registers = ["r4"]
+jump_address_on_true = 0x25B522
+
+# reinit @ sub_25B550
+[[midasm_hook]]
+name = "SESlotLoopMidAsmHook"
+address = 0x25B625
+registers = ["r5"]
+jump_address_on_true = 0x25B610
+
+# reinit @ sub_25B6C0
+[[midasm_hook]]
+name = "SESlotLoopMidAsmHook"
+address = 0x25B6F5
+registers = ["r5"]
+jump_address_on_true = 0x25B6E0
+
+# reinit @ sub_25B790
+[[midasm_hook]]
+name = "SESlotLoopMidAsmHook"
+address = 0x25B7C5
+registers = ["r5"]
+jump_address_on_true = 0x25B7B0
+
+# pause @ sub_25B8E0
+[[midasm_hook]]
+name = "SESlotLoopMidAsmHook"
+address = 0x25B95A
+registers = ["r5"]
+jump_address_on_true = 0x25B8F2
+
+# resume @ sub_25B970
+[[midasm_hook]]
+name = "SESlotLoopMidAsmHook"
+address = 0x25B9F0
+registers = ["r6"]
+jump_address_on_true = 0x25B980
+
+# per frame update @ sub_25BAA0
+[[midasm_hook]]
+name = "SESlotUpdateLoopCountMidAsmHook"
+address = 0x25BAC7
+registers = ["r7"]
+
+# stop all @ sub_25B3D0
+[[midasm_hook]]
+name = "SESlotStopAllLoopCountMidAsmHook"
+address = 0x25B3DE
+registers = ["r6"]
+
+# find slot @ sub_25BB70
+[[midasm_hook]]
+name = "SESlotFindLoopMidAsmHook"
+address = 0x25BBC4
+registers = ["r2"]
+jump_address_on_true = 0x25BBB2
+jump_address_on_false = 0x25BBC6
+
+## normal slots vs the reserved slots (for music and voice)
+# slot to driver channel @ sub_25DA70
+[[midasm_hook]]
+name = "SESlotIsNormalMidAsmHook"
+address = 0x25DA74
+registers = ["r0"]
+jump_address_on_true = 0x25DA88
+jump_address_on_false = 0x25DA76
+
+# @ sub_25DFA0
+[[midasm_hook]]
+name = "SESlotIsNormalMidAsmHook"
+address = 0x25DFAA
+registers = ["r0"]
+jump_address_on_true = 0x25DFB9
+jump_address_on_false = 0x25DFAC
+
+# stop slot @ sub_25E060
+[[midasm_hook]]
+name = "SESlotIsNormalMidAsmHook"
+address = 0x25E06D
+registers = ["r0"]
+jump_address_on_true = 0x25E07B
+jump_address_on_false = 0x25E06F
+
+# slot update @ sub_25E2C0
+[[midasm_hook]]
+name = "SESlotIsNormalMidAsmHook"
+address = 0x25E2CE
+registers = ["r0"]
+jump_address_on_true = 0x25E2DE
+jump_address_on_false = 0x25E2D0
+# End SFX limit patch

@@ -413,3 +413,108 @@ X86_FUNC(sub_25F420)
 	RestoreGrindLoop(GRIND_LOOP);
 	RestoreGrindLoop(GRIND2_LOOP);
 }
+
+/** --SFX limit increase Patch START-- */
+// This patches all SFX table references to allow us to use the full channel slots
+// We double the SFX table and increase normal SFX limit from 32 to 59
+//
+// SEManager has a table of 0x2B (43) slots, but only 0x20 (32) are assigned to normal SFX
+// Xbox driver has 0x40 (64) channels, slots entries map to the same channel number (slot 0x30 maps to channel 0x30)
+// 0x27-0x2A are an exception, mapping to channels outside of 0x40 (ignored by driver)
+//
+// Before patch:
+// 0x2B (43) SFX table size
+// 0x0-0x1F normal slots
+// 0x20-0x25 never used
+// 0x26-0x2A special slots
+//
+// After patch:
+// 0x40 (64) SFX table size
+// 0x0-0x25 and 0x2B-0x3F normal slots
+// 0x26-0x2A special slots (unchanged)
+
+constexpr uint32_t SE_SLOT_SIZE = 0x34; // size of one slot in bytes
+constexpr uint32_t SE_SLOT_COUNT = 0x40; // new max total slot count
+constexpr uint32_t SE_NORMAL_SLOT_COUNT = 0x3B;
+constexpr uint8_t SE_SPECIAL_SLOT_START = 0x26;
+constexpr uint8_t SE_SPECIAL_SLOT_END = 0x2B;
+
+// allocator scan count 0x20 (32) -> 0x3B (59)
+void SESlotScanCountMidAsmHook(X86Register& esp)
+{
+	auto base = g_memory.base;
+	X86_STORE_U8(esp.u32 + 0x20, SE_NORMAL_SLOT_COUNT);
+}
+
+// allocator index wrap
+bool SESlotIndexWrapMidAsmHook(X86Register& ecx, X86Register& eax)
+{
+	if (ecx.u8_lo == SE_SPECIAL_SLOT_START)
+	{
+		ecx.u8_lo = SE_SPECIAL_SLOT_END;
+		eax.u32 += (SE_SPECIAL_SLOT_END - SE_SPECIAL_SLOT_START) * SE_SLOT_SIZE;
+		return true;
+	}
+	return ecx.u8_lo < SE_SLOT_COUNT;
+}
+
+// allocator search start wrap
+bool SESlotSearchStartWrapMidAsmHook(X86Register& eax, X86Register& edi)
+{
+	auto base = g_memory.base;
+	if (eax.u8_lo == SE_SPECIAL_SLOT_START)
+	{
+		X86_STORE_U8(edi.u32 + 0xC, SE_SPECIAL_SLOT_END);
+		return true;
+	}
+	return eax.u8_lo < SE_SLOT_COUNT;
+}
+
+// slot table allocation size
+void SESlotTableSizeMidAsmHook(X86Register& esp)
+{
+	auto base = g_memory.base;
+	X86_STORE_U32(esp.u32, 4 + SE_SLOT_COUNT * SE_SLOT_SIZE);
+}
+
+// slot table count header and vector constructor count
+void SESlotTableCountMidAsmHook(X86Register& eax, X86Register& esp)
+{
+	auto base = g_memory.base;
+	X86_STORE_U32(eax.u32, SE_SLOT_COUNT);
+	X86_STORE_U32(esp.u32 + 0x8, SE_SLOT_COUNT);
+}
+
+// slot table bounds (for the funcs byte stepping)
+bool SESlotLoopMidAsmHook(X86Register& offset)
+{
+	return offset.u32 < SE_SLOT_COUNT * SE_SLOT_SIZE;
+}
+
+// per frame update loop count
+void SESlotUpdateLoopCountMidAsmHook(X86Register& esp)
+{
+	auto base = g_memory.base;
+	X86_STORE_U32(esp.u32 + 0xC, SE_SLOT_COUNT);
+}
+
+// stop all loop count
+void SESlotStopAllLoopCountMidAsmHook(X86Register& ebp)
+{
+	ebp.u32 = SE_SLOT_COUNT;
+}
+
+// find slot loop
+bool SESlotFindLoopMidAsmHook(X86Register& ecx)
+{
+	return ecx.u8_lo < SE_SLOT_COUNT;
+}
+
+// normal vs special check
+// in the OG code >= 0x26 is considered special
+// include the new extra slots in normal slot availability
+bool SESlotIsNormalMidAsmHook(X86Register& eax)
+{
+	return eax.u8_lo <= SE_SPECIAL_SLOT_START || eax.u8_lo >= SE_SPECIAL_SLOT_END;
+}
+/** --SFX limit increase Patch END-- */
