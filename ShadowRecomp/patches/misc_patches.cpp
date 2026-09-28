@@ -575,3 +575,14 @@ void KatanaBulletSweepMidAsmHook(X86Register& esi)
 
 // Remove the shared 'clear bit' for egg breaker breaking the glow effect
 void EggBreakerDigitizeEffectMidAsmHook() {}
+
+
+// Fix Mipmapped textures breaking on 3D models
+// After a level TXD loads, the game sets max anisotropy 4 on every tex with mip levels.
+// However, the anisot plugin was never attached on the Xbox version so nothing work and the game end binding a null texture. 
+// We can patch this by dropping the write and let the host handle the rest.
+X86_FUNC(sub_309F90)
+{
+	ctx.eax.u32 = X86_LOAD_U32(ctx.esp.u32 + 4);
+	ctx.AddEsp(1);
+}
