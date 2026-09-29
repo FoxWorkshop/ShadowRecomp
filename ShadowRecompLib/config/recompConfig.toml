@@ -1257,27 +1257,37 @@ address = 0x1AC05C
 registers = ["r0", "r6"]
 
 # Start vert bump patches
-# Adjust tolerance in sub_84E50.
+# reset ray floor state once per pass
+[[midasm_hook]]
+name = "CollisionToleranceResetMidAsmHook"
+address = 0x84FEA
+
+# give the ground ray a normal output
+[[midasm_hook]]
+name = "CollisionGroundRayNormalMidAsmHook"
+address = 0x85338
+registers = ["r7"]
+
+# adjust tolerance in sub_84E50, recast side coli on ray miss
 [[midasm_hook]]
 name = "CollisionToleranceMidAsmHook"
 address = 0x85344
-registers = ["r4", "r7"]
+registers = ["r4", "r6", "r7"]
 
 # ray hit, sweep fails
-# fallback to ignore state reset
+# short timed fallback to ignore state reset
 [[midasm_hook]]
 name = "CollisionToleranceSnapFallbackMidAsmHook"
 address = 0x85690
 jump_address_on_true = 0x85692
 registers = ["r4", "r0", "r7"]
 
-# Skip dot < cos80 check iff above passes
-# 0x7FB30 will recover rotation
+# run the dot < cos80 check, then use our new backup side coli check
 [[midasm_hook]]
 name = "CollisionToleranceSlopeGateMidAsmHook"
 address = 0x856AF
 jump_address_on_true = 0x856B1
-registers = ["r4"]
+registers = ["r4", "r7"]
 # End vert bump patches
 
 [[midasm_hook]]
