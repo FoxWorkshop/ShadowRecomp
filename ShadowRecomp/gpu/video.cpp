@@ -1874,6 +1874,7 @@ enum class RenderCommandType
 	SetVertexDeclaration,
 	SetVertexShader,
 	SetStreamSource,
+	SetStreamSourceUP, // for dynamic variation from RenderWare
 	SetIndices,
 	SetPixelShader,
 	StagedCopy,
@@ -2010,6 +2011,14 @@ struct RenderCommand
 			GuestBuffer* vertexBuffer;
 			uint32_t stride;
 		} setStreamSource;
+
+		struct
+		{
+			uint32_t StreamNumber;
+			uint8_t* vertexData;
+			uint32_t size;
+			uint32_t stride;
+		} setStreamSourceUP;
 
 
 		struct
@@ -4086,6 +4095,23 @@ static void ProcSetStreamSource(const RenderCommand& cmd)
 		g_dirtyStates.vertexStreamFirst = std::min<uint8_t>(g_dirtyStates.vertexStreamFirst, args.StreamNumber);
 		g_dirtyStates.vertexStreamLast = std::max<uint8_t>(g_dirtyStates.vertexStreamLast, args.StreamNumber);
 	}
+}
+
+// dynamic vertex buffer for particles / matFX stuff, rebuild every frame from RenderWare pipeline.
+static void ProcSetStreamSourceUP(const RenderCommand& cmd)
+{
+	const auto& args = cmd.setStreamSourceUP;
+
+	SetDirtyValue(g_dirtyStates.pipelineState, g_pipelineState.vertexStrides[args.StreamNumber], uint8_t(args.stride));
+
+	auto allocation = g_uploadAllocators[g_frame].allocate(reinterpret_cast<const uint32_t*>(args.vertexData), args.size, 0x4);
+
+	g_vertexBufferViews[args.StreamNumber].buffer = allocation.buffer->at(allocation.offset);
+	g_vertexBufferViews[args.StreamNumber].size = args.size;
+	g_inputSlots[args.StreamNumber].stride = args.stride;
+
+	g_dirtyStates.vertexStreamFirst = std::min<uint8_t>(g_dirtyStates.vertexStreamFirst, args.StreamNumber);
+	g_dirtyStates.vertexStreamLast = std::max<uint8_t>(g_dirtyStates.vertexStreamLast, args.StreamNumber);
 }
 
 static const char* DeviceTypeName(RenderDeviceType type)
@@ -8649,6 +8675,32 @@ void DrawIndexedPrimitive(X_D3DPRIMITIVETYPE PrimitiveType, uint32_t VertexCount
 		if (bNeedVertexPatching)
 			alignedStride = pVertexShaderStreamInfo->HostVertexStride;
 
+		// if the buffer is dynamic, we can't cache it since it will get rebuild every frame
+		// so send it to our dynamic allocator instead
+		if (IsDynamicVertexBuffer(xboxStreamSource->VertexBuffer))
+		{
+			const uint32_t originalStride = xboxStreamSource->Stride;
+			const uint32_t usedVertices = maxIdx - minIdx + 1;
+
+			unsigned long dataAddr = (unsigned long)GetDataFromXboxResource((X_D3DResource*)(xboxStreamSource->VertexBuffer));
+			uint8_t* pXboxVertexData = reinterpret_cast<uint8_t*>(g_memory.Translate(dataAddr)) + (minIdx * originalStride);
+
+			uint8_t* vertexData = ApplyVertexPatch(pXboxVertexData, i, usedVertices, originalStride, alignedStride, true);
+			if (vertexData == nullptr)
+			{
+				vertexData = g_intermediaryUploadAllocator.allocate(usedVertices * alignedStride);
+				memcpy(vertexData, pXboxVertexData, usedVertices * originalStride);
+			}
+
+			auto& cmd = queue.enqueue();
+			cmd.type = RenderCommandType::SetStreamSourceUP;
+			cmd.setStreamSourceUP.StreamNumber = i;
+			cmd.setStreamSourceUP.vertexData = vertexData;
+			cmd.setStreamSourceUP.size = usedVertices * alignedStride;
+			cmd.setStreamSourceUP.stride = alignedStride;
+			continue;
+		}
+
 		auto bufferCache = GetGuestVertexBufferIndexed(i, minIdx, maxIdx, alignedStride);
 
 		if (!bufferCache)
@@ -9515,6 +9567,7 @@ static void ProcessRenderCommand(const RenderCommand& cmd)
 	case RenderCommandType::SetVertexDeclaration: { g_stateChangeCount.fetch_add(1, std::memory_order_relaxed); RtScopeTimer _s(g_rtOtherCmdsAccum); ProcSetVertexDeclaration(cmd); } break;
 	case RenderCommandType::SetVertexShader: { g_stateChangeCount.fetch_add(1, std::memory_order_relaxed); RtScopeTimer _s(g_rtOtherCmdsAccum); ProcSetVertexShader(cmd); } break;
 	case RenderCommandType::SetStreamSource: { g_stateChangeCount.fetch_add(1, std::memory_order_relaxed); RtScopeTimer _s(g_rtOtherCmdsAccum); ProcSetStreamSource(cmd); } break;
+	case RenderCommandType::SetStreamSourceUP: { g_stateChangeCount.fetch_add(1, std::memory_order_relaxed); RtScopeTimer _s(g_rtOtherCmdsAccum); ProcSetStreamSourceUP(cmd); } break;
 	case RenderCommandType::SetIndices: { g_stateChangeCount.fetch_add(1, std::memory_order_relaxed); RtScopeTimer _s(g_rtOtherCmdsAccum); ProcSetIndices(cmd); } break;
 	case RenderCommandType::SetPixelShader: { g_stateChangeCount.fetch_add(1, std::memory_order_relaxed); RtScopeTimer _s(g_rtOtherCmdsAccum); ProcSetPixelShader(cmd); } break;
 	case RenderCommandType::AddPipeline: { ProcAddPipeline(cmd); } break;

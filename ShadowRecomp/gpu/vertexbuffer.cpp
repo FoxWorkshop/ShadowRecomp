@@ -14,11 +14,16 @@ static xxHashMap<GuestBuffer*> g_indexedVertexBufferCache;
 // skip rehashing until the buffer is locked or freed.
 static ankerl::unordered_dense::map<GuestBuffer*, std::vector<VBRangeHash>> g_vbTrustedHashes;
 
+// RW has some VBs made from its dynamic pool, their content get rebuild every frame so it's not possible
+// to cache them properly, so we will make a separate set and use Upload Allocator instead.
+static ankerl::unordered_dense::set<GuestBuffer*> g_dynamicVertexBuffers; 
+
 void FreeVB(uint32_t resource)
 {
 	GuestBuffer* resourcePtr = (GuestBuffer*)g_memory.Translate(resource);
 
 	g_vbTrustedHashes.erase(resourcePtr);
+	g_dynamicVertexBuffers.erase(resourcePtr);
 
 	auto it = VBsList.find(resourcePtr);
 	if (it != VBsList.end())
@@ -58,6 +63,24 @@ X86_FUNC(sub_2E6750)
 	XD3DResource* buffer = (XD3DResource*)g_memory.Translate(addr);
 	//printf("Create VB %x - size: %d\n", (intptr_t)buffer, size);
 	//g_VBList.push_back({ buffer, nullptr, size });
+}
+
+//CreateAndGetVertexBuffer
+// As explained above, RW has its own dynamic pool for dynamc Vertex Buffer,
+// Those cannot be cached, so grab them here for upload later.
+X86_FUNC_IMPL(__imp__sub_2E67D0);
+X86_FUNC(sub_2E67D0)
+{
+	__imp__sub_2E67D0(ctx, base);
+
+	auto resource = X86_LOAD_U32(0x55F8F0);
+	if (resource)
+		g_dynamicVertexBuffers.insert((GuestBuffer*)(base + resource));
+}
+
+bool IsDynamicVertexBuffer(GuestBuffer* buffer)
+{
+	return g_dynamicVertexBuffers.contains(buffer);
 }
 
 
