@@ -1,6 +1,8 @@
 #include <kernel/function.h>
 #include <user/config.h>
 #include <gpu/video.h>
+#include <app.h>
+#include <patches/patch_utils.h>
 
 const uint32_t g_deltaTime = 0x541FA8;
 const uint32_t g_refRate = 0x54DD80;
@@ -530,512 +532,382 @@ static float ScaleFirstOrderLag(float before, float after, float retention, floa
 }
 
 
+/**	--Vehicle shared fixed step START-- */
+// AirSaucer and Walker/WalkerCannon (aka GUN Jump Mechs)
+// Collide & slide (sub_24E780) is tuned for 60 fps steps
+// Solve and mover are fixed at 60FPS and interpolate at higher FPS
+
+static constexpr float g_vehicleStepDt = 1.0f / 60.0f;
+static constexpr int g_vehicleMaxSteps = 4;
+
+// collider+0x1C
+// bit 0 = grounded
+// bit 1 = kill surface
+// bit 2 = landed
+static constexpr uint32_t g_vehicleEdgeFlags = 0x6;
+
+struct VehicleStep
+{
+	uint32_t collider = 0;
+	double lastTime = 0.0;
+	double phase = 1.0;
+	float from[3] = {};
+	float to[3] = {};
+	float shownPos[3] = {};
+	bool groundHidden = false;
+	uint32_t realFlags = 0;
+};
+
+static std::unordered_map<uint32_t, VehicleStep> g_vehicleSteps;
+static uint32_t g_steppedVehicle = 0;
+
+static bool NeedsFpsRescale(float frames)
+{
+	return frames > 0.0f && std::fabs(frames - 1.0f) >= 0.0001f;
+}
+
+static void CallWithDt(X86Context& ctx, uint8_t* base, X86Func* func, uint32_t vehicle, float dt)
+{
+	X86Context call = ctx;
+	call.ecx.u32 = vehicle;
+	X86_PUSH(call, base, std::bit_cast<uint32_t>(dt));
+	call.esp.u32 -= 4;
+	func(call, base);
+}
+
+// replaces the solver call
+static bool TryStepVehicle(X86Context& ctx, uint8_t* base, uint32_t colliderOffset, X86Func* solver, X86Func* mover, X86Func* afterMove, bool jumped)
+{
+	uint32_t vehicle = ctx.ecx.u32;
+	uint32_t collider = X86_LOAD_U32(vehicle + colliderOffset);
+	float dt = X86_LOAD_F32(ctx.esp.u32 + 4);
+	float frames = dt * 60.0f;
+
+	g_steppedVehicle = 0;
+	if (collider == 0 || !NeedsFpsRescale(frames))
+	{
+		return false;
+	}
+
+	auto& step = g_vehicleSteps[vehicle];
+	float pos[3] = { X86_LOAD_F32(vehicle + 0x4), X86_LOAD_F32(vehicle + 0x8), X86_LOAD_F32(vehicle + 0xC) };
+	float accel[3] = { X86_LOAD_F32(vehicle + 0x28), X86_LOAD_F32(vehicle + 0x2C), X86_LOAD_F32(vehicle + 0x30) };
+
+	// collider can change on mount and touching a rail
+	if (step.collider != collider || App::s_time - step.lastTime > App::s_deltaTime * 1.5)
+	{
+		if (step.collider == collider && step.groundHidden)
+		{
+			X86_STORE_U32(collider + 0x1C, step.realFlags);
+		}
+		step = {};
+		step.collider = collider;
+		for (int i = 0; i < 3; i++)
+		{
+			step.from[i] = step.to[i] = step.shownPos[i] = pos[i];
+		}
+	}
+	step.lastTime = App::s_time;
+
+	// external forces (platforms, bumping etc)
+	for (int i = 0; i < 3; i++)
+	{
+		float moved = pos[i] - step.shownPos[i];
+		step.from[i] += moved;
+		step.to[i] += moved;
+	}
+
+	int steps = 0;
+	uint32_t edges = 0;
+	step.phase += frames;
+	while (step.phase > 1.0001 && steps < g_vehicleMaxSteps)
+	{
+		if (step.groundHidden)
+		{
+			X86_STORE_U32(collider + 0x1C, step.realFlags);
+			step.groundHidden = false;
+		}
+
+		// match exit state
+		for (int i = 0; i < 3; i++)
+		{
+			X86_STORE_F32(vehicle + 0x4 + i * 4, step.to[i]);
+			X86_STORE_F32(vehicle + 0x64 + i * 4, step.to[i]);
+			X86_STORE_F32(vehicle + 0x28 + i * 4, accel[i]);
+		}
+
+		CallWithDt(ctx, base, solver, vehicle, g_vehicleStepDt);
+		CallWithDt(ctx, base, mover, vehicle, g_vehicleStepDt);
+		if (afterMove != nullptr)
+		{
+			CallWithDt(ctx, base, afterMove, vehicle, g_vehicleStepDt);
+		}
+
+		for (int i = 0; i < 3; i++)
+		{
+			step.from[i] = step.to[i];
+			step.to[i] = X86_LOAD_F32(vehicle + 0x4 + i * 4);
+		}
+		edges |= X86_LOAD_U32(collider + 0x1C) & g_vehicleEdgeFlags;
+		step.phase -= 1.0;
+		steps++;
+	}
+	step.phase = std::min(step.phase, 1.0);
+
+	// landing and destroy flags
+	uint32_t flags = (X86_LOAD_U32(collider + 0x1C) & ~g_vehicleEdgeFlags) | edges;
+
+	// hide grounded to prevent jump skip
+	if (steps == 0 && jumped && !step.groundHidden)
+	{
+		step.realFlags = flags;
+		step.groundHidden = true;
+		flags &= ~1u;
+	}
+	X86_STORE_U32(collider + 0x1C, flags);
+
+	for (int i = 0; i < 3; i++)
+	{
+		step.shownPos[i] = step.from[i] + (step.to[i] - step.from[i]) * (float)step.phase;
+		X86_STORE_F32(vehicle + 0x4 + i * 4, step.shownPos[i]);
+	}
+
+	g_steppedVehicle = vehicle;
+	ctx.esp.u32 += 8;
+	return true;
+}
+
+static bool SkipIfStepped(X86Context& ctx)
+{
+	if (ctx.ecx.u32 != g_steppedVehicle)
+	{
+		return false;
+	}
+	ctx.esp.u32 += 8;
+	return true;
+}
+
+// only the turn cap is per frame
+static void RescaleVehicleTurn(uint8_t* base, uint32_t yawAddr, float yawBefore, uint32_t dirAddr, float turn, float cap, float frames)
+{
+	if (X86_LOAD_F32(yawAddr) == yawBefore)
+	{
+		return;
+	}
+
+	// match the original turn code
+	float delta = WrapAngle(std::atan2(-X86_LOAD_F32(dirAddr), -X86_LOAD_F32(dirAddr + 8)) - yawBefore);
+	float t = std::min(turn / std::fabs(delta), 1.0f - std::pow(1.0f - cap, frames));
+	X86_STORE_F32(yawAddr, WrapAngle(yawBefore + delta * t));
+}
+/**	--Vehicle shared fixed step END-- */
+
 /**	--Vehicle::AirSaucer Patch START-- */
-// Air Saucer (and affects Walker/WalkerCannon)
-// Mostly deltatime safe by default but has a bunch of per-frame ops
-//
-// Idle velocity damp @ sub_24C190
-// Grip lag & rider anchor chase @ sub_24BEC0
+// Air Saucer
+// Solver @ sub_24B6F0
+// Mover @ sub_24B5F0
+// Idle damp @ sub_24C190
+// Grip & lean anchor @ sub_24BEC0
 // Heading turn @ sub_24C600
-//
-// Mover measurement scaling per frame suppression @ sub_24B5F0
-// Collision advance @ sub_327840 (scoped for sub_24B6F0)
-// Sweep slide gate / resting pad @ sub_24F900 (same idea as the fix for CarType)
-// Mover frame tick @ sub_24D590
+// Tilt slerps @ sub_24B880 / sub_24BA90
+static const uint32_t g_saucerGripMax = 0x471B4C;       // 0.96875f
+static const uint32_t g_saucerGripPerSpeed = 0x42A85C;  // 0.01f
+static const uint32_t g_saucerSteerDeadzone = 0x471AA8; // 0.0001f
+static const uint32_t g_saucerGripStep = 0x46B380;      // 0.1f
+static const uint32_t g_saucerTurnSpeed = 0x471B10;     // 250
+static const uint32_t g_saucerLeanRate = 0x448E48;      // 15.0f
+static const uint32_t g_saucerAlignRate = 0x46BF18;     // 7.5f
+static const uint32_t g_saucerAnchorHeight = 0x471B3C;  // 5.0f
+static const uint32_t g_saucerAnchorSlack = 0x471B54;   // 2.0f
+
+// Mover
+X86_FUNC_IMPL(__imp__sub_24B5F0);
+X86_FUNC(sub_24B5F0)
+{
+	if (!SkipIfStepped(ctx))
+	{
+		__imp__sub_24B5F0(ctx, base);
+	}
+}
 
 // Idle damp
 X86_FUNC_IMPL(__imp__sub_24C190);
 X86_FUNC(sub_24C190)
 {
-	const uint32_t self = ctx.ecx.u32;
-	const float velX = X86_LOAD_F32(self + 0x1C);
-	const float velY = X86_LOAD_F32(self + 0x20);
-	const float velZ = X86_LOAD_F32(self + 0x24);
-
-	__imp__sub_24C190(ctx, base);
-
-	const float frames = X86_LOAD_F32(g_deltaTime) * 60.0f;
-	if (!(frames > 0.0f) || std::fabs(frames - 1.0f) < 0.0001f)
+	if (!SkipIfStepped(ctx))
 	{
-		return;
-	}
-	if (X86_LOAD_F32(self + 0x1C) == velX && X86_LOAD_F32(self + 0x20) == velY && X86_LOAD_F32(self + 0x24) == velZ)
-	{
-		return;
-	}
-
-	// Idle damp per frame while grounded
-	const float dampIdle = std::pow(0.7f, frames - 1.0f);
-	X86_STORE_F32(self + 0x1C, X86_LOAD_F32(self + 0x1C) * dampIdle);
-	X86_STORE_F32(self + 0x20, X86_LOAD_F32(self + 0x20) * dampIdle);
-	X86_STORE_F32(self + 0x24, X86_LOAD_F32(self + 0x24) * dampIdle);
-}
-
-// Per-frame
-// Lag 0x148
-// Grip factor 0x154
-// Carry the grip lag over the frame, then redo the anchor chase as if 60fps
-X86_FUNC_IMPL(__imp__sub_24BEC0);
-X86_FUNC(sub_24BEC0)
-{
-	constexpr uint32_t gripStepAddr = 0x46B380; // 0.1 (per frame)
-	constexpr uint32_t gripMaxAddr = 0x471B4C; // 0.96875
-	const uint32_t self = ctx.ecx.u32;
-	const float gripBefore = X86_LOAD_F32(self + 0x154);
-
-	__imp__sub_24BEC0(ctx, base);
-
-	const float frames = X86_LOAD_F32(g_deltaTime) * 60.0f;
-	if (!(frames > 0.0f) || std::fabs(frames - 1.0f) < 0.0001f)
-	{
-		return;
-	}
-
-	const float gripAfter = X86_LOAD_F32(self + 0x154);
-	const float grip = ScaleFirstOrderLag(gripBefore, gripAfter, 1.0f - X86_LOAD_F32(gripStepAddr), frames);
-	const float gripMax = X86_LOAD_F32(gripMaxAddr);
-	const float gripClamped = std::min(std::max(grip, 0.0f), gripMax);
-	X86_STORE_F32(self + 0x154, gripClamped);
-
-	// get pre-chase then apply as if 60
-	const float appliedFrac = std::min(frames * (1.0f - gripAfter), 1.0f);
-	const float anchorAfter[3] =
-	{
-		X86_LOAD_F32(self + 0x148),
-		X86_LOAD_F32(self + 0x14C),
-		X86_LOAD_F32(self + 0x150)
-	};
-
-	if (appliedFrac < 0.9999f)
-	{
-		const float target[3] =
-		{
-			X86_LOAD_F32(self + 4) + X86_LOAD_F32(self + 0x1C) * (1.0f / 128.0f),
-			X86_LOAD_F32(self + 8) + 5.0f + X86_LOAD_F32(self + 0x20) * (1.0f / 128.0f),
-			X86_LOAD_F32(self + 0xC) + X86_LOAD_F32(self + 0x24) * (1.0f / 128.0f)
-		};
-
-		const float remainFrac = 1.0f - appliedFrac;
-		if (remainFrac > 0.0001f) // avoid a snap
-		{
-			const float idealFrac = 1.0f / (1.0f + gripClamped / (frames * (1.0f - gripClamped)));
-
-			for (uint32_t i = 0; i < 3; i++)
-			{
-				const float anchorBefore = (anchorAfter[i] - appliedFrac * target[i]) / remainFrac;
-				X86_STORE_F32(self + 0x148 + i * 4, anchorBefore + (target[i] - anchorBefore) * idealFrac);
-			}
-
-			// shift by 2 in either direction
-			const float gapY = X86_LOAD_F32(self + 8) + 5.0f + X86_LOAD_F32(self + 0x20) * (1.0f / 128.0f) - X86_LOAD_F32(self + 0x14C);
-			X86_STORE_F32(self + 0x14C, X86_LOAD_F32(self + 0x14C) + gapY - std::min(2.0f, std::max(-2.0f, gapY)));
-		}
+		__imp__sub_24C190(ctx, base);
 	}
 }
 
-static uint32_t g_moverTick = 0;
-
-// Turn tilt snap fix
-X86_FUNC_IMPL(__imp__sub_24C600);
-X86_FUNC(sub_24C600)
-{
-	const uint32_t self = ctx.ecx.u32;
-	const float dt = X86_LOAD_F32(ctx.esp.u32 + 4);
-	const float frames = X86_LOAD_F32(g_deltaTime) * 60.0f;
-	const float yawBefore = X86_LOAD_F32(self + 0x11C);
-	const float grip = X86_LOAD_F32(self + 0x154);
-	const float rotSpeed = X86_LOAD_F32(0x471B10);
-	const float linearMax = (1.0f - grip) * dt * (rotSpeed * 0.017453294f);
-
-	__imp__sub_24C600(ctx, base);
-
-	if (frames >= 0.99f)
-	{
-		return;
-	}
-
-	const float yawAfter = X86_LOAD_F32(self + 0x11C);
-	float step = yawAfter - yawBefore;
-	if (step > 3.14159265f)
-	{
-		step -= 6.28318531f;
-	}
-	else if (step < -3.14159265f)
-	{
-		step += 6.28318531f;
-	}
-	if (step == 0.0f)
-	{
-		return;
-	}
-	if (std::fabs(step) >= linearMax * 0.999f) // already dt aligned
-	{
-		return;
-	}
-	X86_STORE_F32(self + 0x11C, yawBefore + step * frames);
-}
-
-// Fix flat grounded inconsistencies at high fps
-X86_FUNC_IMPL(__imp__sub_24B5F0);
-X86_FUNC(sub_24B5F0)
-{
-	static uint32_t s_moverLastFrame = 0xFFFFFFFF;
-	static uint32_t s_moverLastSelf = 0;
-	static float s_moverKeptVel[3] = { 0, 0, 0 };
-	const uint32_t self = ctx.ecx.u32;
-	const float velBefore[3] =
-	{
-		X86_LOAD_F32(self + 0x1C),
-		X86_LOAD_F32(self + 0x20),
-		X86_LOAD_F32(self + 0x24)
-	};
-
-	const float velDeltaSq = (velBefore[0] - s_moverKeptVel[0]) * (velBefore[0] - s_moverKeptVel[0])
-		+ (velBefore[1] - s_moverKeptVel[1]) * (velBefore[1] - s_moverKeptVel[1])
-		+ (velBefore[2] - s_moverKeptVel[2]) * (velBefore[2] - s_moverKeptVel[2]);
-	const bool keptVelStale = !(self == s_moverLastSelf && s_moverLastFrame == g_moverTick) || velDeltaSq > 100.0f; // determine when to accept new
-
-	__imp__sub_24B5F0(ctx, base);
-
-	if (keptVelStale)
-	{
-		// scale to 60 FPS
-		s_moverLastSelf = self;
-		s_moverLastFrame = g_moverTick;
-		const float frames = X86_LOAD_F32(g_deltaTime) * 60.0f;
-
-		if (frames < 0.99f)
-		{
-			// determine if we can skip friction (already works properly with delta)
-			const float hSpeedBefore = std::sqrt(velBefore[0] * velBefore[0] + velBefore[2] * velBefore[2]);
-			const float velLen = std::sqrt(velBefore[0] * velBefore[0] + velBefore[1] * velBefore[1] + velBefore[2] * velBefore[2]);
-			const float velDelta[3] =
-			{
-				X86_LOAD_F32(self + 0x1C) - velBefore[0],
-				X86_LOAD_F32(self + 0x20) - velBefore[1],
-				X86_LOAD_F32(self + 0x24) - velBefore[2]
-			};
-			const bool frictionLike = velLen > 20.0f
-			&& std::sqrt(velDelta[0] * velDelta[0] + velDelta[1] * velDelta[1] + velDelta[2] * velDelta[2]) < 0.15f * velLen
-			&& (velDelta[0] * velBefore[0] + velDelta[1] * velBefore[1] + velDelta[2] * velBefore[2]) < 0.0f;
-
-			for (int i = 0; i < 3; i++)
-			{
-				const uint32_t velAddr = self + 0x1C + i * 4;
-				const float delta = X86_LOAD_F32(velAddr) - velBefore[i];
-				float scale = frames;
-
-				if (frictionLike)
-				{
-					scale = 1.0f; // wall hit
-				}
-				else if (i != 1 && hSpeedBefore > 1.0f && std::fabs(delta) > 0.5f * hSpeedBefore)
-				{
-					scale = 1.0f; // horizontal bounce
-				}
-				X86_STORE_F32(velAddr, velBefore[i] + delta * scale);
-			}
-		}
-		s_moverKeptVel[0] = X86_LOAD_F32(self + 0x1C);
-		s_moverKeptVel[1] = X86_LOAD_F32(self + 0x20);
-		s_moverKeptVel[2] = X86_LOAD_F32(self + 0x24);
-	}
-	else
-	{
-		// discard and use prior data
-		X86_STORE_F32(self + 0x1C, s_moverKeptVel[0]);
-		X86_STORE_F32(self + 0x20, s_moverKeptVel[1]);
-		X86_STORE_F32(self + 0x24, s_moverKeptVel[2]);
-	}
-}
-
-// Main collision (generic integrator)
-// Function is v' = v*e^(-k*dt) + a/k*(1-e^(-k*dt)
-// TODO: Probably will need to extend this for other collision patches
-// 0x4 posPtr
-// 0x8 velPtr
-// 0xC accPtr
-// 0x10 k
-// 0x14 dt
-static int g_inSaucerCollision = 0;
-X86_FUNC_IMPL(__imp__sub_327840);
-X86_FUNC(sub_327840)
-{
-	const uint32_t args = ctx.esp.u32 + 4;
-	const uint32_t posPtr = X86_LOAD_U32(args);
-	const uint32_t velPtr = X86_LOAD_U32(args + 4);
-	const float k = X86_LOAD_F32(args + 0x10);
-	const float dt = X86_LOAD_F32(args + 0x14);
-	const float velBefore[3] =
-	{
-		X86_LOAD_F32(velPtr),
-		X86_LOAD_F32(velPtr + 4),
-		X86_LOAD_F32(velPtr + 8)
-	};
-	const float posBefore[3] =
-	{
-		X86_LOAD_F32(posPtr),
-		X86_LOAD_F32(posPtr + 4),
-		X86_LOAD_F32(posPtr + 8)
-	};
-	const float frames = dt * 60.0f;
-	const bool airSaucerHighFPSDetected = g_inSaucerCollision > 0 && k > 0.0f && dt > 0.0f && frames < 0.99f && frames > 0.01f;
-
-	__imp__sub_327840(ctx, base);
-
-	// fix Air Saucer slow crawling
-	if (airSaucerHighFPSDetected)
-	{
-		for (uint32_t i = 0; i < 3; i++)
-		{
-			const float velAfter = X86_LOAD_F32(velPtr + i * 4);
-			const float posAfter = X86_LOAD_F32(posPtr + i * 4);
-			const float velStep = velBefore[i] * dt;
-			float shrink = 1.0f;
-			if (std::fabs(velStep) > 1e-9f)
-			{
-				shrink = (posAfter - posBefore[i]) / velStep;
-				if (!(shrink > 0.0f) || shrink > 1.0f)
-				{
-					shrink = 1.0f;
-				}
-			}
-			const float shrinkFinal = shrink >= 0.95f ? std::pow(shrink, frames) : shrink;
-			X86_STORE_F32(posPtr + i * 4, posBefore[i] + velAfter * dt * shrinkFinal);
-		}
-	}
-}
-
-// Shared collide & slide, used by AirSaucer, Walker, WalkerCannon (aka GUN Jump Mechs)
-// Modify before call to sub_24E780
-X86_FUNC_IMPL(__imp__sub_24F900);
-X86_FUNC(sub_24F900)
-{
-	const float dt = X86_LOAD_F32(g_deltaTime);
-	float frames = dt * 60.0f;
-	if (!(frames > 0.0f))
-	{
-		frames = 1.0f;
-	}
-	frames = std::min(frames, 1.0f);
-	frames = std::max(frames, 0.05f);
-
-	constexpr uint32_t slideGateAddr = 0x42A18C;
-	constexpr float slideGateAt60 = 0.001f;
-	constexpr uint32_t saucerPadAddr = 0x51D3F4;
-	constexpr float saucerPadAt60 = 0.02f;
-	const uint32_t self = ctx.ecx.u32;
-	const uint32_t posAddr = X86_LOAD_U32(ctx.esp.u32 + 4);
-	const uint32_t dispAddr = X86_LOAD_U32(ctx.esp.u32 + 8);
-
-	// struct to track and re-attach to ground (higher fps = more precise collision = drops the pin = GG, fall through)
-	// this does cause a tiny bit of drift but that is a result of the collision step
-	static struct SaucerChase
-	{
-		uint32_t self;
-		uint32_t pinned;
-		float sink;
-		float kick;
-		float ride;
-		float slack;
-		float airTime;
-		uint32_t lastTick;
-
-		void reset()
-		{
-			pinned = 0;
-			sink = 0.0f;
-			kick = 0.0f;
-			ride = 0.0f;
-			slack = 0.0f;
-		}
-	} s_chase[16];
-	static int s_chaseCount = 0;
-
-	int slot = -1;
-	if (frames < 0.9999f)
-	{
-		for (int i = 0; i < s_chaseCount; i++)
-		{
-			if (s_chase[i].self == self)
-			{
-				slot = i;
-				break;
-			}
-		}
-		if (slot < 0 && s_chaseCount < 16)
-		{
-			slot = s_chaseCount++;
-			s_chase[slot].self = self;
-			s_chase[slot].reset();
-			s_chase[slot].airTime = 0.0f;
-			s_chase[slot].lastTick = 0;
-		}
-	}
-
-	if (slot >= 0)
-	{
-		const bool grounded = (X86_LOAD_U32(self + 0x1C) & 1u) != 0;
-		if (grounded)
-		{
-			s_chase[slot].airTime = 0.0f;
-		}
-		else if (s_chase[slot].lastTick != g_moverTick)
-		{
-			s_chase[slot].airTime += dt;
-		}
-		s_chase[slot].lastTick = g_moverTick;
-
-		// Double jump fix
-		if (!grounded && s_chase[slot].airTime <= dt * 1.5f)
-		{
-			const float reqX = X86_LOAD_F32(dispAddr), reqZ = X86_LOAD_F32(dispAddr + 8);
-			const uint32_t saucer = posAddr - 4;
-			const float velX = X86_LOAD_F32(saucer + 0x1C);
-			const float velZ = X86_LOAD_F32(saucer + 0x24);
-
-			if (std::fabs(reqX) + std::fabs(reqZ) < 0.005f && std::fabs(velX) + std::fabs(velZ) > 15.0f)
-			{
-				X86_STORE_F32(dispAddr, velX * dt);
-				X86_STORE_F32(dispAddr + 8, velZ * dt);
-			}
-		}
-	}
-
-	const float reqY = X86_LOAD_F32(dispAddr + 4);
-	const float posYBefore = X86_LOAD_F32(posAddr + 4);
-	bool chased = false;
-	float chaseExtY = 0.0f;
-	if (slot >= 0 && s_chase[slot].pinned != 0 && reqY < 0.0f)
-	{
-		// extended cast down to handle more precise coli
-		float extY;
-
-		if (s_chase[slot].kick > 0.001f)
-		{
-			extY = -(s_chase[slot].kick + 0.045f + 2.0f * s_chase[slot].sink);
-		}
-		else
-		{
-			extY = -frames * std::min(0.5f * 1301.0f / 3600.0f, 0.02f + 2.0f * s_chase[slot].sink + 0.025f);
-		}
-
-		// slow speed
-		const float dispXZ = std::sqrt(X86_LOAD_F32(dispAddr) * X86_LOAD_F32(dispAddr) + X86_LOAD_F32(dispAddr + 8) * X86_LOAD_F32(dispAddr + 8));
-		if (dt > 0.0f && dispXZ / dt < 250.0f)
-		{
-			const float pinStep = frames * 0.5f * 1301.0f / 3600.0f;
-			extY = std::min(extY, -pinStep);
-		}
-
-		if (reqY > extY)
-		{
-			chased = true;
-			chaseExtY = extY;
-			X86_STORE_F32(dispAddr + 4, extY);
-		}
-	}
-
-	const float restoreGate = X86_LOAD_F32(slideGateAddr);
-	const float restorePad = X86_LOAD_F32(saucerPadAddr);
-
-	X86_STORE_F32(slideGateAddr, slideGateAt60 * frames * frames * frames * frames);
-	X86_STORE_F32(saucerPadAddr, saucerPadAt60 * frames * frames);
-
-	__imp__sub_24F900(ctx, base);
-
-	X86_STORE_F32(slideGateAddr, restoreGate);
-	X86_STORE_F32(saucerPadAddr, restorePad);
-
-	const float appliedY = X86_LOAD_F32(posAddr + 4) - posYBefore;
-	if (chased && appliedY <= chaseExtY + 0.003f)
-	{
-		// handle no floor bug (collision miss, and jump being consumed bug)
-		const float naturalDrop = -reqY;
-		const float riding = s_chase[slot].ride;
-		const float drop = riding > naturalDrop ? riding : naturalDrop;
-
-		if (riding > 0.008f && s_chase[slot].slack > 0.0f)
-		{
-			s_chase[slot].slack -= drop;
-
-			X86_STORE_F32(posAddr + 4, posYBefore - drop);
-			X86_STORE_F32(dispAddr + 4, -drop);
-
-			// force grounded state
-			X86_STORE_U32(self + 0x1C, X86_LOAD_U32(self + 0x1C) | 1u);
-		}
-		else
-		{
-			X86_STORE_F32(posAddr + 4, posYBefore + reqY);
-			X86_STORE_F32(dispAddr + 4, reqY);
-		}
-	}
-
-	if (slot >= 0)
-	{
-		if (reqY > 0.000001f)
-		{
-			s_chase[slot].reset();
-		}
-		else
-		{
-			if ((X86_LOAD_U32(self + 0x1C) & 1) != 0)
-			{
-				s_chase[slot].sink = 0.0f;
-			}
-
-			if (reqY < -0.000001f)
-			{
-				// ride the floor at the rate it recedes with decay
-				s_chase[slot].ride = std::max(-reqY, s_chase[slot].ride * 0.85f);
-
-				if (appliedY > (chased ? chaseExtY : reqY) + 0.000001f)
-				{
-					// prevent sticking
-					s_chase[slot].pinned = 1;
-					s_chase[slot].sink = 0.0f;
-					s_chase[slot].kick = appliedY > 0.01f ? appliedY : 0.0f;
-					s_chase[slot].slack = 0.5f;
-				}
-				else
-				{
-					if (chased && s_chase[slot].slack > 0.0f)
-					{
-						s_chase[slot].sink = 0.0f;
-					}
-					else
-					{
-						s_chase[slot].sink += -reqY;
-					}
-
-					// ignore pin if sink is way off
-					if (s_chase[slot].sink > 0.05f + s_chase[slot].kick)
-					{
-						s_chase[slot].reset();
-					}
-				}
-			}
-		}
-	}
-}
-
-
+// Solver
 X86_FUNC_IMPL(__imp__sub_24B6F0);
 X86_FUNC(sub_24B6F0)
 {
-	++g_inSaucerCollision;
-	__imp__sub_24B6F0(ctx, base);
-	--g_inSaucerCollision;
+	uint32_t saucer = ctx.ecx.u32;
+	uint32_t state = X86_LOAD_U32(saucer + 0x17C);
+	bool grounded = (X86_LOAD_U32(X86_LOAD_U32(saucer + 0x9C) + 0x1C) & 1) != 0;
+
+	// states
+	// 0 = no one on saucer (both enemy and player)
+	// 3 and 4 = jump related
+	X86Func* idleDamp = state == 0 ? __imp__sub_24C190 : nullptr;
+	if (!TryStepVehicle(ctx, base, 0x9C, __imp__sub_24B6F0, __imp__sub_24B5F0, idleDamp, grounded && (state == 3 || state == 4)))
+	{
+		__imp__sub_24B6F0(ctx, base);
+	}
 }
 
-X86_FUNC_IMPL(__imp__sub_24D590);
-X86_FUNC(sub_24D590)
+// Grip & lean anchor
+// grip and anchor lag are per frame
+X86_FUNC_IMPL(__imp__sub_24BEC0);
+X86_FUNC(sub_24BEC0)
 {
-	++g_moverTick;
-	__imp__sub_24D590(ctx, base);
+	uint32_t saucer = ctx.ecx.u32;
+	float dt = X86_LOAD_F32(ctx.esp.u32 + 4);
+	float frames = dt * 60.0f;
+	if (!NeedsFpsRescale(frames))
+	{
+		__imp__sub_24BEC0(ctx, base);
+		return;
+	}
+
+	float vel[3] = { X86_LOAD_F32(saucer + 0x1C), X86_LOAD_F32(saucer + 0x20), X86_LOAD_F32(saucer + 0x24) };
+	float stick[3] = { X86_LOAD_F32(saucer + 0x10C), X86_LOAD_F32(saucer + 0x110), X86_LOAD_F32(saucer + 0x114) };
+	float gripMax = X86_LOAD_F32(g_saucerGripMax);
+	float speed = std::sqrt(vel[0] * vel[0] + vel[1] * vel[1] + vel[2] * vel[2]);
+	float target = (1.0f - speed * X86_LOAD_F32(g_saucerGripPerSpeed)) * gripMax;
+	float grip = X86_LOAD_F32(saucer + 0x154);
+
+	// grip only drops while steering
+	if (stick[0] * stick[0] + stick[1] * stick[1] + stick[2] * stick[2] >= X86_LOAD_F32(g_saucerSteerDeadzone))
+	{
+		target = std::min(target, grip);
+	}
+	grip = target + (grip - target) * std::pow(1.0f - X86_LOAD_F32(g_saucerGripStep), frames);
+	grip = std::min(std::max(grip, 0.0f), gripMax);
+	X86_STORE_F32(saucer + 0x154, grip);
+
+	// copy sub_23E930
+	uint32_t colliMove = X86_LOAD_U32(saucer + 0x7C);
+	uint32_t floorVel = colliMove != 0 ? X86_LOAD_U32(colliMove + 0x28) + 0x98 : 0x5601C4;
+	float chase = 1.0f - std::pow(grip, frames);
+	float slack = X86_LOAD_F32(g_saucerAnchorSlack);
+
+	for (int i = 0; i < 3; i++)
+	{
+		float goal = X86_LOAD_F32(saucer + 0x4 + i * 4) + (i == 1 ? X86_LOAD_F32(g_saucerAnchorHeight) : 0.0f) + vel[i] / 128.0f;
+		float anchor = X86_LOAD_F32(saucer + 0x148 + i * 4) + X86_LOAD_F32(floorVel + i * 4) * dt;
+		anchor += (goal - anchor) * chase;
+
+		// clamp height gap
+		if (i == 1)
+		{
+			float gap = goal - anchor;
+			anchor += gap - std::min(std::max(gap, -slack), slack);
+		}
+		X86_STORE_F32(saucer + 0x148 + i * 4, anchor);
+	}
+	ctx.esp.u32 += 8;
+}
+
+// Heading turn
+X86_FUNC_IMPL(__imp__sub_24C600);
+X86_FUNC(sub_24C600)
+{
+	uint32_t saucer = ctx.ecx.u32;
+	float dt = X86_LOAD_F32(ctx.esp.u32 + 4);
+	uint32_t dirAddr = X86_LOAD_U32(ctx.esp.u32 + 8);
+	float yawBefore = X86_LOAD_F32(saucer + 0x11C);
+
+	__imp__sub_24C600(ctx, base);
+
+	float frames = dt * 60.0f;
+	if (NeedsFpsRescale(frames))
+	{
+		float turn = (1.0f - X86_LOAD_F32(saucer + 0x154)) * dt * X86_LOAD_F32(g_saucerTurnSpeed) * 0.017453294f;
+		RescaleVehicleTurn(base, saucer + 0x11C, yawBefore, dirAddr, turn, X86_LOAD_F32(g_saucerGripStep), frames);
+	}
+}
+
+// helper to swap dt for the 60 fps step
+static void Set60FPSSlerpDt(X86Context& ctx, uint8_t* base, uint32_t rateAddr)
+{
+	uint32_t dtAddr = ctx.esp.u32 + 4;
+	float frames = X86_LOAD_F32(dtAddr) * 60.0f;
+	float rate = X86_LOAD_F32(rateAddr);
+	if (NeedsFpsRescale(frames) && rate > 0.0f)
+	{
+		float step = std::min(rate / 60.0f, 1.0f);
+		X86_STORE_F32(dtAddr, (1.0f - std::pow(1.0f - step, frames)) / rate);
+	}
+}
+
+// Lean toward the anchor
+X86_FUNC_IMPL(__imp__sub_24B880);
+X86_FUNC(sub_24B880)
+{
+	Set60FPSSlerpDt(ctx, base, g_saucerLeanRate);
+	__imp__sub_24B880(ctx, base);
+}
+
+// Align to the floor
+X86_FUNC_IMPL(__imp__sub_24BA90);
+X86_FUNC(sub_24BA90)
+{
+	Set60FPSSlerpDt(ctx, base, g_saucerAlignRate);
+	__imp__sub_24BA90(ctx, base);
 }
 /**	--Vehicle::AirSaucer Patch END-- */
+
+/**	--Vehicle::Walker Patch START-- */
+// Walker / WalkerCannon (GUN Jump Mechs), same class
+// Solver @ sub_2549F0
+// Mover @ sub_2546B0
+// Heading turn @ sub_255780
+static const uint32_t g_walkerTurnSpeed = 0x4721F8; // 125
+static const uint32_t g_walkerTurnCap = 0x46C3B8; // 0.5f
+
+// Mover
+X86_FUNC_IMPL(__imp__sub_2546B0);
+X86_FUNC(sub_2546B0)
+{
+	if (!SkipIfStepped(ctx))
+	{
+		__imp__sub_2546B0(ctx, base);
+	}
+}
+
+// Solver
+X86_FUNC_IMPL(__imp__sub_2549F0);
+X86_FUNC(sub_2549F0)
+{
+	// jump already clears grounded (sub_24E4D0)
+	if (!TryStepVehicle(ctx, base, 0xA8, __imp__sub_2549F0, __imp__sub_2546B0, nullptr, false))
+	{
+		__imp__sub_2549F0(ctx, base);
+	}
+}
+
+// Heading turn
+// also steers the ground drive
+X86_FUNC_IMPL(__imp__sub_255780);
+X86_FUNC(sub_255780)
+{
+	uint32_t walker = ctx.ecx.u32;
+	float dt = X86_LOAD_F32(ctx.esp.u32 + 4);
+	float yawBefore = X86_LOAD_F32(walker + 0x14);
+
+	__imp__sub_255780(ctx, base);
+
+	float frames = dt * 60.0f;
+	if (NeedsFpsRescale(frames))
+	{
+		float turn = dt * X86_LOAD_F32(g_walkerTurnSpeed) * 0.017453294f;
+		RescaleVehicleTurn(base, walker + 0x14, yawBefore, walker + 0xF8, turn, X86_LOAD_F32(g_walkerTurnCap), frames);
+	}
+}
+/**	--Vehicle::Walker Patch END-- */
 
 /**	--Vehicle::TVehicleCar Patch START-- */
 // TVehicleCar / CarType vehicles.
@@ -2315,19 +2187,6 @@ X86_FUNC(sub_2CA020)
 /**	--UV Anim Baked Flipbook Patch END-- */
 
 /** --EnemyBase Rotation Patch START-- */
-static float EnemyTurnWrapAngle(float angle)
-{
-	if (angle > 3.14159265f)
-	{
-		angle -= 6.28318531f;
-	}
-	else if (angle < -3.14159265f)
-	{
-		angle += 6.28318531f;
-	}
-	return angle;
-}
-
 // EnemyBase Rotation To Target / Shared_RotateToPlayerCalc
 // Enemy Yaw = (enemy+0x30)->0x14
 // Target Yaw = (enemy+0x88)
@@ -2353,23 +2212,23 @@ X86_FUNC(sub_C23B0)
 		return;
 	}
 
-	const float step = EnemyTurnWrapAngle(X86_LOAD_F32(enemyModel + 0x14) - yawBefore);
+	const float step = WrapAngle(X86_LOAD_F32(enemyModel + 0x14) - yawBefore);
 	if (step == 0.0f)
 	{
 		return;
 	}
 
-	const float remaining = EnemyTurnWrapAngle(target - yawBefore);
+	const float remaining = WrapAngle(target - yawBefore);
 	float scaled = step * frames;
 	if (std::fabs(scaled) > std::fabs(remaining))
 	{
 		scaled = remaining;
 	}
 
-	const float yawAfter = EnemyTurnWrapAngle(yawBefore + scaled);
+	const float yawAfter = WrapAngle(yawBefore + scaled);
 	X86_STORE_F32(enemyModel + 0x14, yawAfter);
 	// Face target check (same constant)
-	ctx.eax.u8_lo = std::fabs(EnemyTurnWrapAngle(target - yawAfter)) < 0.017453294f ? 1 : 0;
+	ctx.eax.u8_lo = std::fabs(WrapAngle(target - yawAfter)) < 0.017453294f ? 1 : 0;
 }
 /** --EnemyBase Rotation Patch END-- */
 
