@@ -414,10 +414,10 @@ CONFIG_DEFINE_LOCALE(MuteOnFocusLost)
 
 CONFIG_DEFINE_LOCALE(IdleChaosPowersMusic)
 {
-    { ELanguage::English, { "Idle Chaos Powers Music", "The music that plays while Hero or Dark gauge is full." } },
+    { ELanguage::English, { "Enable Idle Chaos Powers Music", "Enable the music that plays while Hero or Dark gauge is full." } },
     { ELanguage::Japanese, { "TODO", "TODO" } },
     { ELanguage::German,   { "TODO", "TODO" } },
-    { ELanguage::French,   { "TODO", "TODO" } },
+    { ELanguage::French,   { "Active la musique Chaos Powers passifs", "Active la musique qui joue lorsque la jauge Hero ou Dark est pleine." } },
     { ELanguage::Spanish,  { "TODO", "TODO" } },
     { ELanguage::Italian,  { "TODO", "TODO" } }
 };
@@ -427,7 +427,7 @@ CONFIG_DEFINE_LOCALE(ChaosPowerLEDSync)
     { ELanguage::English, { "Chaos Power LED Sync", "Sync the controller's LED color with the active Chaos Power." } },
     { ELanguage::Japanese, { "TODO", "TODO" } },
     { ELanguage::German,   { "TODO", "TODO" } },
-    { ELanguage::French,   { "TODO", "TODO" } },
+    { ELanguage::French,   { "Chaos Power LED Sync", "Synchronise la couleur des LED de la manette avec le Chaos Power actif." } },
     { ELanguage::Spanish,  { "TODO", "TODO" } },
     { ELanguage::Italian,  { "TODO", "TODO" } }
 };
