@@ -4,7 +4,7 @@
 #include <kernel/heap.h>
 #include "renderstate.h"
 #include <algorithm>
-#include <DirectXMath.h>
+#include <cmath>
 #include "FixedFunction.h"
 #include "ubershaders/fixed_function_vertex_shader_variants.h"
 #include <kernel/function.h>
@@ -15,12 +15,112 @@
 // Those will be used as constants for our uber vertex shader which is emulating the fixed function pipeline
 // for more information, see FixedFunctionVertexShader.hlsl and FixedFunctionPixelShader.hlsl
 
-using namespace DirectX;
 
 // Combines world/view matrices
 static std::array<D3DMATRIX, 4> g_WorldView;
 // World/view inverse transpose for lighting calculations
 static std::array<D3DMATRIX, 4> g_WorldViewInverseTranspose;
+
+// Small row major matrix helpers, we mimic D3D behavior to replace the DirectXMath library used previously.
+static D3DMATRIX MatrixMultiply(const D3DMATRIX& a, const D3DMATRIX& b)
+{
+	D3DMATRIX r;
+
+	for (int i = 0; i < 4; i++)
+	{
+		for (int j = 0; j < 4; j++)
+			r.m[i][j] = (a.m[i][0] * b.m[0][j] + a.m[i][2] * b.m[2][j]) + (a.m[i][1] * b.m[1][j] + a.m[i][3] * b.m[3][j]);
+	}
+
+	return r;
+}
+
+// same as above
+static D3DMATRIX MatrixTranspose(const D3DMATRIX& a)
+{
+	D3DMATRIX r;
+	for (int i = 0; i < 4; i++)
+	{
+		for (int j = 0; j < 4; j++)
+			r.m[i][j] = a.m[j][i];
+	}
+
+	return r;
+}
+
+static D3DMATRIX MatrixInverse(const D3DMATRIX& a)
+{
+	const float* m = &a.m[0][0];
+	float inv[16];
+
+	inv[0] = m[5] * m[10] * m[15] - m[5] * m[11] * m[14] - m[9] * m[6] * m[15] + m[9] * m[7] * m[14] + m[13] * m[6] * m[11] - m[13] * m[7] * m[10];
+	inv[4] = -m[4] * m[10] * m[15] + m[4] * m[11] * m[14] + m[8] * m[6] * m[15] - m[8] * m[7] * m[14] - m[12] * m[6] * m[11] + m[12] * m[7] * m[10];
+	inv[8] = m[4] * m[9] * m[15] - m[4] * m[11] * m[13] - m[8] * m[5] * m[15] + m[8] * m[7] * m[13] + m[12] * m[5] * m[11] - m[12] * m[7] * m[9];
+	inv[12] = -m[4] * m[9] * m[14] + m[4] * m[10] * m[13] + m[8] * m[5] * m[14] - m[8] * m[6] * m[13] - m[12] * m[5] * m[10] + m[12] * m[6] * m[9];
+	inv[1] = -m[1] * m[10] * m[15] + m[1] * m[11] * m[14] + m[9] * m[2] * m[15] - m[9] * m[3] * m[14] - m[13] * m[2] * m[11] + m[13] * m[3] * m[10];
+	inv[5] = m[0] * m[10] * m[15] - m[0] * m[11] * m[14] - m[8] * m[2] * m[15] + m[8] * m[3] * m[14] + m[12] * m[2] * m[11] - m[12] * m[3] * m[10];
+	inv[9] = -m[0] * m[9] * m[15] + m[0] * m[11] * m[13] + m[8] * m[1] * m[15] - m[8] * m[3] * m[13] - m[12] * m[1] * m[11] + m[12] * m[3] * m[9];
+	inv[13] = m[0] * m[9] * m[14] - m[0] * m[10] * m[13] - m[8] * m[1] * m[14] + m[8] * m[2] * m[13] + m[12] * m[1] * m[10] - m[12] * m[2] * m[9];
+	inv[2] = m[1] * m[6] * m[15] - m[1] * m[7] * m[14] - m[5] * m[2] * m[15] + m[5] * m[3] * m[14] + m[13] * m[2] * m[7] - m[13] * m[3] * m[6];
+	inv[6] = -m[0] * m[6] * m[15] + m[0] * m[7] * m[14] + m[4] * m[2] * m[15] - m[4] * m[3] * m[14] - m[12] * m[2] * m[7] + m[12] * m[3] * m[6];
+	inv[10] = m[0] * m[5] * m[15] - m[0] * m[7] * m[13] - m[4] * m[1] * m[15] + m[4] * m[3] * m[13] + m[12] * m[1] * m[7] - m[12] * m[3] * m[5];
+	inv[14] = -m[0] * m[5] * m[14] + m[0] * m[6] * m[13] + m[4] * m[1] * m[14] - m[4] * m[2] * m[13] - m[12] * m[1] * m[6] + m[12] * m[2] * m[5];
+	inv[3] = -m[1] * m[6] * m[11] + m[1] * m[7] * m[10] + m[5] * m[2] * m[11] - m[5] * m[3] * m[10] - m[9] * m[2] * m[7] + m[9] * m[3] * m[6];
+	inv[7] = m[0] * m[6] * m[11] - m[0] * m[7] * m[10] - m[4] * m[2] * m[11] + m[4] * m[3] * m[10] + m[8] * m[2] * m[7] - m[8] * m[3] * m[6];
+	inv[11] = -m[0] * m[5] * m[11] + m[0] * m[7] * m[9] + m[4] * m[1] * m[11] - m[4] * m[3] * m[9] - m[8] * m[1] * m[7] + m[8] * m[3] * m[5];
+	inv[15] = m[0] * m[5] * m[10] - m[0] * m[6] * m[9] - m[4] * m[1] * m[10] + m[4] * m[2] * m[9] + m[8] * m[1] * m[6] - m[8] * m[2] * m[5];
+
+	const float det = m[0] * inv[0] + m[1] * inv[4] + m[2] * inv[8] + m[3] * inv[12];
+	const float invDet = 1.0f / det;
+
+	D3DMATRIX r;
+
+	float* out = &r.m[0][0];
+
+	for (int i = 0; i < 16; i++)
+		out[i] = inv[i] * invDet;
+
+	return r;
+}
+
+
+static D3DVECTOR Vector3Transform(const D3DVECTOR& v, const D3DMATRIX& a)
+{
+	D3DVECTOR r;
+	r.x = ((a._41 + v.z * a._31) + v.y * a._21) + v.x * a._11;
+	r.y = ((a._42 + v.z * a._32) + v.y * a._22) + v.x * a._12;
+	r.z = ((a._43 + v.z * a._33) + v.y * a._23) + v.x * a._13;
+
+	return r;
+}
+
+// translation is ignored
+static D3DVECTOR Vector3TransformNormal(const D3DVECTOR& v, const D3DMATRIX& a)
+{
+	D3DVECTOR r;
+	r.x = (v.z * a._31 + v.y * a._21) + v.x * a._11;
+	r.y = (v.z * a._32 + v.y * a._22) + v.x * a._12;
+	r.z = (v.z * a._33 + v.y * a._23) + v.x * a._13;
+
+	return r;
+}
+
+
+static D3DVECTOR Vector3Normalize(const D3DVECTOR& v)
+{
+	const float lengthSq = (v.x * v.x + v.y * v.y) + v.z * v.z;
+
+	if (lengthSq == 0.0f)
+		return v;
+
+	const float length = std::sqrt(lengthSq);
+	D3DVECTOR r;
+	r.x = v.x / length;
+	r.y = v.y / length;
+	r.z = v.z / length;
+
+	return r;
+}
 
 D3DCOLORVALUE colorValue(float r, float g, float b, float a) {
 	auto value = D3DCOLORVALUE();
@@ -31,8 +131,8 @@ D3DCOLORVALUE colorValue(float r, float g, float b, float a) {
 	return value;
 }
 
-DirectX::XMFLOAT4 toVector(DWORD color) {
-	DirectX::XMFLOAT4  v;
+D3DVECTOR4 toVector(DWORD color) {
+	D3DVECTOR4 v;
 	// ARGB to XYZW
 	v.w = (color >> 24 & 0xFF) / 255.f;
 	v.x = (color >> 16 & 0xFF) / 255.f;
@@ -49,8 +149,8 @@ D3DVECTOR toVector(float x, float y, float z) {
 	return value;
 }
 
-DirectX::XMFLOAT4 toVector(D3DCOLORVALUE val) {
-	return DirectX::XMFLOAT4(val.r, val.g, val.b, val.a);
+D3DVECTOR4 toVector(D3DCOLORVALUE val) {
+	return { val.r, val.g, val.b, val.a };
 }
 
 D3D8LightState::D3D8LightState() {
@@ -131,7 +231,7 @@ static bool g_fixedFunctionVertexShaderStateDirty = true;
 static bool g_fixedFunctionVertexShaderTransformsDirty = true;
 static bool g_fixedFunctionVertexShaderMaterialDirty = true;
 static bool g_fixedFunctionVertexShaderLightsDirty = true;
-static XMFLOAT4 g_fixedFunctionLightAmbient;
+static D3DVECTOR4 g_fixedFunctionLightAmbient;
 static ShaderVariantKey g_fixedFunctionVertexShaderVariant = GenericShaderVariant;
 
 void MarkFixedFunctionVertexShaderStateDirty()
@@ -204,19 +304,19 @@ namespace FixedFunctionVertexShader {
 
 struct Transforms
 {
-	XMFLOAT4X4 View;
-	XMFLOAT4X4 Projection;
-	XMFLOAT4X4 Texture[4]; // c8-c23 (4 matrices x 4 regs each)
-	XMFLOAT4X4 WorldView[4];
-	XMFLOAT4X4 WorldViewInverseTranspose[4];
+	D3DMATRIX View;
+	D3DMATRIX Projection;
+	D3DMATRIX Texture[4]; // c8-c23 (4 matrices x 4 regs each)
+	D3DMATRIX WorldView[4];
+	D3DMATRIX WorldViewInverseTranspose[4];
 };
 
 static_assert(sizeof(Transforms) % 16 == 0, "Transforms must be multiple of 16 bytes");
 
 struct Light {
 
-	XMFLOAT4 Diffuse;
-	XMFLOAT4 Specular;
+	D3DVECTOR4 Diffuse;
+	D3DVECTOR4 Specular;
 
 	// Viewspace light position Range in posW
 	D3DVECTOR4 PositionV;
@@ -376,7 +476,7 @@ void UpdateLightData(uint32_t index, X_D3DLIGHT8* pLight)
 }
 
 void UpdateFixedFunctionShaderLight(int d3dLightIndex, Light* pShaderLight,
-	DirectX::XMFLOAT4* pLightAmbient, DirectX::FXMMATRIX view, bool specularEnable) {
+	D3DVECTOR4* pLightAmbient, const D3DMATRIX& view, bool specularEnable) {
 	if (d3dLightIndex == -1)
 	{
 		pShaderLight->DirectionVN.w = 0; // Disable the light
@@ -385,24 +485,21 @@ void UpdateFixedFunctionShaderLight(int d3dLightIndex, Light* pShaderLight,
 
 	auto d3dLight = &g_LightState.Lights[d3dLightIndex];
 
-	// TODO remove D3DX usage
 	// Pre-transform light position to viewspace
 	// Transform light position into view space
 	if (d3dLight->Type != D3DLIGHT_DIRECTIONAL)
 	{
-		XMVECTOR pos = XMLoadFloat3((XMFLOAT3*)&d3dLight->Position);
-		XMVECTOR positionV = XMVector3Transform(pos, view);
-		XMStoreFloat3((XMFLOAT3*)&pShaderLight->PositionV, positionV);
+		const D3DVECTOR positionV = Vector3Transform(d3dLight->Position, view);
+		pShaderLight->PositionV.x = positionV.x;
+		pShaderLight->PositionV.y = positionV.y;
+		pShaderLight->PositionV.z = positionV.z;
 	}
 
-	// Transform light direction into view space (ignore translation)
-	XMVECTOR dir = XMLoadFloat3((XMFLOAT3*)&d3dLight->Direction);
-	XMVECTOR directionV = XMVector3TransformNormal(dir, view);
-
-	// Normalize direction
-	directionV = XMVector3Normalize(directionV);
-
-	XMStoreFloat3((XMFLOAT3*)&pShaderLight->DirectionVN, directionV);
+	// Transform light direction into view space (ignore translation), then normalize it
+	const D3DVECTOR directionV = Vector3Normalize(Vector3TransformNormal(d3dLight->Direction, view));
+	pShaderLight->DirectionVN.x = directionV.x;
+	pShaderLight->DirectionVN.y = directionV.y;
+	pShaderLight->DirectionVN.z = directionV.z;
 
 	// Map D3D light to state struct
 	pShaderLight->DirectionVN.w = (float)((int)d3dLight->Type); //DirectionVN.w = type
@@ -434,19 +531,11 @@ void RecalculateDependentMatrices(uint32_t i)
 {
 	auto worldState = X_D3DTS_WORLD + i;
 
-	// Load world and view matrices
-	XMMATRIX world = XMLoadFloat4x4((XMFLOAT4X4*)&g_Transforms[worldState]);
-	XMMATRIX view = XMLoadFloat4x4((XMFLOAT4X4*)&g_Transforms[X_D3DTS_VIEW]);
-
 	// Calculate WorldView = World * View
-	XMMATRIX worldView = XMMatrixMultiply(world, view);
-	XMStoreFloat4x4((XMFLOAT4X4*)&g_WorldView[i], worldView);
+	g_WorldView[i] = MatrixMultiply(g_Transforms[worldState], g_Transforms[X_D3DTS_VIEW]);
 
 	// Calculate WorldViewInverseTranspose
-	XMVECTOR det = XMMatrixDeterminant(worldView);
-	XMMATRIX worldViewInverse = XMMatrixInverse(&det, worldView);
-	XMMATRIX worldViewInverseTranspose = XMMatrixTranspose(worldViewInverse);
-	XMStoreFloat4x4((XMFLOAT4X4*)&g_WorldViewInverseTranspose[i], worldViewInverseTranspose);
+	g_WorldViewInverseTranspose[i] = MatrixTranspose(MatrixInverse(g_WorldView[i]));
 }
 
 
@@ -507,32 +596,20 @@ static void RecomputeFixedFunctionTransforms()
 	// so make sure to not transpose if vulkan is used.
 	const bool vulkan = is_vulkan();
 
-	XMMATRIX projection = XMLoadFloat4x4((XMFLOAT4X4*)&g_Transforms[X_D3DTS_PROJECTION]); //first we read the projection matrix
-	XMMATRIX projectionT = vulkan ? projection : XMMatrixTranspose(projection); //then we transpose it
-	XMStoreFloat4x4((XMFLOAT4X4*)&ffShaderState.Transforms.Projection, projectionT); //finally we store it (overwrite previous data if any)
+	const auto upload = [vulkan](const D3DMATRIX& m) { return vulkan ? m : MatrixTranspose(m); };
 
-	XMMATRIX view = XMLoadFloat4x4((XMFLOAT4X4*)&g_Transforms[X_D3DTS_VIEW]);
-	XMMATRIX viewT = vulkan ? view : XMMatrixTranspose(view);
-	XMStoreFloat4x4((XMFLOAT4X4*)&ffShaderState.Transforms.View, viewT);
+	ffShaderState.Transforms.Projection = upload(g_Transforms[X_D3DTS_PROJECTION]);
+	ffShaderState.Transforms.View = upload(g_Transforms[X_D3DTS_VIEW]);
 
 	for (unsigned i = 0; i < 4; i++)
 	{ // TODO : Would it help to limit this to just the active texture channels?
-
-		XMMATRIX transfoTexture = XMLoadFloat4x4((XMFLOAT4X4*)&g_Transforms[X_D3DTS_TEXTURE0 + i]);
-		XMMATRIX transfoTextureT = vulkan ? transfoTexture : XMMatrixTranspose(transfoTexture);
-		XMStoreFloat4x4((XMFLOAT4X4*)&ffShaderState.Transforms.Texture[i], transfoTextureT);
+		ffShaderState.Transforms.Texture[i] = upload(g_Transforms[X_D3DTS_TEXTURE0 + i]);
 	}
 
 	for (unsigned i = 0; i < ffShaderState.Modes.VertexBlend_NrOfMatrices; i++)
 	{
-
-		XMMATRIX transfoWorldView = XMLoadFloat4x4((XMFLOAT4X4*)GetWorldView(i));
-		XMMATRIX transfoWorldViewT = vulkan ? transfoWorldView : XMMatrixTranspose(transfoWorldView);
-		XMStoreFloat4x4((XMFLOAT4X4*)&ffShaderState.Transforms.WorldView[i], transfoWorldViewT);
-
-		XMMATRIX WorldViewInverseTranspose = XMLoadFloat4x4((XMFLOAT4X4*)GetWorldViewInverseTranspose(i));
-		XMMATRIX WorldViewInverseTransposeT = vulkan ? WorldViewInverseTranspose : XMMatrixTranspose(WorldViewInverseTranspose);
-		XMStoreFloat4x4((XMFLOAT4X4*)&ffShaderState.Transforms.WorldViewInverseTranspose[i], WorldViewInverseTransposeT);
+		ffShaderState.Transforms.WorldView[i] = upload(*GetWorldView(i));
+		ffShaderState.Transforms.WorldViewInverseTranspose[i] = upload(*GetWorldViewInverseTranspose(i));
 	}
 }
 
@@ -705,8 +782,8 @@ ShaderVariantKey UpdateFixedFunctionVertexShaderState(size_t Handle, bool isPSFi
 	{
 		if (g_fixedFunctionVertexShaderLightsDirty)
 		{
-			g_fixedFunctionLightAmbient = XMFLOAT4(0.f, 0.f, 0.f, 0.f);
-			const XMMATRIX lightView = XMLoadFloat4x4((XMFLOAT4X4*)&g_Transforms[X_D3DTS_VIEW]);
+			g_fixedFunctionLightAmbient = { 0.f, 0.f, 0.f, 0.f };
+			const D3DMATRIX& lightView = g_Transforms[X_D3DTS_VIEW];
 			const bool specularEnable = GetGuestRenderState(X_D3DRS_SPECULARENABLE) != FALSE;
 			for (size_t i = 0; i < 8; i++)
 				UpdateFixedFunctionShaderLight(g_LightState.EnabledLights[i], &ffShaderState.Lights[i],
@@ -714,14 +791,14 @@ ShaderVariantKey UpdateFixedFunctionVertexShaderState(size_t Handle, bool isPSFi
 			g_fixedFunctionVertexShaderLightsDirty = false;
 		}
 
-		XMFLOAT4 Ambient = toVector(GetGuestRenderState(X_D3DRS_AMBIENT));
-		XMFLOAT4 BackAmbient = toVector(GetGuestRenderState(X_D3DRS_BACKAMBIENT));
-		XMVECTOR vLightAmbient = XMLoadFloat4(&g_fixedFunctionLightAmbient);
+		const D3DVECTOR4 Ambient = toVector(GetGuestRenderState(X_D3DRS_AMBIENT));
+		const D3DVECTOR4 BackAmbient = toVector(GetGuestRenderState(X_D3DRS_BACKAMBIENT));
+		const D3DVECTOR4& lightAmbient = g_fixedFunctionLightAmbient;
 
-		XMStoreFloat4((XMFLOAT4*)&ffShaderState.TotalLightsAmbient.Front,
-			XMVectorAdd(vLightAmbient, XMLoadFloat4(&Ambient)));
-		XMStoreFloat4((XMFLOAT4*)&ffShaderState.TotalLightsAmbient.Back,
-			XMVectorAdd(vLightAmbient, XMLoadFloat4(&BackAmbient)));
+		ffShaderState.TotalLightsAmbient.Front = { lightAmbient.x + Ambient.x, lightAmbient.y + Ambient.y,
+			lightAmbient.z + Ambient.z, lightAmbient.w + Ambient.w };
+		ffShaderState.TotalLightsAmbient.Back = { lightAmbient.x + BackAmbient.x, lightAmbient.y + BackAmbient.y,
+			lightAmbient.z + BackAmbient.z, lightAmbient.w + BackAmbient.w };
 	}
 
 	// Misc flags

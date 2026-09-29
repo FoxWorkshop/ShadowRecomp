@@ -8,7 +8,6 @@
 
 #include <iostream>
 #include <fstream>
-#include <DirectXMath.h>
 #include <unordered_set>
 #include <atomic>
 #include <os/logger.h>
