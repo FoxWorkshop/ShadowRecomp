@@ -17,6 +17,7 @@
 #include <gpu/imgui/imgui_snapshot.h>
 #include <ui/fader.h>
 
+#include <input/input.h>
 #include <input/padstate.h>
 #include <ui/message_window.h>
 #include <ui/game_window.h>
@@ -52,6 +53,36 @@ static int g_optionIndex{};
 static int g_optionCount{};
 
 static bool g_livePreviewHudHidden{};
+
+// customize input sub menu
+enum class ERemapSection
+{
+	Keyboard,
+	Gamepad1P,
+	Gamepad2P,
+	Gamepad3P,
+	Gamepad4P
+};
+
+enum class EBindingCaptureState
+{
+	Idle,
+	Listening,
+	WaitRelease
+};
+
+static constexpr double BINDING_CAPTURE_TIMEOUT = 5.0;
+static constexpr double BINDING_RELEASE_MIN_TIME = 0.25;
+static constexpr uint8_t BINDING_CAPTURE_THRESHOLD = 0x80;
+
+static bool g_isRemapMenu{};
+static int g_remapSectionIndex{};
+static int g_remapReturnOptionIndex{};
+
+static EBindingCaptureState g_captureState{};
+static double g_captureTime{};
+static std::array<uint8_t, SDL_NUM_SCANCODES> g_capturePrevKeys{};
+static input::PadButtonValues g_capturePrevPadButtons{};
 
 static bool IsLivePreviewActive()
 {
@@ -226,19 +257,6 @@ static float ClampBand(float left, float width, float bandLeft, float bandRight)
 		left = bandLeft;
 
 	return left;
-}
-
-static int GetVisibleCategoryCount()
-{
-	int count = 0;
-
-	for (int i = 0; i < (int)OptionsMenuCategory::Count; i++)
-	{
-		if (IsCategoryVisible((OptionsMenuCategory)i))
-			count++;
-	}
-
-	return count;
 }
 
 static bool CheckAndDiscard(bool& value)
@@ -1147,6 +1165,506 @@ static void DrawGoToLegacyOption
 }
 
 
+static void ResetOptionSelection();
+
+static int GetRemapSectionCount()
+{
+	return Config::ExtendedMultiplayer ? 5 : 3;
+}
+
+static bool IsKeyboardRemapSection()
+{
+	return (ERemapSection)g_remapSectionIndex == ERemapSection::Keyboard;
+}
+
+static std::string GetRemapSectionName(int sectionIndex)
+{
+	if ((ERemapSection)sectionIndex == ERemapSection::Keyboard)
+	{
+		return Localise("Options_Category_Keyboard");
+	}
+
+	return fmt::format(fmt::runtime(Localise("Options_Category_Gamepad")), sectionIndex);
+}
+
+static std::string GetRemapSectionDescription(int sectionIndex)
+{
+	if ((ERemapSection)sectionIndex == ERemapSection::Keyboard)
+	{
+		return Localise("Options_Desc_Category_Keyboard");
+	}
+
+	return fmt::format(fmt::runtime(Localise("Options_Desc_Category_Gamepad")), sectionIndex);
+}
+
+static const char* g_xboxButtonNames[] =
+{
+	"A",
+	"B",
+	"X",
+	"Y",
+	"Left Trigger",
+	"Right Trigger",
+	"Start",
+	"Back",
+	"D-Pad Up",
+	"D-Pad Down",
+	"D-Pad Left",
+	"D-Pad Right",
+	"White",
+	"Black",
+	"Left Stick Click",
+	"Right Stick Click"
+};
+
+static_assert(std::size(g_xboxButtonNames) == (size_t)input::EXboxButton::Count);
+
+static const std::pair<const char*, ConfigDef<SDL_Scancode>*> g_keyboardBindings[] =
+{
+	{ "A", &Config::Key_A },
+	{ "B", &Config::Key_B },
+	{ "X", &Config::Key_X },
+	{ "Y", &Config::Key_Y },
+	{ "Left Trigger", &Config::Key_LeftTrigger },
+	{ "Right Trigger", &Config::Key_RightTrigger },
+	{ "Start", &Config::Key_Start },
+	{ "Back", &Config::Key_Back },
+	{ "D-Pad Up", &Config::Key_DPadUp },
+	{ "D-Pad Down", &Config::Key_DPadDown },
+	{ "D-Pad Left", &Config::Key_DPadLeft },
+	{ "D-Pad Right", &Config::Key_DPadRight },
+	{ "Left Stick Up", &Config::Key_LeftStickUp },
+	{ "Left Stick Down", &Config::Key_LeftStickDown },
+	{ "Left Stick Left", &Config::Key_LeftStickLeft },
+	{ "Left Stick Right", &Config::Key_LeftStickRight },
+	{ "Right Stick Up", &Config::Key_RightStickUp },
+	{ "Right Stick Down", &Config::Key_RightStickDown },
+	{ "Right Stick Left", &Config::Key_RightStickLeft },
+	{ "Right Stick Right", &Config::Key_RightStickRight },
+	{ "White", &Config::Key_LeftBumper },
+	{ "Black", &Config::Key_RightBumper }
+};
+
+static ConfigDef<float>* const g_stickDeadzones[] = { &Config::StickDeadzone1P, &Config::StickDeadzone2P, &Config::StickDeadzone3P, &Config::StickDeadzone4P };
+
+static std::string GetPadButtonLabel(EPadButton button, bool isPlayStation, const std::string& fallback)
+{
+	if (isPlayStation)
+	{
+		switch (button)
+		{
+		case EPadButton::A:             return "CROSS";
+		case EPadButton::B:             return "CIRCLE";
+		case EPadButton::X:             return "SQUARE";
+		case EPadButton::Y:             return "TRIANGLE";
+		case EPadButton::Back:          return "SHARE";
+		case EPadButton::Guide:         return "PS";
+		case EPadButton::Start:         return "OPTIONS";
+		case EPadButton::LeftStick:     return "L3";
+		case EPadButton::RightStick:    return "R3";
+		case EPadButton::LeftShoulder:  return "L1";
+		case EPadButton::RightShoulder: return "R1";
+		case EPadButton::LeftTrigger:   return "L2";
+		case EPadButton::RightTrigger:  return "R2";
+		default:                        break;
+		}
+	}
+
+	return fallback;
+}
+
+// DrawOption layout for non config rows
+static void DrawCustomOption(int rowIndex, ImVec2 min, ImVec2 max, const std::string& title, const std::string& value, bool isSelected)
+{
+	auto drawList = ImGui::GetBackgroundDrawList();
+	auto optionHeight = Scale(48);
+	float offsetScroll = 0.0f;
+
+	min.x -= Scale(170) - Scale(10);
+	max.x -= Scale(10);
+
+	if (g_optionCount > MAX_VISIBLE_ROWS)
+	{
+		if (g_optionIndex >= g_optionCount - (MAX_VISIBLE_ROWS - 1))
+		{
+			offsetScroll = -(g_optionCount - MAX_VISIBLE_ROWS) * optionHeight;
+		}
+		else if (g_optionIndex >= 1)
+		{
+			offsetScroll = -(g_optionIndex - 1) * optionHeight;
+		}
+	}
+
+	auto offsetY = optionHeight * rowIndex + offsetScroll;
+	auto isHoverOrSelected = g_optionIndex == rowIndex && OptionsMenu::s_flowState != OptionsMenuFlowState::CategoryCursor;
+
+	const float outlineOffset = 2.f;
+	auto textOutlineColor = isHoverOrSelected ? IM_COL32(0, 0, 60, 44) : IM_COL32(0, 0, 0, 44);
+	auto textColor = isHoverOrSelected ? IM_COL32(234, 234, 69, 255) : IM_COL32(255, 255, 255, 255);
+
+	ImVec2 titlePos = { min.x, min.y + offsetY + Scale(8) };
+
+	SetShaderModifier(IMGUI_SHADER_MODIFIER_LOW_QUALITY_TEXT);
+
+	AddTextWithOutline(drawList, g_fntSeurat, g_fntSeuratSize - 4.f, titlePos, textColor,
+		textOutlineColor, title.c_str(), 1.f, outlineOffset, outlineOffset);
+
+	if (value.empty())
+	{
+		SetShaderModifier(IMGUI_SHADER_MODIFIER_NONE);
+		return;
+	}
+
+	// allow long names
+	float valueAreaWidth = Scale(105);
+	float valueAreaEnd = max.x - Scale(15);
+	float valueAreaStart = valueAreaEnd - valueAreaWidth;
+	float valueAreaCenter = valueAreaStart + (valueAreaWidth * 0.5f);
+
+	const float fontValueSize = g_fntSeuratSize - Scale(5.33f);
+	auto displayText = TruncateTextWithEllipsis(g_fntSeurat, fontValueSize, value, Scale(150));
+	auto displaySize = g_fntSeurat->CalcTextSizeA(fontValueSize, FLT_MAX, 0.0f, displayText.c_str());
+
+	AddTextWithOutline(drawList, g_fntSeurat, fontValueSize, { valueAreaCenter - (displaySize.x * 0.5f), titlePos.y }, IM_COL32(255, 255, 255, 255),
+		textOutlineColor, displayText.c_str(), 1.f, outlineOffset, outlineOffset);
+
+	SetShaderModifier(IMGUI_SHADER_MODIFIER_NONE);
+
+	float arrowAreaPadding = Scale(35);
+	ImVec2 arrowAreaMin = { valueAreaStart - arrowAreaPadding, min.y + offsetY };
+	ImVec2 arrowAreaMax = { valueAreaEnd + arrowAreaPadding, min.y + offsetY + optionHeight };
+	DrawSelectionArrows(arrowAreaMin, arrowAreaMax, isSelected);
+}
+
+static void DrawCustomizeInputOption(int rowIndex, ImVec2 min, ImVec2 max)
+{
+	DrawCustomOption(rowIndex, min, max, Localise("Options_Name_CustomizeInput"), "", false);
+
+	if (g_optionIndex != rowIndex)
+	{
+		return;
+	}
+
+	g_optionCurrent = nullptr;
+	g_optionCanReset = false;
+
+	if (OptionsMenu::s_flowState == OptionsMenuFlowState::CategoryCursor)
+	{
+		return;
+	}
+
+	optionDescription = Localise("Options_Desc_CustomizeInput");
+
+	if (CheckAndDiscard(g_isAccepted))
+	{
+		Game_PlaySound("decide");
+
+		g_isRemapMenu = true;
+		g_remapSectionIndex = 0;
+		g_remapReturnOptionIndex = rowIndex;
+
+		ResetOptionSelection();
+		OptionsMenu::SetFlowState(OptionsMenuFlowState::CategoryCursor);
+
+		g_categoryTime = ImGui::GetTime();
+		g_cursorArrowsTime = g_categoryTime;
+	}
+}
+
+static void DiscardMenuInput()
+{
+	g_isAccepted = false;
+	g_isDeclined = false;
+	g_isLeaving = false;
+	g_isReset = false;
+	g_up = false;
+	g_down = false;
+	g_left = false;
+	g_right = false;
+}
+
+static void BeginBindingCapture(int playerIndex)
+{
+	int keyCount = 0;
+	auto keys = SDL_GetKeyboardState(&keyCount);
+
+	// ignore held input on select
+	g_capturePrevKeys.fill(0);
+	std::copy_n(keys, std::min(keyCount, (int)g_capturePrevKeys.size()), g_capturePrevKeys.begin());
+
+	if (playerIndex >= 0)
+	{
+		input::GetRawPadButtons(playerIndex, g_capturePrevPadButtons);
+	}
+
+	g_captureState = EBindingCaptureState::Listening;
+	g_captureTime = ImGui::GetTime();
+}
+
+static SDL_Scancode GetNewlyPressedKey()
+{
+	int keyCount = 0;
+	auto keys = SDL_GetKeyboardState(&keyCount);
+	auto result = SDL_SCANCODE_UNKNOWN;
+
+	for (int i = 0; i < std::min(keyCount, (int)g_capturePrevKeys.size()); i++)
+	{
+		if (keys[i] && !g_capturePrevKeys[i] && result == SDL_SCANCODE_UNKNOWN)
+		{
+			result = (SDL_Scancode)i;
+		}
+
+		g_capturePrevKeys[i] = keys[i];
+	}
+
+	return result;
+}
+
+// Count if none
+static EPadButton GetNewlyPressedPadButton(int playerIndex)
+{
+	input::PadButtonValues values;
+	input::GetRawPadButtons(playerIndex, values);
+
+	auto result = EPadButton::Count;
+
+	for (size_t i = 0; i < values.size(); i++)
+	{
+		auto isPressed = values[i] >= BINDING_CAPTURE_THRESHOLD;
+		auto wasPressed = g_capturePrevPadButtons[i] >= BINDING_CAPTURE_THRESHOLD;
+
+		if (isPressed && !wasPressed && result == EPadButton::Count)
+		{
+			result = (EPadButton)i;
+		}
+	}
+
+	g_capturePrevPadButtons = values;
+
+	return result;
+}
+
+static bool IsAnyInputHeld(int playerIndex)
+{
+	int keyCount = 0;
+	auto keys = SDL_GetKeyboardState(&keyCount);
+
+	if (std::any_of(keys, keys + keyCount, [](uint8_t key) { return key != 0; }))
+	{
+		return true;
+	}
+
+	if (playerIndex < 0)
+	{
+		return false;
+	}
+
+	input::PadButtonValues values;
+	input::GetRawPadButtons(playerIndex, values);
+
+	return std::any_of(values.begin(), values.end(), [](uint8_t value) { return value >= BINDING_CAPTURE_THRESHOLD; });
+}
+
+template <typename T>
+static constexpr T GetUnboundValue()
+{
+	if constexpr (std::is_same_v<T, SDL_Scancode>)
+	{
+		return SDL_SCANCODE_UNKNOWN;
+	}
+	else
+	{
+		return EPadButton::None;
+	}
+}
+
+template <typename T>
+static void ClearDuplicateBindings(ConfigDef<T>* config, int playerIndex)
+{
+	if (config->Value == GetUnboundValue<T>())
+	{
+		return;
+	}
+
+	auto clear = [&](ConfigDef<T>* other)
+	{
+		if (other != config && other->Value == config->Value)
+		{
+			other->Value = GetUnboundValue<T>();
+		}
+	};
+
+	if constexpr (std::is_same_v<T, SDL_Scancode>)
+	{
+		for (auto& [title, other] : g_keyboardBindings)
+		{
+			clear(other);
+		}
+	}
+	else
+	{
+		for (auto* other : input::GetPadBindings(playerIndex))
+		{
+			clear(other);
+		}
+	}
+}
+
+// playerIndex -1 for keyboard
+template <typename T>
+static void DrawBindingOption(int rowIndex, ImVec2 min, ImVec2 max, const std::string& title, ConfigDef<T>* config, int playerIndex)
+{
+	constexpr bool isKeyboard = std::is_same_v<T, SDL_Scancode>;
+
+	auto isCurrent = g_optionIndex == rowIndex && OptionsMenu::s_flowState != OptionsMenuFlowState::CategoryCursor;
+	auto isListening = isCurrent && g_captureState == EBindingCaptureState::Listening;
+	auto time = ImGui::GetTime();
+
+	std::string valueText;
+
+	if (isListening)
+	{
+		valueText = fmt::format("{}", (int)ceil(BINDING_CAPTURE_TIMEOUT - (time - g_captureTime)));
+	}
+	else if (config->Value == GetUnboundValue<T>())
+	{
+		valueText = "---";
+	}
+	else if constexpr (isKeyboard)
+	{
+		valueText = config->ToString(false);
+	}
+	else
+	{
+		auto isPlayStation = input::GetPadDevice(playerIndex) == input::EInputDevice::PlayStation;
+		valueText = GetPadButtonLabel(config->Value, isPlayStation, config->ToString(false));
+	}
+
+	DrawCustomOption(rowIndex, min, max, title, valueText, isListening);
+
+	if (g_optionIndex != rowIndex)
+	{
+		return;
+	}
+
+	g_optionCurrent = nullptr;
+	g_optionCanReset = isCurrent && g_captureState == EBindingCaptureState::Idle;
+
+	if (!isCurrent)
+	{
+		return;
+	}
+
+	switch (g_captureState)
+	{
+	case EBindingCaptureState::Idle:
+	{
+		optionDescription = Localise(isKeyboard ? "Options_Desc_BindKey" : "Options_Desc_BindButton");
+
+		if (CheckAndDiscard(g_isAccepted))
+		{
+			Game_PlaySound("decide");
+
+			BeginBindingCapture(playerIndex);
+			OptionsMenu::SetFlowState(OptionsMenuFlowState::OptionSelected);
+		}
+		else if (CheckAndDiscard(g_isReset))
+		{
+			Game_PlaySound("cancel");
+
+			config->MakeDefault();
+			ClearDuplicateBindings(config, playerIndex);
+		}
+
+		break;
+	}
+
+	case EBindingCaptureState::Listening:
+	{
+		optionDescription = Localise(isKeyboard ? "Options_Desc_BindKeyListening" : "Options_Desc_BindButtonListening");
+
+		DiscardMenuInput();
+
+		auto key = GetNewlyPressedKey();
+		auto isCaptured = false;
+
+		if constexpr (isKeyboard)
+		{
+			// only saveable keys
+			if (key != SDL_SCANCODE_UNKNOWN && key != SDL_SCANCODE_ESCAPE && config->EnumTemplateReverse.contains(key))
+			{
+				config->Value = key;
+				isCaptured = true;
+			}
+		}
+		else
+		{
+			auto button = GetNewlyPressedPadButton(playerIndex);
+
+			if (button != EPadButton::Count)
+			{
+				config->Value = button;
+				isCaptured = true;
+			}
+		}
+
+		auto isCancelled = key == SDL_SCANCODE_ESCAPE || (time - g_captureTime) >= BINDING_CAPTURE_TIMEOUT;
+
+		if (isCaptured)
+		{
+			ClearDuplicateBindings(config, playerIndex);
+		}
+
+		if (isCaptured || isCancelled)
+		{
+			Game_PlaySound(isCaptured ? "decide" : "cancel");
+
+			g_captureState = EBindingCaptureState::WaitRelease;
+			g_captureTime = time;
+		}
+
+		break;
+	}
+
+	case EBindingCaptureState::WaitRelease:
+	{
+		DiscardMenuInput();
+
+		if ((time - g_captureTime) >= BINDING_RELEASE_MIN_TIME && !IsAnyInputHeld(playerIndex))
+		{
+			g_captureState = EBindingCaptureState::Idle;
+			OptionsMenu::SetFlowState(OptionsMenuFlowState::OptionCursor);
+		}
+
+		break;
+	}
+	}
+}
+
+static void DrawRemapOptions(int& rowCount, ImVec2 min, ImVec2 max)
+{
+	if (IsKeyboardRemapSection())
+	{
+		for (auto& [title, config] : g_keyboardBindings)
+		{
+			DrawBindingOption(rowCount++, min, max, title, config, -1);
+		}
+
+		return;
+	}
+
+	auto playerIndex = g_remapSectionIndex - (int)ERemapSection::Gamepad1P;
+
+	DrawOption(rowCount++, g_stickDeadzones[playerIndex], true, min, max, nullptr, 0.0f, 0.0f, 0.5f);
+
+	auto& bindings = input::GetPadBindings(playerIndex);
+
+	for (size_t i = 0; i < bindings.size(); i++)
+	{
+		DrawBindingOption(rowCount++, min, max, g_xboxButtonNames[i], bindings[i], playerIndex);
+	}
+}
+
 static void DrawOptions(ImVec2 minClipRect, ImVec2 maxClipRect, ImVec2 min, ImVec2 max)
 {
 	auto drawList = ImGui::GetBackgroundDrawList();
@@ -1173,6 +1691,12 @@ static void DrawOptions(ImVec2 minClipRect, ImVec2 maxClipRect, ImVec2 min, ImVe
 		break;
 
 	case OptionsMenuCategory::Input:
+		if (g_isRemapMenu)
+		{
+			DrawRemapOptions(rowCount, min, max);
+			break;
+		}
+
 		DrawOption(rowCount++, &Config::HorizontalCamera1P, true, min, max);
 		DrawOption(rowCount++, &Config::HorizontalCamera2P, true, min, max);
 		if (Config::ExtendedMultiplayer.Value) {
@@ -1187,6 +1711,7 @@ static void DrawOptions(ImVec2 minClipRect, ImVec2 maxClipRect, ImVec2 min, ImVe
 		}
 		DrawOption(rowCount++, &Config::ControllerIcons, !OptionsMenu::s_isPause, min, max, cmnReason);
 		DrawOption(rowCount++, &Config::AllowBackgroundInput, true, min, max);
+		DrawCustomizeInputOption(rowCount++, min, max);
 		break;
 
 	case OptionsMenuCategory::Audio:
@@ -1539,12 +2064,48 @@ void DrawMenuListContainer(ImVec2 min, ImVec2 max)
 }
 
 
+struct CategoryEntry
+{
+	std::string Name;
+	OptionsMenuCategory IconCategory;
+	bool IsCurrent;
+};
+
+static std::vector<CategoryEntry> GetCategoryEntries()
+{
+	std::vector<CategoryEntry> entries;
+
+	if (g_isRemapMenu)
+	{
+		for (int i = 0; i < GetRemapSectionCount(); i++)
+		{
+			entries.push_back({ GetRemapSectionName(i), OptionsMenuCategory::Input, i == g_remapSectionIndex });
+		}
+
+		return entries;
+	}
+
+	for (int i = 0; i < (int)OptionsMenuCategory::Count; i++)
+	{
+		auto category = (OptionsMenuCategory)i;
+
+		if (IsCategoryVisible(category))
+		{
+			entries.push_back({ GetCategoryName(category), category, i == g_categoryIndex });
+		}
+	}
+
+	return entries;
+}
+
 static void DrawCategories(ImVec2 min, ImVec2 max)
 {
 	auto drawList = ImGui::GetBackgroundDrawList();
 
 	if (g_categoryIndex == -1)
 		g_categoryIndex = 0;
+
+	auto entries = GetCategoryEntries();
 
 	// support for 4:3 stuff so it doesn't go off screen
 	const float centreX = min.x + Scale(CATEGORY_COLUMN_CENTRE_X);
@@ -1556,7 +2117,7 @@ static void DrawCategories(ImVec2 min, ImVec2 max)
 #if OPTIONS_CATEGORY_STYLE == OPTIONS_CATEGORY_STYLE_ICON
 
 	
-	int visibleCount = GetVisibleCategoryCount();
+	int visibleCount = (int)entries.size();
 
 	if (visibleCount < 1)
 		visibleCount = 1;
@@ -1577,12 +2138,9 @@ static void DrawCategories(ImVec2 min, ImVec2 max)
 
 	float maxTextWidth = 0.0f;
 
-	for (int i = 0; i < (int)OptionsMenuCategory::Count; i++)
+	for (auto& entry : entries)
 	{
-		if (!IsCategoryVisible((OptionsMenuCategory)i))
-			continue;
-
-		auto name = RemoveRubyAnnotations(GetCategoryName((OptionsMenuCategory)i).c_str()).first;
+		auto name = RemoveRubyAnnotations(entry.Name.c_str()).first;
 		auto width = g_fntSeurat->CalcTextSizeA(g_fntSeuratSize, FLT_MAX, 0.0f, name.c_str()).x;
 
 		if (width > maxTextWidth)
@@ -1610,15 +2168,10 @@ static void DrawCategories(ImVec2 min, ImVec2 max)
 
 	int visibleIndex = 0;
 
-	for (int i = 0; i < (int)OptionsMenuCategory::Count; i++)
+	for (auto& entry : entries)
 	{
-		auto category = (OptionsMenuCategory)i;
-
-		if (!IsCategoryVisible(category))
-			continue;
-
-		const bool isCurrent = i == g_categoryIndex;
-		auto iconUVs = GetCategoryIconUVs(category, isCurrent);
+		const bool isCurrent = entry.IsCurrent;
+		auto iconUVs = GetCategoryIconUVs(entry.IconCategory, isCurrent);
 
 #if OPTIONS_CATEGORY_STYLE == OPTIONS_CATEGORY_STYLE_ICON
 
@@ -1639,7 +2192,7 @@ static void DrawCategories(ImVec2 min, ImVec2 max)
 
 		drawList->AddImage(g_upTexOptionsIcons.get(), iconMin, iconMax, GET_UV_COORDS(iconUVs));
 
-		const std::string text = GetCategoryName(category);
+		const std::string& text = entry.Name;
 		auto textSize = g_fntSeurat->CalcTextSizeA(fontSize, FLT_MAX, 0.0f, RemoveRubyAnnotations(text.c_str()).first.c_str());
 
 		SetShaderModifier(IMGUI_SHADER_MODIFIER_LOW_QUALITY_TEXT);
@@ -1673,7 +2226,16 @@ static void DrawCategories(ImVec2 min, ImVec2 max)
 	}
 
 	if (OptionsMenu::s_flowState == OptionsMenuFlowState::CategoryCursor)
-		DrawDescription(GetCategoryDescription((OptionsMenuCategory)g_categoryIndex));
+	{
+		if (g_isRemapMenu)
+		{
+			DrawDescription(GetRemapSectionDescription(g_remapSectionIndex));
+		}
+		else
+		{
+			DrawDescription(GetCategoryDescription((OptionsMenuCategory)g_categoryIndex));
+		}
+	}
 }
 
 void OptionsMenu::Draw()
@@ -1817,6 +2379,42 @@ void OptionsMenu::Draw()
 	{
 	case OptionsMenuFlowState::CategoryCursor:
 	{
+		if (g_isRemapMenu)
+		{
+			MoveCursor(g_remapSectionIndex, g_flowStateTime, 0, GetRemapSectionCount(), []()
+				{
+					ResetOptionSelection();
+
+					g_categoryTime = ImGui::GetTime();
+					g_cursorArrowsTime = g_categoryTime;
+				});
+
+			if (CheckAndDiscard(g_isAccepted))
+			{
+				Game_PlaySound("decide");
+
+				SetFlowState(OptionsMenuFlowState::OptionCursor);
+
+				g_cursorArrowsTime = ImGui::GetTime();
+				g_scrollArrowsTime = g_cursorArrowsTime;
+			}
+
+			if (CheckAndDiscard(g_isDeclined))
+			{
+				Game_PlaySound("cancel");
+
+				g_isRemapMenu = false;
+				g_optionIndex = g_remapReturnOptionIndex;
+
+				SetFlowState(OptionsMenuFlowState::OptionCursor);
+
+				g_cursorArrowsTime = ImGui::GetTime();
+				g_scrollArrowsTime = g_cursorArrowsTime;
+			}
+
+			break;
+		}
+
 		auto categoryCount = (int)OptionsMenuCategory::Count;
 
 		// Remove debug category from cursor select.
@@ -1936,6 +2534,8 @@ void OptionsMenu::Open(bool isPause)
 
 	s_isVisible = true;
 	s_GoToLegacyMenu = false;
+	g_isRemapMenu = false;
+	g_captureState = EBindingCaptureState::Idle;
 	// Update stored values for config definitions
 	// to check if their values have changed later.
 	for (auto& def : g_configDefinitions)

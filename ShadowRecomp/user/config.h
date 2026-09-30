@@ -60,6 +60,36 @@ enum class EControllerIcons : uint32_t
     Gamecube
 };
 
+// matches SDL_GameControllerButton up to Touchpad
+enum class EPadButton : uint32_t
+{
+    A,
+    B,
+    X,
+    Y,
+    Back,
+    Guide,
+    Start,
+    LeftStick,
+    RightStick,
+    LeftShoulder,
+    RightShoulder,
+    DPadUp,
+    DPadDown,
+    DPadLeft,
+    DPadRight,
+    Misc1,
+    Paddle1,
+    Paddle2,
+    Paddle3,
+    Paddle4,
+    Touchpad,
+    LeftTrigger,
+    RightTrigger,
+    None,
+    Count
+};
+
 enum class EGraphicsAPI : uint32_t
 {
     Auto,

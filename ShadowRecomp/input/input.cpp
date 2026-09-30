@@ -11,8 +11,61 @@ input::EInputDevice input::g_inputDevice;
 input::EInputDevice input::g_inputDeviceController;
 input::EInputDeviceExplicit input::g_inputDeviceExplicit;
 
-#define TRANSLATE_INPUT(S, X) SDL_GameControllerGetButton(controller, S) << FirstBitLow(X)
 #define VIBRATION_TIMEOUT_MS 5000
+
+// XINPUT_GAMEPAD_TRIGGER_THRESHOLD
+#define DIGITAL_BUTTON_THRESHOLD 30
+
+using input::EXboxButton;
+
+static const std::array<input::PadBindings, 4> g_padBindings =
+{{
+#define PAD_BINDINGS(player) \
+	{ \
+		&Config::Pad##player##P_A, &Config::Pad##player##P_B, &Config::Pad##player##P_X, &Config::Pad##player##P_Y, \
+		&Config::Pad##player##P_LeftTrigger, &Config::Pad##player##P_RightTrigger, \
+		&Config::Pad##player##P_Start, &Config::Pad##player##P_Back, \
+		&Config::Pad##player##P_DPadUp, &Config::Pad##player##P_DPadDown, \
+		&Config::Pad##player##P_DPadLeft, &Config::Pad##player##P_DPadRight, \
+		&Config::Pad##player##P_White, &Config::Pad##player##P_Black, \
+		&Config::Pad##player##P_LeftThumb, &Config::Pad##player##P_RightThumb \
+	}
+	PAD_BINDINGS(1),
+	PAD_BINDINGS(2),
+	PAD_BINDINGS(3),
+	PAD_BINDINGS(4)
+#undef PAD_BINDINGS
+}};
+
+const input::PadBindings& input::GetPadBindings(uint32_t playerIndex)
+{
+	return g_padBindings[std::min(playerIndex, 3u)];
+}
+
+// radial deadzone, rescaled
+static void ApplyStickDeadzone(int16_t& x, int16_t& y, float deadzone)
+{
+	if (deadzone <= 0.0f)
+	{
+		return;
+	}
+
+	auto fx = x / 32767.0f;
+	auto fy = y / 32767.0f;
+	auto magnitude = sqrtf(fx * fx + fy * fy);
+
+	if (magnitude <= deadzone || magnitude == 0.0f)
+	{
+		x = 0;
+		y = 0;
+		return;
+	}
+
+	auto scale = ((magnitude - deadzone) / (1.0f - deadzone)) / magnitude;
+
+	x = (int16_t)std::clamp(fx * scale * 32767.0f, -32768.0f, 32767.0f);
+	y = (int16_t)std::clamp(fy * scale * 32767.0f, -32768.0f, 32767.0f);
+}
 
 bool IsInputAllowed()
 {
@@ -101,6 +154,21 @@ public:
 		return controller;
 	}
 
+	uint8_t GetButtonValue(EPadButton button) const
+	{
+		switch (button)
+		{
+		case EPadButton::LeftTrigger:
+			return (uint8_t)std::clamp(SDL_GameControllerGetAxis(controller, SDL_CONTROLLER_AXIS_TRIGGERLEFT) / 128, 0, 255);
+		case EPadButton::RightTrigger:
+			return (uint8_t)std::clamp(SDL_GameControllerGetAxis(controller, SDL_CONTROLLER_AXIS_TRIGGERRIGHT) / 128, 0, 255);
+		case EPadButton::None:
+			return 0;
+		default:
+			return SDL_GameControllerGetButton(controller, (SDL_GameControllerButton)button) ? 0xFF : 0;
+		}
+	}
+
 	void PollAxis(uint32_t playerIndex)
 	{
 		if (!CanPoll())
@@ -129,39 +197,69 @@ public:
 		if (horizontalCamera == ECameraRotationMode::Reverse)
 			pad.sThumbRX = (int16_t)std::clamp(-(int32_t)pad.sThumbRX, (int32_t)-32768, (int32_t)INT16_MAX);
 
-		int16_t leftTrig = SDL_GameControllerGetAxis(controller, SDL_CONTROLLER_AXIS_TRIGGERLEFT);
-		int16_t rightTrig = SDL_GameControllerGetAxis(controller, SDL_CONTROLLER_AXIS_TRIGGERRIGHT);
-		pad.bAnalogButtons[Buttons_LT] = (uint8_t)std::clamp(leftTrig / 128, 0, 255);
-		pad.bAnalogButtons[Buttons_RT] = (uint8_t)std::clamp(rightTrig / 128, 0, 255);
+		float deadzone;
+		switch (playerIndex)
+		{
+		case 1:  deadzone = Config::StickDeadzone2P; break;
+		case 2:  deadzone = Config::StickDeadzone3P; break;
+		case 3:  deadzone = Config::StickDeadzone4P; break;
+		default: deadzone = Config::StickDeadzone1P; break;
+		}
+
+		ApplyStickDeadzone(pad.sThumbLX, pad.sThumbLY, deadzone);
+		ApplyStickDeadzone(pad.sThumbRX, pad.sThumbRY, deadzone);
 	}
 
-	void Poll()
+	void Poll(uint32_t playerIndex)
 	{
 		if (!CanPoll())
 			return;
 
 		auto& pad = state;
+		auto& bindings = input::GetPadBindings(playerIndex);
+
+		auto getValue = [&](EXboxButton button) { return GetButtonValue(bindings[(size_t)button]->Value); };
+		auto isPressed = [&](EXboxButton button) { return getValue(button) > DIGITAL_BUTTON_THRESHOLD; };
+		auto getDigitalValue = [&](EXboxButton button) -> uint8_t { return isPressed(button) ? 0xFF : 0; };
 
 		pad.wButtons = 0;
 
-		pad.wButtons |= TRANSLATE_INPUT(SDL_CONTROLLER_BUTTON_DPAD_UP, XINPUT_GAMEPAD_DPAD_UP);
-		pad.wButtons |= TRANSLATE_INPUT(SDL_CONTROLLER_BUTTON_DPAD_DOWN, XINPUT_GAMEPAD_DPAD_DOWN);
-		pad.wButtons |= TRANSLATE_INPUT(SDL_CONTROLLER_BUTTON_DPAD_LEFT, XINPUT_GAMEPAD_DPAD_LEFT);
-		pad.wButtons |= TRANSLATE_INPUT(SDL_CONTROLLER_BUTTON_DPAD_RIGHT, XINPUT_GAMEPAD_DPAD_RIGHT);
-		pad.wButtons |= TRANSLATE_INPUT(SDL_CONTROLLER_BUTTON_START, XINPUT_GAMEPAD_START);
-		pad.wButtons |= TRANSLATE_INPUT(SDL_CONTROLLER_BUTTON_BACK, XINPUT_GAMEPAD_BACK);
-		pad.wButtons |= TRANSLATE_INPUT(SDL_CONTROLLER_BUTTON_TOUCHPAD, XINPUT_GAMEPAD_BACK);
+		static constexpr std::pair<EXboxButton, uint16_t> digitalButtons[] =
+		{
+			{ EXboxButton::DPadUp, XINPUT_GAMEPAD_DPAD_UP },
+			{ EXboxButton::DPadDown, XINPUT_GAMEPAD_DPAD_DOWN },
+			{ EXboxButton::DPadLeft, XINPUT_GAMEPAD_DPAD_LEFT },
+			{ EXboxButton::DPadRight, XINPUT_GAMEPAD_DPAD_RIGHT },
+			{ EXboxButton::Start, XINPUT_GAMEPAD_START },
+			{ EXboxButton::Back, XINPUT_GAMEPAD_BACK },
+			{ EXboxButton::LeftThumb, XINPUT_GAMEPAD_LEFT_THUMB },
+			{ EXboxButton::RightThumb, XINPUT_GAMEPAD_RIGHT_THUMB }
+		};
 
-		pad.wButtons |= TRANSLATE_INPUT(SDL_CONTROLLER_BUTTON_LEFTSTICK, XINPUT_GAMEPAD_LEFT_THUMB);
-		pad.wButtons |= TRANSLATE_INPUT(SDL_CONTROLLER_BUTTON_RIGHTSTICK, XINPUT_GAMEPAD_RIGHT_THUMB);
+		for (auto& [button, mask] : digitalButtons)
+		{
+			if (isPressed(button))
+			{
+				pad.wButtons |= mask;
+			}
+		}
 
-		pad.bAnalogButtons[Buttons_White] = SDL_GameControllerGetButton(controller, SDL_CONTROLLER_BUTTON_LEFTSHOULDER) ? 0xFF : 0;
-		pad.bAnalogButtons[Buttons_Black] = SDL_GameControllerGetButton(controller, SDL_CONTROLLER_BUTTON_RIGHTSHOULDER) ? 0xFF : 0;
-		pad.bAnalogButtons[Buttons_A] = SDL_GameControllerGetButton(controller, SDL_CONTROLLER_BUTTON_A) ? 0xFF : 0;
-		pad.bAnalogButtons[Buttons_B] = SDL_GameControllerGetButton(controller, SDL_CONTROLLER_BUTTON_B) ? 0xFF : 0;
-		pad.bAnalogButtons[Buttons_X] = SDL_GameControllerGetButton(controller, SDL_CONTROLLER_BUTTON_X) ? 0xFF : 0;
-		pad.bAnalogButtons[Buttons_Y] = SDL_GameControllerGetButton(controller, SDL_CONTROLLER_BUTTON_Y) ? 0xFF : 0;
+		// touchpad is back if unbound
+		auto isTouchpadBound = std::any_of(bindings.begin(), bindings.end(), [](auto* binding) { return binding->Value == EPadButton::Touchpad; });
 
+		if (!isTouchpadBound && GetButtonValue(EPadButton::Touchpad))
+		{
+			pad.wButtons |= XINPUT_GAMEPAD_BACK;
+		}
+
+		pad.bAnalogButtons[Buttons_A] = getDigitalValue(EXboxButton::A);
+		pad.bAnalogButtons[Buttons_B] = getDigitalValue(EXboxButton::B);
+		pad.bAnalogButtons[Buttons_X] = getDigitalValue(EXboxButton::X);
+		pad.bAnalogButtons[Buttons_Y] = getDigitalValue(EXboxButton::Y);
+		pad.bAnalogButtons[Buttons_White] = getDigitalValue(EXboxButton::White);
+		pad.bAnalogButtons[Buttons_Black] = getDigitalValue(EXboxButton::Black);
+		pad.bAnalogButtons[Buttons_LT] = getValue(EXboxButton::LeftTrigger);
+		pad.bAnalogButtons[Buttons_RT] = getValue(EXboxButton::RightTrigger);
 	}
 
 	void SetVibration(const XboxVibrationPacket& vibration)
@@ -588,6 +686,41 @@ void input::Init()
 	input::Update(); // just to ensure controller is available frame 1
 }
 
+input::EInputDevice input::GetPadDevice(uint32_t playerIndex)
+{
+	if (playerIndex >= g_controllers.size() || !g_controllers[playerIndex].controller)
+	{
+		return EInputDevice::Unknown;
+	}
+	return g_controllers[playerIndex].GetInputDevice();
+}
+
+void input::GetRawPadButtons(uint32_t playerIndex, PadButtonValues& values)
+{
+	values.fill(0);
+	auto readPad = [&](const Controller& controller)
+	{
+		for (size_t i = 0; i < values.size(); i++)
+		{
+			values[i] = std::max(values[i], controller.GetButtonValue((EPadButton)i));
+		}
+	};
+
+	if (playerIndex < g_controllers.size() && g_controllers[playerIndex].controller)
+	{
+		readPad(g_controllers[playerIndex]);
+		return;
+	}
+
+	for (auto& controller : g_controllers)
+	{
+		if (controller.controller)
+		{
+			readPad(controller);
+		}
+	}
+}
+
 uint32_t input::GetState(uint32_t dwUserIndex, XINPUT_STATE* pState)
 {
 	static uint32_t packet;
@@ -609,7 +742,7 @@ uint32_t input::GetState(uint32_t dwUserIndex, XINPUT_STATE* pState)
 	{
 		if (dwUserIndex >= 1 && dwUserIndex <= 4 && g_controllers[dwUserIndex - 1].controller)
 		{
-			g_controllers[dwUserIndex - 1].Poll();
+			g_controllers[dwUserIndex - 1].Poll(dwUserIndex - 1);
 			g_controllers[dwUserIndex - 1].PollAxis(dwUserIndex - 1);
 			pState->Gamepad = g_controllers[dwUserIndex - 1].state;
 			hasController = true;

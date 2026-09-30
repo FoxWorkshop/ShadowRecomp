@@ -182,6 +182,117 @@ std::unordered_map<std::string_view, std::unordered_map<ELanguage, std::string>>
         }
     },
     {
+        "Options_Name_CustomizeInput",
+        {
+            { ELanguage::English,  "Customize Input" },
+            { ELanguage::Japanese, "Customize Input" },
+            { ELanguage::German,   "Customize Input" },
+            { ELanguage::French,   "Customize Input" },
+            { ELanguage::Spanish,  "Customize Input" },
+            { ELanguage::Italian,  "Customize Input" }
+        }
+    },
+    {
+        "Options_Desc_CustomizeInput",
+        {
+            { ELanguage::English,  "Customize controls for each player." },
+            { ELanguage::Japanese, "Customize controls for each player." },
+            { ELanguage::German,   "Customize controls for each player." },
+            { ELanguage::French,   "Customize controls for each player." },
+            { ELanguage::Spanish,  "Customize controls for each player." },
+            { ELanguage::Italian,  "Customize controls for each player." }
+        }
+    },
+    {
+        "Options_Category_Keyboard",
+        {
+            { ELanguage::English,  "KEYBOARD" },
+            { ELanguage::Japanese, "KEYBOARD" },
+            { ELanguage::German,   "KEYBOARD" },
+            { ELanguage::French,   "KEYBOARD" },
+            { ELanguage::Spanish,  "KEYBOARD" },
+            { ELanguage::Italian,  "KEYBOARD" }
+        }
+    },
+    {
+        "Options_Desc_Category_Keyboard",
+        {
+            { ELanguage::English,  "Customize keyboard controls." },
+            { ELanguage::Japanese, "Customize keyboard controls." },
+            { ELanguage::German,   "Customize keyboard controls." },
+            { ELanguage::French,   "Customize keyboard controls." },
+            { ELanguage::Spanish,  "Customize keyboard controls." },
+            { ELanguage::Italian,  "Customize keyboard controls." }
+        }
+    },
+    {
+        // Notes: {} is the player number (1P, 2P, 3P, 4P)
+        "Options_Category_Gamepad",
+        {
+            { ELanguage::English,  "{}P GAMEPAD" },
+            { ELanguage::Japanese, "{}P GAMEPAD" },
+            { ELanguage::German,   "{}P GAMEPAD" },
+            { ELanguage::French,   "{}P GAMEPAD" },
+            { ELanguage::Spanish,  "{}P GAMEPAD" },
+            { ELanguage::Italian,  "{}P GAMEPAD" }
+        }
+    },
+    {
+        "Options_Desc_Category_Gamepad",
+        {
+            { ELanguage::English,  "Customize {}P gamepad buttons." },
+            { ELanguage::Japanese, "Customize {}P gamepad buttons." },
+            { ELanguage::German,   "Customize {}P gamepad buttons." },
+            { ELanguage::French,   "Customize {}P gamepad buttons." },
+            { ELanguage::Spanish,  "Customize {}P gamepad buttons." },
+            { ELanguage::Italian,  "Customize {}P gamepad buttons." }
+        }
+    },
+    {
+        "Options_Desc_BindKey",
+        {
+            { ELanguage::English,  "Change key assignment." },
+            { ELanguage::Japanese, "Change key assignment." },
+            { ELanguage::German,   "Change key assignment." },
+            { ELanguage::French,   "Change key assignment." },
+            { ELanguage::Spanish,  "Change key assignment." },
+            { ELanguage::Italian,  "Change key assignment." }
+        }
+    },
+    {
+        "Options_Desc_BindButton",
+        {
+            { ELanguage::English,  "Change assigned button." },
+            { ELanguage::Japanese, "Change assigned button." },
+            { ELanguage::German,   "Change assigned button." },
+            { ELanguage::French,   "Change assigned button." },
+            { ELanguage::Spanish,  "Change assigned button." },
+            { ELanguage::Italian,  "Change assigned button." }
+        }
+    },
+    {
+        "Options_Desc_BindKeyListening",
+        {
+            { ELanguage::English,  "Press key to assign. Press Escape or wait to cancel." },
+            { ELanguage::Japanese, "Press key to assign. Press Escape or wait to cancel." },
+            { ELanguage::German,   "Press key to assign. Press Escape or wait to cancel." },
+            { ELanguage::French,   "Press key to assign. Press Escape or wait to cancel." },
+            { ELanguage::Spanish,  "Press key to assign. Press Escape or wait to cancel." },
+            { ELanguage::Italian,  "Press key to assign. Press Escape or wait to cancel." }
+        }
+    },
+    {
+        "Options_Desc_BindButtonListening",
+        {
+            { ELanguage::English,  "Press button to assign. Press Escape or wait to cancel." },
+            { ELanguage::Japanese, "Press button to assign. Press Escape or wait to cancel." },
+            { ELanguage::German,   "Press button to assign. Press Escape or wait to cancel." },
+            { ELanguage::French,   "Press button to assign. Press Escape or wait to cancel." },
+            { ELanguage::Spanish,  "Press button to assign. Press Escape or wait to cancel." },
+            { ELanguage::Italian,  "Press button to assign. Press Escape or wait to cancel." }
+        }
+    },
+    {
         "Options_Name_WindowSize",
         {
             { ELanguage::English,  "Resolution" },

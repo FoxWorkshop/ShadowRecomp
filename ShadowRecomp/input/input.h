@@ -1,3 +1,4 @@
+#pragma once
 
 #include <app.h> 
 
@@ -89,6 +90,34 @@ namespace input
     extern EInputDevice g_inputDevice;
     extern EInputDevice g_inputDeviceController;
     extern EInputDeviceExplicit g_inputDeviceExplicit;
+
+    enum class EXboxButton
+    {
+        A,
+        B,
+        X,
+        Y,
+        LeftTrigger,
+        RightTrigger,
+        Start,
+        Back,
+        DPadUp,
+        DPadDown,
+        DPadLeft,
+        DPadRight,
+        White,
+        Black,
+        LeftThumb,
+        RightThumb,
+        Count
+    };
+
+    using PadBindings = std::array<ConfigDef<EPadButton>*, (size_t)EXboxButton::Count>;
+    using PadButtonValues = std::array<uint8_t, (size_t)EPadButton::Count>;
+
+    const PadBindings& GetPadBindings(uint32_t playerIndex);
+    EInputDevice GetPadDevice(uint32_t playerIndex);
+    void GetRawPadButtons(uint32_t playerIndex, PadButtonValues& values);
 
     void Init();
     void Update();

@@ -35,6 +35,34 @@ CONFIG_DEFINE_ENUM_TEMPLATE(EControllerIcons)
     { "Gamecube", EControllerIcons::Gamecube }
 };
 
+CONFIG_DEFINE_ENUM_TEMPLATE(EPadButton)
+{
+    { "A", EPadButton::A },
+    { "B", EPadButton::B },
+    { "X", EPadButton::X },
+    { "Y", EPadButton::Y },
+    { "BACK", EPadButton::Back },
+    { "GUIDE", EPadButton::Guide },
+    { "START", EPadButton::Start },
+    { "LS", EPadButton::LeftStick },
+    { "RS", EPadButton::RightStick },
+    { "LB", EPadButton::LeftShoulder },
+    { "RB", EPadButton::RightShoulder },
+    { "DPAD UP", EPadButton::DPadUp },
+    { "DPAD DOWN", EPadButton::DPadDown },
+    { "DPAD LEFT", EPadButton::DPadLeft },
+    { "DPAD RIGHT", EPadButton::DPadRight },
+    { "MISC", EPadButton::Misc1 },
+    { "PADDLE 1", EPadButton::Paddle1 },
+    { "PADDLE 2", EPadButton::Paddle2 },
+    { "PADDLE 3", EPadButton::Paddle3 },
+    { "PADDLE 4", EPadButton::Paddle4 },
+    { "TOUCHPAD", EPadButton::Touchpad },
+    { "LT", EPadButton::LeftTrigger },
+    { "RT", EPadButton::RightTrigger },
+    { "NONE", EPadButton::None }
+};
+
 CONFIG_DEFINE_ENUM_TEMPLATE(SDL_Scancode)
 {
     { "???", SDL_SCANCODE_UNKNOWN },

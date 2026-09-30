@@ -362,6 +362,21 @@ CONFIG_DEFINE_LOCALE(AllowBackgroundInput)
     { ELanguage::Italian,  { "Input con la finestra inattiva", "Attiva/disattiva i tasti del controller mentre la finestra è inattiva." } }
 };
 
+CONFIG_DEFINE_LOCALE(StickDeadzone1P)
+{
+    { ELanguage::English, { "Stick Deadzone", "Adjust analog deadzone." } },
+    { ELanguage::Japanese, { "Stick Deadzone", "Adjust analog deadzone." } },
+    { ELanguage::German,   { "Stick Deadzone", "Adjust analog deadzone." } },
+    { ELanguage::French,   { "Stick Deadzone", "Adjust analog deadzone." } },
+    { ELanguage::Spanish,  { "Stick Deadzone", "Adjust analog deadzone." } },
+    { ELanguage::Italian,  { "Stick Deadzone", "Adjust analog deadzone." } }
+};
+
+// shared by all players
+CONFIG_LOCALE g_StickDeadzone2P_locale = g_StickDeadzone1P_locale;
+CONFIG_LOCALE g_StickDeadzone3P_locale = g_StickDeadzone1P_locale;
+CONFIG_LOCALE g_StickDeadzone4P_locale = g_StickDeadzone1P_locale;
+
 CONFIG_DEFINE_LOCALE(MasterVolume)
 {
     { ELanguage::English, { "Master Volume", "Adjust the overall volume." } },
