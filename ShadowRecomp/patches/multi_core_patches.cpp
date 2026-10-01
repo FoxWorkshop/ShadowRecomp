@@ -172,21 +172,6 @@ X86_FUNC(sub_2D8470)
 
 /* --- CSD Node Race --- */
 
-
-struct CSDTransfoMatrixNode
-{
-	float xA1;
-	DWORD xA2;
-	BYTE gap8[4];
-	float yA1;
-	float yA2;
-	float float14;
-	uint32_t pdword18;
-	uint32_t pdword1C;
-};
-
-CSDTransfoMatrixNode* csdTransfoMatrixNodeSourcePtr = nullptr;
-
 //CSDPushNewNode
 static std::atomic<int> lastThreadIDCSDNode{0};
 static std::atomic<int> countExtraSleepFailSafe{0};
@@ -210,7 +195,6 @@ X86_FUNC(sub_2B4440)
 	}
 
 	lastThreadIDCSDNode = GuestThread::GetCurrentThreadId();
-	csdTransfoMatrixNodeSourcePtr = (CSDTransfoMatrixNode*)g_memory.Translate(X86_LOAD_U32(0x559E94));
 
 	RtlEnterCriticalSection(&csdNodeLock);
 	__imp__sub_2B4440(ctx, base);
