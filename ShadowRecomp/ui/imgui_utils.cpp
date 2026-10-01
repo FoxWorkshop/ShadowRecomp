@@ -1036,3 +1036,27 @@ void AddTextCentered(ImDrawList* drawList, ImFont* font, float fontSize,
     ImVec2 pos = { centerX - textSize.x / 2.0f, y };
     AddTextWithOutline(drawList, font, fontSize, pos, textColor, outlineColor, text);
 }
+
+void DrawScaledRect(ImDrawList* drawList, ImVec2 winPos, float scale,
+    float offsetX, float offsetY, float baseX, float baseY,
+    float baseW, float baseH, ImU32 colour)
+{
+    ImVec2 topLeft = ImVec2(
+        winPos.x + offsetX + (baseX * scale),
+        winPos.y + offsetY + (baseY * scale)
+    );
+    ImVec2 bottomRight = ImVec2(
+        topLeft.x + (baseW * scale),
+        topLeft.y + (baseH * scale)
+    );
+    drawList->AddRectFilled(topLeft, bottomRight, colour);
+};
+
+ImVec2 ScaleTriangleVert(ImVec2 winPos, float scale, float offsetX,
+    float offsetY, float baseLocX, float baseLocY)
+{
+    return ImVec2(
+        winPos.x + offsetX + (baseLocX * scale),
+        winPos.y + offsetY + (baseLocY * scale)
+    );
+};
