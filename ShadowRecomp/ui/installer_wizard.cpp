@@ -789,9 +789,6 @@ void InstallerWizard::Draw()
 	auto titleSize = font->CalcTextSizeA(fontSize + 2.f, FLT_MAX, 0, titleText);
 	float titleX = centerX - titleSize.x * 0.5f;
 
-
-	float contentY = panelMin.y + 80.0f * scale;
-
 	std::string wizardText = GetWizardText(g_currentPage);
 	char descriptionText[512];
 	strncpy(descriptionText, wizardText.c_str(), sizeof(descriptionText) - 1);
@@ -801,8 +798,7 @@ void InstallerWizard::Draw()
 	auto textMargin = 5.0f;
 
 	auto textMaxWidth = originMax.x - (descFontSize / 2.0f) - originMin.x;
-	auto textSize = font->CalcTextSizeA(descFontSize, FLT_MAX, 0, wizardText.c_str());
-
+	auto textSize = MeasureCentredParagraph(g_fntSeurat, descFontSize, textMaxWidth, textMargin, wizardText.c_str());
 	ImVec2 textPosition = ImVec2(panelMin.x + (panelWidth - textSize.x) * 0.5f, originMin.y);
 
 	if (g_currentPage != WizardPage::Installing && g_currentPage != WizardPage::InstallFailed)
@@ -831,8 +827,6 @@ void InstallerWizard::Draw()
 	break;
 	case WizardPage::SelectGame:
 	{
-		contentY += (40.0f * scale);
-
 		ImVec2 inputMin = ImVec2(
 							panelMin.x + (74.0f * scale),
 							panelMin.y + (141.0f * scale)
@@ -930,12 +924,9 @@ void InstallerWizard::Draw()
 			g_browseClicked = true;
 		}
 
-		//contentY += inputHeight + (30.0f * scale);
-
 		if (!g_statusMessage.empty())
 		{
-			drawList->AddText(font, smallFontSize, ImVec2(panelMin.x, contentY), IM_COL32(255, 100, 100, 255), g_statusMessage.c_str());
-			contentY += (30.0f * scale);
+			drawList->AddText(font, smallFontSize, ImVec2(panelMin.x, panelMin.y), IM_COL32(255, 100, 100, 255), g_statusMessage.c_str());
 		}
 
 		if (!g_isoPath.empty())
@@ -1025,7 +1016,7 @@ void InstallerWizard::Draw()
 			[&](const char* str, ImVec2 pos) { DrawTextBasic(g_fntSeurat, descFontSize, pos, IM_COL32(255, 255, 255, 255), str); });
 		//drawList->AddText(font, descFontSize, ImVec2(panelMin.x + Scale(20), contentY), IM_COL32(220, 220, 255, 255), headerText);
 
-		contentY += (50.0f * scale);
+		//contentY += (50.0f * scale);
 
 		float barPadding = 20.0f * scale;
 		float barX = panelMin.x + barPadding;
@@ -1039,11 +1030,11 @@ void InstallerWizard::Draw()
 				char fileText[512];
 				auto fileTxt = Localise("Common_File") + ": %s";
 				snprintf(fileText, sizeof(fileText), fileTxt.c_str(), g_installerCurrentFileName.c_str());
-				drawList->AddText(font, smallFontSize, ImVec2(barX, contentY), IM_COL32(180, 180, 180, 255), fileText, nullptr, barWidth);
+				drawList->AddText(font, smallFontSize, ImVec2(barX, panelMin.y), IM_COL32(180, 180, 180, 255), fileText, nullptr, barWidth);
 			}
 		}
 
-		contentY += Scale(30.0f);
+		//contentY += Scale(30.0f);
 
 		ImVec2 barMin(barX, centerY - barHeight * 0.5f);
 		ImVec2 barMax(barX + barWidth, centerY + barHeight * 0.5f);
@@ -1064,7 +1055,7 @@ void InstallerWizard::Draw()
 		auto percentSize = font->CalcTextSizeA(smallFontSize, FLT_MAX, 0, percentText);
 		drawList->AddText(font, smallFontSize, ImVec2(barX + (barWidth - percentSize.x) * 0.5f, centerY - percentSize.y * 0.5f), IM_COL32(255, 255, 255, 255), percentText);
 
-		contentY += barHeight + 20.0f * scale;
+		//contentY += barHeight + 20.0f * scale;
 
 		if (g_installerFinished.load())
 		{
@@ -1118,34 +1109,62 @@ void InstallerWizard::Draw()
 
 	case WizardPage::InstallFailed:
 	{
-
-		contentY += (50.0f * scale);
-		float errorPadding = 20.0f * scale;
-
 		const char* errorMsg = g_installerErrorMessage.empty() ? Localise("Installer_Page_InstallFailed").c_str() : g_installerErrorMessage.c_str();
-		drawList->AddText(font, descFontSize, ImVec2(panelMin.x + errorPadding, contentY), IM_COL32(255, 180, 180, 255), errorMsg, nullptr, panelWidth - errorPadding * 2.0f);
 
-		float retryBtnWidth = 120.0f * scale;
-		float retryBtnHeight = 40.0f * scale;
-		float retryBtnX = centerX - retryBtnWidth - (10.0f * scale);
-		float retryBtnY = panelMax.y - retryBtnHeight - (30.0f * scale);
+		ImVec2 errorTextSize = MeasureCentredParagraph(g_fntSeurat, descFontSize, textMaxWidth, textMargin, errorMsg);
+		ImVec2 errorTextPosition = ImVec2(panelMin.x + (panelWidth - errorTextSize.x) * 0.5f, originMin.y);
+
+		DrawTextParagraph(g_fntSeurat, descFontSize, textMaxWidth, errorTextPosition, textMargin, errorMsg,
+						  [&](const char* errorStr, ImVec2 errorPos) { DrawTextWithShadow(g_fntSeurat, descFontSize, errorPos, IM_COL32(255, 255, 255, 255), errorStr, 1.5, 1, IM_COL32(0, 0, 0, 127)); });
+
+		auto retryText = Localise("Installer_Button_Retry").c_str();
+		auto retrySize = font->CalcTextSizeA(smallFontSize, FLT_MAX, 0, retryText);
+
+		float retryBtnWidth = 50.0f * scale;
+		float retryBtnHeight = 20.0f * scale;
+		float retryBtnX = panelMin.x + ((panelMax.x - panelMin.x) - retryBtnWidth) * 0.5f;
+		float retryBtnY = panelMax.y - retryBtnHeight - (70.0f * scale);
 
 		bool retryHovered = false;
 		if (io.MousePos.x >= retryBtnX && io.MousePos.x <= retryBtnX + retryBtnWidth &&
 			io.MousePos.y >= retryBtnY && io.MousePos.y <= retryBtnY + retryBtnHeight)
 		{
 			retryHovered = true;
+			if(!playedNextSound)
+			{
+				Game_PlaySound("cursor");
+				playedNextSound = true;
+			}
 		}
+		else { playedNextSound = false; }
 
-		ImU32 retryColor = retryHovered ? IM_COL32(80, 80, 140, 255) : IM_COL32(60, 60, 100, 255);
-		drawList->AddRectFilled(ImVec2(retryBtnX, retryBtnY), ImVec2(retryBtnX + retryBtnWidth, retryBtnY + retryBtnHeight), retryColor, (6.0f * scale));
-
-		auto retryText = Localise("Installer_Button_Retry").c_str();
-		auto retrySize = font->CalcTextSizeA(smallFontSize, FLT_MAX, 0, retryText);
-		drawList->AddText(font, smallFontSize, ImVec2(retryBtnX + (retryBtnWidth - retrySize.x) * 0.5f, retryBtnY + (retryBtnHeight - retrySize.y) * 0.5f), IM_COL32(220, 220, 255, 255), retryText);
+		if (retryHovered)
+		{
+			drawList->AddText(
+				font,
+				smallFontSize,
+				ImVec2(retryBtnX + (retryBtnWidth - retrySize.x) * 0.5f, retryBtnY + (retryBtnHeight - retrySize.y) * 0.5f),
+				IM_COL32(255, 255, 0, 255),
+				retryText
+			);
+		}
+		else
+		{
+			DrawTextWithShadow(
+				font,
+				smallFontSize,
+				ImVec2(retryBtnX + (retryBtnWidth - retrySize.x) * 0.5f, retryBtnY + (retryBtnHeight - retrySize.y) * 0.5f),
+				IM_COL32(255, 255, 255, 127),
+				retryText,
+				1.5,
+				1,
+				IM_COL32(0, 0, 0, 127)
+			);
+		}
 
 		if (retryHovered && io.MouseClicked[0])
 		{
+			Game_PlaySound("decide");
 			if (g_installerThread && g_installerThread->joinable())
 				g_installerThread->join();
 			g_installerThread.reset();
@@ -1158,30 +1177,7 @@ void InstallerWizard::Draw()
 			g_installerProgress = 0.0f;
 		}
 
-		float quitBtnWidth = 120.0f * scale;
-		float quitBtnHeight = 40.0f * scale;
-		float quitBtnX = centerX + (10.0f * scale);
-		float quitBtnY = panelMax.y - quitBtnHeight - (30.0f * scale);
-
-		bool quitHovered = false;
-		if (io.MousePos.x >= quitBtnX && io.MousePos.x <= quitBtnX + quitBtnWidth &&
-			io.MousePos.y >= quitBtnY && io.MousePos.y <= quitBtnY + quitBtnHeight)
-		{
-			quitHovered = true;
-		}
-
-		ImU32 quitColor = quitHovered ? IM_COL32(140, 50, 50, 255) : IM_COL32(100, 30, 30, 255);
-		drawList->AddRectFilled(ImVec2(quitBtnX, quitBtnY), ImVec2(quitBtnX + quitBtnWidth, quitBtnY + quitBtnHeight), quitColor, (6.0f * scale));
-
-		auto quitText = Localise("Installer_Button_Quit").c_str();
-		auto quitSize = font->CalcTextSizeA(smallFontSize, FLT_MAX, 0, quitText);
-		drawList->AddText(font, smallFontSize, ImVec2(quitBtnX + (quitBtnWidth - quitSize.x) * 0.5f, quitBtnY + (quitBtnHeight - quitSize.y) * 0.5f), IM_COL32(255, 200, 200, 255), quitText);
-
-		if (quitHovered && io.MouseClicked[0])
-		{
-			g_isQuitting = true;
-			s_isVisible = false;
-		}
+		DrawQuitButton(panelMin, panelMax, scale);
 
 		break;
 	}
