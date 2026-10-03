@@ -586,3 +586,18 @@ X86_FUNC(sub_309F90)
 	ctx.eax.u32 = X86_LOAD_U32(ctx.esp.u32 + 4);
 	ctx.AddEsp(1);
 }
+
+
+// EffectDrawGlobalLensFlareTask ctor never frees the data at +0x34,
+// therefore, if the task dies early, the destructor will use garbage data. 
+// Clear it after the ctor to be safe.
+
+X86_FUNC_IMPL(__imp__sub_C0DC0);
+X86_FUNC(sub_C0DC0)
+{
+	const uint32_t task = ctx.ecx.u32;
+
+	__imp__sub_C0DC0(ctx, base);
+
+	X86_STORE_U32(task + 0x34, 0);
+}
