@@ -255,6 +255,25 @@ X86_FUNC(sub_59BB0)
 	aboutToDrawLoading = false;
 }
 
+// CNowLoadingThread destructor
+// The NowLoading manager can stop a loading thread and start a new one right away.
+// The old thread is only deleted later and its destructor clears the manager thread pointer no matter what, so the manager
+// forgets the new thread, and therefore, it continues to run endlessly.
+// Fix: Ensure the destructor only clear the pointer when it is really the right thread.
+// Note: so far I only saw that happening with an experiemntal "boot to event" feature, but just in case...
+X86_FUNC_IMPL(__imp__sub_59AE0);
+X86_FUNC(sub_59AE0)
+{
+	const uint32_t thread = ctx.ecx.u32;
+	const uint32_t manager = X86_LOAD_U32(0x544F40);
+	const uint32_t current = manager ? X86_LOAD_U32(manager + 40) : 0;
+
+	__imp__sub_59AE0(ctx, base);
+
+	if (manager && current != thread)
+		X86_STORE_U32(manager + 40, current);
+}
+
 // attempt to fix a rare FMV crash when skipping them (Multi-threads race too)
 X86_FUNC_IMPL(__imp__sub_34AB40);
 X86_FUNC(sub_34AB40)
