@@ -6541,10 +6541,16 @@ static void SetViewport(GuestViewport* viewport, GuestSurface* surface)
 X86_FUNC_IMPL(__imp__sub_3D0040);
 
 
+// The main thread and the loading thread can both run SetRenderTarget at the same time, thus, they can read
+// the same old surface and release it twice, so memory can get corrupted, let's mutex this as a fix.
+static std::recursive_mutex g_guestRefCountMutex;
+
 //Specify where it should draws (Either framebuffer surface or texture surface)
 //on DX8 Xbox, SetDepthStencilSurface is merged with SetRenderTarget.
 void D3DDevice_SetRenderTarget(GuestSurface* surface, GuestSurface* pNewZStencil)
 {
+	std::lock_guard lock(g_guestRefCountMutex);
+
 	auto ctx = GetX86Context();
 	auto base = g_memory.base;
 	auto device = X86_LOAD_U32(GuestDevicePtrAddr);
@@ -8965,6 +8971,7 @@ X86_FUNC(sub_3D5F10)
 	auto resource = X86_LOAD_U32(ctx.esp.u32 + 4);
 	if (resource)
 	{
+		std::lock_guard lock(g_guestRefCountMutex);
 		__imp__sub_3D5F10(ctx, base);
 	}
 	else
