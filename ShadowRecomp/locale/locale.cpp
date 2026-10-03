@@ -463,12 +463,12 @@ std::unordered_map<std::string_view, std::unordered_map<ELanguage, std::string>>
     {
         "Installer_Header_Browse",
         {
-            { ELanguage::English,  "Browse" },
+            { ELanguage::English,  "Browse..." },
             { ELanguage::Japanese, "ブラウズ" },
-            { ELanguage::German,   "Durchsuchen" },
-            { ELanguage::French,   "Parcourir" },
-            { ELanguage::Spanish,  "Explorar" },
-            { ELanguage::Italian,  "Esplora" },
+            { ELanguage::German,   "Durchsuchen..." },
+            { ELanguage::French,   "Parcourir..." },
+            { ELanguage::Spanish,  "Explorar..." },
+            { ELanguage::Italian,  "Esplora..." },
         }
     },
     {

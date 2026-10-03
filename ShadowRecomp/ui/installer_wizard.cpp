@@ -75,6 +75,7 @@ static constexpr double QUITTING_EXTRA_DURATION = 60.0;
 
 static float fontSize = 24.0f;
 static float smallFontSize = 18.0f;
+static float fileFontSize = 16.0f;
 static float descFontSize = 18.0f;
 
 // Shadow's orig res is 640x480, use this as a base for window scaling
@@ -752,15 +753,6 @@ void InstallerWizard::Draw()
 
 	auto* font = g_fntSeurat;
 
-	// Panel is centred in the viewport and capped so it doesn't get
-	// absurdly wide on ultrawide / high-resolution displays. All sizes
-	// below are derived from the panel rectangle so the layout scales
-	// correctly with both window resizing and High DPI.
-	//float panelWidth = std::min(displaySize.x * 0.7f, Scale(800.0f));
-	//float panelHeight = std::min(displaySize.y * 0.72f, Scale(640.0f));
-	//float panelMinX = (displaySize.x - panelWidth) * 0.5f;
-	//float panelMinY = (displaySize.y - panelHeight) * 0.5f;
-
 	float verticalOffset = 40.0f * scale;
 
 	ImVec2 panelMin = ImVec2(
@@ -770,18 +762,17 @@ void InstallerWizard::Draw()
 	ImVec2 panelMax = ImVec2(
 						panelMin.x + (587.0f * scale),
 						panelMin.y + (351.0f * scale)
-					);
+					  );
 
 	float panelWidth = panelMax.x - panelMin.x;
 	float centerX = (panelMin.x + panelMax.x) * 0.5f;
 	float centerY = (panelMin.y + panelMax.y) * 0.5f;
 
-	// Font sizes scale with the panel so they stay readable at any DPI.
 	float baseFontSize = 18.0f * scale;
-	//float baseFontSize = std::max((12.0f * scale), std::floor(std::min(panelMax.x, panelMax.y) / 22.0f));
 	fontSize = baseFontSize;
 	descFontSize = baseFontSize + std::floor(baseFontSize * 0.2f);
 	smallFontSize = std::floor(baseFontSize * 0.9f);
+	fileFontSize = std::floor(baseFontSize * 0.7f);
 
 	// Background, description banner, and body text fade in from black on
 	// the language-selection screen, matching the fade used by the
@@ -812,9 +803,7 @@ void InstallerWizard::Draw()
 	auto textMaxWidth = originMax.x - (descFontSize / 2.0f) - originMin.x;
 	auto textSize = font->CalcTextSizeA(descFontSize, FLT_MAX, 0, wizardText.c_str());
 
-	//DrawDescription("Shadow the Hedgehog - Installer", fadeAlpha);
 	ImVec2 textPosition = ImVec2(panelMin.x + (panelWidth - textSize.x) * 0.5f, originMin.y);
-	//auto nextSize = font->CalcTextSizeA(smallFontSize, FLT_MAX, 0, nextText);
 
 	if (g_currentPage != WizardPage::Installing && g_currentPage != WizardPage::InstallFailed)
 	{
@@ -842,33 +831,29 @@ void InstallerWizard::Draw()
 	break;
 	case WizardPage::SelectGame:
 	{
-
 		contentY += (40.0f * scale);
 
-		float inputPadding = 20.0f;
-		float inputWidth = panelWidth - inputPadding * 2.0f;
-		float inputHeight = 32.0f;
-		ImVec2 inputMin(panelMin.x + inputPadding, 40.0f);
-		ImVec2 inputMax(panelMin.x + inputPadding + inputWidth, 40.0f + inputHeight);
+		ImVec2 inputMin = ImVec2(
+							panelMin.x + (74.0f * scale),
+							panelMin.y + (141.0f * scale)
+						  );
+		ImVec2 inputMax = ImVec2(
+							inputMin.x + (350.0f * scale),
+							inputMin.y + (32.0f * scale)
+						  );
 
-		DrawScaledRect(drawList, winPos, scale, offsetX, offsetY, 100.0f, 200.0f, 350.0f, 32.0f, IM_COL32(40, 40, 60, 255));
+		DrawScaledRect(drawList, winPos, scale, offsetX, offsetY, 100.0f, 200.0f, 350.0f, 32.0f, IM_COL32(0, 0, 40, 255));
 
-		//drawList->AddRectFilled(inputMin, inputMax, IM_COL32(40, 40, 60, 255), (4.0f * scale));
-		//drawList->AddRect(inputMin, inputMax, IM_COL32(100, 100, 140, 255), (4.0f * scale), 0, scale);
-
-		float btnWidth = 120.0f * scale;
-		float btnHeight = 32.0f * scale;
-		float btnX = inputMax.x - btnWidth;
-		float btnY = inputMin.y;
-		float pathClipWidth = (btnX - (8.0f * scale)) - (inputMin.x + (8.0f * scale));
+		float pathClipWidth = (inputMax.x - (8.0f * scale)) - (inputMin.x + (8.0f * scale));
 
 		const std::string displayPathStorage = g_isoPath.empty() ? Localise("Installer_Page_NoFileSelected") : std::string(g_isoPath);
 		const char* displayPath = displayPathStorage.c_str();
 
-		auto displayTextSize = font->CalcTextSizeA(smallFontSize, FLT_MAX, 0.0f, displayPath);
+		auto displayTextSize = font->CalcTextSizeA(fileFontSize, FLT_MAX, 0.0f, displayPath);
 		bool pathOverflows = displayTextSize.x > pathClipWidth;
 		std::string overflowRender;
 		const char* pathToShow = displayPath;
+
 		if (pathOverflows)
 		{
 			// Find the longest tail of displayPath that, when prefixed with
@@ -879,7 +864,7 @@ void InstallerWizard::Draw()
 			while (tailLen > 1)
 			{
 				std::string candidate = ellipsis + std::string(displayPath + (dlen - tailLen), tailLen);
-				auto candSize = font->CalcTextSizeA(smallFontSize, FLT_MAX, 0.0f, candidate.c_str());
+				auto candSize = font->CalcTextSizeA(fileFontSize, FLT_MAX, 0.0f, candidate.c_str());
 				if (candSize.x <= pathClipWidth)
 				{
 					overflowRender = std::move(candidate);
@@ -892,8 +877,16 @@ void InstallerWizard::Draw()
 			pathToShow = overflowRender.c_str();
 		}
 
+		drawList->AddText(font, fileFontSize, ImVec2(inputMin.x + (10.0f * scale), inputMin.y + ((inputMax.y - inputMin.y) - displayTextSize.y) * 0.5f), IM_COL32(255, 255, 255, 127), pathToShow, nullptr, pathClipWidth);
 
-		drawList->AddText(font, smallFontSize, ImVec2(winPos.x + offsetX + (110.0f * scale), winPos.y + offsetY + (210.0f * scale)), IM_COL32(180, 180, 180, 255), pathToShow, nullptr, pathClipWidth);
+		const std::string browseTextStorage = Localise("Installer_Header_Browse");
+		const char* browseText = browseTextStorage.c_str();
+		auto browseSize = font->CalcTextSizeA(smallFontSize, FLT_MAX, 0, browseText);
+
+		float btnWidth = 80.0f * scale;
+		float btnHeight = 20.0f * scale;
+		float btnX = inputMax.x + (15.0f * scale);
+		float btnY = inputMin.y + ((inputMax.y - inputMin.y) - btnHeight) * 0.5f;
 
 		bool btnHovered = false;
 		if (io.MousePos.x >= btnX && io.MousePos.x <= btnX + btnWidth &&
@@ -907,12 +900,29 @@ void InstallerWizard::Draw()
 		}
 		else { playedBrowseSound = false; }
 
-		ImU32 btnColor = btnHovered ? IM_COL32(80, 80, 140, 255) : IM_COL32(60, 60, 100, 255);
-		drawList->AddRectFilled(ImVec2(btnX, btnY), ImVec2(btnX + btnWidth, btnY + btnHeight), btnColor, (8.0f * scale));
-		const std::string browseTextStorage = Localise("Installer_Header_Browse");
-		const char* browseText = browseTextStorage.c_str();
-		auto browseSize = font->CalcTextSizeA(smallFontSize, FLT_MAX, 0, browseText);
-		drawList->AddText(font, smallFontSize, ImVec2(btnX + (btnWidth - browseSize.x) * 0.5f, btnY + (btnHeight - browseSize.y) * 0.5f), IM_COL32(220, 220, 255, 255), browseText);
+		if (btnHovered)
+		{
+			drawList->AddText(
+				font,
+				smallFontSize,
+				ImVec2(btnX + (btnWidth - browseSize.x) * 0.5f, btnY + (btnHeight - browseSize.y) * 0.5f),
+				IM_COL32(255, 255, 0, 255),
+				browseText
+			);
+		}
+		else
+		{
+			DrawTextWithShadow(
+				font,
+				smallFontSize,
+				ImVec2(btnX + (btnWidth - browseSize.x) * 0.5f, btnY + (btnHeight - browseSize.y) * 0.5f),
+				IM_COL32(255, 255, 255, 127),
+				browseText,
+				1.5,
+				1,
+				IM_COL32(0, 0, 0, 127)
+			);
+		}
 
 		if (btnHovered && io.MouseClicked[0])
 		{
@@ -920,34 +930,61 @@ void InstallerWizard::Draw()
 			g_browseClicked = true;
 		}
 
-		contentY += inputHeight + (30.0f * scale);
+		//contentY += inputHeight + (30.0f * scale);
 
 		if (!g_statusMessage.empty())
 		{
-			drawList->AddText(font, smallFontSize, ImVec2(panelMin.x + inputPadding, contentY), IM_COL32(255, 100, 100, 255), g_statusMessage.c_str());
+			drawList->AddText(font, smallFontSize, ImVec2(panelMin.x, contentY), IM_COL32(255, 100, 100, 255), g_statusMessage.c_str());
 			contentY += (30.0f * scale);
 		}
 
 		if (!g_isoPath.empty())
 		{
-			float nextBtnWidth = 100.0f * scale;
-			float nextBtnHeight = 36.0f * scale;
-			float nextBtnX = panelMax.x - nextBtnWidth - (10.0f * scale);
-			float nextBtnY = panelMax.y - nextBtnHeight - (10.0f * scale);
+			float nextBtnWidth = 45.0f * scale;
+			float nextBtnHeight = 20.0f * scale;
+			float nextBtnX = panelMin.x + ((panelMax.x - panelMin.x) - nextBtnWidth) * 0.5f;
+			float nextBtnY = panelMax.y - nextBtnHeight - (70.0f * scale);
+
+			auto nextText = Localise("Common_Install").c_str();
+			auto nextSize = font->CalcTextSizeA(smallFontSize, FLT_MAX, 0, nextText);
 
 			bool nextHovered = false;
+
 			if (io.MousePos.x >= nextBtnX && io.MousePos.x <= nextBtnX + nextBtnWidth &&
 				io.MousePos.y >= nextBtnY && io.MousePos.y <= nextBtnY + nextBtnHeight)
 			{
 				nextHovered = true;
+				if(!playedNextSound)
+				{
+					Game_PlaySound("cursor");
+					playedNextSound = true;
+				}
 			}
+			else { playedNextSound = false; }
 
-			ImU32 nextColor = nextHovered ? IM_COL32(30, 180, 255, 255) : IM_COL32(0, 140, 200, 255);
-			drawList->AddRectFilled(ImVec2(nextBtnX, nextBtnY), ImVec2(nextBtnX + nextBtnWidth, nextBtnY + nextBtnHeight), nextColor, (6.0f * scale));
-
-			auto nextText = Localise("Common_Install").c_str();
-			auto nextSize = font->CalcTextSizeA(smallFontSize, FLT_MAX, 0, nextText);
-			drawList->AddText(font, smallFontSize, ImVec2(nextBtnX + (nextBtnWidth - nextSize.x) * 0.5f, nextBtnY + (nextBtnHeight - nextSize.y) * 0.5f), IM_COL32(220, 235, 255, 255), nextText);
+			if (nextHovered)
+			{
+				drawList->AddText(
+					font,
+					smallFontSize,
+					ImVec2(nextBtnX + (nextBtnWidth - nextSize.x) * 0.5f, nextBtnY + (nextBtnHeight - nextSize.y) * 0.5f),
+								  IM_COL32(255, 255, 0, 255),
+								  nextText
+				);
+			}
+			else
+			{
+				DrawTextWithShadow(
+					font,
+					smallFontSize,
+					ImVec2(nextBtnX + (nextBtnWidth - nextSize.x) * 0.5f, nextBtnY + (nextBtnHeight - nextSize.y) * 0.5f),
+								   IM_COL32(255, 255, 255, 127),
+								   nextText,
+					   1.5,
+					   1,
+					   IM_COL32(0, 0, 0, 127)
+				);
+			}
 
 			if (nextHovered && io.MouseClicked[0])
 			{
@@ -1185,7 +1222,7 @@ bool InstallerWizard::Run(std::filesystem::path installPath)
 
 		Video::WaitOnSwapChain();
 
-		//Ideally, no music. Always found music on installers incredibly annoying.gvfx
+		//Ideally, no music. Always found music on installers incredibly annoying
 		//EmbeddedPlayer::PlayMusic();
 
 		SDL_PumpEvents();
