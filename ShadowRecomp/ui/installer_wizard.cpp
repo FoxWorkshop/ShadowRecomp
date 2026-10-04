@@ -1076,26 +1076,60 @@ void InstallerWizard::Draw()
 		bool playHovered = false;
 
 		auto foxSize = font->CalcTextSizeA(descFontSize, FLT_MAX, 0, foxDev);
-		drawList->AddText(font, descFontSize, ImVec2(centerX - foxSize.x * 0.5f, centerY - foxSize.y - 48.0f * scale), IM_COL32(220, 255, 220, 255), foxDev);
+		auto foxPositionY = textSize.y + textPosition.y + (25.0f * scale);
+		DrawTextWithShadow(font, descFontSize, ImVec2(centerX - foxSize.x * 0.5f, foxPositionY), IM_COL32(255, 255, 255, 255), foxDev, 1.5, 1, IM_COL32(0, 0, 0, 127));
 
-		float playBtnWidth = 250.0f * scale;
-		float playBtnHeight = 58.0f * scale;
-		float playBtnX = centerX - playBtnWidth * 0.5f;
-		float playBtnY = centerY + 24.0f * scale;
+		DrawQuitButton(panelMin, panelMax, scale);
+
+		float playBtnWidth = 75.0f * scale;
+		float playBtnHeight = 20.0f * scale;
+		float playBtnX = panelMin.x + ((panelMax.x - panelMin.x) - playBtnWidth) * 0.5f;
+		float playBtnY = panelMax.y - playBtnHeight - (70.0f * scale);
+
+		auto playText = Localise("Installer_Button_PlayGame").c_str();
+		auto playSize = font->CalcTextSizeA(smallFontSize, FLT_MAX, 0, playText);
 
 		if (io.MousePos.x >= playBtnX && io.MousePos.x <= playBtnX + playBtnWidth &&
 			io.MousePos.y >= playBtnY && io.MousePos.y <= playBtnY + playBtnHeight)
 		{
 			playHovered = true;
+			if(!playedNextSound)
+			{
+				Game_PlaySound("cursor");
+				playedNextSound = true;
+			}
+		}
+		else { playedNextSound = false; }
+
+		if (playHovered)
+		{
+			drawList->AddText(
+				font,
+				smallFontSize,
+				ImVec2(playBtnX + (playBtnWidth - playSize.x) * 0.5f, playBtnY + (playBtnHeight - playSize.y) * 0.5f),
+				IM_COL32(255, 255, 0, 255),
+				playText
+			);
+		}
+		else
+		{
+			DrawTextWithShadow(
+				font,
+				smallFontSize,
+				ImVec2(playBtnX + (playBtnWidth - playSize.x) * 0.5f, playBtnY + (playBtnHeight - playSize.y) * 0.5f),
+				IM_COL32(255, 255, 255, 127),
+				playText,
+				1.5,
+				1,
+				IM_COL32(0, 0, 0, 127)
+			);
 		}
 
-		ImU32 playColor = playHovered ? IM_COL32(30, 180, 255, 255) : IM_COL32(0, 140, 200, 255);
-		drawList->AddRectFilled(ImVec2(playBtnX, playBtnY), ImVec2(playBtnX + playBtnWidth, playBtnY + playBtnHeight), playColor, Scale(8.0f));
+		//ImU32 playColor = playHovered ? IM_COL32(30, 180, 255, 255) : IM_COL32(0, 140, 200, 255);
+		//drawList->AddRectFilled(ImVec2(playBtnX, playBtnY), ImVec2(playBtnX + playBtnWidth, playBtnY + playBtnHeight), playColor, Scale(8.0f));
 
-		auto playText = Localise("Installer_Button_PlayGame").c_str();
 
-		auto playSize = font->CalcTextSizeA(descFontSize, FLT_MAX, 0, playText);
-		drawList->AddText(font, descFontSize, ImVec2(playBtnX + (playBtnWidth - playSize.x) * 0.5f, playBtnY + (playBtnHeight - playSize.y) * 0.5f), IM_COL32(220, 235, 255, 255), playText);
+		//drawList->AddText(font, descFontSize, ImVec2(playBtnX + (playBtnWidth - playSize.x) * 0.5f, playBtnY + (playBtnHeight - playSize.y) * 0.5f), IM_COL32(220, 235, 255, 255), playText);
 
 		if (playHovered && io.MouseClicked[0])
 		{
