@@ -286,11 +286,11 @@ GuestThreadHandle* GuestThread::Start(const GuestThreadParams& params, uint32_t*
 
 		std::string s = GetThreadName(params.function);
 
-#ifdef _WIN32
-
-		if (s != "")
-			GuestThread::SetThreadName(*threadId, s.c_str());
-#endif
+// #ifdef _WIN32
+//
+// 		if (s != "")
+// 			GuestThread::SetThreadName(*threadId, s.c_str());
+// #endif
 
 		if (s == "")
 			s = "Unknown Thread";
