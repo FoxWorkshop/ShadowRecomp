@@ -5363,6 +5363,14 @@ static RenderFormat ConvertFormat(X_D3DFORMAT format)
 	case X_D3DFMT_P8: 	 //Palette get converted by the CPU to ARGB in ConvertD3DTextureToARGBBuffer
 		return RenderFormat::B8G8R8A8_UNORM;
 
+		// Those are not used by the game afaik, but this will help modding
+	case X_D3DFMT_DXT1:
+		return RenderFormat::BC1_UNORM;
+	case X_D3DFMT_DXT3:
+		return RenderFormat::BC2_UNORM;
+	case X_D3DFMT_DXT5:
+		return RenderFormat::BC3_UNORM;
+
 	case X_D3DFMT_LIN_D24S8: //Linear 24-bit depth + 8-bit stencil
 
 		return RenderFormat::D32_FLOAT;
