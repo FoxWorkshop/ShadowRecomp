@@ -7,7 +7,6 @@
 #include <locale/locale.h>
 #include <user/config.h>
 #include <ui/game_window.h>
-#include <ui/imgui_utils.h>
 #include <os/logger.h>
 #include <input/input.h>
 #include <thread>
@@ -76,15 +75,20 @@ static constexpr double QUITTING_EXTRA_DURATION = 60.0;
 
 static float fontSize = 24.0f;
 static float smallFontSize = 18.0f;
+static float fileFontSize = 16.0f;
 static float descFontSize = 18.0f;
+
+// Shadow's orig res is 640x480, use this as a base for window scaling
+static const float baseWidth = 640.0f;
+static const float baseHeight = 480.0f;
 
 constexpr float CONTAINER_X = 153.0f;
 constexpr float CONTAINER_Y = 100.f;
 constexpr float CONTAINER_WIDTH = 526.5f;
 constexpr float CONTAINER_HEIGHT = 246.0f;
 constexpr float SIDE_CONTAINER_WIDTH = CONTAINER_WIDTH / 2.0f;
-constexpr float CONTAINER_BUTTON_WIDTH = 250.0f;
-constexpr float CONTAINER_BUTTON_GAP = 9.0f;
+constexpr float CONTAINER_BUTTON_WIDTH = 75.0f;
+constexpr float CONTAINER_BUTTON_GAP = 10.0f;
 constexpr float BUTTON_HEIGHT = 22.0f;
 constexpr float BUTTON_TEXT_GAP = 28.0f;
 
@@ -121,6 +125,11 @@ static bool g_isQuitting = false;
 static bool g_browseClicked = false;
 
 static std::vector<std::pair<ImVec2, ImVec2>> g_currentCursorRects;
+
+static bool playedNextSound = false;
+static bool playedPrevSound = false;
+static bool playedLangSound[6] = {false};
+static bool playedBrowseSound = false;
 
 static std::string& GetWizardText(WizardPage page)
 {
@@ -239,32 +248,32 @@ static void DrawButtonContainer(ImVec2 min, ImVec2 max, int baser, int baseg, fl
 }
 
 
-static void ComputeButtonColumnCoordinates(ButtonColumn buttonColumn, ImVec2 panelMin, ImVec2 panelMax,
-	float& minX, float& maxX)
-{
-	float panelWidth = panelMax.x - panelMin.x;
-
-	// Scale button width proportionally to panel, with a cap so it
-	// doesn't get absurdly wide on large panels.
-	float buttonWidth = std::min(panelWidth * 0.38f, Scale(CONTAINER_BUTTON_WIDTH));
-	float gap = panelWidth * 0.04f; // ~4% margin from edges
-
-	switch (buttonColumn)
-	{
-	case ButtonColumnLeft:
-		minX = panelMin.x + gap;
-		maxX = panelMin.x + gap + buttonWidth;
-		break;
-	case ButtonColumnMiddle:
-		minX = panelMin.x + panelWidth * 0.5f - buttonWidth * 0.5f;
-		maxX = panelMin.x + panelWidth * 0.5f + buttonWidth * 0.5f;
-		break;
-	case ButtonColumnRight:
-		minX = panelMax.x - gap - buttonWidth;
-		maxX = panelMax.x - gap;
-		break;
-	}
-}
+// static void ComputeButtonColumnCoordinates(ButtonColumn buttonColumn, ImVec2 panelMin, ImVec2 panelMax,
+// 	float& minX, float& maxX)
+// {
+// 	float panelWidth = panelMax.x - panelMin.x;
+//
+// 	// Scale button width proportionally to panel, with a cap so it
+// 	// doesn't get absurdly wide on large panels.
+// 	float buttonWidth = std::min(panelWidth * 0.38f, Scale(CONTAINER_BUTTON_WIDTH));
+// 	float gap = panelWidth * 0.04f; // ~4% margin from edges
+//
+// 	switch (buttonColumn)
+// 	{
+// 	case ButtonColumnLeft:
+// 		minX = panelMin.x + gap;
+// 		maxX = panelMin.x + gap + buttonWidth;
+// 		break;
+// 	case ButtonColumnMiddle:
+// 		minX = panelMin.x + panelWidth * 0.5f - buttonWidth * 0.5f;
+// 		maxX = panelMin.x + panelWidth * 0.5f + buttonWidth * 0.5f;
+// 		break;
+// 	case ButtonColumnRight:
+// 		minX = panelMax.x - gap - buttonWidth;
+// 		maxX = panelMax.x - gap;
+// 		break;
+// 	}
+// }
 
 static ImVec2 ComputeTextSize(ImFont* font, const char* text, float size, float& squashRatio, float maxTextWidth = FLT_MAX)
 {
@@ -294,7 +303,7 @@ static void DrawButton(ImVec2 min, ImVec2 max, const char* buttonText, bool sour
 
 	auto& res = ImGui::GetIO().DisplaySize;
 	auto drawList = ImGui::GetBackgroundDrawList();
-	float alpha = ComputeMotionInstaller(g_appearTime, g_disappearTime, CONTAINER_INNER_TIME, CONTAINER_INNER_DURATION);
+	float alpha = 255;
 	if (!buttonEnabled)
 	{
 		alpha *= 0.5f;
@@ -306,21 +315,28 @@ static void DrawButton(ImVec2 min, ImVec2 max, const char* buttonText, bool sour
 		io.MousePos.y >= min.y && io.MousePos.y <= max.y)
 	{
 		btnHovered = true;
+		if(!playedLangSound[i] && !buttonEnabled){
+			Game_PlaySound("cursor");
+			playedLangSound[i] = true;
+		}
 	}
+	else { playedLangSound[i] = false; }
 
-	if (btnHovered && io.MouseClicked[0])
+
+
+	if (btnHovered && io.MouseClicked[0] && !buttonEnabled)
 	{
-		Game_PlaySound("cursor");
+		Game_PlaySound("decide");
 		buttonPressed = true;
 		g_selectedBtn = i;
 	}
 
 	int baser = 0;
 	int baseg = 0;
-	DrawButtonContainer(min, max, baser, baseg, alpha);
+	//DrawButtonContainer(min, max, baser, baseg, alpha);
 
 	ImFont* font = g_fntSeurat;
-	float size = Scale(sourceButton ? 12.5f : 16.0f);
+	float size = Scale(18.0f);
 	float squashRatio;
 	ImVec2 textSize = ComputeTextSize(font, buttonText, size, squashRatio, Scale(maxTextWidth));
 	min.x += ((max.x - min.x) - textSize.x) / 2.0f;
@@ -334,17 +350,30 @@ static void DrawButton(ImVec2 min, ImVec2 max, const char* buttonText, bool sour
 
 	SetOrigin({ min.x + textSize.x / 2.0f, min.y });
 	SetScale({ squashRatio, 1.0f });
-	int aText = (int)(255 * alpha);
-	DrawTextWithOutline
-	(
-		font,
-		size,
-		min,
-		buttonPressed || btnHovered || buttonEnabled ? IM_COL32(255, 255, 0, aText) : IM_COL32(255, 255, 255, aText),
-		buttonText,
-		4,
-		IM_COL32(baser, baseg, 0, aText)
-	);
+
+	ImU32 textCol = IM_COL32(255, 255, 255, alpha);
+	if (buttonPressed || btnHovered || buttonEnabled)
+	{
+		textCol = IM_COL32(255, 255, 0, alpha);
+		drawList->AddText(font,
+						  size,
+						  min,
+						  textCol,
+						  buttonText);
+	}
+	else
+	{
+		DrawTextWithShadow(
+			font,
+			size,
+			min,
+			textCol,
+			buttonText,
+			1.5,
+			1,
+			IM_COL32(0, 0, 0, alpha)
+		);
+	}
 
 	ResetGradient();
 	SetScale({ 1.0f, 1.0f });
@@ -392,8 +421,8 @@ static void DrawLanguagePicker(ImVec2 panelMin, ImVec2 panelMax)
 
 	float buttonWidth = std::min(panelWidth * 0.38f, Scale(CONTAINER_BUTTON_WIDTH));
 	float buttonH = Scale(BUTTON_HEIGHT);
-	float gap = panelWidth * 0.08f;
-	float bottomMargin = panelHeight * 0.25f;
+	float gap = panelWidth * 0.3f;
+	float bottomMargin = panelHeight * 0.375f;
 	float rowStride = buttonH + Scale(CONTAINER_BUTTON_GAP);
 
 	float leftMinX = panelMin.x + gap;
@@ -423,31 +452,58 @@ static void DrawLanguagePicker(ImVec2 panelMin, ImVec2 panelMax)
 	}
 }
 
-static void DrawNextButton(ImVec2& panelMin, ImVec2& panelMax, float alpha = 1.0f)
+static void DrawNextButton(ImVec2& panelMin, ImVec2& panelMax, float scale)
 {
 	auto& io = ImGui::GetIO();
 	auto drawList = ImGui::GetBackgroundDrawList();
 	auto& displaySize = io.DisplaySize;
 	auto* font = g_fntSeurat;
 
-	float nextBtnWidth = Scale(100.0f);
-	float nextBtnHeight = Scale(36.0f);
-	float nextBtnX = panelMax.x - nextBtnWidth - Scale(10);
-	float nextBtnY = panelMax.y - nextBtnHeight - Scale(10);
+	auto nextText = Localise("Installer_Button_Next").c_str();
+	auto nextSize = font->CalcTextSizeA(smallFontSize, FLT_MAX, 0, nextText);
+
+	float nextBtnWidth = 45.0f * scale;
+	float nextBtnHeight = 20.0f * scale;
+	float nextBtnX = panelMin.x + ((panelMax.x - panelMin.x) - nextBtnWidth) * 0.5f;
+	float nextBtnY = panelMax.y - nextBtnHeight - (70.0f * scale);
 
 	bool nextHovered = false;
+
 	if (io.MousePos.x >= nextBtnX && io.MousePos.x <= nextBtnX + nextBtnWidth &&
 		io.MousePos.y >= nextBtnY && io.MousePos.y <= nextBtnY + nextBtnHeight)
 	{
 		nextHovered = true;
+		if(!playedNextSound)
+		{
+			Game_PlaySound("cursor");
+			playedNextSound = true;
+		}
 	}
+	else { playedNextSound = false; }
 
-	ImU32 nextColor = nextHovered ? IM_COL32(30, 180, 255, (int)(255 * alpha)) : IM_COL32(0, 140, 200, (int)(255 * alpha));
-	drawList->AddRectFilled(ImVec2(nextBtnX, nextBtnY), ImVec2(nextBtnX + nextBtnWidth, nextBtnY + nextBtnHeight), nextColor, Scale(6.0f));
-
-	auto nextText = Localise("Installer_Button_Next").c_str();
-	auto nextSize = font->CalcTextSizeA(smallFontSize, FLT_MAX, 0, nextText);
-	drawList->AddText(font, smallFontSize, ImVec2(nextBtnX + (nextBtnWidth - nextSize.x) * 0.5f, nextBtnY + (nextBtnHeight - nextSize.y) * 0.5f), IM_COL32(220, 235, 255, (int)(255 * alpha)), nextText);
+	if (nextHovered)
+	{
+		drawList->AddText(
+			font,
+			smallFontSize,
+			ImVec2(nextBtnX + (nextBtnWidth - nextSize.x) * 0.5f, nextBtnY + (nextBtnHeight - nextSize.y) * 0.5f),
+			IM_COL32(255, 255, 0, 255),
+			nextText
+		);
+	}
+	else
+	{
+		DrawTextWithShadow(
+			font,
+			smallFontSize,
+			ImVec2(nextBtnX + (nextBtnWidth - nextSize.x) * 0.5f, nextBtnY + (nextBtnHeight - nextSize.y) * 0.5f),
+			IM_COL32(255, 255, 255, 127),
+			nextText,
+			1.5,
+			1,
+			IM_COL32(0, 0, 0, 127)
+		);
+	}
 
 	if (nextHovered && io.MouseClicked[0])
 	{
@@ -456,31 +512,115 @@ static void DrawNextButton(ImVec2& panelMin, ImVec2& panelMax, float alpha = 1.0
 	}
 }
 
-static void DrawPrevButton(ImVec2& panelMin, ImVec2& panelMax)
+static void DrawQuitButton(ImVec2& panelMin, ImVec2& panelMax, float scale)
 {
 	auto& io = ImGui::GetIO();
 	auto drawList = ImGui::GetBackgroundDrawList();
 	auto& displaySize = io.DisplaySize;
 	auto* font = g_fntSeurat;
 
-	float prevBtnWidth = Scale(100.0f);
-	float prevBtnHeight = Scale(36.0f);
-	float prevBtnX = panelMin.x + Scale(10);
-	float prevBtnY = panelMax.y - prevBtnHeight - Scale(10);
+	auto quitText = Localise("Installer_Button_Quit").c_str();
+	auto quitSize = font->CalcTextSizeA(smallFontSize, FLT_MAX, 0, quitText);
+
+	float quitBtnWidth = 45.0f * scale;
+	float quitBtnHeight = 20.0f * scale;
+	float quitBtnX = panelMin.x + ((panelMax.x - panelMin.x) - quitBtnWidth) * 0.5f;
+	float quitBtnY = panelMax.y - quitBtnHeight - (35.0f * scale);
+
+	bool quitHovered = false;
+	if (io.MousePos.x >= quitBtnX && io.MousePos.x <= quitBtnX + quitBtnWidth &&
+		io.MousePos.y >= quitBtnY && io.MousePos.y <= quitBtnY + quitBtnHeight)
+	{
+		quitHovered = true;
+		if(!playedPrevSound){
+			Game_PlaySound("cursor");
+			playedPrevSound = true;
+		}
+	}
+	else { playedPrevSound = false; }
+
+	if (quitHovered)
+	{
+		drawList->AddText(
+			font,
+			smallFontSize,
+			ImVec2(quitBtnX + (quitBtnWidth - quitSize.x) * 0.5f, quitBtnY + (quitBtnHeight - quitSize.y) * 0.5f),
+			IM_COL32(255, 255, 0, 255),
+			quitText
+		);
+	}
+	else
+	{
+		DrawTextWithShadow(
+			font,
+			smallFontSize,
+			ImVec2(quitBtnX + (quitBtnWidth - quitSize.x) * 0.5f, quitBtnY + (quitBtnHeight - quitSize.y) * 0.5f),
+			IM_COL32(255, 255, 255, 127),
+			quitText,
+			1.5,
+			1,
+			IM_COL32(0, 0, 0, 127)
+		);
+	}
+
+	if (quitHovered && io.MouseClicked[0])
+	{
+		g_isQuitting = true;
+		InstallerWizard::s_isVisible = false;
+	}
+}
+
+
+static void DrawPrevButton(ImVec2& panelMin, ImVec2& panelMax, float scale)
+{
+	auto& io = ImGui::GetIO();
+	auto drawList = ImGui::GetBackgroundDrawList();
+	auto& displaySize = io.DisplaySize;
+	auto* font = g_fntSeurat;
+
+	auto prevText = Localise("Installer_Button_Back").c_str();
+	auto prevSize = font->CalcTextSizeA(smallFontSize, FLT_MAX, 0, prevText);
+
+	float prevBtnWidth = 45.0f * scale;
+	float prevBtnHeight = 20.0f * scale;
+	float prevBtnX = panelMin.x + ((panelMax.x - panelMin.x) - prevBtnWidth) * 0.5f;
+	float prevBtnY = panelMax.y - prevBtnHeight - (35.0f * scale);
 
 	bool prevHovered = false;
 	if (io.MousePos.x >= prevBtnX && io.MousePos.x <= prevBtnX + prevBtnWidth &&
 		io.MousePos.y >= prevBtnY && io.MousePos.y <= prevBtnY + prevBtnHeight)
 	{
 		prevHovered = true;
+		if(!playedPrevSound){
+			Game_PlaySound("cursor");
+			playedPrevSound = true;
+		}
 	}
+	else { playedPrevSound = false; }
 
-	ImU32 prevColor = prevHovered ? IM_COL32(140, 50, 50, 255) : IM_COL32(100, 30, 30, 255);
-	drawList->AddRectFilled(ImVec2(prevBtnX, prevBtnY), ImVec2(prevBtnX + prevBtnWidth, prevBtnY + prevBtnHeight), prevColor, Scale(6.0f));
-
-	auto prevText = Localise("Installer_Button_Back").c_str();
-	auto prevSize = font->CalcTextSizeA(smallFontSize, FLT_MAX, 0, prevText);
-	drawList->AddText(font, smallFontSize, ImVec2(prevBtnX + (prevBtnWidth - prevSize.x) * 0.5f, prevBtnY + (prevBtnHeight - prevSize.y) * 0.5f), IM_COL32(255, 200, 200, 255), prevText);
+	if (prevHovered)
+	{
+		drawList->AddText(
+			font,
+			smallFontSize,
+			ImVec2(prevBtnX + (prevBtnWidth - prevSize.x) * 0.5f, prevBtnY + (prevBtnHeight - prevSize.y) * 0.5f),
+			IM_COL32(255, 255, 0, 255),
+			prevText
+		);
+	}
+	else
+	{
+		DrawTextWithShadow(
+			font,
+			smallFontSize,
+			ImVec2(prevBtnX + (prevBtnWidth - prevSize.x) * 0.5f, prevBtnY + (prevBtnHeight - prevSize.y) * 0.5f),
+			IM_COL32(255, 255, 255, 127),
+			prevText,
+			1.5,
+			1,
+			IM_COL32(0, 0, 0, 127)
+		);
+	}
 
 	if (prevHovered && io.MouseClicked[0])
 	{
@@ -556,42 +696,32 @@ static void DrawDescription(std::string s, float alpha = 1.0f)
 	drawList->PopClipRect();
 }
 
-static void DrawBackground(float alpha = 1.0f)
+static void DrawBackground(ImGuiViewport* viewport, ImVec2 winPos, ImVec2 winSize, float scale, float offsetX, float offsetY)
 {
-	auto& res = ImGui::GetIO().DisplaySize;
 	auto drawList = ImGui::GetBackgroundDrawList();
 
-	ImVec2 min = { g_horzCentre + g_aspectRatioNarrowMargin, g_vertCentre };
-	ImVec2 max = { res.x - min.x, res.y - min.y };
+	// Colours
+	ImU32 bevCol = IM_COL32(14, 14, 110, 255); // Bevel Edge
+	ImU32 shaCol = IM_COL32(0, 0, 0, 255); // 'Shadow' (top + left)
+	ImU32 ligCol = IM_COL32(41, 41, 182, 255); // 'Light' (bottom + right)
+	ImU32 winCol = IM_COL32(0, 0, 69, 255);  // Main Window (nice) (yes that is the real colour Shadow uses)
 
-	float borderPixels = 32.f; // Options BG has an extra black border at the bottom, we don't want that.
-	float uvMaxY = 1.0f - (borderPixels / 512.0f);
+	// Bevel at edges
+	DrawScaledRect(drawList, winPos, scale, offsetX, offsetY, 21.0f, 54.0f, 598.0f, 362.0f, bevCol);
 
-	ImVec2 centre = { res.x / 2.f, res.y / 2.f };
-	float scale = 1.0f;
+	// Black shadow (top + left)
+	DrawScaledRect(drawList, winPos, scale, offsetX, offsetY, 25.0f, 58.0f, 589.0f, 353.0f, shaCol);
 
-	drawList->AddImage
-	(
-		g_upTexOptionsBG.get(),
-		{ 0.0f, 0.0f },
-		{ res.x, res.y },
-		{ 0, 0 },
-		{ 1, uvMaxY },
-		IM_COL32(255, 255, 255, (int)(255 * alpha))
+	// Blue highlight (bottom + right)
+	drawList->AddTriangleFilled(
+		ScaleTriangleVert(winPos, scale, offsetX, offsetY, 25.0f, 411.0f),
+		ScaleTriangleVert(winPos, scale, offsetX, offsetY, 614.0f, 58.0f),
+		ScaleTriangleVert(winPos, scale, offsetX, offsetY, 614.0f, 411.0f),
+		ligCol
 	);
 
-	// draw Options Logo
-	if (scale >= 0.8f)
-	{
-		auto optionsUVs = PIXELS_TO_UV_COORDS(512, 512, 0, 0, 147, 448);
-		auto optionsWidth = res.x * 0.16f;
-		auto optionsHeight = res.y * 0.96f;
-
-		ImVec2 optionsMin = { 0, min.y + Scale(10) };
-		ImVec2 optionsMax = { optionsMin.x + optionsWidth, optionsMin.y + optionsHeight };
-
-		//drawList->AddImage(g_upTexBGOptions.get(), optionsMin, optionsMax, GET_UV_COORDS(optionsUVs), IM_COL32(255, 255, 255, 128));
-	}
+	// Main window background
+	DrawScaledRect(drawList, winPos, scale, offsetX, offsetY, 26.0f, 59.0f, 587.0f, 351.0f, winCol);
 }
 
 void InstallerWizard::Draw()
@@ -602,145 +732,122 @@ void InstallerWizard::Draw()
 	auto& io = ImGui::GetIO();
 	auto drawList = ImGui::GetBackgroundDrawList();
 	auto& displaySize = io.DisplaySize;
+	ImGuiViewport* viewport = ImGui::GetMainViewport();
 
+	// Scale using the actual whole viewport instead of the many other ways googling will give you
+	ImVec2 winPos = viewport->Pos;
+	ImVec2 winSize = viewport->Size;
 
-	drawList->AddRectFilled(ImVec2(0, 0), displaySize, IM_COL32(20, 20, 30, 255));
+	// Scale values based on window size
+	float scaleX = winSize.x > 1.0f ? (winSize.x / baseWidth) : 1.0f;
+	float scaleY = winSize.y > 1.0f ? (winSize.y / baseHeight) : 1.0f;
+	float scale = fminf(scaleX, scaleY);
+
+	// Center to screen based on Shadow res
+	float canvasW = baseWidth * scale;
+	float canvasH = baseHeight * scale;
+	float offsetX = (winSize.x - canvasW) * 0.5f;
+	float offsetY = (winSize.y - canvasH) * 0.5f;
+
+	drawList->AddRectFilled(ImVec2(0, 0), displaySize, IM_COL32(0, 0, 0, 255));
 
 	auto* font = g_fntSeurat;
 
-	// Panel is centred in the viewport and capped so it doesn't get
-	// absurdly wide on ultrawide / high-resolution displays. All sizes
-	// below are derived from the panel rectangle so the layout scales
-	// correctly with both window resizing and High DPI.
-	float panelWidth = std::min(displaySize.x * 0.7f, Scale(800.0f));
-	float panelHeight = std::min(displaySize.y * 0.72f, Scale(640.0f));
-	float panelMinX = (displaySize.x - panelWidth) * 0.5f;
-	float panelMinY = (displaySize.y - panelHeight) * 0.5f;
+	float verticalOffset = 40.0f * scale;
 
-	float verticalOffset = Scale(40.0f);
+	ImVec2 panelMin = ImVec2(
+						winPos.x + offsetX + (26.0f * scale),
+						winPos.y + offsetY + (59.0f * scale)
+					  );
+	ImVec2 panelMax = ImVec2(
+						panelMin.x + (587.0f * scale),
+						panelMin.y + (351.0f * scale)
+					  );
 
-	ImVec2 panelMin(panelMinX, panelMinY + verticalOffset);
-	ImVec2 panelMax(panelMinX + panelWidth, panelMinY + panelHeight + verticalOffset);
-
+	float panelWidth = panelMax.x - panelMin.x;
 	float centerX = (panelMin.x + panelMax.x) * 0.5f;
 	float centerY = (panelMin.y + panelMax.y) * 0.5f;
 
-	// Font sizes scale with the panel so they stay readable at any DPI.
-	float baseFontSize = std::max(Scale(12.0f), std::floor(std::min(panelWidth, panelHeight) / 22.0f));
+	float baseFontSize = 18.0f * scale;
 	fontSize = baseFontSize;
 	descFontSize = baseFontSize + std::floor(baseFontSize * 0.2f);
-	smallFontSize = std::floor(baseFontSize * 0.80f);
+	smallFontSize = std::floor(baseFontSize * 0.9f);
+	fileFontSize = std::floor(baseFontSize * 0.7f);
 
 	// Background, description banner, and body text fade in from black on
 	// the language-selection screen, matching the fade used by the
 	// language-picker button containers.
-	float fadeAlpha = 1.0f;
-	if (g_currentPage == WizardPage::SelectLanguage)
-	{
-		fadeAlpha = ComputeMotionInstaller(g_appearTime, g_disappearTime, CONTAINER_INNER_TIME, CONTAINER_INNER_DURATION);
-	}
+	//float fadeAlpha = 1.0f;
+	//if (g_currentPage == WizardPage::SelectLanguage)
+	//{
+	//	fadeAlpha = ComputeMotionInstaller(g_appearTime, g_disappearTime, CONTAINER_INNER_TIME, CONTAINER_INNER_DURATION);
+	//}
 
-	DrawBackground(fadeAlpha);
-
-	int panelA = (int)(128 * fadeAlpha);
-	drawList->AddRectFilled(panelMin, panelMax, IM_COL32(30, 30, 50, panelA), Scale(8.0f));
-	drawList->AddRect(panelMin, panelMax, IM_COL32(80, 80, 120, panelA), Scale(8.0f), 0, Scale(1.0f)); // border
+	DrawBackground(viewport, winPos, winSize, scale, offsetX, offsetY);
 
 	auto titleText = "Shadow the Hedgehog Recompiled - Setup";
 	auto titleSize = font->CalcTextSizeA(fontSize + 2.f, FLT_MAX, 0, titleText);
 	float titleX = centerX - titleSize.x * 0.5f;
 
-
-	float contentY = panelMin.y + Scale(80.0f);
-
 	std::string wizardText = GetWizardText(g_currentPage);
 	char descriptionText[512];
 	strncpy(descriptionText, wizardText.c_str(), sizeof(descriptionText) - 1);
-	auto originMargin = Scale(38);
+	auto originMargin = 65.0f * scale;
 	auto originMin = ImVec2(panelMin.x + originMargin, panelMin.y + originMargin);
 	auto originMax = ImVec2(panelMax.x - originMargin, panelMax.y - originMargin);
 	auto textMargin = 5.0f;
 
 	auto textMaxWidth = originMax.x - (descFontSize / 2.0f) - originMin.x;
-
-	DrawDescription("Shadow the Hedgehog - Installer", fadeAlpha);
+	auto textSize = MeasureCentredParagraph(g_fntSeurat, descFontSize, textMaxWidth, textMargin, wizardText.c_str());
+	ImVec2 textPosition = ImVec2(panelMin.x + (panelWidth - textSize.x) * 0.5f, originMin.y);
 
 	if (g_currentPage != WizardPage::Installing && g_currentPage != WizardPage::InstallFailed)
 	{
-			DrawTextParagraph(g_fntSeurat, descFontSize, textMaxWidth, originMin, textMargin, wizardText.c_str(),
-				[&](const char* str, ImVec2 pos) { DrawTextBasic(g_fntSeurat, descFontSize, pos, IM_COL32(255, 255, 255, (int)(255 * fadeAlpha)), str); });
+			DrawTextParagraph(g_fntSeurat, descFontSize, textMaxWidth, textPosition, textMargin, wizardText.c_str(),
+				[&](const char* str, ImVec2 pos) { DrawTextWithShadow(g_fntSeurat, descFontSize, pos, IM_COL32(255, 255, 255, 255), str, 1.5, 1, IM_COL32(0, 0, 0, 127)); });
 	}
 
 	switch (g_currentPage)
 	{
 	case WizardPage::SelectLanguage:
 	{
-
 		DrawLanguagePicker(panelMin, panelMax);
 
+		DrawNextButton(panelMin, panelMax, scale);
 
-		DrawNextButton(panelMin, panelMax, fadeAlpha);
-
-		float quitBtnWidth = Scale(100.0f);
-		float quitBtnHeight = Scale(36.0f);
-		float quitBtnX = panelMin.x + Scale(10);
-		float quitBtnY = panelMax.y - quitBtnHeight - Scale(10);
-		bool quitHovered = false;
-		if (io.MousePos.x >= quitBtnX && io.MousePos.x <= quitBtnX + quitBtnWidth &&
-			io.MousePos.y >= quitBtnY && io.MousePos.y <= quitBtnY + quitBtnHeight)
-		{
-			quitHovered = true;
-		}
-
-		int quitA = (int)(255 * fadeAlpha);
-		ImU32 quitColor = quitHovered ? IM_COL32(140, 50, 50, quitA) : IM_COL32(100, 30, 30, quitA);
-		drawList->AddRectFilled(ImVec2(quitBtnX, quitBtnY), ImVec2(quitBtnX + quitBtnWidth, quitBtnY + quitBtnHeight), quitColor, Scale(6.0f));
-
-		auto quitText = Localise("Installer_Button_Quit").c_str();
-		auto quitSize = font->CalcTextSizeA(smallFontSize, FLT_MAX, 0, quitText);
-		drawList->AddText(font, smallFontSize, ImVec2(quitBtnX + (quitBtnWidth - quitSize.x) * 0.5f, quitBtnY + (quitBtnHeight - quitSize.y) * 0.5f), IM_COL32(255, 200, 200, quitA), quitText);
-
-		if (quitHovered && io.MouseClicked[0])
-		{
-			g_isQuitting = true;
-			s_isVisible = false;
-		}
-
+		DrawQuitButton(panelMin, panelMax, scale);
 	}
 	break;
 	case WizardPage::Introduction:
 	{
-		DrawPrevButton(panelMin, panelMax);
-		DrawNextButton(panelMin, panelMax);
+		DrawPrevButton(panelMin, panelMax, scale);
+
+		DrawNextButton(panelMin, panelMax, scale);
 	}
 	break;
 	case WizardPage::SelectGame:
 	{
+		ImVec2 inputMin = ImVec2(
+							panelMin.x + (74.0f * scale),
+							panelMin.y + (141.0f * scale)
+						  );
+		ImVec2 inputMax = ImVec2(
+							inputMin.x + (350.0f * scale),
+							inputMin.y + (32.0f * scale)
+						  );
 
-		contentY += Scale(50.0f);
+		DrawScaledRect(drawList, winPos, scale, offsetX, offsetY, 100.0f, 200.0f, 350.0f, 32.0f, IM_COL32(0, 0, 40, 255));
 
-		float inputPadding = Scale(20.0f);
-		float inputWidth = panelWidth - inputPadding * 2.0f;
-		float inputHeight = Scale(32.0f);
-		ImVec2 inputMin(panelMin.x + inputPadding, contentY);
-		ImVec2 inputMax(panelMin.x + inputPadding + inputWidth, contentY + inputHeight);
-
-		drawList->AddRectFilled(inputMin, inputMax, IM_COL32(40, 40, 60, 255), Scale(4.0f));
-		drawList->AddRect(inputMin, inputMax, IM_COL32(100, 100, 140, 255), Scale(4.0f), 0, Scale(1.0f));
-
-		float btnWidth = Scale(120.0f);
-		float btnHeight = Scale(32.0f);
-		float btnX = inputMax.x - btnWidth;
-		float btnY = inputMin.y;
-		float pathClipWidth = (btnX - Scale(8.0f)) - (inputMin.x + Scale(8.0f));
+		float pathClipWidth = (inputMax.x - (8.0f * scale)) - (inputMin.x + (8.0f * scale));
 
 		const std::string displayPathStorage = g_isoPath.empty() ? Localise("Installer_Page_NoFileSelected") : std::string(g_isoPath);
 		const char* displayPath = displayPathStorage.c_str();
 
-		auto displayTextSize = font->CalcTextSizeA(smallFontSize, FLT_MAX, 0.0f, displayPath);
+		auto displayTextSize = font->CalcTextSizeA(fileFontSize, FLT_MAX, 0.0f, displayPath);
 		bool pathOverflows = displayTextSize.x > pathClipWidth;
 		std::string overflowRender;
 		const char* pathToShow = displayPath;
+
 		if (pathOverflows)
 		{
 			// Find the longest tail of displayPath that, when prefixed with
@@ -751,7 +858,7 @@ void InstallerWizard::Draw()
 			while (tailLen > 1)
 			{
 				std::string candidate = ellipsis + std::string(displayPath + (dlen - tailLen), tailLen);
-				auto candSize = font->CalcTextSizeA(smallFontSize, FLT_MAX, 0.0f, candidate.c_str());
+				auto candSize = font->CalcTextSizeA(fileFontSize, FLT_MAX, 0.0f, candidate.c_str());
 				if (candSize.x <= pathClipWidth)
 				{
 					overflowRender = std::move(candidate);
@@ -764,56 +871,111 @@ void InstallerWizard::Draw()
 			pathToShow = overflowRender.c_str();
 		}
 
-		drawList->AddText(font, smallFontSize, ImVec2(inputMin.x + Scale(8.0f), inputMin.y + (inputHeight - displayTextSize.y) * 0.5f), IM_COL32(180, 180, 180, 255), pathToShow, nullptr, pathClipWidth);
+		drawList->AddText(font, fileFontSize, ImVec2(inputMin.x + (10.0f * scale), inputMin.y + ((inputMax.y - inputMin.y) - displayTextSize.y) * 0.5f), IM_COL32(255, 255, 255, 127), pathToShow, nullptr, pathClipWidth);
+
+		const std::string browseTextStorage = Localise("Installer_Header_Browse");
+		const char* browseText = browseTextStorage.c_str();
+		auto browseSize = font->CalcTextSizeA(smallFontSize, FLT_MAX, 0, browseText);
+
+		float btnWidth = 80.0f * scale;
+		float btnHeight = 20.0f * scale;
+		float btnX = inputMax.x + (15.0f * scale);
+		float btnY = inputMin.y + ((inputMax.y - inputMin.y) - btnHeight) * 0.5f;
 
 		bool btnHovered = false;
 		if (io.MousePos.x >= btnX && io.MousePos.x <= btnX + btnWidth &&
 			io.MousePos.y >= btnY && io.MousePos.y <= btnY + btnHeight)
 		{
 			btnHovered = true;
+			if(!playedBrowseSound){
+				Game_PlaySound("cursor");
+				playedBrowseSound = true;
+			}
 		}
+		else { playedBrowseSound = false; }
 
-		ImU32 btnColor = btnHovered ? IM_COL32(80, 80, 140, 255) : IM_COL32(60, 60, 100, 255);
-		drawList->AddRectFilled(ImVec2(btnX, btnY), ImVec2(btnX + btnWidth, btnY + btnHeight), btnColor, Scale(4.0f));
-		const std::string browseTextStorage = Localise("Installer_Header_Browse");
-		const char* browseText = browseTextStorage.c_str();
-		auto browseSize = font->CalcTextSizeA(smallFontSize, FLT_MAX, 0, browseText);
-		drawList->AddText(font, smallFontSize, ImVec2(btnX + (btnWidth - browseSize.x) * 0.5f, btnY + (btnHeight - browseSize.y) * 0.5f), IM_COL32(220, 220, 255, 255), browseText);
+		if (btnHovered)
+		{
+			drawList->AddText(
+				font,
+				smallFontSize,
+				ImVec2(btnX + (btnWidth - browseSize.x) * 0.5f, btnY + (btnHeight - browseSize.y) * 0.5f),
+				IM_COL32(255, 255, 0, 255),
+				browseText
+			);
+		}
+		else
+		{
+			DrawTextWithShadow(
+				font,
+				smallFontSize,
+				ImVec2(btnX + (btnWidth - browseSize.x) * 0.5f, btnY + (btnHeight - browseSize.y) * 0.5f),
+				IM_COL32(255, 255, 255, 127),
+				browseText,
+				1.5,
+				1,
+				IM_COL32(0, 0, 0, 127)
+			);
+		}
 
 		if (btnHovered && io.MouseClicked[0])
 		{
-			Game_PlaySound("cursor");
+			Game_PlaySound("decide");
 			g_browseClicked = true;
 		}
 
-		contentY += inputHeight + Scale(30.0f);
-
 		if (!g_statusMessage.empty())
 		{
-			drawList->AddText(font, smallFontSize, ImVec2(panelMin.x + inputPadding, contentY), IM_COL32(255, 100, 100, 255), g_statusMessage.c_str());
-			contentY += Scale(30.0f);
+			drawList->AddText(font, smallFontSize, ImVec2(panelMin.x, panelMin.y), IM_COL32(255, 100, 100, 255), g_statusMessage.c_str());
 		}
 
 		if (!g_isoPath.empty())
 		{
-			float nextBtnWidth = Scale(100.0f);
-			float nextBtnHeight = Scale(36.0f);
-			float nextBtnX = panelMax.x - nextBtnWidth - Scale(10);
-			float nextBtnY = panelMax.y - nextBtnHeight - Scale(10);
+			float nextBtnWidth = 45.0f * scale;
+			float nextBtnHeight = 20.0f * scale;
+			float nextBtnX = panelMin.x + ((panelMax.x - panelMin.x) - nextBtnWidth) * 0.5f;
+			float nextBtnY = panelMax.y - nextBtnHeight - (70.0f * scale);
+
+			auto nextText = Localise("Common_Install").c_str();
+			auto nextSize = font->CalcTextSizeA(smallFontSize, FLT_MAX, 0, nextText);
 
 			bool nextHovered = false;
+
 			if (io.MousePos.x >= nextBtnX && io.MousePos.x <= nextBtnX + nextBtnWidth &&
 				io.MousePos.y >= nextBtnY && io.MousePos.y <= nextBtnY + nextBtnHeight)
 			{
 				nextHovered = true;
+				if(!playedNextSound)
+				{
+					Game_PlaySound("cursor");
+					playedNextSound = true;
+				}
 			}
+			else { playedNextSound = false; }
 
-			ImU32 nextColor = nextHovered ? IM_COL32(30, 180, 255, 255) : IM_COL32(0, 140, 200, 255);
-			drawList->AddRectFilled(ImVec2(nextBtnX, nextBtnY), ImVec2(nextBtnX + nextBtnWidth, nextBtnY + nextBtnHeight), nextColor, Scale(6.0f));
-
-			auto nextText = Localise("Common_Install").c_str();
-			auto nextSize = font->CalcTextSizeA(smallFontSize, FLT_MAX, 0, nextText);
-			drawList->AddText(font, smallFontSize, ImVec2(nextBtnX + (nextBtnWidth - nextSize.x) * 0.5f, nextBtnY + (nextBtnHeight - nextSize.y) * 0.5f), IM_COL32(220, 235, 255, 255), nextText);
+			if (nextHovered)
+			{
+				drawList->AddText(
+					font,
+					smallFontSize,
+					ImVec2(nextBtnX + (nextBtnWidth - nextSize.x) * 0.5f, nextBtnY + (nextBtnHeight - nextSize.y) * 0.5f),
+								  IM_COL32(255, 255, 0, 255),
+								  nextText
+				);
+			}
+			else
+			{
+				DrawTextWithShadow(
+					font,
+					smallFontSize,
+					ImVec2(nextBtnX + (nextBtnWidth - nextSize.x) * 0.5f, nextBtnY + (nextBtnHeight - nextSize.y) * 0.5f),
+								   IM_COL32(255, 255, 255, 127),
+								   nextText,
+					   1.5,
+					   1,
+					   IM_COL32(0, 0, 0, 127)
+				);
+			}
 
 			if (nextHovered && io.MouseClicked[0])
 			{
@@ -828,13 +990,11 @@ void InstallerWizard::Draw()
 			}
 		}
 
-		DrawPrevButton(panelMin, panelMax);
+		DrawPrevButton(panelMin, panelMax, scale);
 	}
 	break;
 	case WizardPage::Installing:
 	{
-		DrawDescription("Shadow the Hedgehog - Installer");
-
 		auto phase = g_installerPhase.load();
 		const char* headerText;
 		if (g_installerCompiling.load())
@@ -850,16 +1010,16 @@ void InstallerWizard::Draw()
 			headerText = Localise("Installer_Page_Installing").c_str();
 		}
 
-		DrawTextParagraph(font, descFontSize, textMaxWidth, originMin, textMargin, headerText,
-			[&](const char* str, ImVec2 pos) { DrawTextBasic(g_fntSeurat, descFontSize, pos, IM_COL32(255, 255, 255, 255), str); });
-		//drawList->AddText(font, descFontSize, ImVec2(panelMin.x + Scale(20), contentY), IM_COL32(220, 220, 255, 255), headerText);
+		auto installTextSize = MeasureCentredParagraph(g_fntSeurat, descFontSize, textMaxWidth, textMargin, headerText);
+		ImVec2 installTextPosition = ImVec2(panelMin.x + (panelWidth - installTextSize.x) * 0.5f, originMin.y);
 
-		contentY += Scale(50.0f);
+		DrawTextParagraph(font, descFontSize, textMaxWidth, installTextPosition, textMargin, headerText,
+			[&](const char* str, ImVec2 pos) { DrawTextWithShadow(g_fntSeurat, descFontSize, pos, IM_COL32(255, 255, 255, 255), str, 1.5, 1, IM_COL32(0, 0, 0, 127)); });
 
-		float barPadding = Scale(20.0f);
+		float barPadding = 20.0f * scale;
 		float barX = panelMin.x + barPadding;
 		float barWidth = panelWidth - barPadding * 2.0f;
-		float barHeight = Scale(24.0f);
+		float barHeight = 24.0f * scale;
 
 		if (phase != XisoExtract::Phase::Hashing && !g_installerCompiling.load())
 		{
@@ -868,32 +1028,32 @@ void InstallerWizard::Draw()
 				char fileText[512];
 				auto fileTxt = Localise("Common_File") + ": %s";
 				snprintf(fileText, sizeof(fileText), fileTxt.c_str(), g_installerCurrentFileName.c_str());
-				drawList->AddText(font, smallFontSize, ImVec2(barX, contentY), IM_COL32(180, 180, 180, 255), fileText, nullptr, barWidth);
+				ImVec2 fileTextPosition = ImVec2(barX, panelMin.y + (10.0f * scale));
+
+				DrawTextParagraph(font, fileFontSize, barWidth, fileTextPosition, textMargin, fileText,
+								  [&](const char* str, ImVec2 pos) { DrawTextWithShadow(g_fntSeurat, fileFontSize, pos, IM_COL32(255, 255, 255, 127), str, 1.5, 1, IM_COL32(0, 0, 0, 127)); });
 			}
 		}
-
-		contentY += Scale(30.0f);
 
 		ImVec2 barMin(barX, centerY - barHeight * 0.5f);
 		ImVec2 barMax(barX + barWidth, centerY + barHeight * 0.5f);
 
 		g_installerProgress = g_installerProgressTarget.load();
 
-		drawList->AddRectFilled(barMin, barMax, IM_COL32(40, 40, 60, 255), Scale(4.0f));
+		drawList->AddRectFilled(barMin, barMax, IM_COL32(0, 0, 40, 255));
 
 		float fillWidth = barWidth * std::min(g_installerProgress, 1.0f);
 		if (fillWidth > 0)
 		{
 			ImVec2 fillMax(barX + fillWidth, centerY + barHeight * 0.5f);
-			drawList->AddRectFilled(barMin, fillMax, IM_COL32(50, 150, 50, 255), Scale(4.0f));
+			drawList->AddRectFilled(barMin, fillMax, IM_COL32(255, 255, 0, 255));
 		}
 
 		char percentText[32];
 		snprintf(percentText, sizeof(percentText), "%.1f%%", g_installerProgress * 100.0f);
 		auto percentSize = font->CalcTextSizeA(smallFontSize, FLT_MAX, 0, percentText);
-		drawList->AddText(font, smallFontSize, ImVec2(barX + (barWidth - percentSize.x) * 0.5f, centerY - percentSize.y * 0.5f), IM_COL32(255, 255, 255, 255), percentText);
 
-		contentY += barHeight + Scale(20.0f);
+		DrawTextWithShadow(font, smallFontSize, ImVec2(barX + (barWidth - percentSize.x) * 0.5f, (centerY - percentSize.y * 0.5f) + barHeight), IM_COL32(255, 255, 255, 255), percentText, 1.5, 1, IM_COL32(0, 0, 0, 127));
 
 		if (g_installerFinished.load())
 		{
@@ -916,26 +1076,60 @@ void InstallerWizard::Draw()
 		bool playHovered = false;
 
 		auto foxSize = font->CalcTextSizeA(descFontSize, FLT_MAX, 0, foxDev);
-		drawList->AddText(font, descFontSize, ImVec2(centerX - foxSize.x * 0.5f, centerY - foxSize.y - Scale(48.0f)), IM_COL32(220, 255, 220, 255), foxDev);
+		auto foxPositionY = textSize.y + textPosition.y + (25.0f * scale);
+		DrawTextWithShadow(font, descFontSize, ImVec2(centerX - foxSize.x * 0.5f, foxPositionY), IM_COL32(255, 255, 255, 255), foxDev, 1.5, 1, IM_COL32(0, 0, 0, 127));
 
-		float playBtnWidth = Scale(250.0f);
-		float playBtnHeight = Scale(58.0f);
-		float playBtnX = centerX - playBtnWidth * 0.5f;
-		float playBtnY = centerY + Scale(24.0f);
+		DrawQuitButton(panelMin, panelMax, scale);
+
+		float playBtnWidth = 75.0f * scale;
+		float playBtnHeight = 20.0f * scale;
+		float playBtnX = panelMin.x + ((panelMax.x - panelMin.x) - playBtnWidth) * 0.5f;
+		float playBtnY = panelMax.y - playBtnHeight - (70.0f * scale);
+
+		auto playText = Localise("Installer_Button_PlayGame").c_str();
+		auto playSize = font->CalcTextSizeA(smallFontSize, FLT_MAX, 0, playText);
 
 		if (io.MousePos.x >= playBtnX && io.MousePos.x <= playBtnX + playBtnWidth &&
 			io.MousePos.y >= playBtnY && io.MousePos.y <= playBtnY + playBtnHeight)
 		{
 			playHovered = true;
+			if(!playedNextSound)
+			{
+				Game_PlaySound("cursor");
+				playedNextSound = true;
+			}
+		}
+		else { playedNextSound = false; }
+
+		if (playHovered)
+		{
+			drawList->AddText(
+				font,
+				smallFontSize,
+				ImVec2(playBtnX + (playBtnWidth - playSize.x) * 0.5f, playBtnY + (playBtnHeight - playSize.y) * 0.5f),
+				IM_COL32(255, 255, 0, 255),
+				playText
+			);
+		}
+		else
+		{
+			DrawTextWithShadow(
+				font,
+				smallFontSize,
+				ImVec2(playBtnX + (playBtnWidth - playSize.x) * 0.5f, playBtnY + (playBtnHeight - playSize.y) * 0.5f),
+				IM_COL32(255, 255, 255, 127),
+				playText,
+				1.5,
+				1,
+				IM_COL32(0, 0, 0, 127)
+			);
 		}
 
-		ImU32 playColor = playHovered ? IM_COL32(30, 180, 255, 255) : IM_COL32(0, 140, 200, 255);
-		drawList->AddRectFilled(ImVec2(playBtnX, playBtnY), ImVec2(playBtnX + playBtnWidth, playBtnY + playBtnHeight), playColor, Scale(8.0f));
+		//ImU32 playColor = playHovered ? IM_COL32(30, 180, 255, 255) : IM_COL32(0, 140, 200, 255);
+		//drawList->AddRectFilled(ImVec2(playBtnX, playBtnY), ImVec2(playBtnX + playBtnWidth, playBtnY + playBtnHeight), playColor, Scale(8.0f));
 
-		auto playText = Localise("Installer_Button_PlayGame").c_str();
 
-		auto playSize = font->CalcTextSizeA(descFontSize, FLT_MAX, 0, playText);
-		drawList->AddText(font, descFontSize, ImVec2(playBtnX + (playBtnWidth - playSize.x) * 0.5f, playBtnY + (playBtnHeight - playSize.y) * 0.5f), IM_COL32(220, 235, 255, 255), playText);
+		//drawList->AddText(font, descFontSize, ImVec2(playBtnX + (playBtnWidth - playSize.x) * 0.5f, playBtnY + (playBtnHeight - playSize.y) * 0.5f), IM_COL32(220, 235, 255, 255), playText);
 
 		if (playHovered && io.MouseClicked[0])
 		{
@@ -947,34 +1141,62 @@ void InstallerWizard::Draw()
 
 	case WizardPage::InstallFailed:
 	{
-
-		contentY += Scale(50.0f);
-		float errorPadding = Scale(20.0f);
-
 		const char* errorMsg = g_installerErrorMessage.empty() ? Localise("Installer_Page_InstallFailed").c_str() : g_installerErrorMessage.c_str();
-		drawList->AddText(font, descFontSize, ImVec2(panelMin.x + errorPadding, contentY), IM_COL32(255, 180, 180, 255), errorMsg, nullptr, panelWidth - errorPadding * 2.0f);
 
-		float retryBtnWidth = Scale(120.0f);
-		float retryBtnHeight = Scale(40.0f);
-		float retryBtnX = centerX - retryBtnWidth - Scale(10.0f);
-		float retryBtnY = panelMax.y - retryBtnHeight - Scale(30.0f);
+		ImVec2 errorTextSize = MeasureCentredParagraph(g_fntSeurat, descFontSize, textMaxWidth, textMargin, errorMsg);
+		ImVec2 errorTextPosition = ImVec2(panelMin.x + (panelWidth - errorTextSize.x) * 0.5f, originMin.y);
+
+		DrawTextParagraph(g_fntSeurat, descFontSize, textMaxWidth, errorTextPosition, textMargin, errorMsg,
+						  [&](const char* errorStr, ImVec2 errorPos) { DrawTextWithShadow(g_fntSeurat, descFontSize, errorPos, IM_COL32(255, 255, 255, 255), errorStr, 1.5, 1, IM_COL32(0, 0, 0, 127)); });
+
+		auto retryText = Localise("Installer_Button_Retry").c_str();
+		auto retrySize = font->CalcTextSizeA(smallFontSize, FLT_MAX, 0, retryText);
+
+		float retryBtnWidth = 50.0f * scale;
+		float retryBtnHeight = 20.0f * scale;
+		float retryBtnX = panelMin.x + ((panelMax.x - panelMin.x) - retryBtnWidth) * 0.5f;
+		float retryBtnY = panelMax.y - retryBtnHeight - (70.0f * scale);
 
 		bool retryHovered = false;
 		if (io.MousePos.x >= retryBtnX && io.MousePos.x <= retryBtnX + retryBtnWidth &&
 			io.MousePos.y >= retryBtnY && io.MousePos.y <= retryBtnY + retryBtnHeight)
 		{
 			retryHovered = true;
+			if(!playedNextSound)
+			{
+				Game_PlaySound("cursor");
+				playedNextSound = true;
+			}
 		}
+		else { playedNextSound = false; }
 
-		ImU32 retryColor = retryHovered ? IM_COL32(80, 80, 140, 255) : IM_COL32(60, 60, 100, 255);
-		drawList->AddRectFilled(ImVec2(retryBtnX, retryBtnY), ImVec2(retryBtnX + retryBtnWidth, retryBtnY + retryBtnHeight), retryColor, Scale(6.0f));
-
-		auto retryText = Localise("Installer_Button_Retry").c_str();
-		auto retrySize = font->CalcTextSizeA(smallFontSize, FLT_MAX, 0, retryText);
-		drawList->AddText(font, smallFontSize, ImVec2(retryBtnX + (retryBtnWidth - retrySize.x) * 0.5f, retryBtnY + (retryBtnHeight - retrySize.y) * 0.5f), IM_COL32(220, 220, 255, 255), retryText);
+		if (retryHovered)
+		{
+			drawList->AddText(
+				font,
+				smallFontSize,
+				ImVec2(retryBtnX + (retryBtnWidth - retrySize.x) * 0.5f, retryBtnY + (retryBtnHeight - retrySize.y) * 0.5f),
+				IM_COL32(255, 255, 0, 255),
+				retryText
+			);
+		}
+		else
+		{
+			DrawTextWithShadow(
+				font,
+				smallFontSize,
+				ImVec2(retryBtnX + (retryBtnWidth - retrySize.x) * 0.5f, retryBtnY + (retryBtnHeight - retrySize.y) * 0.5f),
+				IM_COL32(255, 255, 255, 127),
+				retryText,
+				1.5,
+				1,
+				IM_COL32(0, 0, 0, 127)
+			);
+		}
 
 		if (retryHovered && io.MouseClicked[0])
 		{
+			Game_PlaySound("decide");
 			if (g_installerThread && g_installerThread->joinable())
 				g_installerThread->join();
 			g_installerThread.reset();
@@ -987,30 +1209,7 @@ void InstallerWizard::Draw()
 			g_installerProgress = 0.0f;
 		}
 
-		float quitBtnWidth = Scale(120.0f);
-		float quitBtnHeight = Scale(40.0f);
-		float quitBtnX = centerX + Scale(10.0f);
-		float quitBtnY = panelMax.y - quitBtnHeight - Scale(30.0f);
-
-		bool quitHovered = false;
-		if (io.MousePos.x >= quitBtnX && io.MousePos.x <= quitBtnX + quitBtnWidth &&
-			io.MousePos.y >= quitBtnY && io.MousePos.y <= quitBtnY + quitBtnHeight)
-		{
-			quitHovered = true;
-		}
-
-		ImU32 quitColor = quitHovered ? IM_COL32(140, 50, 50, 255) : IM_COL32(100, 30, 30, 255);
-		drawList->AddRectFilled(ImVec2(quitBtnX, quitBtnY), ImVec2(quitBtnX + quitBtnWidth, quitBtnY + quitBtnHeight), quitColor, Scale(6.0f));
-
-		auto quitText = Localise("Installer_Button_Quit").c_str();
-		auto quitSize = font->CalcTextSizeA(smallFontSize, FLT_MAX, 0, quitText);
-		drawList->AddText(font, smallFontSize, ImVec2(quitBtnX + (quitBtnWidth - quitSize.x) * 0.5f, quitBtnY + (quitBtnHeight - quitSize.y) * 0.5f), IM_COL32(255, 200, 200, 255), quitText);
-
-		if (quitHovered && io.MouseClicked[0])
-		{
-			g_isQuitting = true;
-			s_isVisible = false;
-		}
+		DrawQuitButton(panelMin, panelMax, scale);
 
 		break;
 	}
@@ -1051,7 +1250,8 @@ bool InstallerWizard::Run(std::filesystem::path installPath)
 
 		Video::WaitOnSwapChain();
 
-		EmbeddedPlayer::PlayMusic();
+		//Ideally, no music. Always found music on installers incredibly annoying
+		//EmbeddedPlayer::PlayMusic();
 
 		SDL_PumpEvents();
 

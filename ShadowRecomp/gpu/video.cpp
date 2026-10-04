@@ -5929,7 +5929,19 @@ int32_t Direct3D_CreateDevice_r(int32_t Adapter, int32_t DeviceType, int32_t hFo
 
 	// Move backbuffer to guest memory.
 	assert(!g_memory.IsInMemoryRange(g_backBuffer) && g_backBufferHolder != nullptr);
+	auto* oldBackBuffer = g_backBufferHolder.get(); // installer -> game
 	g_backBuffer = g_userHeap.AllocPhysical<GuestSurface>(std::move(*g_backBufferHolder));
+
+	{
+		std::lock_guard lock(g_surfaceRTsMutex);
+		for (auto& [key, containers] : g_framebufferCacheUsers)
+		{
+			if (containers.erase(oldBackBuffer))
+			{
+				containers.insert(g_backBuffer);
+			}
+		}
+	}
 
 	// Check for stale reference. BeginCommandList() gets called before CreateDevice() which is where the assignment happens.
 	if (g_renderTarget == g_backBufferHolder.get())

@@ -1656,3 +1656,9 @@ registers = ["r0"]
 jump_address_on_true = 0x25E2DE
 jump_address_on_false = 0x25E2D0
 # End SFX limit patch
+
+# Hero / Dark gauge fill @ sub_280B60
+[[midasm_hook]]
+name = "ChaosGaugeFillMidAsmHook"
+address = 0x280BF3
+registers = ["r0", "r2"]

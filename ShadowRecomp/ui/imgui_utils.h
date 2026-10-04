@@ -95,3 +95,7 @@ void AddTextWithOutline(ImDrawList* drawList, ImFont* font, float fontSize,
 void AddTextCentered(ImDrawList* drawList, ImFont* font, float fontSize,
     float centerX, float y, ImU32 textColor, ImU32 outlineColor,
     const char* text);
+
+void DrawScaledRect(ImDrawList* drawList, ImVec2 winPos, float scale, float offsetX, float offsetY, float baseX, float baseY, float baseW, float baseH, ImU32 colour);
+ImVec2 ScaleTriangleVert(ImVec2 winPos, float scale, float offsetX, float offsetY, float baseLocX, float baseLocY);
+
