@@ -6954,10 +6954,13 @@ static void SetFramebuffer(GuestSurface* renderTarget, GuestSurface* depthStenci
 
 		if (framebufferContainer != nullptr)
 		{
-			auto& framebuffer = framebufferContainer->framebuffers[framebufferKey];
+			std::unique_lock cacheLock(g_surfaceRTsMutex); // mutex to handle user cache post install boot
 
+			auto& framebuffer = framebufferContainer->framebuffers[framebufferKey];
 			if (framebufferKey != nullptr)
 				g_framebufferCacheUsers[framebufferKey].insert(framebufferContainer);
+
+			cacheLock.unlock();
 
 			uint64_t textureGeneration = 0;
 			if (renderTarget != nullptr)
