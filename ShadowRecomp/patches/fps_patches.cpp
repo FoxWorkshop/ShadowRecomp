@@ -2318,3 +2318,22 @@ X86_FUNC(sub_1CD350)
 	}
 	__imp__sub_1CD350(ctx, base);
 }
+
+// Hero / Dark gauge fill draw callback @ sub_280B60
+// Every frame gap target is halved each frame
+void ChaosGaugeFillMidAsmHook(X86Register& eax, X86Register& ecx)
+{
+	auto base = g_memory.base;
+	const float dt = X86_LOAD_F32(g_deltaTime);
+	const auto target = (int32_t)eax.u32;
+	const auto shown = (int32_t)ecx.u32;
+
+	if (target <= shown || dt <= 0.0f || dt >= 1.0f / 60.0f)
+	{
+		return;
+	}
+
+	// match 60FPS behavior for high FPS
+	const float step = (float)(target - shown) * (1.0f - std::pow(0.5f, dt * 60.0f));
+	eax.u32 = ecx.u32 = (uint32_t)(shown + (int32_t)std::ceil(step));
+}
