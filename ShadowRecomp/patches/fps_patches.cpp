@@ -2288,3 +2288,33 @@ X86_FUNC(sub_6D700)
 }
 
 /** --DarkSpin exit Patch END-- */
+
+// TornadoTowing
+// The end check fails at high fps (it uses dt in the check itself, high fps = small dt)
+X86_FUNC_IMPL(__imp__sub_1CD350);
+X86_FUNC(sub_1CD350)
+{
+	const uint32_t tornadoTowing = ctx.ecx.u32;
+	const uint32_t dtAddr = ctx.esp.u32 + 0xC;
+	const float dt = X86_LOAD_F32(dtAddr);
+	const float speed = X86_LOAD_F32(X86_LOAD_U32(tornadoTowing + 0x28) + 0x54);
+	if (dt > 0.0f && speed > 0.0f && dt < 1.0f / 60.0f)
+	{
+		float delta[3];
+		float len = 0.0f;
+		for (uint32_t i = 0; i < 3; i++)
+		{
+			delta[i] = X86_LOAD_F32(tornadoTowing + 0x44 + i * 4) - X86_LOAD_F32(tornadoTowing + 0x38 + i * 4);
+			len += delta[i] * delta[i];
+		}
+		len = std::sqrt(len);
+
+		// misses the target barely since dt is so small at high fps
+		// write to dt with the approx 60 equivalent check
+		if (len > speed * dt && len <= speed / 60.0f)
+		{
+			X86_STORE_F32(dtAddr, len / speed * 1.001f);
+		}
+	}
+	__imp__sub_1CD350(ctx, base);
+}
