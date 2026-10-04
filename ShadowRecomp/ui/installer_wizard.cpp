@@ -995,8 +995,6 @@ void InstallerWizard::Draw()
 	break;
 	case WizardPage::Installing:
 	{
-		DrawDescription("Shadow the Hedgehog - Installer");
-
 		auto phase = g_installerPhase.load();
 		const char* headerText;
 		if (g_installerCompiling.load())
@@ -1012,11 +1010,11 @@ void InstallerWizard::Draw()
 			headerText = Localise("Installer_Page_Installing").c_str();
 		}
 
-		DrawTextParagraph(font, descFontSize, textMaxWidth, originMin, textMargin, headerText,
-			[&](const char* str, ImVec2 pos) { DrawTextBasic(g_fntSeurat, descFontSize, pos, IM_COL32(255, 255, 255, 255), str); });
-		//drawList->AddText(font, descFontSize, ImVec2(panelMin.x + Scale(20), contentY), IM_COL32(220, 220, 255, 255), headerText);
+		auto installTextSize = MeasureCentredParagraph(g_fntSeurat, descFontSize, textMaxWidth, textMargin, headerText);
+		ImVec2 installTextPosition = ImVec2(panelMin.x + (panelWidth - installTextSize.x) * 0.5f, originMin.y);
 
-		//contentY += (50.0f * scale);
+		DrawTextParagraph(font, descFontSize, textMaxWidth, installTextPosition, textMargin, headerText,
+			[&](const char* str, ImVec2 pos) { DrawTextWithShadow(g_fntSeurat, descFontSize, pos, IM_COL32(255, 255, 255, 255), str, 1.5, 1, IM_COL32(0, 0, 0, 127)); });
 
 		float barPadding = 20.0f * scale;
 		float barX = panelMin.x + barPadding;
@@ -1030,32 +1028,32 @@ void InstallerWizard::Draw()
 				char fileText[512];
 				auto fileTxt = Localise("Common_File") + ": %s";
 				snprintf(fileText, sizeof(fileText), fileTxt.c_str(), g_installerCurrentFileName.c_str());
-				drawList->AddText(font, smallFontSize, ImVec2(barX, panelMin.y), IM_COL32(180, 180, 180, 255), fileText, nullptr, barWidth);
+				ImVec2 fileTextPosition = ImVec2(barX, panelMin.y + (10.0f * scale));
+
+				DrawTextParagraph(font, fileFontSize, barWidth, fileTextPosition, textMargin, fileText,
+								  [&](const char* str, ImVec2 pos) { DrawTextWithShadow(g_fntSeurat, fileFontSize, pos, IM_COL32(255, 255, 255, 127), str, 1.5, 1, IM_COL32(0, 0, 0, 127)); });
 			}
 		}
-
-		//contentY += Scale(30.0f);
 
 		ImVec2 barMin(barX, centerY - barHeight * 0.5f);
 		ImVec2 barMax(barX + barWidth, centerY + barHeight * 0.5f);
 
 		g_installerProgress = g_installerProgressTarget.load();
 
-		drawList->AddRectFilled(barMin, barMax, IM_COL32(40, 40, 60, 255), Scale(4.0f));
+		drawList->AddRectFilled(barMin, barMax, IM_COL32(0, 0, 40, 255));
 
 		float fillWidth = barWidth * std::min(g_installerProgress, 1.0f);
 		if (fillWidth > 0)
 		{
 			ImVec2 fillMax(barX + fillWidth, centerY + barHeight * 0.5f);
-			drawList->AddRectFilled(barMin, fillMax, IM_COL32(50, 150, 50, 255), Scale(4.0f));
+			drawList->AddRectFilled(barMin, fillMax, IM_COL32(255, 255, 0, 255));
 		}
 
 		char percentText[32];
 		snprintf(percentText, sizeof(percentText), "%.1f%%", g_installerProgress * 100.0f);
 		auto percentSize = font->CalcTextSizeA(smallFontSize, FLT_MAX, 0, percentText);
-		drawList->AddText(font, smallFontSize, ImVec2(barX + (barWidth - percentSize.x) * 0.5f, centerY - percentSize.y * 0.5f), IM_COL32(255, 255, 255, 255), percentText);
 
-		//contentY += barHeight + 20.0f * scale;
+		DrawTextWithShadow(font, smallFontSize, ImVec2(barX + (barWidth - percentSize.x) * 0.5f, (centerY - percentSize.y * 0.5f) + barHeight), IM_COL32(255, 255, 255, 255), percentText, 1.5, 1, IM_COL32(0, 0, 0, 127));
 
 		if (g_installerFinished.load())
 		{
