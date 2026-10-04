@@ -6188,9 +6188,9 @@ static void CopyDynamicTextureToGPU(GuestTexture* tex)
 
 
 	auto copyTextureRegion = [&](Slice& slice, uint32_t subresourceIndex)
-		{
+		{		
 			uint32_t uploadRowPitchInTexels = slice.dstRowPitch /
-				(bCompressed ? blockSize : RenderFormatSize(tex->format));
+				RenderFormatSize(tex->format) * RenderFormatBlockWidth(tex->format);
 
 			g_commandLists[g_frame]->copyTextureRegion(
 				RenderTextureCopyLocation::Subresource(tex->texture,
@@ -9282,7 +9282,8 @@ void CopyTextureToGPU(GuestTexture* tex)
 				{
 					uint32_t mipIndex = subresourceIndex % dwMipMapLevels;
 					uint32_t arrayIndex = subresourceIndex / dwMipMapLevels;
-					uint32_t uploadRowPitchInTexels = slice.dstRowPitch / RenderFormatSize(tex->format);
+					// Plume wants the row width in pixels, a compressed block covers 4 of them.
+					uint32_t uploadRowPitchInTexels = slice.dstRowPitch / RenderFormatSize(tex->format) * RenderFormatBlockWidth(tex->format);
 
 					g_copyCommandList->copyTextureRegion(
 						RenderTextureCopyLocation::Subresource(tex->texture, mipIndex, arrayIndex),
@@ -9377,7 +9378,7 @@ X86_FUNC(sub_2DFE20)
 	const uint32_t usage = (info->cType & 0xFF) == rwRASTERTYPECAMERATEXTURE ? 1 : 0;
 
 
-	X_D3DFORMAT format = (X_D3DFORMAT)ctx.esi.u32;
+	X_D3DFORMAT format = (X_D3DFORMAT)X86_LOAD_U32(ctx.esp.u32 + 4);
 	__imp__sub_2DFE20(ctx, base);
 
 	if (ctx.eax.u32 != 0)
