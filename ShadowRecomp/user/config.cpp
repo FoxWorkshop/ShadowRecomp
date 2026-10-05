@@ -812,9 +812,13 @@ void Config::CreateCallbacks()
 
     Config::Fullscreen.Callback = [](ConfigDef<bool>* def)
         {
-            bool value = def->Value;
-            MainThreadDispatcher::Get().Post([value]()
+            MainThreadDispatcher::Get().Post([]()
                 {
+                    const bool value = Config::Fullscreen;
+                    if (GameWindow::IsFullscreen() == value)
+                    {
+                        return;
+                    }
                     GameWindow::SetFullscreen(value);
                     GameWindow::SetDisplay(Config::Monitor);
                     if (App::s_isInit)
