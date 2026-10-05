@@ -724,6 +724,15 @@ static void DrawBackground(ImGuiViewport* viewport, ImVec2 winPos, ImVec2 winSiz
 	DrawScaledRect(drawList, winPos, scale, offsetX, offsetY, 26.0f, 59.0f, 587.0f, 351.0f, winCol);
 }
 
+static void DrawWizardParagraph(const char* text, float maxWidth, float lineMargin, const ImVec2& pos)
+{
+	auto draw = [](const char* str, float size, ImVec2 p) { DrawTextWithShadow(g_fntSeurat, size, p, IM_COL32(255, 255, 255, 255), str, 1.5, 1, IM_COL32(0, 0, 0, 127)); };
+
+	DrawRubyAnnotatedText(g_fntSeurat, descFontSize, maxWidth, pos, lineMargin, text,
+		[&](const char* str, ImVec2 p) { draw(str, descFontSize, p); },
+		draw);
+}
+
 void InstallerWizard::Draw()
 {
 	if (!s_isVisible)
@@ -803,8 +812,7 @@ void InstallerWizard::Draw()
 
 	if (g_currentPage != WizardPage::Installing && g_currentPage != WizardPage::InstallFailed)
 	{
-			DrawTextParagraph(g_fntSeurat, descFontSize, textMaxWidth, textPosition, textMargin, wizardText.c_str(),
-				[&](const char* str, ImVec2 pos) { DrawTextWithShadow(g_fntSeurat, descFontSize, pos, IM_COL32(255, 255, 255, 255), str, 1.5, 1, IM_COL32(0, 0, 0, 127)); });
+		DrawWizardParagraph(wizardText.c_str(), textMaxWidth, textMargin, textPosition);
 	}
 
 	switch (g_currentPage)
@@ -1013,8 +1021,7 @@ void InstallerWizard::Draw()
 		auto installTextSize = MeasureCentredParagraph(g_fntSeurat, descFontSize, textMaxWidth, textMargin, headerText);
 		ImVec2 installTextPosition = ImVec2(panelMin.x + (panelWidth - installTextSize.x) * 0.5f, originMin.y);
 
-		DrawTextParagraph(font, descFontSize, textMaxWidth, installTextPosition, textMargin, headerText,
-			[&](const char* str, ImVec2 pos) { DrawTextWithShadow(g_fntSeurat, descFontSize, pos, IM_COL32(255, 255, 255, 255), str, 1.5, 1, IM_COL32(0, 0, 0, 127)); });
+		DrawWizardParagraph(headerText, textMaxWidth, textMargin, installTextPosition);
 
 		float barPadding = 20.0f * scale;
 		float barX = panelMin.x + barPadding;
@@ -1146,8 +1153,7 @@ void InstallerWizard::Draw()
 		ImVec2 errorTextSize = MeasureCentredParagraph(g_fntSeurat, descFontSize, textMaxWidth, textMargin, errorMsg);
 		ImVec2 errorTextPosition = ImVec2(panelMin.x + (panelWidth - errorTextSize.x) * 0.5f, originMin.y);
 
-		DrawTextParagraph(g_fntSeurat, descFontSize, textMaxWidth, errorTextPosition, textMargin, errorMsg,
-						  [&](const char* errorStr, ImVec2 errorPos) { DrawTextWithShadow(g_fntSeurat, descFontSize, errorPos, IM_COL32(255, 255, 255, 255), errorStr, 1.5, 1, IM_COL32(0, 0, 0, 127)); });
+		DrawWizardParagraph(errorMsg, textMaxWidth, textMargin, errorTextPosition);
 
 		auto retryText = Localise("Installer_Button_Retry").c_str();
 		auto retrySize = font->CalcTextSizeA(smallFontSize, FLT_MAX, 0, retryText);
