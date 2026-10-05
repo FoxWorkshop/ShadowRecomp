@@ -2339,3 +2339,30 @@ void ChaosGaugeFillMidAsmHook(X86Register& eax, X86Register& ecx)
 	const int32_t next = std::min(shown + (int32_t)std::ceil(step), target - 1);
 	eax.u32 = ecx.u32 = (uint32_t)next;
 }
+
+// Egg Dealer roulette UI bounce fix
+X86_FUNC_IMPL(__imp__sub_115A50);
+X86_FUNC(sub_115A50)
+{
+	const uint32_t reel = ctx.ecx.u32;
+	__imp__sub_115A50(ctx, base);
+	const float dt = X86_LOAD_F32(g_deltaTime);
+	if (X86_LOAD_U32(reel) != 3 || dt <= 0.0f || dt >= 1.0f / 60.0f)
+	{
+		return;
+	}
+
+	// OG wobble timer but scale to 60 FPS
+	const float elapsed = 0.2f - X86_LOAD_F32(reel + 0x14);
+	const float timer = 0.2f - std::max(1.0f, std::floor(elapsed * 60.0f + 0.001f)) / 60.0f;
+
+	// 1:1 bounce but with scaled timer
+	const float width = X86_LOAD_F32(0x4F9988);
+	const float bounce = (0.5f / X86_LOAD_F32(0x4F9984)) * timer * 5.0f * std::sin(X86_LOAD_F32(0x54BED8) * timer);
+	float angle = (float)(int32_t)X86_LOAD_U32(reel + 0x10) * width + bounce;
+	if (angle > X86_LOAD_F32(0x4F998C))
+	{
+		angle -= X86_LOAD_F32(0x4F998C);
+	}
+	X86_STORE_F32(reel + 0x38, angle);
+}
