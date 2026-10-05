@@ -2366,3 +2366,24 @@ X86_FUNC(sub_115A50)
 	}
 	X86_STORE_F32(reel + 0x38, angle);
 }
+
+// CSD color key lerp fix
+// At 60 FPS, the CSD timer is always a whole frame, so two colour keys create a smooth transition.
+// At high FPS however, we can reach between two frames and get some kind of weird blend that the game never originally show. 
+// (Example: Pause story route relies on this and the whole screen flash brighter for a couple of frames.)
+// Patch: Force the first key when needed to match 60 FPS behaviour.
+X86_FUNC_IMPL(__imp__sub_3899C0);
+X86_FUNC(sub_3899C0)
+{
+	const uint32_t key0 = X86_LOAD_U32(ctx.esp.u32 + 8);
+	const uint32_t key1 = X86_LOAD_U32(ctx.esp.u32 + 12);
+	const int32_t frame0 = (int32_t)X86_LOAD_U32(key0);
+	const int32_t frame1 = (int32_t)X86_LOAD_U32(key1);
+
+	if (frame1 - frame0 == 1 && X86_LOAD_F32(ctx.esp.u32 + 16) < (float)frame1)
+	{
+		X86_STORE_F32(ctx.esp.u32 + 16, (float)frame0);
+	}
+
+	__imp__sub_3899C0(ctx, base);
+}
