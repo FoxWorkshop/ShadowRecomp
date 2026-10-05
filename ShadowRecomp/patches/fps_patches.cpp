@@ -2328,12 +2328,14 @@ void ChaosGaugeFillMidAsmHook(X86Register& eax, X86Register& ecx)
 	const auto target = (int32_t)eax.u32;
 	const auto shown = (int32_t)ecx.u32;
 
-	if (target <= shown || dt <= 0.0f || dt >= 1.0f / 60.0f)
+	// Always render 1 from target, never above (OG behavior)
+	if (target - shown <= 1 || dt <= 0.0f || dt >= 1.0f / 60.0f)
 	{
 		return;
 	}
 
 	// match 60FPS behavior for high FPS
 	const float step = (float)(target - shown) * (1.0f - std::pow(0.5f, dt * 60.0f));
-	eax.u32 = ecx.u32 = (uint32_t)(shown + (int32_t)std::ceil(step));
+	const int32_t next = std::min(shown + (int32_t)std::ceil(step), target - 1);
+	eax.u32 = ecx.u32 = (uint32_t)next;
 }
