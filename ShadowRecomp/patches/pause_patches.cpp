@@ -51,6 +51,7 @@ enum PauseAction : uint8_t
 {
 	PauseAction_None = 0,
 	PauseAction_Resume = 1,
+	PauseAction_StoryRoute = 2, 
 	PauseAction_Restart = 3,
 	PauseAction_Quit = 4,
 	// added pause actions:
@@ -514,7 +515,7 @@ X86_FUNC(sub_5AAF0)
 
 		// Apply navigation delta to our extended cursor
 
-		if (returnedAction != PauseAction_None)
+		if (returnedAction != PauseAction_None && returnedAction != PauseAction_StoryRoute)
 		{
 			if (s_index <= SelRestart || s_index == SelQuit)
 			{
