@@ -1279,6 +1279,14 @@ const xxHashMap<CsdModifier> g_csdModifiers =
 	{ HashStr("csdFiles/pause/pause.xncp/Pause/SRText"), { CSD_CENTER_UNSTRETCH } },
 	{ HashStr("csdFiles/pause/pauseBoss.xncp/Pause/Pause"), { CSD_CENTER_UNSTRETCH } },
 
+
+	// pause story route mode
+	{ HashStr("csdFiles/pause/pause.xncp/StoryRoute"), { CSD_CENTER_UNSTRETCH } },
+	{ HashStr("csdFiles/pause/pause.xncp/StoryRoute/StoryRoute"), { CSD_CENTER_UNSTRETCH } },
+	{ HashStr("csdFiles/pause/pause.xncp/StoryRoute/SRIconsBG"), { CSD_CENTER_UNSTRETCH } },
+	{ HashStr("csdFiles/pause/pause.xncp/StoryRoute/SRIcons"), { CSD_CENTER_UNSTRETCH } },
+
+
 	// this is to move the mission board vertex below due to the pause menu bg being extended reaching the mission board position
 	{ HashStr("csdFiles/pause/pause.xncp/Pause/Mission_Board/Null_0189/bg1"), { CSD_HIDE_PAUSE | CSD_MOVE_BOTTOM | CSD_CENTER_UNSTRETCH } },
 	{ HashStr("csdFiles/pause/pause.xncp/Pause/Mission_Board/Null_0189/bg2"), { CSD_HIDE_PAUSE | CSD_MOVE_BOTTOM | CSD_CENTER_UNSTRETCH } },
