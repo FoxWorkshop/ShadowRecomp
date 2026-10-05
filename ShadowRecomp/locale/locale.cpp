@@ -530,12 +530,12 @@ std::unordered_map<std::string_view, std::unordered_map<ELanguage, std::string>>
     {
         "Installer_Page_Verifying",
         {
-            { ELanguage::English,  "Please wait while content is being verified..." },
-            { ELanguage::Japanese, "ディスクイメージの検証[中:ちゅう]はお[待:ま]ち\nください" },
-            { ELanguage::German,   "Bitte warten. Das Disc-Image wird überprüft..." },
-            { ELanguage::French,   "Veuillez patienter pendant la vérification de l'image du disque..." },
-            { ELanguage::Spanish,  "Por favor, espera mientras se verifica la imagen del disco... " },
-            { ELanguage::Italian,  "Attendi mentre l'immagine del disco viene verificata... " }
+            { ELanguage::English,  "Verifying game files..." },
+            { ELanguage::Japanese, "Verifying game files..." },
+            { ELanguage::German,   "Verifying game files..." },
+            { ELanguage::French,   "Verifying game files..." },
+            { ELanguage::Spanish,  "Verifying game files..." },
+            { ELanguage::Italian,  "Verifying game files..." }
         }
     },
     {
@@ -575,7 +575,7 @@ std::unordered_map<std::string_view, std::unordered_map<ELanguage, std::string>>
         "Installer_Page_InstallFailed",
         {
             { ELanguage::English,  "Installation failed.\n\nAn unknown error occurred." },
-            { ELanguage::Japanese, "インストールに[失敗:しっぱい]しました\n\nエラー： " },
+            { ELanguage::Japanese, "Installation failed.\n\nAn unknown error occurred." },
             { ELanguage::German,   "Installation fehlgeschlagen.\n\nEin unbekannter Fehler ist aufgetreten." },
             { ELanguage::French,   "L'installation a échoué.\n\nUne erreur inconnue est survenue." },
             { ELanguage::Spanish,  "La instalación falló.\n\nOcurrió un error desconocido." },
@@ -593,6 +593,7 @@ std::unordered_map<std::string_view, std::unordered_map<ELanguage, std::string>>
             { ELanguage::Italian,  "Gioco" }
         }
     },
+        // TODO: UNUSED
     {
         "Installer_Step_Update",
         {
@@ -604,6 +605,7 @@ std::unordered_map<std::string_view, std::unordered_map<ELanguage, std::string>>
             { ELanguage::Italian,  "Aggiornamento" }
         }
     },
+        // TODO: UNUSED
     {
         "Installer_Step_RequiredSpace",
         {
@@ -615,6 +617,7 @@ std::unordered_map<std::string_view, std::unordered_map<ELanguage, std::string>>
             { ELanguage::Italian,  "Spazio necessario: %2.3f GiB" }
         }
     },
+        // TODO: UNUSED
     {
         "Installer_Step_AvailableSpace",
         {
@@ -670,6 +673,7 @@ std::unordered_map<std::string_view, std::unordered_map<ELanguage, std::string>>
             { ELanguage::Italian,  "Esci" }
         }
     },
+        // TODO: UNUSED, maybe use it when we add folder selection
     {
         "Installer_Button_AddFiles",
         {
@@ -693,15 +697,16 @@ std::unordered_map<std::string_view, std::unordered_map<ELanguage, std::string>>
         }
     },
     {
+        // TODO: This message needs to be redone when we support extracted game
         // Notes: message appears when using the "Add Files" option and choosing any file that is not an Xbox game dump.
         "Installer_Message_InvalidFileSelected",
         {
             { ELanguage::English,  "The selected file is not a valid Shadow the Hedgehog Xbox ISO.\nPlease provide a valid ISO file." },
-            { ELanguage::Japanese, "" },
-            { ELanguage::German,   "" },
-            { ELanguage::French,   "Le fichier sélectionné n'est pas une image valide de Shadow the Hedgehog pour Xbox.\nVeuillez fournir un fichier ISO valide." },
-            { ELanguage::Spanish,  "" },
-            { ELanguage::Italian,  "" }
+            { ELanguage::Japanese, "The selected file is not a valid Shadow the Hedgehog Xbox ISO.\nPlease provide a valid ISO file." },
+            { ELanguage::German,   "The selected file is not a valid Shadow the Hedgehog Xbox ISO.\nPlease provide a valid ISO file." },
+            { ELanguage::French,   "The selected file is not a valid Shadow the Hedgehog Xbox ISO.\nPlease provide a valid ISO file." },
+            { ELanguage::Spanish,  "The selected file is not a valid Shadow the Hedgehog Xbox ISO.\nPlease provide a valid ISO file." },
+            { ELanguage::Italian,  "The selected file is not a valid Shadow the Hedgehog Xbox ISO.\nPlease provide a valid ISO file." }
         }
     },
     {
