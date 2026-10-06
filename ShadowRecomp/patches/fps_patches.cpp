@@ -2387,3 +2387,66 @@ X86_FUNC(sub_3899C0)
 
 	__imp__sub_3899C0(ctx, base);
 }
+
+/** --Melee weapon attack Patch START-- */
+
+// Melee swing trail and hit sweep follow the hand bone, which blends rotation between keys
+// Off 60 FPS frames land between keys, the pose goes off path and the blade tip spikes up/down
+// We can cheat and use the 'single frame' animation mode that events use, and apply while melee weapon is swinging
+
+// To track which shadow is swinging, also necessary otherwise on enemy using melee weapon the patch would affect players
+static uint32_t g_holderPlayer = 0; // which player
+static uint32_t g_swingingModel = 0; // which skeleton
+static std::unordered_map<uint32_t, std::chrono::steady_clock::time_point> g_lastSwings;
+
+// Player weapon update
+// task + 0x58
+X86_FUNC_IMPL(__imp__sub_9FA10);
+X86_FUNC(sub_9FA10)
+{
+	g_holderPlayer = X86_LOAD_U32(ctx.ecx.u32 + 0x28);
+	__imp__sub_9FA10(ctx, base);
+	g_holderPlayer = 0;
+}
+
+// Melee hit sweep
+X86_FUNC_IMPL(__imp__sub_2704F0);
+X86_FUNC(sub_2704F0)
+{
+	g_lastSwings[g_holderPlayer] = std::chrono::steady_clock::now();
+	__imp__sub_2704F0(ctx, base);
+}
+
+// Player skeleton update pass
+X86_FUNC_IMPL(__imp__sub_995C0);
+X86_FUNC(sub_995C0)
+{
+	const uint32_t data = X86_LOAD_U32(ctx.ecx.u32 + 0x58);
+	const auto swing = g_lastSwings.find(data);
+	const bool swinging = swing != g_lastSwings.end() && std::chrono::steady_clock::now() - swing->second < std::chrono::milliseconds(200);
+
+	g_swingingModel = swinging ? (uint32_t)X86_LOAD_U32(ctx.ecx.u32 + 0x3E8) : 0;
+	__imp__sub_995C0(ctx, base);
+	g_swingingModel = 0;
+}
+
+// Skeleton animation sampler
+X86_FUNC_IMPL(__imp__sub_374A60);
+X86_FUNC(sub_374A60)
+{
+	const uint32_t model = X86_LOAD_U32(ctx.esp.u32 + 0x4);
+	const uint32_t flags = X86_LOAD_U32(model + 0x14);
+
+	// apply the event MTN single frame mode
+	if (model == g_swingingModel)
+	{
+		X86_STORE_U32(model + 0x14, flags | 0x8);
+		__imp__sub_374A60(ctx, base);
+		X86_STORE_U32(model + 0x14, flags);
+	}
+	else
+	{
+		__imp__sub_374A60(ctx, base);
+	}
+}
+/** --Melee weapon attack Patch END-- */
