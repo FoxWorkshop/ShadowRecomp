@@ -1,33 +1,21 @@
 #!/usr/bin/env python3
-"""Generates fixed-function vertex shader variants from captured configurations.
+"""Generates one specialized vertex shader per logged state.
 
-Captured configurations are normalized into effective configurations, and
-configurations that reduce to the same canonical program share one variant.
+Background: see ShadowRecomp/gpu/ubershaders/README.md.
+
+Terms:
+- state: one logged combination of shader inputs (a states.jsonl line).
+- program: the settings we compile one variant from; states can share one.
 
 Usage:
-- generate.py --states states.jsonl --output generated
+    generate.py --states states.jsonl --output generated
 
-Inputs:
-- --states: JSONL file, one record per captured configuration, holding the
-  scalar, array and tail fields plus its recorded rapidhash
-- --output: directory receiving the generated files
-
-Outputs, under the output directory:
-- variant_NNN.hlsl: one wrapper per canonical program, defining FFVS_* macros
-  over FixedFunctionVertexShader.hlsl
-- fixed_function_vertex_shader_variants.generated.h: catalog mapping each
-  effective configuration's key to its full configuration and program key,
-  and each program key to its embedded SPIR-V/DXIL blobs; the program table
-  is emitted sorted by key so the runtime can binary-search it
-- summary.txt: captured and effective configuration and program counts
-- manifest.cmake: variant list plus SHA-256 hashes of the states file, the
-  generator, the shared variant_hash.py and every generated file; the build
-  uses them to detect stale outputs
-
-PS. Sewer says this is a one-off vibez codo shitto; for a one time export.
-    There's harder problems to be focusing on. Banana!
-
-    Like hand optimizing the actual DAMN runtime code.
+Outputs:
+- variant_NNN.hlsl: FFVS_*_VALUE defines + FixedFunctionVertexShader.hlsl.
+- fixed_function_vertex_shader_variants.generated.h:
+  state hash -> program key -> shader blobs.
+- summary.txt: state and program counts.
+- manifest.cmake: SHA-256 pins; CMake fails until you rerun after edits.
 """
 
 import argparse
@@ -35,63 +23,116 @@ import hashlib
 import json
 import sys
 from pathlib import Path
+from typing import NamedTuple
 
+# variant_hash.py is two directories up, in shader/.
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
 import variant_hash
 
+CATALOG_FILE = "fixed_function_vertex_shader_variants.generated.h"
+SUMMARY_FILE = "summary.txt"
 
-SCALAR_FIELDS = (
-    "vertex_blend_matrix_count",
-    "vertex_blend_calc_last_weight",
-    "lighting_enable",
-    "two_sided_lighting_enable",
-    "local_viewer_enable",
-    "normalize_normals_enable",
-    "ambient_material_source",
-    "diffuse_material_source",
-    "specular_material_source",
-    "emissive_material_source",
-    "fog_enable",
-    "fog_depth_mode",
-)
+LIGHT_COUNT = 8
+TEXTURE_STAGE_COUNT = 4
+TEXCOORD_SET_COUNT = 4  # texcoord0-3 in the vertex
 
-ARRAY_FIELDS = (
-    ("light_types", 8),
-    ("texture_transform_counts", 4),
-    ("texture_transform_projected", 4),
-    ("texcoord_indices", 4),
-    ("texcoord_generation", 4),
-    ("texcoord_component_counts", 4),
-)
+# Material color sources (D3DMCS_*).
+MATERIAL = 0
+VERTEX_DIFFUSE = 1
+VERTEX_SPECULAR = 2
 
-TAIL_FIELDS = (
-    "vertex_register_default_mask",
-    "point_sprite_enable",
-    "point_scale_enable",
-    "specular_enable",
-)
+# Texcoord generation modes (D3DTSS_TCI_*).
+TEXCOORD_PASSTHROUGH = 0
+GENERATIONS_USING_NORMAL = (1, 3, 5)
+
+FOG_DEPTH_NONE = 0  # fog value comes from specular alpha
+
+# Vertex input registers (D3DVSDE_*).
+REGISTER_POSITION = 0
+REGISTER_BLEND_WEIGHT = 1
+REGISTER_NORMAL = 2
+REGISTER_DIFFUSE = 3
+REGISTER_SPECULAR = 4
+REGISTER_BACK_DIFFUSE = 7
+REGISTER_BACK_SPECULAR = 8
+REGISTER_TEXCOORD0 = 9  # texcoord1-3 follow
 
 
-def normalized_text_bytes(path):
-    """File bytes with line endings normalized, so hashes ignore EOL style."""
-    return path.read_text(encoding="utf-8").replace("\r\n", "\n").replace("\r", "\n").encode("utf-8")
+class VertexState(NamedTuple):
+    """One logged state. Same order as the C++ FixedFunctionVertexShaderControlState."""
+
+    vertex_blend_matrix_count: int
+    vertex_blend_calc_last_weight: int
+    lighting_enable: int
+    two_sided_lighting_enable: int
+    local_viewer_enable: int
+    normalize_normals_enable: int
+    ambient_material_source: int
+    diffuse_material_source: int
+    specular_material_source: int
+    emissive_material_source: int
+    fog_enable: int
+    fog_depth_mode: int
+    light_types: tuple  # per light; 0 = unused
+    texture_transform_counts: tuple  # per stage
+    texture_transform_projected: tuple  # per stage; JSON only, not in C++
+    texcoord_indices: tuple  # per stage
+    texcoord_generation: tuple  # per stage
+    texcoord_component_counts: tuple  # per texcoord set
+    vertex_register_default_mask: int
+    point_sprite_enable: int
+    point_scale_enable: int
+    specular_enable: int
 
 
-def write_text(path, value):
-    path.write_bytes(value.encode("utf-8"))
+ARRAY_LENGTHS = {
+    "light_types": LIGHT_COUNT,
+    "texture_transform_counts": TEXTURE_STAGE_COUNT,
+    "texture_transform_projected": TEXTURE_STAGE_COUNT,
+    "texcoord_indices": TEXTURE_STAGE_COUNT,
+    "texcoord_generation": TEXTURE_STAGE_COUNT,
+    "texcoord_component_counts": TEXCOORD_SET_COUNT,
+}
+
+
+class TextureStage(NamedTuple):
+    transform_enable: int
+    texcoord_index: int
+    texcoord_generation: int
+    texcoord_component_count: int
+
+
+class VertexProgram(NamedTuple):
+    """The settings we compile one variant from.
+
+    Warning: PRESERVE THE ORDER OF THE FIELDS
+
+    We hash them in order. So changing the order here would cook the player
+    and require a hash re-generation.
+    """
+
+    vertex_blend_matrix_count: int
+    vertex_blend_calc_last_weight: int
+    lighting_enable: int
+    two_sided_lighting_enable: int
+    local_viewer_enable: int
+    normalize_normals_enable: int
+    material_sources: tuple  # ambient, diffuse, specular, emissive
+    fog_enable: int
+    fog_depth_mode: int
+    light_types: tuple
+    texture_stages: tuple  # TextureStage per stage
+    vertex_register_default_mask: int
+    point_sprite_enable: int
+    point_scale_enable: int
+    specular_enable: int
 
 
 def load_states(path):
-    """Loads (hash, configuration) pairs from a states JSONL file.
-
-    Raises RuntimeError when a record has an unsupported version, an array
-    field with the wrong length, or when two distinct configurations share
-    one hash. Malformed JSON raises json.JSONDecodeError. Recorded hashes
-    are the catalog state hashes; the C++ runtime verifies them against its
-    own rapidhash in debug builds."""
+    """Reads states.jsonl into (state hash, VertexState) pairs."""
     states = []
-    hashes = {}
+    state_by_hash = {}
 
     for line_number, line in enumerate(path.read_text().splitlines(), 1):
         if not line:
@@ -101,345 +142,334 @@ def load_states(path):
         if record.get("version") != 1:
             raise RuntimeError(f"{path}:{line_number}: unsupported version")
 
-        scalars = tuple(int(record[field]) for field in SCALAR_FIELDS)
-        arrays = []
-        for field, count in ARRAY_FIELDS:
+        fields = {}
+        for field in VertexState._fields:
+            if field not in ARRAY_LENGTHS:
+                fields[field] = int(record[field])
+                continue
+
             values = tuple(int(value) for value in record[field])
-            if len(values) != count:
-                raise RuntimeError(f"{path}:{line_number}: {field} must contain {count} values")
-            arrays.append(values)
-        tail = tuple(int(record[field]) for field in TAIL_FIELDS)
-        state = scalars + tuple(arrays) + tail
+            if len(values) != ARRAY_LENGTHS[field]:
+                raise RuntimeError(f"{path}:{line_number}: {field} must contain {ARRAY_LENGTHS[field]} values")
+            fields[field] = values
+
+        state = VertexState(**fields)
         state_hash = int(record["hash"], 16)
 
-        if state_hash in hashes and hashes[state_hash] != state:
+        if state_hash in state_by_hash and state_by_hash[state_hash] != state:
             raise RuntimeError(f"{path}:{line_number}: hash collision {state_hash:016X}")
 
-        hashes[state_hash] = state
+        state_by_hash[state_hash] = state
         states.append((state_hash, state))
 
     return states
 
 
 def normalize_state(state):
-    """Canonicalizes a captured configuration into the effective configuration.
+    """Zeroes inputs the shader never reads.
 
-    Fields that cannot affect rendering are cleared: lighting off removes
-    light types, material sources and specular; local viewer needs at least
-    one light; fog off clears the depth mode; point scale needs point
-    sprites. Vertex register defaults are kept only for registers the
-    configuration can read."""
-    (
-        matrix_count, calc_last_weight, lighting_enable, two_sided_lighting_enable,
-        local_viewer_enable, normalize_normals_enable, ambient_material_source,
-        diffuse_material_source, specular_material_source, emissive_material_source,
-        fog_enable, fog_depth_mode, light_types, texture_transform_counts,
-        _texture_transform_projected, texcoord_indices, texcoord_generation,
-        texcoord_component_counts, vertex_register_default_mask,
-        point_sprite_enable, point_scale_enable,
-        specular_enable,
-    ) = state
+    Must match VertexShaderFamily::Normalize in
+    fixed_function_vertex_shader_variants.cpp.
 
-    lighting_enable = int(lighting_enable != 0)
-    calc_last_weight = int(calc_last_weight != 0)
-    normalize_normals_enable = int(normalize_normals_enable != 0)
-    if lighting_enable:
-        light_types = tuple(light_types)
-        two_sided_lighting_enable = int(two_sided_lighting_enable != 0)
-        local_viewer_enable = int(local_viewer_enable != 0 and any(light_types))
+    This ensures that EQUAL states match.
+    """
+    lighting = state.lighting_enable != 0
+    if lighting:
+        light_types = state.light_types
+        two_sided = int(state.two_sided_lighting_enable != 0)
+        local_viewer = int(state.local_viewer_enable != 0 and any(light_types))  # needs a light
         material_sources = (
-            ambient_material_source,
-            diffuse_material_source,
-            specular_material_source,
-            emissive_material_source,
+            state.ambient_material_source,
+            state.diffuse_material_source,
+            state.specular_material_source,
+            state.emissive_material_source,
         )
     else:
-        light_types = (0,) * 8
-        two_sided_lighting_enable = 0
-        local_viewer_enable = 0
-        material_sources = (0, 0, 0, 0)
+        light_types = (0,) * LIGHT_COUNT
+        two_sided = 0
+        local_viewer = 0
+        material_sources = (MATERIAL,) * 4
 
-    texture_states = []
-    normalized_transform_counts = []
-    normalized_texcoord_indices = []
-    used_component_counts = set()
-    normal_used = bool(lighting_enable)
-    for stage in range(4):
-        # Generation 0 passes an existing texcoord through; other generations
-        # synthesize coordinates, so the index and component count go unused.
-        generation = texcoord_generation[stage]
-        if generation == 0:
-            index = texcoord_indices[stage]
-            component_count = texcoord_component_counts[index] if index < 4 else 0
-            if index < 4:
-                used_component_counts.add(index)
+    # Generated texcoords ignore texcoord_index.
+    texcoord_indices = []
+    read_texcoord_sets = set()
+    normal_used = lighting
+    for stage in range(TEXTURE_STAGE_COUNT):
+        generation = state.texcoord_generation[stage]
+        if generation == TEXCOORD_PASSTHROUGH:
+            index = state.texcoord_indices[stage]
+            if index < TEXCOORD_SET_COUNT:
+                read_texcoord_sets.add(index)
         else:
             index = 0
-            component_count = 0
 
-        if generation in (1, 3, 5):
-            # Texcoord generations that read the vertex normal.
+        if generation in GENERATIONS_USING_NORMAL:
             normal_used = True
 
-        texture_states.append((
-            int(texture_transform_counts[stage] != 0),
-            index,
-            generation,
-            component_count,
-        ))
-        normalized_transform_counts.append(int(texture_transform_counts[stage] != 0))
-        normalized_texcoord_indices.append(index)
+        texcoord_indices.append(index)
 
-    fog_enable = int(fog_enable != 0)
-    point_sprite_enable = int(point_sprite_enable != 0)
-    specular_enable = int(specular_enable != 0 and lighting_enable)
+    calc_last_weight = int(state.vertex_blend_calc_last_weight != 0)
+    fog = state.fog_enable != 0
+    point_sprite = state.point_sprite_enable != 0
 
-    normalized_component_counts = tuple(
-        texcoord_component_counts[index] if index in used_component_counts else 0
-        for index in range(4)
-    )
-
-    # Input registers this configuration can read (register 0 is position);
-    # defaults are kept below only for these.
-    used_registers = {0}
-    if matrix_count > 1 or not calc_last_weight:
-        used_registers.add(1)
+    # Keep default-value bits only for registers the shader reads.
+    lit_two_sided = lighting and two_sided
+    used_registers = {REGISTER_POSITION}
+    if state.vertex_blend_matrix_count > 1 or not calc_last_weight:
+        used_registers.add(REGISTER_BLEND_WEIGHT)
     if normal_used:
-        used_registers.add(2)
-    if not lighting_enable or 1 in material_sources:
-        used_registers.add(3)
-    if not lighting_enable or 2 in material_sources or (fog_enable and fog_depth_mode == 0):
-        used_registers.add(4)
-    if not (lighting_enable and two_sided_lighting_enable) or 1 in material_sources:
-        used_registers.add(7)
-    if not (lighting_enable and two_sided_lighting_enable) or 2 in material_sources:
-        used_registers.add(8)
-    for stage in range(4):
-        if texcoord_generation[stage] == 0 and normalized_texcoord_indices[stage] < 4:
-            used_registers.add(9 + normalized_texcoord_indices[stage])
-    used_register_mask = sum(1 << index for index in used_registers)
+        used_registers.add(REGISTER_NORMAL)
+    if not lighting or VERTEX_DIFFUSE in material_sources:
+        used_registers.add(REGISTER_DIFFUSE)
+    if not lighting or VERTEX_SPECULAR in material_sources or (fog and state.fog_depth_mode == FOG_DEPTH_NONE):
+        used_registers.add(REGISTER_SPECULAR)
+    if not lit_two_sided or VERTEX_DIFFUSE in material_sources:
+        used_registers.add(REGISTER_BACK_DIFFUSE)
+    if not lit_two_sided or VERTEX_SPECULAR in material_sources:
+        used_registers.add(REGISTER_BACK_SPECULAR)
+    for index in read_texcoord_sets:
+        used_registers.add(REGISTER_TEXCOORD0 + index)
+    used_register_mask = sum(1 << register for register in used_registers)
 
-    normalized_state = (
-        matrix_count,
-        calc_last_weight,
-        lighting_enable,
-        two_sided_lighting_enable,
-        local_viewer_enable,
-        int(normalize_normals_enable != 0 and normal_used),
-        material_sources[0],
-        material_sources[1],
-        material_sources[2],
-        material_sources[3],
-        fog_enable,
-        fog_depth_mode if fog_enable else 0,
-        light_types,
-        tuple(normalized_transform_counts),
-        (0,) * 4,
-        tuple(normalized_texcoord_indices),
-        tuple(texcoord_generation),
-        normalized_component_counts,
-        vertex_register_default_mask & used_register_mask,
-        point_sprite_enable,
-        int(point_scale_enable != 0 and point_sprite_enable),
-        specular_enable,
-    )
-
-    return normalized_state
-
-
-def canonical_program(state):
-    """Reduces a configuration, re-normalized first, to the canonical program.
-
-    Each stage contributes one texture state tuple; fog depth mode is zeroed
-    when fog is off, point scale requires point sprites, and specular
-    requires lighting."""
-    state = normalize_state(state)
-    (
-        matrix_count, calc_last_weight, lighting_enable, two_sided_lighting_enable,
-        local_viewer_enable, normalize_normals_enable, ambient_material_source,
-        diffuse_material_source, specular_material_source, emissive_material_source,
-        fog_enable, fog_depth_mode, light_types, texture_transform_counts,
-        _texture_transform_projected, texcoord_indices, texcoord_generation,
-        texcoord_component_counts, vertex_register_default_mask,
-        point_sprite_enable, point_scale_enable,
-        specular_enable,
-    ) = state
-
-    material_sources = (
-        ambient_material_source,
-        diffuse_material_source,
-        specular_material_source,
-        emissive_material_source,
-    )
-    texture_states = tuple(
-        (
-            texture_transform_counts[stage],
-            texcoord_indices[stage],
-            texcoord_generation[stage],
-            texcoord_component_counts[texcoord_indices[stage]]
-                if texcoord_generation[stage] == 0 and texcoord_indices[stage] < 4 else 0,
-        )
-        for stage in range(4)
-    )
-
-    return (
-        matrix_count,
-        int(calc_last_weight != 0),
-        lighting_enable,
-        two_sided_lighting_enable,
-        local_viewer_enable,
-        normalize_normals_enable,
-        material_sources,
-        fog_enable,
-        fog_depth_mode if fog_enable else 0,
-        light_types,
-        texture_states,
-        vertex_register_default_mask,
-        point_sprite_enable,
-        int(point_scale_enable != 0 and point_sprite_enable),
-        specular_enable,
+    ambient, diffuse, specular, emissive = material_sources
+    return VertexState(
+        vertex_blend_matrix_count=state.vertex_blend_matrix_count,
+        vertex_blend_calc_last_weight=calc_last_weight,
+        lighting_enable=int(lighting),
+        two_sided_lighting_enable=two_sided,
+        local_viewer_enable=local_viewer,
+        normalize_normals_enable=int(state.normalize_normals_enable != 0 and normal_used),
+        ambient_material_source=ambient,
+        diffuse_material_source=diffuse,
+        specular_material_source=specular,
+        emissive_material_source=emissive,
+        fog_enable=int(fog),
+        fog_depth_mode=state.fog_depth_mode if fog else 0,
+        light_types=light_types,
+        texture_transform_counts=tuple(int(count != 0) for count in state.texture_transform_counts),  # shader only checks != 0
+        texture_transform_projected=(0,) * TEXTURE_STAGE_COUNT,  # unused
+        texcoord_indices=tuple(texcoord_indices),
+        texcoord_generation=tuple(state.texcoord_generation),
+        texcoord_component_counts=tuple(
+            count if index in read_texcoord_sets else 0
+            for index, count in enumerate(state.texcoord_component_counts)
+        ),
+        vertex_register_default_mask=state.vertex_register_default_mask & used_register_mask,
+        point_sprite_enable=int(point_sprite),
+        point_scale_enable=int(state.point_scale_enable != 0 and point_sprite),
+        specular_enable=int(state.specular_enable != 0 and lighting),
     )
 
 
-def flatten_program(program):
-    """Flattens a program into the uint32 words rapidhash64 hashes."""
-    values = list(program[:6])
-    values.extend(program[6])
-    values.extend(program[7:9])
-    values.extend(program[9])
-    for texture_state in program[10]:
-        values.extend(texture_state)
-    values.extend(program[11:])
-    return values
+def program_for(state):
+    """Builds the VertexProgram for a normalized state."""
+    texture_stages = []
+    for stage in range(TEXTURE_STAGE_COUNT):
+        index = state.texcoord_indices[stage]
+        generation = state.texcoord_generation[stage]
+        if generation == TEXCOORD_PASSTHROUGH and index < TEXCOORD_SET_COUNT:
+            component_count = state.texcoord_component_counts[index]
+        else:
+            component_count = 0
+
+        texture_stages.append(TextureStage(
+            transform_enable=state.texture_transform_counts[stage],
+            texcoord_index=index,
+            texcoord_generation=generation,
+            texcoord_component_count=component_count,
+        ))
+
+    return VertexProgram(
+        vertex_blend_matrix_count=state.vertex_blend_matrix_count,
+        vertex_blend_calc_last_weight=state.vertex_blend_calc_last_weight,
+        lighting_enable=state.lighting_enable,
+        two_sided_lighting_enable=state.two_sided_lighting_enable,
+        local_viewer_enable=state.local_viewer_enable,
+        normalize_normals_enable=state.normalize_normals_enable,
+        material_sources=(
+            state.ambient_material_source,
+            state.diffuse_material_source,
+            state.specular_material_source,
+            state.emissive_material_source,
+        ),
+        fog_enable=state.fog_enable,
+        fog_depth_mode=state.fog_depth_mode,
+        light_types=state.light_types,
+        texture_stages=tuple(texture_stages),
+        vertex_register_default_mask=state.vertex_register_default_mask,
+        point_sprite_enable=state.point_sprite_enable,
+        point_scale_enable=state.point_scale_enable,
+        specular_enable=state.specular_enable,
+    )
+
+
+def flatten(values):
+    """Yields every number in a nested tuple, in order."""
+    for value in values:
+        if isinstance(value, tuple):
+            yield from flatten(value)
+        else:
+            yield value
+
+
+def program_key(program):
+    return variant_hash.rapidhash64(list(flatten(program)))
+
+
+def variant_name(number):
+    return f"variant_{number:03}"
+
+
+def write_text(path, text):
+    """Writes UTF-8 with \\n line endings on every OS."""
+    path.write_bytes(text.encode("utf-8"))
+
+
+def sha256_of_text(path):
+    """Same hash as CMake's normalized_text_sha256: line endings become \\n first."""
+    text = path.read_text(encoding="utf-8").replace("\r\n", "\n").replace("\r", "\n")
+    return hashlib.sha256(text.encode("utf-8")).hexdigest()
 
 
 def write_wrapper(path, program):
-    """Writes variant_NNN.hlsl, the FFVS_* macro block over the shader body."""
-    (
-        matrix_count, calc_last_weight, lighting_enable, two_sided_lighting_enable,
-        local_viewer_enable, normalize_normals_enable, material_sources,
-        fog_enable, fog_depth_mode, light_types, texture_states,
-        vertex_register_default_mask, point_sprite_enable, point_scale_enable,
-        specular_enable,
-    ) = program
-
+    ambient, diffuse, specular, emissive = program.material_sources
     lines = [
         "#define FIXED_FUNCTION_VERTEX_SHADER_VARIANT 1",
-        f"#define FFVS_VERTEX_BLEND_MATRIX_COUNT_VALUE {matrix_count}",
-        f"#define FFVS_VERTEX_BLEND_CALC_LAST_WEIGHT_VALUE {calc_last_weight}",
-        f"#define FFVS_LIGHTING_ENABLE_VALUE {lighting_enable}",
-        f"#define FFVS_TWO_SIDED_LIGHTING_ENABLE_VALUE {two_sided_lighting_enable}",
-        f"#define FFVS_LOCAL_VIEWER_ENABLE_VALUE {local_viewer_enable}",
-        f"#define FFVS_NORMALIZE_NORMALS_ENABLE_VALUE {normalize_normals_enable}",
-        f"#define FFVS_AMBIENT_MATERIAL_SOURCE_VALUE {material_sources[0]}",
-        f"#define FFVS_DIFFUSE_MATERIAL_SOURCE_VALUE {material_sources[1]}",
-        f"#define FFVS_SPECULAR_MATERIAL_SOURCE_VALUE {material_sources[2]}",
-        f"#define FFVS_EMISSIVE_MATERIAL_SOURCE_VALUE {material_sources[3]}",
-        f"#define FFVS_FOG_ENABLE_VALUE {fog_enable}",
-        f"#define FFVS_FOG_DEPTH_MODE_VALUE {fog_depth_mode}",
-        f"#define FFVS_VERTEX_REGISTER_DEFAULT_MASK_VALUE {vertex_register_default_mask}",
-        f"#define FFVS_POINT_SPRITE_ENABLE_VALUE {point_sprite_enable}",
-        f"#define FFVS_POINT_SCALE_ENABLE_VALUE {point_scale_enable}",
-        f"#define FFVS_SPECULAR_ENABLE_VALUE {specular_enable}",
+        f"#define FFVS_VERTEX_BLEND_MATRIX_COUNT_VALUE {program.vertex_blend_matrix_count}",
+        f"#define FFVS_VERTEX_BLEND_CALC_LAST_WEIGHT_VALUE {program.vertex_blend_calc_last_weight}",
+        f"#define FFVS_LIGHTING_ENABLE_VALUE {program.lighting_enable}",
+        f"#define FFVS_TWO_SIDED_LIGHTING_ENABLE_VALUE {program.two_sided_lighting_enable}",
+        f"#define FFVS_LOCAL_VIEWER_ENABLE_VALUE {program.local_viewer_enable}",
+        f"#define FFVS_NORMALIZE_NORMALS_ENABLE_VALUE {program.normalize_normals_enable}",
+        f"#define FFVS_AMBIENT_MATERIAL_SOURCE_VALUE {ambient}",
+        f"#define FFVS_DIFFUSE_MATERIAL_SOURCE_VALUE {diffuse}",
+        f"#define FFVS_SPECULAR_MATERIAL_SOURCE_VALUE {specular}",
+        f"#define FFVS_EMISSIVE_MATERIAL_SOURCE_VALUE {emissive}",
+        f"#define FFVS_FOG_ENABLE_VALUE {program.fog_enable}",
+        f"#define FFVS_FOG_DEPTH_MODE_VALUE {program.fog_depth_mode}",
+        f"#define FFVS_VERTEX_REGISTER_DEFAULT_MASK_VALUE {program.vertex_register_default_mask}",
+        f"#define FFVS_POINT_SPRITE_ENABLE_VALUE {program.point_sprite_enable}",
+        f"#define FFVS_POINT_SCALE_ENABLE_VALUE {program.point_scale_enable}",
+        f"#define FFVS_SPECULAR_ENABLE_VALUE {program.specular_enable}",
     ]
 
-    for index, light_type in enumerate(light_types):
+    for index, light_type in enumerate(program.light_types):
         lines.append(f"#define FFVS_LIGHT_TYPE_{index}_VALUE {light_type}")
-    for index, texture_state in enumerate(texture_states):
-        lines.extend((
-            f"#define FFVS_TEXTURE_TRANSFORM_ENABLE_{index}_VALUE {texture_state[0]}",
-            f"#define FFVS_TEXCOORD_INDEX_{index}_VALUE {texture_state[1]}",
-            f"#define FFVS_TEXCOORD_GENERATION_{index}_VALUE {texture_state[2]}",
-            f"#define FFVS_TEXCOORD_COMPONENT_COUNT_{index}_VALUE {texture_state[3]}",
-        ))
 
-    lines.extend(('#include "FixedFunctionVertexShader.hlsl"', ""))
+    for index, stage in enumerate(program.texture_stages):
+        lines += [
+            f"#define FFVS_TEXTURE_TRANSFORM_ENABLE_{index}_VALUE {stage.transform_enable}",
+            f"#define FFVS_TEXCOORD_INDEX_{index}_VALUE {stage.texcoord_index}",
+            f"#define FFVS_TEXCOORD_GENERATION_{index}_VALUE {stage.texcoord_generation}",
+            f"#define FFVS_TEXCOORD_COMPONENT_COUNT_{index}_VALUE {stage.texcoord_component_count}",
+        ]
+
+    lines += ['#include "FixedFunctionVertexShader.hlsl"', ""]
     write_text(path, "\n".join(lines))
 
 
-def cpp_array(values):
-    return "{" + ",".join(str(value) for value in values) + "}"
+def cpp_initializer(state):
+    """Formats a state as a C++ initializer, e.g. {1,0,...,{0,0,0,0},...}."""
+    parts = []
+    for field, value in state._asdict().items():
+        if field == "texture_transform_projected":
+            continue  # not in the C++ struct
+        if isinstance(value, tuple):
+            parts.append("{" + ",".join(str(item) for item in value) + "}")
+        else:
+            parts.append(str(value))
+    return "{" + ",".join(parts) + "}"
 
 
-def cpp_state(state):
-    """Renders a configuration as a C++ initializer, scalars, then arrays, then tail fields.
+PROGRAM_TABLE_START = """\
+struct Program
+{
+    uint64_t key;
+    const uint8_t* spirv;
+    size_t spirvSize;
+#ifdef SHADOW_RECOMP_D3D12
+    const uint8_t* dxil;
+    size_t dxilSize;
+#endif
+};
 
-    The texture_transform_projected entry (state[14]) has no struct field, so
-    it is skipped."""
-    scalars = [str(value) for value in state[:12]]
-    arrays = [cpp_array(state[index]) for index in (12, 13, 15, 16, 17)]
-    tail = [str(value) for value in state[18:]]
-    return "{" + ",".join(scalars + arrays + tail) + "}"
+static const Program Programs[] =
+{"""
+
+STATE_TABLE_START = """\
+};
+
+struct State
+{
+    uint64_t hash;
+    FixedFunctionVertexShaderControlState state;
+    uint64_t programKey;
+};
+
+static const State States[] =
+{"""
 
 
-def write_catalog(path, states, programs, program_indices, program_keys):
-    """Writes the C++ catalog: program table keyed by rapidhash key, state
-    table mapping each effective configuration's key to its program key."""
+def write_catalog(path, states, program_numbers, program_keys):
+    """Writes the Programs and States tables, sorted for binary search.
+
+    states must already be sorted.
+    """
+    variants = [variant_name(number) for number in range(len(program_numbers))]
+
     lines = ["#pragma once", ""]
-    for index in range(len(programs)):
-        lines.append(f'#include "variant_{index:03}.hlsl.spirv.h"')
+    lines += [f'#include "{variant}.hlsl.spirv.h"' for variant in variants]
+    lines += ["", "#ifdef SHADOW_RECOMP_D3D12"]
+    lines += [f'#include "{variant}.hlsl.dxil.h"' for variant in variants]
+    lines += ["#endif", "", "namespace FixedFunctionVertexShaderVariants::Generated", "{"]
 
-    lines.extend(("", "#ifdef SHADOW_RECOMP_D3D12"))
-    for index in range(len(programs)):
-        lines.append(f'#include "variant_{index:03}.hlsl.dxil.h"')
-    lines.extend(("#endif", "", "namespace FixedFunctionVertexShaderVariants::Generated", "{"))
-    lines.extend((
-        "struct Program", "{", "    uint64_t key;", "    const uint8_t* spirv;", "    size_t spirvSize;",
-        "#ifdef SHADOW_RECOMP_D3D12", "    const uint8_t* dxil;", "    size_t dxilSize;", "#endif", "};", "",
-        "static const Program Programs[] =", "{",
-    ))
-
-    # Rows are emitted in key order so the runtime binary-searches the
-    # table; blob names still follow the stable variant numbering.
-    for program, program_key in sorted(program_keys.items(), key=lambda item: item[1]):
-        index = program_indices[program]
-        lines.extend((
-            "    {", f"        0x{program_key:016X}ULL,",
-            f"        g_variant_{index:03}_spirv, sizeof(g_variant_{index:03}_spirv),",
+    lines += PROGRAM_TABLE_START.splitlines()
+    for program, key in sorted(program_keys.items(), key=lambda item: item[1]):
+        variant = variant_name(program_numbers[program])
+        lines += [
+            "    {",
+            f"        0x{key:016X}ULL,",
+            f"        g_{variant}_spirv, sizeof(g_{variant}_spirv),",
             "#ifdef SHADOW_RECOMP_D3D12",
-            f"        g_variant_{index:03}_dxil, sizeof(g_variant_{index:03}_dxil),",
-            "#endif", "    },",
-        ))
+            f"        g_{variant}_dxil, sizeof(g_{variant}_dxil),",
+            "#endif",
+            "    },",
+        ]
 
-    lines.extend((
-        "};", "", "struct State", "{", "    uint64_t hash;",
-        "    FixedFunctionVertexShaderControlState state;", "    uint64_t programKey;", "};", "",
-        "static const State States[] =", "{",
-    ))
+    lines += STATE_TABLE_START.splitlines()
+    for state_hash, state in states:
+        key = program_keys[program_for(state)]
+        lines.append(f"    {{ 0x{state_hash:016X}ULL, {cpp_initializer(state)}, 0x{key:016X}ULL }},")
 
-    for state_hash, state in sorted(states):
-        program = canonical_program(state)
-        lines.append(f"    {{ 0x{state_hash:016X}ULL, {cpp_state(state)}, 0x{program_keys[program]:016X}ULL }},")
-
-    lines.extend(("};", f"static_assert(std::size(Programs) == {len(programs)});",
-        f"static_assert(std::size(States) == {len(states)});", "}", ""))
+    lines += [
+        "};",
+        f"static_assert(std::size(Programs) == {len(program_numbers)});",
+        f"static_assert(std::size(States) == {len(states)});",
+        "}",
+        "",
+    ]
     write_text(path, "\n".join(lines))
 
 
-def write_manifest(path, states_path, generator_path, variant_hash_path, output_path, program_count):
-    """Writes the CMake manifest with input and output hashes for staleness checks."""
-    state_hash = hashlib.sha256(normalized_text_bytes(states_path)).hexdigest()
-    generator_hash = hashlib.sha256(normalized_text_bytes(generator_path)).hexdigest()
-    variant_hash_hash = hashlib.sha256(normalized_text_bytes(variant_hash_path)).hexdigest()
+def write_manifest(path, states_path, output_dir, program_count):
+    """Writes manifest.cmake: SHA-256 pins that CMake checks at configure."""
+    prefix = "FIXED_FUNCTION_VERTEX_SHADER"
+    variants = [variant_name(number) for number in range(program_count)]
+    generated_files = [CATALOG_FILE, SUMMARY_FILE] + [f"{variant}.hlsl" for variant in variants]
+
     lines = [
-        f'set(FIXED_FUNCTION_VERTEX_SHADER_STATES_SHA256 "{state_hash}")',
-        f'set(FIXED_FUNCTION_VERTEX_SHADER_GENERATOR_SHA256 "{generator_hash}")',
-        f'set(FIXED_FUNCTION_VERTEX_SHADER_VARIANT_HASH_SHA256 "{variant_hash_hash}")',
-        f'set(FIXED_FUNCTION_VERTEX_SHADER_VARIANT_COUNT {program_count})',
-        'set(FIXED_FUNCTION_VERTEX_SHADER_VARIANTS',
+        f'set({prefix}_STATES_SHA256 "{sha256_of_text(states_path)}")',
+        f'set({prefix}_GENERATOR_SHA256 "{sha256_of_text(Path(__file__))}")',
+        f'set({prefix}_VARIANT_HASH_SHA256 "{sha256_of_text(Path(variant_hash.__file__))}")',
+        f"set({prefix}_VARIANT_COUNT {program_count})",
+        f"set({prefix}_VARIANTS",
     ]
-    for index in range(program_count):
-        lines.append(f'    "variant_{index:03}"')
-    lines.extend((")", "", "set(FIXED_FUNCTION_VERTEX_SHADER_GENERATED_FILES"))
-    generated_files = ["fixed_function_vertex_shader_variants.generated.h", "summary.txt"]
-    generated_files.extend(f"variant_{index:03}.hlsl" for index in range(program_count))
-    for file_name in generated_files:
-        lines.append(f'    "{file_name}"')
-    lines.extend((")", "", "set(FIXED_FUNCTION_VERTEX_SHADER_GENERATED_SHA256"))
-    for file_name in generated_files:
-        file_hash = hashlib.sha256(normalized_text_bytes(output_path / file_name)).hexdigest()
-        lines.append(f'    "{file_hash}"')
-    lines.extend((")", ""))
+    lines += [f'    "{variant}"' for variant in variants]
+    lines += [")", "", f"set({prefix}_GENERATED_FILES"]
+    lines += [f'    "{file_name}"' for file_name in generated_files]
+    lines += [")", "", f"set({prefix}_GENERATED_SHA256"]
+    lines += [f'    "{sha256_of_text(output_dir / file_name)}"' for file_name in generated_files]
+    lines += [")", ""]
     write_text(path, "\n".join(lines))
 
 
@@ -449,38 +479,32 @@ def main():
     parser.add_argument("--output", required=True, type=Path)
     args = parser.parse_args()
 
-    observed_states = load_states(args.states)
-    # Distinct captures can normalize to the same effective configuration;
-    # the corpus stores effective states, so their recorded hashes carry
-    # over unchanged.
-    states = sorted({(entry_hash, normalize_state(state)) for entry_hash, state in observed_states})
-    if len({entry_hash for entry_hash, _ in states}) != len(states):
-        raise RuntimeError("state hash collision")
+    # Logged and ran hashes at runtime are of normalized states.
+    # So normalize the records to match.
+    captured_states = load_states(args.states)
+    states = sorted({(state_hash, normalize_state(state)) for state_hash, state in captured_states})
 
-    # Sorted so variant numbering stays stable across regenerations.
-    programs = sorted({canonical_program(state) for _, state in states})
-    program_indices = {program: index for index, program in enumerate(programs)}
-    program_keys = {program: variant_hash.rapidhash64(flatten_program(program)) for program in programs}
+    # Sorted so variant numbers stay stable between runs.
+    programs = sorted({program_for(state) for _, state in states})
+    program_numbers = {program: number for number, program in enumerate(programs)}
+    program_keys = {program: program_key(program) for program in programs}
     if len(set(program_keys.values())) != len(programs):
         raise RuntimeError("program key collision")
 
     args.output.mkdir(parents=True, exist_ok=True)
-    # Drop stale wrappers so a shrinking variant set leaves no orphans.
+
+    # Delete old wrappers in case we generate less variants than last time.
     for wrapper in args.output.glob("variant_*.hlsl"):
         wrapper.unlink()
-    for program, index in program_indices.items():
-        write_wrapper(args.output / f"variant_{index:03}.hlsl", program)
+    for program, number in program_numbers.items():
+        write_wrapper(args.output / f"{variant_name(number)}.hlsl", program)
 
-    write_catalog(
-        args.output / "fixed_function_vertex_shader_variants.generated.h",
-        states, programs, program_indices, program_keys,
+    write_catalog(args.output / CATALOG_FILE, states, program_numbers, program_keys)
+    write_text(
+        args.output / SUMMARY_FILE,
+        f"observed_states={len(captured_states)}\neffective_states={len(states)}\nprograms={len(programs)}\n",
     )
-    write_text(args.output / "summary.txt",
-        f"observed_states={len(observed_states)}\neffective_states={len(states)}\nprograms={len(programs)}\n")
-    write_manifest(
-        args.output / "manifest.cmake", args.states, Path(__file__), Path(variant_hash.__file__),
-        args.output, len(programs),
-    )
+    write_manifest(args.output / "manifest.cmake", args.states, args.output, len(programs))
 
 
 if __name__ == "__main__":
