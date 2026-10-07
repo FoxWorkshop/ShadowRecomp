@@ -601,3 +601,22 @@ X86_FUNC(sub_C0DC0)
 
 	X86_STORE_U32(task + 0x34, 0);
 }
+
+// Egg Dealer roulette UI white flash fix
+// This happens on GC too, rarely the intro cutscene picks sprite 6 (there are only 5)
+X86_FUNC_IMPL(__imp__sub_114650);
+X86_FUNC(sub_114650)
+{
+	const uint32_t angleAddr = ctx.esp.u32 + 0x8;
+	const float scale = X86_LOAD_F32(0x4F96D0);
+	const float slotFrames = X86_LOAD_F32(0x4F9988) * scale;
+	const float frame = X86_LOAD_F32(angleAddr) * scale;
+	const float slotFrame = std::round(frame / slotFrames) * slotFrames;
+
+	// float precision moment. Cheating by skipping an extra 0.01f
+	if (slotFrame - frame >= 0.0f && slotFrame - frame < 0.05f)
+	{
+		X86_STORE_F32(angleAddr, (slotFrame + 0.01f) / scale);
+	}
+	__imp__sub_114650(ctx, base);
+}
