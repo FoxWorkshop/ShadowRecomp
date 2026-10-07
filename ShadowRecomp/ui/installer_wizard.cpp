@@ -13,7 +13,6 @@
 #include <atomic>
 #include <chrono>
 #include <exports.h>
-#include <patches/aspect_ratio_patches.h>
 #include <gpu/imgui/imgui_snapshot.h>
 #include <ui/imgui_utils.h>
 #include <res/images/common/TitleBg.png.h>
@@ -34,21 +33,10 @@ enum class WizardPage
 	InstallFailed,
 };
 
-enum class MessagePromptSource
-{
-	Unknown,
-	Next,
-	Back
-};
-
-enum ButtonColumn
-{
-	ButtonColumnLeft,
-	ButtonColumnMiddle,
-	ButtonColumnRight
-};
-
 static ImFont* g_fntSeurat;
+
+// TODO: Probably nuke all this since this is just unleashed stuff
+// Keeping for now incase we add the blue 'advertise' animation
 static constexpr double SCANLINES_ANIMATION_TIME = 0.0;
 static constexpr double SCANLINES_ANIMATION_DURATION = 15.0;
 
@@ -92,19 +80,13 @@ constexpr float CONTAINER_BUTTON_GAP = 10.0f;
 constexpr float BUTTON_HEIGHT = 22.0f;
 constexpr float BUTTON_TEXT_GAP = 28.0f;
 
-static double g_appearTime = 0.0;
-static double g_disappearTime = DBL_MAX;
 static int g_selectedBtn = -1;
 
 static WizardPage g_currentPage = WizardPage::SelectLanguage;
-static std::string g_currentMessagePrompt = "";
-static MessagePromptSource g_currentMessagePromptSource = MessagePromptSource::Unknown;
-static bool g_currentMessagePromptConfirmation = false;
 static std::filesystem::path g_installPath;
 static std::string g_isoPath;
 static std::string g_statusMessage;
 
-static bool g_currentPickerVisible = false;
 static std::unique_ptr<std::thread> g_installerThread;
 static std::atomic<bool> g_installerFinished{ false };
 static std::atomic<bool> g_installerFailed{ false };
@@ -137,7 +119,7 @@ static std::string& GetWizardText(WizardPage page)
 	{
 	case WizardPage::SelectLanguage: return Localise("Installer_Page_SelectLanguage");
 	case WizardPage::Introduction: return Localise("Installer_Page_Introduction");
-		// case WizardPage::CheckSpace: return Localise("Installer_Page_CheckSpace");
+		// case WizardPage::CheckSpace: return Localise("Installer_Page_CheckSpace"); // TODO: Should probably implement this esp for cloud drive?
 	case WizardPage::SelectGame: return Localise("Installer_Page_SelectGame");
 	case WizardPage::Installing: return Localise("Installer_Page_Installing");
 	case WizardPage::InstallSucceeded: return Localise("Installer_Page_InstallSucceeded");
@@ -167,113 +149,11 @@ const ELanguage LANGUAGE_ENUM[] =
 	ELanguage::Japanese,
 };
 
+// TODO: Maybe animate the blue box fade with this
 static double ComputeMotionInstaller(double timeAppear, double timeDisappear, double offset, double total)
 {
 	return ComputeMotion(timeAppear, offset, total, false) * (1.0 - ComputeMotion(timeDisappear, ALL_ANIMATIONS_FULL_DURATION - offset - total, total, false));
 }
-
-static double ComputeMotionInstallerLoop(double timeAppear, double speed, double offset)
-{
-	return std::clamp(fmodf((ImGui::GetTime() - timeAppear) * speed, 1.0f + offset) - offset, 0.0, 1.0) / 1.0;
-}
-
-static double ComputeHermiteMotionInstallerLoop(double timeAppear, double speed, double offset)
-{
-	return (cosf(M_PI * ComputeMotionInstallerLoop(timeAppear, speed, offset) + M_PI) + 1) / 2;
-}
-static bool PushCursorRect(ImVec2 min, ImVec2 max, bool& cursorPressed, bool makeDefault = false)
-{
-	int currentIndex = int(g_currentCursorRects.size());
-	g_currentCursorRects.emplace_back(min, max);
-
-	if (makeDefault)
-	{
-		g_currentCursorDefault = currentIndex;
-	}
-
-	if (g_currentCursorIndex == currentIndex)
-	{
-		if (g_currentCursorAccepted)
-		{
-			Game_PlaySound("decide");
-			cursorPressed = true;
-			g_currentCursorAccepted = false;
-		}
-
-		return true;
-	}
-	else
-	{
-		return false;
-	}
-}
-
-static void ResetCursorRects()
-{
-	g_currentCursorDefault = 0;
-	g_currentCursorRects.clear();
-}
-
-
-static void DrawButtonContainer(ImVec2 min, ImVec2 max, int baser, int baseg, float alpha)
-{
-	auto& res = ImGui::GetIO().DisplaySize;
-	auto drawList = ImGui::GetBackgroundDrawList();
-	SetShaderModifier(IMGUI_SHADER_MODIFIER_SCANLINE_BUTTON);
-	drawList->AddRectFilledMultiColor(
-		min, max,
-		IM_COL32(180, 0, 0, 223 * alpha),
-		IM_COL32(140, 0, 0, 178 * alpha),
-		IM_COL32(160, 0, 0, 223 * alpha),
-		IM_COL32(120, 0, 0, 178 * alpha) 
-	);
-
-	drawList->AddRectFilledMultiColor(
-		min, max,
-		IM_COL32(60, 0, 0, 180 * alpha),  
-		IM_COL32(40, 0, 0, 100 * alpha),  
-		IM_COL32(80, 0, 0, 200 * alpha),  
-		IM_COL32(30, 0, 0, 80 * alpha)    
-	);
-
-
-	drawList->AddRectFilledMultiColor(
-		min, max,
-		IM_COL32(220, 0, 0, 60 * alpha),    
-		IM_COL32(200, 0, 0, 30 * alpha),    
-		IM_COL32(255, 0, 0, 80 * alpha),    
-		IM_COL32(180, 0, 0, 20 * alpha)     
-	);
-	SetShaderModifier(IMGUI_SHADER_MODIFIER_NONE);
-}
-
-
-// static void ComputeButtonColumnCoordinates(ButtonColumn buttonColumn, ImVec2 panelMin, ImVec2 panelMax,
-// 	float& minX, float& maxX)
-// {
-// 	float panelWidth = panelMax.x - panelMin.x;
-//
-// 	// Scale button width proportionally to panel, with a cap so it
-// 	// doesn't get absurdly wide on large panels.
-// 	float buttonWidth = std::min(panelWidth * 0.38f, Scale(CONTAINER_BUTTON_WIDTH));
-// 	float gap = panelWidth * 0.04f; // ~4% margin from edges
-//
-// 	switch (buttonColumn)
-// 	{
-// 	case ButtonColumnLeft:
-// 		minX = panelMin.x + gap;
-// 		maxX = panelMin.x + gap + buttonWidth;
-// 		break;
-// 	case ButtonColumnMiddle:
-// 		minX = panelMin.x + panelWidth * 0.5f - buttonWidth * 0.5f;
-// 		maxX = panelMin.x + panelWidth * 0.5f + buttonWidth * 0.5f;
-// 		break;
-// 	case ButtonColumnRight:
-// 		minX = panelMax.x - gap - buttonWidth;
-// 		maxX = panelMax.x - gap;
-// 		break;
-// 	}
-// }
 
 static ImVec2 ComputeTextSize(ImFont* font, const char* text, float size, float& squashRatio, float maxTextWidth = FLT_MAX)
 {
@@ -289,7 +169,6 @@ static ImVec2 ComputeTextSize(ImFont* font, const char* text, float size, float&
 	return textSize;
 }
 
-
 static void DrawButton(ImVec2 min, ImVec2 max, const char* buttonText, bool sourceButton, int i, bool buttonEnabled, bool& buttonPressed, float maxTextWidth = FLT_MAX, bool makeDefault = false)
 {
 	buttonPressed = false;
@@ -301,7 +180,6 @@ static void DrawButton(ImVec2 min, ImVec2 max, const char* buttonText, bool sour
 		buttonEnabled = true;
 	}
 
-	auto& res = ImGui::GetIO().DisplaySize;
 	auto drawList = ImGui::GetBackgroundDrawList();
 	float alpha = 255;
 	if (!buttonEnabled)
@@ -320,9 +198,10 @@ static void DrawButton(ImVec2 min, ImVec2 max, const char* buttonText, bool sour
 			playedLangSound[i] = true;
 		}
 	}
-	else { playedLangSound[i] = false; }
-
-
+	else
+	{
+		playedLangSound[i] = false;
+	}
 
 	if (btnHovered && io.MouseClicked[0] && !buttonEnabled)
 	{
@@ -330,10 +209,6 @@ static void DrawButton(ImVec2 min, ImVec2 max, const char* buttonText, bool sour
 		buttonPressed = true;
 		g_selectedBtn = i;
 	}
-
-	int baser = 0;
-	int baseg = 0;
-	//DrawButtonContainer(min, max, baser, baseg, alpha);
 
 	ImFont* font = g_fntSeurat;
 	float size = Scale(18.0f);
@@ -379,7 +254,6 @@ static void DrawButton(ImVec2 min, ImVec2 max, const char* buttonText, bool sour
 	SetScale({ 1.0f, 1.0f });
 	SetOrigin({ 0.0f, 0.0f });
 }
-
 
 static void InstallerThread()
 {
@@ -479,7 +353,10 @@ static void DrawNextButton(ImVec2& panelMin, ImVec2& panelMax, float scale)
 			playedNextSound = true;
 		}
 	}
-	else { playedNextSound = false; }
+	else
+	{
+		playedNextSound = false;
+	}
 
 	if (nextHovered)
 	{
@@ -596,7 +473,10 @@ static void DrawPrevButton(ImVec2& panelMin, ImVec2& panelMax, float scale)
 			playedPrevSound = true;
 		}
 	}
-	else { playedPrevSound = false; }
+	else
+	{
+		playedPrevSound = false;
+	}
 
 	if (prevHovered)
 	{
@@ -783,15 +663,6 @@ void InstallerWizard::Draw()
 	smallFontSize = std::floor(baseFontSize * 0.9f);
 	fileFontSize = std::floor(baseFontSize * 0.7f);
 
-	// Background, description banner, and body text fade in from black on
-	// the language-selection screen, matching the fade used by the
-	// language-picker button containers.
-	//float fadeAlpha = 1.0f;
-	//if (g_currentPage == WizardPage::SelectLanguage)
-	//{
-	//	fadeAlpha = ComputeMotionInstaller(g_appearTime, g_disappearTime, CONTAINER_INNER_TIME, CONTAINER_INNER_DURATION);
-	//}
-
 	DrawBackground(viewport, winPos, winSize, scale, offsetX, offsetY);
 
 	auto titleText = "Shadow the Hedgehog Recompiled - Setup";
@@ -858,6 +729,7 @@ void InstallerWizard::Draw()
 
 		if (pathOverflows)
 		{
+			// TODO: Maybe can this crap if we do drag/drop and typing? just scrollable with end shown
 			// Find the longest tail of displayPath that, when prefixed with
 			// "...", still fits within pathClipWidth.
 			const std::string ellipsis = "...";
@@ -900,7 +772,10 @@ void InstallerWizard::Draw()
 				playedBrowseSound = true;
 			}
 		}
-		else { playedBrowseSound = false; }
+		else
+		{
+			playedBrowseSound = false;
+		}
 
 		if (btnHovered)
 		{
@@ -1132,10 +1007,9 @@ void InstallerWizard::Draw()
 			);
 		}
 
+		// TODO: Check with gravity
 		//ImU32 playColor = playHovered ? IM_COL32(30, 180, 255, 255) : IM_COL32(0, 140, 200, 255);
 		//drawList->AddRectFilled(ImVec2(playBtnX, playBtnY), ImVec2(playBtnX + playBtnWidth, playBtnY + playBtnHeight), playColor, Scale(8.0f));
-
-
 		//drawList->AddText(font, descFontSize, ImVec2(playBtnX + (playBtnWidth - playSize.x) * 0.5f, playBtnY + (playBtnHeight - playSize.y) * 0.5f), IM_COL32(220, 235, 255, 255), playText);
 
 		if (playHovered && io.MouseClicked[0])
@@ -1174,7 +1048,10 @@ void InstallerWizard::Draw()
 				playedNextSound = true;
 			}
 		}
-		else { playedNextSound = false; }
+		else
+		{
+			playedNextSound = false;
+		}
 
 		if (retryHovered)
 		{
@@ -1257,6 +1134,7 @@ bool InstallerWizard::Run(std::filesystem::path installPath)
 		Video::WaitOnSwapChain();
 
 		//Ideally, no music. Always found music on installers incredibly annoying
+		// son. - dream :) I guess TBD since no music is very shadow
 		//EmbeddedPlayer::PlayMusic();
 
 		SDL_PumpEvents();
@@ -1324,8 +1202,6 @@ bool InstallerWizard::Run(std::filesystem::path installPath)
 
 	return !g_isQuitting;
 }
-
-
 
 void InstallerWizard::Init()
 {

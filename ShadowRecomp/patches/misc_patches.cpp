@@ -156,7 +156,6 @@ bool loadAllChunks(float* a1, float* a2, float* a3)
 // Uncomment below if wanting to test with all chunks loaded
 //GUEST_FUNCTION_HOOK_STDCALL(sub_12700, loadAllChunks);
 
-
 // Level Geo Unrestrict (For Custom Stages)
 // Note: This will break some stages, e.g. Egg Dealer (Black Comet) and if you die in a certain area in GUN Fortress.
 // This is because Sonic Team left visibility chunks pointing to old files. These are usually ignored due to this file restriction function.
@@ -287,7 +286,6 @@ X86_FUNC(sub_1E5A0)
 
 	__imp__sub_1E5A0(ctx, base);
 }
-
 
 void DisableMessageMidAsmHook()
 {

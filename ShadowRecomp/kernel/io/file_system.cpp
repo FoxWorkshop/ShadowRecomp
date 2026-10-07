@@ -1,10 +1,8 @@
 #include "file_system.h"
-#include <cpu/guest_thread.h>
 #include <kernel/kernel.h>
 #include <kernel/function.h>
 #include <stdafx.h>
 #include <iostream>
-#include <audio/audio.h>
 #include <os/logger.h>
 #include <user/paths.h>
 #include <mod/mod_loader.h>
@@ -18,16 +16,12 @@ struct FileHandle : KernelObject
 	std::filesystem::path path;
 };
 
-
 struct FindHandle : KernelObject
 {
 	std::error_code ec;
 	ankerl::unordered_dense::map<std::u8string, std::pair<size_t, bool>> searchResult;
 	decltype(searchResult)::iterator iterator;
-
-
 	FindHandle() = default;
-
 	FindHandle(const std::string& path)
 	{
 		auto addDirectory = [&](const std::filesystem::path& directory)
@@ -59,7 +53,6 @@ struct FindHandle : KernelObject
 				addDirectory(includeDir / pathStr);
 		}
 
-		//addDirectory(FileSystem::ResolvePath(path, false));
 		addDirectory(std::filesystem::path(path));
 		iterator = searchResult.begin();
 	}
@@ -80,11 +73,8 @@ struct FindHandle : KernelObject
 	}
 };
 
-
 // for save file path detection, we don't want the title ID in it.
-
 static bool isHexSegment(const std::string_view& seg) {
-
 	if (seg.size() < 8)
 		return false;
 
@@ -116,18 +106,14 @@ static const DriveMapping& GetDriveMapping(const std::string_view& letter)
 	}
 
 	static const DriveMapping fallback = { "", MainGameFolder };
-
 	return fallback;
 }
 
-
 std::filesystem::path FileSystem::ResolvePath(const std::string_view& path, bool checkForMods)
 {
-
 	if (checkForMods)
 	{
 		std::filesystem::path resolvedPath = ModLoader::ResolvePath(path);
-
 		if (!resolvedPath.empty())
 		{
 			LOGF_IMPL(Utility, "Mod Loader", "Loading file: \"{}\"", reinterpret_cast<const char*>(resolvedPath.u8string().c_str()));
@@ -136,15 +122,12 @@ std::filesystem::path FileSystem::ResolvePath(const std::string_view& path, bool
 	}
 
 	std::filesystem::path p(path);
-
 	auto colonPos = path.find(':');
-
 	bool rootResolved = false;
 	thread_local std::filesystem::path result;
 	std::string_view relative;
 
-
-	if (colonPos != std::string_view::npos) 
+	if (colonPos != std::string_view::npos)
 	{
 		auto driveLetter = path.substr(0, colonPos + 1);
 		const auto& mapping = GetDriveMapping(driveLetter);
@@ -158,7 +141,7 @@ std::filesystem::path FileSystem::ResolvePath(const std::string_view& path, bool
 
 		// Walk each path segment, applying strip filter
 		std::string_view remaining = relative;
-		while (!remaining.empty()) 
+		while (!remaining.empty())
 		{
 			auto sep = remaining.find_first_of("/\\");
 			std::string_view seg = (sep == std::string_view::npos)
@@ -167,7 +150,6 @@ std::filesystem::path FileSystem::ResolvePath(const std::string_view& path, bool
 
 			if (mapping.stripSegment && mapping.stripSegment(seg))
 			{
-				// Hex segment stripped — switch to save root
 				if (!rootResolved && !mapping.saveRoot.empty())
 				{
 					result = mapping.saveRoot;
@@ -184,20 +166,17 @@ std::filesystem::path FileSystem::ResolvePath(const std::string_view& path, bool
 			: remaining.substr(sep + 1);
 		}
 	}
-	else 
+	else
 	{
-		// No drive letter — relative path, append to game folder
 		result = MainGameFolder;
 		result /= std::string(path);
 	}
-
 	return result;
 }
 
 
 FileHandle* XCreateFile_r(const char* SourceString, ULONG CreateDisposition, ULONG ShareAccess, int a4, int mode, unsigned int a6, int a7)
 {
-
 	ULONG CreateDisposition_ = FILE_OPEN;
 	switch (mode)
 	{
@@ -235,8 +214,8 @@ FileHandle* XCreateFile_r(const char* SourceString, ULONG CreateDisposition, ULO
 		fileOpenMode |= std::ios::out;
 	}
 
-	if (CreateDisposition & 0x80000000)  // generic read
-		fileOpenMode |= std::ios::in;   
+	if (CreateDisposition & 0x80000000) // generic read
+		fileOpenMode |= std::ios::in;
 
 	if (CreateDisposition & 0x40000000) // generic write
 		fileOpenMode |= std::ios::out;
@@ -246,7 +225,6 @@ FileHandle* XCreateFile_r(const char* SourceString, ULONG CreateDisposition, ULO
 		CreateDisposition != FILE_OPEN_IF)
 		fileOpenMode |= std::ios::trunc;
 
-
 	if (fileOpenMode & std::ios::out)
 	{
 		os::logger::LogFile("Write", filePath.c_str());
@@ -254,12 +232,9 @@ FileHandle* XCreateFile_r(const char* SourceString, ULONG CreateDisposition, ULO
 
 	std::error_code ec;
 	fileStream.open(filePath, fileOpenMode);
-
 	const bool isNotSaveFile = filePath.string().find("Save") == std::string::npos;
-
 	if (!std::filesystem::exists(filePath) && isNotSaveFile)
 		LOGFN_ERROR("File does not exist: {}", filePath.string());
-
 
 	if (!fileStream.is_open() && isNotSaveFile)
 	{
@@ -273,7 +248,7 @@ FileHandle* XCreateFile_r(const char* SourceString, ULONG CreateDisposition, ULO
 	return fileHandle;
 }
 
-// Because the game call ntCreateFile for save file creation and we don't have it implemented, we use a mid asm hook 
+// Because the game call ntCreateFile for save file creation and we don't have it implemented, we use a mid asm hook
 // to redirect it to XCreateFile instead.
 void CreateSaveMetaMidAsmHook()
 {
@@ -291,7 +266,7 @@ void CreateSaveMetaMidAsmHook()
 	auto ObjectAttributesAddr = X86_LOAD_U32(ObjectAttributes_ + 4);
 	auto pathAddr = X86_LOAD_U32(ObjectAttributesAddr + 4);
 	auto path = (char*)g_memory.Translate(pathAddr);
-	
+
 	// create empty SaveMeta.xml
 	auto newFileHandle = XCreateFile_r(path, DesiredAccess, ShareAccess, 0, 1, 0, 0);
 
@@ -303,7 +278,6 @@ void CreateSaveMetaMidAsmHook()
 uint32_t XReadFile_r(FileHandle* Handle, void* buffer, int length, uint32_t* bytesRead, XOVERLAPPED* overLapped)
 {
 	uint32_t result = FALSE;
-
 	if (overLapped != nullptr)
 	{
 		std::streamoff streamOffset = overLapped->Offset + (std::streamoff(overLapped->OffsetHigh) << 32U);
@@ -335,7 +309,6 @@ uint32_t XReadFile_r(FileHandle* Handle, void* buffer, int length, uint32_t* byt
 			*bytesRead = numberOfBytesRead;
 		}
 	}
-
 	return result;
 }
 
@@ -352,7 +325,6 @@ static uint32_t XGetFileSize_r(FileHandle* hFile, uint32_t* lpFileSizeHigh)
 
 		return (uint32_t)(fileSize);
 	}
-
 	return INVALID_FILE_SIZE;
 }
 
@@ -369,7 +341,6 @@ uint32_t XGetFileSizeEx_r(FileHandle* hFile, LARGE_INTEGER* lpFileSize)
 
 		return TRUE;
 	}
-
 	return FALSE;
 }
 
@@ -438,14 +409,12 @@ uint32_t XSetFilePointerEx_r(FileHandle* hFile, int32_t lDistanceToMove, LARGE_I
 	{
 		lpNewFilePointer->QuadPart = hFile->stream.tellg();
 	}
-
 	return TRUE;
 }
 
 uint32_t XWriteFile_r(FileHandle* hFile, const void* lpBuffer, uint32_t nNumberOfBytesToWrite, uint32_t* lpNumberOfBytesWritten, void* lpOverlapped)
 {
 	assert(lpOverlapped == nullptr && "Overlapped not implemented.");
-
 	hFile->stream.write((const char*)(lpBuffer), nNumberOfBytesToWrite);
 	if (hFile->stream.fail())
 	{
@@ -551,7 +520,6 @@ FindHandle* XFindFirstFile(const char* lpFileName, WIN32_FIND_DATAA* lpFindFileD
 uint32_t XFindNextFile(FindHandle* Handle, WIN32_FIND_DATAA* lpFindFileData)
 {
 	Handle->iterator++;
-
 	if (Handle->iterator == Handle->searchResult.end())
 	{
 		return FALSE;
@@ -592,7 +560,6 @@ int32_t CreateSaveFolder(const char* SourceString, int32_t a2)
 		}
 
 	}
-
 	return saveFileExists;
 }
 
@@ -607,12 +574,10 @@ X86_FUNC_IMPL(__imp__sub_2A4420);
 X86_FUNC(sub_2A4420)
 {
 	__imp__sub_2A4420(ctx, base);
-
-	if (AchievementManager::LoadBinary()) 
+	if (AchievementManager::LoadBinary())
 	{
-		AchievementManager::SaveBinary(); // if fail create achievement save file
+		AchievementManager::SaveBinary();
 	}
-
 }
 
 // XAPILIB::XCreateSaveGame
@@ -620,14 +585,11 @@ X86_FUNC_IMPL(__imp__sub_2AEC9A);
 X86_FUNC(sub_2AEC9A)
 {
 	__imp__sub_2AEC9A(ctx, base);
-
-	if (AchievementManager::LoadBinary()) 
+	if (AchievementManager::LoadBinary())
 	{
-		AchievementManager::SaveBinary(); // if fail create achievement save file
+		AchievementManager::SaveBinary();
 	}
-
 }
-
 
 GUEST_FUNCTION_HOOK_STDCALL(sub_2AF653, XCreateFile_r);
 GUEST_FUNCTION_HOOK_STDCALL(sub_2ADFF0, XReadFile_r);
@@ -638,7 +600,6 @@ GUEST_FUNCTION_HOOK_STDCALL(sub_2AE237, XSetFilePointer_r);
 GUEST_FUNCTION_HOOK_STDCALL(sub_2AE331, XSetFilePointerEx_r);
 GUEST_FUNCTION_HOOK_STDCALL(sub_2AD93C, XFindFirstFile);
 GUEST_FUNCTION_HOOK_STDCALL(sub_2ADA49, XFindNextFile);
-
 
 // save file stuff (fake U partition)
 GUEST_FUNCTION_HOOK_STDCALL(sub_2AF174, UserPathExist);
