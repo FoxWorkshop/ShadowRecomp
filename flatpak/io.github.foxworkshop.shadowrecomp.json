@@ -1,9 +1,9 @@
 {
   "id": "io.github.foxworkshop.shadowrecomp",
   "runtime": "org.freedesktop.Platform",
-  "runtime-version": "24.08",
+  "runtime-version": "26.08",
   "sdk": "org.freedesktop.Sdk",
-  "sdk-extensions": ["org.freedesktop.Sdk.Extension.llvm20"],
+  "sdk-extensions": ["org.freedesktop.Sdk.Extension.llvm22"],
   "finish-args": [
     "--share=network",
     "--socket=wayland",
@@ -36,8 +36,8 @@
         }
       ],
       "build-options": {
-        "append-path": "/usr/lib/sdk/llvm20/bin",
-        "prepend-ld-library-path": "/usr/lib/sdk/llvm20/lib",
+        "append-path": "/usr/lib/sdk/llvm22/bin",
+        "prepend-ld-library-path": "/usr/lib/sdk/llvm22/lib",
         "build-args": [
           "--share=network"
         ]
