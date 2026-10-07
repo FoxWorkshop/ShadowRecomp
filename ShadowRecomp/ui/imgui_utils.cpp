@@ -175,6 +175,17 @@ float Scale(float size)
     return size * g_aspectRatioScale;
 }
 
+
+float GetMenuBoxLeft()
+{
+    return std::max(0.0f, g_aspectRatioOffsetX);
+}
+
+float GetMenuBoxWidth()
+{
+    return ImGui::GetIO().DisplaySize.x - GetMenuBoxLeft() * 2.0f;
+}
+
 double ComputeLoopMotion(double time, double offset, double total)
 {
     return std::clamp(fmod((ImGui::GetTime() - time - (offset / 60.0)) / (total / 60.0), 1.0 + (total / 60.0)), 0.0, 1.0) / 1.0;

@@ -55,6 +55,8 @@ void ResetProceduralOrigin();
 void SetAdditive(bool enabled);
 void ResetAdditive();
 float Scale(float size);
+float GetMenuBoxLeft();
+float GetMenuBoxWidth();
 double ComputeLinearMotion(double time, double offset, double total, bool reverse = false);
 double ComputeMotion(double duration, double offset, double total, bool reverse);
 void DrawTextBasic(const ImFont* font, float fontSize, const ImVec2& pos, ImU32 colour, const char* text);

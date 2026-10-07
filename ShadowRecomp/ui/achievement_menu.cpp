@@ -184,12 +184,12 @@ static void DrawContainer()
 	float borderY = (res.y - borderHeight) / 2.f;
 
 	// left bar
-	ImVec2 leftMin = { res.x * 0.1f, borderY };
+	ImVec2 leftMin = { GetMenuBoxLeft() + GetMenuBoxWidth() * 0.1f, borderY };
 	ImVec2 leftMax = { leftMin.x + borderWidth, leftMin.y + borderHeight };
 	drawList->AddImage(g_TexAchievementBtn.get(), leftMin, leftMax, GET_UV_COORDS(borderUVs));
 
 	// right bar - mirror of left
-	ImVec2 rightMin = { res.x * 0.9f - borderWidth, borderY };
+	ImVec2 rightMin = { GetMenuBoxLeft() + GetMenuBoxWidth() * 0.9f - borderWidth, borderY };
 	ImVec2 rightMax = { rightMin.x + borderWidth, rightMin.y + borderHeight };
 	drawList->AddImage(g_TexAchievementBtn.get(), rightMin, rightMax, GET_UV_COORDS(borderUVs));
 
@@ -497,8 +497,8 @@ void AchievementMenu::Draw()
 
 
 	auto& res = ImGui::GetIO().DisplaySize;
-	float containerLeft = res.x * 0.1f;
-	float containerRight = res.x * 0.9f;
+	float containerLeft = GetMenuBoxLeft() + GetMenuBoxWidth() * 0.1f;
+	float containerRight = GetMenuBoxLeft() + GetMenuBoxWidth() * 0.9f;
 	float containerTop = res.y * 0.15f;
 	float containerBottom = res.y * 0.9f; 
 	auto drawList = ImGui::GetBackgroundDrawList();

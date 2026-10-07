@@ -194,9 +194,8 @@ void ButtonGuide::Draw()
         return;
 
     auto drawList = ImGui::GetBackgroundDrawList();
-    auto& res = ImGui::GetIO().DisplaySize;
 
-    ImVec2 regionMin = { res.x * 0.1f, g_aspectRatioOffsetY * 2.0f + Scale(480.f - 65.0f)};
+    ImVec2 regionMin = { GetMenuBoxLeft() + GetMenuBoxWidth() * 0.1f, g_aspectRatioOffsetY * 2.0f + Scale(480.f - 65.0f)};
     ImVec2 regionMax = { g_aspectRatioOffsetX + Scale(640.f - g_sideMargins), g_aspectRatioOffsetY * 2.0f + Scale(480.f) };
 
     auto textMarginX = Scale(21.25f);
@@ -233,8 +232,8 @@ void ButtonGuide::Draw()
         DrawGuide(&offsetLeft, regionMin, regionMax, btn.Icon, btn.Alignment, iconMin, iconMax, btn.FontQuality, textWidth, maxWidth, textScale, fontSize, str);
     }
 
-    regionMin = { res.x * 0.6f, g_aspectRatioOffsetY * 2.0f + Scale(480.f - 65.0f) };
-    regionMax = { res.x * 0.88f, g_aspectRatioOffsetY * 2.0f + Scale(480.f) };
+    regionMin = { GetMenuBoxLeft() + GetMenuBoxWidth() * 0.6f, g_aspectRatioOffsetY * 2.0f + Scale(480.f - 65.0f) };
+    regionMax = { GetMenuBoxLeft() + GetMenuBoxWidth() * 0.88f, g_aspectRatioOffsetY * 2.0f + Scale(480.f) };
     
     // Draw right aligned icons.
     for (int i = g_buttons.size() - 1; i >= 0; i--)

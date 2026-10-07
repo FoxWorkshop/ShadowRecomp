@@ -306,12 +306,14 @@ void DrawDescription(std::string s)
 	float texHeight = 512.0f;
 
 	// Then we map to screen space proportionally
-	float barScreenX = (barTexX / texHeight) * res.x;
+	float boxLeft = GetMenuBoxLeft();
+	float boxWidth = GetMenuBoxWidth();
+	float barScreenX = boxLeft + (barTexX / texHeight) * boxWidth;
 	float barScreenY = (barTexY / texHeight) * res.y;
 	float barScreenH = (barTexH / texHeight) * res.y;
 
 	ImVec2 barMin = { barScreenX + Scale(30), barScreenY };
-	ImVec2 barMax = { res.x, barScreenY + barScreenH };
+	ImVec2 barMax = { boxLeft + boxWidth, barScreenY + barScreenH };
 
 	drawList->PushClipRect(barMin, barMax);
 
@@ -319,7 +321,7 @@ void DrawDescription(std::string s)
 	float fontSize = g_fntSeuratSize - 2.f;
 	auto textSize = g_fntSeurat->CalcTextSizeA(fontSize, FLT_MAX, 0.0f, s.c_str());
 
-	float barWidth = res.x - barScreenX;
+	float barWidth = barMax.x - barScreenX;
 
 
 	ImVec2 textPos = {
@@ -1790,8 +1792,8 @@ static void DrawOptions(ImVec2 minClipRect, ImVec2 maxClipRect, ImVec2 min, ImVe
 		auto scrollArrowsOffsetX = Scale(45);
 		auto scrollArrowsOffsetTop = Scale(100);
 		auto scrollArrowsOffsetBottom = Scale(25);
-		float containerLeft = res.x * 0.1f;
-		float containerRight = res.x * 0.9f;
+		float containerLeft = GetMenuBoxWidth() * 0.1f;
+		float containerRight = GetMenuBoxLeft() + GetMenuBoxWidth() * 0.9f;
 		float containerTop = res.y * 0.15f;
 		float containerBottom = res.y * 0.9f;
 		ImVec2 min = { containerRight - containerLeft, g_vertCentre + containerTop};
@@ -1945,7 +1947,7 @@ void DrawBackground(bool isPause = false)
 	if (scale >= 0.8f || isPause == false)
 	{
 		auto optionsUVs = PIXELS_TO_UV_COORDS(512, 512, 0, 0, 147, 448);
-		auto optionsWidth = res.x * 0.16f;
+		auto optionsWidth = GetMenuBoxWidth() * 0.16f;
 		auto optionsHeight = res.y * 0.96f;
 
 		ImVec2 optionsMin = { 0, min.y + Scale(10) };
@@ -2020,7 +2022,7 @@ void DrawMenuListContainer(ImVec2 min, ImVec2 max)
 	auto& res = ImGui::GetIO().DisplaySize;
 
 	auto containerUVs = PIXELS_TO_UV_COORDS(512, 512, 0, 247, 274, 264);
-	auto containerWidth = res.x * OPTIONS_PANEL_WIDTH_RATIO;
+	auto containerWidth = GetMenuBoxWidth() * OPTIONS_PANEL_WIDTH_RATIO;
 	auto containerHeight = res.y;
 	auto containerOffsetX = Scale(1);
 	auto containerOffsetY = Scale(136);
@@ -2031,7 +2033,7 @@ void DrawMenuListContainer(ImVec2 min, ImVec2 max)
 	float t = OptionsMenu::s_state == OptionsMenuState::Closing ? (float)ComputeLinearMotion(g_containerClosedAnimTime, 0, 15, true) : (float)ComputeLinearMotion(g_containerAnimTime, 0, 15, false);
 
 
-	float containerFinalX = res.x - containerWidth;
+	float containerFinalX = GetMenuBoxLeft() + GetMenuBoxWidth() - containerWidth;
 
 	// Start position is fully off screen to the right
 	float containerStartX = res.x;
@@ -2056,7 +2058,7 @@ void DrawMenuListContainer(ImVec2 min, ImVec2 max)
 	optionsOffsetX -= Scale(170);
 	//optionsOffsetY -= Scale(23);
 	ImVec2 minClipRect = { containerMin.x + optionsOffsetX, containerMin.y + optionsOffsetY };
-	ImVec2 maxClipRect = { res.x, containerMax.y - optionsOffsetY };
+	ImVec2 maxClipRect = { containerMax.x, containerMax.y - optionsOffsetY };
 	DrawOptions(minClipRect, maxClipRect, minOptions, maxOptions);
 	if (OptionsMenu::s_flowState == OptionsMenuFlowState::OptionCursor || OptionsMenu::s_flowState == OptionsMenuFlowState::OptionSelected)
 		DrawDescription(optionDescription); // we draw option description separately so they don't get discard by the clip rect.
@@ -2110,9 +2112,8 @@ static void DrawCategories(ImVec2 min, ImVec2 max)
 	// support for 4:3 stuff so it doesn't go off screen
 	const float centreX = min.x + Scale(CATEGORY_COLUMN_CENTRE_X);
 
-	auto& displaySize = ImGui::GetIO().DisplaySize;
 	const float safeLeft = (min.x > 0.0f ? min.x : 0.0f) + Scale(CATEGORY_EDGE_MARGIN);
-	const float safeRight = displaySize.x * (1.0f - OPTIONS_PANEL_WIDTH_RATIO) - Scale(CATEGORY_EDGE_MARGIN);
+	const float safeRight = GetMenuBoxLeft() + GetMenuBoxWidth() * (1.0f - OPTIONS_PANEL_WIDTH_RATIO) - Scale(CATEGORY_EDGE_MARGIN);
 
 #if OPTIONS_CATEGORY_STYLE == OPTIONS_CATEGORY_STYLE_ICON
 
