@@ -982,7 +982,7 @@ static float g_vehicleReq[2][3];
 // Fix not being able to move at higher fps by removing the per frame blend, then re-applying as if running at 60fps
 // Also fix in-air movement
 static void VehicleRelaxAxleVelocity(uint8_t* base, uint32_t axle, uint32_t prevPos, float invDt,
-                                     float retention, float adhesion, float frames, const float* req)
+	float retention, float adhesion, float frames, const float* req)
 {
 	if (adhesion != 0.0f)
 	{
@@ -1600,7 +1600,7 @@ X86_FUNC(sub_76B20)
 		if (deltatime > 0.0f)
 			grace->elapsed += deltatime;
 		else
-			grace->elapsed = g_launchGracePeriod; 
+			grace->elapsed = g_launchGracePeriod;
 	}
 
 	__imp__sub_76B20(ctx, base);
@@ -1936,10 +1936,92 @@ static void FxFadeMarkDirty(uint8_t* base, uint32_t node)
 	}
 }
 
+// Helper function to clamp the leftover frames that were skipped on the last step of a command for effects that run at 61 FPS or higher.
+// Mostly used for alpha fade issues
+static float FxCmdLeftoverFrames(float prevTimer, float duration, float dt)
+{
+	// 60 FPS or less
+	if (dt >= 1.0f)
+	{
+		return 0.0f;
+	}
+
+	return std::clamp((duration - 0.0001f) - prevTimer, 0.0f, dt);
+}
+
+// 61 FPS+ alpha step for the single channel node (prevent over carry)
+static void FxAlphaStepSingle(uint8_t* base, uint32_t node, uint32_t target, float frames)
+{
+	const int32_t rate = (int32_t)X86_LOAD_U32(node + 0x24);
+
+	if (rate == 0)
+	{
+		return;
+	}
+
+	FxFadeCarryTrim();
+	double exact = (double)rate * (double)frames + g_fxFadeCarry[node];
+	int32_t step = (int32_t)exact;
+	g_fxFadeCarry[node] = exact - (double)step;
+
+	if (step != 0)
+	{
+		X86_STORE_U32(target, (uint32_t)((int32_t)X86_LOAD_U32(target) + step));
+	}
+
+	const int32_t alpha = (int32_t)X86_LOAD_U32(target);
+
+	if (alpha > (int32_t)0x3FC00000)
+	{
+		X86_STORE_U32(target, 0x3FC00000);
+		X86_STORE_U32(node + 0x24, 0);
+		g_fxFadeCarry.erase(node);
+	}
+	else if (rate < 0 && alpha < (int32_t)0x3FFFFF)
+	{
+		X86_STORE_U32(node + 0x18, 0);
+		X86_STORE_U32(node + 0x24, 0);
+		g_fxFadeCarry.erase(node);
+	}
+}
+
+
+static void FxAlphaStepChannel(uint8_t* base, uint32_t chan, uint32_t rateAddr, float frames)
+{
+	const int32_t rate = (int32_t)X86_LOAD_U32(rateAddr);
+	if (rate == 0)
+	{
+		return;
+	}
+
+	FxFadeCarryTrim();
+	double exact = (double)rate * (double)frames + g_fxFadeCarry[rateAddr];
+	int32_t step = (int32_t)exact;
+	g_fxFadeCarry[rateAddr] = exact - (double)step;
+
+	if (step != 0)
+	{
+		X86_STORE_U32(chan, (uint32_t)((int32_t)X86_LOAD_U32(chan) + step));
+	}
+
+	const int32_t alpha = (int32_t)X86_LOAD_U32(chan);
+	if (alpha > (int32_t)0x3FC00000)
+	{
+		X86_STORE_U32(chan, 0x3FC00000);
+		X86_STORE_U32(rateAddr, 0);
+		g_fxFadeCarry.erase(rateAddr);
+	}
+	else if (rate < 0 && alpha < (int32_t)0x3FFFFF)
+	{
+		X86_STORE_U32(chan, 0);
+		X86_STORE_U32(rateAddr, 0);
+		g_fxFadeCarry.erase(rateAddr);
+	}
+}
+
 // Single channel impl
 // Cosmic Fall BackDrop FX DFFs
-X86_FUNC_IMPL(__imp__sub_316BC0);
-X86_FUNC(sub_316BC0)
+static void FxAlphaSingleExec(X86Context& ctx, uint8_t* base)
 {
 	const uint32_t node = ctx.ecx.u32;
 	const float dt = X86_LOAD_F32(ctx.esp.u32 + 4);
@@ -1958,11 +2040,18 @@ X86_FUNC(sub_316BC0)
 	}
 	else
 	{
-		const float timer = X86_LOAD_F32(node + 0x1C) + dt;
+		const float prevTimer = X86_LOAD_F32(node + 0x1C);
+		const float timer = prevTimer + dt;
 		X86_STORE_F32(node + 0x1C, timer);
 
 		if (timer > X86_LOAD_F32(node + 0x20)) // completed
 		{
+			const float leftover = FxCmdLeftoverFrames(prevTimer, X86_LOAD_F32(node + 0x20), dt);
+			if (leftover > 0.0f)
+			{
+				FxAlphaStepSingle(base, node, target, leftover);
+			}
+
 			g_fxFadeCarry.erase(node);
 			FxFadeMarkDirty(base, node);
 			ctx.eax.u32 = 0;
@@ -1992,36 +2081,58 @@ X86_FUNC(sub_316BC0)
 				}
 				else
 				{
-					// 61 FPS+ (prevent over carry)
-					FxFadeCarryTrim();
-					double exact = (double)rate * (double)dt + g_fxFadeCarry[node];
-					int32_t step = (int32_t)exact;
-					g_fxFadeCarry[node] = exact - (double)step;
-
-					if (step != 0)
-					{
-						X86_STORE_U32(target, (uint32_t)((int32_t)X86_LOAD_U32(target) + step));
-					}
-
-					const int32_t alpha = (int32_t)X86_LOAD_U32(target);
-					if (alpha > (int32_t)0x3FC00000)
-					{
-						X86_STORE_U32(target, 0x3FC00000);
-						X86_STORE_U32(node + 0x24, 0);
-						g_fxFadeCarry.erase(node);
-					}
-					else if (rate < 0 && alpha < (int32_t)0x3FFFFF)
-					{
-						X86_STORE_U32(node + 0x18, 0);
-						X86_STORE_U32(node + 0x24, 0);
-						g_fxFadeCarry.erase(node);
-					}
+					// 61 FPS+
+					FxAlphaStepSingle(base, node, target, dt);
 				}
 			}
 			ctx.eax.u32 = 1;
 		}
 	}
 	ctx.esp.u32 += 0x8;
+}
+
+
+// Some destructibles (known as gadgets internally), like Sky Troops pillars play a break effect.
+// At some very specific FPS (like 165 or 270), once the break animation is complete, some kind of white effect shows up for about half a second
+// This is due to the alpha fade not completing properly, so the effect is still alive and visible.
+// Fix: Keep the leftover alpha step at high fps and apply it manually on the last frame of the fade, acting basically like a clamp.
+static std::unordered_map<uint32_t, float> g_fxAlphaStepCarry;
+X86_FUNC_IMPL(__imp__sub_316BC0);
+X86_FUNC(sub_316BC0)
+{
+	const uint32_t node = ctx.ecx.u32;
+	const float dt = X86_LOAD_F32(ctx.esp.u32 + 4);
+
+	// 60 FPS or less
+	if (dt >= 1.0f)
+	{
+		FxAlphaSingleExec(ctx, base);
+		return;
+	}
+
+	if (g_fxAlphaStepCarry.size() > 4096)
+	{
+		g_fxAlphaStepCarry.clear();
+	}
+
+	float &fxalphaStep = g_fxAlphaStepCarry[node];
+	fxalphaStep += dt;
+	if (fxalphaStep < 1.0f)
+	{
+		// Not a complete frame yet, keep the node alive for now
+		ctx.eax.u32 = 1;
+		ctx.esp.u32 += 0x8;
+		return;
+	}
+
+	fxalphaStep -= 1.0f;
+	X86_STORE_F32(ctx.esp.u32 + 4, 1.0f);
+	FxAlphaSingleExec(ctx, base);
+
+	if (ctx.eax.u32 == 0)
+	{
+		g_fxAlphaStepCarry.erase(node);
+	}
 }
 
 // Three channel impl (zeroes on completion instead of clearing)
@@ -2045,11 +2156,23 @@ X86_FUNC(sub_3167D0)
 	}
 	else
 	{
-		const float timer = X86_LOAD_F32(node + 0x1C) + dt;
+		const float prevTimer = X86_LOAD_F32(node + 0x1C);
+		const float timer = prevTimer + dt;
 		X86_STORE_F32(node + 0x1C, timer);
 
 		if (timer > X86_LOAD_F32(node + 0x20))
 		{
+			const float leftover = FxCmdLeftoverFrames(prevTimer, X86_LOAD_F32(node + 0x20), dt);
+			for (uint32_t i = 0; i < 3; i++)
+			{
+				const uint32_t rateAddr = node + 0x24 + i * 4;
+				if (leftover > 0.0f)
+				{
+					FxAlphaStepChannel(base, target + i * 4, rateAddr, leftover);
+				}
+				g_fxFadeCarry.erase(rateAddr);
+			}
+
 			FxFadeMarkDirty(base, node);
 			ctx.eax.u32 = 0;
 		}
@@ -2088,36 +2211,61 @@ X86_FUNC(sub_3167D0)
 				}
 				else
 				{
-					// 61 FPS+ (prevent over carry)
-					FxFadeCarryTrim();
-					double exact = (double)rate * (double)dt + g_fxFadeCarry[rateAddr];
-					int32_t step = (int32_t)exact;
-					g_fxFadeCarry[rateAddr] = exact - (double)step;
-
-					if (step != 0)
-					{
-						X86_STORE_U32(chan, (uint32_t)((int32_t)X86_LOAD_U32(chan) + step));
-					}
-
-					const int32_t alpha = (int32_t)X86_LOAD_U32(chan);
-					if (alpha > (int32_t)0x3FC00000)
-					{
-						X86_STORE_U32(chan, 0x3FC00000);
-						X86_STORE_U32(rateAddr, 0);
-						g_fxFadeCarry.erase(rateAddr);
-					}
-					else if (rate < 0 && alpha < (int32_t)0x3FFFFF)
-					{
-						X86_STORE_U32(chan, 0);
-						X86_STORE_U32(rateAddr, 0);
-						g_fxFadeCarry.erase(rateAddr);
-					}
+					// 61 FPS+
+					FxAlphaStepChannel(base, chan, rateAddr, dt);
 				}
 			}
 			ctx.eax.u32 = 1;
 		}
 	}
 	ctx.esp.u32 += 0x8;
+}
+
+// EffCmdSingleExec (effect also take in account gravity, friction, amplitude etc...)
+X86_FUNC_IMPL(__imp__sub_315220);
+X86_FUNC(sub_315220)
+{
+	const uint32_t node = ctx.ecx.u32;
+	const float dt = X86_LOAD_F32(ctx.esp.u32 + 4);
+	const uint32_t target = X86_LOAD_U32(node + 0x18);
+	const bool started = X86_LOAD_U8(node + 0x10) != 0;
+	const float prevTimer = X86_LOAD_F32(node + 0x1C);
+
+	__imp__sub_315220(ctx, base);
+
+	if (target != 0 && started && ctx.eax.u8_lo == 0)
+	{
+		const float leftover = FxCmdLeftoverFrames(prevTimer, X86_LOAD_F32(node + 0x20), dt);
+		if (leftover > 0.0f)
+		{
+			X86_STORE_F32(target, X86_LOAD_F32(node + 0x24) * leftover + X86_LOAD_F32(target));
+		}
+	}
+}
+
+// EffCmdVector3Exec (3D pos, rot, vel, scale etc.)
+X86_FUNC_IMPL(__imp__sub_316240);
+X86_FUNC(sub_316240)
+{
+	const uint32_t node = ctx.ecx.u32;
+	const float dt = X86_LOAD_F32(ctx.esp.u32 + 4);
+	const uint32_t target = X86_LOAD_U32(node + 0x18);
+	const bool started = X86_LOAD_U8(node + 0x10) != 0;
+	const float prevTimer = X86_LOAD_F32(node + 0x1C);
+
+	__imp__sub_316240(ctx, base);
+
+	if (target != 0 && started && ctx.eax.u8_lo == 0)
+	{
+		const float leftover = FxCmdLeftoverFrames(prevTimer, X86_LOAD_F32(node + 0x20), dt);
+		if (leftover > 0.0f)
+		{
+			for (uint32_t i = 0; i < 0xC; i += 4)
+			{
+				X86_STORE_F32(target + i, X86_LOAD_F32(node + 0x24 + i) * leftover + X86_LOAD_F32(target + i));
+			}
+		}
+	}
 }
 /**	--Global FX Alpha Fade Patch END-- */
 
@@ -2387,66 +2535,3 @@ X86_FUNC(sub_3899C0)
 
 	__imp__sub_3899C0(ctx, base);
 }
-
-/** --Melee weapon attack Patch START-- */
-
-// Melee swing trail and hit sweep follow the hand bone, which blends rotation between keys
-// Off 60 FPS frames land between keys, the pose goes off path and the blade tip spikes up/down
-// We can cheat and use the 'single frame' animation mode that events use, and apply while melee weapon is swinging
-
-// To track which shadow is swinging, also necessary otherwise on enemy using melee weapon the patch would affect players
-static uint32_t g_holderPlayer = 0; // which player
-static uint32_t g_swingingModel = 0; // which skeleton
-static std::unordered_map<uint32_t, std::chrono::steady_clock::time_point> g_lastSwings;
-
-// Player weapon update
-// task + 0x58
-X86_FUNC_IMPL(__imp__sub_9FA10);
-X86_FUNC(sub_9FA10)
-{
-	g_holderPlayer = X86_LOAD_U32(ctx.ecx.u32 + 0x28);
-	__imp__sub_9FA10(ctx, base);
-	g_holderPlayer = 0;
-}
-
-// Melee hit sweep
-X86_FUNC_IMPL(__imp__sub_2704F0);
-X86_FUNC(sub_2704F0)
-{
-	g_lastSwings[g_holderPlayer] = std::chrono::steady_clock::now();
-	__imp__sub_2704F0(ctx, base);
-}
-
-// Player skeleton update pass
-X86_FUNC_IMPL(__imp__sub_995C0);
-X86_FUNC(sub_995C0)
-{
-	const uint32_t data = X86_LOAD_U32(ctx.ecx.u32 + 0x58);
-	const auto swing = g_lastSwings.find(data);
-	const bool swinging = swing != g_lastSwings.end() && std::chrono::steady_clock::now() - swing->second < std::chrono::milliseconds(200);
-
-	g_swingingModel = swinging ? (uint32_t)X86_LOAD_U32(ctx.ecx.u32 + 0x3E8) : 0;
-	__imp__sub_995C0(ctx, base);
-	g_swingingModel = 0;
-}
-
-// Skeleton animation sampler
-X86_FUNC_IMPL(__imp__sub_374A60);
-X86_FUNC(sub_374A60)
-{
-	const uint32_t model = X86_LOAD_U32(ctx.esp.u32 + 0x4);
-	const uint32_t flags = X86_LOAD_U32(model + 0x14);
-
-	// apply the event MTN single frame mode
-	if (model == g_swingingModel)
-	{
-		X86_STORE_U32(model + 0x14, flags | 0x8);
-		__imp__sub_374A60(ctx, base);
-		X86_STORE_U32(model + 0x14, flags);
-	}
-	else
-	{
-		__imp__sub_374A60(ctx, base);
-	}
-}
-/** --Melee weapon attack Patch END-- */
