@@ -232,15 +232,6 @@ bool loadAllChunks(float* a1, float* a2, float* a3)
 //}
 //GUEST_FUNCTION_HOOK_THISCALL(sub_226E50, skipAllEventLoading);
 
-// Input locking PAD2 for forcing 2P and Enabling Partner Control
-X86_FUNC_IMPL(__imp__sub_28AF30);
-X86_FUNC(sub_28AF30)
-{
-	auto thisAddr = ctx.ecx.u32;
-	__imp__sub_28AF30(ctx, base);
-	X86_STORE_U32(0x5356E8, 1); // PAD2 locked to XInput PORT 2
-}
-
 std::string texNameArray[] =
 {
 	"E630A_c1",
@@ -618,3 +609,42 @@ X86_FUNC(sub_114650)
 	}
 	__imp__sub_114650(ctx, base);
 }
+
+// START PAD assignment patches
+// Force PAD1/PAD2 to always be PORT1 and PORT2, no matter what.
+// Also fixes Partner Control since Xbox resets PAD1 to unmapped on stage start normally
+// 'Any controller' is PORT value of 5
+// 0x5356E4 = PAD1
+// 0x5356E8 = PAD2
+
+// PAD constructor (game init)
+void PADManagerInitMidAsmHook()
+{
+	auto base = g_memory.base;
+	X86_STORE_U32(0x5356E4, 0);
+	X86_STORE_U32(0x5356E8, 1);
+}
+
+// Advertise (first blue message on main menu)
+void PADAdvertiseMidAsmHook()
+{
+	auto base = g_memory.base;
+	X86_STORE_U32(0x5356E4, 0);
+	X86_STORE_U32(0x5356E8, 1);
+}
+
+// BATTLE MODE char select (If P2 backs out it sets P1 back to 5)
+void PADBattleModeP2BackOutMidAsmHook()
+{
+	auto base = g_memory.base;
+	X86_STORE_U32(0x5356E4, 0);
+}
+
+// BATTLE MODE stage select (sets both if either player backs out)
+void PADBattleStageSelMidAsmHook()
+{
+	auto base = g_memory.base;
+	X86_STORE_U32(0x5356E4, 0);
+	X86_STORE_U32(0x5356E8, 1);
+}
+// END PAD assignment patches
