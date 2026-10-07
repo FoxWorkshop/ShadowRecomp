@@ -13,13 +13,13 @@ concurrency:
 jobs:
   build-flatpak:
     name: Build Flatpak
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     env:
       FLATPAK_ID: io.github.foxworkshop.shadowrecomp
 
     steps:
       - name: Checkout Repository
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
         with:
           submodules: recursive
           token: ${{ secrets.ASSET_REPO_TOKEN }}
@@ -28,7 +28,7 @@ jobs:
         run: git -C thirdparty/vcpkg fetch --depth=1 origin c3867e714dd3a51c272826eea77267876517ed99
 
       - name: Checkout Private Repository
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
         with:
           repository: ${{ secrets.ASSET_REPO }}
           token: ${{ secrets.ASSET_REPO_TOKEN }}
@@ -40,7 +40,7 @@ jobs:
           sudo apt install -y flatpak-builder ccache
 
       - name: Setup ccache
-        uses: actions/cache@v5
+        uses: actions/cache@v6
         with:
           path: /tmp/ccache
           key: ccache-${{ runner.os }}

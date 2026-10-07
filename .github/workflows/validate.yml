@@ -1,4 +1,4 @@
-name: validate-internal
+name: validate
 on:
   workflow_dispatch:
 jobs:
