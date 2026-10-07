@@ -605,13 +605,19 @@ static bool UnstretchPrimitive(void* vertexData, uint32_t count, uint64_t flags,
 			return false;
 	}
 
+	// Some UI elements persist to draw on ultrawide when they shoudn't (the game normally let them out of bound so we can't see them)
+	// We can detect that and simply restore the original position to hide them again as a workaround.
+	const bool shouldBeOutOfBound = (minX < -1.0f && mapX(0.0f) > 0.0f) || 
+		(maxX > widthMin + 1.0f && mapX(widthMin) < widthMin) ||
+		(minY < -1.0f && mapY(0.0f) > 0.0f) || (maxY > heightMin + 1.0f && mapY(heightMin) < heightMin);
+
 	for (uint32_t i = 0; i < count; i++)
 	{
 		saved.X[i] = verts[i].x;
 		saved.Y[i] = verts[i].y;
 
-		verts[i].x = mapX(verts[i].x);
-		verts[i].y = mapY(verts[i].y);
+		verts[i].x = mapX(shouldBeOutOfBound ? saved.X[0] : verts[i].x);
+		verts[i].y = mapY(shouldBeOutOfBound ? saved.Y[0] : verts[i].y);
 	}
 
 	saved.Active = true;
