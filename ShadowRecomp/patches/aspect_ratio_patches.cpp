@@ -479,6 +479,13 @@ static CsdAnchor ResolveAnchorX(uint64_t flags, float minX, float maxX)
 {
 	const CsdFrame frame = GetCsdFrame();
 
+	// freeze don't moveeee
+	if ((flags & CSD_ALIGN_SELF_H) != 0)
+	{
+		const float centre = (minX + maxX) * 0.5f;
+		return { centre, centre };
+	}
+
 	// centre is tested first on purpose. the corner combos carry an edge bit, so
 	// adding CSD_ALIGN_CENTRE_H to a CSD_ALIGN_TOP_RIGHT entry leaves CSD_ALIGN_RIGHT
 	// set too, and whichever we test first wins. asking for centre should mean centre.
@@ -1236,10 +1243,85 @@ X86_FUNC(sub_3D24B0)
 
 const xxHashMap<CsdModifier> g_csdModifiers =
 {
+	// Loading
+	{ HashStr("csdFiles/Loading_EN.xncp/Scene_0000"), { CSD_UNSTRETCH } },
+
 	// intro logo
 	{ HashStr("csdFiles/Logo.xncp/XBox/sega"), { CSD_UNSTRETCH | CSD_ALIGN_CENTRE } },
 	{ HashStr("csdFiles/Logo.xncp/XBox/sonicteam"), { CSD_UNSTRETCH | CSD_ALIGN_CENTRE } },
 	{ HashStr("csdFiles/Logo.xncp/XBox/dolby"), { CSD_UNSTRETCH | CSD_ALIGN_CENTRE } },
+
+	// Title Screen
+	{ HashStr("csdFiles/honban.xncp/Title"), { CSD_UNSTRETCH | CSD_ALIGN_CENTRE } },
+	{ HashStr("csdFiles/honban.xncp/Loop/ultimate"), { CSD_ALIGN_SELF_H | CSD_UNSTRETCH } },
+
+	// the logo animation stretch and take the whole screen which would treat it as "background" so we force_unstretch to keep the scaled size.
+	{ HashStr("csdFiles/honban.xncp/Title/title2"), { CSD_CENTER_UNSTRETCH | CSD_FORCE_UNSTRETCH } },
+	{ HashStr("csdFiles/honban.xncp/Title/title3"), { CSD_CENTER_UNSTRETCH | CSD_FORCE_UNSTRETCH } },
+	{ HashStr("csdFiles/honban.xncp/Title/title4"), { CSD_CENTER_UNSTRETCH | CSD_FORCE_UNSTRETCH } },
+	{ HashStr("csdFiles/honban.xncp/Title/title5"), { CSD_CENTER_UNSTRETCH | CSD_FORCE_UNSTRETCH } },
+	{ HashStr("csdFiles/honban.xncp/Title/title6"), { CSD_CENTER_UNSTRETCH | CSD_FORCE_UNSTRETCH } },
+
+	// Main Menu
+	{ HashStr("csdFiles/honban.xncp/Menu/logo"), { CSD_UNSTRETCH | CSD_ALIGN_CENTRE } },
+	{ HashStr("csdFiles/honban.xncp/Menu/title"), { CSD_UNSTRETCH | CSD_ALIGN_CENTRE } },
+	{ HashStr("csdFiles/honban.xncp/Menu/1pgame"), { CSD_UNSTRETCH | CSD_ALIGN_CENTRE } },
+	{ HashStr("csdFiles/honban.xncp/Menu/2pgame"), { CSD_UNSTRETCH | CSD_ALIGN_CENTRE } },
+	{ HashStr("csdFiles/honban.xncp/Menu/options"), { CSD_UNSTRETCH | CSD_ALIGN_CENTRE } },
+	{ HashStr("csdFiles/honban.xncp/Menu/storymode"), { CSD_UNSTRETCH | CSD_ALIGN_CENTRE } },
+	{ HashStr("csdFiles/honban.xncp/Menu/selectmode"), { CSD_UNSTRETCH | CSD_ALIGN_CENTRE } },
+	{ HashStr("csdFiles/honban.xncp/Menu/hardmode"), { CSD_UNSTRETCH | CSD_ALIGN_CENTRE } },
+	{ HashStr("csdFiles/honban.xncp/Menu/new"), { CSD_UNSTRETCH | CSD_ALIGN_CENTRE } },
+	{ HashStr("csdFiles/honban.xncp/Menu/resume"), { CSD_UNSTRETCH | CSD_ALIGN_CENTRE } },
+	{ HashStr("csdFiles/honban.xncp/Menu/back_button"), { CSD_UNSTRETCH | CSD_ALIGN_BOTTOM_CENTRE } },
+	{ HashStr("csdFiles/honban.xncp/Menu/back_button/back"), { CSD_UNSTRETCH | CSD_ALIGN_BOTTOM_CENTRE } },
+	{ HashStr("csdFiles/honban.xncp/Menu/select_button"), { CSD_UNSTRETCH | CSD_ALIGN_BOTTOM_CENTRE } },
+	{ HashStr("csdFiles/honban.xncp/Menu/select_button/select"), { CSD_UNSTRETCH | CSD_ALIGN_BOTTOM_CENTRE } },
+
+	// Library (also contains menu for new game / continue / last story / expert)
+	{ HashStr("csdFiles/Story_Library.xncp/StoryMode/Window"), { CSD_UNSTRETCH | CSD_ALIGN_CENTRE } },
+	{ HashStr("csdFiles/Story_Library.xncp/StoryRoute/StoryRoute"), { CSD_UNSTRETCH | CSD_ALIGN_CENTRE } },
+	{ HashStr("csdFiles/Story_Library.xncp/StoryRoute/SRIcons"), { CSD_UNSTRETCH | CSD_ALIGN_CENTRE } },
+	{ HashStr("csdFiles/Story_Library.xncp/StoryRoute/SRIconsBG"), { CSD_UNSTRETCH | CSD_ALIGN_CENTRE } },
+	{ HashStr("csdFiles/Story_Library.xncp/Buttons/Buttons"), { CSD_UNSTRETCH | CSD_ALIGN_CENTRE } },
+	{ HashStr("csdFiles/Story_Library.xncp/Library/PageNumber"), { CSD_UNSTRETCH | CSD_ALIGN_CENTRE } },
+	{ HashStr("csdFiles/Story_Library.xncp/Library/WindowLib"), { CSD_UNSTRETCH | CSD_ALIGN_CENTRE } },
+	{ HashStr("csdFiles/Story_Library.xncp/Background/Background"), { CSD_UNSTRETCH | CSD_ALIGN_SELF_H } }, // "LIBRARY" Text in the corner
+
+	// Stage select mode
+	/**{ HashStr("csdFiles/SelectMode.xncp/IconsBG"), { CSD_UNSTRETCH | CSD_ALIGN_CENTRE } },
+	{ HashStr("csdFiles/SelectMode.xncp/Star"), { CSD_UNSTRETCH | CSD_ALIGN_CENTRE } },
+
+	{HashStr("csdFiles/SelectMode.xncp/SelectMode/text_bg_top"), {CSD_UNSTRETCH | CSD_ALIGN_CENTRE}},
+	{ HashStr("csdFiles/SelectMode.xncp/SelectMode/text_bg_bottom"), { CSD_UNSTRETCH | CSD_ALIGN_SELF_H } },
+	{ HashStr("csdFiles/SelectMode.xncp/SelectMode/text_bg_bottom/bg2"), { CSD_UNSTRETCH | CSD_ALIGN_SELF_H } },
+	{ HashStr("csdFiles/SelectMode.xncp/SelectMode/title"), { CSD_UNSTRETCH | CSD_ALIGN_SELF_H } },
+	{ HashStr("csdFiles/SelectMode.xncp/SelectMode/Null_lines"), { CSD_UNSTRETCH | CSD_ALIGN_CENTRE } },
+	{ HashStr("csdFiles/SelectMode.xncp/SelectMode/text"), { CSD_UNSTRETCH | CSD_ALIGN_SELF_H } },
+	{ HashStr("csdFiles/SelectMode.xncp/SelectMode/rank_hero"), { CSD_UNSTRETCH | CSD_ALIGN_CENTRE } },
+	{ HashStr("csdFiles/SelectMode.xncp/SelectMode/rank_normal"), { CSD_UNSTRETCH | CSD_ALIGN_CENTRE } },
+	{ HashStr("csdFiles/SelectMode.xncp/SelectMode/rank_dark"), { CSD_UNSTRETCH | CSD_ALIGN_CENTRE } },
+	{ HashStr("csdFiles/SelectMode.xncp/SelectMode/key_no"), { CSD_UNSTRETCH | CSD_ALIGN_CENTRE } },
+	{ HashStr("csdFiles/SelectMode.xncp/SelectMode/Null_hero_result"), { CSD_UNSTRETCH | CSD_ALIGN_CENTRE } },
+	{ HashStr("csdFiles/SelectMode.xncp/SelectMode/Null_normal_result"), { CSD_UNSTRETCH | CSD_ALIGN_CENTRE } },
+	{ HashStr("csdFiles/SelectMode.xncp/SelectMode/Null_dark_result"), { CSD_UNSTRETCH | CSD_ALIGN_CENTRE } },
+	{ HashStr("csdFiles/SelectMode.xncp/SelectMode/mpic_shadow"), { CSD_UNSTRETCH | CSD_ALIGN_CENTRE } },
+	{ HashStr("csdFiles/SelectMode.xncp/SelectMode/mission_picture"), { CSD_UNSTRETCH | CSD_ALIGN_CENTRE } },
+	{ HashStr("csdFiles/SelectMode.xncp/SelectMode/key1"), { CSD_UNSTRETCH | CSD_ALIGN_CENTRE } },
+	{ HashStr("csdFiles/SelectMode.xncp/SelectMode/key2"), { CSD_UNSTRETCH | CSD_ALIGN_CENTRE } },
+	{ HashStr("csdFiles/SelectMode.xncp/SelectMode/key3"), { CSD_UNSTRETCH | CSD_ALIGN_CENTRE } },
+	{ HashStr("csdFiles/SelectMode.xncp/SelectMode/key4"), { CSD_UNSTRETCH | CSD_ALIGN_CENTRE } },
+	{ HashStr("csdFiles/SelectMode.xncp/SelectMode/key5"), { CSD_UNSTRETCH | CSD_ALIGN_CENTRE } },
+	{ HashStr("csdFiles/SelectMode.xncp/SelectMode/exit_button"), { CSD_UNSTRETCH | CSD_ALIGN_BOTTOM_CENTRE } },
+	{ HashStr("csdFiles/SelectMode.xncp/SelectMode/exit_button/exit_text"), { CSD_UNSTRETCH | CSD_ALIGN_BOTTOM_CENTRE } },
+	{ HashStr("csdFiles/SelectMode.xncp/SelectMode/select_button"), { CSD_UNSTRETCH | CSD_ALIGN_BOTTOM_CENTRE } },
+	{ HashStr("csdFiles/SelectMode.xncp/SelectMode/select_button/select_text"), { CSD_UNSTRETCH | CSD_ALIGN_BOTTOM_CENTRE } },*/
+
+	
+	// stage card
+	{ HashStr("csdFiles/stageTitle/StageTitle.xncp/StageTitle"), { CSD_UNSTRETCH | CSD_ALIGN_CENTRE } },
+
+
 
 	// game over
 	{ HashStr("csdFiles/GameOver.xncp/GameOver"), { CSD_UNSTRETCH | CSD_ALIGN_CENTRE } },
@@ -1255,7 +1337,7 @@ const xxHashMap<CsdModifier> g_csdModifiers =
 
 	// mission result
 	{ HashStr("csdFiles/Result_EN.xncp/Main"), { CSD_UNSTRETCH | CSD_ALIGN_CENTRE } },
-	{ HashStr("csdFiles/Result_EN.xncp/Main/result"), { CSD_UNSTRETCH | CSD_ALIGN_LEFT } },
+	{ HashStr("csdFiles/Result_EN.xncp/Main/result"), { CSD_UNSTRETCH | CSD_ALIGN_SELF_H } },
 	{ HashStr("csdFiles/Result_EN.xncp/Rank"), { CSD_UNSTRETCH | CSD_ALIGN_CENTRE } },
 	{ HashStr("csdFiles/Result_FR.xncp/Main"), { CSD_UNSTRETCH | CSD_ALIGN_CENTRE } },
 	{ HashStr("csdFiles/Result_FR.xncp/Rank"), { CSD_UNSTRETCH | CSD_ALIGN_CENTRE } },
