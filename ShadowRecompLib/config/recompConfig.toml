@@ -1662,3 +1662,21 @@ jump_address_on_false = 0x25E2D0
 name = "ChaosGaugeFillMidAsmHook"
 address = 0x280BF3
 registers = ["r0", "r2"]
+
+# START PAD assignment patches
+[[midasm_hook]]
+name = "PADManagerInitMidAsmHook"
+address = 0x2A76F0
+
+[[midasm_hook]]
+name = "PADAdvertiseMidAsmHook"
+address = 0x28AF96
+
+[[midasm_hook]]
+name = "PADBattleModeP2BackOutMidAsmHook"
+address = 0x2962D5
+
+[[midasm_hook]]
+name = "PADBattleStageSelMidAsmHook"
+address = 0x29707B
+# END PAD assignment patches
