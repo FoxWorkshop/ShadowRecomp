@@ -1477,6 +1477,20 @@ address = 0x260712
 registers = ["r4"]
 # End Belt::Eff fixes
 
+# Start Eff::LocusMultiVtx fixes (melee trails)
+[[midasm_hook]]
+name = "MeleeEffectLocusMultiVtxTrailPushMidAsmHook"
+address = 0x260B93
+registers = ["r4"]
+jump_address_on_false = 0x260B9C
+
+[[midasm_hook]]
+name = "MeleeEffectLocusMultiVtxTrailFadeMidAsmHook"
+address = 0x260C46
+registers = ["r4"]
+jump_address_on_false = 0x260C4A
+# End Eff::LocusMultiVtx fixes
+
 # Start BirdBase rotation on stick release fix
 [[midasm_hook]]
 name = "BirdVehicleTurnScaleMidAsmHook"

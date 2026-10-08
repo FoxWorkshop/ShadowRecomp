@@ -1832,6 +1832,51 @@ void BeltTrailFadeMidAsmHook(X86Register& esi)
 
 /** --Belt::Effect Patch END-- */
 
+/** --Eff::LocusMultiVtx Patch START-- */
+
+std::unordered_map<uint32_t, float> g_locusCarry; // map per Locus effect to support multiplayer
+static bool EffectLocusMultiVtxStep(uint32_t locus)
+{
+	auto base = g_memory.base;
+	const float frames = X86_LOAD_F32(g_deltaTime) * 60.0f;
+	if (!(frames > 0.0f) || std::fabs(frames - 1.0f) < 0.0001f)
+	{
+		return true;
+	}
+
+	if (g_locusCarry.size() > 64)
+	{
+		g_locusCarry.clear(); // stale entries of dead effects, safe to reset
+	}
+
+	float& carry = g_locusCarry[locus];
+	carry += frames;
+	if (carry >= 1.0f)
+	{
+		carry -= (float)(int)carry;
+		return true;
+	}
+	return false;
+}
+
+// Locus push @ sub_260B40
+// esi = locus
+// locus+0x20 sample count
+bool MeleeEffectLocusMultiVtxTrailPushMidAsmHook(X86Register& esi)
+{
+	auto base = g_memory.base;
+	// first sample always push, not perfect depending on current MTN the player is doing,
+	// but makes the effect start much more consistently
+	return X86_LOAD_U32(esi.u32 + 0x20) == 0 || EffectLocusMultiVtxStep(esi.u32);
+}
+
+// Locus fade @ sub_260B40
+bool MeleeEffectLocusMultiVtxTrailFadeMidAsmHook(X86Register& esi)
+{
+	return EffectLocusMultiVtxStep(esi.u32);
+}
+/** --Eff::LocusMultiVtx Patch END-- */
+
 /** --Destructible/Break object pieces Patch START-- */
 
 // Gadgets destroy and create several TObjEffCrash3DChildObj and TObjEffCrash3DRChildObj
