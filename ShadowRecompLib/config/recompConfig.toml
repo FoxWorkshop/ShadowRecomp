@@ -969,7 +969,6 @@ address = 0x16F887
 registers = ["r7"]
 jump_address_on_true = 0x16F891
 
-
 [[midasm_hook]]
 name = "ExtendedMultiplayerPlayerPositionIDOverrideMidAsmHook"
 address = 0x16F733
@@ -1006,6 +1005,21 @@ name = "PADBoundsCheckMidAsmHook"
 address = 0x91AF7
 registers = ["r0"]
 jump_address_on_false = 0x91AF9
+
+# Partner PAD remapping
+[[midasm_hook]]
+name = "PlayerPADAssignBeginMidAsmHook"
+address = 0x9738C
+
+[[midasm_hook]]
+name = "PlayerPADAssignEndMidAsmHook"
+address = 0x97391
+
+[[midasm_hook]]
+name = "PartnerPADMidAsmHook"
+address = 0x91AF1
+registers = ["r0"]
+# End Partner PAD remapping
 
 [[midasm_hook]]
 name = "ViewportDivMidAsmHook"
@@ -1093,7 +1107,6 @@ jump_address_on_true = 0x5B74E
 name = "RenderDivCameraTargetOverrideMidAsmHook"
 address = 0x5B756
 jump_address_on_true = 0x5B760
-# End Extended Multiplayer
 
 # Effect Slot Registration
 [[midasm_hook]]
@@ -1132,12 +1145,10 @@ jump_address_on_true = 0x182020
 jump_address_on_false = 0x181F95
 # End SetObject Loading/Unloading per-player distance
 
-# Add_To_Score nullsub
 [[midasm_hook]]
 name = "AddAllScoreToP1MidAsmHook"
 address = 0x22D630
 jump_address = 0x22D699
-# End Add_To_Score nullsub
 
 # AwakeExec Idle Drain Fix
 [[midasm_hook]]

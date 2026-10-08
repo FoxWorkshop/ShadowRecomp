@@ -255,6 +255,31 @@ bool ExtendedMultiplayerPlayerPositionLoopContinue0MidAsmHook(X86Register& eax, 
 }
 
 static uint32_t s_assignPadPlayerId = 0;
+static bool s_playerPadAssign = false;
+
+// Player ctor (sub_97340)
+// Marking so we know its a player when PAD construction (sub_91AD0) runs
+void PlayerPADAssignBeginMidAsmHook()
+{
+	s_playerPadAssign = true;
+}
+
+// Cleanup hook from above
+void PlayerPADAssignEndMidAsmHook()
+{
+	s_playerPadAssign = false;
+}
+
+// Partner PAD assignment (we would extend this also if we later want to do multi partner separate controllers)
+// Using the last unused next PAD/PORT
+// If playing 4P partners are AI controlled only
+void PartnerPADMidAsmHook(X86Register& eax)
+{
+	if (Config::ExtendedMultiplayer && !s_playerPadAssign)
+	{
+		eax.u32 = g_multiplayerPlayerCount < 4 ? g_multiplayerPlayerCount : 4;
+	}
+}
 
 void AssignPadPlayerIdSaveMidAsmHook(X86Register& ecx)
 {
@@ -263,13 +288,13 @@ void AssignPadPlayerIdSaveMidAsmHook(X86Register& ecx)
 
 void AssignPadPlayerIdOverrideMidAsmHook(X86Register& edx)
 {
-    if (Config::ExtendedMultiplayer)
+    if (Config::ExtendedMultiplayer && s_playerPadAssign)
         edx.u32 = s_assignPadPlayerId;
 }
 
 bool PADBoundsCheckMidAsmHook(X86Register& eax)
 {
-    if (Config::ExtendedMultiplayer && g_multiplayerPlayerCount >= 4 && eax.u32 >= 4)
+    if (Config::ExtendedMultiplayer && s_playerPadAssign && g_multiplayerPlayerCount >= 4 && eax.u32 >= 4)
         return false;
     return true;
 }
