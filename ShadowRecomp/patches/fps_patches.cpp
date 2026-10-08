@@ -7,6 +7,7 @@
 const uint32_t g_deltaTime = 0x541FA8;
 const uint32_t g_refRate = 0x54DD80;
 const uint32_t g_frameRateDivisor = 0x54DD40;
+const uint32_t g_maxFrames = 0x54DD64; // Most frames' worth of time one frame can count for.
 
 static bool g_isEventPlaying = false;
 void SetFramerateMidAsmHook()
@@ -14,7 +15,41 @@ void SetFramerateMidAsmHook()
 	auto base = g_memory.base;
 	if (g_isEventPlaying == false)
 	{
-		X86_STORE_U32(g_refRate, (uint32_t)GetTargetFPS());
+		// Set global FPS to our own, when not doing event stuff.
+		uint32_t refRate = (uint32_t)GetTargetFPS();
+		X86_STORE_U32(g_refRate, refRate);
+
+		// == Sewer note ==
+		//
+		// The original game has a mechanic where if the framerate is
+		// `fpsMax / 3`; then the game slows down to accomodate; and treats
+		// it as if `fpsMax / 3` time has passed.
+		//
+		// That `fpsMax / 3` is 50ms on consoles.
+		//
+		// This is presumably to ensure that physics don't break at low
+		// framerates, as e.g. getting a half second pause/stutter could
+		// lead to clipping through a wall.
+		//
+		// When FPS drops below `fpsMax / 3`, the game compensates by slowing
+		// down the time accordingly in order to 'keep up'.
+		//
+		// But on PC this doesn't make much sense; as we can do several 100s of
+		// frames a second. If someone were to however, remove their FPS cap,
+		// by setting it to 9999 FPS for instance, the game would be laggy;
+		// because it can't hit `fpsMax / 3`.
+		//
+		// So we recalculate this integer divisor value to the nearest approximation
+		// that preserves '20FPS' (50ms) as the slowdown point.
+
+		constexpr uint32_t maxLagMs = 50;
+		double framesPerMs = refRate / 1000.0;
+		double framesIn50Ms = framesPerMs * maxLagMs;
+		uint32_t maxFrames = (uint32_t)std::ceil(framesIn50Ms);
+
+		// Always allow at least one frame.
+		maxFrames = std::max(maxFrames, 1u);
+		X86_STORE_U32(g_maxFrames, maxFrames);
 	}
 }
 
@@ -51,23 +86,9 @@ float GetInternalFrameRate()
 	return (fps >= 1.0f && fps <= 500.0f) ? fps : 0.0f;
 }
 
-// Patch the internal busy-wait (sub_56FC0) to not burn a core
-void FrameLimiterWaitMidAsmHook(X86Register& ebx, X86Register& esi)
+// Skip the game's frame limiter.
+void SkipFrameLimiterMidAsmHook()
 {
-	auto base = g_memory.base;
-
-	uint32_t refRate = X86_LOAD_U32(g_refRate);
-	int32_t divisor = (int32_t)X86_LOAD_U32(g_frameRateDivisor);
-	if (refRate == 0 || divisor <= 0)
-		return;
-
-	int64_t period = (int64_t)(1000000.0 / (double)refRate);
-	int64_t target = period * divisor;
-	int64_t elapsed = (int64_t)(((uint64_t)esi.u32 << 32) | ebx.u32);
-	int64_t remaining = target - elapsed;
-
-	if (remaining > 2500)
-		std::this_thread::sleep_for(std::chrono::microseconds(remaining - 2000));
 }
 
 std::unordered_map<uint32_t, float> g_sfxTimers;

@@ -81,9 +81,14 @@ private:
        should be rendered in. */
     double m_frameTimeTargetMs = 1000.0 / 60.0;
 
-    /* [Milliseconds] How much more time the CPU has spent sleeping than
-       requested on the last frame. */
-    double m_oversleptMs = 0.0;
+    /* [Milliseconds] How late the last frame ended.
+
+       Basically, sometimes we can oversleep a little; and we need to keep
+       track of how much we overslept in the last frame.
+
+       Likewise, if the game isn't fully running at max speed, then we may
+       need to 'catch up', to the 100% rate. */
+    double m_catchUpMs = 0.0;
 
     /* Contains the stopwatch used for timing the frame time. */
     std::chrono::steady_clock::time_point m_frameStart =

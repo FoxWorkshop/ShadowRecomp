@@ -1,5 +1,6 @@
 #include "frame_pacer.h"
 #include "timer_resolution.h"
+#include <algorithm>
 #include <chrono>
 #include <thread>
 
@@ -18,12 +19,20 @@ void FramePacer::EndFrame(WaitMode waitMode)
     // Summarize stats for the current frame.
     const double renderTimeMs = ElapsedMsSince(m_frameStart);
 
-    double sleepTimeMs = m_frameTimeTargetMs - m_oversleptMs - renderTimeMs;
+    double sleepTimeMs = m_frameTimeTargetMs - m_catchUpMs - renderTimeMs;
+    double overrunMs = 0.0;
     if (sleepTimeMs < 0.0)
+    {
+        // Late frames (FPS drop) can't sleep.
+        // Instead, carry this delay to the next frame.
+        // That way, next frame can compensate by sleeping less..
+        overrunMs = std::min(-sleepTimeMs, m_frameTimeTargetMs);
         sleepTimeMs = 0.0;
+    }
 
     // Sleep
     Sleep(sleepTimeMs, waitMode);
+    m_catchUpMs += overrunMs;
 
     // Restart calculation for new frame.
     m_frameStart = std::chrono::steady_clock::now();
@@ -50,7 +59,7 @@ void FramePacer::Sleep(double durationMs, WaitMode waitMode)
         break;
     }
 
-    m_oversleptMs = ElapsedMsSince(m_sleepStart) - durationMs;
+    m_catchUpMs = ElapsedMsSince(m_sleepStart) - durationMs;
 }
 
 void FramePacer::SleepOnly(double durationMs)

@@ -792,12 +792,13 @@ jump_address_on_true = 0x2E0568
 name = "SetFramerateMidAsmHook"
 address = 0x572BD
 
-# 0x56FC0 is the internal frame limiter, does a busy-wait during events
-# Patch after 0x570C9 to keep non-waiting behavior
+# 0x56FC0 is the internal frame limiter
+# Sewer says 'we have our own top of ze line-o frame pacing in Present'.
+# So we KILL the game's own MUAHAHAHHAHAHAHAAH.
 [[midasm_hook]]
-name = "FrameLimiterWaitMidAsmHook"
-address = 0x570E7
-registers = ["r1", "r4"]
+name = "SkipFrameLimiterMidAsmHook"
+address = 0x570C9
+jump_address = 0x57149
 
 [[midasm_hook]]
 name = "SFXTimingMidAsmHook"
