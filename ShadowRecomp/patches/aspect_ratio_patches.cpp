@@ -978,6 +978,23 @@ X86_FUNC(sub_268FD0)
 	}
 }
 
+// Logo shown in the bottom right corner during fade out.
+// It's stretched at high res, so scale it back properly.
+static constexpr uint32_t FadeLogoVertices = 0x484;
+X86_FUNC_IMPL(__imp__sub_19730);
+X86_FUNC(sub_19730)
+{
+	void* vertices = g_memory.Translate(ctx.ecx.u32 + FadeLogoVertices);
+
+	CsdSavedVertices saved{};
+	UnstretchPrimitive(vertices, CSDVertexCount, CSD_UNSTRETCH | CSD_ALIGN_BOTTOM_CENTRE, saved);
+
+	__imp__sub_19730(ctx, base);
+
+	if (saved.Active)
+		RestorePrimitive(vertices, CSDVertexCount, saved);
+}
+
 // Button prompt above air saucers, checkpoints etc.
 // This is originally a simple CSD, but the game places it like the enemy HP bar: it projects as if the screen was 4:3,
 // so it looks wrong at high resolution. The idea is to fix the position before the cull and squeeze 
@@ -1255,7 +1272,7 @@ const xxHashMap<CsdModifier> g_csdModifiers =
 	{ HashStr("csdFiles/honban.xncp/Title"), { CSD_UNSTRETCH | CSD_ALIGN_CENTRE } },
 	{ HashStr("csdFiles/honban.xncp/Loop/ultimate"), { CSD_ALIGN_SELF_H | CSD_UNSTRETCH } },
 
-	// the logo animation stretch and take the whole screen which would treat it as "background" so we force_unstretch to keep the scaled size.
+	// the logo animation stretch and take the whole screen which would treat it as "background", so we force unstretch mode to keep the scaled size.
 	{ HashStr("csdFiles/honban.xncp/Title/title2"), { CSD_CENTER_UNSTRETCH | CSD_FORCE_UNSTRETCH } },
 	{ HashStr("csdFiles/honban.xncp/Title/title3"), { CSD_CENTER_UNSTRETCH | CSD_FORCE_UNSTRETCH } },
 	{ HashStr("csdFiles/honban.xncp/Title/title4"), { CSD_CENTER_UNSTRETCH | CSD_FORCE_UNSTRETCH } },
@@ -1289,6 +1306,8 @@ const xxHashMap<CsdModifier> g_csdModifiers =
 	{ HashStr("csdFiles/Story_Library.xncp/Background/Background"), { CSD_UNSTRETCH | CSD_ALIGN_SELF_H } }, // "LIBRARY" Text in the corner
 
 	// Stage select mode
+		/**{ HashStr("csdFiles/SelectMode.xncp/IconsBG"), { CSD_UNSTRETCH | CSD_ALIGN_CENTRE } },
+	{ HashStr("csdFiles/SelectMode.xncp/Star"), { CSD_UNSTRETCH | CSD_ALIGN_CENTRE } },
 	/**{ HashStr("csdFiles/SelectMode.xncp/IconsBG"), { CSD_UNSTRETCH | CSD_ALIGN_CENTRE } },
 	{ HashStr("csdFiles/SelectMode.xncp/Star"), { CSD_UNSTRETCH | CSD_ALIGN_CENTRE } },
 
@@ -1322,6 +1341,31 @@ const xxHashMap<CsdModifier> g_csdModifiers =
 	{ HashStr("csdFiles/stageTitle/StageTitle.xncp/StageTitle"), { CSD_UNSTRETCH | CSD_ALIGN_CENTRE } },
 
 
+	//Battle mode (2p menu)
+	{ HashStr("csdFiles/BattleMode.xncp/Kazari"), { CSD_UNSTRETCH | CSD_ALIGN_SELF_H } }, // Battle mode in the corner
+	{ HashStr("csdFiles/BattleMode.xncp/Kazari/Null_box/box_chara"), { CSD_UNSTRETCH | CSD_ALIGN_CENTRE } }, 
+
+	{ HashStr("csdFiles/BattleMode.xncp/Kazari/Null_box/box_chara/box1"), { CSD_UNSTRETCH | CSD_ALIGN_CENTRE } },
+	{ HashStr("csdFiles/BattleMode.xncp/Kazari/Null_box/box_chara/box2"), { CSD_UNSTRETCH | CSD_ALIGN_CENTRE } },
+	{ HashStr("csdFiles/BattleMode.xncp/Kazari/Null_box/box_chara/box3"), { CSD_UNSTRETCH | CSD_ALIGN_CENTRE } },
+	{ HashStr("csdFiles/BattleMode.xncp/Kazari/Null_box/box_chara/box4"), { CSD_UNSTRETCH | CSD_ALIGN_CENTRE } },
+	{ HashStr("csdFiles/BattleMode.xncp/Kazari/Null_box/box_chara/box5"), { CSD_UNSTRETCH | CSD_ALIGN_CENTRE } },
+	{ HashStr("csdFiles/BattleMode.xncp/Kazari/Null_box/box_chara/box6"), { CSD_UNSTRETCH | CSD_ALIGN_CENTRE } },
+	{ HashStr("csdFiles/BattleMode.xncp/Kazari/Null_chara/bg_1p"), { CSD_UNSTRETCH | CSD_ALIGN_CENTRE } },
+	{ HashStr("csdFiles/BattleMode.xncp/Kazari/Null_chara/bg_2p"), { CSD_UNSTRETCH | CSD_ALIGN_CENTRE } },
+	{ HashStr("csdFiles/BattleMode.xncp/Kazari/Null_chara/tx_1p"), { CSD_UNSTRETCH | CSD_ALIGN_CENTRE } },
+	{ HashStr("csdFiles/BattleMode.xncp/Kazari/Null_chara/tx_2p"), { CSD_UNSTRETCH | CSD_ALIGN_CENTRE } },
+
+	{ HashStr("csdFiles/BattleMode.xncp/1PCharaSelect"), { CSD_UNSTRETCH | CSD_ALIGN_CENTRE } },
+	{ HashStr("csdFiles/BattleMode.xncp/2PCharaSelect"), { CSD_UNSTRETCH | CSD_ALIGN_CENTRE } },
+	{ HashStr("csdFiles/BattleMode.xncp/Cursor1P"), { CSD_UNSTRETCH | CSD_ALIGN_CENTRE } },
+	{ HashStr("csdFiles/BattleMode.xncp/Cursor2P"), { CSD_UNSTRETCH | CSD_ALIGN_CENTRE } },
+
+	{ HashStr("csdFiles/BattleMode.xncp/Arena"), { CSD_UNSTRETCH | CSD_ALIGN_CENTRE } },
+	{ HashStr("csdFiles/BattleMode.xncp/Buttons/select_button"), { CSD_UNSTRETCH | CSD_ALIGN_BOTTOM_CENTRE } },
+	{ HashStr("csdFiles/BattleMode.xncp/Buttons/select_button/select"), { CSD_UNSTRETCH | CSD_ALIGN_BOTTOM_CENTRE } },
+	{ HashStr("csdFiles/BattleMode.xncp/Buttons/back_button"), { CSD_UNSTRETCH | CSD_ALIGN_BOTTOM_CENTRE } },
+	{ HashStr("csdFiles/BattleMode.xncp/Buttons/back_button/back"), { CSD_UNSTRETCH | CSD_ALIGN_BOTTOM_CENTRE } },
 
 	// game over
 	{ HashStr("csdFiles/GameOver.xncp/GameOver"), { CSD_UNSTRETCH | CSD_ALIGN_CENTRE } },
@@ -1491,6 +1535,11 @@ const xxHashMap<CsdModifier> g_csdModifiers =
 	// 2P_Ring.xncp
 	{ HashStr("csdFiles/2P_Ring.xncp/Ring1P/Null_ring/ring"), { CSD_UNSTRETCH | CSD_ALIGN_AUTO_H | CSD_ALIGN_TOP } },
 	{ HashStr("csdFiles/2P_Ring.xncp/Ring2P/Null_ring/ring"), { CSD_UNSTRETCH | CSD_ALIGN_AUTO_H | CSD_ALIGN_TOP } },
+
+	{ HashStr("csdFiles/2P_Star.xncp/Star"), { CSD_UNSTRETCH | CSD_ALIGN_BOTTOM_CENTRE} },
+	{ HashStr("csdFiles/2P_Start.xncp/Start"), { CSD_UNSTRETCH | CSD_FORCE_UNSTRETCH} },
+	{ HashStr("csdFiles/2P_Result.xncp/Result"), { CSD_UNSTRETCH | CSD_CENTER_UNSTRETCH} },
+	{ HashStr("csdFiles/2P_Result.xncp/TimeUp"), { CSD_UNSTRETCH | CSD_ALIGN_BOTTOM_CENTRE} },
 
 	// 2P_CommandWindow.xncp
 	{ HashStr("csdFiles/2P_CommandWindow.xncp/Window/window/info_bg"), { CSD_UNSTRETCH | CSD_ALIGN_AUTO_H | CSD_ALIGN_BOTTOM } },
