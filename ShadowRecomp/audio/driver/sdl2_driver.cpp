@@ -13,6 +13,7 @@
 #include <os/logger.h>
 #include <user/config.h>
 #include <ui/game_window.h>
+#include <patches/global.h>
 
 // Memo: 
 // Two way of using buffers: Static (sfx, voices - Buffer is filled once with complete audio, Pull just read the buffer) 
@@ -26,9 +27,6 @@
 #define DSoundBufferGetPCMBufferSize(EmuFlags, size) (EmuFlags & DSE_FLAG_XADPCM) > 0 ? DWORD((size / float(XBOX_ADPCM_SRCSIZE)) * XBOX_ADPCM_DSTSIZE) : size
 #define DSoundBufferGetXboxBufferSize(EmuFlags, size) (EmuFlags & DSE_FLAG_XADPCM) > 0 ? DWORD((size / float(XBOX_ADPCM_DSTSIZE)) * XBOX_ADPCM_SRCSIZE) : size
 
-// Set by TObjBGMPlayer hook and used by SHTHR_SOUNDBUFFER_Impl::Play
-// which runs on the ADX Vsync thread, has to be atomic because it can run on multiple threads
-std::atomic<bool> PlayMusic{ false };
 SHTHR_SOUNDDEVICE* ppDS = nullptr;
 static volatile bool g_audioThreadShouldExit;
 
@@ -38,6 +36,88 @@ static float GetMasterVolume()
 		return 0.0f;
 
 	return Config::MasterVolume.Value;
+}
+
+// IsndADX::CreateTask (sub_25CEA0)
+// 2 TObjBGM (music, jingles)
+// 2 TObjSERIF (voices)
+// any other ADX is invoked by SFDs
+static constexpr uint32_t g_TOBJBGM = 0x5502EC;
+static constexpr uint32_t g_TOBJSERIF = 0x5502FC;
+static constexpr uint32_t BGM_ADXT = 0x44;
+static constexpr uint32_t BGM_NAME = 0x50;
+static constexpr uint32_t BGM_NAME_SIZE = 0x20;
+static constexpr uint32_t SERIF_ADXT = 0x3C;
+static constexpr uint32_t ADXT_RNA = 0xC;
+static constexpr uint32_t ADXT_NAME = 0xAC;
+static constexpr uint32_t ADXT_NAME_MAX = 0x100;
+
+static std::unordered_set<std::string> g_eventTracks; // TODO: Added incase a mod adds pauseable events/sfds
+static std::mutex g_eventTracksMutex;
+
+// the rna plays its stream through its mwSnd port, so the port buffer key is the guest key
+static bool IsAdxtBuffer(uint32_t adxt, int32_t key)
+{
+	auto base = g_memory.base;
+	if (!adxt)
+	{
+		return false;
+	}
+	const uint32_t rna = X86_LOAD_U32(adxt + ADXT_RNA);
+	if (!rna)
+	{
+		return false;
+	}
+	const uint32_t port = X86_LOAD_U32(rna + RNA_PORT);
+	return port && int32_t(X86_LOAD_U32(port + PORT_BUFFER)) == key;
+}
+
+// Get the type TObjBGM / TObjSERIF
+static uint32_t FindIsndObject(uint32_t objects, uint32_t adxtOffset, int32_t key)
+{
+	auto base = g_memory.base;
+	for (uint32_t i = 0; i < 2; ++i) // There are 2 TObjBGM and TObjSERIF
+	{
+		const uint32_t object = X86_LOAD_U32(objects + i * 4);
+		if (object && IsAdxtBuffer(X86_LOAD_U32(object + adxtOffset), key))
+		{
+			return object;
+		}
+	}
+	return 0;
+}
+
+static std::string GetAdxtFileName(uint32_t adxt)
+{
+	auto base = g_memory.base;
+	const uint32_t name = X86_LOAD_U32(adxt + ADXT_NAME);
+	if (!name) // SFDs invoke directly
+	{
+		return {};
+	}
+	auto* str = reinterpret_cast<const char*>(g_memory.Translate(name));
+	return std::string(str, strnlen(str, ADXT_NAME_MAX));
+}
+
+// TPjsEventActionManager::Exec marks if something is started during an event
+static bool IsEventTrack(const std::string& name)
+{
+	std::lock_guard<std::mutex> lock(g_eventTracksMutex);
+	return g_eventTracks.contains(name);
+}
+
+// TObjBGM::Play
+X86_FUNC_IMPL(__imp__sub_25CBB0);
+X86_FUNC(sub_25CBB0)
+{
+	if (g_isStartingEventAudio)
+	{
+		const uint32_t bgm = ctx.ecx.u32;
+		auto* name = reinterpret_cast<const char*>(base + bgm + BGM_NAME);
+		std::lock_guard<std::mutex> lock(g_eventTracksMutex);
+		g_eventTracks.emplace(name, strnlen(name, BGM_NAME_SIZE));
+	}
+	__imp__sub_25CBB0(ctx, base);
 }
 
 void AudioShutDown()
@@ -108,8 +188,6 @@ private:
 
 	int mVolume = 0;
 	int mVolumeLinear = 128;
-	float mPrevVolumeUser = 1.f;
-	bool mForceUpdateVolume = false;
 
 	DWORD mPlayFlags = 0;
 	DWORD mG_flags;
@@ -133,10 +211,12 @@ private:
 	enum SourceType {
 		SOURCE_TYPE_SFX,
 		SOURCE_TYPE_MUSIC,
-		SOURCE_TYPE_VOICES
+		SOURCE_TYPE_VOICES,
+		SOURCE_TYPE_EVENTS,
+		SOURCE_TYPE_SFD
 	};
 
-	SourceType mSourceType;
+	SourceType mSourceType = SOURCE_TYPE_SFX;
 
 
 public:
@@ -155,6 +235,8 @@ public:
 	int StopEx(int64_t rtTimeStamp, uint32_t dwFlags) override;
 	int SetVolume(int lVolume) override;
 	void CalcVolumeLinear() override;
+	float GetUserVolume() const;
+	void DetermineStreamType();
 	int GetVolumeLinear() const { return mVolumeLinear; }
 
 	int SetFrequency(int lFrequency) override;
@@ -753,40 +835,51 @@ PullResult SHTHR_SOUNDBUFFER_Impl::Pull(unsigned char* data, int32_t size)
 		: 1.0f;
 
 
-	// if user changed volume settings (sfx already get set with the set volume function)
-
-	if (this->isStreaming)
-	{
-
-		if (this->mSourceType == SOURCE_TYPE_MUSIC)
-		{
-
-			if (Config::MusicVolume.Value != this->mPrevVolumeUser || mForceUpdateVolume)
-			{
-				CalcVolumeLinear(); // reset volume to its original value so new settings can be apply properly
-				this->mVolumeLinear *= Config::MusicVolume.Value;
-				this->mPrevVolumeUser = Config::MusicVolume.Value;
-				mForceUpdateVolume = false;
-			}
-		}
-		else
-		{
-			if (Config::VoicesVolume.Value != this->mPrevVolumeUser || mForceUpdateVolume)
-			{
-				CalcVolumeLinear(); // reset volume to its original value so new settings can be apply properly
-				this->mVolumeLinear *= Config::VoicesVolume.Value;
-				this->mPrevVolumeUser = Config::VoicesVolume.Value;
-				mForceUpdateVolume = false;
-			}
-		}
-
-
-	}
-
-
-	result.mixVolume = mVolumeLinear * vol3D;
+	// apply user sliders here otherwise audio fades are full volume
+	result.mixVolume = mVolumeLinear * vol3D * GetUserVolume();
 
 	return result;
+}
+
+float SHTHR_SOUNDBUFFER_Impl::GetUserVolume() const
+{
+	if (!this->isStreaming)
+	{
+		return Config::EffectsVolume.Value;
+	}
+
+	switch (mSourceType)
+	{
+	case SOURCE_TYPE_MUSIC:
+		return Config::MusicVolume.Value;
+	case SOURCE_TYPE_EVENTS:
+	case SOURCE_TYPE_SFD:
+		return Config::CutsceneVolume.Value;
+	default:
+		return Config::VoicesVolume.Value;
+	}
+}
+
+// TObjBGM = Music or Event
+// TObjSERIF = Voice
+// Anything else = SFD
+void SHTHR_SOUNDBUFFER_Impl::DetermineStreamType()
+{
+	auto base = g_memory.base;
+	const uint32_t bgm = FindIsndObject(g_TOBJBGM, BGM_ADXT, keyBuffer);
+	if (bgm)
+	{
+		const std::string name = GetAdxtFileName(X86_LOAD_U32(bgm + BGM_ADXT));
+		mSourceType = IsEventTrack(name) ? SOURCE_TYPE_EVENTS : SOURCE_TYPE_MUSIC;
+	}
+	else if (FindIsndObject(g_TOBJSERIF, SERIF_ADXT, keyBuffer))
+	{
+		mSourceType = SOURCE_TYPE_VOICES;
+	}
+	else if (this->isStreaming)
+	{
+		mSourceType = SOURCE_TYPE_SFD;
+	}
 }
 
 int SHTHR_SOUNDBUFFER_Impl::GetStatus(uint32_t* pdwStatus)
@@ -937,22 +1030,7 @@ int SHTHR_SOUNDBUFFER_Impl::Play(int dwReserved1, int dwPriority, uint32_t dwFla
 	this->mPlay = true;
 	this->mPlayFlags = dwFlags;
 
-	// this is a fragile solution needed for dynamic volume change
-	// but this is the best I have until we figure out properly how to identify voice and music 
-	if (this->isStreaming)
-	{
-		if (PlayMusic.exchange(false))
-		{
-			mSourceType = SOURCE_TYPE_MUSIC;
-			mForceUpdateVolume = true; // because the game re use same buffer for different sound / music always fire a volume update once.
-		}
-		else if (mSourceType != SOURCE_TYPE_MUSIC)
-		{
-			mSourceType = SOURCE_TYPE_VOICES;
-			mForceUpdateVolume = true;
-		}
-	}
-
+	DetermineStreamType();
 
 	if ((dwFlags & X_DSBPLAY_FROMSTART)) {
 		mBufferReadLoc = 0;
@@ -1036,8 +1114,7 @@ void SHTHR_SOUNDBUFFER_Impl::CalcVolumeLinear()
 	const float volScale = this->GetCaps() & XTL_DSBCAPS_CTRL3D ? SFX_3DVOLUME_SCALE : SFX_VOLUME_SCALE;
 	if (this->isStreaming == false)
 	{
-		// SFX tend to be way too loud so we scale them in addition to the user config
-		mVolumeLinear = static_cast<int>(mVolumeLinear * volScale * Config::EffectsVolume.Value);
+		mVolumeLinear = static_cast<int>(mVolumeLinear * volScale);
 	}
 
 	// Clamp
@@ -1313,25 +1390,4 @@ int32_t SHTHRSoundCreate(SHTHR_SOUNDDEVICE** ppDevice)
 	ppDS = device;
 	LOGN_UTILITY("Created sound device");
 	return key;
-}
-
-// hack to detect if we're about to play a music
-// TObjBGM::Play
-X86_FUNC_IMPL(__imp__sub_25CBB0);
-X86_FUNC(sub_25CBB0)
-{
-	auto specialMode = X86_LOAD_U8(ctx.ecx.u32 + 0x2A);
-	bool valid = specialMode == 2;
-	auto bgmTaskAddr = GetHostParameter(1, CallConvention::Thiscall, ParameterType::Pointer);
-
-
-	if (valid == false)
-	{
-		char* s = (char*)(base + ctx.ecx.u32 + 0x50);
-		valid = strlen(s) > 0;
-	}
-	__imp__sub_25CBB0(ctx, base);
-
-	if (valid)
-		PlayMusic = true;
 }

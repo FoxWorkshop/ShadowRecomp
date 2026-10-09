@@ -2,6 +2,7 @@
 #include <user/config.h>
 #include <gpu/video.h>
 #include <app.h>
+#include <patches/global.h>
 #include <patches/patch_utils.h>
 
 const uint32_t g_deltaTime = 0x541FA8;
@@ -9,7 +10,8 @@ const uint32_t g_refRate = 0x54DD80;
 const uint32_t g_frameRateDivisor = 0x54DD40;
 const uint32_t g_maxFrames = 0x54DD64; // Most frames' worth of time one frame can count for.
 
-static bool g_isEventPlaying = false;
+static bool g_isEventPlaying = false; // Note for future self, we CANNOT use this for audio detection
+thread_local bool g_isStartingEventAudio = false;
 void SetFramerateMidAsmHook()
 {
 	auto base = g_memory.base;
@@ -58,8 +60,9 @@ X86_FUNC_IMPL(__imp__sub_228740);
 X86_FUNC(sub_228740)
 {
 	g_isEventPlaying = true;
+	g_isStartingEventAudio = true; // This is different from g_isEventPlaying because of in-stage event invoke and chained event audio (last story)
 	__imp__sub_228740(ctx, base);
-
+	g_isStartingEventAudio = false;
 }
 
 // TPjsEventActionManager Destructor

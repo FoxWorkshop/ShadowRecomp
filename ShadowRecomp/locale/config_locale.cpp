@@ -417,6 +417,16 @@ CONFIG_DEFINE_LOCALE(VoicesVolume)
     { ELanguage::Italian,  { "Volume delle voci", "Regola il volume delle voci." } },
 };
 
+CONFIG_DEFINE_LOCALE(CutsceneVolume)
+{
+    { ELanguage::English,  { "Cutscene Volume", "Adjust the volume for cutscenes." } },
+    { ELanguage::Japanese, { "Cutscene Volume", "Adjust the volume for cutscenes." } },
+    { ELanguage::German,   { "Cutscene Volume", "Adjust the volume for cutscenes." } },
+    { ELanguage::French,   { "Cutscene Volume", "Adjust the volume for cutscenes." } },
+    { ELanguage::Spanish,  { "Cutscene Volume", "Adjust the volume for cutscenes." } },
+    { ELanguage::Italian,  { "Cutscene Volume", "Adjust the volume for cutscenes." } }
+};
+
 CONFIG_DEFINE_LOCALE(MuteOnFocusLost)
 {
     { ELanguage::English, { "Mute on Focus Lost", "Mute the game's audio when the window is not in focus." } },

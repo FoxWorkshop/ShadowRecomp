@@ -104,9 +104,7 @@ X86_FUNC(sub_25FEC0)
 
 /* --MUSIC RACE ISSUE PATCH-- */
 
-static constexpr uint32_t RNA_PORT = 0x50; // mwSnd port handle
 static constexpr uint32_t PORT_IN_USE = 0x04;
-static constexpr uint32_t PORT_BUFFER = 0x08; // used as a guest key for IDirectSoundBuffer
 static constexpr uint32_t MAX_PLAY_RETRIES = 16; // about 0.27s at 60Hz
 
 static std::unordered_map<uint32_t, uint32_t> g_rnaPlayRetries;

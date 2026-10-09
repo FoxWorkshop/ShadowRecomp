@@ -2,6 +2,10 @@
 const int32_t ppDSAddr = 0x550310;
 const int32_t ppDSEventAddr = 0x5611C0;
 
+// CRI ADX
+static constexpr uint32_t RNA_PORT = 0x50; // mwSnd port handle
+static constexpr uint32_t PORT_BUFFER = 0x8; // used as a guest key for IDirectSoundBuffer
+
 //#define XAUDIO_SAMPLES_HZ     24000      
 #define XAUDIO_SAMPLES_HZ     48000 
 #define XAUDIO_NUM_CHANNELS   2          

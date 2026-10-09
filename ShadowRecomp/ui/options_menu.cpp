@@ -1720,6 +1720,7 @@ static void DrawOptions(ImVec2 minClipRect, ImVec2 maxClipRect, ImVec2 min, ImVe
 		DrawOption(rowCount++, &Config::MasterVolume, true, min, max);
 		DrawOption(rowCount++, &Config::MusicVolume, true, min, max);
 		DrawOption(rowCount++, &Config::VoicesVolume, true, min, max);
+		DrawOption(rowCount++, &Config::CutsceneVolume, true, min, max);
 		DrawOption(rowCount++, &Config::EffectsVolume, true, min, max);
 		DrawOption(rowCount++, &Config::MuteOnFocusLost, true, min, max);
 		DrawOption(rowCount++, &Config::IdleChaosPowersMusic, true, min, max);

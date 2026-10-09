@@ -50,6 +50,7 @@ struct WeightedMesh
 typedef RwMatrixTag RwMatrix;
 
 extern bool isAwakeAboutToInvoke;
+extern thread_local bool g_isStartingEventAudio;
 extern uint32_t g_multiplayerPlayerCount;
 extern uint32_t g_playerStructAddrs[4];
 RwV3d* GetPlayerPos(uint32_t slot);
