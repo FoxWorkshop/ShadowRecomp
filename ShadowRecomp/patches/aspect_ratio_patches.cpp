@@ -1386,7 +1386,7 @@ const xxHashMap<CsdModifier> g_csdModifiers =
 
 	// mission result
 	{ HashStr("csdFiles/Result_EN.xncp/Main"), { CSD_UNSTRETCH | CSD_ALIGN_CENTRE } },
-	{ HashStr("csdFiles/Result_EN.xncp/Main/result"), { CSD_UNSTRETCH | CSD_ALIGN_SELF_H } },
+	{ HashStr("csdFiles/Result_EN.xncp/Main/result"), { CSD_UNSTRETCH | CSD_ALIGN_LEFT } },
 	{ HashStr("csdFiles/Result_EN.xncp/Rank"), { CSD_UNSTRETCH | CSD_ALIGN_CENTRE } },
 	{ HashStr("csdFiles/Result_FR.xncp/Main"), { CSD_UNSTRETCH | CSD_ALIGN_CENTRE } },
 	{ HashStr("csdFiles/Result_FR.xncp/Rank"), { CSD_UNSTRETCH | CSD_ALIGN_CENTRE } },
