@@ -92,6 +92,10 @@ enum CsdFlags : uint64_t
     // Unstretch the quad around its own center
     CSD_ALIGN_SELF_H = MAKE_BITFLAG64(17),
 
+    // Edge case exclusively used for the black box with low opacity on the main menu
+	// It needs to extend to the edges of the screen like on 4:3.
+    CSD_EXTEND_EDGE_H = MAKE_BITFLAG64(18),
+
 
     CSD_CENTER_UNSTRETCH = CSD_UNSTRETCH | CSD_ALIGN_CENTRE,
 

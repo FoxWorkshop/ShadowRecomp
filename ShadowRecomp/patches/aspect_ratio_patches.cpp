@@ -627,6 +627,12 @@ static bool UnstretchPrimitive(void* vertexData, uint32_t count, uint64_t flags,
 
 		verts[i].x = mapX(shouldBeOutOfBound ? saved.X[0] : verts[i].x);
 		verts[i].y = mapY(shouldBeOutOfBound ? saved.Y[0] : verts[i].y);
+
+		// Edge case for black box on main menu where it stops around half of the screen at high resolution 
+		// when it should normally take the whole background.
+		const bool isOnEdge = saved.X[i] <= 1.0f || saved.X[i] >= widthMin - 1.0f;
+		if ((flags & CSD_EXTEND_EDGE_H) != 0 && !shouldBeOutOfBound && isOnEdge)
+			verts[i].x = saved.X[i];
 	}
 
 	saved.Active = true;
@@ -1298,6 +1304,7 @@ const xxHashMap<CsdModifier> g_csdModifiers =
 	// Library (also contains menu for new game / continue / last story / expert)
 	{ HashStr("csdFiles/Story_Library.xncp/StoryMode/Window"), { CSD_UNSTRETCH | CSD_ALIGN_CENTRE } },
 	{ HashStr("csdFiles/Story_Library.xncp/StoryRoute/StoryRoute"), { CSD_UNSTRETCH | CSD_ALIGN_CENTRE } },
+	{ HashStr("csdFiles/Story_Library.xncp/StoryRoute/StoryRoute/blkcover"), { CSD_UNSTRETCH | CSD_ALIGN_CENTRE | CSD_EXTEND_EDGE_H } }, // black box low opacity that needs special fix 
 	{ HashStr("csdFiles/Story_Library.xncp/StoryRoute/SRIcons"), { CSD_UNSTRETCH | CSD_ALIGN_CENTRE } },
 	{ HashStr("csdFiles/Story_Library.xncp/StoryRoute/SRIconsBG"), { CSD_UNSTRETCH | CSD_ALIGN_CENTRE } },
 	{ HashStr("csdFiles/Story_Library.xncp/Buttons/Buttons"), { CSD_UNSTRETCH | CSD_ALIGN_CENTRE } },
