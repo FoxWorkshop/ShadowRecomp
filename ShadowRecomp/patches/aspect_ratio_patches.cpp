@@ -824,6 +824,24 @@ struct HudNumberState
 static HudNumberState g_hudNumber{};
 static bool g_isInStageMode = false;
 
+// The stage select CSD is squeezed towards the center, so the player's best time
+// which drawn on top of it have to be moved to the same spot
+static float StageSelectUnstretchX(float x)
+{
+	if (Config::UIAlignmentMode.Value == EUIAlignmentMode::Stretch || g_hudUnstretchX >= 1.0f)
+		return x;
+
+	return widthMin * 0.5f + (x - widthMin * 0.5f) * g_hudUnstretchX;
+}
+
+static float StageSelectUnstretchY(float y)
+{
+	if (Config::UIAlignmentMode.Value == EUIAlignmentMode::Stretch || g_hudUnstretchY >= 1.0f)
+		return y;
+
+	return heightMin * 0.5f + (y - heightMin * 0.5f) * g_hudUnstretchY;
+}
+
 static void BeginHudNumber(uint32_t font, float x, float y, uint32_t text, uint32_t align)
 {
 	g_hudNumber = {};
@@ -852,15 +870,15 @@ static void BeginHudNumber(uint32_t font, float x, float y, uint32_t text, uint3
 
 	g_hudNumber.Flags = flags;
 
-	// For now we aren't patching CSD on the stage select menu.
-	// So prevent moving the personal record of the player to avoid wrong offset.
-
+	// Stage select PBs text already draw in a centered 4:3 format
+	// Patch it to match the CSD layout so it doesn't get misaligned
 	if (g_isInStageMode)
 	{
 		const float glyphHeight = X86_LOAD_F32(font + hudNumberGlyphHeight) * X86_LOAD_F32(font + hudNumberGlyphScaleY);
+		const float bottom = y + glyphHeight;
 
-		g_hudNumber.Anchor = CsdAnchor{ x, x };
-		g_hudNumber.AnchorY = CsdAnchor{ y + glyphHeight, y + glyphHeight };
+		g_hudNumber.Anchor = CsdAnchor{ x, StageSelectUnstretchX(x) };
+		g_hudNumber.AnchorY = CsdAnchor{ bottom, StageSelectUnstretchY(bottom) };
 		return;
 	}
 
@@ -1313,35 +1331,14 @@ const xxHashMap<CsdModifier> g_csdModifiers =
 	{ HashStr("csdFiles/Story_Library.xncp/Background/Background"), { CSD_UNSTRETCH | CSD_ALIGN_SELF_H } }, // "LIBRARY" Text in the corner
 
 	// Stage select mode
-		/**{ HashStr("csdFiles/SelectMode.xncp/IconsBG"), { CSD_UNSTRETCH | CSD_ALIGN_CENTRE } },
-	{ HashStr("csdFiles/SelectMode.xncp/Star"), { CSD_UNSTRETCH | CSD_ALIGN_CENTRE } },
-	/**{ HashStr("csdFiles/SelectMode.xncp/IconsBG"), { CSD_UNSTRETCH | CSD_ALIGN_CENTRE } },
-	{ HashStr("csdFiles/SelectMode.xncp/Star"), { CSD_UNSTRETCH | CSD_ALIGN_CENTRE } },
-
-	{HashStr("csdFiles/SelectMode.xncp/SelectMode/text_bg_top"), {CSD_UNSTRETCH | CSD_ALIGN_CENTRE}},
-	{ HashStr("csdFiles/SelectMode.xncp/SelectMode/text_bg_bottom"), { CSD_UNSTRETCH | CSD_ALIGN_SELF_H } },
-	{ HashStr("csdFiles/SelectMode.xncp/SelectMode/text_bg_bottom/bg2"), { CSD_UNSTRETCH | CSD_ALIGN_SELF_H } },
+	{ HashStr("csdFiles/SelectMode.xncp/SelectMode"), { CSD_CENTER_UNSTRETCH } },
+	{ HashStr("csdFiles/SelectMode.xncp/SelectMode/bg"), { CSD_NONE } },
+	{ HashStr("csdFiles/SelectMode.xncp/SelectMode/text_bg_top"), { CSD_NONE } },
+	{ HashStr("csdFiles/SelectMode.xncp/SelectMode/text_bg_bottom"), { CSD_NONE } },
+	{ HashStr("csdFiles/SelectMode.xncp/SelectMode/text_bg_bottom/bg2"), { CSD_NONE } },
 	{ HashStr("csdFiles/SelectMode.xncp/SelectMode/title"), { CSD_UNSTRETCH | CSD_ALIGN_SELF_H } },
-	{ HashStr("csdFiles/SelectMode.xncp/SelectMode/Null_lines"), { CSD_UNSTRETCH | CSD_ALIGN_CENTRE } },
-	{ HashStr("csdFiles/SelectMode.xncp/SelectMode/text"), { CSD_UNSTRETCH | CSD_ALIGN_SELF_H } },
-	{ HashStr("csdFiles/SelectMode.xncp/SelectMode/rank_hero"), { CSD_UNSTRETCH | CSD_ALIGN_CENTRE } },
-	{ HashStr("csdFiles/SelectMode.xncp/SelectMode/rank_normal"), { CSD_UNSTRETCH | CSD_ALIGN_CENTRE } },
-	{ HashStr("csdFiles/SelectMode.xncp/SelectMode/rank_dark"), { CSD_UNSTRETCH | CSD_ALIGN_CENTRE } },
-	{ HashStr("csdFiles/SelectMode.xncp/SelectMode/key_no"), { CSD_UNSTRETCH | CSD_ALIGN_CENTRE } },
-	{ HashStr("csdFiles/SelectMode.xncp/SelectMode/Null_hero_result"), { CSD_UNSTRETCH | CSD_ALIGN_CENTRE } },
-	{ HashStr("csdFiles/SelectMode.xncp/SelectMode/Null_normal_result"), { CSD_UNSTRETCH | CSD_ALIGN_CENTRE } },
-	{ HashStr("csdFiles/SelectMode.xncp/SelectMode/Null_dark_result"), { CSD_UNSTRETCH | CSD_ALIGN_CENTRE } },
-	{ HashStr("csdFiles/SelectMode.xncp/SelectMode/mpic_shadow"), { CSD_UNSTRETCH | CSD_ALIGN_CENTRE } },
-	{ HashStr("csdFiles/SelectMode.xncp/SelectMode/mission_picture"), { CSD_UNSTRETCH | CSD_ALIGN_CENTRE } },
-	{ HashStr("csdFiles/SelectMode.xncp/SelectMode/key1"), { CSD_UNSTRETCH | CSD_ALIGN_CENTRE } },
-	{ HashStr("csdFiles/SelectMode.xncp/SelectMode/key2"), { CSD_UNSTRETCH | CSD_ALIGN_CENTRE } },
-	{ HashStr("csdFiles/SelectMode.xncp/SelectMode/key3"), { CSD_UNSTRETCH | CSD_ALIGN_CENTRE } },
-	{ HashStr("csdFiles/SelectMode.xncp/SelectMode/key4"), { CSD_UNSTRETCH | CSD_ALIGN_CENTRE } },
-	{ HashStr("csdFiles/SelectMode.xncp/SelectMode/key5"), { CSD_UNSTRETCH | CSD_ALIGN_CENTRE } },
-	{ HashStr("csdFiles/SelectMode.xncp/SelectMode/exit_button"), { CSD_UNSTRETCH | CSD_ALIGN_BOTTOM_CENTRE } },
-	{ HashStr("csdFiles/SelectMode.xncp/SelectMode/exit_button/exit_text"), { CSD_UNSTRETCH | CSD_ALIGN_BOTTOM_CENTRE } },
-	{ HashStr("csdFiles/SelectMode.xncp/SelectMode/select_button"), { CSD_UNSTRETCH | CSD_ALIGN_BOTTOM_CENTRE } },
-	{ HashStr("csdFiles/SelectMode.xncp/SelectMode/select_button/select_text"), { CSD_UNSTRETCH | CSD_ALIGN_BOTTOM_CENTRE } },*/
+	{ HashStr("csdFiles/SelectMode.xncp/IconsBG"), { CSD_CENTER_UNSTRETCH } },
+	{ HashStr("csdFiles/SelectMode.xncp/Star"), { CSD_CENTER_UNSTRETCH } },
 
 	
 	// stage card
@@ -1833,8 +1830,15 @@ static Rt2dFontUnstretch g_rt2dFontUnstretch{};
 static bool ShouldUnstretchRt2dFont()
 {
 
-	if (App::s_gamemode != -1 && !g_isInStageMode)
+	if (g_isInStageMode)
+	{
+		if (Config::UIAlignmentMode.Value != EUIAlignmentMode::Stretch)
+			return false;
+	}
+	else if (App::s_gamemode != -1)
+	{
 		return false;
+	}
 
 	float aspectRatio = 0.0f;
 
