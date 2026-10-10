@@ -30,6 +30,7 @@ struct AspectRatioPatches
     static void ComputeOffsets();
 };
 void UpdateUserConfigConstant(bool toggle);
+ImVec2 GuestTextToViewport(float x, float y);
 
 // -------------- CSD MODIFIERS --------------- //
 

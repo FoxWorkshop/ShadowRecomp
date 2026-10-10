@@ -12,5 +12,6 @@ public:
     static void Draw();
     static bool Open(std::string text, int* result, std::span<std::string> buttons = {}, int defaultButtonIndex = 0, int cancelButtonIndex = 1, bool hideFrame = false, bool guestHasControl = false);
     static void SetSelection(int index);
+    static void SetLayout(ImVec2 textAnchor, std::span<ImVec2> buttonAnchors);
     static void Close(bool immediate = false);
 };

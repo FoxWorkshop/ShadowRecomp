@@ -48,6 +48,10 @@ static bool g_leftWasHeld;
 static bool g_rightWasHeld;
 static bool g_hideFrame = false;
 static bool g_guestHasControl = false;
+
+static bool g_hasLayout = false;
+static ImVec2 g_textAnchor;
+static std::vector<ImVec2> g_buttonAnchors;
 const float sclFontSize = 25.f;
 
 
@@ -189,6 +193,13 @@ void DrawMessageInWindow(const char* text, ImVec2 center, ImVec2 size)
 		textY += Scale(lines.size() % 2 == 0 ? 1.5f : 8.0f);
 	}
 
+	if (g_hasLayout)
+	{
+		// left align to match og advertise style
+		textX = center.x - textSize.x / 2;
+		textY = center.y - (textSize.y - Scale(lineMargin)) / 2;
+	}
+
 	if (App::s_isInit)
 		SetShaderModifier(IMGUI_SHADER_MODIFIER_LOW_QUALITY_TEXT);
 
@@ -211,7 +222,7 @@ void DrawMessageInWindow(const char* text, ImVec2 center, ImVec2 size)
 			// DrawTextWithShadow(g_fntSeurat, size, pos, IM_COL32(255, 255, 255, 255), str, 3.f, 0.5f);
 		},
 
-		true
+		!g_hasLayout
 		);
 
 	if (App::s_isInit)
@@ -239,10 +250,16 @@ void DrawButton(int rowIndex, float yOffset, float width, float height, std::str
 	ImVec2 max = { min.x + width, min.y + height };
 
 	bool isSelected = rowIndex == g_selectedRowIndex;
-
-
 	auto fontSize = Scale(sclFontSize);
 	auto textSize = g_fntSeurat->CalcTextSizeA(fontSize, FLT_MAX, 0, text.c_str());
+
+	ImVec2 textPos = { min.x + ((max.x - min.x) - textSize.x) / 2, min.y + ((max.y - min.y) - textSize.y) / 2 };
+	if (g_hasLayout && rowIndex < g_buttonAnchors.size())
+	{
+		auto& res = ImGui::GetIO().DisplaySize;
+		auto& anchor = g_buttonAnchors[rowIndex];
+		textPos = { res.x * anchor.x - textSize.x / 2, res.y * anchor.y - textSize.y / 2 };
+	}
 
 	// Show low quality text in-game.
 	if (App::s_isInit)
@@ -252,7 +269,7 @@ void DrawButton(int rowIndex, float yOffset, float width, float height, std::str
 	(
 		g_fntSeurat,
 		fontSize,
-		{ /* X */ min.x + ((max.x - min.x) - textSize.x) / 2, /* Y */ min.y + ((max.y - min.y) - textSize.y) / 2 },
+		textPos,
 		isSelected ? IM_COL32(234, 234, 69, 255) : IM_COL32(255, 255, 255, 255),
 		text.c_str()
 	);
@@ -350,6 +367,7 @@ bool MessageWindow::Open(std::string text, int* result, std::span<std::string> b
 
 
 		g_result = -1;
+		g_hasLayout = false;
 		g_hideFrame = hideFrame;
 		g_guestHasControl = guestHasControl;
 		g_isAwaitingResult = true;
@@ -427,6 +445,12 @@ void MessageWindow::Draw()
 	DrawGameStyleMessageBox(centre, max);
 
 	centre = { res.x / 2, res.y / 2 * 0.8f };
+
+	if (g_hasLayout)
+	{
+		centre = { res.x * g_textAnchor.x, res.y * g_textAnchor.y };
+	}
+
 	DrawMessageInWindow(g_text.c_str(), centre, max);
 
 	if (isController || isKeyboard)
@@ -507,6 +531,13 @@ void MessageWindow::Draw()
 void MessageWindow::SetSelection(int index)
 {
 	g_selectedRowIndex = index;
+}
+
+void MessageWindow::SetLayout(ImVec2 textAnchor, std::span<ImVec2> buttonAnchors)
+{
+	g_hasLayout = true;
+	g_textAnchor = textAnchor;
+	g_buttonAnchors.assign(buttonAnchors.begin(), buttonAnchors.end());
 }
 
 void MessageWindow::Close(bool immediate)

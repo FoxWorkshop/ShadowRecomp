@@ -1,5 +1,6 @@
 #include <kernel/function.h>
 #include <locale/locale.h>
+#include <patches/aspect_ratio_patches.h>
 #include <ui/message_window.h>
 #include <user/config.h>
 
@@ -18,6 +19,16 @@ static constexpr uint32_t DESCRIPTOR_OPTION_COUNT = 0x04;
 static constexpr uint32_t DESCRIPTOR_DEFAULT_OPTION = 0x08;
 static constexpr uint32_t DESCRIPTOR_OPTION_TEXT_IDS = 0x10;
 static constexpr uint32_t DESCRIPTOR_RESULT_CODES = 0x1C;
+
+static constexpr uint32_t GUEST_MESSAGE_ORIGIN = 0x529BE4;
+static constexpr uint32_t GUEST_MESSAGE_TEXT_OFFSET = 0x529BEC;
+static constexpr uint32_t GUEST_MESSAGE_TEXT_HEIGHT = 0x47AB04;
+static constexpr uint32_t GUEST_OPTION_ROWS = 0x47B608;
+static constexpr uint32_t GUEST_OPTION_ROW_DROP = 0x42BD24;
+static constexpr uint32_t GUEST_TEXT_SCALE_X = 0x42A9B4;
+static constexpr uint32_t TEXT_DRAWER_FONTS = 0x4;
+static constexpr uint32_t TEXT_DRAWER_FONT_COUNT = 10;
+static constexpr uint32_t FONT_BASELINE = 0x8;
 
 struct CustomMessage
 {
@@ -240,6 +251,51 @@ X86_FUNC(sub_2A6020)
 }
 
 
+// matching sub_3065C0
+static float GetGuestGlyphCentreY(uint8_t* base, uint32_t message)
+{
+	auto drawer = X86_LOAD_U32(message);
+	auto refCount = X86_LOAD_U32(message + 0x4);
+	if (refCount == 0 || X86_LOAD_U32(refCount + 0x4) == 0)
+	{
+		return 0.0f;
+	}
+
+	for (uint32_t i = 0; i < TEXT_DRAWER_FONT_COUNT; i++)
+	{
+		auto font = X86_LOAD_U32(drawer + TEXT_DRAWER_FONTS + i * 0x8);
+		if (font != 0)
+		{
+			return 0.5f - X86_LOAD_F32(font + FONT_BASELINE);
+		}
+	}
+	return 0.0f;
+}
+
+// match the game's text and option positions
+// sub_1E5A0
+// sub_2A6020
+static void SetGuestMessageLayout(uint8_t* base, uint32_t message, size_t optionCount)
+{
+	auto originX = X86_LOAD_F32(GUEST_MESSAGE_ORIGIN);
+	auto originY = X86_LOAD_F32(GUEST_MESSAGE_ORIGIN + 0x4) + X86_LOAD_F32(GUEST_MESSAGE_TEXT_HEIGHT) * GetGuestGlyphCentreY(base, message);
+	auto scaleX = X86_LOAD_F32(GUEST_TEXT_SCALE_X);
+	auto textX = originX + X86_LOAD_F32(GUEST_MESSAGE_TEXT_OFFSET);
+	auto textY = originY + X86_LOAD_F32(GUEST_MESSAGE_TEXT_OFFSET + 0x4);
+
+	// buttons
+	auto row = GUEST_OPTION_ROWS + optionCount * 0x8;
+	auto buttonY = originY - X86_LOAD_F32(GUEST_OPTION_ROW_DROP);
+	std::vector<ImVec2> buttons;
+	for (size_t i = 0; i < optionCount; i++)
+	{
+		auto buttonX = originX + X86_LOAD_F32(row) + X86_LOAD_F32(row + 0x4) * i;
+		buttons.push_back(GuestTextToViewport(buttonX * scaleX, buttonY));
+	}
+
+	MessageWindow::SetLayout(GuestTextToViewport(textX * scaleX, textY), buttons);
+}
+
 static void ShowCustomMessage(uint8_t* base, const CustomMessage& custom, uint32_t message, int32_t index)
 {
 	auto descriptor = GUEST_MESSAGE_DESCRIPTORS + index * GUEST_MESSAGE_DESCRIPTOR_SIZE;
@@ -261,6 +317,7 @@ static void ShowCustomMessage(uint8_t* base, const CustomMessage& custom, uint32
 
 	MessageWindow::Open(Localise(custom.LocaleKey), &g_messageResult, options, selection, lastOption, true, true);
 	MessageWindow::SetSelection(selection); // set user's input for button choice
+	SetGuestMessageLayout(base, message, options.size());
 }
 
 // hack: prevent the game to draw its own text replace with our own one instead

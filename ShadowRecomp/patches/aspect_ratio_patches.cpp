@@ -1854,6 +1854,17 @@ static bool ShouldUnstretchRt2dFont()
 	return true;
 }
 
+ImVec2 GuestTextToViewport(float x, float y)
+{
+	ImVec2 pos = { x / nativeAspectRatio, 1.0f - y };
+	if (!ShouldUnstretchRt2dFont())
+	{
+		pos.x = 0.5f + (pos.x - 0.5f) * g_hudUnstretchX;
+		pos.y = 0.5f + (pos.y - 0.5f) * g_hudUnstretchY;
+	}
+	return pos;
+}
+
 static void UnstretchRt2dVertices(uint32_t verts, uint32_t count)
 {
 	if (verts == 0 || count == 0 || count > 0x10000)
