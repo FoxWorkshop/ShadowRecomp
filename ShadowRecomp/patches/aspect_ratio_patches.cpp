@@ -1294,7 +1294,7 @@ const xxHashMap<CsdModifier> g_csdModifiers =
 
 	// Title Screen
 	{ HashStr("csdFiles/honban.xncp/Title"), { CSD_UNSTRETCH | CSD_ALIGN_CENTRE } },
-	{ HashStr("csdFiles/honban.xncp/Loop/ultimate"), { CSD_ALIGN_SELF_H | CSD_UNSTRETCH } },
+	{ HashStr("csdFiles/honban.xncp/Loop/ultimate"), { CSD_UNSTRETCH | CSD_ALIGN_LEFT } },
 
 	// the logo animation stretch and take the whole screen which would treat it as "background", so we force unstretch mode to keep the scaled size.
 	{ HashStr("csdFiles/honban.xncp/Title/title2"), { CSD_CENTER_UNSTRETCH | CSD_FORCE_UNSTRETCH } },
