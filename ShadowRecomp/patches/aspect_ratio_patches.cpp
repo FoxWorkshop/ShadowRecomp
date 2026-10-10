@@ -1333,6 +1333,7 @@ const xxHashMap<CsdModifier> g_csdModifiers =
 	// Stage select mode
 	{ HashStr("csdFiles/SelectMode.xncp/SelectMode"), { CSD_CENTER_UNSTRETCH } },
 	{ HashStr("csdFiles/SelectMode.xncp/SelectMode/bg"), { CSD_NONE } },
+	{ HashStr("csdFiles/SelectMode.xncp/SelectMode/title"), { CSD_UNSTRETCH | CSD_ALIGN_LEFT } },
 	{ HashStr("csdFiles/SelectMode.xncp/SelectMode/text_bg_top"), { CSD_NONE } },
 	{ HashStr("csdFiles/SelectMode.xncp/SelectMode/text_bg_bottom"), { CSD_NONE } },
 	{ HashStr("csdFiles/SelectMode.xncp/SelectMode/text_bg_bottom/bg2"), { CSD_NONE } },
