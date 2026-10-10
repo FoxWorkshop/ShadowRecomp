@@ -816,6 +816,7 @@ std::unordered_map<std::string_view, std::unordered_map<ELanguage, std::string>>
             { ELanguage::Italian,  "" }
         }
     },
+    // Notes: on load if the save file is corrupted
     {
         "Title_Message_SaveDamaged",
         {
@@ -825,6 +826,30 @@ std::unordered_map<std::string_view, std::unordered_map<ELanguage, std::string>>
             { ELanguage::French,   "Les données de jeu sont endommagées.\nAppuyer sur A pour continuer." },
             { ELanguage::Spanish,  "The Game Data is damaged\nand cannot be used.\nPress A button to continue." },
             { ELanguage::Italian,  "The Game Data is damaged\nand cannot be used.\nPress A button to continue." },
+        }
+    },
+    // Notes: same as above but without "Press A"
+    {
+        "Title_Message_SaveDamagedNoA",
+        {
+            { ELanguage::English,  "The Game Data is damaged\nand cannot be used." },
+            { ELanguage::Japanese, "The Game Data is damaged\nand cannot be used." },
+            { ELanguage::German,   "Spieldaten sind beschädigt und\nkönnen nicht verwendet werden." },
+            { ELanguage::French,   "Les données de jeu sont endommagées." },
+            { ELanguage::Spanish,  "Los datos de juego están dañados." },
+            { ELanguage::Italian,  "I dati di gioco sono danneggiati." },
+        }
+    },
+    // Notes: If the game fails to save, rw lock or otherwise
+    {
+        "Title_Message_SaveFailed",
+        {
+            { ELanguage::English,  "Save failed." },
+            { ELanguage::Japanese, "Save failed." },
+            { ELanguage::German,   "Speichern gescheitert." },
+            { ELanguage::French,   "Echec de la sauvegarde." },
+            { ELanguage::Spanish,  "Error al guardar." },
+            { ELanguage::Italian,  "Salvataggio fallito." },
         }
     },
     {
@@ -885,6 +910,174 @@ std::unordered_map<std::string_view, std::unordered_map<ELanguage, std::string>>
             { ELanguage::French,   "Continuez sans sauvegarder ?" },
             { ELanguage::Spanish,  "Continue without saving ?" },
             { ELanguage::Italian,  "Continue without saving ?" },
+        }
+    },
+    {
+        // Notes: message appears when choosing restart in a stage.
+        "Pause_Message_Restart",
+        {
+            { ELanguage::English,  "Are you sure you want to restart the\nstage? Your progress in the current\nstage will be lost if you restart." },
+            { ELanguage::Japanese, "Are you sure you want to restart the\nstage? Your progress in the current\nstage will be lost if you restart." },
+            { ELanguage::German,   "Sind Sie sicher das Sie die Ebene\nneu beginnen wollen? Der Spielfortschritt\ndieser Ebene wird dabei gelöscht." },
+            { ELanguage::French,   "Recommencer l'étape ?\nVotre progression sur cette étape\nsera perdue si vous recommencez." },
+            { ELanguage::Spanish,  "¿Quieres volver a empezar esta etapa?\nTodo el progreso en esta etapa se\nperderá si vuelves a empezar." },
+            { ELanguage::Italian,  "Sicuro di voler ricominciare il quadro?\nI progressi di questo quadro andranno\npersi se ricominci." },
+        }
+    },
+    {
+        // Notes: message appears when choosing quit in a stage.
+        "Pause_Message_Quit",
+        {
+            { ELanguage::English,  "Are you sure you want to quit the game?\nYour progress in the current stage\nwill be lost if you quit." },
+            { ELanguage::Japanese, "Are you sure you want to quit the game?\nYour progress in the current stage\nwill be lost if you quit." },
+            { ELanguage::German,   "Sind Sie sicher das Sie das Spiel\nabbrechen wollen?\nSie verlieren dabei Ihren Fortschritt\nin dieser Ebene." },
+            { ELanguage::French,   "Quitter la partie ?\nVotre progression sur cette étape\nsera perdue si vous quittez." },
+            { ELanguage::Spanish,  "¿Quieres abandonar la partida?\nTodo el progreso en esta etapa se\nperderá si abandonas." },
+            { ELanguage::Italian,  "Sicuro di voler uscire dal gioco?\nI progressi di questo quadro andranno\npersi se esci dal gioco." },
+        }
+    },
+    {
+        "Unlock_Message_LastStory",
+        {
+            { ELanguage::English,  "LAST STORY unlocked!" },
+            { ELanguage::Japanese, "LAST STORY unlocked!" },
+            { ELanguage::German,   "LETZTE STORY freigeschaltet!" },
+            { ELanguage::French,   "DERNIERE HISTOIRE déverrouillée !" },
+            { ELanguage::Spanish,  "¡HISTORIA FINAL desbloqueada!" },
+            { ELanguage::Italian,  "STORIA FINALE sbloccata!" },
+        }
+    },
+    {
+        // Notes: the '.' in "EXPERT MODE." is an English only original typo
+        "Unlock_Message_ExpertMode",
+        {
+            { ELanguage::English,  "EXPERT MODE unlocked!" },
+            { ELanguage::Japanese, "EXPERT MODE unlocked!" },
+            { ELanguage::German,   "EXPERTEN-MODUS freigeschaltet!" },
+            { ELanguage::French,   "MODE EXPERT déverrouillé !" },
+            { ELanguage::Spanish,  "¡MODO EXPERTO desbloqueado!" },
+            { ELanguage::Italian,  "MODALITÀ ESPERTO sbloccata!" },
+        }
+    },
+    {
+        "Unlock_Message_SamuraiBladeLv1",
+        {
+            { ELanguage::English,  "You unlocked \"Samurai Blade\"." },
+            { ELanguage::Japanese, "You unlocked \"Samurai Blade\"." },
+            { ELanguage::German,   "Du hast \"Samurai Blade\" freigeschaltet." },
+            { ELanguage::French,   "Vous avez déverrouillé \"Samurai Blade\"." },
+            { ELanguage::Spanish,  "Has desbloqueado \"Samurai Blade\"." },
+            { ELanguage::Italian,  "Hai sbloccato \"Samurai Blade\"." },
+        }
+    },
+    {
+        "Unlock_Message_SamuraiBladeLv2",
+        {
+            { ELanguage::English,  "\"Samurai Blade\" is now Level 2." },
+            { ELanguage::Japanese, "\"Samurai Blade\" is now Level 2." },
+            { ELanguage::German,   "\"Samurai Blade\" hat Level 2 erreicht." },
+            { ELanguage::French,   "Vous avez atteint le niveau 2 de \"Samurai Blade\"." },
+            { ELanguage::Spanish,  "\"Samurai Blade\" Nivel 2." },
+            { ELanguage::Italian,  "\"Samurai Blade\" ha raggiunto il livello 2." },
+        }
+    },
+    {
+        "Unlock_Message_SatelliteLaserLv1",
+        {
+            { ELanguage::English,  "You unlocked \"Satellite Laser\"." },
+            { ELanguage::Japanese, "You unlocked \"Satellite Laser\"." },
+            { ELanguage::German,   "Du hast \"Satellite Laser\" freigeschaltet." },
+            { ELanguage::French,   "Vous avez déverrouillé \"Satellite Laser\"." },
+            { ELanguage::Spanish,  "Has desbloqueado \"Satellite Laser\"." },
+            { ELanguage::Italian,  "Hai sbloccato \"Satellite Laser\"." },
+        }
+    },
+    {
+        "Unlock_Message_SatelliteLaserLv2",
+        {
+            { ELanguage::English,  "\"Satellite Laser\" is now Level 2." },
+            { ELanguage::Japanese, "\"Satellite Laser\" is now Level 2." },
+            { ELanguage::German,   "\"Satellite Laser\" hat Level 2 erreicht." },
+            { ELanguage::French,   "Vous avez atteint le niveau 2 de \"Satellite Laser\"." },
+            { ELanguage::Spanish,  "\"Satellite Laser\" Nivel 2." },
+            { ELanguage::Italian,  "\"Satellite Laser\" ha raggiunto il livello 2." },
+        }
+    },
+    {
+        "Unlock_Message_VacuumEggLv1",
+        {
+            { ELanguage::English,  "You unlocked \"Vacuum Egg\"." },
+            { ELanguage::Japanese, "You unlocked \"Vacuum Egg\"." },
+            { ELanguage::German,   "Du hast \"Vacuum Egg\" freigeschaltet." },
+            { ELanguage::French,   "Vous avez déverrouillé \"Vacuum Egg\"." },
+            { ELanguage::Spanish,  "Has desbloqueado \"Vacuum Egg\"." },
+            { ELanguage::Italian,  "Hai sbloccato \"Vacuum Egg\"." },
+        }
+    },
+    {
+        "Unlock_Message_VacuumEggLv2",
+        {
+            { ELanguage::English,  "\"Vacuum Egg\" is now Level 2." },
+            { ELanguage::Japanese, "\"Vacuum Egg\" is now Level 2." },
+            { ELanguage::German,   "\"Vacuum Egg\" hat Level 2 erreicht." },
+            { ELanguage::French,   "Vous avez atteint le niveau 2 de \"Vacuum Egg\"." },
+            { ELanguage::Spanish,  "\"Vacuum Egg\" Nivel 2." },
+            { ELanguage::Italian,  "\"Vacuum Egg\" ha raggiunto il livello 2." },
+        }
+    },
+    {
+        "Unlock_Message_OmochaoGunLv1",
+        {
+            { ELanguage::English,  "You unlocked \"Omochao Gun\"." },
+            { ELanguage::Japanese, "You unlocked \"Omochao Gun\"." },
+            { ELanguage::German,   "Du hast \"Omochao Gun\" freigeschaltet." },
+            { ELanguage::French,   "Vous avez déverrouillé \"Omochao Gun\"." },
+            { ELanguage::Spanish,  "Has desbloqueado \"Omochao Gun\"." },
+            { ELanguage::Italian,  "Hai sbloccato \"Omochao Gun\"." },
+        }
+    },
+    {
+        "Unlock_Message_OmochaoGunLv2",
+        {
+            { ELanguage::English,  "\"Omochao Gun\" is now Level 2." },
+            { ELanguage::Japanese, "\"Omochao Gun\" is now Level 2." },
+            { ELanguage::German,   "\"Omochao Gun\" hat Level 2 erreicht." },
+            { ELanguage::French,   "Vous avez atteint le niveau 2 de \"Omochao Gun\"." },
+            { ELanguage::Spanish,  "\"Omochao Gun\" Nivel 2." },
+            { ELanguage::Italian,  "\"Omochao Gun\" ha raggiunto il livello 2." },
+        }
+    },
+    {
+        "Unlock_Message_HealCannonLv1",
+        {
+            { ELanguage::English,  "You unlocked \"Heal Cannon\"." },
+            { ELanguage::Japanese, "You unlocked \"Heal Cannon\"." },
+            { ELanguage::German,   "Du hast \"Heal Cannon\" freigeschaltet." },
+            { ELanguage::French,   "Vous avez déverrouillé \"Heal Cannon\"." },
+            { ELanguage::Spanish,  "Has desbloqueado \"Heal Cannon\"." },
+            { ELanguage::Italian,  "Hai sbloccato \"Heal Cannon\"." },
+        }
+    },
+    {
+        "Unlock_Message_HealCannonLv2",
+        {
+            { ELanguage::English,  "\"Heal Cannon\" is now Level 2." },
+            { ELanguage::Japanese, "\"Heal Cannon\" is now Level 2." },
+            { ELanguage::German,   "\"Heal Cannon\" hat Level 2 erreicht." },
+            { ELanguage::French,   "Vous avez atteint le niveau 2 de \"Heal Cannon\"." },
+            { ELanguage::Spanish,  "\"Heal Cannon\" Nivel 2." },
+            { ELanguage::Italian,  "\"Heal Cannon\" ha raggiunto il livello 2." },
+        }
+    },
+    {
+        "Unlock_Message_ShadowRifle",
+        {
+            { ELanguage::English,  "You unlocked \"Shadow Rifle\"." },
+            { ELanguage::Japanese, "You unlocked \"Shadow Rifle\"." },
+            { ELanguage::German,   "Du hast \"Shadow Rifle\" freigeschaltet." },
+            { ELanguage::French,   "Vous avez déverrouillé \"Shadow Rifle\"." },
+            { ELanguage::Spanish,  "Has desbloqueado \"Shadow Rifle\"." },
+            { ELanguage::Italian,  "Hai sbloccato \"Shadow Rifle\"." },
         }
     },
     {
