@@ -1286,6 +1286,11 @@ const xxHashMap<CsdModifier> g_csdModifiers =
 {
 	// Loading
 	{ HashStr("csdFiles/Loading_EN.xncp/Scene_0000"), { CSD_UNSTRETCH | CSD_ALIGN_RIGHT } },
+	{ HashStr("csdFiles/Loading_FR.xncp/Scene_0000"), { CSD_UNSTRETCH | CSD_ALIGN_RIGHT } },
+	{ HashStr("csdFiles/Loading_GE.xncp/Scene_0000"), { CSD_UNSTRETCH | CSD_ALIGN_RIGHT } },
+	{ HashStr("csdFiles/Loading_IT.xncp/Scene_0000"), { CSD_UNSTRETCH | CSD_ALIGN_RIGHT } },
+	{ HashStr("csdFiles/Loading_JP.xncp/Scene_0000"), { CSD_UNSTRETCH | CSD_ALIGN_RIGHT } },
+	{ HashStr("csdFiles/Loading_SP.xncp/Scene_0000"), { CSD_UNSTRETCH | CSD_ALIGN_RIGHT } },
 
 	// intro logo
 	{ HashStr("csdFiles/Logo.xncp/XBox/sega"), { CSD_UNSTRETCH | CSD_ALIGN_CENTRE } },
