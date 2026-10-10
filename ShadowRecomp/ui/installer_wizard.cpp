@@ -1133,9 +1133,7 @@ bool InstallerWizard::Run(std::filesystem::path installPath)
 
 		Video::WaitOnSwapChain();
 
-		//Ideally, no music. Always found music on installers incredibly annoying
-		// son. - dream :) I guess TBD since no music is very shadow
-		//EmbeddedPlayer::PlayMusic();
+		EmbeddedPlayer::PlayMusic();
 
 		SDL_PumpEvents();
 
