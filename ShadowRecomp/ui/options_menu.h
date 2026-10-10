@@ -15,7 +15,7 @@ enum class OptionsMenuCategory
     Input,
     Audio,
     Video,
-    Misc,
+    //Misc,
     Debug,
     Count
 };

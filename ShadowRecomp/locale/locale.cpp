@@ -304,11 +304,10 @@ std::unordered_map<std::string_view, std::unordered_map<ELanguage, std::string>>
         }
     },
     {
-        // Notes: the list only grows with music the player has already heard in game.
         "Options_Desc_SoundTest",
         {
             { ELanguage::English,  "Listen to the in-game music." },
-            { ELanguage::Japanese,  "Listen to the in-game music." },
+            { ELanguage::Japanese, "Listen to the in-game music." },
             { ELanguage::German,   "Höre die Musik des Spiels an." },
             { ELanguage::French,   "Écoutez la musique du jeu." },
             { ELanguage::Spanish,  "Escuchar la música del juego." },

@@ -167,7 +167,7 @@ static std::string& GetCategoryName(OptionsMenuCategory category)
 	case OptionsMenuCategory::Input: return Localise("Options_Category_Input");
 	case OptionsMenuCategory::Audio: return Localise("Options_Category_Audio");
 	case OptionsMenuCategory::Video: return Localise("Options_Category_Video");
-	case OptionsMenuCategory::Misc: return Localise("Options_Category_Misc");
+	//case OptionsMenuCategory::Misc: return Localise("Options_Category_Misc");
 	case OptionsMenuCategory::Debug: return Localise("Options_Category_Debug");
 	}
 
@@ -182,7 +182,7 @@ static std::string& GetCategoryDescription(OptionsMenuCategory category)
 	case OptionsMenuCategory::Input: return Localise("Options_Desc_Category_Input");
 	case OptionsMenuCategory::Audio: return Localise("Options_Desc_Category_Audio");
 	case OptionsMenuCategory::Video: return Localise("Options_Desc_Category_Video");
-	case OptionsMenuCategory::Misc: return Localise("Options_Desc_Category_Misc");
+	//case OptionsMenuCategory::Misc: return Localise("Options_Desc_Category_Misc");
 	case OptionsMenuCategory::Debug: return Localise("Options_Desc_Category_Debug");
 	}
 
@@ -220,7 +220,7 @@ static int GetCategoryIconRow(OptionsMenuCategory category)
 	case OptionsMenuCategory::Input:  return 1; 
 	case OptionsMenuCategory::Audio:  return 2; 
 	case OptionsMenuCategory::Video:  return 3; 
-	case OptionsMenuCategory::Misc:   return 4; 
+	//case OptionsMenuCategory::Misc:   return 4; 
 	case OptionsMenuCategory::Debug:  return 0; 
 	}
 
@@ -241,9 +241,9 @@ static bool IsCategoryVisible(OptionsMenuCategory category)
 	if (!OptionsMenu::s_isDebugUnlocked && category == OptionsMenuCategory::Debug)
 		return false;
 
-	// Don't show legacy options during gameplay
-	if (OptionsMenu::s_isPause && category == OptionsMenuCategory::Misc)
-		return false;
+
+	/**if (category == OptionsMenuCategory::Misc)
+		return false;*/
 
 	return true;
 }
@@ -1864,6 +1864,7 @@ static void DrawOptions(ImVec2 minClipRect, ImVec2 maxClipRect, ImVec2 min, ImVe
 		DrawOption(rowCount++, &Config::ConfirmationPrompt, true, min, max);
 		DrawOption(rowCount++, &Config::Hints, !OptionsMenu::s_isPause, min, max);
 		DrawOption(rowCount++, &Config::AchievementNotifications, true, min, max);
+		DrawOption(rowCount++, &Config::ChaosPowerLEDSync, true, min, max);
 
 		break;
 
@@ -1959,11 +1960,11 @@ static void DrawOptions(ImVec2 minClipRect, ImVec2 maxClipRect, ImVec2 min, ImVe
 
 		break;
 	}
-	case OptionsMenuCategory::Misc:
+	/**case OptionsMenuCategory::Misc:
 	{
-		DrawOption(rowCount++, &Config::ChaosPowerLEDSync, true, min, max);
-		DrawActionOption(rowCount++, min, Localise("Options_Name_LegacyMenu"), Localise("Options_Desc_LegacyMenu"), true, nullptr, GoToLegacyMenu);
-	}
+
+		//DrawActionOption(rowCount++, min, Localise("Options_Name_LegacyMenu"), Localise("Options_Desc_LegacyMenu"), true, nullptr, GoToLegacyMenu);
+	}*/
 	}
 
 #undef ENUM_VALUE
