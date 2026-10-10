@@ -104,6 +104,13 @@ std::vector<std::filesystem::path>* ModLoader::GetIncludeDirectories(size_t modI
 	return modIndex < g_mods.size() ? &g_mods[modIndex].includeDirs : nullptr;
 }
 
+// Lower asset name because the game is not consistent with that for some reason.
+static XXH64_hash_t HashLowerName(std::string name)
+{
+	std::transform(name.begin(), name.end(), name.begin(), [](unsigned char c) { return (char)std::tolower(c); });
+	return XXH3_64bits(name.c_str(), name.size());
+}
+
 // check for individual file replacement
 // this currently work by having a folder hiearchy that match .one file structure, and an index.txt file that list the files to be replaced
 void FindIndividualFiles(const fs::path& modGameRoot, Mod* modinf)
@@ -155,7 +162,7 @@ void FindIndividualFiles(const fs::path& modGameRoot, Mod* modinf)
 		uint32_t line_number = 0;
 
 		xxHashMap<std::filesystem::path> assets;
-		
+
 		while (!index_file.eof())
 		{
 			try
@@ -173,6 +180,11 @@ void FindIndividualFiles(const fs::path& modGameRoot, Mod* modinf)
 
 				std::string assetPathStr = asset_path.string();
 				std::replace(assetPathStr.begin(), assetPathStr.end(), '\\', '/');
+
+				//remove "," in case user added that after each file
+				if (assetPathStr.back() == ',')
+					assetPathStr.pop_back();
+
 				asset_path = assetPathStr;
 
 				if (!std::filesystem::exists(asset_path))
@@ -181,7 +193,7 @@ void FindIndividualFiles(const fs::path& modGameRoot, Mod* modinf)
 					continue;
 				}
 
-				auto assetsHash = XXH3_64bits(asset_path.filename().string().c_str(), asset_path.filename().string().size());
+				auto assetsHash = HashLowerName(asset_path.filename().string());
 				assets[assetsHash] = asset_path;
 
 			}
@@ -196,70 +208,94 @@ void FindIndividualFiles(const fs::path& modGameRoot, Mod* modinf)
 
 		if (assets.empty() == false)
 		{
-			auto archiveHash = XXH3_64bits(oneFileName.c_str(), oneFileName.size());
+			auto archiveHash = HashLowerName(oneFileName);
 			modinf->individualFiles[archiveHash].assets = assets;
 		}
 	}
 }
 
 
+// archives loaded through LoadOneFileAsync (events) never fill their fname slot,
+// so we keep their og name hash directly, using the TOneFile address as a key instead.
+static std::mutex g_asyncOneFileMutex;
+static ankerl::unordered_dense::map<uint32_t, XXH64_hash_t> g_asyncOneFileHashes;
+
+static XXH64_hash_t HashOneName(std::string name)
+{
+	std::replace(name.begin(), name.end(), '\\', '/'); // events use backslashes
+	return HashLowerName(name.substr(0, name.find_last_of('.'))); // remove extension
+}
+
+static XXH64_hash_t GetOneFileHash(uint32_t oneFileAddr, TOneFile* oneFile)
+{
+	if (oneFile->fname[0])
+		return HashOneName(oneFile->fname);
+
+	std::lock_guard lock(g_asyncOneFileMutex);
+	auto it = g_asyncOneFileHashes.find(oneFileAddr);
+	return it != g_asyncOneFileHashes.end() ? it->second : 0;
+}
+
+static std::filesystem::path* FindReplacementFile(XXH64_hash_t oneHash, const char* assetName)
+{
+	for (int i = g_mods.size() - 1; i >= 0; i--) // iterate in reverse to prioritize later mods in the list (which are higher priority in mod loader)
+	{
+		auto oneIt = g_mods[i].individualFiles.find(oneHash);
+		if (oneIt == g_mods[i].individualFiles.end())
+			continue;
+
+		auto assetIt = oneIt->second.assets.find(HashLowerName(assetName));
+		if (assetIt != oneIt->second.assets.end())
+			return &assetIt->second;
+	}
+
+	return nullptr;
+}
+
+// TOneFile::LoadOneFileAsync
+X86_FUNC_IMPL(__imp__sub_1F7F0);
+X86_FUNC(sub_1F7F0)
+{
+	if (auto name = (const char*)GetHostParameter(2, CallConvention::Thiscall, ParameterType::Pointer))
+	{
+		std::lock_guard lock(g_asyncOneFileMutex);
+		g_asyncOneFileHashes[ctx.ecx.u32] = HashOneName(name);
+	}
+
+	__imp__sub_1F7F0(ctx, base);
+}
+
 // In order to implement individual file replacement in .one files, we need to patch the size of the asset table.
 // since the original code will allocate a buffer based on the original content
 // we have to patch each asset size that mods are replacing to have an accurate size and avoid memory overflow.
-// the game will then later use this size for allocating memory properly.
+// the game will then later use this size for allocating memory properly. (This table fix up runs for both normal and 
+// async loads.)
 // later on a separate function we patch the file loading function to load the replacement file instead of the original one.
-void ModOverrideSizesMidAsmHook(X86Register & ebp)
+X86_FUNC_IMPL(__imp__sub_1F360);
+X86_FUNC(sub_1F360)
 {
-	auto base = g_memory.base;
-	TOneFile* oneFile = (TOneFile*)g_memory.Translate(ebp.u32);
+	uint32_t oneFileAddr = X86_LOAD_U32(ctx.esp.u32 + 4);
+	__imp__sub_1F360(ctx, base);
 
-	if (!oneFile)
+	TOneFile* oneFile = (TOneFile*)g_memory.Translate(oneFileAddr);
+	XXH64_hash_t oneHash = GetOneFileHash(oneFileAddr, oneFile);
+	if (!oneHash)
 		return;
 
-	std::string oneName = oneFile->fname;
-	char* tableBase = oneFile->assetStreamData ? (char*)g_memory.Translate(oneFile->assetStreamData) : nullptr;
-
-	if (!tableBase)
-		return;
-
-	oneName = oneName.substr(0, oneName.find_last_of('.'));
-	XXH64_hash_t oneHash = XXH3_64bits(oneName.c_str(), oneName.size());
 	uint32_t numAssets = X86_LOAD_U32(oneFile->assetStreamData + 16);
 
 	for (uint32_t index = 2; index < numAssets + 2; index++)
 	{
-		char* record = tableBase + 56 * index;
-		char* assetName = record + 52; // fixed 44-byte name field
-		if (assetName && record)
+		uint32_t record = oneFile->assetStreamData + 56 * index;
+		auto filePath = FindReplacementFile(oneHash, (const char*)g_memory.Translate(record + 52)); // fixed 44-byte name field
+
+		std::error_code ec;
+		if (filePath)
 		{
-			for (int i = g_mods.size() - 1; i >= 0; i--) // iterate in reverse to prioritize later mods in the list (which are higher priority in mod loader)
-			{
-				auto& mod = g_mods[i];
-
-				if (mod.individualFiles.empty())
-					continue;
-
-				auto oneIt = mod.individualFiles.find(oneHash);
-
-				if (oneIt == mod.individualFiles.end())
-					continue;
-
-				XXH64_hash_t assetHash = XXH3_64bits(assetName, strlen(assetName));
-				auto assetIt = oneIt->second.assets.find(assetHash);
-				if (assetIt != oneIt->second.assets.end())
-				{
-					std::filesystem::path& filePath = assetIt->second;
-					std::error_code ec;
-					uintmax_t size = std::filesystem::file_size(filePath, ec);
-					uint32_t sizeField = g_memory.MapVirtual(record + 96);
-					if (!ec)
-					{
-						X86_STORE_U32(sizeField, static_cast<uint32_t>(size));
-					}
-				}
-			}
+			uintmax_t size = std::filesystem::file_size(*filePath, ec);
+			if (!ec)
+				X86_STORE_U32(record + 96, static_cast<uint32_t>(size));
 		}
-
 	}
 }
 
@@ -269,80 +305,36 @@ void ModOverrideSizesMidAsmHook(X86Register & ebp)
 X86_FUNC_IMPL(__imp__sub_1F570);
 X86_FUNC(sub_1F570)
 {
-	auto buffer = GetHostParameter(3, CallConvention::Thiscall, ParameterType::Pointer);
 	TOneFile* oneFile = (TOneFile*)GetHostParameter(1, CallConvention::Thiscall, ParameterType::Pointer);
-	auto index = GetHostParameter(2, CallConvention::Thiscall, ParameterType::Integer);
-	auto isThreadFunc = GetHostParameter(4, CallConvention::Thiscall, ParameterType::Integer);
-	bool shouldSkipOriginalFunc = false;
+	auto assetName = oneFile ? TOneFileCheckFileName(oneFile, GetHostParameter(2, CallConvention::Thiscall)) : nullptr;
+	XXH64_hash_t oneHash = assetName ? GetOneFileHash(ctx.ecx.u32, oneFile) : 0;
+	auto filePath = oneHash ? FindReplacementFile(oneHash, assetName) : nullptr;
 
+	std::ifstream file;
 
-	if (oneFile)
-	{
-		auto field2CAddr = oneFile->field_2C;
+	if (filePath)
+		file.open(*filePath, std::ios::binary | std::ios::ate);
 
-		uint32_t field2C = 0;
-		if (field2CAddr)
-			field2C = X86_LOAD_U32(field2CAddr);
-	
-		if (field2C || oneFile->fname[0])
-		{
-			auto assetName = TOneFileCheckFileName(oneFile, index);
-
-			if (assetName)
-			{
-				std::string oneName = oneFile->fname;
-				oneName = oneName.substr(0, oneName.find_last_of('.')); // remove extension
-				XXH64_hash_t onefileHash = XXH3_64bits(oneName.c_str(), oneName.size());
-
-				for (int i = g_mods.size() - 1; i >= 0; i--) // iterate in reverse to prioritize later mods in the list (which are higher priority in mod loader)
-				{
-					auto& mod = g_mods[i];
-
-					if (mod.individualFiles.empty())
-						continue;
-
-					auto oneIt = mod.individualFiles.find(onefileHash);
-
-					if (oneIt == mod.individualFiles.end())
-						continue;
-
-					XXH64_hash_t assetHash = XXH3_64bits(assetName, strlen(assetName));
-					auto assetIt = oneIt->second.assets.find(assetHash);
-					if (assetIt != oneIt->second.assets.end())
-					{
-						std::filesystem::path& filePath = assetIt->second;
-						std::ifstream file(filePath, std::ios::binary);
-						if (file.good())
-						{
-							file.seekg(0, std::ios::end);
-							size_t size = file.tellg();
-							file.seekg(0, std::ios::beg);
-							file.read(reinterpret_cast<char*>(buffer), size);
-							size_t bytesRead = static_cast<size_t>(file.gcount());
-							ctx.eax.u32 = static_cast<uint32_t>(bytesRead);
-							file.close();
-							shouldSkipOriginalFunc = true;
-							LOGF_IMPL(Utility, "Mod Loader", "Loading file: \"{}\"", reinterpret_cast<const char*>(filePath.u8string().c_str()));
-							break;
-						}
-
-				
-						break;
-					}
-				}
-			}
-		}
-	}
-
-
-	if (shouldSkipOriginalFunc == false)
+	if (!file.is_open())
 	{
 		__imp__sub_1F570(ctx, base);
+		return;
 	}
-	else // we loaded the replaced file manually, the og function doesn't need to run.
+
+	uint32_t size = static_cast<uint32_t>(file.tellg());
+	file.seekg(0);
+	file.read(reinterpret_cast<char*>(GetHostParameter(3, CallConvention::Thiscall, ParameterType::Pointer)), size);
+	ctx.eax.u32 = static_cast<uint32_t>(file.gcount());
+	LOGF_IMPL(Utility, "Mod Loader", "Loading file: \"{}\"", reinterpret_cast<const char*>(filePath->u8string().c_str()));
+
+	// async readers (events) pass a thread func and wait for a TOneFileNotice saying the data is ready
+	if (uint32_t threadFunc = GetHostParameter(4, CallConvention::Thiscall))
 	{
-		ctx.AddEsp(5); // Clean up the stack for the skipped function (4 args + ret addr)
+		// TOneFileNotice::Create
+		GuestToHostFunction<void, CallConvention::Cdecl>(sub_1F470, threadFunc, ctx.eax.u32, GetHostParameter(5, CallConvention::Thiscall));
 	}
+
+	ctx.AddEsp(5); // we loaded the file ourselves, clean up the stack for the skipped function (4 args + ret addr)
 }
 
 
@@ -557,7 +549,6 @@ void ModLoader::Init()
 			}
 		}
 	}
-
 
 	enabledCodes.clear();
 }

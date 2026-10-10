@@ -1183,11 +1183,6 @@ address = 0x6C06F
 jump_address_on_true = 0x6C075
 #### End Extended Multiplayer
 
-[[midasm_hook]]
-name = "ModOverrideSizesMidAsmHook"
-address = 0x1F7D8
-registers = ["r6"]
-
 # Collision slopes ground-stick fix
 [[midasm_hook]]
 name = "CollisionGroundStickMidAsmHook"
