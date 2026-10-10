@@ -2610,8 +2610,9 @@ void OptionsMenu::Draw()
 		if (!s_isDebugUnlocked)
 			categoryCount -= 1;
 
-		if (s_isPause)
-			categoryCount -= 1;
+		// was used for misc options, restore if we even re use it
+		/**if (s_isPause)
+			categoryCount -= 1;*/
 
 		MoveCursor(g_categoryIndex, g_flowStateTime, 0, categoryCount, []()
 			{
