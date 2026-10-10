@@ -823,6 +823,7 @@ struct HudNumberState
 
 static HudNumberState g_hudNumber{};
 static bool g_isInStageMode = false;
+static bool g_isDrawingSynopsisText = false;
 
 // The stage select CSD is squeezed towards the center, so the player's best time
 // which drawn on top of it have to be moved to the same spot
@@ -1813,6 +1814,16 @@ X86_FUNC(sub_29A850)
 	g_isInStageMode = false;
 }
 
+// Synopsis draws the story lines with the DrawMessage func over the background.
+// The text gets stretched at higher resolution, so skip the Rt2d unstretch code to avoid that.
+X86_FUNC_IMPL(__imp__sub_29C830);
+X86_FUNC(sub_29C830)
+{
+	g_isDrawingSynopsisText = true;
+	__imp__sub_29C830(ctx, base);
+	g_isDrawingSynopsisText = false;
+}
+
 // Patch the text draw in the main menu (score in stage select, level name etc.)
 // The font system (bitmap) draws every string as Rt2d geometry which is pushed through 3D Space.
 // Each glyph quad is set up by the world matrix then puts the geometry in a 2D space. 
@@ -1840,7 +1851,7 @@ static Rt2dFontUnstretch g_rt2dFontUnstretch{};
 static bool ShouldUnstretchRt2dFont()
 {
 
-	if (g_isInStageMode)
+	if (g_isInStageMode || g_isDrawingSynopsisText)
 	{
 		if (Config::UIAlignmentMode.Value != EUIAlignmentMode::Stretch)
 			return false;
