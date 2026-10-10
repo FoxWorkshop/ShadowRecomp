@@ -1011,7 +1011,7 @@ X86_FUNC(sub_19730)
 	void* vertices = g_memory.Translate(ctx.ecx.u32 + FadeLogoVertices);
 
 	CsdSavedVertices saved{};
-	UnstretchPrimitive(vertices, CSDVertexCount, CSD_UNSTRETCH | CSD_ALIGN_BOTTOM_CENTRE, saved);
+	UnstretchPrimitive(vertices, CSDVertexCount, CSD_UNSTRETCH | CSD_ALIGN_BOTTOM_RIGHT, saved);
 
 	__imp__sub_19730(ctx, base);
 
