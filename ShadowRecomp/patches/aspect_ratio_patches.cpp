@@ -1377,6 +1377,10 @@ const xxHashMap<CsdModifier> g_csdModifiers =
 	{ HashStr("csdFiles/BattleMode.xncp/Buttons/back_button"), { CSD_UNSTRETCH | CSD_ALIGN_BOTTOM_CENTRE } },
 	{ HashStr("csdFiles/BattleMode.xncp/Buttons/back_button/back"), { CSD_UNSTRETCH | CSD_ALIGN_BOTTOM_CENTRE } },
 
+	{ HashStr("csdFiles/RouteDisplay.xncp/StoryRoute/IconsBG"), { CSD_UNSTRETCH | CSD_ALIGN_CENTRE } },
+	{ HashStr("csdFiles/RouteDisplay.xncp/StoryRoute/Pics"), { CSD_UNSTRETCH | CSD_ALIGN_CENTRE } },
+	{ HashStr("csdFiles/RouteDisplay.xncp/StoryRoute/Arrows"), { CSD_UNSTRETCH | CSD_ALIGN_CENTRE } },
+
 	// game over
 	{ HashStr("csdFiles/GameOver.xncp/GameOver"), { CSD_UNSTRETCH | CSD_ALIGN_CENTRE } },
 	{ HashStr("csdFiles/GameOver.xncp/Loop"), { CSD_UNSTRETCH | CSD_ALIGN_AUTO_H } },
