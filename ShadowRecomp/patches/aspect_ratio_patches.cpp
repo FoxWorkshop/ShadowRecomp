@@ -1285,7 +1285,7 @@ X86_FUNC(sub_3D24B0)
 const xxHashMap<CsdModifier> g_csdModifiers =
 {
 	// Loading
-	{ HashStr("csdFiles/Loading_EN.xncp/Scene_0000"), { CSD_UNSTRETCH } },
+	{ HashStr("csdFiles/Loading_EN.xncp/Scene_0000"), { CSD_UNSTRETCH | CSD_ALIGN_RIGHT } },
 
 	// intro logo
 	{ HashStr("csdFiles/Logo.xncp/XBox/sega"), { CSD_UNSTRETCH | CSD_ALIGN_CENTRE } },
@@ -1328,7 +1328,7 @@ const xxHashMap<CsdModifier> g_csdModifiers =
 	{ HashStr("csdFiles/Story_Library.xncp/Buttons/Buttons"), { CSD_UNSTRETCH | CSD_ALIGN_CENTRE } },
 	{ HashStr("csdFiles/Story_Library.xncp/Library/PageNumber"), { CSD_UNSTRETCH | CSD_ALIGN_CENTRE } },
 	{ HashStr("csdFiles/Story_Library.xncp/Library/WindowLib"), { CSD_UNSTRETCH | CSD_ALIGN_CENTRE } },
-	{ HashStr("csdFiles/Story_Library.xncp/Background/Background"), { CSD_UNSTRETCH | CSD_ALIGN_SELF_H } }, // "LIBRARY" Text in the corner
+	{ HashStr("csdFiles/Story_Library.xncp/Background/Background"), { CSD_UNSTRETCH | CSD_ALIGN_LEFT } }, // "LIBRARY" Text in the corner
 
 	// Stage select mode
 	{ HashStr("csdFiles/SelectMode.xncp/SelectMode"), { CSD_CENTER_UNSTRETCH } },
@@ -1347,7 +1347,7 @@ const xxHashMap<CsdModifier> g_csdModifiers =
 
 
 	//Battle mode (2p menu)
-	{ HashStr("csdFiles/BattleMode.xncp/Kazari"), { CSD_UNSTRETCH | CSD_ALIGN_SELF_H } }, // Battle mode in the corner
+	{ HashStr("csdFiles/BattleMode.xncp/Kazari"), { CSD_UNSTRETCH | CSD_ALIGN_LEFT } }, // Battle mode in the corner
 	{ HashStr("csdFiles/BattleMode.xncp/Kazari/Null_box/box_chara"), { CSD_UNSTRETCH | CSD_ALIGN_CENTRE } }, 
 
 	{ HashStr("csdFiles/BattleMode.xncp/Kazari/Null_box/box_chara/box1"), { CSD_UNSTRETCH | CSD_ALIGN_CENTRE } },
