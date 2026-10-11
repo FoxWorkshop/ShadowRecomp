@@ -38,6 +38,7 @@
 #endif
 
 static constexpr int MAX_VISIBLE_ROWS = 5;
+static constexpr ImU32 HIGHLIGHT_COLOUR = IM_COL32(255, 255, 98, 255);
 static IConfigDef* g_optionCurrent{};
 static bool g_optionCanReset{};
 static std::unique_ptr<GuestTexture> g_upTexOptionsBG{};
@@ -389,6 +390,11 @@ static std::string TruncateTextWithEllipsis(ImFont* font, float fontSize, const 
 	return result + ellipsis;
 }
 
+static void DrawMenuText(float fontSize, ImVec2 pos, ImU32 colour, const char* text, bool isHighlighted = false, float shadowOffset = 2.0f)
+{
+	auto shadowColour = isHighlighted ? IM_COL32(0, 0, 93, 255) : IM_COL32(0, 0, 0, 255);
+	DrawTextWithShadow(g_fntSeurat, fontSize, pos, colour, text, shadowOffset, 1.0f, shadowColour);
+}
 
 void DrawSelectionArrows(ImVec2 min, ImVec2 max, bool isSelected)
 {
@@ -548,9 +554,7 @@ static void DrawOption
 	auto titleAreaWidth = titleAreaEnd - titleAreaStart;
 	bool titleOverflows = titleTextSize.x > titleAreaWidth;
 
-	auto TextoutlineColor = isHoverOrSelected ? IM_COL32(0, 0, 60, 44) : IM_COL32(0, 0, 0, 44);
-	const float outlineOffset = 2.f;
-	auto TexColor = isHoverOrSelected ? IM_COL32(234, 234, 69, 255) : IM_COL32(255, 255, 255, 255);
+	auto TexColor = isHoverOrSelected ? HIGHLIGHT_COLOUR : IM_COL32(255, 255, 255, 255);
 
 	if (titleOverflows && isHover)
 	{
@@ -583,8 +587,7 @@ static void DrawOption
 		ImVec2 scrolledTitlePos = { titlePos.x - scrollX, titlePos.y };
 
 
-		AddTextWithOutline(drawList, g_fntSeurat, fontOptionSize, scrolledTitlePos, TexColor,
-			TextoutlineColor, titleText.c_str(), 1.f, outlineOffset, outlineOffset);
+		DrawMenuText(fontOptionSize, scrolledTitlePos, TexColor, titleText.c_str(), isHoverOrSelected);
 
 		drawList->PopClipRect();
 	}
@@ -595,8 +598,7 @@ static void DrawOption
 			? TruncateTextWithEllipsis(g_fntSeurat, g_fntSeuratSize, titleText, titleAreaWidth)
 			: titleText;
 
-		AddTextWithOutline(drawList, g_fntSeurat, fontOptionSize, titlePos, TexColor,
-			TextoutlineColor, displayTitle.c_str(), 1.f, outlineOffset, outlineOffset);
+		DrawMenuText(fontOptionSize, titlePos, TexColor, displayTitle.c_str(), isHoverOrSelected);
 
 
 	}
@@ -1003,8 +1005,7 @@ static void DrawOption
 			drawList->PushClipRect({ valueAreaStart, clipRectMin.y }, { valueAreaEnd, clipRectMax.y }, true);
 
 
-			AddTextWithOutline(drawList, g_fntSeurat, fontValueSize, valuePos, IM_COL32(255, 255, 255, isAccessible ? 255 : 127),
-				TextoutlineColor, valueText.data(), 1.f, outlineOffset, outlineOffset);
+			DrawMenuText(fontValueSize, valuePos, IM_COL32(255, 255, 255, isAccessible ? 255 : 127), valueText.data());
 
 			drawList->PopClipRect();
 		}
@@ -1019,8 +1020,7 @@ static void DrawOption
 			auto displaySize = g_fntSeurat->CalcTextSizeA(fontValueSize, FLT_MAX, 0.0f, displayText.data());
 			valuePos.x = valueAreaCenter - (displaySize.x * 0.5f);
 
-			AddTextWithOutline(drawList, g_fntSeurat, fontValueSize, valuePos, IM_COL32(255, 255, 255, isAccessible ? 255 : 127),
-				TextoutlineColor, displayText.data(), 1.f, outlineOffset, outlineOffset);
+			DrawMenuText(fontValueSize, valuePos, IM_COL32(255, 255, 255, isAccessible ? 255 : 127), displayText.data());
 
 		}
 	}
@@ -1062,11 +1062,8 @@ static void DrawActionOption
 	const std::function<void()>& onAccept
 )
 {
-	auto drawList = ImGui::GetBackgroundDrawList();
-
 	auto optionHeight = Scale(48);
 	const float fontOptionSize = g_fntSeuratSize - 4.f;
-	const float outlineOffset = 2.f;
 
 	// removing offset will make option draw right when the container starts, so we add an extra scale to make it fit inside.
 	min.x -= Scale(170) - Scale(10);
@@ -1077,10 +1074,8 @@ static void DrawActionOption
 
 	ImVec2 titlePos = { min.x, min.y + offsetY + Scale(8) };
 
-	auto TextoutlineColor = isHover ? IM_COL32(0, 0, 60, 44) : IM_COL32(0, 0, 0, 44);
-	auto TexColor = isHover ? IM_COL32(234, 234, 69, 255) : IM_COL32(255, 255, 255, 255);
-	AddTextWithOutline(drawList, g_fntSeurat, fontOptionSize, titlePos, TexColor,
-		TextoutlineColor, name.c_str(), 1.f, outlineOffset, outlineOffset);
+	auto TexColor = isHover ? HIGHLIGHT_COLOUR : IM_COL32(255, 255, 255, 255);
+	DrawMenuText(fontOptionSize, titlePos, TexColor, name.c_str(), isHover);
 
 	if (!isCurrent)
 		return;
@@ -1267,12 +1262,9 @@ void OptionsMenu::UpdateSoundTest()
 
 static void DrawSoundTestTrack(int rowIndex, ImVec2 min, ImVec2 max)
 {
-	auto drawList = ImGui::GetBackgroundDrawList();
-
 	auto optionHeight = Scale(48);
 	const float fontOptionSize = g_fntSeuratSize - 4.f;
 	const float fontValueSize = g_fntSeuratSize - Scale(5.33f);
-	const float outlineOffset = 2.f;
 
 	min.x -= Scale(170) - Scale(10);
 	max.x -= Scale(10);
@@ -1291,12 +1283,10 @@ static void DrawSoundTestTrack(int rowIndex, ImVec2 min, ImVec2 max)
 	ImVec2 titlePos = { min.x, min.y + offsetY + Scale(8) };
 	auto titleAreaWidth = valueAreaStart - Scale(10) - titlePos.x;
 
-	auto TextoutlineColor = isHover ? IM_COL32(0, 0, 60, 44) : IM_COL32(0, 0, 0, 44);
-	auto TexColor = isHover ? IM_COL32(234, 234, 69, 255) : IM_COL32(255, 255, 255, 255);
+	auto TexColor = isHover ? HIGHLIGHT_COLOUR : IM_COL32(255, 255, 255, 255);
 
 	auto title = TruncateTextWithEllipsis(g_fntSeurat, fontOptionSize, g_soundTestNames[rowIndex], titleAreaWidth);
-	AddTextWithOutline(drawList, g_fntSeurat, fontOptionSize, titlePos, TexColor,
-		TextoutlineColor, title.c_str(), 1.f, outlineOffset, outlineOffset);
+	DrawMenuText(fontOptionSize, titlePos, TexColor, title.c_str(), isHover);
 
 	if (isPlaying)
 	{
@@ -1304,8 +1294,7 @@ static void DrawSoundTestTrack(int rowIndex, ImVec2 min, ImVec2 max)
 		auto valueSize = g_fntSeurat->CalcTextSizeA(fontValueSize, FLT_MAX, 0.0f, valueText.c_str());
 		ImVec2 valuePos = { valueAreaCenter - valueSize.x * 0.5f, titlePos.y };
 
-		AddTextWithOutline(drawList, g_fntSeurat, fontValueSize, valuePos, IM_COL32(234, 234, 69, 255),
-			TextoutlineColor, valueText.c_str(), 1.f, outlineOffset, outlineOffset);
+		DrawMenuText(fontValueSize, valuePos, HIGHLIGHT_COLOUR, valueText.c_str(), true);
 	}
 
 	if (!isCurrent)
@@ -1435,7 +1424,6 @@ static std::string GetPadButtonLabel(EPadButton button, bool isPlayStation, cons
 // DrawOption layout for non config rows
 static void DrawCustomOption(int rowIndex, ImVec2 min, ImVec2 max, const std::string& title, const std::string& value, bool isSelected)
 {
-	auto drawList = ImGui::GetBackgroundDrawList();
 	auto optionHeight = Scale(48);
 	float offsetScroll = 0.0f;
 
@@ -1457,14 +1445,11 @@ static void DrawCustomOption(int rowIndex, ImVec2 min, ImVec2 max, const std::st
 	auto offsetY = optionHeight * rowIndex + offsetScroll;
 	auto isHoverOrSelected = g_optionIndex == rowIndex && OptionsMenu::s_flowState != OptionsMenuFlowState::CategoryCursor;
 
-	const float outlineOffset = 2.f;
-	auto textOutlineColor = isHoverOrSelected ? IM_COL32(0, 0, 60, 44) : IM_COL32(0, 0, 0, 44);
-	auto textColor = isHoverOrSelected ? IM_COL32(234, 234, 69, 255) : IM_COL32(255, 255, 255, 255);
+	auto textColor = isHoverOrSelected ? HIGHLIGHT_COLOUR : IM_COL32(255, 255, 255, 255);
 
 	ImVec2 titlePos = { min.x, min.y + offsetY + Scale(8) };
 
-	AddTextWithOutline(drawList, g_fntSeurat, g_fntSeuratSize - 4.f, titlePos, textColor,
-		textOutlineColor, title.c_str(), 1.f, outlineOffset, outlineOffset);
+	DrawMenuText(g_fntSeuratSize - 4.f, titlePos, textColor, title.c_str(), isHoverOrSelected);
 
 	if (value.empty())
 		return;
@@ -1479,8 +1464,7 @@ static void DrawCustomOption(int rowIndex, ImVec2 min, ImVec2 max, const std::st
 	auto displayText = TruncateTextWithEllipsis(g_fntSeurat, fontValueSize, value, Scale(150));
 	auto displaySize = g_fntSeurat->CalcTextSizeA(fontValueSize, FLT_MAX, 0.0f, displayText.c_str());
 
-	AddTextWithOutline(drawList, g_fntSeurat, fontValueSize, { valueAreaCenter - (displaySize.x * 0.5f), titlePos.y }, IM_COL32(255, 255, 255, 255),
-		textOutlineColor, displayText.c_str(), 1.f, outlineOffset, outlineOffset);
+	DrawMenuText(fontValueSize, { valueAreaCenter - (displaySize.x * 0.5f), titlePos.y }, IM_COL32(255, 255, 255, 255), displayText.c_str());
 
 	float arrowAreaPadding = Scale(35);
 	ImVec2 arrowAreaMin = { valueAreaStart - arrowAreaPadding, min.y + offsetY };
@@ -2366,7 +2350,7 @@ static void DrawCategories(ImVec2 min, ImVec2 max)
 
 			[=](const char* str, ImVec2 pos)
 			{
-				DrawTextWithShadow(g_fntSeurat, fontSize, pos, isCurrent ? IM_COL32(234, 234, 69, 255) : IM_COL32(255, 255, 255, 255), str, 1.f, 0.5f);
+				DrawMenuText(fontSize, pos, isCurrent ? HIGHLIGHT_COLOUR : IM_COL32(255, 255, 255, 255), str, isCurrent, 1.0f);
 			},
 			[=](const char* str, float size, ImVec2 pos)
 			{
