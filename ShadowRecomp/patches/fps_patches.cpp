@@ -2667,3 +2667,27 @@ X86_FUNC(sub_374A60)
 	}
 }
 /** --Melee weapon attack Patch END-- */
+
+/** --Advertise Message Timer Patch START-- */
+// Advertise has a 1.5s hardcoded to step at 1/60 instead of basing off dt.
+static float GetMessageTimerExcess(uint8_t* base)
+{
+	const float dt = X86_LOAD_F32(g_deltaTime);
+	const float minStep = X86_LOAD_F32(0x42BE10); // message timer's hardcoded 1/60 value
+	return dt > 0.0f && dt < minStep ? minStep - dt : 0.0f;
+}
+
+// Message timer @ sub_2A6020
+// esi = message
+void AdvertiseMessageElapsedTimerMidAsmHook(X86Register& esi)
+{
+	auto base = g_memory.base;
+	X86_STORE_F32(esi.u32 + 0x24, X86_LOAD_F32(esi.u32 + 0x24) - GetMessageTimerExcess(base));
+}
+
+void AdvertiseMessageHoldTimerMidAsmHook(X86Register& esi)
+{
+	auto base = g_memory.base;
+	X86_STORE_F32(esi.u32 + 0x20, X86_LOAD_F32(esi.u32 + 0x20) + GetMessageTimerExcess(base));
+}
+/** --Advertise Message Timer Patch END-- */

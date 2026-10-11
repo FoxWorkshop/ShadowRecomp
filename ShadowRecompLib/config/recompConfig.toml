@@ -1701,3 +1701,13 @@ address = 0x2962D5
 name = "PADBattleStageSelMidAsmHook"
 address = 0x29707B
 # END PAD assignment patches
+
+[[midasm_hook]]
+name = "AdvertiseMessageElapsedTimerMidAsmHook"
+address = 0x2A6057
+registers = ["r4"]
+
+[[midasm_hook]]
+name = "AdvertiseMessageHoldTimerMidAsmHook"
+address = 0x2A6082
+registers = ["r4"]
