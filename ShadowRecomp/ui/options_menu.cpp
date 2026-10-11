@@ -2113,7 +2113,7 @@ void DrawBackground(bool isPause = false)
 			bgMax,
 			{ 0, 0 },
 			{ 1, uvMaxY },
-			IM_COL32(255, 255, 255, 220)
+			IM_COL32(255, 255, 255, 255)
 		);
 	}
 	else
