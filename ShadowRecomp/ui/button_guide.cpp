@@ -14,6 +14,12 @@
 constexpr float DEFAULT_SIDE_MARGINS = 379;
 float g_sideMargins = DEFAULT_SIDE_MARGINS;
 
+constexpr float DEFAULT_TOP = 480.f - 65.0f;
+float g_top = DEFAULT_TOP;
+bool g_isCenterAnchored = false;
+float g_leftAnchor = 0.0f;
+float g_rightAnchor = 0.0f;
+
 ImFont* g_fntDFPZong;
 
 std::unique_ptr<GuestTexture> g_upControllerIcons;
@@ -21,7 +27,7 @@ std::unique_ptr<GuestTexture> g_upKBMIcons;
 
 static std::vector<Button> g_buttons;
 
-#define widthC 40
+#define widthC 35
 #define heightC 30
 std::unordered_map<EButtonIcon, float> g_iconWidths =
 {
@@ -185,11 +191,16 @@ void ButtonGuide::Draw()
 
     auto drawList = ImGui::GetBackgroundDrawList();
 
-    ImVec2 regionMin = { GetMenuBoxLeft() + GetMenuBoxWidth() * 0.1f, g_aspectRatioOffsetY * 2.0f + Scale(480.f - 65.0f)};
+    ImVec2 regionMin = { GetMenuBoxLeft() + GetMenuBoxWidth() * 0.1f, g_aspectRatioOffsetY * 2.0f + Scale(g_top)};
     ImVec2 regionMax = { g_aspectRatioOffsetX + Scale(640.f - g_sideMargins), g_aspectRatioOffsetY * 2.0f + Scale(480.f) };
 
+    auto centreX = ImGui::GetIO().DisplaySize.x / 2.0f;
+
+    if (g_isCenterAnchored)
+        regionMin.x = centreX + Scale(g_leftAnchor);
+
     auto textMarginX = Scale(21.25f);
-    auto iconMarginX = Scale(8);
+    auto iconMarginX = Scale(10.5f);
     auto fontSize = Scale(18.8f);
 
     auto offsetLeft = 0.0f;
@@ -222,8 +233,11 @@ void ButtonGuide::Draw()
         DrawGuide(&offsetLeft, regionMin, regionMax, btn.Icon, btn.Alignment, iconMin, iconMax, textWidth, maxWidth, textScale, fontSize, str);
     }
 
-    regionMin = { GetMenuBoxLeft() + GetMenuBoxWidth() * 0.6f, g_aspectRatioOffsetY * 2.0f + Scale(480.f - 65.0f) };
+    regionMin = { GetMenuBoxLeft() + GetMenuBoxWidth() * 0.6f, g_aspectRatioOffsetY * 2.0f + Scale(g_top) };
     regionMax = { GetMenuBoxLeft() + GetMenuBoxWidth() * 0.88f, g_aspectRatioOffsetY * 2.0f + Scale(480.f) };
+
+    if (g_isCenterAnchored)
+        regionMax.x = centreX + Scale(g_rightAnchor);
     
     // Draw right aligned icons.
     for (int i = g_buttons.size() - 1; i >= 0; i--)
@@ -270,6 +284,8 @@ void ButtonGuide::Open(Button button)
 {
     s_isVisible = true;
     g_sideMargins = DEFAULT_SIDE_MARGINS;
+    g_top = DEFAULT_TOP;
+    g_isCenterAnchored = false;
 
     g_buttons = {};
     g_buttons.push_back(button);
@@ -281,6 +297,8 @@ void ButtonGuide::Open(const std::span<Button> buttons)
 {
     s_isVisible = true;
     g_sideMargins = DEFAULT_SIDE_MARGINS;
+    g_top = DEFAULT_TOP;
+    g_isCenterAnchored = false;
     g_buttons = std::vector(buttons.begin(), buttons.end());
 }
 
@@ -288,6 +306,14 @@ void ButtonGuide::Open(const std::span<Button> buttons)
 void ButtonGuide::SetSideMargins(float width = DEFAULT_SIDE_MARGINS)
 {
     g_sideMargins = width;
+}
+
+void ButtonGuide::SetLayout(float left, float right, float top)
+{
+    g_isCenterAnchored = true;
+    g_leftAnchor = left;
+    g_rightAnchor = right;
+    g_top = top;
 }
 
 void ButtonGuide::Close()

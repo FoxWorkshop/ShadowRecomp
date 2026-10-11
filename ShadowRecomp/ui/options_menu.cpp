@@ -39,6 +39,15 @@
 
 static constexpr int MAX_VISIBLE_ROWS = 5;
 static constexpr ImU32 HIGHLIGHT_COLOUR = IM_COL32(255, 255, 98, 255);
+
+// mapping based on 640x480
+static constexpr float OPTION_ROW_HEIGHT = 48.0f;
+static constexpr float OPTIONS_LOGO_WIDTH = 136.5f;
+static constexpr float OPTIONS_LOGO_HEIGHT = 461.0f;
+static constexpr float BUTTON_GUIDE_LEFT = -229.5f;
+static constexpr float BUTTON_GUIDE_RIGHT = 201.5f;
+static constexpr float BUTTON_GUIDE_TOP = 404.5f;
+
 static IConfigDef* g_optionCurrent{};
 static bool g_optionCanReset{};
 static std::unique_ptr<GuestTexture> g_upTexOptionsBG{};
@@ -203,7 +212,7 @@ static constexpr float INLINE_ICON_SIZE = 36.0f;
 static constexpr float INLINE_ICON_GAP = 10.0f;
 
 static constexpr float CATEGORY_COLUMN_CENTRE_X = 171.0f;
-
+static constexpr float CATEGORY_TOP = 137.5f;
 
 static constexpr float OPTIONS_PANEL_WIDTH_RATIO = 0.55f;
 
@@ -455,6 +464,25 @@ void DrawSelectionArrows(ImVec2 min, ImVec2 max, bool isSelected)
 	drawList->AddImage(g_upTexArrow.get(), arrowRightMin, arrowRightMax, GET_UV_COORDS(arrowUVs));
 };
 
+static int g_optionScrollTop{};
+static int GetOptionScrollTop()
+{
+	if (g_optionIndex > g_optionScrollTop + MAX_VISIBLE_ROWS - 2)
+		g_optionScrollTop = g_optionIndex - (MAX_VISIBLE_ROWS - 2);
+
+	if (g_optionIndex < g_optionScrollTop + 1)
+		g_optionScrollTop = g_optionIndex - 1;
+
+	g_optionScrollTop = std::clamp(g_optionScrollTop, 0, std::max(g_optionCount - MAX_VISIBLE_ROWS, 0));
+
+	return g_optionScrollTop;
+}
+
+static float GetRowScrollOffset(float optionHeight)
+{
+	return -GetOptionScrollTop() * optionHeight;
+}
+
 template <typename T, bool isHidden = false>
 static void DrawOption
 (
@@ -477,10 +505,8 @@ static void DrawOption
 
 	auto optionMotionTime = 1.0f; // ComputeLinearMotion(g_categoryTime, 0, 5, OptionsMenu::s_state != OptionsMenuState::Idle);
 
-	auto optionHeight = Scale(48);
-	float offsetScroll = 0.0f;
+	auto optionHeight = Scale(OPTION_ROW_HEIGHT);
 
-	bool isMiddleRow = false;
 	// original offset from the container
 	float optionsOffsetX = Scale(170);
 	float optionsOffsetY = Scale(23);
@@ -489,29 +515,7 @@ static void DrawOption
 	min.x -= optionsOffsetX - Scale(10);
 	max.x -= Scale(10);
 
-	// Only scroll if page has more than 3 items.
-	if (g_optionCount > MAX_VISIBLE_ROWS)
-	{
-		isMiddleRow = ((rowIndex - std::max(g_optionIndex - 1, 0)) % MAX_VISIBLE_ROWS) >= 1;
-
-		if (g_optionIndex >= g_optionCount - (MAX_VISIBLE_ROWS - 1))
-		{
-			// Stop scrolling near bottom to use cursor instead.
-			offsetScroll = -(g_optionCount - MAX_VISIBLE_ROWS) * optionHeight;
-			isMiddleRow = ((rowIndex - std::max(g_optionCount - MAX_VISIBLE_ROWS, 0)) % MAX_VISIBLE_ROWS) >= 1;
-		}
-		else if (g_optionIndex >= 1)
-		{
-			// Start scrolling from the middle item.
-			offsetScroll = -(g_optionIndex - 1) * optionHeight;
-		}
-	}
-	else
-	{
-		isMiddleRow = rowIndex >= 1;
-	}
-
-	auto offsetY = optionHeight * rowIndex + offsetScroll;
+	auto offsetY = optionHeight * rowIndex + GetRowScrollOffset(optionHeight);
 	auto isCurrent = g_optionIndex == rowIndex;
 	auto isSelected = isCurrent && OptionsMenu::s_flowState == OptionsMenuFlowState::OptionSelected;
 	auto isHover = isCurrent && OptionsMenu::s_flowState == OptionsMenuFlowState::OptionCursor;
@@ -548,7 +552,6 @@ static void DrawOption
 	auto titleText = config->GetNameLocalised(Config::Language);
 	auto titleTextSize = g_fntSeurat->CalcTextSizeA(fontOptionSize, FLT_MAX, 0, titleText.c_str());
 	ImVec2 titlePos = { titleBgEdgeMin.x, titleBgEdgeMin.y + Scale(8) };
-	auto isTitleRightFade = !isMiddleRow && OptionsMenu::s_flowState == OptionsMenuFlowState::OptionCursor;
 	auto titleAreaStart = titlePos.x;
 	auto titleAreaEnd = valueAreaStart - Scale(10); // leave a gap before the value column
 	auto titleAreaWidth = titleAreaEnd - titleAreaStart;
@@ -1033,23 +1036,6 @@ static void DrawOption
 
 }
 
-static float GetRowScrollOffset(float optionHeight)
-{
-	// Only scroll if page has more rows than the view.
-	if (g_optionCount <= MAX_VISIBLE_ROWS)
-		return 0.0f;
-
-	// Stop scrolling near bottom
-	if (g_optionIndex >= g_optionCount - (MAX_VISIBLE_ROWS - 1))
-		return -(g_optionCount - MAX_VISIBLE_ROWS) * optionHeight;
-
-	// Start scrolling around the middle
-	if (g_optionIndex >= 1)
-		return -(g_optionIndex - 1) * optionHeight;
-
-	return 0.0f;
-}
-
 
 static void DrawActionOption
 (
@@ -1062,7 +1048,7 @@ static void DrawActionOption
 	const std::function<void()>& onAccept
 )
 {
-	auto optionHeight = Scale(48);
+	auto optionHeight = Scale(OPTION_ROW_HEIGHT);
 	const float fontOptionSize = g_fntSeuratSize - 4.f;
 
 	// removing offset will make option draw right when the container starts, so we add an extra scale to make it fit inside.
@@ -1262,7 +1248,7 @@ void OptionsMenu::UpdateSoundTest()
 
 static void DrawSoundTestTrack(int rowIndex, ImVec2 min, ImVec2 max)
 {
-	auto optionHeight = Scale(48);
+	auto optionHeight = Scale(OPTION_ROW_HEIGHT);
 	const float fontOptionSize = g_fntSeuratSize - 4.f;
 	const float fontValueSize = g_fntSeuratSize - Scale(5.33f);
 
@@ -1424,25 +1410,12 @@ static std::string GetPadButtonLabel(EPadButton button, bool isPlayStation, cons
 // DrawOption layout for non config rows
 static void DrawCustomOption(int rowIndex, ImVec2 min, ImVec2 max, const std::string& title, const std::string& value, bool isSelected)
 {
-	auto optionHeight = Scale(48);
-	float offsetScroll = 0.0f;
+	auto optionHeight = Scale(OPTION_ROW_HEIGHT);
 
 	min.x -= Scale(170) - Scale(10);
 	max.x -= Scale(10);
 
-	if (g_optionCount > MAX_VISIBLE_ROWS)
-	{
-		if (g_optionIndex >= g_optionCount - (MAX_VISIBLE_ROWS - 1))
-		{
-			offsetScroll = -(g_optionCount - MAX_VISIBLE_ROWS) * optionHeight;
-		}
-		else if (g_optionIndex >= 1)
-		{
-			offsetScroll = -(g_optionIndex - 1) * optionHeight;
-		}
-	}
-
-	auto offsetY = optionHeight * rowIndex + offsetScroll;
+	auto offsetY = optionHeight * rowIndex + GetRowScrollOffset(optionHeight);
 	auto isHoverOrSelected = g_optionIndex == rowIndex && OptionsMenu::s_flowState != OptionsMenuFlowState::CategoryCursor;
 
 	auto textColor = isHoverOrSelected ? HIGHLIGHT_COLOUR : IM_COL32(255, 255, 255, 255);
@@ -1935,20 +1908,14 @@ static void DrawOptions(ImVec2 minClipRect, ImVec2 maxClipRect, ImVec2 min, ImVe
 
 	if (g_optionCount > MAX_VISIBLE_ROWS && OptionsMenu::s_flowState == OptionsMenuFlowState::OptionCursor)
 	{
-		auto& res = ImGui::GetIO().DisplaySize;
-		auto scrollArrowsOffsetX = Scale(45);
-		auto scrollArrowsOffsetTop = Scale(100);
-		auto scrollArrowsOffsetBottom = Scale(25);
-		float containerLeft = GetMenuBoxWidth() * 0.1f;
-		float containerRight = GetMenuBoxLeft() + GetMenuBoxWidth() * 0.9f;
-		float containerTop = res.y * 0.15f;
-		float containerBottom = res.y * 0.9f;
-		ImVec2 min = { containerRight - containerLeft, g_vertCentre + containerTop};
-		ImVec2 max = { min.x + containerLeft, g_vertCentre + containerBottom  };
-		ImVec2 scrollArrowsMin = { max.x + scrollArrowsOffsetX, min.y + scrollArrowsOffsetTop };
-		ImVec2 scrollArrowsMax = { scrollArrowsMin.x + scrollArrowsOffsetX, max.y - scrollArrowsOffsetBottom };
+		// keep the arrows inside the list, next to the right edge of the menu box
+		auto scrollArrowsOffsetX = Scale(40);
+		auto scrollArrowsOffsetTop = Scale(21);
+		auto scrollArrowsOffsetBottom = Scale(6);
+		ImVec2 scrollArrowsMin = { GetMenuBoxLeft() + GetMenuBoxWidth() - scrollArrowsOffsetX, minClipRect.y + scrollArrowsOffsetTop };
+		ImVec2 scrollArrowsMax = { scrollArrowsMin.x + scrollArrowsOffsetX, maxClipRect.y - scrollArrowsOffsetBottom };
 
-		DrawScrollArrows(scrollArrowsMin, scrollArrowsMax, Scale(15), g_scrollArrowsTime, g_optionIndex > 1, g_optionIndex < rowCount - 2);
+		DrawScrollArrows(scrollArrowsMin, scrollArrowsMax, Scale(15), g_scrollArrowsTime, g_optionScrollTop > 0, g_optionScrollTop < rowCount - MAX_VISIBLE_ROWS);
 	}
 
 }
@@ -2044,8 +2011,7 @@ void DrawBackground(bool isPause = false)
 	auto& res = ImGui::GetIO().DisplaySize;
 	auto drawList = ImGui::GetBackgroundDrawList();
 
-	ImVec2 min = { g_horzCentre + g_aspectRatioNarrowMargin, g_vertCentre };
-	ImVec2 max = { res.x - min.x, res.y - min.y };
+	ImVec2 min = { GetMenuBoxLeft(), g_aspectRatioOffsetY };
 
 	float borderPixels = 32.f; // Options BG has an extra black border at the bottom, we don't want that.
 	float uvMaxY = 1.0f - (borderPixels / 512.0f);
@@ -2094,10 +2060,10 @@ void DrawBackground(bool isPause = false)
 	if (scale >= 0.8f || isPause == false)
 	{
 		auto optionsUVs = PIXELS_TO_UV_COORDS(512, 512, 0, 0, 147, 448);
-		auto optionsWidth = GetMenuBoxWidth() * 0.16f;
-		auto optionsHeight = res.y * 0.96f;
+		auto optionsWidth = Scale(OPTIONS_LOGO_WIDTH);
+		auto optionsHeight = Scale(OPTIONS_LOGO_HEIGHT);
 
-		ImVec2 optionsMin = { 0, min.y + Scale(10) };
+		ImVec2 optionsMin = { 0.0f, min.y + Scale(10) };
 		ImVec2 optionsMax = { optionsMin.x + optionsWidth, optionsMin.y + optionsHeight };
 
 		drawList->AddImage(g_upTexOptionsText.get(), optionsMin, optionsMax, GET_UV_COORDS(optionsUVs), IM_COL32(255, 255, 255, 128));
@@ -2186,8 +2152,9 @@ void DrawMenuListContainer(ImVec2 min, ImVec2 max)
 
 	ImVec2 containerMin = { containerCurrentX, min.y + containerOffsetY };
 	ImVec2 containerMax = { containerCurrentX + containerWidth, containerMin.y + containerHeight };
+	ImVec2 panelMax = { containerMax.x + GetMenuBoxLeft(), containerMax.y };
 
-	drawList->AddImage(g_upTexOptionsBG2.get(), containerMin, containerMax, GET_UV_COORDS(containerUVs));
+	drawList->AddImage(g_upTexOptionsBG2.get(), containerMin, panelMax, GET_UV_COORDS(containerUVs));
 
 	if (t < 1.f)
 		return;
@@ -2199,9 +2166,8 @@ void DrawMenuListContainer(ImVec2 min, ImVec2 max)
 	ImVec2 maxOptions = { containerMax.x, containerMax.y - optionsOffsetY };
 
 	optionsOffsetX -= Scale(170);
-	//optionsOffsetY -= Scale(23);
 	ImVec2 minClipRect = { containerMin.x + optionsOffsetX, containerMin.y + optionsOffsetY };
-	ImVec2 maxClipRect = { containerMax.x, containerMax.y - optionsOffsetY };
+	ImVec2 maxClipRect = { containerMax.x, minClipRect.y + Scale(OPTION_ROW_HEIGHT) * MAX_VISIBLE_ROWS };
 	DrawOptions(minClipRect, maxClipRect, minOptions, maxOptions);
 	if (OptionsMenu::s_flowState == OptionsMenuFlowState::OptionCursor || OptionsMenu::s_flowState == OptionsMenuFlowState::OptionSelected)
 		DrawDescription(optionDescription); // we draw option description separately so they don't get discard by the clip rect.
@@ -2329,7 +2295,7 @@ static void DrawCategories(ImVec2 min, ImVec2 max)
 
 #else
 
-		auto rowCentreY = min.y + Scale(153.0f + 48.f * visibleIndex); // gap between each category
+		auto rowCentreY = min.y + Scale(CATEGORY_TOP + 48.f * visibleIndex) + iconSize * 0.5f; // gap between each category
 
 		ImVec2 iconMin = { groupLeft, rowCentreY - iconSize * 0.5f };
 		ImVec2 iconMax = { iconMin.x + iconSize, iconMin.y + iconSize };
@@ -2641,8 +2607,8 @@ void OptionsMenu::Draw()
 	DrawBackground(OptionsMenu::s_isPause);
 
 	auto& res = ImGui::GetIO().DisplaySize;
-	ImVec2 min = { g_horzCentre + g_aspectRatioNarrowMargin, g_vertCentre };
-	ImVec2 max = { res.x - min.x, res.y - min.y };
+	ImVec2 min = { GetMenuBoxLeft(), g_aspectRatioOffsetY };
+	ImVec2 max = { min.x + GetMenuBoxWidth(), res.y - min.y };
 
 	//	DrawAnimatedFire(min, max);
 
@@ -2695,7 +2661,7 @@ void OptionsMenu::Open(bool isPause)
 	{
 		//Button("Common_Switch", 115.0f, EButtonIcon::LBRB, EButtonAlignment::Left, &g_isControlsVisible),
 		Button("Common_Exit", 115.0f, EButtonIcon::Y, EButtonAlignment::Left, &g_isControlsVisible),
-		Button("Common_Reset", 100.0f, EButtonIcon::X, EButtonAlignment::Left, &g_optionCanReset),
+		Button("Common_Reset", 100.0f, EButtonIcon::X, EButtonAlignment::Right, &g_optionCanReset),
 		Button("Common_Select", 75.0f, EButtonIcon::A, EButtonAlignment::Right, &g_isControlsVisible),
 
 
@@ -2703,6 +2669,7 @@ void OptionsMenu::Open(bool isPause)
 
 	ButtonGuide::Open(buttons);
 	ButtonGuide::SetSideMargins(100);
+	ButtonGuide::SetLayout(BUTTON_GUIDE_LEFT, BUTTON_GUIDE_RIGHT, BUTTON_GUIDE_TOP);
 	if (s_isPause)
 	{
 		GameMenuCommon::g_nextModeAddr = 0;

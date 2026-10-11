@@ -58,5 +58,6 @@ public:
     static void Open(Button button);
     static void Open(const std::span<Button> buttons);
     static void SetSideMargins(float width);
+    static void SetLayout(float left, float right, float top);
     static void Close();
 };
