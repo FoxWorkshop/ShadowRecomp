@@ -343,6 +343,8 @@ void DrawPauseText()
 	float virtualItemSpacing = 20.0f; // pixels in 640x480 space
 	float virtualStartY = g_pauseBoss ? 200.f : 125.f;
 
+	virtualStartY += virtualItemSpacing * 0.5f * (float)(pauseItemsCount - itemCount);
+
 	// the pause "box" is unstretched around the center of the screen (640x480 layout)
 	const float scaleY = GetPauseScaleY();
 	virtualStartY = 240.0f + (virtualStartY - 240.0f) * scaleY;
