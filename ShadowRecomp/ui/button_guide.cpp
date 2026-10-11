@@ -118,7 +118,7 @@ std::tuple<std::tuple<ImVec2, ImVec2>, GuestTexture*> GetButtonIcon(EButtonIcon 
 }
 
 static void DrawGuide(float* offset, ImVec2 regionMin, ImVec2 regionMax, EButtonIcon icon,
-    EButtonAlignment alignment, ImVec2 iconMin, ImVec2 iconMax, EFontQuality fontQuality,
+    EButtonAlignment alignment, ImVec2 iconMin, ImVec2 iconMax,
     float textWidth, float maxTextWidth, float textScale, float fontSize, const char* text)
 {
     auto drawList = ImGui::GetBackgroundDrawList();
@@ -172,17 +172,7 @@ static void DrawGuide(float* offset, ImVec2 regionMin, ImVec2 regionMax, EButton
     SetScale({ textScale, 1.0f });
     SetOrigin(textPos);
 
-    if (fontQuality == EFontQuality::Low)
-        SetShaderModifier(IMGUI_SHADER_MODIFIER_LOW_QUALITY_TEXT);
-
     DrawTextWithOutline(g_fntDFPZong, fontSize, textPos, IM_COL32_WHITE, text, 4, IM_COL32_BLACK);
-
-    if (fontQuality == EFontQuality::Low)
-    {
-        // Add extra luminance to low quality text.
-        drawList->AddText(g_fntDFPZong, fontSize, textPos, IM_COL32(255, 255, 255, 127), text);
-        SetShaderModifier(IMGUI_SHADER_MODIFIER_NONE);
-    }
 
     SetScale({ 1.0f, 1.0f });
     SetOrigin({ 0.0f, 0.0f });
@@ -229,7 +219,7 @@ void ButtonGuide::Draw()
         ImVec2 iconMin = { regionMin.x + offsetLeft - iconWidth - iconMarginX, regionMin.y };
         ImVec2 iconMax = { regionMin.x + offsetLeft - iconMarginX, regionMin.y + iconHeight };
 
-        DrawGuide(&offsetLeft, regionMin, regionMax, btn.Icon, btn.Alignment, iconMin, iconMax, btn.FontQuality, textWidth, maxWidth, textScale, fontSize, str);
+        DrawGuide(&offsetLeft, regionMin, regionMax, btn.Icon, btn.Alignment, iconMin, iconMax, textWidth, maxWidth, textScale, fontSize, str);
     }
 
     regionMin = { GetMenuBoxLeft() + GetMenuBoxWidth() * 0.6f, g_aspectRatioOffsetY * 2.0f + Scale(480.f - 65.0f) };
@@ -261,7 +251,7 @@ void ButtonGuide::Draw()
         ImVec2 iconMin = { regionMax.x - offsetRight - iconWidth - iconMarginX, regionMin.y };
         ImVec2 iconMax = { regionMax.x - offsetRight - iconMarginX, regionMin.y + iconHeight };
 
-        DrawGuide(&offsetRight, regionMin, regionMax, btn.Icon, btn.Alignment, iconMin, iconMax, btn.FontQuality, textWidth, maxWidth, textScale, fontSize, str);
+        DrawGuide(&offsetRight, regionMin, regionMax, btn.Icon, btn.Alignment, iconMin, iconMax, textWidth, maxWidth, textScale, fontSize, str);
     }
 }
 

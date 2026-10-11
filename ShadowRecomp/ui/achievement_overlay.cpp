@@ -130,8 +130,6 @@ void AchievementOverlay::Draw()
             IM_COL32(255, 255, 255, 255)
         );
 
-        SetShaderModifier(IMGUI_SHADER_MODIFIER_LOW_QUALITY_TEXT);
-
         auto colourMotion = BREATHE_MOTION(1.0f, 0.0f, g_appearTime, 0.9f);
         auto headerColour = ColourLerp(IM_COL32_WHITE, IM_COL32(255, 153, 0, 255), colourMotion);
 
@@ -154,8 +152,6 @@ void AchievementOverlay::Draw()
             IM_COL32(255, 255, 255, 255),
             strAchievementName.c_str()
         );
-
-        SetShaderModifier(IMGUI_SHADER_MODIFIER_NONE);
     }
     else if (windowMotion <= 0.0 && g_isClosing)
     {

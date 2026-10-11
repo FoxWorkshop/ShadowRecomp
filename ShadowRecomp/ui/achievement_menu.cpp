@@ -433,10 +433,7 @@ static void DrawAchievement(int rowIndex, Achievement& achievement, bool isUnloc
 	ImVec2 descPos = { textX, namePos.y + descTextOffsetY };
 
 	// Draw achievement name.
-	SetShaderModifier(IMGUI_SHADER_MODIFIER_LOW_QUALITY_TEXT);
-
 	DrawTextWithOutline(g_fntSeurat, fontTitleSize, namePos, textColour, name.c_str(), 2.f, outlineColor);
-	SetShaderModifier(IMGUI_SHADER_MODIFIER_NONE);
 
 	auto timestampOffsetX = Scale(30);
 
@@ -453,9 +450,7 @@ static void DrawAchievement(int rowIndex, Achievement& achievement, bool isUnloc
 		marqueeMax.x -= Scale(1);
 	}
 
-	SetShaderModifier(IMGUI_SHADER_MODIFIER_LOW_QUALITY_TEXT);
 	DrawTextWithMarquee(g_fntSeurat, descFontSize, descPos, marqueeMin, marqueeMax, textColour, descText, g_rowSelectionTime, marqueeDelay, shouldMarquee ? Scale(200) : 0);
-	SetShaderModifier(IMGUI_SHADER_MODIFIER_NONE);
 
 	if (!isUnlocked)
 		return;
@@ -484,9 +479,7 @@ static void DrawAchievement(int rowIndex, Achievement& achievement, bool isUnloc
 	ImVec2 datePos = { max.x - timestampSize.x - timestampOffsetX, namePos.y };
 
 	// Draw timestamp text.
-	SetShaderModifier(IMGUI_SHADER_MODIFIER_LOW_QUALITY_TEXT);
 	drawList->AddText(g_fntSeurat, descFontSize - 2.f, datePos, IM_COL32_WHITE, buffer);
-	SetShaderModifier(IMGUI_SHADER_MODIFIER_NONE);
 }
 
 void AchievementMenu::Draw()

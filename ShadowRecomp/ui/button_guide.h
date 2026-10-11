@@ -30,12 +30,6 @@ enum class EButtonAlignment
     Right
 };
 
-enum class EFontQuality
-{
-    Low,
-    High
-};
-
 class Button
 {
 public:
@@ -43,23 +37,14 @@ public:
     float MaxWidth{ FLT_MAX };
     EButtonIcon Icon{};
     EButtonAlignment Alignment{ EButtonAlignment::Right };
-    EFontQuality FontQuality{ EFontQuality::High };
     bool* Visibility{ nullptr };
 
-    Button(std::string name, float maxWidth, EButtonIcon icon, EButtonAlignment alignment, EFontQuality fontQuality = EFontQuality::High, bool* visibility = nullptr)
-        : Name(name), MaxWidth(maxWidth), Icon(icon), Alignment(alignment), FontQuality(fontQuality), Visibility(visibility) {
-    }
-
-    Button(std::string name, float maxWidth, EButtonIcon icon, EButtonAlignment alignment, bool* visibility)
+    Button(std::string name, float maxWidth, EButtonIcon icon, EButtonAlignment alignment, bool* visibility = nullptr)
         : Name(name), MaxWidth(maxWidth), Icon(icon), Alignment(alignment), Visibility(visibility) {
     }
 
-    Button(std::string name, float maxWidth, EButtonIcon icon, bool* visibility)
+    Button(std::string name, float maxWidth, EButtonIcon icon, bool* visibility = nullptr)
         : Name(name), MaxWidth(maxWidth), Icon(icon), Visibility(visibility) {
-    }
-
-    Button(std::string name, float maxWidth, EButtonIcon icon, EFontQuality fontQuality = EFontQuality::High)
-        : Name(name), MaxWidth(maxWidth), Icon(icon), FontQuality(fontQuality) {
     }
 };
 

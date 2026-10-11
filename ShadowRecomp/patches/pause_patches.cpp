@@ -331,7 +331,6 @@ void DrawPauseText()
 	auto drawList = ImGui::GetBackgroundDrawList();
 	auto& res = ImGui::GetIO().DisplaySize;
 	ImVec2 screenCentre = { res.x / 2.0f, res.y / 2.0f };
-	SetShaderModifier(IMGUI_SHADER_MODIFIER_LOW_QUALITY_TEXT);
 
 
 	// virtual size of the texture sprite
@@ -400,8 +399,6 @@ void DrawPauseText()
 	g_right = false;
 	g_rightWasHeld = rightIsHeld;
 	g_isAccepted = false;
-
-	SetShaderModifier(IMGUI_SHADER_MODIFIER_NONE);
 }
 
 // TPauseManagerExec

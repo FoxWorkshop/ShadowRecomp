@@ -134,43 +134,7 @@ float4 main(in Interpolators interpolators) : SV_Target
         
         if ((g_PushConstants.Texture2DDescriptorIndex & 0x80000000) != 0)
         {
-            if (g_PushConstants.ShaderModifier == IMGUI_SHADER_MODIFIER_LOW_QUALITY_TEXT)
-            {
-                float scale;
-                float invScale;
-                
-                if ((g_PushConstants.DisplaySize.x * g_PushConstants.InverseDisplaySize.y) >= (4.0 / 3.0))
-                {
-                    scale = g_PushConstants.InverseDisplaySize.y * 720.0;
-                    invScale = g_PushConstants.DisplaySize.y / 720.0;
-                }
-                else
-                {
-                    scale = g_PushConstants.InverseDisplaySize.x * 960.0;
-                    invScale = g_PushConstants.DisplaySize.x / 960.0;
-                }
-                
-                float2 lowQualityPosition = (interpolators.Position.xy - 0.5) * scale;                
-                float2 fracPart = frac(lowQualityPosition);
-                
-                float2 uvStep = fwidth(interpolators.UV) * invScale;
-                float2 lowQualityUV = interpolators.UV - fracPart * uvStep;
-                float2 screenTexSize = 1.0 / uvStep;
-                
-                float4 topLeft = SampleSdfFont(color, texture, lowQualityUV + float2(0, 0), screenTexSize);
-                float4 topRight = SampleSdfFont(color, texture, lowQualityUV + float2(uvStep.x, 0), screenTexSize);
-                float4 bottomLeft = SampleSdfFont(color, texture, lowQualityUV + float2(0, uvStep.y), screenTexSize);
-                float4 bottomRight = SampleSdfFont(color, texture, lowQualityUV + uvStep.xy, screenTexSize);
-                
-                float4 top = lerp(topLeft, topRight, fracPart.x);
-                float4 bottom = lerp(bottomLeft, bottomRight, fracPart.x);
-                
-                color = lerp(top, bottom, fracPart.y);
-            }
-            else
-            {
-                color = SampleSdfFont(color, texture, interpolators.UV, 1.0 / fwidth(interpolators.UV));
-            }
+            color = SampleSdfFont(color, texture, interpolators.UV, 1.0 / fwidth(interpolators.UV));
         }
         else
         {

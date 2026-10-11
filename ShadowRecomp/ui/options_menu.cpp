@@ -348,8 +348,6 @@ void DrawDescription(std::string s)
 	textPos.x -= offsetScroll;
 
 
-	SetShaderModifier(IMGUI_SHADER_MODIFIER_LOW_QUALITY_TEXT);
-
 	drawList->AddText(g_fntSeurat, fontSize, textPos, IM_COL32(255, 255, 255, 255), s.c_str());
 
 	if (isScrolling)
@@ -358,8 +356,6 @@ void DrawDescription(std::string s)
 		ImVec2 loopPos = { textPos.x + totalWidth, textPos.y };
 		drawList->AddText(g_fntSeurat, fontSize, loopPos, IM_COL32(255, 255, 255, 255), s.c_str());
 	}
-
-	SetShaderModifier(IMGUI_SHADER_MODIFIER_NONE);
 
 	drawList->PopClipRect();
 }
@@ -534,8 +530,6 @@ static void DrawOption
 	drawList->AddImage(g_upTexMainMenu8.get(), titleBgStretchMin, titleBgStretchMax, GET_UV_COORDS(bgStretchUVs), bgColour);
 	ResetGradient();*/
 
-	SetShaderModifier(IMGUI_SHADER_MODIFIER_LOW_QUALITY_TEXT);
-
 	// value variables
 	float valueAreaWidth = Scale(105);
 	float valueAreaEnd = max.x - Scale(15);
@@ -607,8 +601,6 @@ static void DrawOption
 
 	}
 
-
-	SetShaderModifier(IMGUI_SHADER_MODIFIER_NONE);
 
 
 	if (isCurrent)
@@ -968,8 +960,6 @@ static void DrawOption
 
 	// Draw value
 
-	SetShaderModifier(IMGUI_SHADER_MODIFIER_LOW_QUALITY_TEXT);
-
 	const float fontValueSize = g_fntSeuratSize - Scale(5.33f);
 	auto rawValueSize = g_fntSeurat->CalcTextSizeA(fontValueSize, FLT_MAX, 0.0f, valueText.data());
 	bool overflows = rawValueSize.x > valueAreaWidth;
@@ -1087,14 +1077,10 @@ static void DrawActionOption
 
 	ImVec2 titlePos = { min.x, min.y + offsetY + Scale(8) };
 
-	SetShaderModifier(IMGUI_SHADER_MODIFIER_LOW_QUALITY_TEXT);
-
 	auto TextoutlineColor = isHover ? IM_COL32(0, 0, 60, 44) : IM_COL32(0, 0, 0, 44);
 	auto TexColor = isHover ? IM_COL32(234, 234, 69, 255) : IM_COL32(255, 255, 255, 255);
 	AddTextWithOutline(drawList, g_fntSeurat, fontOptionSize, titlePos, TexColor,
 		TextoutlineColor, name.c_str(), 1.f, outlineOffset, outlineOffset);
-
-	SetShaderModifier(IMGUI_SHADER_MODIFIER_NONE);
 
 	if (!isCurrent)
 		return;
@@ -1308,8 +1294,6 @@ static void DrawSoundTestTrack(int rowIndex, ImVec2 min, ImVec2 max)
 	auto TextoutlineColor = isHover ? IM_COL32(0, 0, 60, 44) : IM_COL32(0, 0, 0, 44);
 	auto TexColor = isHover ? IM_COL32(234, 234, 69, 255) : IM_COL32(255, 255, 255, 255);
 
-	SetShaderModifier(IMGUI_SHADER_MODIFIER_LOW_QUALITY_TEXT);
-
 	auto title = TruncateTextWithEllipsis(g_fntSeurat, fontOptionSize, g_soundTestNames[rowIndex], titleAreaWidth);
 	AddTextWithOutline(drawList, g_fntSeurat, fontOptionSize, titlePos, TexColor,
 		TextoutlineColor, title.c_str(), 1.f, outlineOffset, outlineOffset);
@@ -1323,8 +1307,6 @@ static void DrawSoundTestTrack(int rowIndex, ImVec2 min, ImVec2 max)
 		AddTextWithOutline(drawList, g_fntSeurat, fontValueSize, valuePos, IM_COL32(234, 234, 69, 255),
 			TextoutlineColor, valueText.c_str(), 1.f, outlineOffset, outlineOffset);
 	}
-
-	SetShaderModifier(IMGUI_SHADER_MODIFIER_NONE);
 
 	if (!isCurrent)
 		return;
@@ -1481,16 +1463,11 @@ static void DrawCustomOption(int rowIndex, ImVec2 min, ImVec2 max, const std::st
 
 	ImVec2 titlePos = { min.x, min.y + offsetY + Scale(8) };
 
-	SetShaderModifier(IMGUI_SHADER_MODIFIER_LOW_QUALITY_TEXT);
-
 	AddTextWithOutline(drawList, g_fntSeurat, g_fntSeuratSize - 4.f, titlePos, textColor,
 		textOutlineColor, title.c_str(), 1.f, outlineOffset, outlineOffset);
 
 	if (value.empty())
-	{
-		SetShaderModifier(IMGUI_SHADER_MODIFIER_NONE);
 		return;
-	}
 
 	// allow long names
 	float valueAreaWidth = Scale(105);
@@ -1504,8 +1481,6 @@ static void DrawCustomOption(int rowIndex, ImVec2 min, ImVec2 max, const std::st
 
 	AddTextWithOutline(drawList, g_fntSeurat, fontValueSize, { valueAreaCenter - (displaySize.x * 0.5f), titlePos.y }, IM_COL32(255, 255, 255, 255),
 		textOutlineColor, displayText.c_str(), 1.f, outlineOffset, outlineOffset);
-
-	SetShaderModifier(IMGUI_SHADER_MODIFIER_NONE);
 
 	float arrowAreaPadding = Scale(35);
 	ImVec2 arrowAreaMin = { valueAreaStart - arrowAreaPadding, min.y + offsetY };
@@ -2168,8 +2143,6 @@ void DrawAnimatedFire(ImVec2 min, ImVec2 max)
 
 	auto fireUVs = PIXELS_TO_UV_COORDS(512, 512, x, y, frameWidth, frameHeight);
 
-	SetShaderModifier(IMGUI_SHADER_MODIFIER_LOW_QUALITY_TEXT);
-
 
 	auto containerWidth = res.x * 0.2f;
 	float containerFinalX = res.x - frameWidth;
@@ -2200,8 +2173,6 @@ void DrawAnimatedFire(ImVec2 min, ImVec2 max)
 
 
 	drawList->AddImage(g_upTexOptionsText.get(), containerMin, containerMax, GET_UV_COORDS(fireUVs), IM_COL32(255, 255, 255, 255));
-
-	SetShaderModifier(IMGUI_SHADER_MODIFIER_NONE);
 }
 
 void DrawMenuListContainer(ImVec2 min, ImVec2 max)
@@ -2384,8 +2355,6 @@ static void DrawCategories(ImVec2 min, ImVec2 max)
 		const std::string& text = entry.Name;
 		auto textSize = g_fntSeurat->CalcTextSizeA(fontSize, FLT_MAX, 0.0f, RemoveRubyAnnotations(text.c_str()).first.c_str());
 
-		SetShaderModifier(IMGUI_SHADER_MODIFIER_LOW_QUALITY_TEXT);
-
 		DrawRubyAnnotatedText
 		(
 			g_fntSeurat,
@@ -2406,8 +2375,6 @@ static void DrawCategories(ImVec2 min, ImVec2 max)
 
 			true
 			);
-
-		SetShaderModifier(IMGUI_SHADER_MODIFIER_NONE);
 
 #endif
 

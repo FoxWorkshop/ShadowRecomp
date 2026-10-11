@@ -200,10 +200,6 @@ void DrawMessageInWindow(const char* text, ImVec2 center, ImVec2 size)
 		textY = center.y - (textSize.y - Scale(lineMargin)) / 2;
 	}
 
-	if (App::s_isInit)
-		SetShaderModifier(IMGUI_SHADER_MODIFIER_LOW_QUALITY_TEXT);
-
-
 	DrawRubyAnnotatedText
 	(
 		g_fntSeurat,
@@ -224,9 +220,6 @@ void DrawMessageInWindow(const char* text, ImVec2 center, ImVec2 size)
 
 		!g_hasLayout
 		);
-
-	if (App::s_isInit)
-		SetShaderModifier(IMGUI_SHADER_MODIFIER_LOW_QUALITY_TEXT);
 
 	dl->PopClipRect();
 }
@@ -261,10 +254,6 @@ void DrawButton(int rowIndex, float yOffset, float width, float height, std::str
 		textPos = { res.x * anchor.x - textSize.x / 2, res.y * anchor.y - textSize.y / 2 };
 	}
 
-	// Show low quality text in-game.
-	if (App::s_isInit)
-		SetShaderModifier(IMGUI_SHADER_MODIFIER_LOW_QUALITY_TEXT);
-
 	DrawTextWithShadow
 	(
 		g_fntSeurat,
@@ -273,10 +262,6 @@ void DrawButton(int rowIndex, float yOffset, float width, float height, std::str
 		isSelected ? IM_COL32(234, 234, 69, 255) : IM_COL32(255, 255, 255, 255),
 		text.c_str()
 	);
-
-	// Reset the shader modifier.
-	if (App::s_isInit)
-		SetShaderModifier(IMGUI_SHADER_MODIFIER_NONE);
 }
 
 static float g_msgboxTime = 0.0f;
