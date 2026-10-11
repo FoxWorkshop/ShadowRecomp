@@ -1872,9 +1872,7 @@ static void DrawOptions(ImVec2 minClipRect, ImVec2 maxClipRect, ImVec2 min, ImVe
 		DrawOption(rowCount++, &Config::TextureFiltering, true, min, max, nullptr);
 		DrawOption(rowCount++, &Config::UIAlignmentMode, true, min, max, nullptr);
 		DrawOption(rowCount++, &Config::BloomIntensity, true, min, max, nullptr);
-
-
-
+		DrawOption(rowCount++, &Config::Fog, !OptionsMenu::s_isPause, min, max, cmnReason);
 		break;
 	}
 

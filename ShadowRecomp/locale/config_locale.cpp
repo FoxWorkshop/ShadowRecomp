@@ -806,6 +806,16 @@ CONFIG_DEFINE_LOCALE(BloomIntensity)
     { ELanguage::Italian,  { "Intensità del bloom", "Regola l'intensità dell'effetto bloom." } }
 };
 
+CONFIG_DEFINE_LOCALE(Fog)
+{
+    { ELanguage::English,  { "Fog", "Draw the per-stage distance fog." } },
+    { ELanguage::Japanese, { "Fog", "Draw the per-stage distance fog." } },
+    { ELanguage::German,   { "Fog", "Draw the per-stage distance fog." } },
+    { ELanguage::French,   { "Fog", "Draw the per-stage distance fog." } },
+    { ELanguage::Spanish,  { "Fog", "Draw the per-stage distance fog." } },
+    { ELanguage::Italian,  { "Fog", "Draw the per-stage distance fog." } }
+};
+
 CONFIG_DEFINE_LOCALE(EnablePartnerIntro)
 {
     { ELanguage::English, { "Partner Intro", "Show partner's introduction when they are first met." } },

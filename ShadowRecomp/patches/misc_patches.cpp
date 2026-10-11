@@ -648,3 +648,17 @@ void PADBattleStageSelMidAsmHook()
 	X86_STORE_U32(0x5356E8, 1);
 }
 // END PAD assignment patches
+
+// .fog load (called by the TFogSet ctor)
+// fog data @ 0x54975C
+// fog exec @ sub_2265C0
+X86_FUNC_IMPL(__imp__sub_226370);
+X86_FUNC(sub_226370)
+{
+	if (!Config::Fog.Value)
+	{
+		ctx.esp.u32 += 4;
+		return;
+	}
+	__imp__sub_226370(ctx, base);
+}
