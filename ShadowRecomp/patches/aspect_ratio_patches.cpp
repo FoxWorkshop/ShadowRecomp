@@ -1609,7 +1609,14 @@ const xxHashMap<CsdModifier> g_csdModifiers =
 	{ HashStr("csdFiles/BChara_EDealer.xncp/bchara"), { CSD_UNSTRETCH | CSD_ALIGN_AUTO_H } },
 	{ HashStr("csdFiles/BChara_DevDoom.xncp/bchara"), { CSD_UNSTRETCH | CSD_ALIGN_AUTO_H } },
 
-
+	// Circus Park (stg0302/stg0302_gdt.one)
+	// gong, firering, minigame rewards 5, 15, 50, -50, and the bomb/ring fly in anims
+	{ HashStr("PR0302RINGANM.XNCP/Scene_0000"), { CSD_UNSTRETCH | CSD_ALIGN_CENTRE } },
+	{ HashStr("PR0302RINGANM.XNCP/Scene_0000/Null_0015"), { CSD_UNSTRETCH | CSD_ALIGN_SELF_H } },
+	{ HashStr("PR0302RINGANM.XNCP/Scene_0000/Null_0015___R_s_["), { CSD_UNSTRETCH | CSD_ALIGN_SELF_H } },
+	{ HashStr("PR0302RINGANM.XNCP/Scene_0000/bomb_ligid"), { CSD_UNSTRETCH | CSD_ALIGN_SELF_H } },
+	{ HashStr("PR0302RINGANM.XNCP/Scene_0000/bomb_parp"), { CSD_UNSTRETCH | CSD_ALIGN_SELF_H } },
+	// End Circus Park
 };
 
 std::optional<CsdModifier> FindCsdModifier(uint32_t data)
