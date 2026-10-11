@@ -188,6 +188,12 @@ static int8_t GetPauseItemRow(const uint8_t* items, uint8_t count, int8_t select
 	return 0;
 }
 
+// TODO: Only for handling base game P1/P2 pause; Extended MP would need to add a pause handler
+static uint8_t GetPausePadIndex()
+{
+	return g_PlayerPauseMode == ModeRunningP2 ? 1 : 0;
+}
+
 void DrawPauseText()
 {
 	if (s_isVisible == false || g_pauseCSD == false) // ensure our CSD patch worked so we can draw pause text safely
@@ -212,18 +218,7 @@ void DrawPauseText()
 		}
 	}
 
-	uint8_t playerIndex = 0;
-
-	switch (g_PlayerPauseMode) // these values are vanilla, add custom mode if player extended support is added
-	{
-	case 2:
-	default:
-		playerIndex = 0;
-		break;
-	case 3:
-		playerIndex = 1;
-		break;
-	}
+	uint8_t playerIndex = GetPausePadIndex();
 
 
 	bool upIsHeld = false;
@@ -441,7 +436,7 @@ X86_FUNC(sub_5AEE0)
 		if (s_index == SelOptions && s_OptionsRequest && OptionsMenu::s_isVisible == false)
 		{
 			s_currentMode = PauseAction_Options;
-			OptionsMenu::Open(true);
+			OptionsMenu::Open(true, GetPausePadIndex());
 			s_isVisible = false;
 			ctx.AddEsp(1);
 
@@ -450,7 +445,7 @@ X86_FUNC(sub_5AEE0)
 		else if (s_index == SelAchievements && s_AchievementRequest && AchievementMenu::s_isVisible == false)
 		{
 			s_currentMode = PauseAction_Achievements;
-			AchievementMenu::Open();
+			AchievementMenu::Open(GetPausePadIndex());
 			s_isVisible = false;
 			ctx.AddEsp(1);
 			return;

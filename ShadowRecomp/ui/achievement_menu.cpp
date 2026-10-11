@@ -109,11 +109,13 @@ static void MoveCursor(int& cursorIndex, int min = 0, int max = INT_MAX)
 	}
 }
 
-void AchievementMenu::Open()
+void AchievementMenu::Open(uint32_t padIndex)
 {
 
 	if (s_isVisible)
 		return;
+
+	s_padIndex = padIndex;
 
 	g_achievements.clear();
 
@@ -563,24 +565,24 @@ void AchievementMenu::Draw()
 			auto upIsHeld = false;
 			auto downIsHeld = false;
 
-			if (auto pInputState = PJSPeripheral::GetControllerSlot(0))
+			if (auto pInputState = PJSPeripheral::GetControllerSlot(s_padIndex))
 			{
 
 
-				if (PJSPeripheral::IsHeld(0, PJSPeripheral::BTN_DPAD_UP) || -pInputState->leftY > 0.5f)
+				if (PJSPeripheral::IsHeld(s_padIndex, PJSPeripheral::BTN_DPAD_UP) || -pInputState->leftY > 0.5f)
 					upIsHeld = true;
 
 				if (!g_upWasHeld && upIsHeld)
 					g_up = true;
 
-				if (PJSPeripheral::IsHeld(0, PJSPeripheral::BTN_DPAD_DOWN) || -pInputState->leftY < -0.5f)
+				if (PJSPeripheral::IsHeld(s_padIndex, PJSPeripheral::BTN_DPAD_DOWN) || -pInputState->leftY < -0.5f)
 					downIsHeld = true;
 
 				if (!g_downWasHeld && downIsHeld)
 					g_down = true;
 
 
-				if (PJSPeripheral::IsJustPressed(0, PJSPeripheral::BTN_B) || PJSPeripheral::IsJustPressed(0, PJSPeripheral::BTN_Y))
+				if (PJSPeripheral::IsJustPressed(s_padIndex, PJSPeripheral::BTN_B) || PJSPeripheral::IsJustPressed(s_padIndex, PJSPeripheral::BTN_Y))
 					g_isDeclined = true;
 
 			}

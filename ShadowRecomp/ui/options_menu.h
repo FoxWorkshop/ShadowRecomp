@@ -39,11 +39,12 @@ public:
     static inline bool s_isRestartRequired = false;
     static inline bool s_isDebugUnlocked = false;
     static inline bool s_GoToLegacyMenu = false;
+    static inline uint32_t s_padIndex = 0;
 
 
     static void Init();
     static void Draw();
-    static void Open(bool isPause = false);
+    static void Open(bool isPause = false, uint32_t padIndex = 0);
     static void Close();
 
     static bool IsRestartRequired();

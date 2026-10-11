@@ -745,13 +745,13 @@ static void DrawOption
 			{
 				if (config == &Config::FPS)
 				{
-					if (PJSPeripheral::IsJustPressed(0, PJSPeripheral::BTN_WHITE | PJSPeripheral::BTN_LEFT_TRIG))
+					if (PJSPeripheral::IsJustPressed(OptionsMenu::s_padIndex, PJSPeripheral::BTN_WHITE | PJSPeripheral::BTN_LEFT_TRIG))
 					{
 						Game_PlaySound("cursor");
 						config->Value = std::clamp(config->Value - 30, valueMin, valueMax);
 						FpsConfigValueChangedCallback(config);
 					}
-					else if (PJSPeripheral::IsJustPressed(0, PJSPeripheral::BTN_BLACK | PJSPeripheral::BTN_RIGHT_TRIG))
+					else if (PJSPeripheral::IsJustPressed(OptionsMenu::s_padIndex, PJSPeripheral::BTN_BLACK | PJSPeripheral::BTN_RIGHT_TRIG))
 					{
 						Game_PlaySound("cursor");
 						config->Value = std::clamp(config->Value + 30, valueMin, valueMax);
@@ -2387,42 +2387,42 @@ void OptionsMenu::Draw()
 
 	case OptionsMenuState::Idle:
 	{
-		if (auto pInputState = PJSPeripheral::GetControllerSlot(0))
+		if (auto pInputState = PJSPeripheral::GetControllerSlot(OptionsMenu::s_padIndex))
 		{
-			if (PJSPeripheral::IsHeld(0, PJSPeripheral::BTN_DPAD_UP) || -pInputState->leftY > 0.5f)
+			if (PJSPeripheral::IsHeld(OptionsMenu::s_padIndex, PJSPeripheral::BTN_DPAD_UP) || -pInputState->leftY > 0.5f)
 				upIsHeld = true;
 
 			if (!g_upWasHeld && upIsHeld)
 				g_up = true;
 
-			if (PJSPeripheral::IsHeld(0, PJSPeripheral::BTN_DPAD_DOWN) || -pInputState->leftY < -0.5f)
+			if (PJSPeripheral::IsHeld(OptionsMenu::s_padIndex, PJSPeripheral::BTN_DPAD_DOWN) || -pInputState->leftY < -0.5f)
 				downIsHeld = true;
 
 			if (!g_downWasHeld && downIsHeld)
 				g_down = true;
 
-			if (PJSPeripheral::IsHeld(0, PJSPeripheral::BTN_DPAD_LEFT) || -pInputState->leftX > 0.5f)
+			if (PJSPeripheral::IsHeld(OptionsMenu::s_padIndex, PJSPeripheral::BTN_DPAD_LEFT) || -pInputState->leftX > 0.5f)
 				leftIsHeld = true;
 
 			if (!g_leftWasHeld && leftIsHeld)
 				g_left = true;
 
-			if (PJSPeripheral::IsHeld(0, PJSPeripheral::BTN_DPAD_RIGHT) || -pInputState->leftX < -0.5f)
+			if (PJSPeripheral::IsHeld(OptionsMenu::s_padIndex, PJSPeripheral::BTN_DPAD_RIGHT) || -pInputState->leftX < -0.5f)
 				rightIsHeld = true;
 
 			if (!g_rightWasHeld && rightIsHeld)
 				g_right = true;
 
-			if (PJSPeripheral::IsJustPressed(0, PJSPeripheral::BTN_A) || PJSPeripheral::IsJustPressed(0, PJSPeripheral::BTN_START))
+			if (PJSPeripheral::IsJustPressed(OptionsMenu::s_padIndex, PJSPeripheral::BTN_A) || PJSPeripheral::IsJustPressed(OptionsMenu::s_padIndex, PJSPeripheral::BTN_START))
 				g_isAccepted = true;
 
-			if (PJSPeripheral::IsJustPressed(0, PJSPeripheral::BTN_B) || PJSPeripheral::IsJustPressed(0, PJSPeripheral::BTN_Y))
+			if (PJSPeripheral::IsJustPressed(OptionsMenu::s_padIndex, PJSPeripheral::BTN_B) || PJSPeripheral::IsJustPressed(OptionsMenu::s_padIndex, PJSPeripheral::BTN_Y))
 				g_isDeclined = true;
 
-			if (PJSPeripheral::IsJustPressed(0, PJSPeripheral::BTN_Y))
+			if (PJSPeripheral::IsJustPressed(OptionsMenu::s_padIndex, PJSPeripheral::BTN_Y))
 				g_isLeaving = true;
 
-			if (PJSPeripheral::IsJustPressed(0, PJSPeripheral::BTN_X))
+			if (PJSPeripheral::IsJustPressed(OptionsMenu::s_padIndex, PJSPeripheral::BTN_X))
 				g_isReset = true;
 		}
 		break;
@@ -2460,7 +2460,7 @@ void OptionsMenu::Draw()
 			s_restartPromptOpened = true;
 		}
 
-		if (!s_restartFaderBegun && MessageWindow::Open(message, &s_restartMessageResult, options) == MSG_CLOSED)
+		if (!s_restartFaderBegun && MessageWindow::Open(message, &s_restartMessageResult, options, 0, 1, false, false, s_padIndex) == MSG_CLOSED)
 		{
 			if (s_restartMessageResult == 0)
 			{
@@ -2634,10 +2634,11 @@ void OptionsMenu::Draw()
 	g_isLeaving = false;
 }
 
-void OptionsMenu::Open(bool isPause)
+void OptionsMenu::Open(bool isPause, uint32_t padIndex)
 {
 
 	OptionsMenu::s_isPause = isPause;
+	OptionsMenu::s_padIndex = padIndex;
 	OptionsMenu::s_nextState = OptionsMenuState::Opening;
 
 	UpdateFontSize();

@@ -41,6 +41,7 @@ int g_result;
 static std::vector<std::string> g_buttons;
 int g_defaultButtonIndex;
 int g_cancelButtonIndex;
+static uint32_t g_padIndex;
 
 static bool g_upWasHeld;
 static bool g_downWasHeld;
@@ -329,7 +330,7 @@ static void ResetSelection()
 	g_hideFrame = false;
 }
 
-bool MessageWindow::Open(std::string text, int* result, std::span<std::string> buttons, int defaultButtonIndex, int cancelButtonIndex, bool hideFrame, bool guestHasControl)
+bool MessageWindow::Open(std::string text, int* result, std::span<std::string> buttons, int defaultButtonIndex, int cancelButtonIndex, bool hideFrame, bool guestHasControl, uint32_t padIndex)
 {
 	if (!g_isAwaitingResult && !g_isClosing && *result == -1)
 	{
@@ -347,6 +348,7 @@ bool MessageWindow::Open(std::string text, int* result, std::span<std::string> b
 		g_buttons = std::vector(buttons.begin(), buttons.end());
 		g_defaultButtonIndex = defaultButtonIndex;
 		g_cancelButtonIndex = cancelButtonIndex;
+		g_padIndex = padIndex;
 
 		ResetSelection();
 
@@ -402,23 +404,23 @@ void MessageWindow::Draw()
 		// Always assume keyboard to prevent mouse from blocking control in-game.
 		isKeyboard = true;
 
-		if (auto pInputState = PJSPeripheral::GetControllerSlot(0))
+		if (auto pInputState = PJSPeripheral::GetControllerSlot(g_padIndex))
 		{
 			pInputState = pInputState;
 
 			g_joypadAxis.x = -pInputState->leftX;
 
-			if (PJSPeripheral::IsJustPressed(0, PJSPeripheral::BTN_DPAD_LEFT))
+			if (PJSPeripheral::IsJustPressed(g_padIndex, PJSPeripheral::BTN_DPAD_LEFT))
 				g_joypadAxis.x = 1.0f;
 
-			if (PJSPeripheral::IsJustPressed(0, PJSPeripheral::BTN_DPAD_RIGHT))
+			if (PJSPeripheral::IsJustPressed(g_padIndex, PJSPeripheral::BTN_DPAD_RIGHT))
 				g_joypadAxis.x = -1.0f;
 
-			g_isAccepted = PJSPeripheral::IsJustPressed(0, PJSPeripheral::BTN_A);
-			g_isDeclined = PJSPeripheral::IsJustPressed(0, PJSPeripheral::BTN_B);
+			g_isAccepted = PJSPeripheral::IsJustPressed(g_padIndex, PJSPeripheral::BTN_A);
+			g_isDeclined = PJSPeripheral::IsJustPressed(g_padIndex, PJSPeripheral::BTN_B);
 
 			if (isKeyboard)
-				g_isAccepted = g_isAccepted || PJSPeripheral::IsJustPressed(0, PJSPeripheral::BTN_START);
+				g_isAccepted = g_isAccepted || PJSPeripheral::IsJustPressed(g_padIndex, PJSPeripheral::BTN_START);
 		}
 	}
 	auto drawList = ImGui::GetBackgroundDrawList();
