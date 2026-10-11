@@ -824,6 +824,7 @@ struct HudNumberState
 static HudNumberState g_hudNumber{};
 static bool g_isInStageMode = false;
 static bool g_isDrawingSynopsisText = false;
+static bool g_isDrawingStaffRoll = false;
 
 // The stage select CSD is squeezed towards the center, so the player's best time
 // which drawn on top of it have to be moved to the same spot
@@ -1822,7 +1823,6 @@ void RainEffectScaleMidAsmHook(X86Register& esp)
 	StretchFullScreenQuadScale(esp.u32);
 }
 
-
 X86_FUNC_IMPL(__imp__sub_29A850);
 X86_FUNC(sub_29A850)
 {
@@ -1839,6 +1839,27 @@ X86_FUNC(sub_29C830)
 	g_isDrawingSynopsisText = true;
 	__imp__sub_29C830(ctx, base);
 	g_isDrawingSynopsisText = false;
+}
+
+// StaffRollDrawTask draw
+X86_FUNC_IMPL(__imp__sub_29CB50);
+X86_FUNC(sub_29CB50)
+{
+	g_isDrawingStaffRoll = true;
+	__imp__sub_29CB50(ctx, base);
+	g_isDrawingStaffRoll = false;
+}
+
+// Note: IMPL already declared in CSD stuff for CPlatformRWDrawPrimitive2DMidAsmHook
+X86_FUNC(sub_2ECC80)
+{
+	if (g_isDrawingStaffRoll)
+	{
+		// rebuilt every draw, no restore
+		CsdSavedVertices saved{};
+		UnstretchPrimitive(g_memory.Translate(X86_LOAD_U32(ctx.esp.u32 + 0x8)), CSDVertexCount, CSD_CENTER_UNSTRETCH, saved);
+	}
+	__imp__sub_2ECC80(ctx, base);
 }
 
 // Patch the text draw in the main menu (score in stage select, level name etc.)
