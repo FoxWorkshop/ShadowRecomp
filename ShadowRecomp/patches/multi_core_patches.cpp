@@ -424,3 +424,65 @@ X86_FUNC(sub_21A30)
 	__imp__sub_21A30(ctx, base);
 }
 // End Infinite Loading Fix
+
+// Egg Dealer use after free
+// This is actually an original bug, but the callback fails without consequence on hardware
+// We crash since we o1heap clobbers 16 bytes vs original 8 bytes
+// Other bosses may have this bug as well but in all my testing I cannot reproduce it outside of egg dealer.
+// Easiest repro was roulette bomb, fall into lava in center
+static std::mutex g_eggLastMechCameraMutex;
+static std::unordered_set<uint32_t> g_eggLastMechCameras;
+
+static bool IsEggLastMechCameraAlive(uint32_t camera)
+{
+	std::lock_guard lock(g_eggLastMechCameraMutex);
+	return g_eggLastMechCameras.count(camera) != 0;
+}
+
+// EggLastMechCamera ctor
+X86_FUNC_IMPL(__imp__sub_126AF0);
+X86_FUNC(sub_126AF0)
+{
+	__imp__sub_126AF0(ctx, base);
+	if (ctx.eax.u32 != 0)
+	{
+		std::lock_guard lock(g_eggLastMechCameraMutex);
+		g_eggLastMechCameras.insert(ctx.eax.u32);
+	}
+}
+
+// EggLastMechCamera dtor
+X86_FUNC_IMPL(__imp__sub_125F50);
+X86_FUNC(sub_125F50)
+{
+	{
+		std::lock_guard lock(g_eggLastMechCameraMutex);
+		g_eggLastMechCameras.erase(ctx.ecx.u32);
+	}
+	__imp__sub_125F50(ctx, base);
+}
+
+// Camera update callback
+X86_FUNC_IMPL(__imp__sub_125DA0);
+X86_FUNC(sub_125DA0)
+{
+	if (!IsEggLastMechCameraAlive(ctx.ecx.u32))
+	{
+		ctx.esp.u32 += 8;
+		return;
+	}
+	__imp__sub_125DA0(ctx, base);
+}
+
+// Camera switch callback
+X86_FUNC_IMPL(__imp__sub_1269D0);
+X86_FUNC(sub_1269D0)
+{
+	if (!IsEggLastMechCameraAlive(ctx.ecx.u32))
+	{
+		ctx.esp.u32 += 8;
+		return;
+	}
+	__imp__sub_1269D0(ctx, base);
+}
+// End Egg Dealer use after free
