@@ -1527,6 +1527,16 @@ const xxHashMap<CsdModifier> g_csdModifiers =
 	{ HashStr("csdFiles/DarkGauge.xncp/Scene_0000/side1"), { CSD_UNSTRETCH | CSD_ALIGN_TOP_CENTRE } },
 	{ HashStr("csdFiles/DarkGauge.xncp/Scene_0000/side2"), { CSD_UNSTRETCH | CSD_ALIGN_TOP_CENTRE } },
 
+	// BossGauge.xncp
+	{ HashStr("csdFiles/BossGauge.xncp/Scene_0000"), { CSD_UNSTRETCH | CSD_ALIGN_BOTTOM_CENTRE } },
+	{ HashStr("csdFiles/BossGauge.xncp/Scene_0000/bg"), { CSD_UNSTRETCH | CSD_ALIGN_BOTTOM_CENTRE } },
+	{ HashStr("csdFiles/BossGauge.xncp/Scene_0000/m1"), { CSD_UNSTRETCH | CSD_ALIGN_BOTTOM_CENTRE } },
+	{ HashStr("csdFiles/BossGauge.xncp/Scene_0000/m2"), { CSD_UNSTRETCH | CSD_ALIGN_BOTTOM_CENTRE } },
+	{ HashStr("csdFiles/BossGauge.xncp/Scene_0000/m3"), { CSD_UNSTRETCH | CSD_ALIGN_BOTTOM_CENTRE } },
+	{ HashStr("csdFiles/BossGauge.xncp/Scene_0000/meter"), { CSD_UNSTRETCH | CSD_ALIGN_BOTTOM_CENTRE } },
+	{ HashStr("csdFiles/BossGauge.xncp/Scene_0000/left_edge"), { CSD_UNSTRETCH | CSD_ALIGN_BOTTOM_CENTRE } },
+	{ HashStr("csdFiles/BossGauge.xncp/Scene_0000/right_edge"), { CSD_UNSTRETCH | CSD_ALIGN_BOTTOM_CENTRE } },
+
 	// Hissatu_Hero.xncp
 	{ HashStr("csdFiles/Hissatu_Hero.xncp/HissatuHero/XButton"), { CSD_UNSTRETCH | CSD_ALIGN_TOP_CENTRE } },
 	{ HashStr("csdFiles/Hissatu_Hero.xncp/HissatuHero/XButton/Eff_X"), { CSD_UNSTRETCH | CSD_ALIGN_TOP_CENTRE } },
