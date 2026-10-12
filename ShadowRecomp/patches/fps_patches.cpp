@@ -2714,6 +2714,7 @@ void AdvertiseMessageHoldTimerMidAsmHook(X86Register& esi)
 static thread_local bool g_isEventCameraCutting = false;
 static thread_local bool g_isSamplingEventMotion = false;
 static float g_eventStreamWaitCarry = 0.0f;
+static float g_eventBattleFadeHoldTime = 0.0f;
 
 // TPjsEventActionManager constructor
 // Hooked after the divisor is set (override for unlocked)
@@ -2721,6 +2722,7 @@ void EventCreatedMidAsmHook()
 {
 	g_isEventCameraCutting = false;
 	g_eventStreamWaitCarry = 0.0f;
+	g_eventBattleFadeHoldTime = 0.0f;
 
 	if (IsCutsceneFramerateUnlocked())
 	{
@@ -2966,6 +2968,25 @@ void EventStreamWaitMidAsmHook(X86Register& ecx)
 		return;
 	}
 	g_eventStreamWaitCarry = std::min(g_eventStreamWaitCarry - 1.0f, 1.0f);
+}
+
+// TPjsEventActionFade::Exec
+// type 2 is for 2P battle only
+// At higher framerates the 2P fade ends too early
+X86_FUNC_IMPL(__imp__sub_2280D0);
+X86_FUNC(sub_2280D0)
+{
+	if (IsCutsceneFramerateUnlocked() && X86_LOAD_U32(ctx.ecx.u32 + 0x28) == 2) // checking for black fade mode (2P)
+	{
+		g_eventBattleFadeHoldTime += X86_LOAD_F32(ctx.esp.u32 + 0x4);
+		if (g_eventBattleFadeHoldTime < 1.0f / X86_LOAD_F32(g_eventFramesPerSecond))
+		{
+			ctx.esp.u32 += 8;
+			return;
+		}
+		g_eventBattleFadeHoldTime = 0.0f;
+	}
+	__imp__sub_2280D0(ctx, base);
 }
 /** --Event FPS Patch END-- */
 
