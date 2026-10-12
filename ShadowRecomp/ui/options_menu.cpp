@@ -2000,6 +2000,167 @@ static void MoveCursor(int& cursorIndex, double& cursorTime, int min = 0, int ma
 	}
 }
 
+/* --- Animated sprites --- */
+
+// Originally the legacy options draw some fire animated (sprites) and some whites lines which moves every frame
+
+struct LoopKey
+{
+	float Frame;
+	float Value;
+};
+
+struct LoopFire
+{
+	float X; // bottom left corner
+	float Y;
+	float ScaleX;
+	float ScaleY;
+	int FirstSprite;
+	float SpritePeriod;
+	std::span<const LoopKey> Alpha;
+};
+
+struct LoopLine
+{
+	float Y;
+	float Length;
+	float TexX;
+	float TexY;
+	std::span<const LoopKey> X;
+	std::span<const LoopKey> Alpha;
+};
+
+static constexpr float LOOP_SCENE_FRAMES = 620.0f;
+
+static constexpr LoopKey g_fire1Alpha[] = { { 0, 70 }, { 142, 55 }, { 194, 22 }, { 250, 81 }, { 290, 70 } };
+static constexpr LoopKey g_fire2Alpha[] = { { 0, 70 } };
+static constexpr LoopKey g_fire3Alpha[] = { { 0, 40 }, { 143, 21 }, { 264, 40 } };
+
+static constexpr LoopFire g_loopFires[] =
+{
+	{ 542.0f, 360.0f, 2.5f, 1.5f, 3, 31.0f, g_fire1Alpha },
+	{ 580.0f, 358.0f, 1.0f, 0.8f, 5, 31.0f, g_fire2Alpha },
+	{ 342.0f, 344.0f, 1.0f, 0.8f, 0, 30.0f, g_fire3Alpha }
+};
+
+static constexpr LoopKey g_line1X[] = { { 0, 0.24269099533557892f }, { 619, 0.40625f }, { 620, 0.23125000298023224f }, { 649, 0.24296875298023224f } };
+static constexpr LoopKey g_line1Alpha[] = { { 0, 0 }, { 49, 70 }, { 110, 71 }, { 151, 59 }, { 207, 70 }, { 299, 70 }, { 373, 52 }, { 413, 70 }, { 516, 69 }, { 619, 0 }, { 636, 0 }, { 649, 70 } };
+static constexpr LoopKey g_line2X[] = { { 0, 0.7237054109573364f }, { 613, 0.6796875f }, { 614, 0.7306817770004272f }, { 700, 0.7237054109573364f } };
+static constexpr LoopKey g_line2Alpha[] = { { 0, 0 }, { 49, 70 }, { 562, 70 }, { 613, 0 }, { 660, 0 }, { 700, 70 } };
+
+static constexpr LoopLine g_loopLines[] =
+{
+	{ 365.0f, 486.0f, 437.0f, 17.0f, g_line1X, g_line1Alpha },
+	{ 157.0f, 382.0f, 464.0f, 121.0f, g_line2X, g_line2Alpha }
+};
+
+static double g_loopSceneTime{};
+
+// general keyframe reader for the looped fire and line animations, return the interpolated value 
+// for the given frame.
+// This is essentially what the game does, but in a simpler and smaller way.
+static float GetInterpolatedFrameValue(std::span<const LoopKey> keys, float frame)
+{
+	auto lastFrame = keys.back().Frame;
+
+	if (lastFrame > 0.0f)
+		frame = fmodf(frame, lastFrame);
+
+	for (size_t i = 1; i < keys.size(); i++)
+	{
+		if (frame < keys[i].Frame)
+		{
+			auto& prev = keys[i - 1];
+			auto& next = keys[i]; // blend linearly
+			return prev.Value + (next.Value - prev.Value) * (frame - prev.Frame) / (next.Frame - prev.Frame);
+		}
+	}
+
+	return keys.back().Value;
+}
+
+static float GetLoopSceneFrame()
+{
+	return fmodf((float)((ImGui::GetTime() - g_loopSceneTime) * 60.0), LOOP_SCENE_FRAMES);
+}
+
+void DrawAnimatedFire(ImVec2 min, ImVec2 max)
+{
+	auto drawList = ImGui::GetBackgroundDrawList();
+	auto frame = GetLoopSceneFrame();
+	auto scaleX = (max.x - min.x) / 640.0f;
+	auto scaleY = (max.y - min.y) / 480.0f;
+
+	static constexpr float rowTops[] = { 0.0f, 31.0f, 63.0f, 95.0f, 128.0f };
+
+	SetAdditive(true);
+
+	for (auto& fire : g_loopFires)
+	{
+		// sprite progress every 2 frames with no blending
+		float spriteFrame = fmodf(frame, fire.SpritePeriod);
+		int sprite = (fire.FirstSprite + (int)(spriteFrame / 2.0f)) % 16;
+		int col = sprite % 4;
+		int row = sprite / 4;
+
+		auto fireUVs = PIXELS_TO_UV_COORDS(512, 512, 384 + col * 32, rowTops[row], 32, rowTops[row + 1] - rowTops[row]);
+		auto alpha = (int)GetInterpolatedFrameValue(fire.Alpha, frame);
+
+
+		ImVec2 fireMin = { min.x + fire.X * scaleX, min.y + fire.Y * scaleY - 32.0f * fire.ScaleY * scaleY };
+		ImVec2 fireMax = { fireMin.x + 32.0f * fire.ScaleX * scaleY, min.y + fire.Y * scaleY };
+
+		drawList->AddImage(g_upTexOptionsText.get(), fireMin, fireMax, GET_UV_COORDS(fireUVs), IM_COL32(255, 255, 255, alpha));
+	}
+
+	ResetAdditive();
+}
+
+static void DrawLoopLines(ImVec2 min, ImVec2 max)
+{
+	auto drawList = ImGui::GetBackgroundDrawList();
+	auto frame = GetLoopSceneFrame();
+	auto scaleX = (max.x - min.x) / 640.0f;
+	auto scaleY = (max.y - min.y) / 480.0f;
+
+	for (auto& line : g_loopLines)
+	{
+		auto alpha = (int)GetInterpolatedFrameValue(line.Alpha, frame);
+
+		if (alpha <= 0)
+			continue;
+
+		// stretch the length of the lines depending on the screen size
+		float centreX = min.x + GetInterpolatedFrameValue(line.X, frame) * 640.0f * scaleX;
+		float centreY = min.y + line.Y * scaleY;
+		float halfLength = line.Length * 0.5f * scaleX;
+		float halfWidth = 11.0f * scaleY;
+
+		// the strip turns at 90 degrees clockwise
+		ImVec2 uvLeftTop = { line.TexX / 512.0f, (line.TexY + line.Length) / 512.0f };
+		ImVec2 uvRightTop = { line.TexX / 512.0f, line.TexY / 512.0f };
+		ImVec2 uvRightBottom = { (line.TexX + 22.0f) / 512.0f, line.TexY / 512.0f };
+		ImVec2 uvLeftBottom = { (line.TexX + 22.0f) / 512.0f, (line.TexY + line.Length) / 512.0f };
+
+		drawList->AddImageQuad
+		(
+			g_upTexOptionsBG2.get(),
+			{ centreX - halfLength, centreY - halfWidth },
+			{ centreX + halfLength, centreY - halfWidth },
+			{ centreX + halfLength, centreY + halfWidth },
+			{ centreX - halfLength, centreY + halfWidth },
+			uvLeftTop,
+			uvRightTop,
+			uvRightBottom,
+			uvLeftBottom,
+			IM_COL32(255, 255, 255, alpha)
+		);
+	}
+}
+
+/* --- Animated sprites END --- */
+
 void DrawBackground(bool isPause = false)
 {
 	if (IsLivePreviewActive())
@@ -2017,6 +2178,8 @@ void DrawBackground(bool isPause = false)
 
 	ImVec2 centre = { res.x / 2.f, res.y / 2.f };
 	float scale = 1.0f;
+	ImVec2 bgMin = { 0.0f, 0.0f };
+	ImVec2 bgMax = { res.x, res.y };
 
 	if (isPause)
 	{
@@ -2027,8 +2190,8 @@ void DrawBackground(bool isPause = false)
 
 		// animate from centre outward to fullscreen
 		ImVec2 bgHalfSize = { (res.x / 2.f) * scale, (res.y / 2.f) * scale };
-		ImVec2 bgMin = { centre.x - bgHalfSize.x, centre.y - bgHalfSize.y };
-		ImVec2 bgMax = { centre.x + bgHalfSize.x, centre.y + bgHalfSize.y };
+		bgMin = { centre.x - bgHalfSize.x, centre.y - bgHalfSize.y };
+		bgMax = { centre.x + bgHalfSize.x, centre.y + bgHalfSize.y };
 
 		drawList->AddImage
 		(
@@ -2054,6 +2217,12 @@ void DrawBackground(bool isPause = false)
 		);
 	}
 
+	// draw fire and white lines under the menu box
+	drawList->PushClipRect(bgMin, bgMax, true);
+	DrawAnimatedFire(bgMin, bgMax);
+	DrawLoopLines(bgMin, bgMax);
+	drawList->PopClipRect();
+
 	// draw Options Logo
 
 	if (scale >= 0.8f || isPause == false)
@@ -2067,61 +2236,6 @@ void DrawBackground(bool isPause = false)
 
 		drawList->AddImage(g_upTexOptionsText.get(), optionsMin, optionsMax, GET_UV_COORDS(optionsUVs), IM_COL32(255, 255, 255, 128));
 	}
-}
-
-void DrawAnimatedFire(ImVec2 min, ImVec2 max)
-{
-	auto* drawList = ImGui::GetBackgroundDrawList();
-	auto& res = ImGui::GetIO().DisplaySize;
-
-	constexpr int frameCount = 4;  // columns 
-	constexpr int rowCount = 4;   // rows 
-	constexpr float frameWidth = 128.f / frameCount;
-	constexpr float frameHeight = 128.f / rowCount;
-
-
-	constexpr double fps = 24.f;
-	int frame = (int)(ImGui::GetTime() * fps) % (frameCount * rowCount);
-
-	// Convert flat frame index to row/col
-	int col = frame % frameCount;
-	int row = frame / frameCount;
-
-	float x = 385 + col * frameWidth;
-	float y = row * frameHeight;
-
-	auto fireUVs = PIXELS_TO_UV_COORDS(512, 512, x, y, frameWidth, frameHeight);
-
-
-	auto containerWidth = res.x * 0.2f;
-	float containerFinalX = res.x - frameWidth;
-	auto containerHeight = res.y * 0.2f;
-
-	// First we calculate the position of the flame of the menu BG
-	float barTexX = 440.f;
-	float barTexY = 340.f;
-	float barTexH = 30.f;
-	float texHeight = 512.0f;
-
-	// Then we map to screen space proportionally
-	float barScreenX = (barTexX / texHeight) * res.x;
-	float barScreenY = (barTexY / texHeight) * res.y;
-	float barScreenH = (barTexH / texHeight) * res.y;
-
-
-	float barWidth = res.x - barScreenX;
-
-
-	ImVec2 containerMin = {
-		barScreenX + barWidth * 0.5f,  // centered within bar bounds
-		barScreenY + barScreenH * 0.6f
-	};
-
-
-	ImVec2 containerMax = { barScreenX, barScreenH };
-
-
-	drawList->AddImage(g_upTexOptionsText.get(), containerMin, containerMax, GET_UV_COORDS(fireUVs), IM_COL32(255, 255, 255, 255));
 }
 
 void DrawMenuListContainer(ImVec2 min, ImVec2 max)
@@ -2609,8 +2723,6 @@ void OptionsMenu::Draw()
 	ImVec2 min = { GetMenuBoxLeft(), g_aspectRatioOffsetY };
 	ImVec2 max = { min.x + GetMenuBoxWidth(), res.y - min.y };
 
-	//	DrawAnimatedFire(min, max);
-
 	if (t >= 0.8f)
 	{
 		DrawCategories(min, max);
@@ -2644,6 +2756,7 @@ void OptionsMenu::Open(bool isPause, uint32_t padIndex)
 	g_stateTime = ImGui::GetTime();
 	s_state = OptionsMenu::s_isPause ? OptionsMenuState::Transition : OptionsMenuState::Opening;
 	g_containerAnimTime = ImGui::GetTime();
+	g_loopSceneTime = g_containerAnimTime;
 
 	s_isVisible = true;
 	s_GoToLegacyMenu = false;
