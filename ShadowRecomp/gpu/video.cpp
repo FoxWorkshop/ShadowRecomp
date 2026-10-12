@@ -5802,8 +5802,8 @@ static void FlushViewport(const bool isFixed)
 		height = (float)hostHeight;
 		viewport.minDepth = 0.0f;
 		viewport.maxDepth = 1.0f;
-		viewport.x = 0.5f * scaleX;
-		viewport.y = 0.5f * scaleY;
+		viewport.x = halfPixelX;
+		viewport.y = halfPixelY;
 	}
 
 	if (g_dirtyStates.viewport)
