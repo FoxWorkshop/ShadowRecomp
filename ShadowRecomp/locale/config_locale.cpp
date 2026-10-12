@@ -680,6 +680,62 @@ CONFIG_DEFINE_LOCALE(FPS)
     { ELanguage::Italian,  { "FPS", "Imposta il frame rate massimo del gioco.\n\nATTENZIONE: questa opzione può causare dei glitch a frame rate più alti di 60 FPS." } }
 };
 
+CONFIG_DEFINE_LOCALE(CutsceneFramerate)
+{
+    { ELanguage::English,  { "Cutscene Framerate", "Set the frame rate of in-game cutscenes." } },
+    { ELanguage::Japanese, { "Cutscene Framerate", "Set the frame rate of in-game cutscenes." } },
+    { ELanguage::German,   { "Cutscene Framerate", "Set the frame rate of in-game cutscenes." } },
+    { ELanguage::French,   { "Cutscene Framerate", "Set the frame rate of in-game cutscenes." } },
+    { ELanguage::Spanish,  { "Cutscene Framerate", "Set the frame rate of in-game cutscenes." } },
+    { ELanguage::Italian,  { "Cutscene Framerate", "Set the frame rate of in-game cutscenes." } }
+};
+
+CONFIG_DEFINE_ENUM_LOCALE(ECutsceneFramerate)
+{
+    {
+        ELanguage::English,
+        {
+            { ECutsceneFramerate::Original, { "ORIGINAL", "In-game cutscenes run at 30 FPS." } },
+            { ECutsceneFramerate::Unlocked, { "UNLOCKED", "In-game cutscenes run at target framerate." } }
+        }
+    },
+    {
+        ELanguage::Japanese,
+        {
+            { ECutsceneFramerate::Original, { "ORIGINAL", "In-game cutscenes run at 30 FPS." } },
+            { ECutsceneFramerate::Unlocked, { "UNLOCKED", "In-game cutscenes run at target framerate." } }
+        }
+    },
+    {
+        ELanguage::German,
+        {
+            { ECutsceneFramerate::Original, { "ORIGINAL", "In-game cutscenes run at 30 FPS." } },
+            { ECutsceneFramerate::Unlocked, { "UNLOCKED", "In-game cutscenes run at target framerate." } }
+        }
+    },
+    {
+        ELanguage::French,
+        {
+            { ECutsceneFramerate::Original, { "ORIGINAL", "In-game cutscenes run at 30 FPS." } },
+            { ECutsceneFramerate::Unlocked, { "UNLOCKED", "In-game cutscenes run at target framerate." } }
+        }
+    },
+    {
+        ELanguage::Spanish,
+        {
+            { ECutsceneFramerate::Original, { "ORIGINAL", "In-game cutscenes run at 30 FPS." } },
+            { ECutsceneFramerate::Unlocked, { "UNLOCKED", "In-game cutscenes run at target framerate." } }
+        }
+    },
+    {
+        ELanguage::Italian,
+        {
+            { ECutsceneFramerate::Original, { "ORIGINAL", "In-game cutscenes run at 30 FPS." } },
+            { ECutsceneFramerate::Unlocked, { "UNLOCKED", "In-game cutscenes run at target framerate." } }
+        }
+    }
+};
+
 CONFIG_DEFINE_LOCALE(Brightness)
 {
     { ELanguage::English, { "Brightness", "Adjust the brightness level." } },

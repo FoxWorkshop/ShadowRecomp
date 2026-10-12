@@ -6,21 +6,31 @@
 #include <patches/patch_utils.h>
 
 const uint32_t g_deltaTime = 0x541FA8;
+const uint32_t g_unroundedDeltaTime = 0x541FAC; // delta time pre-round (sub_56FC0)
 const uint32_t g_refRate = 0x54DD80;
 const uint32_t g_frameRateDivisor = 0x54DD40;
 const uint32_t g_maxFrames = 0x54DD64; // Most frames' worth of time one frame can count for.
 
 static bool g_isEventPlaying = false; // Note for future self, we CANNOT use this for audio detection
+
+static bool IsCutsceneFramerateUnlocked()
+{
+	return Config::CutsceneFramerate == ECutsceneFramerate::Unlocked;
+}
+
 thread_local bool g_isStartingEventAudio = false;
 void SetFramerateMidAsmHook()
 {
 	auto base = g_memory.base;
+	if (g_isEventPlaying && !IsCutsceneFramerateUnlocked())
+	{
+		return;
+	}
+
+	uint32_t refRate = (uint32_t)GetTargetFPS();
+	X86_STORE_U32(g_refRate, refRate);
 	if (g_isEventPlaying == false)
 	{
-		// Set global FPS to our own, when not doing event stuff.
-		uint32_t refRate = (uint32_t)GetTargetFPS();
-		X86_STORE_U32(g_refRate, refRate);
-
 		// == Sewer note ==
 		//
 		// The original game has a mechanic where if the framerate is
@@ -53,6 +63,11 @@ void SetFramerateMidAsmHook()
 		maxFrames = std::max(maxFrames, 1u);
 		X86_STORE_U32(g_maxFrames, maxFrames);
 	}
+	else
+	{
+		// matching TPjsEventActionManager audio sync of 1
+		X86_STORE_U32(g_maxFrames, std::max(refRate, 1u));
+	}
 }
 
 // TPjsEventActionManager::Exec
@@ -83,10 +98,12 @@ float GetInternalFrameRate()
 	uint32_t refRate = X86_LOAD_U32(g_refRate);
 	int32_t divisor = (int32_t)X86_LOAD_U32(g_frameRateDivisor);
 	if (refRate == 0 || divisor <= 0)
+	{
 		return 0.0f;
+	}
 
 	float fps = (float)refRate / (float)divisor;
-	return (fps >= 1.0f && fps <= 500.0f) ? fps : 0.0f;
+	return (fps >= 1.0f && fps <= (float)FPS_MAX) ? fps : 0.0f;
 }
 
 // Skip the game's frame limiter.
@@ -2691,3 +2708,258 @@ void AdvertiseMessageHoldTimerMidAsmHook(X86Register& esi)
 	X86_STORE_F32(esi.u32 + 0x20, X86_LOAD_F32(esi.u32 + 0x20) + GetMessageTimerExcess(base));
 }
 /** --Advertise Message Timer Patch END-- */
+
+/** --Event FPS Patch START-- */
+
+static thread_local bool g_isEventCameraCutting = false;
+static thread_local bool g_isSamplingEventMotion = false;
+static float g_eventStreamWaitCarry = 0.0f;
+
+// TPjsEventActionManager constructor
+// Hooked after the divisor is set (override for unlocked)
+void EventCreatedMidAsmHook()
+{
+	g_isEventCameraCutting = false;
+	g_eventStreamWaitCarry = 0.0f;
+
+	if (IsCutsceneFramerateUnlocked())
+	{
+		auto base = g_memory.base;
+		X86_STORE_U32(g_frameRateDivisor, 1);
+	}
+}
+
+static const uint32_t g_eventClockFrame = 0x54D498; // clip / event current progress
+static const uint32_t g_eventFramesPerSecond = 0x448150;
+static constexpr float g_eventMaxDeltaTime = 1.0f;
+
+// real frametime without rounding so event audio doesn't desync
+static float GetEventDeltaTime()
+{
+	auto base = g_memory.base;
+	const float deltaTime = X86_LOAD_F32(g_unroundedDeltaTime);
+	return std::min(deltaTime, g_eventMaxDeltaTime);
+}
+
+void EventClockStepMidAsmHook(X86Register& esp)
+{
+	if (IsCutsceneFramerateUnlocked())
+	{
+		auto base = g_memory.base;
+		X86_STORE_F32(esp.u32 + 0xC, GetEventDeltaTime());
+	}
+}
+
+static constexpr float g_eventCameraCutMinJump = 1.0f;
+static constexpr float g_eventCameraCutSlopeRatio = 4.0f;
+
+
+// camera motion (.SNB)
+// +0xC track count
+// +0x10 tracks
+//
+// camera track
+// +0x0 channel type
+// +0x4 interp
+// +0x14 start
+// +0x18 end
+// +0x1C key count
+// +0x24 keys (frame, value)
+static bool IsEventCameraCut(uint32_t cameraMotion, float frame)
+{
+	auto base = g_memory.base;
+	const uint32_t trackCount = X86_LOAD_U32(cameraMotion + 0xC);
+	const uint32_t tracks = X86_LOAD_U32(cameraMotion + 0x10);
+
+	for (uint32_t i = 0; i < trackCount; i++)
+	{
+		const uint32_t track = tracks + i * 0x28;
+		const uint32_t channelType = X86_LOAD_U32(track) & 0xFFFFFF00;
+		const uint32_t interpolation = X86_LOAD_U32(track + 0x4) & 0xFFFF;
+		const bool isPosition = channelType == 0x100 || channelType == 0x200 || channelType == 0x400;
+		const bool isTarget = channelType == 0x40000 || channelType == 0x80000 || channelType == 0x100000;
+
+		if ((!isPosition && !isTarget) || (interpolation != 2 && interpolation != 4))
+		{
+			continue;
+		}
+
+		if (frame < X86_LOAD_F32(track + 0x14) || frame > X86_LOAD_F32(track + 0x18))
+		{
+			continue;
+		}
+
+		const uint32_t keyCount = X86_LOAD_U32(track + 0x1C);
+		const uint32_t keys = X86_LOAD_U32(track + 0x24);
+		auto keyFrame = [&](uint32_t index) { return X86_LOAD_F32(keys + index * 0x8); };
+		auto keyValue = [&](uint32_t index) { return X86_LOAD_F32(keys + index * 0x8 + 0x4); };
+
+		if (keyCount < 2 || frame < keyFrame(0))
+		{
+			continue;
+		}
+
+		uint32_t keyIndex = 0;
+		uint32_t upperIndex = keyCount;
+		while (upperIndex - keyIndex > 1)
+		{
+			const uint32_t middleIndex = (keyIndex + upperIndex) / 2;
+			if (keyFrame(middleIndex) <= frame)
+			{
+				keyIndex = middleIndex;
+			}
+			else
+			{
+				upperIndex = middleIndex;
+			}
+		}
+
+		if (keyIndex + 1 >= keyCount || keyFrame(keyIndex + 1) - keyFrame(keyIndex) > 1.0f)
+		{
+			continue;
+		}
+
+		float neighbourSlope = 0.0f;
+		if (keyIndex > 0)
+		{
+			neighbourSlope = std::fabs(keyValue(keyIndex) - keyValue(keyIndex - 1)) / (keyFrame(keyIndex) - keyFrame(keyIndex - 1));
+		}
+
+		if (keyIndex + 2 < keyCount)
+		{
+			neighbourSlope = std::max(neighbourSlope, std::fabs(keyValue(keyIndex + 2) - keyValue(keyIndex + 1)) / (keyFrame(keyIndex + 2) - keyFrame(keyIndex + 1)));
+		}
+
+		const float jump = std::fabs(keyValue(keyIndex + 1) - keyValue(keyIndex));
+		if (jump > g_eventCameraCutMinJump && jump > neighbourSlope * g_eventCameraCutSlopeRatio)
+		{
+			return true;
+		}
+	}
+	return false;
+}
+
+// Event camera frame
+// use prior frame on a camera switch to avoid the awkward snap at 61FPS+
+void EventCameraFrameMidAsmHook(X86Register& esi, X86Register& esp)
+{
+	if (!IsCutsceneFramerateUnlocked())
+	{
+		return;
+	}
+	auto base = g_memory.base;
+	const float frame = X86_LOAD_F32(g_eventClockFrame);
+	g_isEventCameraCutting = IsEventCameraCut(X86_LOAD_U32(esi.u32), frame);
+	X86_STORE_F32(esp.u32 + 0x4, g_isEventCameraCutting ? std::trunc(frame) : frame);
+}
+
+// sub_22A540 (Single Frame Mode setter for events)
+// If true we skip the set, if false we let it enable the mode
+bool EventMotionSingleFrameMidAsmHook()
+{
+	return IsCutsceneFramerateUnlocked();
+}
+
+// Event actor frame
+void EventActorFrameMidAsmHook(X86Register& ebp)
+{
+	if (g_isEventCameraCutting)
+	{
+		auto base = g_memory.base;
+		X86_STORE_F32(ebp.u32 + 0xC, std::trunc(X86_LOAD_F32(ebp.u32 + 0xC)));
+	}
+}
+
+static constexpr float g_eventMotionPopMinJump = 0.05f;
+static constexpr float g_eventMotionPopSlopeRatio = 4.0f;
+
+// Event actor update (calls sub_36E270)
+X86_FUNC_IMPL(__imp__sub_22A240);
+X86_FUNC(sub_22A240)
+{
+	g_isSamplingEventMotion = IsCutsceneFramerateUnlocked();
+	__imp__sub_22A240(ctx, base);
+	g_isSamplingEventMotion = false;
+}
+
+// motion key (sub_37A6B0)
+// +0x0 frame
+// +0x4 in slope
+// +0x8 out slope
+// +0xC value
+// 1 frame apart with an extreme jump = a teleport
+static bool IsEventMotionPop(uint8_t* base, uint32_t prevKey, uint32_t nextKey)
+{
+	if (X86_LOAD_F32(nextKey) - X86_LOAD_F32(prevKey) > 1.0f)
+	{
+		return false;
+	}
+
+	float maxSlope = 0.0f;
+	for (uint32_t slopeAddr : { prevKey + 0x4, prevKey + 0x8, nextKey + 0x4, nextKey + 0x8 })
+	{
+		maxSlope = std::max(maxSlope, std::fabs(X86_LOAD_F32(slopeAddr)));
+	}
+
+	const float jump = std::fabs(X86_LOAD_F32(nextKey + 0xC) - X86_LOAD_F32(prevKey + 0xC));
+	return jump > g_eventMotionPopMinJump && jump > maxSlope * g_eventMotionPopSlopeRatio;
+}
+
+// Motion key interpolation
+// Single frames are blended equally
+X86_FUNC_IMPL(__imp__sub_379D20);
+X86_FUNC(sub_379D20)
+{
+	if (!g_isSamplingEventMotion)
+	{
+		__imp__sub_379D20(ctx, base);
+		return;
+	}
+
+	const uint32_t prevKey = X86_LOAD_U32(ctx.esp.u32 + 0x4);
+	const uint32_t nextKey = X86_LOAD_U32(ctx.esp.u32 + 0x8);
+	const float sampleFrame = X86_LOAD_F32(ctx.esp.u32 + 0xC);
+	const float singleFrame = std::floor(sampleFrame);
+
+	if (singleFrame < X86_LOAD_F32(prevKey) || singleFrame + 1.0f > X86_LOAD_F32(nextKey))
+	{
+		__imp__sub_379D20(ctx, base);
+		return;
+	}
+
+	X86_STORE_F32(ctx.esp.u32 + 0xC, singleFrame);
+	__imp__sub_379D20(ctx, base);
+
+	if (sampleFrame == singleFrame || IsEventMotionPop(base, prevKey, nextKey))
+	{
+		return;
+	}
+
+	const double valueAtSingleFrame = ctx.fpu.pop();
+	ctx.esp.u32 -= 0x4;
+	X86_STORE_F32(ctx.esp.u32 + 0xC, singleFrame + 1.0f);
+	__imp__sub_379D20(ctx, base);
+
+	const double value = ctx.fpu.st0();
+	ctx.fpu.st0() = valueAtSingleFrame + (value - valueAtSingleFrame) * (double)(sampleFrame - singleFrame);
+}
+
+// Event stream wait
+// sub_228740 pauses to align with the audio track
+void EventStreamWaitMidAsmHook(X86Register& ecx)
+{
+	if (!IsCutsceneFramerateUnlocked())
+	{
+		return;
+	}
+
+	auto base = g_memory.base;
+	g_eventStreamWaitCarry += GetEventDeltaTime() * X86_LOAD_F32(g_eventFramesPerSecond);
+	if (g_eventStreamWaitCarry < 1.0f)
+	{
+		ecx.u32 -= 1;
+		return;
+	}
+	g_eventStreamWaitCarry = std::min(g_eventStreamWaitCarry - 1.0f, 1.0f);
+}
+/** --Event FPS Patch END-- */

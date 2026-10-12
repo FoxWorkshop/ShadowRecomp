@@ -144,6 +144,12 @@ enum class EFMVAspectRatio : uint32_t
     Fill
 };
 
+enum class ECutsceneFramerate : uint32_t
+{
+    Original,
+    Unlocked
+};
+
 enum class EUIAlignmentMode : uint32_t
 {
     Edge,

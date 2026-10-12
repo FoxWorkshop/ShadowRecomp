@@ -375,6 +375,12 @@ CONFIG_DEFINE_ENUM_TEMPLATE(EFMVAspectRatio)
     { "Fill", EFMVAspectRatio::Fill }
 };
 
+CONFIG_DEFINE_ENUM_TEMPLATE(ECutsceneFramerate)
+{
+    { "Original", ECutsceneFramerate::Original },
+    { "Unlocked", ECutsceneFramerate::Unlocked }
+};
+
 CONFIG_DEFINE_ENUM_TEMPLATE(EUIAlignmentMode)
 {
     { "Edge", EUIAlignmentMode::Edge },

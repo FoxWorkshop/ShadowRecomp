@@ -1711,3 +1711,45 @@ registers = ["r4"]
 name = "AdvertiseMessageHoldTimerMidAsmHook"
 address = 0x2A6082
 registers = ["r4"]
+
+## START Event FPS patches
+# TPjsEventActionManager constructor
+[[midasm_hook]]
+name = "EventCreatedMidAsmHook"
+address = 0x2291B4
+
+# sub_22B840 event playing
+[[midasm_hook]]
+name = "EventClockStepMidAsmHook"
+address = 0x22B859
+registers = ["r7"]
+
+# sub_22BBE0 frame arg is at esp+4
+[[midasm_hook]]
+name = "EventCameraFrameMidAsmHook"
+address = 0x22BD43
+registers = ["r4", "r7"]
+
+# sub_22A540 single-frame MTN mode patch
+[[midasm_hook]]
+name = "EventMotionSingleFrameMidAsmHook"
+address = 0x22A5A6
+jump_address_on_true = 0x22A5AB
+
+[[midasm_hook]]
+name = "EventMotionSingleFrameMidAsmHook"
+address = 0x22A5F0
+jump_address_on_true = 0x22A5F5
+
+# sub_22A240 frame arg at ebp+0xC, before it goes to the actor motions
+[[midasm_hook]]
+name = "EventActorFrameMidAsmHook"
+address = 0x22A391
+registers = ["r6"]
+
+# sub_228740 wait counter, to align audio
+[[midasm_hook]]
+name = "EventStreamWaitMidAsmHook"
+address = 0x228BB6
+registers = ["r2"]
+## END Event FPS patches
