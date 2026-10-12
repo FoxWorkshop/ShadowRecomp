@@ -20,6 +20,7 @@
 #include <res/images/common/Achievements_pause.png.h>
 
 static double g_time{};
+static double g_transitionTime{};
 static double g_rowSelectionTime{};
 static double g_scrollArrowsTime{};
 static double g_lastIncrementTime{};
@@ -135,9 +136,9 @@ void AchievementMenu::Open(uint32_t padIndex)
 
 
 	s_isVisible = true;
-	s_state = AchievementMenuState::Transition;
-	s_nextState = AchievementMenuState::Achievements;
+	s_state = AchievementMenuState::Intro;
 	g_time = ImGui::GetTime();
+	g_transitionTime = g_time;
 	g_hasSwitched = false;
 	g_selectedIndex = 0;
 
@@ -154,23 +155,20 @@ void AchievementMenu::Open(uint32_t padIndex)
 
 void AchievementMenu::Close()
 {
-	if (s_state == AchievementMenuState::ClosingAchievements)
+	if (s_state == AchievementMenuState::Outro)
 		return;
 
 	g_isControlsVisible = false;
-	s_state = AchievementMenuState::ClosingAchievements;
+	s_state = AchievementMenuState::Outro;
 	g_time = ImGui::GetTime();
+	g_transitionTime = g_time;
 	ButtonGuide::Close();
 
 }
-static float g_bgScale = 1.0f;
 static ImVec2 containerTopMin;
 static ImVec2 containerTopMax;
 static void DrawContainer()
 {
-	if (g_bgScale < 0.9f)
-		return;
-
 	auto& res = ImGui::GetIO().DisplaySize;
 	auto drawList = ImGui::GetBackgroundDrawList();
 
@@ -219,9 +217,6 @@ static void DrawContainer()
 
 static void DrawAchievementLogo()
 {
-	if (g_bgScale < 0.9f)
-		return;
-
 	auto drawList = ImGui::GetBackgroundDrawList();
 
 	// Japanese re use the english text since the font doesn't support kanji, this match the original game behavior with "library" logo.
@@ -255,37 +250,27 @@ static void DrawBackground()
 	auto drawList = ImGui::GetBackgroundDrawList();
 
 
-	ImVec2 centre = { res.x / 2.f, res.y / 2.f };
 
-	g_bgScale = 1.0f;
+	PauseZoom zoom = { { 0.0f, 0.0f }, { res.x, res.y }, 1.0f, true };
 
-	if (AchievementMenu::s_state == AchievementMenuState::ClosingAchievements)
-		g_bgScale = (float)ComputeEaseOut(AchievementMenu::g_BackgroundAnimClose, 0.5, true);
-	else
-		g_bgScale = (float)ComputeEaseOut(AchievementMenu::g_BackgroundAnimIntro, 0.5, false);
-
-	// animate from centre outward to fullscreen
-	ImVec2 bgHalfSize = { (res.x / 2.f) * g_bgScale, (res.y / 2.f) * g_bgScale };
-	ImVec2 bgMin = { centre.x - bgHalfSize.x, centre.y - bgHalfSize.y };
-	ImVec2 bgMax = { centre.x + bgHalfSize.x, centre.y + bgHalfSize.y };
+	if (AchievementMenu::s_state != AchievementMenuState::Achievements)
+		zoom = ComputePauseZoom(g_transitionTime, AchievementMenu::s_state == AchievementMenuState::Outro);
 
 	drawList->AddImage
 	(
 		g_TexAchievementBG.get(),
-		bgMin,
-		bgMax,
+		zoom.Min,
+		zoom.Max,
 		{ 0, 0 },
 		{ 1, 1 },
-		IM_COL32(255, 255, 255, 255)
+		IM_COL32(255, 255, 255, (int)(255 * zoom.Alpha))
 	);
 
-	if (g_bgScale <= 0.1f && AchievementMenu::s_state == AchievementMenuState::ClosingAchievements)
+	if (AchievementMenu::s_state == AchievementMenuState::Achievements)
 	{
-		AchievementMenu::s_isVisible = false;
+		DrawContainer();
+		DrawAchievementLogo();
 	}
-
-	DrawContainer();
-	DrawAchievementLogo();
 }
 
 static bool CheckAndDiscard(bool& value)
@@ -502,24 +487,13 @@ void AchievementMenu::Draw()
 
 	switch (s_state)
 	{
-	case AchievementMenuState::Transition:
+	case AchievementMenuState::Intro:
 	{
+		DrawBackground();
 
-		if (AchievementMenu::s_nextState == AchievementMenuState::Achievements)
-		{
-			AchievementMenu::g_BackgroundAnimIntro = ImGui::GetTime();
-		}
-
-		if (AchievementMenu::s_nextState == AchievementMenuState::ClosingAchievements)
-		{
-			AchievementMenu::g_BackgroundAnimClose = ImGui::GetTime();
-			AchievementMenu::Close();
-		}
-		else
-		{
-			s_state = AchievementMenu::s_nextState;
-		}
-
+		// wait that the intro anim is done before switching to the achievements state
+		if (ComputePauseZoom(g_transitionTime, false).IsDone)
+			s_state = AchievementMenuState::Achievements;
 
 		break;
 	}
@@ -532,7 +506,6 @@ void AchievementMenu::Draw()
 
 		// DrawContainer(min, max);
 
-		if (g_bgScale >= 0.9)
 		{
 			g_isControlsVisible = true;
 
@@ -589,8 +562,7 @@ void AchievementMenu::Draw()
 
 			if (CheckAndDiscard(g_isDeclined))
 			{
-				s_state = AchievementMenuState::Transition;
-				s_nextState = AchievementMenuState::ClosingAchievements;
+				Close();
 				Game_PlaySound("cancel");
 			}
 
@@ -606,9 +578,12 @@ void AchievementMenu::Draw()
 		break;
 	}
 
-	case AchievementMenuState::ClosingAchievements:
+	case AchievementMenuState::Outro:
 
 		DrawBackground();
+
+		if (ComputePauseZoom(g_transitionTime, true).IsDone)
+			s_isVisible = false;
 
 
 		g_up = false;
