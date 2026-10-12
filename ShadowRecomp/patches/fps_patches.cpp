@@ -2764,8 +2764,12 @@ static constexpr float g_eventCameraCutSlopeRatio = 4.0f;
 // +0x14 start
 // +0x18 end
 // +0x1C key count
+// +0x20 key size
 // +0x24 keys (frame, value)
-static bool IsEventCameraCut(uint32_t cameraMotion, float frame)
+//
+// 2 and 4 interpolation modes are used by events
+// 0x20 is used by boss cameras / in-gameplay snbs
+static bool IsCameraMotionCut(uint32_t cameraMotion, float frame)
 {
 	auto base = g_memory.base;
 	const uint32_t trackCount = X86_LOAD_U32(cameraMotion + 0xC);
@@ -2779,7 +2783,7 @@ static bool IsEventCameraCut(uint32_t cameraMotion, float frame)
 		const bool isPosition = channelType == 0x100 || channelType == 0x200 || channelType == 0x400;
 		const bool isTarget = channelType == 0x40000 || channelType == 0x80000 || channelType == 0x100000;
 
-		if ((!isPosition && !isTarget) || (interpolation != 2 && interpolation != 4))
+		if ((!isPosition && !isTarget) || (interpolation != 2 && interpolation != 4 && interpolation != 0x20))
 		{
 			continue;
 		}
@@ -2790,9 +2794,10 @@ static bool IsEventCameraCut(uint32_t cameraMotion, float frame)
 		}
 
 		const uint32_t keyCount = X86_LOAD_U32(track + 0x1C);
+		const uint32_t keySize = X86_LOAD_U32(track + 0x20);
 		const uint32_t keys = X86_LOAD_U32(track + 0x24);
-		auto keyFrame = [&](uint32_t index) { return X86_LOAD_F32(keys + index * 0x8); };
-		auto keyValue = [&](uint32_t index) { return X86_LOAD_F32(keys + index * 0x8 + 0x4); };
+		auto keyFrame = [&](uint32_t index) { return X86_LOAD_F32(keys + index * keySize); };
+		auto keyValue = [&](uint32_t index) { return X86_LOAD_F32(keys + index * keySize + 0x4); };
 
 		if (keyCount < 2 || frame < keyFrame(0))
 		{
@@ -2849,7 +2854,7 @@ void EventCameraFrameMidAsmHook(X86Register& esi, X86Register& esp)
 	}
 	auto base = g_memory.base;
 	const float frame = X86_LOAD_F32(g_eventClockFrame);
-	g_isEventCameraCutting = IsEventCameraCut(X86_LOAD_U32(esi.u32), frame);
+	g_isEventCameraCutting = IsCameraMotionCut(X86_LOAD_U32(esi.u32), frame);
 	X86_STORE_F32(esp.u32 + 0x4, g_isEventCameraCutting ? std::trunc(frame) : frame);
 }
 
@@ -2975,4 +2980,21 @@ void GoalActionTicksMidAsmHook(X86Register& ticks)
 	const float flooredTicks = std::floor(g_goalActionTickCarry);
 	g_goalActionTickCarry -= flooredTicks;
 	ticks.u32 = (uint32_t)flooredTicks;
+}
+
+// Boss / special camera 61FPS+ fix
+X86_FUNC_IMPL(__imp__sub_23950);
+X86_FUNC(sub_23950)
+{
+	const uint32_t cameraMotion = X86_LOAD_U32(ctx.esp.u32 + 0x8);
+	const float frame = X86_LOAD_F32(ctx.esp.u32 + 0xC);
+	for (float offset : { -1.0f, 0.0f, 1.0f })
+	{
+		if (IsCameraMotionCut(cameraMotion, frame + offset))
+		{
+			X86_STORE_F32(ctx.esp.u32 + 0xC, std::trunc(frame));
+			break;
+		}
+	}
+	__imp__sub_23950(ctx, base);
 }
