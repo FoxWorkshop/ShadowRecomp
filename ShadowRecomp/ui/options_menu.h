@@ -2,11 +2,12 @@
 
 enum class OptionsMenuState
 {
+    Intro, // pause only, background zooms in
     Opening,
     Idle,
     Closing,
-    Restarting,
-    Transition,
+    Outro, // pause only, background zooms out
+    Restarting
 };
 
 enum class OptionsMenuCategory
@@ -32,7 +33,6 @@ class OptionsMenu
 {
 public:
     static inline OptionsMenuState s_state{};
-    static inline OptionsMenuState s_nextState{};
     static inline OptionsMenuFlowState s_flowState{};
     static inline bool s_isVisible = false;
     static inline bool s_isPause = false;

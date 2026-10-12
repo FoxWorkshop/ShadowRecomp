@@ -13,7 +13,27 @@
 #define CENTRE_TEXT_HORZ(min, max, textSize) min.x + ((max.x - min.x) - textSize.x) / 2
 #define CENTRE_TEXT_VERT(min, max, textSize) min.y + ((max.y - min.y) - textSize.y) / 2
 
-#define BREATHE_MOTION(start, end, time, rate) Lerp(start, end, (sin((ImGui::GetTime() - time) * (2.0f * M_PI / rate)) + 1.0f) / 2.0f)
+// this will be used to control speed of the pause zoom in/out effect and the logo blink effect
+inline constexpr double g_pause_zoom_in_frames = 20.0;
+inline constexpr double g_pause_zoom_out_frames = 20.0;
+inline constexpr float g_pause_zoom_start_scale = 0.2f;
+inline constexpr double g_logo_blink_close_frames = 19.0;
+
+struct LoopKey
+{
+    float Frame;
+    float Value;
+};
+
+struct PauseZoom
+{
+    ImVec2 Min;
+    ImVec2 Max;
+    float Alpha;
+    bool IsDone;
+};
+
+#define BREATHE_MOTION(start, end, time, rate)Lerp(start, end, (sin((ImGui::GetTime() - time) * (2.0f * M_PI / rate)) + 1.0f) / 2.0f)
 
 constexpr float ANNOTATION_FONT_SIZE_MODIFIER = 0.6f;
 #define IM_COL32_WHITE_TRANS IM_COL32(255, 255, 255, 0)
@@ -84,6 +104,9 @@ void DrawVersionString(const ImFont* font, const ImU32 col = IM_COL32(255, 255, 
 
 const char* CalcWordWrapPositionA(const ImFont* font, float scale, const char* text, const char* text_end, float wrap_width);
 double ComputeEaseOut(double time, double duration, bool reverse);
+PauseZoom ComputePauseZoom(double time, bool isClosing);
+float GetInterpolatedFrameValue(std::span<const LoopKey> keys, float frame, bool isLooping = true);
+float ComputeTitleBlink(double time, bool isClosing);
 void SetVerticalGradient(const ImVec2& min, const ImVec2& max, ImU32 top, ImU32 bottom);
 void DrawScrollArrows(ImVec2 min, ImVec2 max, float scale, double& time, bool top = true, bool bottom = true);
 double ComputeLoopMotion(double time, double offset, double total);

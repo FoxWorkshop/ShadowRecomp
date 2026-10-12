@@ -131,6 +131,19 @@ static double g_lastTappedTime{};
 static double g_scrollArrowsTime{};
 static double g_containerAnimTime = 0.0;
 static double g_containerClosedAnimTime = 0.0;
+static double g_transitionTime{};
+static double g_logoTime{};
+
+// Open and close timings at 60 fps
+// (Can be adjusted to make the menu feel smoother or slower)
+static constexpr double g_options_container_frames = 15.0;
+static constexpr double g_options_logo_close_delay = g_options_container_frames;
+static constexpr float g_options_logo_alpha = 152.0f;
+
+static double GetFramesSince(double time)
+{
+	return (ImGui::GetTime() - time) * 60.0;
+}
 
 static bool g_up{};
 static bool g_upWasHeld{};
@@ -151,9 +164,6 @@ bool m_isDescManualScrolling{};
 float m_descScrollOffset{};
 float m_descScrollTimer{};
 float m_descScrollDirection{ 1.0f };
-
-static double s_optionsOpenTime = -1.0;
-static double s_optionsCloseTime = -1.0;
 
 static std::string optionDescription;
 static void UpdateOptionDescription(const IConfigDef* config)
@@ -2004,12 +2014,6 @@ static void MoveCursor(int& cursorIndex, double& cursorTime, int min = 0, int ma
 
 // Originally the legacy options draw some fire animated (sprites) and some whites lines which moves every frame
 
-struct LoopKey
-{
-	float Frame;
-	float Value;
-};
-
 struct LoopFire
 {
 	float X; // bottom left corner
@@ -2057,35 +2061,12 @@ static constexpr LoopLine g_loopLines[] =
 
 static double g_loopSceneTime{};
 
-// general keyframe reader for the looped fire and line animations, return the interpolated value 
-// for the given frame.
-// This is essentially what the game does, but in a simpler and smaller way.
-static float GetInterpolatedFrameValue(std::span<const LoopKey> keys, float frame)
-{
-	auto lastFrame = keys.back().Frame;
-
-	if (lastFrame > 0.0f)
-		frame = fmodf(frame, lastFrame);
-
-	for (size_t i = 1; i < keys.size(); i++)
-	{
-		if (frame < keys[i].Frame)
-		{
-			auto& prev = keys[i - 1];
-			auto& next = keys[i]; // blend linearly
-			return prev.Value + (next.Value - prev.Value) * (frame - prev.Frame) / (next.Frame - prev.Frame);
-		}
-	}
-
-	return keys.back().Value;
-}
-
 static float GetLoopSceneFrame()
 {
 	return fmodf((float)((ImGui::GetTime() - g_loopSceneTime) * 60.0), LOOP_SCENE_FRAMES);
 }
 
-void DrawAnimatedFire(ImVec2 min, ImVec2 max)
+void DrawAnimatedFire(ImVec2 min, ImVec2 max, float fade = 1.0f)
 {
 	auto drawList = ImGui::GetBackgroundDrawList();
 	auto frame = GetLoopSceneFrame();
@@ -2105,7 +2086,7 @@ void DrawAnimatedFire(ImVec2 min, ImVec2 max)
 		int row = sprite / 4;
 
 		auto fireUVs = PIXELS_TO_UV_COORDS(512, 512, 384 + col * 32, rowTops[row], 32, rowTops[row + 1] - rowTops[row]);
-		auto alpha = (int)GetInterpolatedFrameValue(fire.Alpha, frame);
+		auto alpha = (int)(GetInterpolatedFrameValue(fire.Alpha, frame) * fade);
 
 
 		ImVec2 fireMin = { min.x + fire.X * scaleX, min.y + fire.Y * scaleY - 32.0f * fire.ScaleY * scaleY };
@@ -2117,7 +2098,7 @@ void DrawAnimatedFire(ImVec2 min, ImVec2 max)
 	ResetAdditive();
 }
 
-static void DrawLoopLines(ImVec2 min, ImVec2 max)
+static void DrawLoopLines(ImVec2 min, ImVec2 max, float fade = 1.0f)
 {
 	auto drawList = ImGui::GetBackgroundDrawList();
 	auto frame = GetLoopSceneFrame();
@@ -2126,7 +2107,7 @@ static void DrawLoopLines(ImVec2 min, ImVec2 max)
 
 	for (auto& line : g_loopLines)
 	{
-		auto alpha = (int)GetInterpolatedFrameValue(line.Alpha, frame);
+		auto alpha = (int)(GetInterpolatedFrameValue(line.Alpha, frame) * fade);
 
 		if (alpha <= 0)
 			continue;
@@ -2161,6 +2142,21 @@ static void DrawLoopLines(ImVec2 min, ImVec2 max)
 
 /* --- Animated sprites END --- */
 
+static float GetTitleAlphaValue()
+{
+	switch (OptionsMenu::s_state)
+	{
+	case OptionsMenuState::Intro:
+	case OptionsMenuState::Outro:
+		return 0.0f;
+
+	case OptionsMenuState::Closing:
+		return ComputeTitleBlink(g_containerClosedAnimTime + g_options_logo_close_delay / 60.0, true) * g_options_logo_alpha;
+	default:
+		return ComputeTitleBlink(g_logoTime, false) * g_options_logo_alpha;
+	}
+}
+
 void DrawBackground(bool isPause = false)
 {
 	if (IsLivePreviewActive())
@@ -2176,56 +2172,33 @@ void DrawBackground(bool isPause = false)
 	float borderPixels = 32.f; // Options BG has an extra black border at the bottom, we don't want that.
 	float uvMaxY = 1.0f - (borderPixels / 512.0f);
 
-	ImVec2 centre = { res.x / 2.f, res.y / 2.f };
-	float scale = 1.0f;
-	ImVec2 bgMin = { 0.0f, 0.0f };
-	ImVec2 bgMax = { res.x, res.y };
+	// the background only zooms during the pause intro and outro
+	PauseZoom zoom = { { 0.0f, 0.0f }, { res.x, res.y }, 1.0f, true };
 
-	if (isPause)
-	{
-		if (OptionsMenu::s_state == OptionsMenuState::Closing || s_optionsCloseTime > s_optionsOpenTime)
-			scale = (float)ComputeEaseOut(s_optionsCloseTime, 0.5, true); 
-		else
-			scale = (float)ComputeEaseOut(s_optionsOpenTime, 0.5, false);
+	if (isPause && (OptionsMenu::s_state == OptionsMenuState::Intro || OptionsMenu::s_state == OptionsMenuState::Outro))
+		zoom = ComputePauseZoom(g_transitionTime, OptionsMenu::s_state == OptionsMenuState::Outro);
 
-		// animate from centre outward to fullscreen
-		ImVec2 bgHalfSize = { (res.x / 2.f) * scale, (res.y / 2.f) * scale };
-		bgMin = { centre.x - bgHalfSize.x, centre.y - bgHalfSize.y };
-		bgMax = { centre.x + bgHalfSize.x, centre.y + bgHalfSize.y };
-
-		drawList->AddImage
-		(
-			g_upTexOptionsBG.get(),
-			bgMin,
-			bgMax,
-			{ 0, 0 },
-			{ 1, uvMaxY },
-			IM_COL32(255, 255, 255, 255)
-		);
-	}
-	else
-	{
-
-		drawList->AddImage
-		(
-			g_upTexOptionsBG.get(),
-			{ 0.0f, 0.0f },
-			{ res.x, res.y },
-			{ 0, 0 },
-			{ 1, uvMaxY },
-			IM_COL32(255, 255, 255, 255)
-		);
-	}
+	drawList->AddImage
+	(
+		g_upTexOptionsBG.get(),
+		zoom.Min,
+		zoom.Max,
+		{ 0, 0 },
+		{ 1, uvMaxY },
+		IM_COL32(255, 255, 255, (int)(255 * zoom.Alpha))
+	);
 
 	// draw fire and white lines under the menu box
-	drawList->PushClipRect(bgMin, bgMax, true);
-	DrawAnimatedFire(bgMin, bgMax);
-	DrawLoopLines(bgMin, bgMax);
+	drawList->PushClipRect(zoom.Min, zoom.Max, true);
+	DrawAnimatedFire(zoom.Min, zoom.Max, zoom.Alpha);
+	DrawLoopLines(zoom.Min, zoom.Max, zoom.Alpha);
 	drawList->PopClipRect();
 
 	// draw Options Logo
+	auto logoAlpha = (int)GetTitleAlphaValue();
 
-	if (scale >= 0.8f || isPause == false)
+	// recreate the blink effect from legacy options
+	if (logoAlpha > 0)
 	{
 		auto optionsUVs = PIXELS_TO_UV_COORDS(512, 512, 0, 0, 147, 448);
 		auto optionsWidth = Scale(OPTIONS_LOGO_WIDTH);
@@ -2234,7 +2207,7 @@ void DrawBackground(bool isPause = false)
 		ImVec2 optionsMin = { 0.0f, min.y + Scale(10) };
 		ImVec2 optionsMax = { optionsMin.x + optionsWidth, optionsMin.y + optionsHeight };
 
-		drawList->AddImage(g_upTexOptionsText.get(), optionsMin, optionsMax, GET_UV_COORDS(optionsUVs), IM_COL32(255, 255, 255, 128));
+		drawList->AddImage(g_upTexOptionsText.get(), optionsMin, optionsMax, GET_UV_COORDS(optionsUVs), IM_COL32(255, 255, 255, logoAlpha));
 	}
 }
 
@@ -2252,7 +2225,7 @@ void DrawMenuListContainer(ImVec2 min, ImVec2 max)
 	// anim
 
 	// 1.0 = fully on screen, 0.0 = fully off screen
-	float t = OptionsMenu::s_state == OptionsMenuState::Closing ? (float)ComputeLinearMotion(g_containerClosedAnimTime, 0, 15, true) : (float)ComputeLinearMotion(g_containerAnimTime, 0, 15, false);
+	float t = OptionsMenu::s_state == OptionsMenuState::Closing ? (float)ComputeLinearMotion(g_containerClosedAnimTime, 0, g_options_container_frames, true) : (float)ComputeLinearMotion(g_containerAnimTime, 0, g_options_container_frames, false);
 
 
 	float containerFinalX = GetMenuBoxLeft() + GetMenuBoxWidth() - containerWidth;
@@ -2457,6 +2430,45 @@ static void DrawCategories(ImVec2 min, ImVec2 max)
 	}
 }
 
+static void OpenButtonGuide()
+{
+	std::array<Button, 3> buttons =
+	{
+		//Button("Common_Switch", 115.0f, EButtonIcon::LBRB, EButtonAlignment::Left, &g_isControlsVisible),
+		Button("Common_Exit", 115.0f, EButtonIcon::Y, EButtonAlignment::Left, &g_isControlsVisible),
+		Button("Common_Reset", 100.0f, EButtonIcon::X, EButtonAlignment::Right, &g_optionCanReset),
+		Button("Common_Select", 75.0f, EButtonIcon::A, EButtonAlignment::Right, &g_isControlsVisible),
+	};
+
+	ButtonGuide::Open(buttons);
+	ButtonGuide::SetSideMargins(100);
+	ButtonGuide::SetLayout(BUTTON_GUIDE_LEFT, BUTTON_GUIDE_RIGHT, BUTTON_GUIDE_TOP);
+}
+
+
+static void BeginOpening()
+{
+	OptionsMenu::s_state = OptionsMenuState::Opening;
+	g_containerAnimTime = ImGui::GetTime();
+	g_logoTime = g_containerAnimTime;
+	OpenButtonGuide();
+}
+
+static void FinishClosing()
+{
+	if (GameMenuCommon::g_LegacyOptions == false)
+	{
+		if (OptionsMenu::s_isPause == false)
+			GameMenuCommon::ResetNextMode();
+	}
+	else
+	{
+		GameMenuCommon::g_OptionsOpen = false;
+	}
+
+	OptionsMenu::s_isVisible = false;
+}
+
 void OptionsMenu::Draw()
 {
 	if (!s_isVisible)
@@ -2468,23 +2480,20 @@ void OptionsMenu::Draw()
 	bool leftIsHeld = false;
 	bool rightIsHeld = false;
 
-	float t = (float)ComputeLinearMotion(g_containerAnimTime, 0, 15.f, false);
-	float tClosing = (float)ComputeLinearMotion(g_containerClosedAnimTime, 0, 30.f, true);
+	float t = (float)ComputeLinearMotion(g_containerAnimTime, 0, g_options_container_frames, false);
 
 	switch (s_state)
 	{
-	case OptionsMenuState::Transition:
+	case OptionsMenuState::Intro:
 	{
+		// pause only, wait for the background to zoom in before showing anything else
 		GameMenuCommon::g_LegacyOptions = false;
-		if (OptionsMenu::s_nextState == OptionsMenuState::Opening)
-			s_optionsOpenTime = ImGui::GetTime();
 
-		if (OptionsMenu::s_nextState == OptionsMenuState::Closing)
-			s_optionsCloseTime = ImGui::GetTime();
+		if (ComputePauseZoom(g_transitionTime, false).IsDone)
+			BeginOpening();
 
-		s_state = OptionsMenu::s_nextState;
-	}
 		break;
+	}
 
 	case OptionsMenuState::Opening:
 	{
@@ -2543,20 +2552,27 @@ void OptionsMenu::Draw()
 
 	case OptionsMenuState::Closing:
 	{
-
-		if (tClosing <= 0.2f)
+		// wait for the container and the title blink, then zoom out
+		if (GetFramesSince(g_containerClosedAnimTime) >= g_options_logo_close_delay + g_logo_blink_close_frames)
 		{
-			if (GameMenuCommon::g_LegacyOptions == false)
+			if (s_isPause)
 			{
-				if (s_isPause == false)
-					GameMenuCommon::ResetNextMode();
+				s_state = OptionsMenuState::Outro;
+				g_transitionTime = ImGui::GetTime();
 			}
 			else
 			{
-				GameMenuCommon::g_OptionsOpen = false;
+				FinishClosing();
 			}
-			s_isVisible = false;
 		}
+		break;
+	}
+
+	case OptionsMenuState::Outro:
+	{
+		if (ComputePauseZoom(g_transitionTime, true).IsDone)
+			FinishClosing();
+
 		break;
 	}
 	case OptionsMenuState::Restarting:
@@ -2723,13 +2739,19 @@ void OptionsMenu::Draw()
 	ImVec2 min = { GetMenuBoxLeft(), g_aspectRatioOffsetY };
 	ImVec2 max = { min.x + GetMenuBoxWidth(), res.y - min.y };
 
-	if (t >= 0.8f)
+	bool isTransition = s_state == OptionsMenuState::Intro || s_state == OptionsMenuState::Outro;
+
+
+	t = (float)ComputeLinearMotion(g_containerAnimTime, 0, g_options_container_frames, false);
+
+	if (t >= 0.8f && !isTransition && s_state != OptionsMenuState::Closing)
 	{
 		DrawCategories(min, max);
 		g_isControlsVisible = true;
 	}
 
-	DrawMenuListContainer(min, max);
+	if (!isTransition)
+		DrawMenuListContainer(min, max);
 
 	g_up = false;
 	g_upWasHeld = upIsHeld;
@@ -2750,13 +2772,12 @@ void OptionsMenu::Open(bool isPause, uint32_t padIndex)
 
 	OptionsMenu::s_isPause = isPause;
 	OptionsMenu::s_padIndex = padIndex;
-	OptionsMenu::s_nextState = OptionsMenuState::Opening;
 
 	UpdateFontSize();
 	g_stateTime = ImGui::GetTime();
-	s_state = OptionsMenu::s_isPause ? OptionsMenuState::Transition : OptionsMenuState::Opening;
-	g_containerAnimTime = ImGui::GetTime();
-	g_loopSceneTime = g_containerAnimTime;
+	g_transitionTime = g_stateTime;
+	g_loopSceneTime = g_stateTime;
+	g_isControlsVisible = false;
 
 	s_isVisible = true;
 	s_GoToLegacyMenu = false;
@@ -2770,24 +2791,17 @@ void OptionsMenu::Open(bool isPause, uint32_t padIndex)
 
 	ResetSelection();
 
-	std::array<Button, 3> buttons =
-	{
-		//Button("Common_Switch", 115.0f, EButtonIcon::LBRB, EButtonAlignment::Left, &g_isControlsVisible),
-		Button("Common_Exit", 115.0f, EButtonIcon::Y, EButtonAlignment::Left, &g_isControlsVisible),
-		Button("Common_Reset", 100.0f, EButtonIcon::X, EButtonAlignment::Right, &g_optionCanReset),
-		Button("Common_Select", 75.0f, EButtonIcon::A, EButtonAlignment::Right, &g_isControlsVisible),
-
-
-	};
-
-	ButtonGuide::Open(buttons);
-	ButtonGuide::SetSideMargins(100);
-	ButtonGuide::SetLayout(BUTTON_GUIDE_LEFT, BUTTON_GUIDE_RIGHT, BUTTON_GUIDE_TOP);
 	if (s_isPause)
 	{
 		GameMenuCommon::g_nextModeAddr = 0;
 		GameMenuCommon::g_currentModeAddr = 0;
 	}
+
+	// pause version has an intro to expand the background unlike the main menu version
+	if (s_isPause)
+		s_state = OptionsMenuState::Intro;
+	else
+		BeginOpening();
 }
 
 bool OptionsMenu::IsRestartRequired()
@@ -2813,7 +2827,7 @@ void OptionsMenu::SetFlowState(OptionsMenuFlowState flowState)
 
 void OptionsMenu::Close()
 {
-	if (s_state == OptionsMenuState::Closing || s_state == OptionsMenuState::Transition)
+	if (s_state == OptionsMenuState::Closing || s_state == OptionsMenuState::Outro)
 		return;
 
 	g_isControlsVisible = false;
@@ -2838,8 +2852,7 @@ void OptionsMenu::Close()
 	}
 
 
-	s_state = s_isPause ?  OptionsMenuState::Transition : OptionsMenuState::Closing;
-	s_nextState = OptionsMenuState::Closing;
+	s_state = OptionsMenuState::Closing;
 	g_stateTime = ImGui::GetTime();
 	g_containerClosedAnimTime = ImGui::GetTime();
 	g_cursorArrowsTime = g_stateTime;

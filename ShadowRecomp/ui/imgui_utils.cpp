@@ -207,6 +207,65 @@ double ComputeEaseOut(double time, double duration, bool reverse)
     return reverse ? 1.0 - result : result;
 }
 
+// process the pause zoom effect, set the min and max coordinates for the zoom area, as well as the alpha value for the fade effect.
+PauseZoom ComputePauseZoom(double time, bool isClosing)
+{
+    auto& res = ImGui::GetIO().DisplaySize;
+    auto frames = isClosing ? g_pause_zoom_out_frames : g_pause_zoom_in_frames;
+    auto progress = (float)std::clamp((ImGui::GetTime() - time) * 60.0 / frames, 0.0, 1.0);
+    auto t = isClosing ? 1.0f - progress : progress;
+    auto scale = Lerp(g_pause_zoom_start_scale, 1.0f, t);
+
+    ImVec2 centre = { res.x / 2.0f, res.y / 2.0f };
+    ImVec2 halfSize = { centre.x * scale, centre.y * scale };
+
+    PauseZoom pauseZoom;
+	pauseZoom.Min = { centre.x - halfSize.x, centre.y - halfSize.y };
+	pauseZoom.Max = { centre.x + halfSize.x, centre.y + halfSize.y };
+	pauseZoom.Alpha = t;
+	pauseZoom.IsDone = progress >= 1.0f;
+    return pauseZoom;
+}
+
+// general keyframe reader for the looped fire and line animations, return the interpolated value 
+// for the given frame.
+// This is essentially what the game does with CSD, but in a simpler and smaller way.
+float GetInterpolatedFrameValue(std::span<const LoopKey> keys, float frame, bool isLooping)
+{
+    auto lastFrame = keys.back().Frame;
+
+    if (isLooping && lastFrame > 0.0f)
+        frame = fmodf(frame, lastFrame);
+
+    if (frame < keys.front().Frame)
+        return keys.front().Value;
+
+    for (size_t i = 1; i < keys.size(); i++)
+    {
+        if (frame < keys[i].Frame)
+        {
+            auto& prev = keys[i - 1];
+            auto& next = keys[i]; // blend linearly
+            return prev.Value + (next.Value - prev.Value) * (frame - prev.Frame) / (next.Frame - prev.Frame);
+        }
+    }
+
+    return keys.back().Value;
+}
+
+// Helper function to compute the alpha value to create a flick effect for title / logo.
+// Originally the game has an alpha flick effect for title like the "OPTIONS" text on the left and other menu stuff.
+float ComputeTitleBlink(double time, bool isClosing)
+{
+    static constexpr LoopKey openKeys[] = { { 0, 0 }, { 6, 93 }, { 12, 38 }, { 18, 152 } };
+    static constexpr LoopKey closeKeys[] = { { 0, 120 }, { 7, 39 }, { 13, 88 }, { 19, 0 } };
+
+    auto frame = (float)((ImGui::GetTime() - time) * 60.0);
+    auto value = GetInterpolatedFrameValue(isClosing ? closeKeys : openKeys, frame, false);
+
+    return value / 152.0f;
+}
+
 void DrawTextBasic(const ImFont* font, float fontSize, const ImVec2& pos, ImU32 colour, const char* text)
 {
     auto drawList = ImGui::GetBackgroundDrawList();
