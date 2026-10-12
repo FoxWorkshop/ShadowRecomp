@@ -2963,3 +2963,16 @@ void EventStreamWaitMidAsmHook(X86Register& ecx)
 	g_eventStreamWaitCarry = std::min(g_eventStreamWaitCarry - 1.0f, 1.0f);
 }
 /** --Event FPS Patch END-- */
+
+// sub_237DA0 used by jingle/music/fade timing
+// Per frame step
+// 0x456784 = goal tick rate
+static float g_goalActionTickCarry = 0.0f;
+void GoalActionTicksMidAsmHook(X86Register& ticks)
+{
+	auto base = g_memory.base;
+	g_goalActionTickCarry += X86_LOAD_F32(g_unroundedDeltaTime) * X86_LOAD_F32(0x456784);
+	const float flooredTicks = std::floor(g_goalActionTickCarry);
+	g_goalActionTickCarry -= flooredTicks;
+	ticks.u32 = (uint32_t)flooredTicks;
+}

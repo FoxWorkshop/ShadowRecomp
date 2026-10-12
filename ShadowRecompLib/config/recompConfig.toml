@@ -1753,3 +1753,25 @@ name = "EventStreamWaitMidAsmHook"
 address = 0x228BB6
 registers = ["r2"]
 ## END Event FPS patches
+
+## START GoalAction timer patches
+[[midasm_hook]]
+name = "GoalActionTicksMidAsmHook"
+address = 0x237DE6
+registers = ["r0"]
+
+[[midasm_hook]]
+name = "GoalActionTicksMidAsmHook"
+address = 0x238071
+registers = ["r0"]
+
+[[midasm_hook]]
+name = "GoalActionTicksMidAsmHook"
+address = 0x238143
+registers = ["r2"]
+
+[[midasm_hook]]
+name = "GoalActionTicksMidAsmHook"
+address = 0x23821D
+registers = ["r0"]
+## END GoalAction timer patches
