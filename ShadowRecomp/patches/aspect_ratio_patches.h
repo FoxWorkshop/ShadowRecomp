@@ -115,6 +115,9 @@ enum CsdFlags : uint64_t
 	// It needs to extend to the edges of the screen like on 4:3.
     CSD_EXTEND_EDGE_H = MAKE_BITFLAG64(18),
 
+    // Not limited by Max HUD Width
+    CSD_IGNORE_MAX_WIDTH = MAKE_BITFLAG64(19),
+
 
     CSD_CENTER_UNSTRETCH = CSD_UNSTRETCH | CSD_ALIGN_CENTRE,
 

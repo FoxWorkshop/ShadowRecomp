@@ -464,13 +464,13 @@ struct CsdFrame
 	float Bottom;
 };
 
-static CsdFrame GetCsdFrame()
+static CsdFrame GetCsdFrame(uint64_t flags)
 {
 	const int preset = FindHudWidthPreset(Config::MaxHUDWidth.Value);
 	const float maxAspectRatio = preset >= 0 ? g_hudWidthPresets[preset].AspectRatio : Config::MaxHUDWidth.Value;
 	float width = widthMin;
 
-	if (maxAspectRatio > 0.0f && g_aspectRatio > 0.0f)
+	if (maxAspectRatio > 0.0f && g_aspectRatio > 0.0f && (flags & CSD_IGNORE_MAX_WIDTH) == 0)
 	{
 		width = widthMin * std::clamp(maxAspectRatio / g_aspectRatio, g_hudUnstretchX, 1.0f);
 	}
@@ -490,7 +490,7 @@ struct CsdAnchor
 
 static CsdAnchor ResolveAnchorX(uint64_t flags, float minX, float maxX)
 {
-	const CsdFrame frame = GetCsdFrame();
+	const CsdFrame frame = GetCsdFrame(flags);
 
 	// freeze don't moveeee
 	if ((flags & CSD_ALIGN_SELF_H) != 0)
@@ -529,7 +529,7 @@ static CsdAnchor ResolveAnchorX(uint64_t flags, float minX, float maxX)
 
 static CsdAnchor ResolveAnchorY(uint64_t flags, float minY, float maxY)
 {
-	const CsdFrame frame = GetCsdFrame();
+	const CsdFrame frame = GetCsdFrame(flags);
 
 	if ((flags & CSD_ALIGN_CENTRE_V) != 0)
 		return { heightMin * 0.5f, heightMin * 0.5f };
@@ -1022,7 +1022,7 @@ X86_FUNC(sub_19730)
 	void* vertices = g_memory.Translate(ctx.ecx.u32 + FadeLogoVertices);
 
 	CsdSavedVertices saved{};
-	UnstretchPrimitive(vertices, CSDVertexCount, CSD_UNSTRETCH | CSD_ALIGN_BOTTOM_RIGHT, saved);
+	UnstretchPrimitive(vertices, CSDVertexCount, CSD_UNSTRETCH | CSD_ALIGN_BOTTOM_RIGHT | CSD_IGNORE_MAX_WIDTH, saved);
 
 	__imp__sub_19730(ctx, base);
 
@@ -1296,12 +1296,12 @@ X86_FUNC(sub_3D24B0)
 const xxHashMap<CsdModifier> g_csdModifiers =
 {
 	// Loading
-	{ HashStr("csdFiles/Loading_EN.xncp/Scene_0000"), { CSD_UNSTRETCH | CSD_ALIGN_RIGHT } },
-	{ HashStr("csdFiles/Loading_FR.xncp/Scene_0000"), { CSD_UNSTRETCH | CSD_ALIGN_RIGHT } },
-	{ HashStr("csdFiles/Loading_GE.xncp/Scene_0000"), { CSD_UNSTRETCH | CSD_ALIGN_RIGHT } },
-	{ HashStr("csdFiles/Loading_IT.xncp/Scene_0000"), { CSD_UNSTRETCH | CSD_ALIGN_RIGHT } },
-	{ HashStr("csdFiles/Loading_JP.xncp/Scene_0000"), { CSD_UNSTRETCH | CSD_ALIGN_RIGHT } },
-	{ HashStr("csdFiles/Loading_SP.xncp/Scene_0000"), { CSD_UNSTRETCH | CSD_ALIGN_RIGHT } },
+	{ HashStr("csdFiles/Loading_EN.xncp/Scene_0000"), { CSD_UNSTRETCH | CSD_ALIGN_RIGHT | CSD_IGNORE_MAX_WIDTH } },
+	{ HashStr("csdFiles/Loading_FR.xncp/Scene_0000"), { CSD_UNSTRETCH | CSD_ALIGN_RIGHT | CSD_IGNORE_MAX_WIDTH } },
+	{ HashStr("csdFiles/Loading_GE.xncp/Scene_0000"), { CSD_UNSTRETCH | CSD_ALIGN_RIGHT | CSD_IGNORE_MAX_WIDTH } },
+	{ HashStr("csdFiles/Loading_IT.xncp/Scene_0000"), { CSD_UNSTRETCH | CSD_ALIGN_RIGHT | CSD_IGNORE_MAX_WIDTH } },
+	{ HashStr("csdFiles/Loading_JP.xncp/Scene_0000"), { CSD_UNSTRETCH | CSD_ALIGN_RIGHT | CSD_IGNORE_MAX_WIDTH } },
+	{ HashStr("csdFiles/Loading_SP.xncp/Scene_0000"), { CSD_UNSTRETCH | CSD_ALIGN_RIGHT | CSD_IGNORE_MAX_WIDTH } },
 
 	// intro logo
 	{ HashStr("csdFiles/Logo.xncp/XBox/sega"), { CSD_UNSTRETCH | CSD_ALIGN_CENTRE } },
@@ -1310,7 +1310,7 @@ const xxHashMap<CsdModifier> g_csdModifiers =
 
 	// Title Screen
 	{ HashStr("csdFiles/honban.xncp/Title"), { CSD_UNSTRETCH | CSD_ALIGN_CENTRE } },
-	{ HashStr("csdFiles/honban.xncp/Loop/ultimate"), { CSD_UNSTRETCH | CSD_ALIGN_LEFT } },
+	{ HashStr("csdFiles/honban.xncp/Loop/ultimate"), { CSD_UNSTRETCH | CSD_ALIGN_LEFT | CSD_IGNORE_MAX_WIDTH } },
 
 	// the logo animation stretch and take the whole screen which would treat it as "background", so we force unstretch mode to keep the scaled size.
 	{ HashStr("csdFiles/honban.xncp/Title/title2"), { CSD_CENTER_UNSTRETCH | CSD_FORCE_UNSTRETCH } },
@@ -1344,12 +1344,12 @@ const xxHashMap<CsdModifier> g_csdModifiers =
 	{ HashStr("csdFiles/Story_Library.xncp/Buttons/Buttons"), { CSD_UNSTRETCH | CSD_ALIGN_CENTRE } },
 	{ HashStr("csdFiles/Story_Library.xncp/Library/PageNumber"), { CSD_UNSTRETCH | CSD_ALIGN_CENTRE } },
 	{ HashStr("csdFiles/Story_Library.xncp/Library/WindowLib"), { CSD_UNSTRETCH | CSD_ALIGN_CENTRE } },
-	{ HashStr("csdFiles/Story_Library.xncp/Background/Background"), { CSD_UNSTRETCH | CSD_ALIGN_LEFT } }, // "LIBRARY" Text in the corner
+	{ HashStr("csdFiles/Story_Library.xncp/Background/Background"), { CSD_UNSTRETCH | CSD_ALIGN_LEFT | CSD_IGNORE_MAX_WIDTH } }, // "LIBRARY" Text in the corner
 
 	// Stage select mode
 	{ HashStr("csdFiles/SelectMode.xncp/SelectMode"), { CSD_CENTER_UNSTRETCH } },
 	{ HashStr("csdFiles/SelectMode.xncp/SelectMode/bg"), { CSD_NONE } },
-	{ HashStr("csdFiles/SelectMode.xncp/SelectMode/title"), { CSD_UNSTRETCH | CSD_ALIGN_LEFT } },
+	{ HashStr("csdFiles/SelectMode.xncp/SelectMode/title"), { CSD_UNSTRETCH | CSD_ALIGN_LEFT | CSD_IGNORE_MAX_WIDTH } },
 	{ HashStr("csdFiles/SelectMode.xncp/SelectMode/text_bg_top"), { CSD_NONE } },
 	{ HashStr("csdFiles/SelectMode.xncp/SelectMode/text_bg_bottom"), { CSD_NONE } },
 	{ HashStr("csdFiles/SelectMode.xncp/SelectMode/text_bg_bottom/bg2"), { CSD_NONE } },
@@ -1363,7 +1363,7 @@ const xxHashMap<CsdModifier> g_csdModifiers =
 
 
 	//Battle mode (2p menu)
-	{ HashStr("csdFiles/BattleMode.xncp/Kazari"), { CSD_UNSTRETCH | CSD_ALIGN_LEFT } }, // Battle mode in the corner
+	{ HashStr("csdFiles/BattleMode.xncp/Kazari"), { CSD_UNSTRETCH | CSD_ALIGN_LEFT | CSD_IGNORE_MAX_WIDTH } }, // Battle mode in the corner
 	{ HashStr("csdFiles/BattleMode.xncp/Kazari/Null_box/box_chara"), { CSD_UNSTRETCH | CSD_ALIGN_CENTRE } }, 
 
 	{ HashStr("csdFiles/BattleMode.xncp/Kazari/Null_box/box_chara/box1"), { CSD_UNSTRETCH | CSD_ALIGN_CENTRE } },
