@@ -115,7 +115,7 @@ CONFIG_DEFINE_LOCALISED("Video", bool, Fog, true, false);
 //CONFIG_DEFINE_ENUM("Video", EDepthOfFieldQuality, DepthOfFieldQuality, EDepthOfFieldQuality::Auto);
 //CONFIG_DEFINE_ENUM_LOCALISED("Video", EMotionBlur, MotionBlur, EMotionBlur::Original);
 //CONFIG_DEFINE_ENUM_LOCALISED("Video", ECutsceneAspectRatio, CutsceneAspectRatio, ECutsceneAspectRatio::Original);
-CONFIG_DEFINE_ENUM_LOCALISED("Video", EUIAlignmentMode, UIAlignmentMode, EUIAlignmentMode::Edge, false);
+CONFIG_DEFINE_LOCALISED("Video", float, MaxHUDWidth, 0.0f, false);
 
 CONFIG_DEFINE_LOCALISED("Misc", bool, ChaosPowerLEDSync, true, false);
 

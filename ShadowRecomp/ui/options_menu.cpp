@@ -98,7 +98,7 @@ static input::PadButtonValues g_capturePrevPadButtons{};
 static bool IsLivePreviewActive()
 {
 	return OptionsMenu::s_isPause && OptionsMenu::s_flowState == OptionsMenuFlowState::OptionSelected
-		&& (g_optionCurrent == &Config::Brightness || g_optionCurrent == &Config::BloomIntensity);
+		&& (g_optionCurrent == &Config::Brightness || g_optionCurrent == &Config::BloomIntensity || g_optionCurrent == &Config::MaxHUDWidth);
 }
 
 void ToggleHud(bool toggle);
@@ -106,7 +106,8 @@ static void BeginPauseHudHide()
 {
 	auto base = g_memory.base;
 
-	if (!g_livePreviewHudHidden && IsLivePreviewActive() && X86_LOAD_U8(0x54DE78) != 0)
+	// skip this for MaxHUDWidth so the preview still renders the hud
+	if (!g_livePreviewHudHidden && IsLivePreviewActive() && g_optionCurrent != &Config::MaxHUDWidth && X86_LOAD_U8(0x54DE78) != 0)
 	{
 		ToggleHud(false);
 		g_livePreviewHudHidden = true;
@@ -493,6 +494,28 @@ static float GetRowScrollOffset(float optionHeight)
 	return -GetOptionScrollTop() * optionHeight;
 }
 
+static void StepMaxHudWidth(bool increment, bool decrement)
+{
+	if (!increment && !decrement)
+	{
+		return;
+	}
+
+	constexpr int count = int(std::size(g_hudWidthPresets));
+	int preset = FindHudWidthPreset(Config::MaxHUDWidth.Value);
+	if (decrement)
+	{
+		preset = (preset <= 0 ? count : preset) - 1;
+	}
+	else
+	{
+		preset = (preset + 1) % count;
+	}
+
+	Config::MaxHUDWidth.Value = g_hudWidthPresets[preset].AspectRatio;
+	Game_PlaySound("cursor");
+}
+
 template <typename T, bool isHidden = false>
 static void DrawOption
 (
@@ -802,6 +825,10 @@ static void DrawOption
 							config->Callback(config);
 					}
 				}
+				else if ((void*)config == (void*)&Config::MaxHUDWidth)
+				{
+					StepMaxHudWidth(increment, decrement);
+				}
 				else if constexpr (isSliderType)
 				{
 					auto time = ImGui::GetTime();
@@ -919,6 +946,23 @@ static void DrawOption
 		{
 			auto resScale = round(*(float*)config->GetValue() * 1000) / 1000;
 			valueText = fmt::format("{}%", round(resScale * 100));
+		}
+		else if (config == &Config::MaxHUDWidth)
+		{
+			const int preset = FindHudWidthPreset(config->Value);
+
+			if (preset < 0)
+			{
+				valueText = Localise("Options_Value_Custom");
+			}
+			else if (!g_hudWidthPresets[preset].Name)
+			{
+				valueText = Localise("Options_Value_Max");
+			}
+			else
+			{
+				valueText = g_hudWidthPresets[preset].Name;
+			}
 		}
 		else
 		{
@@ -1881,7 +1925,7 @@ static void DrawOptions(ImVec2 minClipRect, ImVec2 maxClipRect, ImVec2 min, ImVe
 		DrawOption(rowCount++, &Config::Brightness, true, min, max, nullptr);
 		DrawOption(rowCount++, &Config::AntiAliasing, false, min, max, devReason);
 		DrawOption(rowCount++, &Config::TextureFiltering, true, min, max, nullptr);
-		DrawOption(rowCount++, &Config::UIAlignmentMode, true, min, max, nullptr);
+		DrawOption(rowCount++, &Config::MaxHUDWidth, true, min, max, nullptr);
 		DrawOption(rowCount++, &Config::BloomIntensity, true, min, max, nullptr);
 		DrawOption(rowCount++, &Config::Fog, !OptionsMenu::s_isPause, min, max, cmnReason);
 		break;

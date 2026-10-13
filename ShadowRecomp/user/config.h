@@ -150,13 +150,6 @@ enum class ECutsceneFramerate : uint32_t
     Unlocked
 };
 
-enum class EUIAlignmentMode : uint32_t
-{
-    Edge,
-    Centre,
-    Stretch
-};
-
 template<typename T, bool isHidden = false>
 class ConfigDef final : public IConfigDef
 {

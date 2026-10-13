@@ -160,6 +160,17 @@ std::unordered_map<std::string_view, std::unordered_map<ELanguage, std::string>>
         }
     },
     {
+        "Options_Value_Custom",
+        {
+            { ELanguage::English,  "CUSTOM" },
+            { ELanguage::Japanese, "CUSTOM" },
+            { ELanguage::German,   "CUSTOM" },
+            { ELanguage::French,   "CUSTOM" },
+            { ELanguage::Spanish,  "CUSTOM" },
+            { ELanguage::Italian,  "CUSTOM" }
+        }
+    },
+    {
         "Options_Name_LegacyMenu",
         {
             { ELanguage::English,  "Legacy Options" },

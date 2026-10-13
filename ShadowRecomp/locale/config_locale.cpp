@@ -882,65 +882,12 @@ CONFIG_DEFINE_LOCALE(EnablePartnerIntro)
     { ELanguage::Italian,  { "", "" } }
 };
 
-CONFIG_DEFINE_LOCALE(UIAlignmentMode)
+CONFIG_DEFINE_LOCALE(MaxHUDWidth)
 {
-    { ELanguage::English, { "UI Alignment Mode", "Change how the UI aligns with the display." } },
-    { ELanguage::Japanese, { "UIアライメントモード", "UIとディスプレイの\u200B[配置:はいち]を\u200B[変更:へんこう]できます" } },
-    { ELanguage::German,   { "Benutzeroberflächenausrichtung", "Verändere wie die Benutzeroberfläche sich mit dem Bildschirm ausrichtet." } },
-    { ELanguage::French,   { "Alignement de l'IU", "Modifie l'alignement de l'interface utilisateur sur l'écran." } },
-    { ELanguage::Spanish,  { "Modo de alineamiento de UI", "Cambia la alineación de la interfaz de usuario con la pantalla." } },
-    { ELanguage::Italian,  { "Modalità allineamento interfaccia", "Modifica come l'interfaccia si allinea con lo schermo." } }
-};
-
-// Japanese Notes: This localization should include furigana in its description.
-CONFIG_DEFINE_ENUM_LOCALE(EUIAlignmentMode)
-{
-    {
-        ELanguage::English,
-        {
-            { EUIAlignmentMode::Edge,    { "EDGE", "Edge: the UI will align with the edges of the display." } },
-            { EUIAlignmentMode::Centre,  { "CENTER", "Center: the UI will align with the center of the display." } },
-            { EUIAlignmentMode::Stretch, { "STRETCH", "Stretch: the UI is stretched to fill the display, as the original game does." } }
-        }
-    },
-    {
-        ELanguage::Japanese,
-        {
-            { EUIAlignmentMode::Edge,    { "エッジ", "エッジ: UIがディスプレイの\u200B[端:はし]に\u200B[揃:そろ]います" } },
-            { EUIAlignmentMode::Centre,  { "センター", "センター: UIがディスプレイの\u200B[中央:ちゅうおう]に\u200B[揃:そろ]います" } },
-                       { EUIAlignmentMode::Stretch, { "STRETCH", "Stretch: the UI is stretched to fill the display, as the original game does." } }
-        }
-    },
-    {
-        ELanguage::German,
-        {
-            { EUIAlignmentMode::Edge,    { "RAND", "Rand: Die Benutzeroberfläche richtet sich zum Rand des Bildschirms aus." } },
-            { EUIAlignmentMode::Centre,  { "MITTE", "Mitte: Die Benutzeroberfläche richtet sich zur Mitte des Bildschirms aus." } },
-            { EUIAlignmentMode::Stretch, { "STRETCH", "Stretch: the UI is stretched to fill the display, as the original game does." } }
-        }
-    },
-    {
-        ELanguage::French,
-        {
-            { EUIAlignmentMode::Edge,    { "BORD", "Bord : l'interface utilisateur sera alignée sur les bords de l'écran." } },
-            { EUIAlignmentMode::Centre,  { "CENTRÉE", "Centrée : l'interface utilisateur sera alignée sur le centre de l'écran." } },
-            { EUIAlignmentMode::Stretch, { "ÉTIRÉE", "Étirée : l'interface utilisateur est étirée sur toute la largeur de l'écran, comme dans le jeu d'origine." } },
-        }
-    },
-    {
-        ELanguage::Spanish,
-        {
-            { EUIAlignmentMode::Edge,    { "BORDE", "Borde: la interfaz de usuario se alineará con los bordes de la pantalla." } },
-            { EUIAlignmentMode::Centre,  { "CENTRO", "Centro: la interfaz de usuario se alineará con el centro de la pantalla." } },
-            { EUIAlignmentMode::Stretch, { "STRETCH", "Stretch: the UI is stretched to fill the display, as the original game does." } }
-        }
-    },
-    {
-        ELanguage::Italian,
-        {
-            { EUIAlignmentMode::Edge,    { "BORDI", "Bordi: l'interfaccia si allineerà con i bordi dello schermo." } },
-            { EUIAlignmentMode::Centre,  { "CENTRO", "Centro: l'interfaccia si allineerà con il centro dello schermo." } },
-            { EUIAlignmentMode::Stretch, { "STRETCH", "Stretch: the UI is stretched to fill the display, as the original game does." } }
-        }
-    }
+    { ELanguage::English,  { "Max HUD Width", "Constrain HUD to a chosen aspect ratio. Primarily for ultrawide monitors." } },
+    { ELanguage::Japanese, { "Max HUD Width", "Constrain HUD to a chosen aspect ratio. Primarily for ultrawide monitors." } },
+    { ELanguage::German,   { "Max HUD Width", "Constrain HUD to a chosen aspect ratio. Primarily for ultrawide monitors." } },
+    { ELanguage::French,   { "Max HUD Width", "Constrain HUD to a chosen aspect ratio. Primarily for ultrawide monitors." } },
+    { ELanguage::Spanish,  { "Max HUD Width", "Constrain HUD to a chosen aspect ratio. Primarily for ultrawide monitors." } },
+    { ELanguage::Italian,  { "Max HUD Width", "Constrain HUD to a chosen aspect ratio. Primarily for ultrawide monitors." } }
 };

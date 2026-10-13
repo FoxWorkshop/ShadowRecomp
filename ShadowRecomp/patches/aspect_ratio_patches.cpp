@@ -443,9 +443,18 @@ void RenderCsdCastMidAsmHook(X86Register& rEsi)
 
 
 
-// How much of the screen the UI is allowed to use.
-// Edge lets the UI reach the screen borders, Centre keeps it inside a 16:9 window
-// so the corners don't end up far apart on ultrawide.
+int FindHudWidthPreset(float aspectRatio)
+{
+	for (size_t i = 0; i < std::size(g_hudWidthPresets); i++)
+	{
+		// mainly for float rounding bs, but also for approx manual config values
+		if (std::abs(aspectRatio - g_hudWidthPresets[i].AspectRatio) < 0.01f)
+		{
+			return int(i);
+		}
+	}
+	return -1;
+}
 
 struct CsdFrame
 {
@@ -457,10 +466,14 @@ struct CsdFrame
 
 static CsdFrame GetCsdFrame()
 {
+	const int preset = FindHudWidthPreset(Config::MaxHUDWidth.Value);
+	const float maxAspectRatio = preset >= 0 ? g_hudWidthPresets[preset].AspectRatio : Config::MaxHUDWidth.Value;
 	float width = widthMin;
 
-	if (Config::UIAlignmentMode.Value == EUIAlignmentMode::Centre && g_aspectRatio > 0.0f)
-		width = widthMin * std::min(1.0f, WIDE_ASPECT_RATIO / g_aspectRatio);
+	if (maxAspectRatio > 0.0f && g_aspectRatio > 0.0f)
+	{
+		width = widthMin * std::clamp(maxAspectRatio / g_aspectRatio, g_hudUnstretchX, 1.0f);
+	}
 
 	const float left = (widthMin - width) * 0.5f;
 
@@ -562,10 +575,6 @@ static bool UnstretchPrimitive(void* vertexData, uint32_t count, uint64_t flags,
 	// we only touch a primitive its entry asked for. naming an alignment counts as asking,
 	// so CSD_ALIGN_BOTTOM_LEFT on its own is enough.
 	if ((flags & CSD_POSITIONING) == 0)
-		return false;
-
-	// user wants the original stretched look
-	if (Config::UIAlignmentMode.Value == EUIAlignmentMode::Stretch)
 		return false;
 
 	const bool unstretchX = g_hudUnstretchX < 1.0f;
@@ -830,7 +839,7 @@ static bool g_isDrawingStaffRoll = false;
 // which drawn on top of it have to be moved to the same spot
 static float StageSelectUnstretchX(float x)
 {
-	if (Config::UIAlignmentMode.Value == EUIAlignmentMode::Stretch || g_hudUnstretchX >= 1.0f)
+	if (g_hudUnstretchX >= 1.0f)
 		return x;
 
 	return widthMin * 0.5f + (x - widthMin * 0.5f) * g_hudUnstretchX;
@@ -838,7 +847,7 @@ static float StageSelectUnstretchX(float x)
 
 static float StageSelectUnstretchY(float y)
 {
-	if (Config::UIAlignmentMode.Value == EUIAlignmentMode::Stretch || g_hudUnstretchY >= 1.0f)
+	if (g_hudUnstretchY >= 1.0f)
 		return y;
 
 	return heightMin * 0.5f + (y - heightMin * 0.5f) * g_hudUnstretchY;
@@ -938,7 +947,7 @@ void HpBarProjectionMidAsmHook(X86Register& rEsi, X86Register& rEax)
 // the bar comes out too wide on wide screens. squeeze X back to square pixels.
 void HpBarScaleMidAsmHook(X86Register& rEsi)
 {
-	if (g_hudUnstretchX >= 1.0f || Config::UIAlignmentMode.Value == EUIAlignmentMode::Stretch)
+	if (g_hudUnstretchX >= 1.0f)
 		return;
 
 	auto base = g_memory.base;
@@ -992,7 +1001,7 @@ X86_FUNC(sub_268FD0)
 	if (!vertices || !centre)
 		return;
 
-	if (g_hudUnstretchX >= 1.0f || Config::UIAlignmentMode.Value == EUIAlignmentMode::Stretch)
+	if (g_hudUnstretchX >= 1.0f)
 		return;
 
 	float centreX = X86_LOAD_F32(centre);
@@ -1055,7 +1064,7 @@ void VHArrowProjectionSplitMidAsmHook(X86Register& rEax, X86Register& rEsp)
 // Memo: esp = scale X pushed for sub_2BBB40, esp+4 = scale Y
 void VHArrowScaleMidAsmHook(X86Register& rEsp)
 {
-	if (g_hudUnstretchX >= 1.0f || Config::UIAlignmentMode.Value == EUIAlignmentMode::Stretch)
+	if (g_hudUnstretchX >= 1.0f)
 		return;
 
 	auto base = g_memory.base;
@@ -1889,12 +1898,7 @@ static Rt2dFontUnstretch g_rt2dFontUnstretch{};
 static bool ShouldUnstretchRt2dFont()
 {
 
-	if (g_isInStageMode || g_isDrawingSynopsisText)
-	{
-		if (Config::UIAlignmentMode.Value != EUIAlignmentMode::Stretch)
-			return false;
-	}
-	else if (App::s_gamemode != -1)
+	if (g_isInStageMode || g_isDrawingSynopsisText || App::s_gamemode != -1)
 	{
 		return false;
 	}

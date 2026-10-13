@@ -127,15 +127,6 @@ ImVec2 VirtualToScreen(float vx, float vy, ImVec2 displaySize)
 static float ScaleX(float vWidth, float displayWidth) { return (vWidth / 640.0f) * displayWidth; }
 static float ScaleY(float vHeight, float displayHeight) { return (vHeight / 480.0f) * displayHeight; }
 
-// technically should no longer be needed, but keep it for now just in case
-static bool IsPauseUnstretched()
-{
-	return Config::UIAlignmentMode.Value != EUIAlignmentMode::Stretch;
-}
-
-static float GetPauseScaleX() { return IsPauseUnstretched() ? g_hudUnstretchX : 1.0f; }
-static float GetPauseScaleY() { return IsPauseUnstretched() ? g_hudUnstretchY : 1.0f; }
-
 // The game removes "restart" option from the pause menu in 2 players mode or when player 1 has no life left
 static bool IsRestartAvailable()
 {
@@ -340,7 +331,7 @@ void DrawPauseText()
 	virtualStartY += virtualItemSpacing * 0.5f * (float)(pauseItemsCount - itemCount);
 
 	// the pause "box" is unstretched around the center of the screen (640x480 layout)
-	const float scaleY = GetPauseScaleY();
+	const float scaleY = g_hudUnstretchY;
 	virtualStartY = 240.0f + (virtualStartY - 240.0f) * scaleY;
 
 	// convert to screen space, centered horizontally
@@ -357,7 +348,7 @@ void DrawPauseText()
 
 	// the pause box is a lot smaller once unstretched, so long strings need a smaller font.
 	float fontSize = Scale(Config::Language == ELanguage::Japanese ? 19 : 18);
-	const float maxTextWidth = ScaleX(vanillaPauseLabelWidth * GetPauseScaleX(), res.x);
+	const float maxTextWidth = ScaleX(vanillaPauseLabelWidth * g_hudUnstretchX, res.x);
 	float widestText = 0.0f;
 
 	for (uint8_t i = 0; i < itemCount; i++)
@@ -618,9 +609,7 @@ X86_FUNC(sub_1E930)
 	{
 		const float offset = subtitleOffsetPerItem * GetAddedPauseItemsCount() * GetRt2dUnitsPerWorldUnit();
 
-		// move down, then follow the pause menu which is stretched over the whole height
-		const float y = X86_LOAD_F32(argY) - offset;
-		X86_STORE_F32(argY, IsPauseUnstretched() ? y : PushAwayFromCentreY(y));
+		X86_STORE_F32(argY, X86_LOAD_F32(argY) - offset);
 	}
 	else if (g_isDrawingMessageTask && ShouldPushMessageTaskText())
 	{

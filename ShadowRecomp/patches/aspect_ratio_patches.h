@@ -25,6 +25,24 @@ inline float g_hudUnstretchX = 1.0f;
 // Same for the Y axis: only goes under 1.0 on screens narrower than 4:3.
 inline float g_hudUnstretchY = 1.0f;
 
+struct HudWidthPreset
+{
+    const char* Name;
+    float AspectRatio;
+};
+
+inline constexpr HudWidthPreset g_hudWidthPresets[] =
+{
+    { nullptr, 0.0f }, // MAX
+    { "4:3", NARROW_ASPECT_RATIO },
+    { "16:9", WIDE_ASPECT_RATIO },
+    { "16:10", STEAM_DECK_ASPECT_RATIO },
+    { "21:9", 21.0f / 9.0f },
+};
+
+// -1 for a custom value
+int FindHudWidthPreset(float aspectRatio);
+
 struct AspectRatioPatches
 {
     static void ComputeOffsets();

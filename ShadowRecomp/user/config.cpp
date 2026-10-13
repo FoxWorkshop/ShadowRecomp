@@ -381,13 +381,6 @@ CONFIG_DEFINE_ENUM_TEMPLATE(ECutsceneFramerate)
     { "Unlocked", ECutsceneFramerate::Unlocked }
 };
 
-CONFIG_DEFINE_ENUM_TEMPLATE(EUIAlignmentMode)
-{
-    { "Edge", EUIAlignmentMode::Edge },
-    { "Center",  EUIAlignmentMode::Centre },
-    //{ "Stretch",  EUIAlignmentMode::Stretch } removed for now we will see if we restore it
-};
-
 
 #undef  CONFIG_DEFINE
 #define CONFIG_DEFINE(section, type, name, defaultValue, requiresRestart) \
