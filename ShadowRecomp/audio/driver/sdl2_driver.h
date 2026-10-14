@@ -57,6 +57,7 @@ public:
 	virtual int Stop() PURE;
 	virtual int StopEx(int64_t rtTimeStamp, uint32_t dwFlags) PURE;
 	virtual int SetVolume(int lVolume) PURE;
+	virtual void SetPan(float pan) PURE;
 	virtual void CalcVolumeLinear() PURE;
 	virtual int SetFrequency(int lFrequency) PURE;
 	virtual int SetBufferData(void* pvBufferData, int dwBufferBytes) PURE;

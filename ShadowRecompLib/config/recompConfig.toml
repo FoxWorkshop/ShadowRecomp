@@ -1684,6 +1684,18 @@ name = "SE3DStartVolumeMidAsmHook"
 address = 0x25E371
 registers = ["r4"]
 
+# pan angle @ sub_25DE20
+[[midasm_hook]]
+name = "SEPanAngleMidAsmHook"
+address = 0x25DF3A
+registers = ["r7"]
+
+# skip the GC pan leftover BAMs add @ sub_25DE20
+[[midasm_hook]]
+name = "SEPanSkipGCBAMSMidAsmHook"
+address = 0x25DF3E
+jump_address = 0x25DF44
+
 # Hero / Dark gauge fill @ sub_280B60
 [[midasm_hook]]
 name = "ChaosGaugeFillMidAsmHook"

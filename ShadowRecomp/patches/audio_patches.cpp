@@ -18,6 +18,10 @@ static constexpr uint32_t SLOT_VOLUME = 0x10; // centibels volume
 static constexpr uint32_t SLOT_POSITION = 0x14; // 25EF70
 static constexpr uint32_t SLOT_SOFTWARE_3D = 0x21; // flag when sample is stereo
 
+static constexpr uint32_t g_SLOT_TABLE = 0x558590; // driver channels/slots NOT to be confused with SE SLOTS
+static constexpr uint32_t SLOT_STRIDE = 0x3C;
+static constexpr int32_t SLOT_COUNT = 0x40;
+
 static constexpr uint32_t CALLSE_VOLUME = 0x06;
 static constexpr uint32_t CALLSE_FLAGS = 0x14;
 static constexpr uint32_t CALLSE_3D = 0x10;
@@ -159,6 +163,72 @@ void SE3DStartVolumeMidAsmHook(X86Register& esi)
 		const uint32_t volume = GuestToHostFunction<uint32_t, CallConvention::Thiscall>(sub_25DC30, callSE);
 		X86_STORE_U8(callSE + CALLSE_VOLUME, uint8_t(volume));
 	}
+}
+
+static int32_t GetSlotHandle(uint32_t high)
+{
+	auto base = g_memory.base;
+	const int32_t handle = (int32_t(int8_t(X86_LOAD_U8(high))) << 4) | (X86_LOAD_U8(high + 0x4) & 0xF);
+	return handle < SLOT_COUNT ? handle : -1;
+}
+
+static void SetSlotBufferPan(int32_t handle, int8_t pan)
+{
+	auto base = g_memory.base;
+	const uint32_t key = X86_LOAD_U32(g_SLOT_TABLE + handle * SLOT_STRIDE + SLOT_BUFFER);
+	if (key == 0)
+	{
+		return;
+	}
+
+	if (auto* buffer = GetCurrentSoundBuffer(int32_t(key)))
+	{
+		// game pan is -127 to 127
+		buffer->SetPan(pan / 127.0f);
+	}
+}
+
+// Pan angle (pi/2 radians; rather than GC BAMS)
+void SEPanAngleMidAsmHook(X86Register& esp)
+{
+	auto base = g_memory.base;
+	const uint32_t yaw = esp.u32 + 0x4;
+	X86_STORE_F32(yaw, X86_LOAD_F32(yaw) + float(M_PI) / 2.0f);
+}
+
+void SEPanSkipGCBAMSMidAsmHook() {}
+
+// Slot pan
+// OG function is a nullsub since DirectSound + HRTF handles panning normally
+static int8_t g_slotPan[SLOT_COUNT];
+X86_FUNC(sub_25B280)
+{
+	const int8_t pan = int8_t(X86_LOAD_U8(ctx.esp.u32 + 0x4));
+	const int32_t handle = GetSlotHandle(ctx.esp.u32 + 0x8);
+	ctx.esp.u32 += 0x10;
+
+	if (handle < 0)
+	{
+		return;
+	}
+
+	g_slotPan[handle] = pan;
+	SetSlotBufferPan(handle, pan);
+}
+
+// Slot play
+X86_FUNC_IMPL(__imp__sub_25F120);
+X86_FUNC(sub_25F120)
+{
+	const int32_t handle = GetSlotHandle(ctx.esp.u32 + 0xC);
+	const uint32_t position = X86_LOAD_U32(ctx.esp.u32 + 0x14);
+	__imp__sub_25F120(ctx, base);
+	if (handle < 0)
+	{
+		return;
+	}
+	SetSlotBufferPan(handle, position != 0 ? g_slotPan[handle] : 0);
+	g_slotPan[handle] = 0; // reset pan since channels get reused
 }
 
 /* --MUSIC RACE ISSUE PATCH-- */

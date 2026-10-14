@@ -188,6 +188,7 @@ private:
 
 	int mVolume = 0;
 	int mVolumeLinear = 128;
+	float mPan = 0.0f; // -1 left, 1 right
 
 	DWORD mPlayFlags = 0;
 	DWORD mG_flags;
@@ -234,6 +235,7 @@ public:
 	int Stop() override;
 	int StopEx(int64_t rtTimeStamp, uint32_t dwFlags) override;
 	int SetVolume(int lVolume) override;
+	void SetPan(float pan) override;
 	void CalcVolumeLinear() override;
 	float GetUserVolume() const;
 	void DetermineStreamType();
@@ -823,21 +825,26 @@ PullResult SHTHR_SOUNDBUFFER_Impl::Pull(unsigned char* data, int32_t size)
 
 	mOutputBuffer.resize(writesize);
 	SDL_AudioStreamGet(mAudioStream, mOutputBuffer.data(), writesize);
-
 	memcpy(data, mOutputBuffer.data(), writesize);
-
 	result.bytesRead = writesize;
 
-
+	if (mPan != 0.0f && mParent->mChannelCount == 2 && mParent->mFormat == AUDIO_S16SYS)
+	{
+		const int farGain = int((1.0f - fabsf(mPan)) * 256.0f);
+		auto* samples = reinterpret_cast<int16_t*>(data);
+		const int sampleCount = writesize / int(sizeof(int16_t));
+		for (int i = mPan > 0.0f ? 0 : 1; i < sampleCount; i += 2)
+		{
+			samples[i] = int16_t((samples[i] * farGain) >> 8);
+		}
+	}
 
 	float vol3D = (mCaps & XTL_DSBCAPS_CTRL3D)
 		? Calculate3DVolume()
 		: 1.0f;
 
-
 	// apply user sliders here otherwise audio fades are full volume
 	result.mixVolume = mVolumeLinear * vol3D * GetUserVolume();
-
 	return result;
 }
 
@@ -1101,6 +1108,12 @@ int SHTHR_SOUNDBUFFER_Impl::SetVolume(int lVolume)
 	CalcVolumeLinear();
 
 	return S_OK;
+}
+
+void SHTHR_SOUNDBUFFER_Impl::SetPan(float pan)
+{
+	std::lock_guard<std::mutex> lock(mutex);
+	mPan = std::clamp(pan, -1.0f, 1.0f);
 }
 
 void SHTHR_SOUNDBUFFER_Impl::CalcVolumeLinear()
