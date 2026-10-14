@@ -1348,7 +1348,7 @@ SHTHR_SOUNDDEVICE_Impl::SHTHR_SOUNDDEVICE_Impl()
 	desired.freq = XAUDIO_SAMPLES_HZ;
 	desired.format = AUDIO_S16SYS;
 	desired.channels = 2;
-	desired.samples = 2048;
+	desired.samples = 512;
 	desired.userdata = nullptr; // this;
 	desired.callback = nullptr; // AudioCallbackStatic;
 
