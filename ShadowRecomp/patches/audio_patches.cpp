@@ -26,7 +26,6 @@ static constexpr uint32_t CALLSE_VOLUME = 0x06;
 static constexpr uint32_t CALLSE_FLAGS = 0x14;
 static constexpr uint32_t CALLSE_3D = 0x10;
 
-// TODO: use the sound's max distance (CallSE +0x28) like GetOffsetVolume instead of 60 to 400
 static constexpr float FULL_VOLUME_DISTANCE = 60.0f;
 static constexpr float SILENT_DISTANCE = 400.0f;
 static constexpr float NEAR_LATCH_DISTANCE = 300.0f;
