@@ -645,3 +645,12 @@ bool SESlotIsNormalMidAsmHook(X86Register& eax)
 	return eax.u8_lo <= SE_SPECIAL_SLOT_START || eax.u8_lo >= SE_SPECIAL_SLOT_END;
 }
 /** --SFX limit increase Patch END-- */
+
+void SatelliteLaserWeaponSFXFixMidAsmHook(X86Register& esp)
+{
+	// 0xE027 = SE_SY39_HUGELASER1
+	// 0xE028 = SE_SY40_HUGELASER2
+	auto base = g_memory.base;
+	const uint32_t sfxId = X86_LOAD_U32(esp.u32);
+	X86_STORE_U32(esp.u32, sfxId == 0xE027 ? 0xE028 : 0xE027);
+}

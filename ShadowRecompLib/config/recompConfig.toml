@@ -1793,3 +1793,13 @@ name = "GoalActionTicksMidAsmHook"
 address = 0x23821D
 registers = ["r0"]
 ## END GoalAction timer patches
+
+[[midasm_hook]]
+name = "SatelliteLaserWeaponSFXFixMidAsmHook"
+address = 0x27BC3C
+registers = ["r7"]
+
+[[midasm_hook]]
+name = "SatelliteLaserWeaponSFXFixMidAsmHook"
+address = 0x27B979
+registers = ["r7"]
