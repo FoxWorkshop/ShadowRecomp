@@ -60,6 +60,23 @@ static int32_t IsndVolumeToCentibels(float volume)
 	return int32_t(centibels);
 }
 
+// For 2P & Extended MP, ripped straight from GC 0x8056D098
+static int32_t IsndVolumeToCentibelsGC(int32_t volume)
+{
+	constexpr float centibelsAt0 = -301.03f;
+	constexpr float centibelsFloor = -6400.0f;
+	if (volume <= -127)
+	{
+		return int32_t(centibelsFloor);
+	}
+	const float centibels = centibelsAt0 + log10f(1.0f + float(volume) / 127.0f) * 6000.0f;
+	if (centibels < centibelsFloor)
+	{
+		return int32_t(centibelsFloor);
+	}
+	return int32_t(centibels);
+}
+
 // thiscall so ecx = slot, stack = listener
 X86_FUNC(sub_25FEC0)
 {
@@ -112,7 +129,12 @@ X86_FUNC(sub_25FD60)
 	const uint32_t slot = ctx.ecx.u32;
 	const int32_t volume = int32_t(X86_LOAD_U32(ctx.esp.u32 + 0x4));
 	ctx.esp.u32 += 0x8;
-	const int32_t centibels = IsndVolumeToCentibels(float(volume));
+
+	// 0x54DDE2 is MP mode (used directly in the sound distance check)
+	const bool multiplayer = X86_LOAD_U8(0x54DDE2) != 0 || Config::ExtendedMultiplayer;
+	const int32_t centibels = (multiplayer && volume < 0)
+		? IsndVolumeToCentibelsGC(volume)
+		: IsndVolumeToCentibels(float(volume));
 	X86_STORE_U32(slot + SLOT_VOLUME, uint32_t(centibels));
 
 	const uint32_t buffer = X86_LOAD_U32(slot + SLOT_BUFFER);
