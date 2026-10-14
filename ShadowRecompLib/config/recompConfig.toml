@@ -1678,6 +1678,12 @@ jump_address_on_true = 0x25E2DE
 jump_address_on_false = 0x25E2D0
 # End SFX limit patch
 
+# 3D sound start volume @ sub_25E2C0
+[[midasm_hook]]
+name = "SE3DStartVolumeMidAsmHook"
+address = 0x25E371
+registers = ["r4"]
+
 # Hero / Dark gauge fill @ sub_280B60
 [[midasm_hook]]
 name = "ChaosGaugeFillMidAsmHook"

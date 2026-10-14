@@ -11,13 +11,18 @@
 // We can patch this on the AudioXBOX class level to make it works regardless of sound type
 // This was made with Goal Ring in mind, but shoud in theory work for any similar 3D sound issue in the game.
 
-static constexpr uint32_t SLOT_FLAGS = 0x00; // bit 0x2 = near
+static constexpr uint32_t SLOT_FLAGS = 0x00; // bit 0x4 = near
+static constexpr uint32_t SLOT_MUTED = 0x02; // sub_25FE80
 static constexpr uint32_t SLOT_BUFFER = 0x08; // Guest key for the IDirectSoundBuffer
 static constexpr uint32_t SLOT_VOLUME = 0x10; // centibels volume
 static constexpr uint32_t SLOT_POSITION = 0x14; // 25EF70
 static constexpr uint32_t SLOT_SOFTWARE_3D = 0x21; // flag when sample is stereo
 
-// arbitrary check (todo could be checked at runtime to ensure accuracy?)
+static constexpr uint32_t CALLSE_VOLUME = 0x06;
+static constexpr uint32_t CALLSE_FLAGS = 0x14;
+static constexpr uint32_t CALLSE_3D = 0x10;
+
+// TODO: use the sound's max distance (CallSE +0x28) like GetOffsetVolume instead of 60 to 400
 static constexpr float FULL_VOLUME_DISTANCE = 60.0f;
 static constexpr float SILENT_DISTANCE = 400.0f;
 static constexpr float NEAR_LATCH_DISTANCE = 300.0f;
@@ -101,6 +106,38 @@ X86_FUNC(sub_25FEC0)
 	IDirectSoundBuffer_SetVolume(int32_t(buffer), centibels);
 }
 
+// Slot volume
+X86_FUNC(sub_25FD60)
+{
+	const uint32_t slot = ctx.ecx.u32;
+	const int32_t volume = int32_t(X86_LOAD_U32(ctx.esp.u32 + 0x4));
+	ctx.esp.u32 += 0x8;
+	const int32_t centibels = IsndVolumeToCentibels(float(volume));
+	X86_STORE_U32(slot + SLOT_VOLUME, uint32_t(centibels));
+
+	const uint32_t buffer = X86_LOAD_U32(slot + SLOT_BUFFER);
+	const bool muted = (X86_LOAD_U32(slot + SLOT_FLAGS) & SLOT_MUTED) != 0;
+	const bool stereo = X86_LOAD_U8(slot + SLOT_SOFTWARE_3D) != 0;
+
+	// muted and stereo slots are handled in their own funcs
+	if (buffer != 0 && !muted && !stereo)
+	{
+		IDirectSoundBuffer_SetVolume(int32_t(buffer), centibels);
+	}
+}
+
+// Original just plays at max volume instead of getting the distance volume
+void SE3DStartVolumeMidAsmHook(X86Register& esi)
+{
+	auto base = g_memory.base;
+	const uint32_t callSE = esi.u32;
+	if ((X86_LOAD_U32(callSE + CALLSE_FLAGS) & CALLSE_3D) != 0)
+	{
+		// IsndCallSE::GetOffsetVolume
+		const uint32_t volume = GuestToHostFunction<uint32_t, CallConvention::Thiscall>(sub_25DC30, callSE);
+		X86_STORE_U8(callSE + CALLSE_VOLUME, uint8_t(volume));
+	}
+}
 
 /* --MUSIC RACE ISSUE PATCH-- */
 
