@@ -48,10 +48,21 @@ static double DrawWindow(const ImVec2 min, const ImVec2 max, bool isAnimated, do
         _max = Lerp(centre, max, motionTime);
     }
 
-    constexpr auto containerTopColour = IM_COL32(20, 56, 130, 200);
-    constexpr auto containerBottomColour = IM_COL32(8, 22, 51, 200);
+    constexpr auto containerTopLeftColour = IM_COL32(62, 14, 17, 225);
+    constexpr auto containerTopRightColour = IM_COL32(34, 31, 33, 225);
+    constexpr auto containerBottomRightColour = IM_COL32(10, 9, 10, 235);
+    constexpr auto containerBottomLeftColour = IM_COL32(28, 7, 9, 235);
+    constexpr auto accentColour = IM_COL32(178, 18, 24, 255);
+    constexpr auto borderColour = IM_COL32(150, 16, 22, 200);
 
-    drawList->AddRectFilledMultiColor(_min, _max, containerTopColour, containerTopColour, containerBottomColour, containerBottomColour);
+    drawList->AddRectFilledMultiColor(_min, _max, containerTopLeftColour, containerTopRightColour, containerBottomRightColour, containerBottomLeftColour);
+
+    auto borderSize = std::max(1.0f, Scale(1));
+
+    drawList->AddRectFilled(_min, { _max.x, _min.y + borderSize }, borderColour);
+    drawList->AddRectFilled({ _min.x, _max.y - borderSize }, _max, borderColour);
+    drawList->AddRectFilled(_min, { _min.x + Scale(4), _max.y }, accentColour);
+    drawList->AddRectFilled({ _max.x - Scale(4), _min.y }, _max, accentColour);
 
     auto windowUV = PIXELS_TO_UV_COORDS(264, 64, 40, 5, 235, 60);
 
@@ -93,22 +104,22 @@ void AchievementOverlay::Draw()
     auto& strAchievementName = GetAchievementLocale(g_achievement.ID).Name;
 
     // Calculate text sizes.
-    auto fontSize = Scale(Config::Language == ELanguage::Japanese ? 26 : 25);
+    auto fontSize = Scale(Config::Language == ELanguage::Japanese ? 20 : 19);
     auto headerSize = g_fntSeurat->CalcTextSizeA(fontSize, FLT_MAX, 0, strAchievementUnlocked.c_str());
     auto nameSize = g_fntSeurat->CalcTextSizeA(fontSize, FLT_MAX, 0, strAchievementName.c_str());
-    auto nameOffsetY = Scale(6);
-    auto maxWidth = std::max(headerSize.x, nameSize.x) + Scale(5);
+    auto nameOffsetY = Scale(4);
+    auto maxWidth = std::max(headerSize.x, nameSize.x) + Scale(4);
     auto maxHeight = headerSize.y + nameSize.y + nameOffsetY;
 
     // Calculate margins.
-    auto imageMarginX = Scale(15);
-    auto imageMarginY = Scale(10);
-    auto imageSize = Scale(55);
-    auto textMarginX = imageMarginX * 2 + imageSize - Scale(5);
+    auto imageMarginX = Scale(12);
+    auto imageMarginY = Scale(8);
+    auto imageSize = Scale(42);
+    auto textMarginX = imageMarginX * 2 + imageSize - Scale(4);
     auto containerWidth = imageMarginX + textMarginX + maxWidth;
-    auto containerHeight = Scale(95);
+    auto containerHeight = Scale(72);
 
-    ImVec2 min = { (res.x / 2) - (containerWidth / 2), Scale(45) };
+    ImVec2 min = { (res.x / 2) - (containerWidth / 2), Scale(40) };
     ImVec2 max = { min.x + containerWidth, min.y + containerHeight };
 
     // Calculate centred vertical text offset.
@@ -131,7 +142,7 @@ void AchievementOverlay::Draw()
         );
 
         auto colourMotion = BREATHE_MOTION(1.0f, 0.0f, g_appearTime, 0.9f);
-        auto headerColour = ColourLerp(IM_COL32_WHITE, IM_COL32(255, 153, 0, 255), colourMotion);
+        auto headerColour = ColourLerp(IM_COL32(235, 230, 230, 255), IM_COL32(215, 30, 36, 255), colourMotion);
 
         // Draw header text.
         drawList->AddText
