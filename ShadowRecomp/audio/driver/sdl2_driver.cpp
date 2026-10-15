@@ -130,7 +130,6 @@ void Interface::Release()
 	delete this;
 }
 
-
 class SHTHR_SOUNDDEVICE_Impl;
 
 class SHTHR_SOUND3DBUFFER_Impl : public SHTHR_SOUND3DBUFFER
@@ -140,7 +139,6 @@ private:
 	float mMinDistance = 1.0f;
 	float mPosition[3] = { 0.f, 0.f, 0.f };
 public:
-
 	int SetMaxDistance(float flMaxDistance, int dwApply) override;
 	int SetMinDistance(float flMinDistance, int dwApply) override;
 	int GetPosition(float* pvPosition) override;
@@ -148,7 +146,6 @@ public:
 	int GetMaxDistance(float* pflMaxDistance) override;
 	int GetMinDistance(float* pflMinDistance) override;
 };
-
 
 class SHTHR_SOUNDBUFFER_Impl : public SHTHR_SOUNDBUFFER
 {
@@ -180,7 +177,6 @@ private:
 	int mCaps = 0;
 	bool mPlay = false;
 
-
 	int mChannelCount = 0;
 	int mFrequency = 0;
 	int mOriginalFrequency = 0;
@@ -200,13 +196,11 @@ private:
 
 	int32_t keyBuffer;
 
-
 	enum SourceFormat {
 		SOURCE_FORMAT_PCM,
 		SOURCE_FORMAT_ADPCM_XBOX,
 		SOURCE_FORMAT_FLOAT
 	};
-
 	SourceFormat mSourceFormat;
 
 	enum SourceType {
@@ -216,12 +210,9 @@ private:
 		SOURCE_TYPE_EVENTS,
 		SOURCE_TYPE_SFD
 	};
-
 	SourceType mSourceType = SOURCE_TYPE_SFX;
 
-
 public:
-
 	SHTHR_SOUNDBUFFER_Impl(SHTHR_SOUNDDEVICE_Impl* parent, X_DSBUFFERDESC* desc);
 	~SHTHR_SOUNDBUFFER_Impl();
 
@@ -309,11 +300,9 @@ void SHTHR_SOUNDBUFFER_Impl::SetBufferKey(int32_t key)
 
 void SHTHR_SOUNDBUFFER_Impl::SetFormatTag(xpointer<WAVEFORMATEX> format)
 {
-
 	if (format.get() != nullptr)
 	{
 		WORD bitsPerSample = format->wBitsPerSample;
-
 		switch (format->wFormatTag)
 		{
 		case WAVE_FORMAT_PCM:
@@ -345,7 +334,6 @@ void SHTHR_SOUNDBUFFER_Impl::SetFormatTag(xpointer<WAVEFORMATEX> format)
 			this->mG_flags |= DSE_FLAG_PCM_UNKNOWN;
 			this->mFormat = AUDIO_S16;
 			break;
-
 		}
 	}
 }
@@ -371,7 +359,6 @@ int SHTHR_SOUND3DBUFFER_Impl::SetMaxDistance(float flMaxDistance, int dwApply)
 
 int SHTHR_SOUND3DBUFFER_Impl::SetMinDistance(float flMinDistance, int dwApply)
 {
-
 	mMinDistance = flMinDistance;
 	return S_OK;
 }
@@ -419,11 +406,9 @@ float SHTHR_SOUNDBUFFER_Impl::Calculate3DVolume()
 
 	float* listenerPos = mParent->GetListenerPosition();
 
-
 	float posX = vecPos[0] - listenerPos[0];
 	float posY = vecPos[1] - listenerPos[1];
 	float posZ = vecPos[2] - listenerPos[2];
-
 
 	float distance = sqrtf(posX * posX + posY * posY + posZ * posZ);
 
@@ -436,8 +421,9 @@ float SHTHR_SOUNDBUFFER_Impl::Calculate3DVolume()
 	float attenuation = mMinDistance / (mMinDistance + rolloff * (dist_clamped - mMinDistance));
 
 	if (attenuation > 0.8f)
+	{
 		attenuation = 0.8f;
-
+	}
 	return attenuation;
 }
 
@@ -455,8 +441,6 @@ SHTHR_SOUNDBUFFER_Impl::SHTHR_SOUNDBUFFER_Impl(SHTHR_SOUNDDEVICE_Impl* parent, X
 
 	// translator between what the game provides and what audio device expects. (ex: 22050 hs vs 41800)
 	RebuildStream(mFormat, mChannelCount, mFrequency, mParent->mFormat, mParent->mChannelCount, mParent->mFrequency);
-
-
 	if (mCaps & XTL_DSBCAPS_CTRL3D)
 	{
 		m3DBuffer = new SHTHR_SOUND3DBUFFER_Impl();
@@ -470,19 +454,15 @@ static std::mutex SoundBufferListMutex;
 SHTHR_SOUNDBUFFER_Impl::~SHTHR_SOUNDBUFFER_Impl()
 {
 	mPlay = false;
-
 	if (mBuffer && !mExternalBuffer)
 	{
 		g_userHeap.Free(mBuffer);
 		mBuffer = nullptr;
 	}
 
-	// locked
 	{
 		std::lock_guard<std::mutex> lock(SoundBufferListMutex);
-
 		SoundBufferList.erase(keyBuffer);
-
 		auto guestMemory = g_memory.Translate(keyBuffer);
 		if (guestMemory)
 		{
@@ -503,12 +483,9 @@ SHTHR_SOUNDBUFFER_Impl::~SHTHR_SOUNDBUFFER_Impl()
 	}
 }
 
-
 SHTHR_SOUNDBUFFER* GetCurrentSoundBuffer(const int32_t key)
 {
-	// just to be safe
 	std::lock_guard<std::mutex> lock(SoundBufferListMutex);
-
 	auto it = SoundBufferList.find(key);
 	return it != SoundBufferList.end() ? it->second : nullptr;
 }
@@ -567,8 +544,6 @@ int32_t SHTHR_SOUNDDEVICE_Impl::CreateSoundBuffer(X_DSBUFFERDESC* ppDesc, SHTHR_
 int SHTHR_SOUNDBUFFER_Impl::SetBufferData(void* pvBufferData, int dwBufferBytes)
 {
 	std::lock_guard<std::mutex> lock(mutex);
-
-
 	if (dwBufferBytes == 0)
 	{
 		return 0;
@@ -582,11 +557,8 @@ int SHTHR_SOUNDBUFFER_Impl::SetBufferData(void* pvBufferData, int dwBufferBytes)
 	}
 
 	int pcmSize = DSoundBufferGetPCMBufferSize(this->mG_flags, dwBufferBytes);
-
-
 	if (pvBufferData == nullptr)
 	{
-
 		mBuffer = (unsigned char*)g_userHeap.Alloc(pcmSize);
 		if (!mBuffer) {
 			return -1; // Out of memory
@@ -597,7 +569,6 @@ int SHTHR_SOUNDBUFFER_Impl::SetBufferData(void* pvBufferData, int dwBufferBytes)
 	}
 	else if (mSourceFormat == SOURCE_FORMAT_ADPCM_XBOX)
 	{
-
 		mBuffer = (unsigned char*)g_userHeap.Alloc(pcmSize);
 		if (!mBuffer) {
 			return -1;
@@ -611,7 +582,6 @@ int SHTHR_SOUNDBUFFER_Impl::SetBufferData(void* pvBufferData, int dwBufferBytes)
 			mChannelCount
 		);
 
-
 		if (actualPcmSize <= 0)
 		{
 			g_userHeap.Free(mBuffer);
@@ -624,7 +594,7 @@ int SHTHR_SOUNDBUFFER_Impl::SetBufferData(void* pvBufferData, int dwBufferBytes)
 		mG_flags &= ~DSE_FLAG_BUFFER_EXTERNAL;
 
 	}
-	else  	// if not use external buffer
+	else // if not use external buffer
 	{
 		this->mBuffer = (unsigned char*)pvBufferData;
 		this->mExternalBuffer = true;
@@ -641,8 +611,7 @@ int SHTHR_SOUNDBUFFER_Impl::SetBufferData(void* pvBufferData, int dwBufferBytes)
 	isStreaming = false;
 
 	this->RebuildStream(mFormat, mChannelCount, mFrequency, mParent->mFormat, mParent->mChannelCount, mParent->mFrequency);
-
-	return 0; // Success
+	return 0;
 }
 
 void SHTHR_SOUNDBUFFER_Impl::RebuildStream(
@@ -661,13 +630,14 @@ void SHTHR_SOUNDBUFFER_Impl::RebuildStream(
 		dstFormat, dstChannels, dstFreq);
 
 	if (!mAudioStream)
+	{
 		LOGFN_ERROR("Failed to create audio stream: {}", SDL_GetError());
+	}
 }
 
 int SHTHR_SOUNDBUFFER_Impl::SetLoopRegion(int dwLoopStartOffset, int dwLoopLength)
 {
 	std::lock_guard<std::mutex> lock(mutex);
-
 	if (mSourceFormat == SOURCE_FORMAT_ADPCM_XBOX)
 	{
 		dwLoopStartOffset = DSoundBufferGetPCMBufferSize(mG_flags, dwLoopStartOffset);
@@ -684,7 +654,6 @@ int SHTHR_SOUNDBUFFER_Impl::SetLoopRegion(int dwLoopStartOffset, int dwLoopLengt
 
 	this->mLoopStartOffset = dwLoopStartOffset;
 	this->mLoopLength = dwLoopLength;
-
 	return 0;
 }
 
@@ -694,23 +663,22 @@ void SHTHR_SOUNDBUFFER_Impl::StopSfxEarly()
 	{
 		mPlay = false;
 		if (mAudioStream)
+		{
 			SDL_AudioStreamClear(mAudioStream);
+		}
 	}
 }
 
 PullResult SHTHR_SOUNDBUFFER_Impl::Pull(unsigned char* data, int32_t size)
 {
 	std::lock_guard<std::mutex> lock(mutex);
-
 	PullResult result;
-
 	bool sfxEmpty = mWrittenSize <= 0 && !mLooping;
 	if (!mPlay || !mBuffer || sfxEmpty || !mAudioStream)
 	{
 		StopSfxEarly();
 		return result;
 	}
-
 
 	int srcBytesPerSample = SDL_AUDIO_BITSIZE(mFormat) / 8 * mChannelCount;
 	int dstBytesPerSample = SDL_AUDIO_BITSIZE(mParent->mFormat) / 8 * mParent->mChannelCount;
@@ -730,7 +698,6 @@ PullResult SHTHR_SOUNDBUFFER_Impl::Pull(unsigned char* data, int32_t size)
 	}
 
 	int actualRead = read_size;
-
 	if (this->isStreaming == false && mLooping && mLoopLength > 0)
 	{
 		int loopEnd = mLoopStartOffset + mLoopLength;
@@ -768,7 +735,6 @@ PullResult SHTHR_SOUNDBUFFER_Impl::Pull(unsigned char* data, int32_t size)
 			}
 			mBufferReadLoc = srcPos;
 		}
-
 		mWrittenSize = mLoopLength;
 	}
 	else
@@ -787,9 +753,10 @@ PullResult SHTHR_SOUNDBUFFER_Impl::Pull(unsigned char* data, int32_t size)
 			mBufferReadLoc += read_size;
 		}
 		mWrittenSize -= read_size;
-
 		if (mWrittenSize < 0)
+		{
 			mWrittenSize = 0;
+		}
 
 		if (this->isStreaming == false)
 		{
@@ -813,10 +780,9 @@ PullResult SHTHR_SOUNDBUFFER_Impl::Pull(unsigned char* data, int32_t size)
 	// Feed source data into the stream
 	SDL_AudioStreamPut(mAudioStream, mResampleBuffer.data(), actualRead);
 
-	// Get converted output — SDL_AudioStream maintains filter state between calls
+	// SDL_AudioStream maintains filter state between calls
 	int available = SDL_AudioStreamAvailable(mAudioStream);
 	int writesize = std::min(size, available);
-
 	if (writesize <= 0 && this->isStreaming == false)
 	{
 		StopSfxEarly();
@@ -899,7 +865,6 @@ int SHTHR_SOUNDBUFFER_Impl::GetStatus(uint32_t* pdwStatus)
 		status |= X_DSBSTATUS_LOOPING;
 	}
 
-
 	if (mPlay)
 	{
 		status |= X_DSBSTATUS_PLAYING;
@@ -910,17 +875,14 @@ int SHTHR_SOUNDBUFFER_Impl::GetStatus(uint32_t* pdwStatus)
 		status |= X_DSBSTATUS_LOOPING;
 	}
 
-	//*pdwStatus = status;
 	return status;
 }
 
 int SHTHR_SOUNDBUFFER_Impl::GetCurrentPosition(int* pdwCurrentPlayCursor, int* pdwCurrentWriteCursor)
 {
 	std::lock_guard<std::mutex> lock(mutex);
-
 	if (pdwCurrentPlayCursor)
 	{
-
 		*pdwCurrentPlayCursor = mBufferReadLoc;
 	}
 
@@ -935,7 +897,6 @@ int SHTHR_SOUNDBUFFER_Impl::GetCurrentPosition(int* pdwCurrentPlayCursor, int* p
 int SHTHR_SOUNDBUFFER_Impl::SetCurrentPosition(DWORD dwNewPosition)
 {
 	std::lock_guard<std::mutex> lock(mutex);
-
 	if (dwNewPosition >= mBufferSize)
 	{
 		return -1;
@@ -945,29 +906,22 @@ int SHTHR_SOUNDBUFFER_Impl::SetCurrentPosition(DWORD dwNewPosition)
 	return S_OK;
 }
 
-//the lock
-
 int SHTHR_SOUNDBUFFER_Impl::Lock(int dwOffset, int dwBytes, void** ppvAudioPtr1, int* pdwAudioBytes1, void** ppvAudioPtr2, int* pdwAudioBytes2, int dwFlags)
 {
-
 	std::lock_guard<std::mutex> lock(mutex);
 	isStreaming = true;
-
-
 	if (dwFlags & DSBLOCK_ENTIREBUFFER)
 	{
 		*ppvAudioPtr1 = mBuffer;
 		*pdwAudioBytes1 = mBufferSize;
 		*ppvAudioPtr2 = NULL;
 		*pdwAudioBytes2 = 0;
-
 		mPendingWrite = { 0, mBufferSize };
 	}
 	else
 	{
 		int offset = dwFlags & DSBLOCK_FROMWRITECURSOR ? mBufferWriteLoc : dwOffset;
 		int bytes = dwBytes;
-
 		if (bytes > mBufferSize)
 		{
 			return DSERR_INVALIDPARAM;
@@ -985,7 +939,6 @@ int SHTHR_SOUNDBUFFER_Impl::Lock(int dwOffset, int dwBytes, void** ppvAudioPtr1,
 			}
 			else
 			{
-
 				return DSERR_INVALIDPARAM;
 			}
 		}
@@ -1006,46 +959,37 @@ int SHTHR_SOUNDBUFFER_Impl::Lock(int dwOffset, int dwBytes, void** ppvAudioPtr1,
 				*pdwAudioBytes2 = 0;
 			}
 		}
-
-
 		mPendingWrite = { offset, bytes };
 	}
-
-
 	return S_OK;
-
 }
 
 int SHTHR_SOUNDBUFFER_Impl::Unlock(void* pvAudioPtr1, int dwAudioBytes1, void* pvAudioPtr2, int dwAudioBytes2)
 {
 	std::lock_guard<std::mutex> lock(mutex);
-
 	if (!mPendingWrite.consumed)
 	{
 		mBufferWriteLoc = (mPendingWrite.offset + mPendingWrite.bytes) % mBufferSize;
 		mWrittenSize = std::min(mWrittenSize + mPendingWrite.bytes, mBufferSize);
 		mPendingWrite.consumed = true;
 	}
-
 	return S_OK;
 }
 
 int SHTHR_SOUNDBUFFER_Impl::Play(int dwReserved1, int dwPriority, uint32_t dwFlags)
 {
 	std::lock_guard<std::mutex> lock(mutex);
-
 	this->mPlay = true;
 	this->mPlayFlags = dwFlags;
-
 	DetermineStreamType();
-
 	if ((dwFlags & X_DSBPLAY_FROMSTART)) {
 		mBufferReadLoc = 0;
 		if (mAudioStream)
+		{
 			SDL_AudioStreamClear(mAudioStream);
+		}
 		this->mPlayFlags &= ~X_DSBPLAY_FROMSTART;
 	}
-
 	if (dwFlags & X_DSBPLAY_LOOPING)
 	{
 		this->mLooping = true;
@@ -1059,7 +1003,6 @@ int SHTHR_SOUNDBUFFER_Impl::Play(int dwReserved1, int dwPriority, uint32_t dwFla
 			mWrittenSize = mBufferSize;
 		}
 	}
-
 	return S_OK;
 }
 
@@ -1067,8 +1010,9 @@ int SHTHR_SOUNDBUFFER_Impl::Stop()
 {
 	std::lock_guard<std::mutex> lock(mutex);
 	if (mAudioStream)
+	{
 		SDL_AudioStreamClear(mAudioStream);
-
+	}
 	mPlay = false;
 	return S_OK;
 }
@@ -1076,37 +1020,34 @@ int SHTHR_SOUNDBUFFER_Impl::Stop()
 int SHTHR_SOUNDBUFFER_Impl::StopEx(int64_t rtTimeStamp, uint32_t dwFlags)
 {
 	std::lock_guard<std::mutex> lock(mutex);
-
 	if (mAudioStream)
+	{
 		SDL_AudioStreamClear(mAudioStream);
-
+	}
 	mPlay = false;
-
 	if (dwFlags > X_DSBSTOPEX_ALL)
 	{
 		return -1;
 	}
-
-
 	return S_OK;
 }
-
 
 int SHTHR_SOUNDBUFFER_Impl::SetVolume(int lVolume)
 {
 	std::lock_guard<std::mutex> lock(mutex);
-
 	// adjust to DirectSound range
 	if (lVolume < DSBVOLUME_MIN)
+	{
 		lVolume = DSBVOLUME_MIN;
+	}
 
 	if (lVolume > DSBVOLUME_MAX)
+	{
 		lVolume = DSBVOLUME_MAX;
+	}
 
 	mVolume = lVolume;
-
 	CalcVolumeLinear();
-
 	return S_OK;
 }
 
@@ -1132,44 +1073,45 @@ void SHTHR_SOUNDBUFFER_Impl::CalcVolumeLinear()
 
 	// Clamp
 	if (mVolumeLinear < 0)
+	{
 		mVolumeLinear = 0;
+	}
 
 	if (mVolumeLinear > SDL_MIX_MAXVOLUME)
+	{
 		mVolumeLinear = SDL_MIX_MAXVOLUME;
+	}
 }
 
 int SHTHR_SOUNDBUFFER_Impl::SetFrequency(int lFrequency)
 {
 	std::lock_guard<std::mutex> lock(mutex);
-
-	// Dsound does restore the buffer's native rate originally
+	// DirectSound restores the buffer's native rate originally
 	if (lFrequency == 0)
+	{
 		lFrequency = mOriginalFrequency;
+	}
 
 	if (lFrequency < 100 || lFrequency > 200000)
+	{
 		return -1;
+	}
 
 	mFrequency = lFrequency;
-
 	RebuildStream(mFormat, mChannelCount, mFrequency, mParent->mFormat, mParent->mChannelCount, mParent->mFrequency);
-
-
 	mBufferReadLoc = 0;
 	mWrittenSize = 0;
-
 	return S_OK;
 }
 
 SHTHR_SOUNDDEVICE_Impl::~SHTHR_SOUNDDEVICE_Impl()
 {
 	mutex.lock();
-
 	SDL_AtomicSet(&mPullThreadRunning, 0);
 	if (mPullThread)
+	{
 		SDL_WaitThread(mPullThread, nullptr);
-	if (mDeviceID)
-		SDL_CloseAudioDevice(mDeviceID);
-
+	}
 	if (mDeviceID)
 	{
 		SDL_CloseAudioDevice(mDeviceID);
@@ -1178,7 +1120,6 @@ SHTHR_SOUNDDEVICE_Impl::~SHTHR_SOUNDDEVICE_Impl()
 
 	mAudioQueues.clear();
 	mutex.unlock();
-
 	SDL_QuitSubSystem(SDL_INIT_AUDIO);
 }
 
@@ -1191,21 +1132,16 @@ int SHTHR_SOUNDDEVICE_Impl::PullThreadFunc()
 {
 	std::vector<uint8_t> mix_buf(FILL_CHUNK_BYTES, 0);
 	std::vector<uint8_t> src_buf(FILL_CHUNK_BYTES, 0);
-
 	while (SDL_AtomicGet(&mPullThreadRunning) && g_audioThreadShouldExit == false)
 	{
 		const Uint32 queued = SDL_GetQueuedAudioSize(mDeviceID);
-
 		if (queued >= TARGET_QUEUE_BYTES)
 		{
 			SDL_Delay(SLEEP_FULL_MS);
 			continue;
 		}
 
-
 		memset(mix_buf.data(), mAudioSpec.silence, FILL_CHUNK_BYTES);
-
-
 		std::lock_guard<std::mutex> lk(mutex);
 		for (auto& queue : mAudioQueues)
 		{
@@ -1214,24 +1150,20 @@ int SHTHR_SOUNDDEVICE_Impl::PullThreadFunc()
 			{
 				float finalVol = result.mixVolume * GetMasterVolume();
 				finalVol = std::min(finalVol, (float)SDL_MIX_MAXVOLUME);
-
-
 				if (result.bytesRead < FILL_CHUNK_BYTES)
+				{
 					memset(src_buf.data() + result.bytesRead, mAudioSpec.silence,
 						FILL_CHUNK_BYTES - result.bytesRead);
-
-
+				}
 				SDL_MixAudioFormat(mix_buf.data(), src_buf.data(), mFormat, FILL_CHUNK_BYTES, (int)finalVol);
 			}
 		}
 
-
 		SDL_QueueAudio(mDeviceID, mix_buf.data(), FILL_CHUNK_BYTES);
-
-		// If queue was nearly empty, don't sleep — immediately refill
 		if (queued < FILL_CHUNK_BYTES)
+		{
 			continue;
-
+		}
 		SDL_Delay(SLEEP_EMPTY_MS);
 	}
 
@@ -1239,7 +1171,6 @@ int SHTHR_SOUNDDEVICE_Impl::PullThreadFunc()
 	{
 		this->Release();
 	}
-
 	return 0;
 }
 
@@ -1249,16 +1180,18 @@ int SHTHR_SOUNDDEVICE_Impl::SetAllParameters(Listener3D* params)
 	return S_OK;
 }
 
-
 int SHTHR_SOUNDDEVICE_Impl::SetDistanceFactor(float flDistanceFactor, DWORD dwApply)
 {
 	std::lock_guard<std::mutex> lock(mutex);
-
 	if (flDistanceFactor < 0.0f)
+	{
 		flDistanceFactor = 0.0f;
+	}
 
 	if (flDistanceFactor > 10.0f)
+	{
 		flDistanceFactor = 10.0f;
+	}
 
 	mDistanceFactor = flDistanceFactor;
 	return S_OK;
@@ -1267,41 +1200,38 @@ int SHTHR_SOUNDDEVICE_Impl::SetDistanceFactor(float flDistanceFactor, DWORD dwAp
 int SHTHR_SOUNDDEVICE_Impl::SetRolloffFactor(float flRolloffFactor, DWORD dwApply)
 {
 	std::lock_guard<std::mutex> lock(mutex);
-
 	if (flRolloffFactor < 0.0f)
+	{
 		flRolloffFactor = 0.0f;
+	}
 
 	if (flRolloffFactor > 10.0f)
+	{
 		flRolloffFactor = 10.0f;
+	}
 
 	mRolloffFactor = flRolloffFactor;
-
 	return S_OK;
 }
 
 int SHTHR_SOUNDDEVICE_Impl::SetPosition(float x, float y, float z, DWORD dwApply)
 {
 	std::lock_guard<std::mutex> lock(mutex);
-
 	mListenerPosition[0] = x;
 	mListenerPosition[1] = y;
 	mListenerPosition[2] = z;
-
 	return S_OK;
 }
-
 
 void SHTHR_SOUNDDEVICE_Impl::AudioCallback(Uint8* stream, int32_t len)
 {
 	memset(stream, mAudioSpec.silence, len);
-
 	if (mAudioQueues.size() == 0)
 	{
 		return;
 	}
 	read_buffer.resize(len);
 	mutex.lock();
-
 	for (auto& queue : mAudioQueues)
 	{
 		auto result = queue->Pull(&read_buffer[0], len);
@@ -1318,13 +1248,11 @@ void SHTHR_SOUNDDEVICE_Impl::AudioCallback(Uint8* stream, int32_t len)
 	mutex.unlock();
 }
 
-
 static void AudioCallbackStatic(void* userdata, Uint8* stream, int32_t len)
 {
 	SHTHR_SOUNDDEVICE_Impl* _this = (SHTHR_SOUNDDEVICE_Impl*)userdata;
 	_this->AudioCallback(stream, len);
 }
-
 
 SHTHR_SOUNDDEVICE_Impl::SHTHR_SOUNDDEVICE_Impl()
 {
@@ -1336,13 +1264,11 @@ SHTHR_SOUNDDEVICE_Impl::SHTHR_SOUNDDEVICE_Impl()
 
 	SDL_SetHint(SDL_HINT_AUDIO_CATEGORY, "playback");
 	SDL_SetHint(SDL_HINT_AUDIO_DEVICE_APP_NAME, "Shadow Recompiled");
-
 	if (SDL_InitSubSystem(SDL_INIT_AUDIO) < 0)
 	{
 		LOGFN_ERROR("Failed to init audio subsystem: {}", SDL_GetError());
 		return;
 	}
-
 
 	SDL_AudioSpec desired{}, obtained{};
 	desired.freq = XAUDIO_SAMPLES_HZ;
@@ -1353,7 +1279,6 @@ SHTHR_SOUNDDEVICE_Impl::SHTHR_SOUNDDEVICE_Impl()
 	desired.callback = nullptr; // AudioCallbackStatic;
 
 	mDeviceID = SDL_OpenAudioDevice(nullptr, 0, &desired, &mAudioSpec, SDL_AUDIO_ALLOW_SAMPLES_CHANGE);
-
 	if (mDeviceID)
 	{
 		mChannelCount = mAudioSpec.channels;
@@ -1368,8 +1293,6 @@ SHTHR_SOUNDDEVICE_Impl::SHTHR_SOUNDDEVICE_Impl()
 	}
 }
 
-
-
 bool SHTHR_SOUNDDEVICE_Impl::ReleaseSoundBuffer(SHTHR_SOUNDBUFFER* pBuffer)
 {
 	mutex.lock();
@@ -1381,13 +1304,15 @@ bool SHTHR_SOUNDDEVICE_Impl::ReleaseSoundBuffer(SHTHR_SOUNDBUFFER* pBuffer)
 int32_t SHTHRSoundCreate(SHTHR_SOUNDDEVICE** ppDevice)
 {
 	if (!ppDevice)
+	{
 		return -1;
-
+	}
 
 	SHTHR_SOUNDDEVICE* device = new SHTHR_SOUNDDEVICE_Impl();
-
 	if (!device)
+	{
 		return -1;
+	}
 
 	if (ppDS)
 	{
@@ -1396,10 +1321,11 @@ int32_t SHTHRSoundCreate(SHTHR_SOUNDDEVICE** ppDevice)
 
 	auto ptr = g_userHeap.Alloc(sizeof(int));
 	if (!ptr)
+	{
 		return -1;
+	}
 
 	auto key = g_memory.MapVirtual(ptr);
-
 	ppDS = device;
 	LOGN_UTILITY("Created sound device");
 	return key;
