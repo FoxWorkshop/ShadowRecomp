@@ -7531,11 +7531,6 @@ static RenderPipeline* CreateGraphicsPipelineInRenderThread(PipelineState pipeli
 			pipeElapsed > 0.5 ? "*** STUTTER ***" : "");
 
 		RecordPipelineState(pipelineState);
-
-#ifdef PSO_CACHING
-		std::lock_guard lock(g_pipelineCacheMutex);
-		g_pipelineStatesToCache.emplace(hash, pipelineState);
-#endif
 	}
 
 	s_lastSanitizedState = pipelineState;
