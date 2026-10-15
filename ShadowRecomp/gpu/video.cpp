@@ -943,6 +943,44 @@ struct PipelineCacheEntry
 static_assert(sizeof(PipelineCacheEntry) == 414,
 	"PipelineCacheEntry layout changed - bump PIPELINE_CACHE_VERSION and regenerate pipeline_cache.h");
 
+// Checks incase plume changes something
+static_assert(uint32_t(VertexShaderMode::ShaderProgram) == 2);
+static_assert(uint32_t(RenderBlend::INV_SRC1_ALPHA) == 17);
+static_assert(uint32_t(RenderCullMode::BACK) == 3);
+static_assert(uint32_t(RenderComparisonFunction::ALWAYS) == 8);
+static_assert(uint32_t(RenderStencilOp::DECREMENT_AND_WRAP) == 8);
+static_assert(uint32_t(RenderBlendOperation::MAX) == 5);
+static_assert(uint32_t(RenderPrimitiveTopology::TRIANGLE_FAN) == 6);
+static_assert(uint32_t(RenderFormat::MAX) == 75);
+
+template <typename T>
+static bool IsEnumInRange(T value, T last)
+{
+	return uint32_t(value) <= uint32_t(last);
+}
+
+static bool IsPipelineCacheEntryInRange(const PipelineCacheEntry& entry)
+{
+	return entry.vertexElementCount <= MAX_VERTEX_ELEMENTS &&
+		IsEnumInRange(entry.vertexShaderMode, VertexShaderMode::ShaderProgram) &&
+		IsEnumInRange(entry.srcBlend, RenderBlend::INV_SRC1_ALPHA) &&
+		IsEnumInRange(entry.destBlend, RenderBlend::INV_SRC1_ALPHA) &&
+		IsEnumInRange(entry.srcBlendAlpha, RenderBlend::INV_SRC1_ALPHA) &&
+		IsEnumInRange(entry.destBlendAlpha, RenderBlend::INV_SRC1_ALPHA) &&
+		IsEnumInRange(entry.cullMode, RenderCullMode::BACK) &&
+		IsEnumInRange(entry.zFunc, RenderComparisonFunction::ALWAYS) &&
+		IsEnumInRange(entry.stencilFunc, RenderComparisonFunction::ALWAYS) &&
+		IsEnumInRange(entry.stencilFuncCCW, RenderComparisonFunction::ALWAYS) &&
+		IsEnumInRange(entry.stencilFail, RenderStencilOp::DECREMENT_AND_WRAP) &&
+		IsEnumInRange(entry.stencilZFail, RenderStencilOp::DECREMENT_AND_WRAP) &&
+		IsEnumInRange(entry.stencilPass, RenderStencilOp::DECREMENT_AND_WRAP) &&
+		IsEnumInRange(entry.blendOp, RenderBlendOperation::MAX) &&
+		IsEnumInRange(entry.blendOpAlpha, RenderBlendOperation::MAX) &&
+		IsEnumInRange(entry.primitiveTopology, RenderPrimitiveTopology::TRIANGLE_FAN) &&
+		IsEnumInRange(entry.renderTargetFormat, RenderFormat::MAX) &&
+		IsEnumInRange(entry.depthStencilFormat, RenderFormat::MAX);
+}
+
 static Mutex g_pipelineCacheMutex;
 static std::atomic<bool> g_pipelineCacheShutdownDone{ false };
 static ankerl::unordered_dense::map<uint64_t, PipelineCacheEntry> g_pipelineCacheEntries;
@@ -1203,6 +1241,7 @@ static void PrecompileUserPipelines()
 	auto totalStart = std::chrono::steady_clock::now();
 	uint32_t compiled = 0;
 	uint32_t skipped = 0;
+	uint32_t dropped = 0;
 
 	for (uint32_t i = 0; i < entryCount; i++)
 	{
@@ -1213,6 +1252,12 @@ static void PrecompileUserPipelines()
 			LOGFN("PipelineCache: Short read at entry {} (got {}, expected {})", i,
 				file.gcount(), sizeof(PipelineCacheEntry));
 			break;
+		}
+
+		if (!IsPipelineCacheEntryInRange(entry))
+		{
+			dropped++;
+			continue;
 		}
 
 		entry.pipelineHash = ComputePipelineEntryHash(entry);
@@ -1232,7 +1277,7 @@ static void PrecompileUserPipelines()
 	}
 
 	auto totalElapsed = std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - totalStart).count();
-	LOGFN("PipelineCache: Precompiled {} pipelines ({} skipped) in {:.2f} ms", compiled, skipped, totalElapsed);
+	LOGFN("PipelineCache: Precompiled {} pipelines ({} skipped, {} dropped) in {:.2f} ms", compiled, skipped, dropped, totalElapsed);
 }
 
 // Maps cache entry hashes to variant keys, falling back to the generic
