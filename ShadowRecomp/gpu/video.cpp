@@ -1865,7 +1865,6 @@ enum class RenderCommandType
 	SetVertexShaderConstants,
 	SetVertexShaderVariant,
 	SetPixelShaderConstants,
-	AddPipeline,
 	DrawPrimitive,
 	DrawIndexedPrimitive,
 	DrawPrimitiveUP,
@@ -2024,12 +2023,6 @@ struct RenderCommand
 			GuestShader* shader;
 			bool isFixed;
 		} setPixelShader;
-
-		struct
-		{
-			XXH64_hash_t hash;
-			RenderPipeline* pipeline;
-		} addPipeline;
 
 		struct
 		{
@@ -7577,81 +7570,6 @@ static std::unique_ptr<RenderPipeline> CreateGraphicsPipeline(const PipelineStat
 	return pipeline;
 }
 
-struct PipelineStateQueueItem
-{
-	XXH64_hash_t pipelineHash;
-	PipelineState pipelineState;
-};
-
-static moodycamel::BlockingConcurrentQueue<PipelineStateQueueItem> g_pipelineStateQueue;
-static xxHashMap<PipelineState> g_asyncPipelineStates;
-static bool g_renderThreadPipelinePending = false;
-
-static void CompilePipeline(XXH64_hash_t pipelineHash, const PipelineState& pipelineState)
-{
-	auto pipeline = CreateGraphicsPipeline(pipelineState);
-	RenderCommand cmd;
-	cmd.type = RenderCommandType::AddPipeline;
-	cmd.addPipeline.hash = pipelineHash;
-	cmd.addPipeline.pipeline = pipeline.release();
-	g_renderQueue.enqueue(cmd);
-}
-
-static void PipelineCompilerThread()
-{
-#ifdef _WIN32
-	SetThreadPriority(GetCurrentThread(), THREAD_PRIORITY_LOWEST);
-	GuestThread::SetThreadName(GetCurrentThreadId(), "Pipeline Compiler Thread");
-#endif
-
-	while (true)
-	{
-		PipelineStateQueueItem queueItem;
-		g_pipelineStateQueue.wait_dequeue(queueItem);
-		CompilePipeline(queueItem.pipelineHash, queueItem.pipelineState);
-		std::this_thread::yield();
-	}
-}
-
-static std::vector<std::unique_ptr<std::thread>> g_pipelineCompilerThreads = []()
-	{
-		std::vector<std::unique_ptr<std::thread>> threads(std::max(2u, (std::thread::hardware_concurrency() * 2) / 3));
-		for (auto& thread : threads)
-		{
-			thread = std::make_unique<std::thread>(PipelineCompilerThread);
-		}
-		return threads;
-	}();
-
-static bool EnqueueGraphicsPipelineCompilation(const PipelineState& pipelineState, XXH64_hash_t hash)
-{
-	if (g_asyncPipelineStates.emplace(hash, pipelineState).second)
-	{
-		g_pipelineStateQueue.enqueue({ hash, pipelineState });
-		return true;
-	}
-
-	return false;
-}
-
-static void ProcAddPipeline(const RenderCommand& cmd)
-{
-	auto& pipeline = g_pipelines[cmd.addPipeline.hash];
-	if (pipeline == nullptr)
-	{
-		pipeline = std::unique_ptr<RenderPipeline>(cmd.addPipeline.pipeline);
-	}
-	else
-	{
-		delete cmd.addPipeline.pipeline;
-	}
-
-	if (g_renderThreadPipelinePending)
-	{
-		g_dirtyStates.pipelineState = true;
-	}
-}
-
 static RenderPipeline* CreateGraphicsPipelineInRenderThread(PipelineState pipelineState)
 {
 	RtScopeTimer _psoScope(g_rtPsoWorkAccum);
@@ -7674,11 +7592,15 @@ static RenderPipeline* CreateGraphicsPipelineInRenderThread(PipelineState pipeli
 	auto& pipeline = g_pipelines[hash];
 	if (pipeline == nullptr)
 	{
-		if (EnqueueGraphicsPipelineCompilation(pipelineState, hash))
-		{
-			LOGFN("CreateGraphicsPipeline: PIPELINE MISS hash={:016X}", hash);
-			RecordPipelineState(pipelineState);
-		}
+		auto pipeStart = std::chrono::steady_clock::now();
+		pipeline = CreateGraphicsPipeline(pipelineState);
+		auto pipeElapsed = std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - pipeStart).count();
+
+		LOGFN("CreateGraphicsPipeline: PIPELINE MISS hash={:016X} -> {:.2f} ms {}",
+			hash, pipeElapsed,
+			pipeElapsed > 0.5 ? "*** STUTTER ***" : "");
+
+		RecordPipelineState(pipelineState);
 
 #ifdef PSO_CACHING
 		std::lock_guard lock(g_pipelineCacheMutex);
@@ -8019,21 +7941,12 @@ static void FlushRenderStateForRenderThread()
 
 	if (g_dirtyStates.pipelineState)
 	{
-		auto pipeline = CreateGraphicsPipelineInRenderThread(g_pipelineState);
-		if (pipeline != nullptr)
-		{
-			commandList->setPipeline(pipeline);
-			g_renderThreadPipelinePending = false;
+		commandList->setPipeline(CreateGraphicsPipelineInRenderThread(g_pipelineState));
 
-			// D3D12 resets the depth bias values. Check if they need to be set again.
-			if (g_capabilities.dynamicDepthBias && !g_vulkan)
-			{
-				g_dirtyStates.depthBias = (g_depthBias != g_pipelineState.depthBias) || (g_slopeScaledDepthBias != g_pipelineState.slopeScaledDepthBias);
-			}
-		}
-		else
+		// D3D12 resets the depth bias values. Check if they need to be set again.
+		if (g_capabilities.dynamicDepthBias && !g_vulkan)
 		{
-			g_renderThreadPipelinePending = true;
+			g_dirtyStates.depthBias = (g_depthBias != g_pipelineState.depthBias) || (g_slopeScaledDepthBias != g_pipelineState.slopeScaledDepthBias);
 		}
 	}
 
@@ -8582,11 +8495,6 @@ static void ProcDrawPrimitive(const RenderCommand& cmd)
 	isFixedForRenderThread = args.isFixed;
 	FlushRenderStateForRenderThread();
 
-	if (g_renderThreadPipelinePending)
-	{
-		return;
-	}
-
 	uint32_t primitiveCount = args.primitiveCount;
 	auto& commandList = g_commandLists[g_frame];
 	{
@@ -8736,11 +8644,6 @@ static void ProcDrawIndexedPrimitive(const RenderCommand& cmd)
 	isFixedForRenderThread = args.isFixed;
 	FlushRenderStateForRenderThread();
 
-	if (g_renderThreadPipelinePending)
-	{
-		return;
-	}
-
 	{
 		RtScopeTimer _drawScope(g_rtDrawCallAccum);
 		g_commandLists[g_frame]->drawIndexedInstanced(args.primCount, 1, args.startIndex, args.baseVertexIndex, 0);
@@ -8823,11 +8726,6 @@ static void ProcDrawPrimitiveUP(const RenderCommand& cmd)
 
 	isFixedForRenderThread = args.isFixed;
 	FlushRenderStateForRenderThread();
-
-	if (g_renderThreadPipelinePending)
-	{
-		return;
-	}
 
 	uint32_t primitiveCount = args.primitiveCount;
 
@@ -9533,7 +9431,7 @@ PipelineCacheSDLEventListener g_pipelineCacheSDLEventListener;
 
 static void ProcessRenderCommand(const RenderCommand& cmd)
 {
-	if (cmd.type != RenderCommandType::DestructResource && cmd.type != RenderCommandType::AddPipeline && !g_commandListOpen)
+	if (cmd.type != RenderCommandType::DestructResource && !g_commandListOpen)
 	{
 		static bool loggedDeferral = false;
 		if (!loggedDeferral)
@@ -9572,7 +9470,6 @@ static void ProcessRenderCommand(const RenderCommand& cmd)
 	case RenderCommandType::SetStreamSourceUP: { g_stateChangeCount.fetch_add(1, std::memory_order_relaxed); RtScopeTimer _s(g_rtOtherCmdsAccum); ProcSetStreamSourceUP(cmd); } break;
 	case RenderCommandType::SetIndices: { g_stateChangeCount.fetch_add(1, std::memory_order_relaxed); RtScopeTimer _s(g_rtOtherCmdsAccum); ProcSetIndices(cmd); } break;
 	case RenderCommandType::SetPixelShader: { g_stateChangeCount.fetch_add(1, std::memory_order_relaxed); RtScopeTimer _s(g_rtOtherCmdsAccum); ProcSetPixelShader(cmd); } break;
-	case RenderCommandType::AddPipeline: { ProcAddPipeline(cmd); } break;
 	default:
 		assert(false && "Unrecognized render command type.");
 		break;
