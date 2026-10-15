@@ -1071,6 +1071,8 @@ uint32_t AllocateTextureDescriptor();
 void FreeTextureDescriptor(const uint32_t descriptorIndex);
 void UnlockTextureRect(GuestTexture* texture);
 void ExecuteCopyCommandList(const std::function<void(RenderCommandList*)>& function);
+GuestTexture* CreateTexture(uint32_t width, uint32_t height, uint32_t depth, uint32_t levels, uint32_t usage, X_D3DFORMAT format, X_D3DRESOURCETYPE type);
+X_D3DRESOURCETYPE GetXboxTextureType(const X_D3DResource* pXboxResource);
 
 // Xbox vertex shader constant modes
 #define X_D3DSCM_96CONSTANTS                  0x00 // Enables constants 0..95

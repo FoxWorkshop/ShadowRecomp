@@ -411,3 +411,66 @@ X86_FUNC(sub_40B363)
 		UnlockTextureRect(g_currentTextureRect);
 	}
 }
+
+
+// Always use guest size, a smaller host size overflow the buffer and corrupt memory.
+static uint32_t ComputeTexturePitch(GuestTexture* texture)
+{
+	return (texture->g_width * RenderFormatSize(texture->format) + PITCH_ALIGNMENT - 1) & ~(PITCH_ALIGNMENT - 1);
+}
+
+static void LockTextureRect(GuestTexture* texture, int32_t level, GuestLockedRect* lockedRect, RECT* pRect, uint32_t flags)
+{
+	uint32_t pitch = ComputeTexturePitch(texture);
+	uint32_t slicePitch = pitch * texture->g_height;
+
+	if (texture->mappedMemory == nullptr)
+	{
+		texture->mappedMemory = g_userHeap.AllocPhysical(slicePitch, 0x10);
+	}
+
+	texture->sizeOfTextureRect = slicePitch;
+	lockedRect->pitch = pitch;
+	lockedRect->bits = g_memory.MapVirtual(texture->mappedMemory);
+}
+
+static GuestTexture* CreateTexture_(uint32_t width, uint32_t height, uint32_t depth, uint32_t levels, uint32_t usage, X_D3DFORMAT format, X_D3DRESOURCETYPE type)
+{
+	return CreateTexture(width, height, depth, levels, usage, format, type);
+}
+
+
+// CreateTexture
+X86_FUNC_IMPL(__imp__sub_2DFE20);
+X86_FUNC(sub_2DFE20)
+{
+	RwRaster* info = (RwRaster*)g_memory.Translate(ctx.ecx.u32);
+	uint8_t level = X86_LOAD_U8(ctx.eax.u32 + 19);
+	const uint32_t usage = (info->cType & 0xFF) == rwRASTERTYPECAMERATEXTURE ? 1 : 0;
+
+
+	X_D3DFORMAT format = (X_D3DFORMAT)X86_LOAD_U32(ctx.esp.u32 + 4);
+	__imp__sub_2DFE20(ctx, base);
+
+	if (ctx.eax.u32 != 0)
+	{
+		//RwRaster* rwM = (RwRaster*)g_memory.Translate(second);
+		XD3DResource* texture = (XD3DResource*)(g_memory.Translate(ctx.eax.u32));
+
+		X_D3DRESOURCETYPE textureType = GetXboxTextureType((X_D3DResource*)texture);
+
+		auto newTex = CreateTexture(info->width, info->height, 1, level, usage, format, textureType);
+
+		newTex->guestResource.Common = texture->Common;
+		newTex->guestResource.Data = texture->Data;
+		newTex->guestResource.Format = texture->Format;
+		newTex->guestResource.Lock = texture->Lock;
+		newTex->guestResource.Size = texture->Size;
+
+		g_userHeap.Free(g_memory.Translate(ctx.eax.u32)); // free the original texture memory as it's not needed anymore 
+		ctx.eax.u32 = g_memory.MapVirtual(newTex);
+	}
+}
+
+GUEST_FUNCTION_HOOK_STDCALL(sub_3DD710, CreateTexture_); //not used for 2D stuff at least.
+GUEST_FUNCTION_HOOK_STDCALL(sub_3DD810, LockTextureRect); //todo cube version?
