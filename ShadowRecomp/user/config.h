@@ -122,20 +122,11 @@ enum class ETripleBuffering : uint32_t
     Off
 };
 
-enum class EAntiAliasing : uint32_t
-{
-    None = 0,
-    MSAA2x = 2,
-    MSAA4x = 4,
-    MSAA8x = 8
-};
-
 enum class ETextureFiltering : uint32_t
 {
     Auto,
     Linear
 };
-
 
 enum class EFMVAspectRatio : uint32_t
 {

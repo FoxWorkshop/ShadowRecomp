@@ -354,14 +354,6 @@ CONFIG_DEFINE_ENUM_TEMPLATE(ETripleBuffering)
     { "Off",  ETripleBuffering::Off }
 };
 
-CONFIG_DEFINE_ENUM_TEMPLATE(EAntiAliasing)
-{
-    { "None", EAntiAliasing::None },
-    { "2x MSAA", EAntiAliasing::MSAA2x },
-    { "4x MSAA", EAntiAliasing::MSAA4x },
-    { "8x MSAA", EAntiAliasing::MSAA8x }
-};
-
 CONFIG_DEFINE_ENUM_TEMPLATE(ETextureFiltering)
 {
     { "Auto", ETextureFiltering::Auto },

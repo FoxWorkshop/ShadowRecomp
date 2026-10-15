@@ -55,8 +55,6 @@ const uint32_t g_DeferredTextureStateAddr = 0x3E0580;
 const uint32_t g_RenderStateAddr = 0x3E0780;
 const uint32_t g_cameraAddr = 0x540C40;
 
-static bool useLowSpec = false;
-
 #define DepthStencilFormat RenderFormat::D32_FLOAT
 
 #ifdef SHADOW_RECOMP_D3D12
@@ -3184,21 +3182,6 @@ static void ApplyLowEndDefault(ConfigDef<T>& configDef, T newDefault, bool& chan
 	configDef.DefaultValue = newDefault;
 }
 
-static void ApplyLowEndDefaults()
-{
-	bool changed = false;
-
-	ApplyLowEndDefault(Config::AntiAliasing, EAntiAliasing::MSAA2x, changed);
-	//ApplyLowEndDefault(Config::TextureFiltering, ETextureFiltering::Nearest, changed);
-
-	useLowSpec = true;
-	if (changed)
-	{
-
-		Config::Save();
-	}
-}
-
 GuestBuffer* CreateVertexBuffer(uint32_t length);
 
 bool Video::CreateHostDevice(const char* sdlVideoDriver, bool graphicsApiRetry)
@@ -3355,14 +3338,6 @@ bool Video::CreateHostDevice(const char* sdlVideoDriver, bool graphicsApiRetry)
 	bool lowEndType = deviceDescription.type != RenderDeviceType::UNKNOWN && deviceDescription.type != RenderDeviceType::DISCRETE;
 	bool lowEndMemory = deviceDescription.dedicatedVideoMemory < LowEndMemoryLimit;
 	bool lowEndUMA = deviceDescription.type == RenderDeviceType::UNKNOWN && g_capabilities.uma;
-	if (lowEndType || lowEndMemory || lowEndUMA)
-	{
-		// Switch to low end defaults if a non-discrete GPU was detected or a low amount of VRAM was detected.
-		// Checking for UMA on D3D12 seems to be a reliable way to detect integrated GPUs.
-		ApplyLowEndDefaults();
-	}
-	// PrecompileShaders(); // Temp disabled due until pipeline cache implemented properly
-
 
 	const RenderSampleCounts colourSampleCount = g_device->getSampleCountsSupported(RenderFormat::R16G16B16A16_FLOAT);
 	const RenderSampleCounts depthSampleCount = g_device->getSampleCountsSupported(DepthStencilFormat);
@@ -9487,8 +9462,7 @@ void VideoConfigValueChangedCallback(IConfigDef* config)
 	// Config options that require internal resolution resize
 	g_needsResize |=
 		config == &Config::AspectRatio ||
-		config == &Config::ResolutionScale ||
-		config == &Config::AntiAliasing;
+		config == &Config::ResolutionScale;
 
 	if (g_needsResize)
 	{

@@ -1944,7 +1944,6 @@ static void DrawOptions(ImVec2 minClipRect, ImVec2 maxClipRect, ImVec2 min, ImVe
 		DrawOption(rowCount++, &Config::FPS, true, min, max, nullptr, FPS_MIN, 120, FPS_MAXSoft);
 		DrawOption(rowCount++, &Config::CutsceneFramerate, true, min, max, nullptr);
 		DrawOption(rowCount++, &Config::Brightness, true, min, max, nullptr);
-		DrawOption(rowCount++, &Config::AntiAliasing, false, min, max, devReason);
 		DrawOption(rowCount++, &Config::TextureFiltering, true, min, max, nullptr);
 		DrawOption(rowCount++, &Config::MaxHUDWidth, true, min, max, nullptr);
 		DrawOption(rowCount++, &Config::BloomIntensity, true, min, max, nullptr);
@@ -1966,11 +1965,6 @@ static void DrawOptions(ImVec2 minClipRect, ImVec2 maxClipRect, ImVec2 min, ImVe
 
 		break;
 	}
-	/**case OptionsMenuCategory::Misc:
-	{
-
-		//DrawActionOption(rowCount++, min, Localise("Options_Name_LegacyMenu"), Localise("Options_Desc_LegacyMenu"), true, nullptr, GoToLegacyMenu);
-	}*/
 	}
 
 #undef ENUM_VALUE

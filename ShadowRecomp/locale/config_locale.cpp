@@ -746,56 +746,6 @@ CONFIG_DEFINE_LOCALE(Brightness)
     { ELanguage::Italian,  { "Luminosità", "Adjust the brightness level." } }
 };
 
-CONFIG_DEFINE_LOCALE(AntiAliasing)
-{
-    { ELanguage::English, { "Anti-Aliasing", "Adjust the amount of smoothing applied to jagged edges." } },
-    { ELanguage::Japanese, { "アンチエイリアス", "アンチエイリアスの\u200B[種類:しゅるい]を\u200B[選択:せんたく]できます" } },
-    { ELanguage::German,   { "Kantenglättung", "Passe die Menge an Kantenglättung an." } },
-    { ELanguage::French,   { "Anticrénelage", "Ajuste le niveau d'anticrénelage appliqué aux bords des objets." } },
-    { ELanguage::Spanish,  { "Anti-Aliasing", "Ajusta el nivel de suavizado aplicado a los dientes de sierra." } },
-    { ELanguage::Italian,  { "Anti-Aliasing", "Regola la quantità di smussamento applicata ai bordi." } }
-};
-
-CONFIG_DEFINE_ENUM_LOCALE(EAntiAliasing)
-{
-    {
-        ELanguage::English,
-        {
-            { EAntiAliasing::None, { "NONE", "" } }
-        }
-    },
-    {
-        ELanguage::Japanese,
-        {
-            { EAntiAliasing::None, { "オフ", "" } },
-        }
-    },
-    {
-        ELanguage::German,
-        {
-            { EAntiAliasing::None, { "KEINE", "" } }
-        }
-    },
-    {
-        ELanguage::French,
-        {
-            { EAntiAliasing::None, { "SANS", "" } }
-        }
-    },
-    {
-        ELanguage::Spanish,
-        {
-            { EAntiAliasing::None, { "NO", "" } },
-        }
-    },
-    {
-        ELanguage::Italian,
-        {
-            { EAntiAliasing::None, { "NULLO", "" } }
-        }
-    },
-};
-
 CONFIG_DEFINE_LOCALE(TextureFiltering)
 {
     { ELanguage::English, { "Texture Filtering", "Change the quality of the filtering used for textures." } },

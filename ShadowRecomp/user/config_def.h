@@ -80,7 +80,11 @@ CONFIG_DEFINE_LOCALISED("Audio", float, VoicesVolume, 1.0f, false);
 CONFIG_DEFINE_LOCALISED("Audio", float, CutsceneVolume, 1.0f, false);
 CONFIG_DEFINE_LOCALISED("Audio", bool, MuteOnFocusLost, true, false);
 CONFIG_DEFINE_LOCALISED("Audio", bool, IdleChaosPowersMusic, true, false);
+
+// TODO: Do we want to support Stero/Mono toggle? We can just enable the OG game flag
 //CONFIG_DEFINE_ENUM_LOCALISED("Audio", EChannelConfiguration, ChannelConfiguration, EChannelConfiguration::Stereo);
+
+// TODO: Do we care about this?
 //CONFIG_DEFINE_LOCALISED("Audio", bool, MusicAttenuation, false);
 
 CONFIG_DEFINE("Video", std::string, GraphicsDevice, "", true);
@@ -105,16 +109,10 @@ CONFIG_DEFINE("Video", float, ProfilerFontScale, 1.0f, false);
 CONFIG_DEFINE("Video", bool, ExtendedMultiplayer, false, false);
 CONFIG_DEFINE("Video", uint32_t, MaxFrameLatency, 2, false);
 CONFIG_DEFINE_LOCALISED("Video", float, Brightness, 0.5f, false);
-CONFIG_DEFINE_ENUM_LOCALISED("Video", EAntiAliasing, AntiAliasing, EAntiAliasing::MSAA4x, false);
-//CONFIG_DEFINE_LOCALISED("Video", bool, TransparencyAntiAliasing, true);
 CONFIG_DEFINE("Video", uint32_t, AnisotropicFiltering, 16, false);
 CONFIG_DEFINE_ENUM_LOCALISED("Video", ETextureFiltering, TextureFiltering, ETextureFiltering::Auto, false);
 CONFIG_DEFINE_LOCALISED("Video", float, BloomIntensity, 0.7f, false);
 CONFIG_DEFINE_LOCALISED("Video", bool, Fog, true, false);
-//CONFIG_DEFINE_ENUM_LOCALISED("Video", EShadowResolution, ShadowResolution, EShadowResolution::x4096);
-//CONFIG_DEFINE_ENUM("Video", EDepthOfFieldQuality, DepthOfFieldQuality, EDepthOfFieldQuality::Auto);
-//CONFIG_DEFINE_ENUM_LOCALISED("Video", EMotionBlur, MotionBlur, EMotionBlur::Original);
-//CONFIG_DEFINE_ENUM_LOCALISED("Video", ECutsceneAspectRatio, CutsceneAspectRatio, ECutsceneAspectRatio::Original);
 CONFIG_DEFINE_LOCALISED("Video", float, MaxHUDWidth, 0.0f, false);
 
 CONFIG_DEFINE_LOCALISED("Misc", bool, ChaosPowerLEDSync, true, false);
