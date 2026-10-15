@@ -439,22 +439,22 @@ CONFIG_DEFINE_LOCALE(MuteOnFocusLost)
 
 CONFIG_DEFINE_LOCALE(IdleChaosPowersMusic)
 {
-    { ELanguage::English, { "Enable Idle Chaos Powers Music", "Enable the music that plays while Hero or Dark gauge is full." } },
-    { ELanguage::Japanese, { "TODO", "TODO" } },
-    { ELanguage::German,   { "TODO", "TODO" } },
-    { ELanguage::French,   { "Active la musique Chaos Powers passifs", "Active la musique qui joue lorsque la jauge Hero ou Dark est pleine." } },
-    { ELanguage::Spanish,  { "TODO", "TODO" } },
-    { ELanguage::Italian,  { "TODO", "TODO" } }
+    { ELanguage::English,  { "Chaos Powers Jingle", "The jingle that plays while Hero or Dark gauge is full." } },
+    { ELanguage::Japanese, { "Chaos Powers Jingle", "The jingle that plays while Hero or Dark gauge is full." } },
+    { ELanguage::German,   { "Chaos Powers Jingle", "The jingle that plays while Hero or Dark gauge is full." } },
+    { ELanguage::French,   { "Chaos Powers Jingle", "The jingle that plays while Hero or Dark gauge is full." } },
+    { ELanguage::Spanish,  { "Chaos Powers Jingle", "The jingle that plays while Hero or Dark gauge is full." } },
+    { ELanguage::Italian,  { "Chaos Powers Jingle", "The jingle that plays while Hero or Dark gauge is full." } }
 };
 
 CONFIG_DEFINE_LOCALE(ChaosPowerLEDSync)
 {
-    { ELanguage::English, { "Chaos Power LED Sync", "Sync the controller's LED color with the active Chaos Power." } },
-    { ELanguage::Japanese, { "TODO", "TODO" } },
-    { ELanguage::German,   { "TODO", "TODO" } },
+    { ELanguage::English,  { "Chaos Power LED Sync", "Sync the controller's LED color with the active Chaos Power." } },
+    { ELanguage::Japanese, { "Chaos Power LED Sync", "Sync the controller's LED color with the active Chaos Power." } },
+    { ELanguage::German,   { "Chaos Power LED Sync", "Sync the controller's LED color with the active Chaos Power." } },
     { ELanguage::French,   { "Chaos Power LED Sync", "Synchronise la couleur des LED de la manette avec le Chaos Power actif." } },
-    { ELanguage::Spanish,  { "TODO", "TODO" } },
-    { ELanguage::Italian,  { "TODO", "TODO" } }
+    { ELanguage::Spanish,  { "Chaos Power LED Sync", "Sync the controller's LED color with the active Chaos Power." } },
+    { ELanguage::Italian,  { "Chaos Power LED Sync", "Sync the controller's LED color with the active Chaos Power." } }
 };
 
 CONFIG_DEFINE_LOCALE(VoiceLanguage)
@@ -469,7 +469,7 @@ CONFIG_DEFINE_LOCALE(VoiceLanguage)
 
 CONFIG_DEFINE_LOCALE(Subtitles)
 {
-    { ELanguage::English, { "Subtitles", "Show subtitles during dialogue." } },
+    { ELanguage::English,  { "Subtitles", "Show subtitles during dialogue." } },
     { ELanguage::Japanese, { "[字幕:じまく]", "[字幕:じまく]の[表示:ひょうじ]を\u200B[選択:せんたく]できます" } },
     { ELanguage::German,   { "Untertitel", "Zeige Untertitel bei Dialogen." } },
     { ELanguage::French,   { "Sous-titres", "Affiche les sous-titres pendant les dialogues." } },
@@ -479,7 +479,7 @@ CONFIG_DEFINE_LOCALE(Subtitles)
 
 CONFIG_DEFINE_LOCALE(WindowSize)
 {
-    { ELanguage::English, { "Resolution", "Adjust the resolution of the game in windowed mode." } },
+    { ELanguage::English,  { "Resolution", "Adjust the resolution of the game in windowed mode." } },
     { ELanguage::Japanese, { "解像度", "ウィンドウ\u200Bモードでの\u200Bゲームの\u200B[解像度:かいぞうど]を\u200B[調整:ちょうせい]できます" } },
     { ELanguage::German,   { "Auflösung", "Ändere die Auflösung des Spiels im Fenstermodus." } },
     { ELanguage::French,   { "Résolution", "Modifie la résolution du jeu en mode fenêtré." } },
@@ -489,7 +489,7 @@ CONFIG_DEFINE_LOCALE(WindowSize)
 
 CONFIG_DEFINE_LOCALE(Monitor)
 {
-    { ELanguage::English, { "Monitor", "Change which monitor to display the game on." } },
+    { ELanguage::English,  { "Monitor", "Change which monitor to display the game on." } },
     { ELanguage::Japanese, { "モニター[選択:せんたく]", "ゲームを[表示:ひょうじ]する\u200Bモニターを\u200B[変更:へんこう]できます" } },
     { ELanguage::German,   { "Monitor", "Ändere auf welchem Monitor das Spiel angezeigt wird." } },
     { ELanguage::French,   { "Moniteur", "Change le moniteur sur lequel le jeu sera affiché." } },
@@ -499,7 +499,7 @@ CONFIG_DEFINE_LOCALE(Monitor)
 
 CONFIG_DEFINE_LOCALE(AspectRatio)
 {
-    { ELanguage::English, { "Aspect Ratio", "Change the aspect ratio." } },
+    { ELanguage::English,  { "Aspect Ratio", "Change the aspect ratio." } },
     { ELanguage::Japanese, { "アスペクト[比:ひ]", "アスペクト[比:ひ]を\u200B[変更:へんこう]できます" } },
     { ELanguage::German,   { "Seitenverhältnis", "Verändere das Seitenverhältnis." } },
     { ELanguage::French,   { "Format d'image", "Modifie le format d'image." } },
