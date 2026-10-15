@@ -318,19 +318,19 @@ static constexpr uint32_t SAMPLE_SIZE = 0x08;
 static constexpr uint32_t SAMPLE_FLAGS = 0x0C; // bit 0 = loop
 static constexpr uint32_t SAMPLE_LOOP_START = 0x10;
 static constexpr uint32_t SAMPLE_LOOP_LENGTH = 0x14;
-static constexpr uint32_t SAMPLE_VALID = 0x1C; 
+static constexpr uint32_t SAMPLE_VALID = 0x1C;
 
 static constexpr uint32_t STAGE_BANK_SLOT = 7;
 static constexpr uint32_t GRIND_LANDING = 0; // SE_Z0000_GRINDLANDING
 static constexpr uint32_t GRIND_LOOP = 1; // SE_Z0001_GRINDING
 static constexpr uint32_t GRIND2_LOOP = 3; // SE_Z0003_GRINDING2
 
-static constexpr uint32_t ORGANIC_GRIND_SIZE = 82988; 
+static constexpr uint32_t ORGANIC_GRIND_SIZE = 82988;
 static constexpr uint32_t ORGANIC_GRIND_LOOP_START = 4;
 static constexpr uint32_t ORGANIC_GRIND_LOOP_LENGTH = 82972;
 
 static constexpr uint32_t g_FILE_LOADER = 0x537768; // sub_25F2F0 sets it up before any bank load
-static constexpr char ORGANIC_GRIND_BANK[] = "sound/bank7b.pac"; 
+static constexpr char ORGANIC_GRIND_BANK[] = "sound/bank7b.pac";
 
 
 static uint32_t LoadOrganicGrindBankSound()
@@ -514,6 +514,44 @@ static void FixDashLoopSeam(const DashLoopFix& fix)
 /* --END DASH LOOP SEAM PATCH-- */
 
 
+/* --EGG DEALER ROULETTE LOOP PATCH-- */
+
+// Egg Dealer bank comes with the roulette sound lacking loop flag for some reason
+// The GameCube version has all the same samples with the loop flag and points, so we can copy them safely.
+
+struct SFXLoopFix
+{
+	uint32_t index;
+	uint32_t size; // sample bytes, used so if a mod replace the sounds, the loop patch won't run
+	uint32_t loopStart;
+	uint32_t loopLength;
+};
+
+// Memo: values are in bytes, the samples are 16 bit mono pcm
+static constexpr SFXLoopFix g_SFXLoopFixes = { 49, 112974, 98090, 14880 }; // SE_ZF049_SLOTROLL_LP, bank7F
+
+
+static void FixStageLoop(const SFXLoopFix& sfxData)
+{
+	auto base = g_memory.base;
+
+	const uint32_t entry = StageBankEntry(sfxData.index);
+	const uint32_t header = X86_LOAD_U32(entry + SAMPLE_VALID);
+
+	if (!header || X86_LOAD_U16(header) != SAMPLE_FORMAT_PCM)
+		return;
+
+	if (X86_LOAD_U32(entry + SAMPLE_SIZE) != sfxData.size || (X86_LOAD_U32(entry + SAMPLE_FLAGS) & 1))
+		return;
+
+	X86_STORE_U32(entry + SAMPLE_FLAGS, X86_LOAD_U32(entry + SAMPLE_FLAGS) | 1);
+	X86_STORE_U32(entry + SAMPLE_LOOP_START, sfxData.loopStart);
+	X86_STORE_U32(entry + SAMPLE_LOOP_LENGTH, sfxData.loopLength);
+}
+
+/* --END EGG DEALER ROULETTE LOOP PATCH-- */
+
+
 // InitSoundBank(slot, stageID)
 X86_FUNC_IMPL(__imp__sub_25F420);
 X86_FUNC(sub_25F420)
@@ -538,6 +576,8 @@ X86_FUNC(sub_25F420)
 
 	RestoreGrindLoop(GRIND_LOOP);
 	RestoreGrindLoop(GRIND2_LOOP);
+
+	FixStageLoop(g_SFXLoopFixes);
 }
 
 /** --SFX limit increase Patch START-- */
