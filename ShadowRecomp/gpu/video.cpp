@@ -50,7 +50,6 @@ const uint32_t GuestDevicePtrAddr = 0x3E0A18;
 const uint32_t GuestDeviceMemAddr = 0x3E0A20;
 const uint32_t PresentMemAddr = 0x55F718;
 const uint32_t AutoDepthStencilFormat = 0x57DD68;
-const uint32_t RwD3D8RasterExtOffsetAddr = 0x57DD20;
 const uint32_t g_DeferredTextureStateAddr = 0x3E0580;
 const uint32_t g_RenderStateAddr = 0x3E0780;
 const uint32_t g_cameraAddr = 0x540C40;
@@ -232,7 +231,6 @@ DWORD g_Xbox_VertexShaderConstantMode = 1;
 
 GuestPixelShader* g_pXbox_PixelShader = nullptr;
 
-static uint32_t* g_currentPaletteData;
 
 //constants are variable send to the GPU
 static uint32_t g_vertexShaderConstants[HOST_D3DVS_CONSTREG_FULL * 4];
@@ -639,7 +637,6 @@ float GetRenderTargetHeight()
 	if (g_next_RenderTarget != nullptr && g_next_RenderTarget->height)
 		return g_next_RenderTarget->height;
 
-	printf("ERROR no render target found\n");
 	return 0.0f;
 }
 
@@ -648,6 +645,20 @@ bool is_vulkan()
 	return g_vulkan;
 }
 
+std::unique_ptr<RenderBuffer> PlumeCreateBufferWrapper(const uint32_t size)
+{
+	return g_device->createBuffer(RenderBufferDesc::UploadBuffer(size));
+}
+
+std::unique_ptr<RenderTexture> PlumeCreateTextureWrapper(const RenderTextureDesc& desc)
+{
+	return g_device->createTexture(desc);
+}
+
+void PlumeSetTextureWrapper(uint32_t descriptorIndex, const RenderTexture* texture, const RenderTextureLayout textureLayout, const RenderTextureView* textureView)
+{
+	g_textureDescriptorSet->setTexture(descriptorIndex, texture, textureLayout, textureView);
+}
 
 static std::atomic<bool> g_readyForCommands;
 static std::atomic<bool> g_commandListOpen{ false };
@@ -779,8 +790,8 @@ static void DiscardStagedBarrier(GuestBaseTexture* texture)
 }
 
 static std::unique_ptr<uint8_t[]> g_shaderCache;
-static std::unique_ptr<uint8_t[]> g_buttonBcDiff_GC;
-static std::unique_ptr<uint8_t[]> g_buttonBcDiff_PS2;
+std::unique_ptr<uint8_t[]> g_buttonBcDiff_GC;
+std::unique_ptr<uint8_t[]> g_buttonBcDiff_PS2;
 
 static void LoadEmbeddedResources()
 {
@@ -884,6 +895,16 @@ static std::unique_ptr<RenderTexture> g_blankTextures[TEXTURE_DESCRIPTOR_NULL_CO
 static std::unique_ptr<RenderTextureView> g_blankTextureViews[TEXTURE_DESCRIPTOR_NULL_COUNT];
 
 static TextureDescriptorAllocator g_textureDescriptorAllocator;
+
+uint32_t AllocateTextureDescriptor()
+{
+	return g_textureDescriptorAllocator.allocate();
+}
+
+void FreeTextureDescriptor(const uint32_t descriptorIndex)
+{
+	g_textureDescriptorAllocator.free(descriptorIndex);
+}
 
 static std::unique_ptr<RenderPipelineLayout> g_pipelineLayout;
 static xxHashMap<std::unique_ptr<RenderPipeline>> g_pipelines;
@@ -1704,7 +1725,7 @@ static ankerl::unordered_dense::set<GuestTexture*> g_resizableTextures;
 static ankerl::unordered_dense::set<GuestSurface*> g_resizableSurfaces;
 
 static std::atomic<uint64_t> g_guestTextureGeneration{ 1 };
-static uint64_t NextGuestTextureGeneration()
+uint64_t NextGuestTextureGeneration()
 {
 	return g_guestTextureGeneration.fetch_add(1, std::memory_order_relaxed);
 }
@@ -2718,13 +2739,14 @@ static std::unique_ptr<RenderPipelineLayout> g_imPipelineLayout;
 static std::unique_ptr<RenderPipeline> g_imPipeline;
 static std::unique_ptr<RenderPipeline> g_imAdditivePipeline;
 
-template<typename T>
-static void ExecuteCopyCommandList(const T& function)
+// Not a template so textures.cpp can call it too. The command list is passed in,
+// that way g_copyCommandList stays private to this file.
+void ExecuteCopyCommandList(const std::function<void(RenderCommandList*)>& function)
 {
 	std::lock_guard lock(g_copyMutex);
 
 	g_copyCommandList->begin();
-	function();
+	function(g_copyCommandList.get());
 	g_copyCommandList->end();
 	g_copyQueue->executeCommandLists(g_copyCommandList.get(), g_copyCommandFence.get());
 	g_copyQueue->waitForCommandFence(g_copyCommandFence.get());
@@ -2750,8 +2772,6 @@ static void ExecuteInitCommandList(const T& function)
 }
 
 
-static constexpr uint32_t PITCH_ALIGNMENT = 0x100;
-static constexpr uint32_t PLACEMENT_ALIGNMENT = 0x200;
 
 struct ImGuiPushConstants
 {
@@ -2858,11 +2878,11 @@ static void CreateImGuiBackend()
 
 	uploadBuffer->unmap();
 
-	ExecuteCopyCommandList([&]
+	ExecuteCopyCommandList([&](RenderCommandList* commandList)
 		{
-			g_copyCommandList->barriers(RenderBarrierStage::COPY, RenderTextureBarrier(g_imFontTexture->texture, RenderTextureLayout::COPY_DEST));
+			commandList->barriers(RenderBarrierStage::COPY, RenderTextureBarrier(g_imFontTexture->texture, RenderTextureLayout::COPY_DEST));
 
-			g_copyCommandList->copyTextureRegion(
+			commandList->copyTextureRegion(
 				RenderTextureCopyLocation::Subresource(g_imFontTexture->texture, 0),
 				RenderTextureCopyLocation::PlacedFootprint(uploadBuffer.get(), RenderFormat::R8G8B8A8_UNORM, width, height, 1, rowPitch / 4, 0));
 		});
@@ -5489,118 +5509,7 @@ static GuestTexture* CreateTexture_(uint32_t width, uint32_t height, uint32_t de
 	return CreateTexture(width, height, depth, levels, usage, format, type);
 }
 
-static bool LoadTexture(GuestTexture& texture, const uint8_t* data, size_t dataSize, RenderComponentMapping componentMapping, bool forceCubeMap = false)
-{
 
-	int width, height;
-	void* stbImage = stbi_load_from_memory(data, dataSize, &width, &height, nullptr, 4);
-
-	if (stbImage != nullptr)
-	{
-		texture.width = width;
-		texture.height = height;
-		texture.textureHolder = g_device->createTexture(RenderTextureDesc::Texture2D(width, height, 1, RenderFormat::R8G8B8A8_UNORM));
-		texture.texture = texture.textureHolder.get();
-		texture.textureGeneration = NextGuestTextureGeneration();
-		texture.viewDimension = RenderTextureViewDimension::TEXTURE_2D;
-		texture.layout = RenderTextureLayout::COPY_DEST;
-
-		texture.descriptorIndex = g_textureDescriptorAllocator.allocate();
-		g_textureDescriptorSet->setTexture(texture.descriptorIndex, texture.texture, RenderTextureLayout::SHADER_READ);
-
-		uint32_t rowPitch = (width * 4 + PITCH_ALIGNMENT - 1) & ~(PITCH_ALIGNMENT - 1);
-		uint32_t slicePitch = rowPitch * height;
-
-		auto uploadBuffer = g_device->createBuffer(RenderBufferDesc::UploadBuffer(slicePitch));
-		uint8_t* mappedMemory = reinterpret_cast<uint8_t*>(uploadBuffer->map());
-
-		if (rowPitch == (width * 4))
-		{
-			memcpy(mappedMemory, stbImage, slicePitch);
-		}
-		else
-		{
-			auto data = reinterpret_cast<const uint8_t*>(stbImage);
-
-			for (size_t i = 0; i < height; i++)
-			{
-				memcpy(mappedMemory, data, width * 4);
-				data += width * 4;
-				mappedMemory += rowPitch;
-			}
-		}
-
-		uploadBuffer->unmap();
-
-		stbi_image_free(stbImage);
-
-		ExecuteCopyCommandList([&]
-			{
-				g_copyCommandList->barriers(RenderBarrierStage::COPY, RenderTextureBarrier(texture.texture, RenderTextureLayout::COPY_DEST));
-
-				g_copyCommandList->copyTextureRegion(
-					RenderTextureCopyLocation::Subresource(texture.texture, 0),
-					RenderTextureCopyLocation::PlacedFootprint(uploadBuffer.get(), RenderFormat::R8G8B8A8_UNORM, width, height, 1, rowPitch / 4, 0));
-			});
-
-		return true;
-	}
-
-	return false;
-}
-
-
-std::unique_ptr<GuestTexture> LoadCustomTexture(const uint8_t* data, size_t dataSize, RenderComponentMapping componentMapping)
-{
-	GuestTexture texture(ResourceType::Texture);
-
-	if (LoadTexture(texture, data, dataSize, componentMapping))
-		return std::make_unique<GuestTexture>(std::move(texture));
-
-	return nullptr;
-}
-
-static bool DiffPatchControllerGUITexture(GuestTexture* texture, uint8_t* data, uint32_t dataSize, XXH64_hash_t hash)
-{
-	const bool isAuto = Config::ControllerIcons.Value == EControllerIcons::Auto;
-	bool isXbox = Config::ControllerIcons.Value == EControllerIcons::Xbox || isAuto && input::g_inputDeviceController == input::EInputDevice::Xbox;
-	bool isUnknown = isAuto && input::g_inputDeviceController == input::EInputDevice::Unknown;
-
-	if (isXbox || isUnknown)
-		return false;
-
-
-	const bool isGC = Config::ControllerIcons.Value == EControllerIcons::Gamecube;
-	auto ptr = g_buttonBcDiff_GC.get();
-	if (Config::ControllerIcons == EControllerIcons::PlayStation2 || isAuto && input::g_inputDeviceController == input::EInputDevice::PlayStation)
-	{
-		ptr = g_buttonBcDiff_PS2.get();
-	}
-
-	auto header = reinterpret_cast<BlockCompressionDiffPatchHeader*>(ptr);
-	auto entries = reinterpret_cast<BlockCompressionDiffEntry*>(ptr + header->entriesOffset);
-	auto end = entries + header->entryCount;
-
-	auto findResult = std::lower_bound(entries, end, hash, [](BlockCompressionDiffEntry& lhs, XXH64_hash_t rhs)
-		{
-			return lhs.hash < rhs;
-		});
-
-	if (findResult != end && findResult->hash == hash)
-	{
-		assert(findResult->dataSize <= dataSize);
-		memcpy(data, ptr + findResult->dataOffset, findResult->dataSize);
-
-		GuestTexture patchedTexture(ResourceType::Texture);
-		if (LoadTexture(patchedTexture, data, dataSize, {}))
-			texture->patchedTexture = std::make_unique<GuestTexture>(std::move(patchedTexture));
-
-		return true;
-	}
-
-	return false;
-
-}
 
 static RenderHeapType GetBufferHeapType()
 {
@@ -6075,7 +5984,7 @@ static void LockTextureRect(GuestTexture* texture, int32_t level, GuestLockedRec
 	lockedRect->bits = g_memory.MapVirtual(texture->mappedMemory);
 }
 
-static void UnlockTextureRect(GuestTexture* texture)
+void UnlockTextureRect(GuestTexture* texture)
 {
 	if (texture->isRenderTarget == true)
 	{
@@ -8124,6 +8033,7 @@ void* LockVertexBuffer(GuestBuffer* buffer, uint32_t flags2)
 }
 
 
+
 // Sends the CPU copy of a guest buffer to the GPU.
 // Callers: game thread (useCopyQueue = true) or render thread (false).
 //
@@ -8165,15 +8075,15 @@ static void UnlockBuffer(GuestBuffer* buffer, bool useCopyQueue)
 	{
 		// Oversize uploads and render-thread callers: one dedicated upload
 		// buffer for this copy.
-		auto uploadBuffer = g_device->createBuffer(RenderBufferDesc::UploadBuffer(buffer->dataSize));
+		auto uploadBuffer = PlumeCreateBufferWrapper(buffer->dataSize);
 		copyBuffer(uploadBuffer->map());
 		uploadBuffer->unmap();
 
 		if (useCopyQueue)
 		{
-			ExecuteCopyCommandList([&]
+			ExecuteCopyCommandList([&](RenderCommandList* commandList)
 				{
-					g_copyCommandList->copyBufferRegion(buffer->buffer->at(0), uploadBuffer->at(0), buffer->dataSize);
+					commandList->copyBufferRegion(buffer->buffer->at(0), uploadBuffer->at(0), buffer->dataSize);
 				});
 
 		}
@@ -8231,9 +8141,9 @@ static void ProcStagedCopyRange(RenderCommand* commands, size_t count)
 		for (size_t i = 0; i < count; i++)
 		{
 			auto& args = commands[i].stagedCopy;
-			ExecuteCopyCommandList([&]
+			ExecuteCopyCommandList([&](RenderCommandList* commandList)
 				{
-					g_copyCommandList->copyBufferRegion(args.dst->buffer->at(0), args.srcBuffer->at(args.srcOffset), args.size);
+					commandList->copyBufferRegion(args.dst->buffer->at(0), args.srcBuffer->at(args.srcOffset), args.size);
 				});
 		}
 		return;
@@ -8987,13 +8897,6 @@ void D3DDevice_SetVertexShaderConstantNotInlineFast(int32_t Register, DWORD* pCo
 }
 
 
-unsigned int GetPixelContainerMipMapLevels(X_D3DPixelContainer* pPixelContainer)
-{
-	if (pPixelContainer->Size == 0)
-		return (pPixelContainer->Format & X_D3DFORMAT_MIPMAP_MASK) >> X_D3DFORMAT_MIPMAP_SHIFT;
-
-	return 1;
-}
 
 void GetPixelContainerMeasures
 (
@@ -9027,277 +8930,6 @@ void GetPixelContainerMeasures
 		*pRowPitch *= 4;
 }
 
-//we need to copy the palette data so we can convert properly when copy texture in the GPU
-
-//rwD3D8RasterLockPalette
-X86_FUNC_IMPL(__imp__sub_2DF9F0);
-X86_FUNC(sub_2DF9F0)
-{
-	__imp__sub_2DF9F0(ctx, base);
-	if (ctx.eax.u32 == 1)
-	{
-		auto paletteData = X86_LOAD_U32(ctx.ecx.u32);
-		g_currentPaletteData = (uint32_t*)(base + paletteData);
-	}
-}
-extern bool foundTex;
-void CopyTextureToGPU(GuestTexture* tex)
-{
-	auto base = g_memory.base;
-	auto format = GetXboxPixelContainerFormat((X_D3DFORMAT)tex->guestResource.Format);
-	bool isSwizzled = FormatIsSwizzled(format);
-	bool bCompressed = XBFormatIsCompressed(format);
-	bool bCubemap = tex->guestResource.Format & X_D3DFORMAT_CUBEMAP;
-	bool bConvertARGB = XBFormatRequiresConversionToARGB(format); // convert to RGBA if needed
-
-	struct Slice
-	{
-		uint32_t width;
-		uint32_t height;
-		uint32_t depth;
-		uint32_t srcOffset; // offset in xbox memory (relative to VirtualAddr + header)
-		uint32_t dstOffset;  // offset in upload buffer
-		uint32_t srcRowPitch; // as stored on Xbox (bytes or block-row bytes)
-		uint32_t dstRowPitch; // aligned row pitch used in upload buffer
-		uint32_t rowCount;   // number of rows (or block rows for compressed)
-	};
-
-	std::vector<Slice> slices;
-	uint32_t curSrcOffset = 0;
-	uint32_t curDstOffset = 0;
-	uint32_t baseW = tex->width;
-	uint32_t baseH = tex->height;
-	uint32_t baseD = tex->depth == 0 ? 1 : tex->depth;
-
-	UINT dwMipMapLevels = GetPixelContainerMipMapLevels((X_D3DPixelContainer*)&tex->guestResource);
-	//UINT dwRowPitch, dwSlicePitch;
-	//GetPixelContainerMeasures((X_D3DPixelContainer*)&tex->legacyTex, dwMipMapLevels, &tex->width, &tex->height, &tex->depth, &dwRowPitch, &dwSlicePitch);
-
-	D3DCUBEMAP_FACES last_face = (bCubemap) ? D3DCUBEMAP_FACE_NEGATIVE_Z : D3DCUBEMAP_FACE_POSITIVE_X;
-
-	// Block size only applies to compressed DXT formats
-	// DXT1 block size is 8 bytes
-	// Other Xbox DXT formats are 16 bytes
-	DWORD blockSize = 0;
-
-	if (bCompressed)
-	{
-		blockSize = format == X_D3DFMT_DXT1 ? 8 : 16;
-	}
-
-	for (int32_t face = D3DCUBEMAP_FACE_POSITIVE_X; face <= last_face; face++)
-	{
-		for (uint32_t mipmap_level = 0; mipmap_level < dwMipMapLevels; mipmap_level++)
-		{
-			auto& slice = slices.emplace_back();
-
-			//ensures that we never go below 1 when computing sizes for each level.
-			slice.width = std::max(1u, baseW >> mipmap_level);
-			slice.height = std::max(1u, baseH >> mipmap_level);
-			slice.depth = std::max(1u, baseD >> mipmap_level);
-
-
-			// compute srcRowPitch (Xbox layout)
-			if (bCompressed)
-			{
-				// rowPitch in bytes for block columns (each block covers 4 pixels horizontally)
-				uint32_t blockCols = (slice.width + 3) / 4;
-				slice.srcRowPitch = blockCols * blockSize;
-				slice.rowCount = (slice.height + 3) / 4;
-			}
-			else
-			{
-				uint32_t bpp = XBFormatBitsPerPixel(format);
-				uint32_t srcBytesPerRow = (slice.width * bpp) / 8;
-				// Xbox often aligns rows to X_D3DTEXTURE_PITCH_ALIGNMENT (64) in "Size" path,
-				// here we put the tight row (will be copied into a dst aligned pitch later)
-				slice.srcRowPitch = srcBytesPerRow;
-				slice.rowCount = slice.height;
-			}
-
-			uint32_t mip2dSize = slice.srcRowPitch * slice.rowCount;
-			uint32_t mipSlicePitch = mip2dSize * slice.depth;
-
-			// src offset (Xbox memory layout packs mips/faces tightly) — use curSrcOffset
-			slice.srcOffset = curSrcOffset;
-
-			// destination: align each slice placement to PLACEMENT_ALIGN
-			uint32_t dstBpp = bConvertARGB ? 32 : XBFormatBitsPerPixel(format); // 32 bits if converting to ARGB
-			uint32_t rawDstRowPitch = (slice.width * dstBpp) / 8;
-
-			if (bCompressed)
-			{
-				uint32_t blockCols = (slice.width + 3) / 4;
-				rawDstRowPitch = blockCols * blockSize;
-			}
-
-			slice.dstRowPitch = (rawDstRowPitch + PITCH_ALIGNMENT - 1) & ~(PITCH_ALIGNMENT - 1);
-			slice.dstOffset = curDstOffset;
-
-			uint32_t alignedSliceSize = (slice.dstRowPitch * slice.rowCount * slice.depth + PLACEMENT_ALIGNMENT - 1) & ~(PLACEMENT_ALIGNMENT - 1);
-
-			curSrcOffset += mipSlicePitch;
-			curDstOffset += alignedSliceSize;
-		}
-	}
-
-	// allocate upload buffer with curDstOffset
-	auto uploadBuffer = g_device->createBuffer(RenderBufferDesc::UploadBuffer(curDstOffset));
-	uint8_t* mappedMemory = reinterpret_cast<uint8_t*>(uploadBuffer->map());
-
-	// For each slice: copy/unswizzle/convert into mapped + dstOffset
-
-	XXH64_hash_t hash;
-
-
-	for (auto& slice : slices)
-	{
-		unsigned long VirtualAddr = (unsigned long)GetDataFromXboxResource((X_D3DResource*)(&tex->guestResource));
-		uint8_t* srcData = reinterpret_cast<uint8_t*>(base + VirtualAddr + slice.srcOffset);
-		uint8_t* dstData = mappedMemory + slice.dstOffset;
-
-		// shadow tex don't have mipmap so it should be safe to do this here
-		hash = XXH3_64bits(srcData, slice.srcRowPitch * slice.rowCount * slice.depth);
-
-		if (DiffPatchControllerGUITexture(tex, mappedMemory, curDstOffset, hash))
-		{
-			break;
-		}
-
-		if (bConvertARGB)
-		{
-			ConvertD3DTextureToARGBBuffer(format, (uint8_t*)srcData, slice.width, slice.height, slice.srcRowPitch, slice.srcRowPitch * slice.rowCount,
-				dstData, slice.dstRowPitch, slice.dstRowPitch * slice.rowCount, slice.depth, (void*)g_currentPaletteData);
-		}
-		else if (isSwizzled)
-		{
-			uint32_t dstSlicePitch = slice.dstRowPitch * slice.rowCount * slice.depth;
-			uint32_t srcBpp = bCompressed ? (blockSize) : (XBFormatBitsPerPixel(format) / 8);
-
-			UnswizzleBox(
-				(PVOID)srcData, slice.width, slice.height, slice.depth,
-				srcBpp,
-				dstData, slice.dstRowPitch, dstSlicePitch);
-		}
-		else if (bCompressed)
-		{
-			memcpy(dstData, srcData, slice.srcRowPitch * slice.rowCount * slice.depth);
-		}
-		else
-		{
-			if (slice.srcRowPitch == slice.dstRowPitch)
-			{
-				memcpy(dstData, srcData, slice.srcRowPitch * slice.rowCount * slice.depth);
-			}
-			else
-			{
-				for (size_t i = 0; i < slice.rowCount * slice.depth; i++)
-				{
-					memcpy(dstData, srcData, slice.srcRowPitch);
-					srcData += slice.srcRowPitch;
-					dstData += slice.dstRowPitch;
-				}
-			}
-		}
-	}
-
-	//finish
-	uploadBuffer->unmap();
-
-	ExecuteCopyCommandList([&]
-		{
-			g_copyCommandList->barriers(RenderBarrierStage::COPY, RenderTextureBarrier(tex->texture, RenderTextureLayout::COPY_DEST));
-
-			auto copyTextureRegion = [&](Slice& slice, uint32_t subresourceIndex)
-				{
-					uint32_t mipIndex = subresourceIndex % dwMipMapLevels;
-					uint32_t arrayIndex = subresourceIndex / dwMipMapLevels;
-					// Plume wants the row width in pixels, a compressed block covers 4 of them.
-					uint32_t uploadRowPitchInTexels = slice.dstRowPitch / RenderFormatSize(tex->format) * RenderFormatBlockWidth(tex->format);
-
-					g_copyCommandList->copyTextureRegion(
-						RenderTextureCopyLocation::Subresource(tex->texture, mipIndex, arrayIndex),
-						RenderTextureCopyLocation::PlacedFootprint(uploadBuffer.get(), tex->format, slice.width, slice.height, slice.depth, uploadRowPitchInTexels, slice.dstOffset));
-				};
-
-			for (size_t i = 0; i < slices.size(); i++)
-				copyTextureRegion(slices[i], i);
-
-			// Duplicate the first face across the remaining 6 faces. (todo check if this is accurate)
-			if (bCubemap)
-			{
-				for (size_t i = 1; i < 6; i++)
-				{
-					for (size_t j = 0; j < slices.size(); j++)
-						copyTextureRegion(slices[j], (slices.size() * i) + j);
-				}
-			}
-		});
-}
-
-// rwD3D8NativeTextureRead
-X86_FUNC_IMPL(__imp__sub_2ED0D0);
-X86_FUNC(sub_2ED0D0)
-{
-	// call original function first
-	__imp__sub_2ED0D0(ctx, base);
-
-	if (ctx.eax.u32 == 1) //did the function return 1 aka was the texture created
-	{
-		auto textureAddr = X86_LOAD_U32(ctx.ecx.u32);
-		RwTexture* rwTex = (RwTexture*)(base + textureAddr);
-		auto rasterAddr = X86_LOAD_U32(rwTex->raster);
-		RwRaster* raster = (RwRaster*)(base + X86_LOAD_U32(rasterAddr));
-
-		//renderware doesn't store texture data in the actual raster, instead it stores it in the raster extension offset
-		auto RasterExtOffsetAddr = (uint32_t)(X86_LOAD_U32(rasterAddr) + X86_LOAD_U32(RwD3D8RasterExtOffsetAddr));
-		auto TexAddr = X86_LOAD_U32(RasterExtOffsetAddr);
-		GuestTexture* tex = (GuestTexture*)(base + TexAddr);
-
-		//when native texture are used, we have to compute them so the memory alignment can match what DX12 expect
-		//we also need to convert palette to regular format as DX12 does not support that directly
-		//finally we need to unswizzle texture so they can match what DX12 expect.
-		CopyTextureToGPU(tex);
-		foundTex = false;
-	}
-}
-
-
-GuestTexture* g_currentTextureRect = nullptr;
-// rwD3D8RasterUnlock
-X86_FUNC_IMPL(__imp__sub_2DF870);
-X86_FUNC(sub_2DF870)
-{
-	// Texture data aren't stored in the raster, instead they store the image in another raster using the extension offset to reach it
-	auto rasterAddr = X86_LOAD_U32(ctx.esp.u32 + 8); // get raster param addr 
-	auto RasterExtOffsetAddr = (uint32_t)(X86_LOAD_U32(rasterAddr) + X86_LOAD_U32(RwD3D8RasterExtOffsetAddr));
-	auto TexAddr = X86_LOAD_U32(RasterExtOffsetAddr);
-	g_currentTextureRect = (GuestTexture*)(base + TexAddr);
-	__imp__sub_2DF870(ctx, base);
-}
-
-// XGSwizzleRect - This is the final step where texture are ready for Xbox to use, we can upload safely here. (Used during FMV.)
-X86_FUNC_IMPL(__imp__sub_40B363);
-X86_FUNC(sub_40B363)
-{
-	auto textureData = GetHostParameter(4, CallConvention::Stdcall, ParameterType::Pointer);
-	auto bytesPerPixel = GetHostParameter(8, CallConvention::Stdcall, ParameterType::Integer);
-
-	__imp__sub_40B363(ctx, base);
-
-	if (g_currentTextureRect)
-	{
-		auto tex = g_currentTextureRect;
-
-		uint32_t size = tex->width * tex->height * bytesPerPixel;
-
-		if (size > tex->sizeOfTextureRect) // this should never pass, but just in case.
-			size = tex->sizeOfTextureRect;
-
-		memcpy(tex->mappedMemory, (void*)textureData, size);
-		UnlockTextureRect(g_currentTextureRect);
-	}
-}
 
 // CreateTexture
 X86_FUNC_IMPL(__imp__sub_2DFE20);

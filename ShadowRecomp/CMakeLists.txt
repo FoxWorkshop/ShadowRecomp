@@ -107,6 +107,7 @@ set(SHADOW_RECOMP_CPU_CXX_SOURCES
 set(SHADOW_RECOMP_GPU_CXX_SOURCES
     "gpu/video.cpp"
     "gpu/vertexbuffer.cpp"
+    "gpu/textures.cpp"
     "gpu/ubershaders/fixed_function_pixel_shader_variants.cpp"
     "gpu/ubershaders/fixed_function_vertex_shader_variants.cpp"
     "gpu/frame_pacing/frame_pacer.cpp"

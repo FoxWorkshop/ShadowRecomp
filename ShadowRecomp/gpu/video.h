@@ -10,6 +10,9 @@ typedef float RwReal;
 #define LOAD_ZSTD_TEXTURE(name) LoadCustomTexture(decompressZstd(name, name##_uncompressed_size).get(), name##_uncompressed_size)
 
 constexpr DWORD X_D3DTS_STAGECOUNT = 4; // Dxbx addition
+
+static constexpr uint32_t PITCH_ALIGNMENT = 0x100;
+static constexpr uint32_t PLACEMENT_ALIGNMENT = 0x200;
 extern uint32_t g_VertexShader_Handle;
 extern std::atomic<bool> g_pendingSurfaceResizeFlag;
 
@@ -1053,6 +1056,22 @@ enum DrawCallCaller
 	CompositeRT,
 
 };
+
+enum class PlumeBufferType : uint8_t
+{
+	Upload,
+	Index,
+
+};
+
+std::unique_ptr<RenderTexture> PlumeCreateTextureWrapper(const RenderTextureDesc& desc);
+std::unique_ptr<RenderBuffer> PlumeCreateBufferWrapper(const uint32_t size);
+void PlumeSetTextureWrapper(uint32_t descriptorIndex, const RenderTexture* texture, const RenderTextureLayout textureLayout, const RenderTextureView* textureView);
+uint32_t AllocateTextureDescriptor();
+void FreeTextureDescriptor(const uint32_t descriptorIndex);
+void UnlockTextureRect(GuestTexture* texture);
+void ExecuteCopyCommandList(const std::function<void(RenderCommandList*)>& function);
+
 // Xbox vertex shader constant modes
 #define X_D3DSCM_96CONSTANTS                  0x00 // Enables constants 0..95
 #define X_D3DSCM_192CONSTANTS                 0x01 // Enables constants -96..-1 on top of 0..95
@@ -1104,3 +1123,4 @@ void UnlockVertexBuffer(GuestBuffer* buffer);
 
 void AddDestructResource(GuestResource* ressource);
 void* GetDataFromXboxResource(X_D3DResource* pXboxResource);
+X_D3DFORMAT GetXboxPixelContainerFormat(const uint32_t XboxPixelContainer_Format);
