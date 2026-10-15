@@ -796,17 +796,20 @@ static void DrawOption
 			if constexpr (std::is_same_v<T, float>)
 			{
 				if (config == &Config::MasterVolume || config == &Config::MusicVolume || config == &Config::VoicesVolume ||
-					config == &Config::CutsceneVolume || config == &Config::EffectsVolume)
+					config == &Config::CutsceneVolume || config == &Config::EffectsVolume || config == &Config::ResolutionScale ||
+					config == &Config::Brightness || config == &Config::BloomIntensity)
 				{
 					if (PJSPeripheral::IsJustPressed(OptionsMenu::s_padIndex, PJSPeripheral::BTN_WHITE | PJSPeripheral::BTN_LEFT_TRIG))
 					{
 						Game_PlaySound("cursor");
 						config->Value = std::clamp(std::round((config->Value - 0.1f) * 100.0f) / 100.0f, valueMin, valueMax);
+						BloomConfigValueChangedCallback(config);
 					}
 					else if (PJSPeripheral::IsJustPressed(OptionsMenu::s_padIndex, PJSPeripheral::BTN_BLACK | PJSPeripheral::BTN_RIGHT_TRIG))
 					{
 						Game_PlaySound("cursor");
 						config->Value = std::clamp(std::round((config->Value + 0.1f) * 100.0f) / 100.0f, valueMin, valueMax);
+						BloomConfigValueChangedCallback(config);
 					}
 				}
 			}
