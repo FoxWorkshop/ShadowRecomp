@@ -53,9 +53,8 @@ static bool g_guestHasControl = false;
 static bool g_hasLayout = false;
 static ImVec2 g_textAnchor;
 static std::vector<ImVec2> g_buttonAnchors;
-const float sclFontSize = 25.f;
-
-
+const float sclFontSize = 22.f;
+static float g_textFitScale = 1.0f;
 
 class SDLEventListenerForMessageWindow : public SDLEventListener
 {
@@ -194,6 +193,12 @@ void DrawMessageInWindow(const char* text, ImVec2 center, ImVec2 size)
 		textY += Scale(lines.size() % 2 == 0 ? 1.5f : 8.0f);
 	}
 
+	auto fitWidth = 2.0f * (std::min(center.x - dl->GetClipRectMin().x, dl->GetClipRectMax().x - center.x) - textMarginX);
+	g_textFitScale = std::clamp(fitWidth / textSize.x, 0.5f, 1.0f);
+	fontSize *= g_textFitScale;
+	maxWidth *= g_textFitScale;
+	textSize = MeasureCentredParagraph(g_fntSeurat, fontSize, lineMargin, lines);
+
 	if (g_hasLayout)
 	{
 		// left align to match og advertise style
@@ -244,7 +249,7 @@ void DrawButton(int rowIndex, float yOffset, float width, float height, std::str
 	ImVec2 max = { min.x + width, min.y + height };
 
 	bool isSelected = rowIndex == g_selectedRowIndex;
-	auto fontSize = Scale(sclFontSize);
+	auto fontSize = Scale(sclFontSize) * g_textFitScale;
 	auto textSize = g_fntSeurat->CalcTextSizeA(fontSize, FLT_MAX, 0, text.c_str());
 
 	ImVec2 textPos = { min.x + ((max.x - min.x) - textSize.x) / 2, min.y + ((max.y - min.y) - textSize.y) / 2 };
