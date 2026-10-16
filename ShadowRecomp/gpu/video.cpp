@@ -911,6 +911,7 @@ static xxHashMap<std::unique_ptr<RenderPipeline>> g_pipelines;
 
 static ShaderCacheEntry* FindShaderCacheEntry(XXH64_hash_t hash);
 static std::unique_ptr<RenderPipeline> CreateGraphicsPipeline(const PipelineState& pipelineState);
+static void EnqueueAddPipeline(XXH64_hash_t hash, std::unique_ptr<RenderPipeline> pipeline);
 static void SanitizePipelineState(PipelineState& pipelineState);
 
 static constexpr uint32_t PIPELINE_CACHE_MAGIC = 0x31435053;
@@ -1187,6 +1188,22 @@ static void SavePipelineCache()
 	if (g_pipelineCacheEntries.empty())
 		return;
 
+	std::vector<PipelineCacheEntry> entries;
+	entries.reserve(g_pipelineCacheEntries.size());
+	for (auto& [hash, entry] : g_pipelineCacheEntries)
+	{
+		entries.push_back(entry);
+	}
+
+	size_t rawSize = entries.size() * sizeof(PipelineCacheEntry);
+	std::vector<uint8_t> compressed(ZSTD_compressBound(rawSize));
+	size_t compressedSize = ZSTD_compress(compressed.data(), compressed.size(), entries.data(), rawSize, ZSTD_CLEVEL_DEFAULT);
+	if (ZSTD_isError(compressedSize))
+	{
+		LOGFN("PipelineCache: ZSTD failed ({})", ZSTD_getErrorName(compressedSize));
+		return;
+	}
+
 	auto path = GetPipelineCachePath();
 	std::filesystem::create_directories(path.parent_path());
 	std::ofstream file(path, std::ios::binary);
@@ -1196,16 +1213,14 @@ static void SavePipelineCache()
 		return;
 	}
 
-	uint32_t entryCount = (uint32_t)g_pipelineCacheEntries.size();
+	uint32_t entryCount = (uint32_t)entries.size();
 
 	file.write(reinterpret_cast<const char*>(&PIPELINE_CACHE_MAGIC), sizeof(PIPELINE_CACHE_MAGIC));
 	file.write(reinterpret_cast<const char*>(&PIPELINE_CACHE_VERSION), sizeof(PIPELINE_CACHE_VERSION));
 	file.write(reinterpret_cast<const char*>(&entryCount), sizeof(entryCount));
+	file.write(reinterpret_cast<const char*>(compressed.data()), compressedSize);
 
-	for (auto& [hash, entry] : g_pipelineCacheEntries)
-		file.write(reinterpret_cast<const char*>(&entry), sizeof(PipelineCacheEntry));
-
-	LOGFN("PipelineCache: Saved {} entries to {}", entryCount, path.string());
+	LOGFN("PipelineCache: Saved {} entries", entryCount);
 }
 
 static void PrecompileUserPipelines()
@@ -1250,10 +1265,21 @@ static void PrecompileUserPipelines()
 		return;
 	}
 
-	if (entryCount == 0 || (fileSize - headerSize) / sizeof(PipelineCacheEntry) < entryCount)
+	std::vector<uint8_t> compressed(fileSize - headerSize);
+	file.read(reinterpret_cast<char*>(compressed.data()), compressed.size());
+
+	size_t rawSize = size_t(entryCount) * sizeof(PipelineCacheEntry);
+	if (entryCount == 0 || ZSTD_getFrameContentSize(compressed.data(), compressed.size()) != rawSize)
 	{
-		LOGFN("PipelineCache: File truncated (claims {} entries, {} available)", entryCount,
-			(fileSize - headerSize) / sizeof(PipelineCacheEntry));
+		LOGFN("PipelineCache: corrupt file ({} entries)", entryCount);
+		return;
+	}
+
+	std::vector<PipelineCacheEntry> entries(entryCount);
+	size_t decompressedSize = ZSTD_decompress(entries.data(), rawSize, compressed.data(), compressed.size());
+	if (ZSTD_isError(decompressedSize) || decompressedSize != rawSize)
+	{
+		LOGFN("PipelineCache: ZSTD failed ({})", ZSTD_isError(decompressedSize) ? ZSTD_getErrorName(decompressedSize) : "unknown error");
 		return;
 	}
 
@@ -1264,17 +1290,8 @@ static void PrecompileUserPipelines()
 	uint32_t skipped = 0;
 	uint32_t dropped = 0;
 
-	for (uint32_t i = 0; i < entryCount; i++)
+	for (auto& entry : entries)
 	{
-		PipelineCacheEntry entry;
-		file.read(reinterpret_cast<char*>(&entry), sizeof(PipelineCacheEntry));
-		if (file.gcount() != static_cast<std::streamsize>(sizeof(PipelineCacheEntry)))
-		{
-			LOGFN("PipelineCache: Short read at entry {} (got {}, expected {})", i,
-				file.gcount(), sizeof(PipelineCacheEntry));
-			break;
-		}
-
 		if (!IsPipelineCacheEntryInRange(entry))
 		{
 			dropped++;
@@ -1497,6 +1514,7 @@ static void CompilePendingPipelinesForShader(uint64_t runtimeHash, GuestShader* 
 		pending.size(), isVertexShader ? "VS" : "PS", runtimeHash);
 
 	uint32_t redeferred = 0;
+	ankerl::unordered_dense::set<XXH64_hash_t> queued;
 	for (auto& entry : pending)
 	{
 		GuestShader* vertexShader = nullptr;
@@ -1609,10 +1627,9 @@ static void CompilePendingPipelinesForShader(uint64_t runtimeHash, GuestShader* 
 		SanitizePipelineState(pipelineState);
 
 		XXH64_hash_t hash = ComputePipelineStateHash(pipelineState);
-		auto& pipeline = g_pipelines[hash];
-		if (pipeline == nullptr)
+		if (queued.insert(hash).second)
 		{
-			pipeline = CreateGraphicsPipeline(pipelineState);
+			EnqueueAddPipeline(hash, CreateGraphicsPipeline(pipelineState));
 		}
 	}
 
@@ -1931,6 +1948,7 @@ enum class RenderCommandType
 	SetVertexShaderConstants,
 	SetVertexShaderVariant,
 	SetPixelShaderConstants,
+	AddPipeline,
 	DrawPrimitive,
 	DrawIndexedPrimitive,
 	DrawPrimitiveUP,
@@ -2089,6 +2107,12 @@ struct RenderCommand
 			GuestShader* shader;
 			bool isFixed;
 		} setPixelShader;
+
+		struct
+		{
+			XXH64_hash_t hash;
+			RenderPipeline* pipeline;
+		} addPipeline;
 
 		struct
 		{
@@ -7500,6 +7524,28 @@ static std::unique_ptr<RenderPipeline> CreateGraphicsPipeline(const PipelineStat
 	return pipeline;
 }
 
+static void EnqueueAddPipeline(XXH64_hash_t hash, std::unique_ptr<RenderPipeline> pipeline)
+{
+	RenderCommand cmd;
+	cmd.type = RenderCommandType::AddPipeline;
+	cmd.addPipeline.hash = hash;
+	cmd.addPipeline.pipeline = pipeline.release();
+	g_renderQueue.enqueue(cmd);
+}
+
+static void ProcAddPipeline(const RenderCommand& cmd)
+{
+	auto& pipeline = g_pipelines[cmd.addPipeline.hash];
+	if (pipeline == nullptr)
+	{
+		pipeline.reset(cmd.addPipeline.pipeline);
+	}
+	else
+	{
+		delete cmd.addPipeline.pipeline;
+	}
+}
+
 static RenderPipeline* CreateGraphicsPipelineInRenderThread(PipelineState pipelineState)
 {
 	RtScopeTimer _psoScope(g_rtPsoWorkAccum);
@@ -9048,7 +9094,7 @@ PipelineCacheSDLEventListener g_pipelineCacheSDLEventListener;
 
 static void ProcessRenderCommand(const RenderCommand& cmd)
 {
-	if (cmd.type != RenderCommandType::DestructResource && !g_commandListOpen)
+	if (cmd.type != RenderCommandType::DestructResource && cmd.type != RenderCommandType::AddPipeline && !g_commandListOpen)
 	{
 		static bool loggedDeferral = false;
 		if (!loggedDeferral)
@@ -9087,6 +9133,7 @@ static void ProcessRenderCommand(const RenderCommand& cmd)
 	case RenderCommandType::SetStreamSourceUP: { g_stateChangeCount.fetch_add(1, std::memory_order_relaxed); RtScopeTimer _s(g_rtOtherCmdsAccum); ProcSetStreamSourceUP(cmd); } break;
 	case RenderCommandType::SetIndices: { g_stateChangeCount.fetch_add(1, std::memory_order_relaxed); RtScopeTimer _s(g_rtOtherCmdsAccum); ProcSetIndices(cmd); } break;
 	case RenderCommandType::SetPixelShader: { g_stateChangeCount.fetch_add(1, std::memory_order_relaxed); RtScopeTimer _s(g_rtOtherCmdsAccum); ProcSetPixelShader(cmd); } break;
+	case RenderCommandType::AddPipeline: { ProcAddPipeline(cmd); } break;
 	default:
 		assert(false && "Unrecognized render command type.");
 		break;
