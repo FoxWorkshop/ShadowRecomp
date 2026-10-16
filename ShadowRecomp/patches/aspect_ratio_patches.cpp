@@ -130,6 +130,7 @@ std::string SanitizeName(const char* str)
 	return result;
 }
 
+void UnhideSynopsisSkipPrompt(uint32_t cast, const std::string& path);
 void TraverseCast(CSDScene* scene, uint32_t castNodeIndex, CSDCastNode* castNode, uint32_t castIndex, const std::string& parentPath)
 {
 
@@ -153,8 +154,11 @@ void TraverseCast(CSDScene* scene, uint32_t castNodeIndex, CSDCastNode* castNode
 		}
 	}
 
+	CSDCast* pCast = castNode->pCasts[castIndex].get();
 	path = SanitizeName(path.c_str());
-	EmplacePath(castNode->pCasts[castIndex].get(), path);
+	EmplacePath(pCast, path);
+
+	UnhideSynopsisSkipPrompt(g_memory.MapVirtual(pCast), path);
 
 	if (castNode->RootCastIndex == castIndex)
 		EmplacePath(castNode, path);
@@ -1318,6 +1322,10 @@ const xxHashMap<CsdModifier> g_csdModifiers =
 	{ HashStr("csdFiles/honban.xncp/Title/title4"), { CSD_CENTER_UNSTRETCH | CSD_FORCE_UNSTRETCH } },
 	{ HashStr("csdFiles/honban.xncp/Title/title5"), { CSD_CENTER_UNSTRETCH | CSD_FORCE_UNSTRETCH } },
 	{ HashStr("csdFiles/honban.xncp/Title/title6"), { CSD_CENTER_UNSTRETCH | CSD_FORCE_UNSTRETCH } },
+
+	// Synopsis skip prompt (hidden in vanilla, see UnhideSynopsisSkipPrompt), it sits bottom right
+	{ HashStr("csdFiles/Synopsis.xncp/Button"), { CSD_UNSTRETCH | CSD_ALIGN_BOTTOM_RIGHT } },
+	{ HashStr("CSDFILES/SYNOPSIS.XNCP/Button"), { CSD_UNSTRETCH | CSD_ALIGN_BOTTOM_RIGHT } },
 
 	// Main Menu
 	{ HashStr("csdFiles/honban.xncp/Menu/logo"), { CSD_UNSTRETCH | CSD_ALIGN_CENTRE } },

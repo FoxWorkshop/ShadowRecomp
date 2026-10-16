@@ -662,3 +662,24 @@ X86_FUNC(sub_226370)
 	}
 	__imp__sub_226370(ctx, base);
 }
+
+// Originally on GameCube, the synopsis shows a skip button at the bottom right of the screen.
+// For some reason a flag to hide it was enabled on the Xbox version
+// We can disable the flag to restore it.
+void UnhideSynopsisSkipPrompt(uint32_t cast, const std::string& path)
+{
+	auto lower = path;
+	std::transform(lower.begin(), lower.end(), lower.begin(), [](unsigned char c) { return (char)std::tolower(c); });
+
+	// If more stuff get find out, a full array could be made, but good enough for now.
+	if (lower != "csdfiles/synopsis.xncp/button/skip_btn" && lower != "csdfiles/synopsis.xncp/button/skip_btn/skip_txt")
+		return;
+
+	auto base = g_memory.base;
+	auto castInfo = X86_LOAD_U32(cast + 0x30);
+
+	if (castInfo)
+	{
+		X86_STORE_U32(castInfo, 0x0); // disable hidden flag
+	}
+}
