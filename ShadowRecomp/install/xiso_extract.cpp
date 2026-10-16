@@ -45,6 +45,8 @@ namespace XisoExtract
         { 0x9c8f38553b205287ull, 0x3a005d5c8fb7a469ull }, // xiso (compression type 1)
         { 0x4ae5f651a1621674ull, 0xcecc1a9464da8d30ull }, // xiso (compression type 2)
         { 0xcab29d6db63896eaull, 0xe837382596ad70d4ull }, // redump
+        { 0x29393bb4e3e8981full, 0x7193fa76aacb44e2ull }, // multi
+        { 0x43ec52b706955d71ull, 0xd40c7050b0be986eull }, // europe
     };
 
     struct Entry
