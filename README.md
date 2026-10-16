@@ -50,13 +50,23 @@ This project does not plan to support any more platforms other than Windows and 
 ### Shadow Recompiled
 - [Sora](https://github.com/Sora-yx): Creator and Lead Developer of the recompilation, as well as the developer of technologies created for it such as [XboxRecomp](https://github.com/FoxWorkshop/XboxRecomp) and [XShaderRecomp](https://github.com/FoxWorkshop/XShaderRecomp).
 
-- [dreamsyntax](https://github.com/dreamsyntax): Second Developer, added linux and keyboard compatibility, provided multiplayer input and fixed various bugs. Also helped with Shadow knowledge and author of [Shadow Reloaded](https://github.com/ShadowTheHedgehogHacking/ShadowReloaded).
+- [dreamsyntax](https://github.com/dreamsyntax): Second Developer, source for Shadow knowledge, ensuring port accuracy, and identifying flaws with the Xbox port of the game.
 
 - [Sewer56](https://github.com/Sewer56): Third Developer, who joined relatively late, implemented better widescreen, significantly improved performance with shaders and added NixOS support for Linux.
+
+- [TheHatedGravity](https://github.com/TheHatedGravity): Installer design, UI polish + eagle eye for finding flaws in our visuals
 
 - [DonutStopGaming](https://github.com/DonutStopGaming): Help with understanding RenderWare and finding Shadow functions.
 
 - [Deep-Sea Berry](https://github.com/Deep-SeaBerry): Artist behind the project logo.
+
+### Tester Thanks
+- Rawlins
+- DarkShadow17
+- The Spectral Star
+- Jesus_PK
+- Pixel
+- Many others who helped briefly test
 
 ### Special Thanks
 
