@@ -64,6 +64,8 @@ static int g_optionIndex{};
 static int g_optionCount{};
 
 static bool g_livePreviewHudHidden{};
+static float g_optionPreviewFade{}; // 0 shows the background, 1 hides it
+static constexpr float g_options_preview_fade_frames = 24.0f;
 
 // customize input sub menu
 enum class ERemapSection
@@ -112,6 +114,23 @@ static void BeginPauseHudHide()
 		ToggleHud(false);
 		g_livePreviewHudHidden = true;
 	}
+}
+
+// small transition for options that hide the background
+static void UpdateLivePreviewFade()
+{
+	auto step = ImGui::GetIO().DeltaTime * 60.0f / g_options_preview_fade_frames;
+
+	if (IsLivePreviewActive())
+		g_optionPreviewFade = std::min(g_optionPreviewFade + step, 1.0f);
+	else
+		g_optionPreviewFade = std::max(g_optionPreviewFade - step, 0.0f);
+}
+
+static float GetOptionPreviewFade()
+{
+	auto t = g_optionPreviewFade;
+	return t * t * (3.0f - 2.0f * t);
 }
 
 static void EndPauseHudHide()
@@ -368,15 +387,23 @@ void DrawDescription(std::string s)
 
 	textPos.x -= offsetScroll;
 
+	// The black bar vanishes during option preview,
+	// so add an outline to keep the text readable.
+	auto outlineAlpha = (int)(255 * GetOptionPreviewFade());
 
-	drawList->AddText(g_fntSeurat, fontSize, textPos, IM_COL32(255, 255, 255, 255), s.c_str());
-
-	if (isScrolling)
+	auto drawText = [&](ImVec2 pos)
 	{
-		// Draw the looping copy trailing behind
-		ImVec2 loopPos = { textPos.x + totalWidth, textPos.y };
-		drawList->AddText(g_fntSeurat, fontSize, loopPos, IM_COL32(255, 255, 255, 255), s.c_str());
-	}
+		if (outlineAlpha > 0)
+			DrawTextWithOutline(g_fntSeurat, fontSize, pos, IM_COL32(255, 255, 255, 255), s.c_str(), 2.f, IM_COL32(0, 0, 0, outlineAlpha));
+		else
+			drawList->AddText(g_fntSeurat, fontSize, pos, IM_COL32(255, 255, 255, 255), s.c_str());
+	};
+
+	drawText(textPos);
+
+	// Draw the looping copy trailing behind
+	if (isScrolling)
+		drawText({ textPos.x + totalWidth, textPos.y });
 
 	drawList->PopClipRect();
 }
@@ -2218,10 +2245,12 @@ static float GetTitleAlphaValue()
 
 void DrawBackground(bool isPause = false)
 {
-	if (IsLivePreviewActive())
-	{
+	UpdateLivePreviewFade();
+
+	auto shown = 1.0f - GetOptionPreviewFade();
+
+	if (shown <= 0.0f)
 		return;
-	}
 
 	auto& res = ImGui::GetIO().DisplaySize;
 	auto drawList = ImGui::GetBackgroundDrawList();
@@ -2236,6 +2265,16 @@ void DrawBackground(bool isPause = false)
 
 	if (isPause && (OptionsMenu::s_state == OptionsMenuState::Intro || OptionsMenu::s_state == OptionsMenuState::Outro))
 		zoom = ComputePauseZoom(g_transitionTime, OptionsMenu::s_state == OptionsMenuState::Outro);
+
+
+	if (shown < 1.0f)
+	{
+		auto scale = Lerp(g_pause_zoom_start_scale, 1.0f, shown);
+		ImVec2 centre = { res.x / 2.0f, res.y / 2.0f };
+		zoom.Min = { centre.x - centre.x * scale, centre.y - centre.y * scale };
+		zoom.Max = { centre.x + centre.x * scale, centre.y + centre.y * scale };
+		zoom.Alpha *= shown;
+	}
 
 	drawList->AddImage
 	(
@@ -2254,7 +2293,7 @@ void DrawBackground(bool isPause = false)
 	drawList->PopClipRect();
 
 	// draw Options Logo
-	auto logoAlpha = (int)GetTitleAlphaValue();
+	auto logoAlpha = (int)(GetTitleAlphaValue() * shown);
 
 	// recreate the blink effect from legacy options
 	if (logoAlpha > 0)
@@ -2836,6 +2875,7 @@ void OptionsMenu::Open(bool isPause, uint32_t padIndex)
 	g_stateTime = ImGui::GetTime();
 	g_transitionTime = g_stateTime;
 	g_loopSceneTime = g_stateTime;
+	g_optionPreviewFade = 0.0f;
 	g_isControlsVisible = false;
 
 	s_isVisible = true;
