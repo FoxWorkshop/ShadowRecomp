@@ -17,14 +17,78 @@ The development of that recompiler was directly inspired by [XenonRecomp](https:
 
 ## Table of Contents
 
+- [Minimum System Requirements](#minimum-system-requirements)
+- [Features](#features)
 - [Known Issues](#known-issues)
 - [FAQ](#faq)
 - [Building](#building)
 - [Credits](#credits)
 
+
+## Minimum System Requirements
+
+- CPU with support for the AVX instruction set:
+    - Intel: Sandy Bridge (Intel Core 2nd Generation)
+    - AMD: Bulldozer (AMD FX series)
+- GPU with support for Direct3D 12.0 (Shader Model 6) or Vulkan 1.2:
+    - NVIDIA: GeForce GT 630 (Kepler)
+    - AMD: Radeon HD 7750 (2012, not the RX 7000)
+    - Intel: HD Graphics 510 (Skylake)
+- Memory:
+    - 8 GB minimum
+- Operating System:
+    - Windows 10 (version 1909)
+    - A modern Linux distro such as Ubuntu 22.04 LTS
+- Storage:
+    - 4.5 GiB required
+
+
+## Features
+
+### Easy to Use Installer
+
+A built-in installer will guide you through the game installation process, performing many integrity checks to ensure the process goes as smoothly as possible.
+
+### Options Menu
+
+A new options menu for PC has been added, replacing the game's original settings. 
+Get access to many quality of life features and graphics options directly in-game with navigation that is fully compatible with a controller.
+
+### Widescreen and Ultrawide Support
+
+Aspect ratios for 16:9 and 16:10, as well as ultrawide displays (such as 21:9 or even wider) are supported with options to adjust the alignment of the UI to a very specific area, if desired.
+
+### High Frame Rate Support
+
+Support for high frame rate has been added as an available option. Many glitches that normally occur at higher frame rates have been fixed and are included as part of the recompilation.
+Cutscenes have also an option to play at unlocked frame rate.
+
+### Enhancements
+
+Extra care and attention was taken to make the experience the best as possible:
+- The Bloom has been overhauled to fixes many issues such as not covering the whole screen, visual bottom artifacts and extra dark band / box visibe on the screen.
+- Edge Artifacts that is present on the left edge on every version of the game has been completely fixed.
+- Shadow's shoes have been patched to restore the use of 4 Jet Effects instead of 3.
+- Cutscenes can always be skipped even if you never watched them before.
+- Animated Textures which normally have a chance to not work have been fixed.
+- Many audio issues exclusive to the Xbox port have been fixed (distance, loop etc.).
+- Player 2 can now properly control the Partner on the screen like on the others versions of the game.
+- Some issues with gravity such as landing or spin dashing have been fixed.
+- Various minor graphics glitches like transparency issues, white flash, or incorrect rotation on model have been fixed.
+
+### Achievements
+
+Achievements have been implemented to the game, they can be checked from the pause menu; a full new menu has been added.
+
+You will be rewarded with achievements as you progress through the game. 
+
+> [!NOTE]
+Achievements cannot be used with platforms such as Steam or RetroAchievements.
+
 ## Known Issues
 
 Before reporting any issues, check if they are listed [here](https://github.com/FoxWorkshop/ShadowRecomp/issues).
+
 
 ## FAQ
 
