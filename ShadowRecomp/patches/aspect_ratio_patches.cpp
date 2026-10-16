@@ -32,7 +32,6 @@ static XXH64_hash_t HashStr(const std::string_view& value)
 	return XXH3_64bits(value.data(), value.size());
 }
 
-
 static float ComputeScale(float aspectRatio)
 {
 	return ((aspectRatio * heightMin) / widthMin) / sqrt((aspectRatio * heightMin) / widthMin);
@@ -85,7 +84,6 @@ void AspectRatioPatches::ComputeOffsets()
 	UpdateFontSize();
 }
 
-
 std::string NormalizeCSDPath(std::string& path)
 {
 	std::replace(path.begin(), path.end(), '\\', '/');
@@ -97,7 +95,6 @@ std::string NormalizeCSDPath(std::string& path)
 
 	return path;
 }
-
 
 static void EmplacePath(const void* key, const std::string_view& value)
 {
@@ -111,7 +108,6 @@ static void EmplacePath(const void* key, const std::string_view& value)
 
 		//printf("Emplace key %x, %s\n", key, value.data());
 	}
-
 }
 
 // Some csd have node name using Shift-JIS encoded Japanese characters being misinterpreted as Latin-1/UTF-8. 
@@ -231,20 +227,7 @@ X86_FUNC(sub_2B47C0)
 	if (!thisPtr || !path)
 		return;
 
-	static const char* s_languages[6] =
-	{
-		"_JP",
-		"_EN",
-		"_GE",
-		"_FR",
-		"_SP",
-		"_IT"
-	};
-
 	std::string str = path;
-
-	auto pSuffix = s_languages[(int)Config::Language.Value];
-
 	RegisterCsdFile(base, thisPtr, path);
 }
 
@@ -444,8 +427,6 @@ void RenderCsdCastMidAsmHook(X86Register& rEsi)
 {
 	g_castModifier = FindCsdModifier(rEsi.u32);
 }
-
-
 
 int FindHudWidthPreset(float aspectRatio)
 {
@@ -1087,7 +1068,6 @@ struct QuadStretchCalibration
 	float calibrationY = 1.0f; // aspect independent
 };
 
-
 thread_local QuadStretchCalibration* g_currentQuadCallib = nullptr;
 
 const xxHashMap<QuadStretchCalibration> g_pictureDff =
@@ -1260,40 +1240,7 @@ X86_FUNC(sub_1FE00)
 	}
 }
 
-const uint32_t GuestDevicePtrAddr = 0x3E0A18;
-//GetViewportOffsetAndScale
-X86_FUNC_IMPL(__imp__sub_3D24B0);
-X86_FUNC(sub_3D24B0)
-{
-	float* offsetOut = (float*)GetHostParameter(1, CallConvention::Stdcall, ParameterType::Pointer);
-	float* scaleOut = (float*)GetHostParameter(2, CallConvention::Stdcall, ParameterType::Pointer);
 
-	__imp__sub_3D24B0(ctx, base);
-	auto device = X86_LOAD_U32(GuestDevicePtrAddr);
-	device = device;
-
-	if (readyToDebugConstant)
-	{
-
-		auto padding610 = X86_LOAD_F32(device + 0x94C + 0x10);
-		auto padding614 = X86_LOAD_F32(device + 0x94C + 0x14);
-
-		auto padding636 = X86_LOAD_F32(device + 0x970);
-		auto padding68 = X86_LOAD_U32(device + 0x954);
-
-		auto padding616 = X86_LOAD_F32(device + 0x95C);
-		auto padding7 = X86_LOAD_F32(device + 0xEF8);
-		auto padding74 = X86_LOAD_F32(device + 0xEFC);
-		//printf("&D3D_g_pDevice->padding6[16] %f D3D_g_pDevice->padding7 %f D3D_g_pDevice->padding7[4] %f\n", padding616, padding7, padding74);
-
-
-
-		//printf("\n");
-
-		readyToDebugConstant = false;
-
-	}
-}
 
 // -------------- CSD MODIFIERS --------------- //
 
@@ -1323,9 +1270,7 @@ const xxHashMap<CsdModifier> g_csdModifiers =
 	{ HashStr("csdFiles/honban.xncp/Title/title5"), { CSD_CENTER_UNSTRETCH | CSD_FORCE_UNSTRETCH } },
 	{ HashStr("csdFiles/honban.xncp/Title/title6"), { CSD_CENTER_UNSTRETCH | CSD_FORCE_UNSTRETCH } },
 
-	// Synopsis skip prompt (hidden in vanilla, see UnhideSynopsisSkipPrompt), it sits bottom right
 	{ HashStr("csdFiles/Synopsis.xncp/Button"), { CSD_UNSTRETCH | CSD_ALIGN_BOTTOM_RIGHT } },
-	{ HashStr("CSDFILES/SYNOPSIS.XNCP/Button"), { CSD_UNSTRETCH | CSD_ALIGN_BOTTOM_RIGHT } },
 
 	// Main Menu
 	{ HashStr("csdFiles/honban.xncp/Menu/logo"), { CSD_UNSTRETCH | CSD_ALIGN_CENTRE } },
@@ -1365,14 +1310,14 @@ const xxHashMap<CsdModifier> g_csdModifiers =
 	{ HashStr("csdFiles/SelectMode.xncp/IconsBG"), { CSD_CENTER_UNSTRETCH } },
 	{ HashStr("csdFiles/SelectMode.xncp/Star"), { CSD_CENTER_UNSTRETCH } },
 
-	
+
 	// stage card
 	{ HashStr("csdFiles/stageTitle/StageTitle.xncp/StageTitle"), { CSD_UNSTRETCH | CSD_ALIGN_CENTRE } },
 
 
 	//Battle mode (2p menu)
 	{ HashStr("csdFiles/BattleMode.xncp/Kazari"), { CSD_UNSTRETCH | CSD_ALIGN_LEFT | CSD_IGNORE_MAX_WIDTH } }, // Battle mode in the corner
-	{ HashStr("csdFiles/BattleMode.xncp/Kazari/Null_box/box_chara"), { CSD_UNSTRETCH | CSD_ALIGN_CENTRE } }, 
+	{ HashStr("csdFiles/BattleMode.xncp/Kazari/Null_box/box_chara"), { CSD_UNSTRETCH | CSD_ALIGN_CENTRE } },
 
 	{ HashStr("csdFiles/BattleMode.xncp/Kazari/Null_box/box_chara/box1"), { CSD_UNSTRETCH | CSD_ALIGN_CENTRE } },
 	{ HashStr("csdFiles/BattleMode.xncp/Kazari/Null_box/box_chara/box2"), { CSD_UNSTRETCH | CSD_ALIGN_CENTRE } },
@@ -1669,14 +1614,6 @@ std::optional<CsdModifier> FindCsdModifier(uint32_t data)
 	return {};
 }
 
-// remove the infamous half-pixel offset issue 
-// see https://microsoft.github.io/DirectX-Specs/d3d/archive/D3D11_3_FunctionalSpec.htm#3.3.1%20Pixel%20Coordinate%20System
-void D3DDevice_SetScreenSpaceOffset(float a1, float a2)
-{
-	;
-}
-
-GUEST_FUNCTION_HOOK_STDCALL(sub_3D1320, D3DDevice_SetScreenSpaceOffset);
 
 /*** START Render at any Aspect Ratio ***/
 // Based on the Sonic Heroes PC widescreen patch (thanks Sewer56 for Heroes.Graphics.Essentials)
@@ -1885,7 +1822,6 @@ X86_FUNC(sub_2ECC80)
 // However the widescreen projection stretch the scene which doesn't work at high res
 // we can patch the world matrix's active axis with the relative aspect ratio to unstretch the text.
 
-
 static constexpr uint32_t rt2dDeviceMatrix = 0x582510; // RwMatrix
 static constexpr uint32_t rwMatrixRightX = 0x00;
 static constexpr uint32_t rwMatrixUpY = 0x14;
@@ -1985,7 +1921,6 @@ X86_FUNC(sub_304E70)
 }
 
 // RwIm3DTransform(verts, count, ltm, flags) which is basically SetTransform on the RenderWare Layer.
-
 X86_FUNC_IMPL(__imp__sub_2E1890);
 X86_FUNC(sub_2E1890)
 {
@@ -1995,3 +1930,13 @@ X86_FUNC(sub_2E1890)
 	__imp__sub_2E1890(ctx, base);
 }
 /*** END Render at any Aspect Ratio ***/
+
+
+// remove the infamous half-pixel offset issue 
+// see https://microsoft.github.io/DirectX-Specs/d3d/archive/D3D11_3_FunctionalSpec.htm#3.3.1%20Pixel%20Coordinate%20System
+void D3DDevice_SetScreenSpaceOffset(float a1, float a2)
+{
+	;
+}
+
+GUEST_FUNCTION_HOOK_STDCALL(sub_3D1320, D3DDevice_SetScreenSpaceOffset);
