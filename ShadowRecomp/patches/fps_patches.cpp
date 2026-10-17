@@ -1414,6 +1414,17 @@ X86_FUNC(sub_291B70)
 
 /**	--Library Cursor patch END-- */
 
+// CharaColliMove
+// catapult, footing (platform) and any other moving surface uses this
+// fixes Catapult (aka Prison Island launchers)
+static bool g_footingCarry = false;
+X86_FUNC_IMPL(__imp__sub_80BA0);
+X86_FUNC(sub_80BA0)
+{
+	g_footingCarry = true;
+	__imp__sub_80BA0(ctx, base);
+	g_footingCarry = false;
+}
 
 /** --Jump Board Patch START-- */
 
@@ -1457,19 +1468,16 @@ static LaunchGrace* FindLaunchGrace(uint32_t player)
 // This is one of the function used to detect collision 
 // We can trick the game that no collision were found for the first 1/60 of a second so we can progress
 // Then we run the original code once to store the intended destination
-// Hacky, but this is good enough for now. (Used for both Jump Board and Dark Spin).
+// Hacky, but this is good enough for now. (Used for both Jump Board, Dark Spin, and Catapult / technically any CharaColliMove invoker).
 
 X86_FUNC_IMPL(__imp__sub_84E50);
 X86_FUNC(sub_84E50)
 {
 	const uint32_t playerData = X86_LOAD_U32(ctx.esp.u32 + 4);
-
 	if (playerData != NULL)
 	{
 		const uint32_t player = X86_LOAD_U32(playerData);
 		LaunchGrace* grace = FindLaunchGrace(player);
-
-
 		if (grace != nullptr && grace->selfTimed)
 		{
 			const float deltatime = X86_LOAD_F32(X86_LOAD_U32(player + 0x60));
@@ -1482,7 +1490,6 @@ X86_FUNC(sub_84E50)
 				grace = nullptr;
 			}
 		}
-
 
 		if (grace != nullptr)
 		{
@@ -1497,6 +1504,13 @@ X86_FUNC(sub_84E50)
 
 			if (grace->elapsed < g_launchGracePeriod - 1.0e-6f)
 			{
+				// 0xD0-0xD8 holds CharaColliMove force
+				if (g_footingCarry)
+				{
+					grace->sweepOrigin[0] += X86_LOAD_F32(player + 0x4) - X86_LOAD_F32(player + 0xD0);
+					grace->sweepOrigin[1] += X86_LOAD_F32(player + 0x8) - X86_LOAD_F32(player + 0xD4);
+					grace->sweepOrigin[2] += X86_LOAD_F32(player + 0xC) - X86_LOAD_F32(player + 0xD8);
+				}
 				grace->skipped++;
 				ctx.eax.u32 = 0;
 				ctx.AddEsp(1);
