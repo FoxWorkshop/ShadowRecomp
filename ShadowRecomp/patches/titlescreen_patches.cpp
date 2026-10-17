@@ -14,6 +14,11 @@ bool g_quitMessageOpen = false;
 static int g_quitMessageResult = -1;
 static float g_timerAllowedToQuit = 0.f;
 
+// The B button is locked for a bit when we reach the title screen
+// to avoid accidentally open the quit prompt by mashing.
+constexpr float QUIT_FIRST_DELAY = 4.f;
+constexpr float QUIT_REOPEN_DELAY = 0.25f; // reduce the delay after a first cancel.
+
 static bool g_updateAvailableMessageShown = false;
 static bool g_updateAvailableMessageOpen = false;
 static int g_updateAvailableMessageResult = -1;
@@ -28,7 +33,7 @@ static bool ProcessQuitMessage()
 
 	if (MessageWindow::Open(Localise("Title_Message_Quit"), &g_quitMessageResult, options, 0) == MSG_CLOSED)
 	{
-		g_timerAllowedToQuit = 0;
+		g_timerAllowedToQuit = QUIT_FIRST_DELAY - QUIT_REOPEN_DELAY;
 		if (!g_quitMessageResult) // if user asked to quit, fade out and quit the game
 		{
 			Fader::FadeOut(1, []() { App::Exit(); });
@@ -81,9 +86,11 @@ X86_FUNC(sub_292CF0)
 {
 	auto menu = ctx.ecx.u32;
 
-	g_timerAllowedToQuit += App::s_deltaTime;
+	// ensure the msg box has finished closing
+	if (!MessageWindow::s_isVisible)
+		g_timerAllowedToQuit += App::s_deltaTime;
 
-	if (g_timerAllowedToQuit >= 4.f)
+	if (g_timerAllowedToQuit >= QUIT_FIRST_DELAY)
 	{
 		if (PJSPeripheral::IsJustPressed(0, PJSPeripheral::BTN_B) && !g_faderBegun && !g_updateAvailableMessageOpen)
 		{

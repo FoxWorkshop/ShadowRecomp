@@ -50,6 +50,10 @@ static bool g_rightWasHeld;
 static bool g_hideFrame = false;
 static bool g_guestHasControl = false;
 
+// 0x44A80C seems to be the box anim duration (3.33) so we can re use that value here
+constexpr float MSG_OPEN_SPEED = 10.0f / 3.0f;
+static float g_openProgress = 0.0f;
+
 static bool g_hasLayout = false;
 static ImVec2 g_textAnchor;
 static std::vector<ImVec2> g_buttonAnchors;
@@ -362,6 +366,7 @@ bool MessageWindow::Open(std::string text, int* result, std::span<std::string> b
 		g_hasLayout = false;
 		g_hideFrame = hideFrame;
 		g_guestHasControl = guestHasControl;
+		g_openProgress = hideFrame ? 1.0f : 0.0f;
 		g_isAwaitingResult = true;
 	}
 
@@ -383,7 +388,16 @@ void MessageWindow::Draw()
 	if (!s_isVisible)
 		return;
 
-	if (g_isClosing && (ImGui::GetTime() - g_time) > (1.0 / 60.0) * 15.f)
+	// recreate the message box opening and closing anim 
+	if (!g_hideFrame)
+	{
+		auto step = ImGui::GetIO().DeltaTime * MSG_OPEN_SPEED;
+		g_openProgress = g_isClosing ? std::max(g_openProgress - step, 0.0f) : std::min(g_openProgress + step, 1.0f);
+	}
+
+	bool isClosed = g_hideFrame ? (ImGui::GetTime() - g_time) > (1.0 / 60.0) * 15.f : g_openProgress <= 0.0f;
+
+	if (g_isClosing && isClosed)
 	{
 		g_isAwaitingResult = false;
 		g_isClosing = false;
@@ -434,7 +448,16 @@ void MessageWindow::Draw()
 	ImVec2 centre = { res.x / 2, res.y / 2 };
 	ImVec2 max = { res.x * 0.9f, res.y * 0.7f };
 
-	DrawGameStyleMessageBox(centre, max);
+	DrawGameStyleMessageBox(centre, { max.x * g_openProgress, max.y });
+
+	// show text once anim is complete
+	if (g_openProgress < 1.0f)
+	{
+		drawList->PopClipRect();
+		g_isAccepted = false;
+		g_isDeclined = false;
+		return;
+	}
 
 	centre = { res.x / 2, res.y / 2 * 0.8f };
 
@@ -492,7 +515,7 @@ void MessageWindow::Draw()
 		g_leftWasHeld = leftIsHeld;
 		g_rightWasHeld = rightIsHeld;
 
-		if (g_isDeclined)
+		if (g_isDeclined && !g_isClosing)
 		{
 			g_selectedRowIndex = g_cancelButtonIndex;
 			g_result = g_cancelButtonIndex;
