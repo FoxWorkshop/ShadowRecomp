@@ -4,7 +4,7 @@
 #include <user/config.h>
 #include <sdl_events.h>
 
-#define DEFAULT_WIDTH 640 //todo update
+#define DEFAULT_WIDTH 640 
 #define DEFAULT_HEIGHT 480
 #define MIN_WIDTH 640
 #define MIN_HEIGHT 480
@@ -24,6 +24,7 @@ public:
     static inline int s_Icon;
     static inline bool s_isFullscreenCursorVisible;
     static inline bool s_isChangingDisplay;
+    static inline bool s_isAllScreensOption;
 
     static SDL_Surface* GetIconSurface(void* pIconBmp, size_t iconSize);
     static void SetIcon(void* pIconBmp, size_t iconSize);
@@ -45,6 +46,9 @@ public:
     static int GetDisplayCount();
     static int GetDisplay();
     static void SetDisplay(int displayIndex);
+    static bool CanSpanDisplays();
+    static bool IsAllDisplays(int displayIndex);
+    static SDL_Rect GetAllDisplaysBounds();
     static std::vector<SDL_DisplayMode> GetDisplayModes(bool ignoreInvalidModes = true, bool ignoreRefreshRates = true);
     static int FindNearestDisplayMode();
     static bool IsPositionValid();

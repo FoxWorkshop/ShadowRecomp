@@ -171,25 +171,14 @@ std::unordered_map<std::string_view, std::unordered_map<ELanguage, std::string>>
         }
     },
     {
-        "Options_Name_LegacyMenu",
+        "Options_Value_AllScreens",
         {
-            { ELanguage::English,  "Legacy Options" },
-            { ELanguage::Japanese, "レガシーオプション" },
-            { ELanguage::German,   "Legacy-Optionen" },
-            { ELanguage::French,   "Options Héritées" },
-            { ELanguage::Spanish,  "Opciones Heredadas" },
-            { ELanguage::Italian,  "Opzioni	Legacy" }
-        }
-    },
-    {
-        "Options_Desc_LegacyMenu",
-        {
-            { ELanguage::English,  "Go to Legacy Options" },
-            { ELanguage::Japanese, "レガシーオプションに移動" },
-            { ELanguage::German,   "Legacy-Optionen aufrufen" },
-            { ELanguage::French,   "Aller aux options Héritées" },
-            { ELanguage::Spanish,  "Ir a las opciones Heredadas" },
-            { ELanguage::Italian,  "Vai alle opzioni Legacy" }
+            { ELanguage::English,  "ALL SCREENS" },
+            { ELanguage::Japanese, "ALL SCREENS" },
+            { ELanguage::German,   "ALL SCREENS" },
+            { ELanguage::French,   "TOUS LES ÉCRANS" },
+            { ELanguage::Spanish,  "ALL SCREENS" },
+            { ELanguage::Italian,  "ALL SCREENS" },
         }
     },
     {

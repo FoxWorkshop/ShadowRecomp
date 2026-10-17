@@ -56,27 +56,27 @@ void GameWindow::DrainImGuiEvents()
     {
         std::lock_guard<std::mutex> lock(s_imguiEventMutex);
         eventsToProcess.swap(s_imguiEvents);
-	}
+    }
 
     if (ImGui::GetCurrentContext() == nullptr || ImGui::GetIO().BackendPlatformUserData == nullptr)
-		return;
+        return;
 
     for (auto& event : eventsToProcess)
     {
-		ImGui_ImplSDL2_ProcessEvent(&event);
+        ImGui_ImplSDL2_ProcessEvent(&event);
     }
 }
 
 int Window_OnSDLEvent(void*, SDL_Event* event)
 {
-	// Queue ImGui backend events
+    // Queue ImGui backend events
     if (IsImGuiBackendEvent(*event))
     {
         std::lock_guard<std::mutex> lock(s_imguiEventMutex);
 
         if (s_imguiEvents.size() < IMGUI_EVENT_QUEUE_LIMIT)
             s_imguiEvents.push_back(*event);
-	}
+    }
 
     if (ImGui::GetIO().BackendPlatformUserData != nullptr)
         ImGui_ImplSDL2_ProcessEvent(event);
@@ -113,7 +113,10 @@ int Window_OnSDLEvent(void*, SDL_Event* event)
 
             if (Config::Fullscreen)
             {
-                Config::Monitor = GameWindow::GetDisplay();
+                if (GameWindow::IsAllDisplays(Config::Monitor))
+                    GameWindow::SetDisplay(Config::Monitor);
+                else
+                    Config::Monitor = GameWindow::GetDisplay();
             }
             else
             {
@@ -205,7 +208,7 @@ int Window_OnSDLEvent(void*, SDL_Event* event)
 
         break;
     }
-  
+
     }
 
     return 0;
@@ -335,7 +338,7 @@ void GameWindow::SetIcon(ELedAura mode)
         //SetIcon(g_game_icon_hero, sizeof(g_game_icon_hero));
         break;
     case LED_AURA_VILLAIN:
-       // SetIcon(g_game_icon_vilain, sizeof(g_game_icon_vilain));
+        // SetIcon(g_game_icon_vilain, sizeof(g_game_icon_vilain));
         break;
     }
 }
@@ -377,11 +380,19 @@ void GameWindow::SetTitleBarColour()
 
 bool GameWindow::IsFullscreen()
 {
-    return SDL_GetWindowFlags(s_pWindow) & SDL_WINDOW_FULLSCREEN_DESKTOP;
+    return s_isAllScreensOption || (SDL_GetWindowFlags(s_pWindow) & SDL_WINDOW_FULLSCREEN_DESKTOP);
 }
 
 bool GameWindow::SetFullscreen(bool isEnabled)
 {
+    // undo borderless window before any fullscreen change
+    if (s_isAllScreensOption)
+    {
+        s_isAllScreensOption = false;
+        SDL_SetWindowBordered(s_pWindow, SDL_TRUE);
+        SDL_SetWindowResizable(s_pWindow, SDL_TRUE);
+    }
+
     if (isEnabled)
     {
         SDL_SetWindowFullscreen(s_pWindow, SDL_WINDOW_FULLSCREEN_DESKTOP);
@@ -514,7 +525,31 @@ void GameWindow::SetDisplay(int displayIndex)
     if (!IsFullscreen())
         return;
 
-    if (GetDisplay() == displayIndex)
+    // SDL fullscreen is originally locked to one display, so use a borderless window
+    // that cover every monitor instead for all screens options.
+    if (IsAllDisplays(displayIndex))
+    {
+        if (s_isAllScreensOption)
+            return;
+
+        s_isChangingDisplay = true;
+
+        auto bounds = GetAllDisplaysBounds();
+
+        SDL_SetWindowFullscreen(s_pWindow, 0);
+        SDL_SetWindowResizable(s_pWindow, SDL_FALSE);
+        SDL_SetWindowBordered(s_pWindow, SDL_FALSE);
+        SetDimensions(bounds.w, bounds.h, bounds.x, bounds.y);
+
+        s_isAllScreensOption = true;
+        SDL_ShowCursor(s_isFullscreenCursorVisible ? SDL_ENABLE : SDL_DISABLE);
+        return;
+    }
+
+    if (displayIndex >= GetDisplayCount())
+        displayIndex = 0;
+
+    if (!s_isAllScreensOption && GetDisplay() == displayIndex)
         return;
 
     s_isChangingDisplay = true;
@@ -531,6 +566,44 @@ void GameWindow::SetDisplay(int displayIndex)
     {
         ResetDimensions();
     }
+}
+
+bool GameWindow::CanSpanDisplays()
+{
+    if (GetDisplayCount() < 2)
+        return false;
+
+    // likely won't work with wayland, so prevent it
+    auto videoDriverName = SDL_GetCurrentVideoDriver();
+
+    return !videoDriverName || strcmp(videoDriverName, "wayland") != 0;
+}
+
+// any index higher than the last monitor means all screens, so unplugging one still works
+bool GameWindow::IsAllDisplays(int displayIndex)
+{
+    return displayIndex >= GetDisplayCount() && CanSpanDisplays();
+}
+
+SDL_Rect GameWindow::GetAllDisplaysBounds()
+{
+    SDL_Rect result{};
+    auto displayCount = GetDisplayCount();
+
+    for (int i = 0; i < displayCount; i++)
+    {
+        SDL_Rect bounds;
+
+        if (SDL_GetDisplayBounds(i, &bounds) != 0)
+            continue;
+
+        if (result.w == 0 || result.h == 0)
+            result = bounds;
+        else
+            SDL_UnionRect(&result, &bounds, &result);
+    }
+
+    return result;
 }
 
 float GameWindow::GetDisplayScale()

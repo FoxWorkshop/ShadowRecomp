@@ -207,7 +207,7 @@ static std::string& GetCategoryName(OptionsMenuCategory category)
 	case OptionsMenuCategory::Input: return Localise("Options_Category_Input");
 	case OptionsMenuCategory::Audio: return Localise("Options_Category_Audio");
 	case OptionsMenuCategory::Video: return Localise("Options_Category_Video");
-	//case OptionsMenuCategory::Misc: return Localise("Options_Category_Misc");
+		//case OptionsMenuCategory::Misc: return Localise("Options_Category_Misc");
 	case OptionsMenuCategory::Debug: return Localise("Options_Category_Debug");
 	}
 
@@ -222,7 +222,7 @@ static std::string& GetCategoryDescription(OptionsMenuCategory category)
 	case OptionsMenuCategory::Input: return Localise("Options_Desc_Category_Input");
 	case OptionsMenuCategory::Audio: return Localise("Options_Desc_Category_Audio");
 	case OptionsMenuCategory::Video: return Localise("Options_Desc_Category_Video");
-	//case OptionsMenuCategory::Misc: return Localise("Options_Desc_Category_Misc");
+		//case OptionsMenuCategory::Misc: return Localise("Options_Desc_Category_Misc");
 	case OptionsMenuCategory::Debug: return Localise("Options_Desc_Category_Debug");
 	}
 
@@ -256,12 +256,12 @@ static int GetCategoryIconRow(OptionsMenuCategory category)
 {
 	switch (category)
 	{
-	case OptionsMenuCategory::System: return 0; 
-	case OptionsMenuCategory::Input:  return 1; 
-	case OptionsMenuCategory::Audio:  return 2; 
-	case OptionsMenuCategory::Video:  return 3; 
-	//case OptionsMenuCategory::Misc:   return 4; 
-	case OptionsMenuCategory::Debug:  return 0; 
+	case OptionsMenuCategory::System: return 0;
+	case OptionsMenuCategory::Input:  return 1;
+	case OptionsMenuCategory::Audio:  return 2;
+	case OptionsMenuCategory::Video:  return 3;
+		//case OptionsMenuCategory::Misc:   return 4; 
+	case OptionsMenuCategory::Debug:  return 0;
 	}
 
 	return 0;
@@ -392,12 +392,12 @@ void DrawDescription(std::string s)
 	auto outlineAlpha = (int)(255 * GetOptionPreviewFade());
 
 	auto drawText = [&](ImVec2 pos)
-	{
-		if (outlineAlpha > 0)
-			DrawTextWithOutline(g_fntSeurat, fontSize, pos, IM_COL32(255, 255, 255, 255), s.c_str(), 2.f, IM_COL32(0, 0, 0, outlineAlpha));
-		else
-			drawList->AddText(g_fntSeurat, fontSize, pos, IM_COL32(255, 255, 255, 255), s.c_str());
-	};
+		{
+			if (outlineAlpha > 0)
+				DrawTextWithOutline(g_fntSeurat, fontSize, pos, IM_COL32(255, 255, 255, 255), s.c_str(), 2.f, IM_COL32(0, 0, 0, outlineAlpha));
+			else
+				drawList->AddText(g_fntSeurat, fontSize, pos, IM_COL32(255, 255, 255, 255), s.c_str());
+		};
 
 	drawText(textPos);
 
@@ -724,7 +724,7 @@ static void DrawOption
 					OptionsMenu::SetFlowState(OptionsMenuFlowState::OptionSelected);
 					UpdateOptionDescription(config);
 
-					isSelected = true;				
+					isSelected = true;
 					s_oldValue = config->Value;
 					g_optionCurrent = config;
 					BeginPauseHudHide();
@@ -793,55 +793,55 @@ static void DrawOption
 
 
 
-		if (isSelected)
-		{
-			auto increment = g_right;
-			auto decrement = g_left;
-
-			if (increment || decrement)
-				g_lastTappedTime = ImGui::GetTime();
-
-			if constexpr (std::is_same_v<T, int32_t>)
+			if (isSelected)
 			{
-				if (config == &Config::FPS)
+				auto increment = g_right;
+				auto decrement = g_left;
+
+				if (increment || decrement)
+					g_lastTappedTime = ImGui::GetTime();
+
+				if constexpr (std::is_same_v<T, int32_t>)
 				{
-					if (PJSPeripheral::IsJustPressed(OptionsMenu::s_padIndex, PJSPeripheral::BTN_WHITE | PJSPeripheral::BTN_LEFT_TRIG))
+					if (config == &Config::FPS)
 					{
-						Game_PlaySound("cursor");
-						config->Value = std::clamp(config->Value - 30, valueMin, valueMax);
-						FpsConfigValueChangedCallback(config);
-					}
-					else if (PJSPeripheral::IsJustPressed(OptionsMenu::s_padIndex, PJSPeripheral::BTN_BLACK | PJSPeripheral::BTN_RIGHT_TRIG))
-					{
-						Game_PlaySound("cursor");
-						config->Value = std::clamp(config->Value + 30, valueMin, valueMax);
-						FpsConfigValueChangedCallback(config);
+						if (PJSPeripheral::IsJustPressed(OptionsMenu::s_padIndex, PJSPeripheral::BTN_WHITE | PJSPeripheral::BTN_LEFT_TRIG))
+						{
+							Game_PlaySound("cursor");
+							config->Value = std::clamp(config->Value - 30, valueMin, valueMax);
+							FpsConfigValueChangedCallback(config);
+						}
+						else if (PJSPeripheral::IsJustPressed(OptionsMenu::s_padIndex, PJSPeripheral::BTN_BLACK | PJSPeripheral::BTN_RIGHT_TRIG))
+						{
+							Game_PlaySound("cursor");
+							config->Value = std::clamp(config->Value + 30, valueMin, valueMax);
+							FpsConfigValueChangedCallback(config);
+						}
 					}
 				}
-			}
 
-			if constexpr (std::is_same_v<T, float>)
-			{
-				if (config == &Config::MasterVolume || config == &Config::MusicVolume || config == &Config::VoicesVolume ||
-					config == &Config::CutsceneVolume || config == &Config::EffectsVolume || config == &Config::ResolutionScale ||
-					config == &Config::Brightness || config == &Config::BloomIntensity)
+				if constexpr (std::is_same_v<T, float>)
 				{
-					if (PJSPeripheral::IsJustPressed(OptionsMenu::s_padIndex, PJSPeripheral::BTN_WHITE | PJSPeripheral::BTN_LEFT_TRIG))
+					if (config == &Config::MasterVolume || config == &Config::MusicVolume || config == &Config::VoicesVolume ||
+						config == &Config::CutsceneVolume || config == &Config::EffectsVolume || config == &Config::ResolutionScale ||
+						config == &Config::Brightness || config == &Config::BloomIntensity)
 					{
-						Game_PlaySound("cursor");
-						config->Value = std::clamp(std::round((config->Value - 0.1f) * 100.0f) / 100.0f, valueMin, valueMax);
-						BloomConfigValueChangedCallback(config);
-					}
-					else if (PJSPeripheral::IsJustPressed(OptionsMenu::s_padIndex, PJSPeripheral::BTN_BLACK | PJSPeripheral::BTN_RIGHT_TRIG))
-					{
-						Game_PlaySound("cursor");
-						config->Value = std::clamp(std::round((config->Value + 0.1f) * 100.0f) / 100.0f, valueMin, valueMax);
-						BloomConfigValueChangedCallback(config);
+						if (PJSPeripheral::IsJustPressed(OptionsMenu::s_padIndex, PJSPeripheral::BTN_WHITE | PJSPeripheral::BTN_LEFT_TRIG))
+						{
+							Game_PlaySound("cursor");
+							config->Value = std::clamp(std::round((config->Value - 0.1f) * 100.0f) / 100.0f, valueMin, valueMax);
+							BloomConfigValueChangedCallback(config);
+						}
+						else if (PJSPeripheral::IsJustPressed(OptionsMenu::s_padIndex, PJSPeripheral::BTN_BLACK | PJSPeripheral::BTN_RIGHT_TRIG))
+						{
+							Game_PlaySound("cursor");
+							config->Value = std::clamp(std::round((config->Value + 0.1f) * 100.0f) / 100.0f, valueMin, valueMax);
+							BloomConfigValueChangedCallback(config);
+						}
 					}
 				}
-			}
 
-			if constexpr (std::is_enum_v<T>)
+				if constexpr (std::is_enum_v<T>)
 				{
 					auto it = config->EnumTemplateReverse.find(config->Value);
 
@@ -960,11 +960,11 @@ static void DrawOption
 					}
 				}
 
-			if (increment || decrement)
-			{
-				BloomConfigValueChangedCallback(config);
-				FpsConfigValueChangedCallback(config);
-			}
+				if (increment || decrement)
+				{
+					BloomConfigValueChangedCallback(config);
+					FpsConfigValueChangedCallback(config);
+				}
 
 				// Run standard callback if there's no callback on apply.
 				if (!config->ApplyCallback)
@@ -1048,7 +1048,11 @@ static void DrawOption
 		}
 		else if (config == &Config::Monitor)
 		{
-			valueText = fmt::format("{}", config->Value + 1);
+			if (GameWindow::IsAllDisplays(config->Value))
+				valueText = Localise("Options_Value_AllScreens");
+			else
+				valueText = fmt::format("{}", config->Value + 1);
+
 			isValueCentred = true;
 		}
 		else
@@ -1131,7 +1135,7 @@ static void DrawOption
 	}
 
 
-	float arrowAreaPadding = Scale(35); 
+	float arrowAreaPadding = Scale(35);
 	ImVec2 arrowAreaMin = { valueAreaStart - arrowAreaPadding, min.y + offsetY };
 	ImVec2 arrowAreaMax = { valueAreaEnd + arrowAreaPadding, min.y + offsetY + optionHeight };
 	DrawSelectionArrows(arrowAreaMin, arrowAreaMax, isSelected);
@@ -1698,12 +1702,12 @@ static void ClearDuplicateBindings(ConfigDef<T>* config, int playerIndex)
 	}
 
 	auto clear = [&](ConfigDef<T>* other)
-	{
-		if (other != config && other->Value == config->Value)
 		{
-			other->Value = GetUnboundValue<T>();
-		}
-	};
+			if (other != config && other->Value == config->Value)
+			{
+				other->Value = GetUnboundValue<T>();
+			}
+		};
 
 	if constexpr (std::is_same_v<T, SDL_Scancode>)
 	{
@@ -1962,7 +1966,10 @@ static void DrawOptions(ImVec2 minClipRect, ImVec2 maxClipRect, ImVec2 min, ImVe
 		if (Config::Fullscreen && displayCount <= 1)
 			monitorReason = &Localise("Options_Desc_NotAvailableHardware");
 
-		DrawOption(rowCount++, &Config::Monitor, canChangeMonitor, min, max, devReason, 0, 0, 1, false);
+
+		auto monitorMax = GameWindow::CanSpanDisplays() ? displayCount : displayCount - 1;
+
+		DrawOption(rowCount++, &Config::Monitor, canChangeMonitor, min, max, devReason, 0, 0, std::max(monitorMax, 0), false);
 		DrawOption(rowCount++, &Config::AspectRatio, true, min, max, devReason);
 		DrawOption(rowCount++, &Config::FMVAspectRatio, true, min, max, nullptr);
 		DrawOption(rowCount++, &Config::ResolutionScale, true, min, max, nullptr, 0.25f, 1.0f, 2.0f);
@@ -2410,7 +2417,7 @@ static void DrawCategories(ImVec2 min, ImVec2 max)
 
 #if OPTIONS_CATEGORY_STYLE == OPTIONS_CATEGORY_STYLE_ICON
 
-	
+
 	int visibleCount = (int)entries.size();
 
 	if (visibleCount < 1)
@@ -2423,7 +2430,7 @@ static void DrawCategories(ImVec2 min, ImVec2 max)
 	const float stackUnits = pitchUnits * (visibleCount - 1) + iconUnits;
 	const float firstRowCentreUnits = CATEGORY_STACK_CENTRE_Y - stackUnits * 0.5f + iconUnits * 0.5f;
 
-	
+
 	const float widestPlate = Scale(iconUnits) * LEGACY_ICON_SELECTED_SCALE;
 	const float columnCentreX = ClampBand(centreX - widestPlate * 0.5f, widestPlate, safeLeft, safeRight) + widestPlate * 0.5f;
 
@@ -2793,7 +2800,7 @@ void OptionsMenu::Draw()
 			}
 			else
 			{
-		
+
 				Close();
 			}
 		}
