@@ -24,6 +24,7 @@
 #include <patches/reloaded_mod_patches.h>
 #include <audio/embedded_player.h>
 #include <ui/installer_wizard.h>
+#include <install/update_checker.h>
 #include <gpu/frame_pacing/timer_resolution.h>
 #include <patches/pause_patches.h>
 #include <patches/bloom_patches.h>
@@ -238,6 +239,16 @@ int main(int argc, char* argv[])
         }
     }
 #endif
+
+    constexpr double TimeBetweenUpdateChecksInSeconds = 24 * 60 * 60;
+    time_t timeNow = std::time(nullptr);
+    if (Config::CheckForUpdates && difftime(timeNow, Config::LastChecked) > TimeBetweenUpdateChecksInSeconds)
+    {
+        UpdateChecker::initialize();
+        UpdateChecker::start();
+        Config::LastChecked = timeNow;
+        Config::Save();
+    }
 
     if (Config::ShowConsole)
         os::process::ShowConsole();

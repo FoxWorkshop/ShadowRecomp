@@ -6,12 +6,17 @@
 #include <input/padstate.h>
 #include <ui/options_menu.h>
 #include <ui/menu_common.h>
+#include <install/update_checker.h>
 
 static std::atomic<bool> g_faderBegun = false;
 
 bool g_quitMessageOpen = false;
 static int g_quitMessageResult = -1;
 static float g_timerAllowedToQuit = 0.f;
+
+static bool g_updateAvailableMessageShown = false;
+static bool g_updateAvailableMessageOpen = false;
+static int g_updateAvailableMessageResult = -1;
 
 
 static bool ProcessQuitMessage()
@@ -37,6 +42,39 @@ static bool ProcessQuitMessage()
 	return true;
 }
 
+static bool ProcessUpdateAvailableMessage()
+{
+	if (!g_updateAvailableMessageShown && !g_quitMessageOpen && !g_faderBegun && UpdateChecker::check() == UpdateChecker::Result::UpdateAvailable)
+	{
+		g_updateAvailableMessageShown = true;
+		g_updateAvailableMessageOpen = true;
+	}
+
+	if (!g_updateAvailableMessageOpen)
+	{
+		return false;
+	}
+
+	std::array<std::string, 2> options = { Localise("Common_Yes"), Localise("Common_No") };
+	if (MessageWindow::Open(Localise("Title_Message_UpdateAvailable"), &g_updateAvailableMessageResult, options) == MSG_CLOSED)
+	{
+		if (!g_updateAvailableMessageResult)
+		{
+			Fader::FadeOut(1, []()
+			{
+				UpdateChecker::visitWebsite();
+				App::Exit();
+			});
+			g_faderBegun = true;
+		}
+
+		g_timerAllowedToQuit = 0;
+		g_updateAvailableMessageOpen = false;
+		g_updateAvailableMessageResult = -1;
+	}
+	return true;
+}
+
 // This function controls the title screen, it checks if it should reset the title screen or move to main menu depending on player action.
 X86_FUNC_IMPL(__imp__sub_292CF0);
 X86_FUNC(sub_292CF0)
@@ -47,17 +85,20 @@ X86_FUNC(sub_292CF0)
 
 	if (g_timerAllowedToQuit >= 4.f)
 	{
-		if (PJSPeripheral::IsJustPressed(0, PJSPeripheral::BTN_B) && !g_faderBegun)
+		if (PJSPeripheral::IsJustPressed(0, PJSPeripheral::BTN_B) && !g_faderBegun && !g_updateAvailableMessageOpen)
 		{
 			g_quitMessageOpen = true;
 		}
 	}
 
-
-	if (!ProcessQuitMessage() && g_quitMessageOpen == false)
-		__imp__sub_292CF0(ctx, base);
-	else
+	if (ProcessUpdateAvailableMessage() || ProcessQuitMessage())
+	{
 		ctx.esp.u32 += 4;
+	}
+	else
+	{
+		__imp__sub_292CF0(ctx, base);
+	}
 }
 
 // This function controls the timer logic during title screen and menu
@@ -66,7 +107,7 @@ X86_FUNC(sub_292CF0)
 X86_FUNC_IMPL(__imp__sub_17ED0);
 X86_FUNC(sub_17ED0)
 {
-	if (g_quitMessageOpen || !g_quitMessageResult)
+	if (g_quitMessageOpen || !g_quitMessageResult || g_updateAvailableMessageOpen)
 	{
 		ctx.eax.u8_lo = 0;
 		ctx.AddEsp(1);

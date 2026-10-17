@@ -173,6 +173,7 @@ set(SHADOW_RECOMP_USER_CXX_SOURCES
 )
 
 set(SHADOW_RECOMP_INSTALL_CXX_SOURCES
+    "install/update_checker.cpp"
     "install/xiso_extract.cpp"
 )
 
@@ -389,6 +390,7 @@ target_link_libraries(ShadowRecomp PRIVATE
     XShaderRecompLib
     nlohmann_json::nlohmann_json
     nfd::nfd
+    CURL::libcurl
 )
 
 
