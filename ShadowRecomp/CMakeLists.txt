@@ -232,6 +232,7 @@ set(SHADOW_RECOMP_CXX_SOURCES
     "preload_executable.cpp"
     "sdl_listener.cpp"
     "stdafx.cpp"
+    "version.cpp"
     
     ${SHADOW_RECOMP_KERNEL_CXX_SOURCES}
     ${SHADOW_RECOMP_LOCALE_CXX_SOURCES}

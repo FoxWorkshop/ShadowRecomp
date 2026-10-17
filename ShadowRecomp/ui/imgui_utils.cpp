@@ -840,16 +840,15 @@ ImU32 ColourLerp(ImU32 c0, ImU32 c1, float t)
 
     return ImGui::ColorConvertFloat4ToU32(result);
 }
-//todo
 void DrawVersionString(const ImFont* font, const ImU32 col)
 {
-    /**auto drawList = ImGui::GetBackgroundDrawList();
+    auto drawList = ImGui::GetBackgroundDrawList();
     auto& res = ImGui::GetIO().DisplaySize;
     auto fontSize = Scale(12);
     auto textMargin = Scale(2);
     auto textSize = font->CalcTextSizeA(fontSize, FLT_MAX, 0, g_versionString);
 
-    drawList->AddText(font, fontSize, { res.x - textSize.x - textMargin, res.y - textSize.y - textMargin }, col, g_versionString);*/
+    drawList->AddText(font, fontSize, { res.x - textSize.x - textMargin, res.y - textSize.y - textMargin }, col, g_versionString);
 }
 
 

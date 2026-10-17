@@ -2316,6 +2316,12 @@ void DrawBackground(bool isPause = false)
 
 		drawList->AddImage(g_upTexOptionsText.get(), optionsMin, optionsMax, GET_UV_COORDS(optionsUVs), IM_COL32(255, 255, 255, logoAlpha));
 	}
+
+	// show version on main menu only
+	if (!isPause)
+	{
+		DrawVersionString(g_fntSeurat, IM_COL32(255, 255, 255, (int)(70 * shown)));
+	}
 }
 
 void DrawMenuListContainer(ImVec2 min, ImVec2 max)
