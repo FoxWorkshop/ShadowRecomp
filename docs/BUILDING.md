@@ -32,7 +32,7 @@ In the installer, you must select the following **Workloads** and **Individual c
 ### Linux
 The following command will install the required dependencies on a distro that uses `apt` (such as Debian-based distros).
 ```bash
-sudo apt install autoconf automake libtool pkg-config curl cmake ninja-build clang clang-tools libgtk-3-dev
+sudo apt install autoconf autoconf-archive automake libtool libltdl-dev python3-venv pkg-config curl cmake ninja-build clang clang-tools libgtk-3-dev
 ```
 The following command will install the required dependencies on a distro that uses `pacman` (such as Arch-based distros).
 ```bash
