@@ -97,6 +97,10 @@ void WalkerHoverMoveMidAsmHook(X86Register& esi)
 #endif
 }
 
+// TODO: currently always applies
+// Restore EggBreaker0411 Digitize Effect
+void EggBreakerDigitizeEffectMidAsmHook() {}
+
 void ReloadedValuePatches()
 {
 #ifdef EnableReloaded
@@ -121,8 +125,6 @@ void ReloadedValuePatches()
 	// Expert Ending SFD Overrides
 
 	// Select Mode Shortcut
-
-	// Custom Autosave Colors
 
 	// Ghost Red Rings (STG_CMN REDIRECT)
 
@@ -203,8 +205,6 @@ void ReloadedValuePatches()
 	// CarType Vehicles Revamp
 
 	// Enemy AppearType WARP Faster Spawn
-
-	// Restore EggBreaker0411 Digitize Effect
 
 	// The Last Way Inclusive Scoring
 
