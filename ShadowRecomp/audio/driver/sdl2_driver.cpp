@@ -14,6 +14,7 @@
 #include <user/config.h>
 #include <ui/game_window.h>
 #include <patches/global.h>
+#include <os/media.h>
 
 // Memo: 
 // Two way of using buffers: Static (sfx, voices - Buffer is filled once with complete audio, Pull just read the buffer) 
@@ -814,6 +815,27 @@ PullResult SHTHR_SOUNDBUFFER_Impl::Pull(unsigned char* data, int32_t size)
 	return result;
 }
 
+static float g_musicAttenuation = 1.0f;
+static std::chrono::steady_clock::time_point g_musicAttenuationTime = std::chrono::steady_clock::now();
+
+static void UpdateMusicAttenuation()
+{
+	auto now = std::chrono::steady_clock::now();
+	float deltaTime = std::chrono::duration<float>(now - g_musicAttenuationTime).count();
+	g_musicAttenuationTime = now;
+
+	if (!Config::MusicAttenuation || !os::media::IsSupported())
+	{
+		g_musicAttenuation = 1.0f;
+		return;
+	}
+
+	float target = os::media::IsExternalMediaPlaying() ? 0.0f : 1.0f;
+	float time = 1.0f - expf(2.5f * -deltaTime);
+	g_musicAttenuation = std::lerp(g_musicAttenuation, target, time);
+}
+
+
 float SHTHR_SOUNDBUFFER_Impl::GetUserVolume() const
 {
 	if (!this->isStreaming)
@@ -824,7 +846,7 @@ float SHTHR_SOUNDBUFFER_Impl::GetUserVolume() const
 	switch (mSourceType)
 	{
 	case SOURCE_TYPE_MUSIC:
-		return Config::MusicVolume.Value;
+		return Config::MusicVolume.Value * g_musicAttenuation;
 	case SOURCE_TYPE_EVENTS:
 	case SOURCE_TYPE_SFD:
 		return Config::CutsceneVolume.Value;
@@ -1140,6 +1162,8 @@ int SHTHR_SOUNDDEVICE_Impl::PullThreadFunc()
 			SDL_Delay(SLEEP_FULL_MS);
 			continue;
 		}
+
+		UpdateMusicAttenuation();
 
 		memset(mix_buf.data(), mAudioSpec.silence, FILL_CHUNK_BYTES);
 		std::lock_guard<std::mutex> lk(mutex);

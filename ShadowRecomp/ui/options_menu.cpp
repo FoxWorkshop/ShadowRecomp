@@ -28,6 +28,7 @@
 #include <ui/menu_common.h>
 #include <ui/button_guide.h>
 #include <patches/pause_patches.h>
+#include <os/media.h>
 
 
 #define OPTIONS_CATEGORY_STYLE_ICON      0
@@ -1945,6 +1946,7 @@ static void DrawOptions(ImVec2 minClipRect, ImVec2 maxClipRect, ImVec2 min, ImVe
 		DrawOption(rowCount++, &Config::VoicesVolume, true, min, max);
 		DrawOption(rowCount++, &Config::CutsceneVolume, true, min, max);
 		DrawOption(rowCount++, &Config::EffectsVolume, true, min, max);
+		DrawOption(rowCount++, &Config::MusicAttenuation, os::media::IsSupported(), min, max, &Localise("Options_Desc_OSNotSupported"));
 		DrawOption(rowCount++, &Config::MuteOnFocusLost, true, min, max);
 		DrawOption(rowCount++, &Config::IdleChaosPowersMusic, true, min, max);
 		DrawActionOption(rowCount++, min, Localise("Options_Name_SoundTest"), Localise("Options_Desc_SoundTest"), !OptionsMenu::s_isPause, cmnReason, OpenSoundTest);

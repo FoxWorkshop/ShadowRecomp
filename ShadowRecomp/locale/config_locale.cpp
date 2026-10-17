@@ -427,6 +427,17 @@ CONFIG_DEFINE_LOCALE(CutsceneVolume)
     { ELanguage::Italian,  { "Cutscene Volume", "Adjust the volume for cutscenes." } }
 };
 
+// Japanese Notes: This localization should include furigana.
+CONFIG_DEFINE_LOCALE(MusicAttenuation)
+{
+    { ELanguage::English,  { "Music Attenuation", "Fade out the game's music when external media is playing." } },
+    { ELanguage::Japanese, { "BGM[減衰:げんすい]", "[外部:がいぶ]メディアを\u200B[再生:さいせい]すると\u200Bゲームの\u200B[音楽:おんがく]を\u200Bフェードアウト\u200Bします" } },
+    { ELanguage::German,   { "Musikdämpfung", "Stelle die Musik des Spiels stumm während externe Medien abgespielt werden." } },
+    { ELanguage::French,   { "Atténuation audio", "Abaisse le volume des musiques du jeu lorsqu'un média externe est en cours de lecture." } },
+    { ELanguage::Spanish,  { "Atenuación de música", "Atenúa la música del juego cuando un reproductor multimedia se encuentra activo." } },
+    { ELanguage::Italian,  { "Attenuazione musica", "Abbassa il volume della musica di sottofondo quando un'altra applicazione riproduce dei suoni." } }
+};
+
 CONFIG_DEFINE_LOCALE(MuteOnFocusLost)
 {
     { ELanguage::English, { "Mute on Focus Lost", "Mute the game's audio when the window is not in focus." } },

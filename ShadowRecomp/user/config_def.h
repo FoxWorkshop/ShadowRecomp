@@ -81,11 +81,7 @@ CONFIG_DEFINE_LOCALISED("Audio", float, CutsceneVolume, 1.0f, false);
 CONFIG_DEFINE_LOCALISED("Audio", bool, MuteOnFocusLost, true, false);
 CONFIG_DEFINE_LOCALISED("Audio", bool, IdleChaosPowersMusic, true, false);
 
-// TODO: Do we want to support Stero/Mono toggle? We can just enable the OG game flag
-//CONFIG_DEFINE_ENUM_LOCALISED("Audio", EChannelConfiguration, ChannelConfiguration, EChannelConfiguration::Stereo);
-
-// TODO: Do we care about this?
-//CONFIG_DEFINE_LOCALISED("Audio", bool, MusicAttenuation, false);
+CONFIG_DEFINE_LOCALISED("Audio", bool, MusicAttenuation, false, false);
 
 CONFIG_DEFINE("Video", std::string, GraphicsDevice, "", true);
 CONFIG_DEFINE_ENUM("Video", EGraphicsAPI, GraphicsAPI, EGraphicsAPI::Auto, true);
