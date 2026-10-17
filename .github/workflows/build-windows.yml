@@ -1,0 +1,98 @@
+name: build-windows
+on:
+  workflow_call:
+    secrets:
+      ASSET_REPO:
+        required: true
+      ASSET_REPO_TOKEN:
+        required: true
+
+jobs:
+  build-windows:
+    name: Build Windows (${{ matrix.preset }})
+    runs-on: windows-2025-vs2026
+    strategy:
+      matrix:
+        preset: [
+          #"x64-Clang-Release",
+          "x64-Clang-RelWithDebInfo-Aggressive"
+          ]
+    env:
+      CMAKE_PRESET: ${{ matrix.preset }}
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v7
+        with:
+          submodules: recursive
+          token: ${{ secrets.ASSET_REPO_TOKEN }}
+
+      - name: Fetch vcpkg baseline
+        run: |
+          $baseline = (Get-Content vcpkg.json -Raw | ConvertFrom-Json).'builtin-baseline'
+          git -C thirdparty/vcpkg fetch --depth=1 origin $baseline
+
+      - name: Checkout Private Repository
+        uses: actions/checkout@v7
+        with:
+          repository: ${{ secrets.ASSET_REPO }}
+          token: ${{ secrets.ASSET_REPO_TOKEN }}
+          path: .\private
+
+      - name: Setup ccache
+        uses: hendrikmuhs/ccache-action@v1.2.24
+        with:
+          key: ${{ runner.os }}-${{ matrix.preset }}
+
+      - name: Cache vcpkg
+        uses: actions/cache@v6
+        with:
+          path: |
+            ./thirdparty/vcpkg/downloads
+            ~/AppData/Local/vcpkg/archives
+          key: vcpkg-${{ runner.os }}-${{ hashFiles('vcpkg.json') }}
+          restore-keys: |
+            vcpkg-${{ runner.os }}-
+
+      - name: Install Dependencies
+        run: |
+          choco install ninja
+          Remove-Item -Path "C:\ProgramData\Chocolatey\bin\ccache.exe" -Force -ErrorAction SilentlyContinue
+
+      - name: Configure Developer Command Prompt
+        uses: TheMrMilchmann/setup-msvc-dev@v4
+        with:
+          arch: x64
+
+      - name: Prepare Project
+        run: copy .\private\* .\ShadowRecompLib\private
+
+      - name: Configure Project
+        run: cmake . --preset ${{ env.CMAKE_PRESET }} -DCMAKE_CXX_COMPILER_LAUNCHER=ccache -DCMAKE_C_COMPILER_LAUNCHER=ccache
+
+      - name: Build Project
+        run: cmake --build .\out\build\${{ env.CMAKE_PRESET }} --target ShadowRecomp
+
+      - name: Pack Release
+        run: |
+          New-Item -ItemType Directory -Path .\release\D3D12
+
+          Move-Item -Path ".\out\build\${{ env.CMAKE_PRESET }}\ShadowRecomp\D3D12\D3D12Core.dll" -Destination ".\release\D3D12\D3D12Core.dll"
+          Move-Item -Path ".\out\build\${{ env.CMAKE_PRESET }}\ShadowRecomp\dxcompiler.dll" -Destination ".\release\dxcompiler.dll"
+          Move-Item -Path ".\out\build\${{ env.CMAKE_PRESET }}\ShadowRecomp\dxil.dll" -Destination ".\release\dxil.dll"
+          Move-Item -Path ".\out\build\${{ env.CMAKE_PRESET }}\ShadowRecomp\ShadowRecomp.exe" -Destination ".\release\ShadowRecomp.exe"
+
+      - name: Upload Artifact
+        uses: actions/upload-artifact@v7
+        with:
+          name: ShadowRecomp-Windows-${{ env.CMAKE_PRESET }}
+          path: .\release
+          retention-days: 3
+
+      - name: Upload PDB
+        uses: actions/upload-artifact@v7
+        if: ${{ matrix.preset != 'x64-Clang-Release' }}
+        with:
+          name: ShadowRecomp-Windows-${{ env.CMAKE_PRESET }}-PDB
+          path: .\out\build\${{ env.CMAKE_PRESET }}\ShadowRecomp\ShadowRecomp.pdb
+          retention-days: 3

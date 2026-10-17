@@ -6,9 +6,6 @@ on:
         required: true
       ASSET_REPO_TOKEN:
         required: true
-concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
 
 jobs:
   build-flatpak:
@@ -25,7 +22,7 @@ jobs:
           token: ${{ secrets.ASSET_REPO_TOKEN }}
 
       - name: Fetch vcpkg baseline
-        run: git -C thirdparty/vcpkg fetch --depth=1 origin c3867e714dd3a51c272826eea77267876517ed99
+        run: git -C thirdparty/vcpkg fetch --depth=1 origin $(jq -r '."builtin-baseline"' vcpkg.json)
 
       - name: Checkout Private Repository
         uses: actions/checkout@v7

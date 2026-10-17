@@ -1,7 +1,17 @@
 name: validate
 on:
   workflow_dispatch:
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   build-flatpak:
     uses: ./.github/workflows/build-flatpak.yml
+    secrets: inherit
+  build-linux:
+    uses: ./.github/workflows/build-linux.yml
+    secrets: inherit
+  build-windows:
+    uses: ./.github/workflows/build-windows.yml
     secrets: inherit
