@@ -421,9 +421,9 @@ float SHTHR_SOUNDBUFFER_Impl::Calculate3DVolume()
 	float dist_clamped = std::max(mMinDistance, std::min(distance, mMaxDistance));
 	float attenuation = mMinDistance / (mMinDistance + rolloff * (dist_clamped - mMinDistance));
 
-	if (attenuation > 0.8f)
+	if (attenuation > 1.0f)
 	{
-		attenuation = 0.8f;
+		attenuation = 1.0f;
 	}
 	return attenuation;
 }
