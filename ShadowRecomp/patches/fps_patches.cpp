@@ -1557,6 +1557,13 @@ X86_FUNC(sub_76DE0)
 	const uint32_t player = X86_LOAD_U32(ctx.ecx.u32 + 4);
 
 	LaunchGrace* grace = FindLaunchGrace(player);
+	for (auto& slot : g_launchGrace)
+	{
+		if (grace == nullptr && slot.player == 0)
+		{
+			grace = &slot;
+		}
+	}
 
 	if (grace == nullptr)
 		grace = &g_launchGrace[0]; // either player is not found or all players are using it, force player 1 slot as a failsafe.
@@ -1566,6 +1573,7 @@ X86_FUNC(sub_76DE0)
 	grace->originValid = false;
 	grace->replayed = false;
 	grace->skipped = 0;
+	grace->selfTimed = false;
 
 	__imp__sub_76DE0(ctx, base);
 }
