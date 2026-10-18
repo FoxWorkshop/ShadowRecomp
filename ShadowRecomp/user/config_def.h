@@ -75,7 +75,7 @@ CONFIG_DEFINE_PAD_BINDINGS(4)
 
 CONFIG_DEFINE_LOCALISED("Audio", float, MasterVolume, 1.0f, false);
 CONFIG_DEFINE_LOCALISED("Audio", float, MusicVolume, 1.0f, false);
-CONFIG_DEFINE_LOCALISED("Audio", float, EffectsVolume, 0.5f, false);
+CONFIG_DEFINE_LOCALISED("Audio", float, EffectsVolume, 1.0f, false);
 CONFIG_DEFINE_LOCALISED("Audio", float, VoicesVolume, 1.0f, false);
 CONFIG_DEFINE_LOCALISED("Audio", float, CutsceneVolume, 1.0f, false);
 CONFIG_DEFINE_LOCALISED("Audio", bool, MuteOnFocusLost, true, false);

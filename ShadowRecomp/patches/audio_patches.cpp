@@ -3,6 +3,7 @@
 #include <audio/audio.h>
 #include <audio/driver/sdl2_driver.h>
 #include <user/config.h>
+#include <unordered_set>
 
 // It's no secret that this game has a lot of audio issues on the Xbox port
 // Sounds not looping properly, Distance for 3D Sound tend to break, volume issue and so on.
@@ -693,3 +694,37 @@ void SatelliteLaserWeaponSFXFixMidAsmHook(X86Register& esp)
 	const uint32_t sfxId = X86_LOAD_U32(esp.u32);
 	X86_STORE_U32(esp.u32, sfxId == 0xE027 ? 0xE028 : 0xE027);
 }
+
+/** GravityChangeSwitch / GravityChangeZone SFX spam fix Patch START */
+// These sounds always sounded awful on Xbox, and it got worse at higher framerates.
+// It actually plays 9 times at normal framerates per contact.
+// Patch to do one sound per object per contact
+
+static std::unordered_set<uint32_t> g_gravityChangeTouches;
+bool GravityChangeTouchSFXMidAsmHook(X86Register& esi)
+{
+	return !g_gravityChangeTouches.insert(esi.u32).second;
+}
+
+// GravityChangeSwitch state
+// Exec at sub_20DA10
+// Exec calls while the obj isn't acting on prior collision
+X86_FUNC_IMPL(__imp__sub_20D980);
+X86_FUNC(sub_20D980)
+{
+	const uint32_t gravitySwitch = ctx.ecx.u32;
+	g_gravityChangeTouches.erase(gravitySwitch);
+	__imp__sub_20D980(ctx, base);
+}
+
+// GravityChangeZone state
+// Exec at sub_20E2E0
+// Exec calls while the obj isn't acting on prior collision
+X86_FUNC_IMPL(__imp__sub_20E260);
+X86_FUNC(sub_20E260)
+{
+	const uint32_t zone = ctx.ecx.u32;
+	g_gravityChangeTouches.erase(zone);
+	__imp__sub_20E260(ctx, base);
+}
+/** GravityChangeSwitch / GravityChangeZone SFX spam fix Patch END */

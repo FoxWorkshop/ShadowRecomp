@@ -1803,3 +1803,15 @@ registers = ["r7"]
 name = "SatelliteLaserWeaponSFXFixMidAsmHook"
 address = 0x27B979
 registers = ["r7"]
+
+[[midasm_hook]]
+name = "GravityChangeTouchSFXMidAsmHook"
+address = 0x20DB1F
+registers = ["r4"]
+jump_address_on_true = 0x20DB33
+
+[[midasm_hook]]
+name = "GravityChangeTouchSFXMidAsmHook"
+address = 0x20E468
+registers = ["r4"]
+jump_address_on_true = 0x20E47C
