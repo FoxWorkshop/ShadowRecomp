@@ -5,6 +5,7 @@
 #include <kernel/kernel.h>
 #include <iostream>
 #include <filesystem>
+#include <user/config.h>
 #include <audio/audio.h>
 #include <audio/driver/sdl2_driver.h>
 
@@ -392,6 +393,43 @@ int32_t IDirectSound_CommitDeferredSettings(int a1)
 
 	//printf("IDirectSound_CommitDeferredSettings\n");
 	return E_FAIL;
+}
+
+
+void AudioConfigValueChangedCallback(IConfigDef* config)
+{
+	if (config == &Config::VoiceLanguage)
+	{
+		auto base = g_memory.base;
+		GuestToHostFunction<void>(sub_25C750); // stop all sound
+
+		const uint32_t newVoiceLang = (uint32_t)Config::VoiceLanguage.Value;
+		X86_STORE_U32(0x54DD8C, newVoiceLang);  // set voice language to new value (eng or jp)
+
+		// Call ADXF_LoadPartitionNw to re load voice asf file 
+		if (newVoiceLang == (uint32_t)EVoiceLanguage::English)
+		{
+			GuestToHostFunction<void, CallConvention::Cdecl>(sub_328BB0, 0, X86_LOAD_U32(0x51DDA0), 0, 0x54DED0);
+		}
+		else
+		{
+			GuestToHostFunction<void, CallConvention::Cdecl>(sub_328BB0, 0, X86_LOAD_U32(0x51DD9C), 0, 0x54DED0);
+		}
+
+		// wait for the adx server to update its value properly (logic re used from IsndADX::CreateTask)
+		int stat;
+		int failSafeCount = 0; // I'm paranoid
+		while ((stat = GuestToHostFunction<int>(sub_328B90, 0)) != 3 && stat != 4)
+		{
+			GuestToHostFunction<void>(sub_32AC10);
+			GuestToHostFunction<void>(sub_328F30);
+			failSafeCount++;
+			if (failSafeCount >= 5000)
+				break;
+		}
+
+		X86_STORE_U32(0x51DD80, newVoiceLang);
+	}
 }
 
 GUEST_FUNCTION_HOOK_STDCALL(sub_3E5A27, DirectSoundCreate_r)

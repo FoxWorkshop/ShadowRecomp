@@ -2,7 +2,7 @@
 // the preprocessed output. The header is only going to have the declarations this way.
 
 CONFIG_DEFINE_ENUM_LOCALISED("System", ELanguage, Language, ELanguage::English, true);
-CONFIG_DEFINE_ENUM_LOCALISED("System", EVoiceLanguage, VoiceLanguage, EVoiceLanguage::English, true);
+CONFIG_DEFINE_ENUM_LOCALISED("System", EVoiceLanguage, VoiceLanguage, EVoiceLanguage::English, false);
 CONFIG_DEFINE_LOCALISED("System", bool, Subtitles, true, false);
 CONFIG_DEFINE_LOCALISED("System", bool, Hints, true, false);
 CONFIG_DEFINE_LOCALISED("System", bool, AchievementNotifications, true, false);

@@ -98,6 +98,8 @@ static double g_captureTime{};
 static std::array<uint8_t, SDL_NUM_SCANCODES> g_capturePrevKeys{};
 static input::PadButtonValues g_capturePrevPadButtons{};
 
+void AudioConfigValueChangedCallback(IConfigDef* config);
+
 static bool IsLivePreviewActive()
 {
 	return OptionsMenu::s_isPause && OptionsMenu::s_flowState == OptionsMenuFlowState::OptionSelected
@@ -735,6 +737,7 @@ static void DrawOption
 					if (config->Value != s_oldValue)
 					{
 						VideoConfigValueChangedCallback(config);
+						AudioConfigValueChangedCallback(config);
 
 						if (config->ApplyCallback)
 						{
