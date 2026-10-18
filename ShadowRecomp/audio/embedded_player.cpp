@@ -131,6 +131,11 @@ void EmbeddedPlayer::FadeOutMusic()
         Mix_FadeOutMusic(1000);
 }
 
+bool EmbeddedPlayer::IsPlayingSound()
+{
+    return Mix_Playing(-1) > 0;
+}
+
 void EmbeddedPlayer::Shutdown()
 {
     for (EmbeddedSoundData& data : g_embeddedSoundData)

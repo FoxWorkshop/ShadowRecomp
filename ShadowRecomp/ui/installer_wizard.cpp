@@ -15,6 +15,7 @@
 #include <exports.h>
 #include <gpu/imgui/imgui_snapshot.h>
 #include <ui/imgui_utils.h>
+#include <ui/fader.h>
 #include <res/images/common/TitleBg.png.h>
 #include <res/images/common/Options2.png.h>
 
@@ -105,6 +106,8 @@ static int g_currentCursorIndex = -1;
 static int g_currentCursorDefault = 0;
 static bool g_isQuitting = false;
 static bool g_browseClicked = false;
+static float g_openProgress = 0.0f;
+static bool g_isClosing = false;
 
 static std::vector<std::pair<ImVec2, ImVec2>> g_currentCursorRects;
 
@@ -112,6 +115,20 @@ static bool playedNextSound = false;
 static bool playedPrevSound = false;
 static bool playedLangSound[6] = {false};
 static bool playedBrowseSound = false;
+
+static void Quit()
+{
+	if (g_isQuitting)
+	{
+		return;
+	}
+
+	g_isQuitting = true;
+	g_isClosing = true;
+
+	EmbeddedPlayer::FadeOutMusic();
+	Fader::FadeOut(1, []() { InstallerWizard::s_isVisible = false; });
+}
 
 static std::string& GetWizardText(WizardPage page)
 {
@@ -148,12 +165,6 @@ const ELanguage LANGUAGE_ENUM[] =
 	ELanguage::Italian,
 	ELanguage::Japanese,
 };
-
-// TODO: Maybe animate the blue box fade with this
-static double ComputeMotionInstaller(double timeAppear, double timeDisappear, double offset, double total)
-{
-	return ComputeMotion(timeAppear, offset, total, false) * (1.0 - ComputeMotion(timeDisappear, ALL_ANIMATIONS_FULL_DURATION - offset - total, total, false));
-}
 
 static ImVec2 ComputeTextSize(ImFont* font, const char* text, float size, float& squashRatio, float maxTextWidth = FLT_MAX)
 {
@@ -442,8 +453,7 @@ static void DrawQuitButton(ImVec2& panelMin, ImVec2& panelMax, float scale)
 
 	if (quitHovered && io.MouseClicked[0])
 	{
-		g_isQuitting = true;
-		InstallerWizard::s_isVisible = false;
+		Quit();
 	}
 }
 
@@ -584,7 +594,7 @@ static void DrawBackground(ImGuiViewport* viewport, ImVec2 winPos, ImVec2 winSiz
 	ImVec2 min = { winPos.x + offsetX + 21.0f * scale, winPos.y + offsetY + 54.0f * scale };
 	ImVec2 max = { min.x + 598.0f * scale, min.y + 362.0f * scale };
 
-	DrawShadowWindow(drawList, min, max, scale);
+	DrawShadowWindow(drawList, min, max, scale, g_openProgress);
 }
 
 static void DrawWizardParagraph(const char* text, float maxWidth, float lineMargin, const ImVec2& pos)
@@ -646,7 +656,22 @@ void InstallerWizard::Draw()
 	smallFontSize = std::floor(baseFontSize * 0.9f);
 	fileFontSize = std::floor(baseFontSize * 0.7f);
 
+	// recreate the message box opening and closing anim
+	g_openProgress = StepOpenProgress(g_openProgress, g_isClosing);
+	if (g_isClosing && g_openProgress <= 0.0f)
+	{
+		if (!g_isQuitting && !EmbeddedPlayer::IsPlayingSound())
+		{
+			s_isVisible = false;
+		}
+		return;
+	}
+
 	DrawBackground(viewport, winPos, winSize, scale, offsetX, offsetY);
+	if (g_openProgress < 1.0f)
+	{
+		return;
+	}
 
 	auto titleText = "Shadow the Hedgehog Recompiled - Setup";
 	auto titleSize = font->CalcTextSizeA(fontSize + 2.f, FLT_MAX, 0, titleText);
@@ -998,7 +1023,7 @@ void InstallerWizard::Draw()
 		if (playHovered && io.MouseClicked[0])
 		{
 			Game_PlaySound("decide");
-			s_isVisible = false;
+			g_isClosing = true;
 		}
 		break;
 	}
@@ -1100,6 +1125,8 @@ bool InstallerWizard::Run(std::filesystem::path installPath)
 {
 	g_installPath = installPath / "game";
 	g_isQuitting = false;
+	g_isClosing = false;
+	g_openProgress = 0.0f;
 	g_currentPage = WizardPage::SelectLanguage;
 
 	EmbeddedPlayer::Init();
@@ -1116,7 +1143,10 @@ bool InstallerWizard::Run(std::filesystem::path installPath)
 
 		Video::WaitOnSwapChain();
 
-		EmbeddedPlayer::PlayMusic();
+		if (!g_isQuitting)
+		{
+			EmbeddedPlayer::PlayMusic();
+		}
 
 		SDL_PumpEvents();
 
@@ -1148,8 +1178,14 @@ bool InstallerWizard::Run(std::filesystem::path installPath)
 				if (g_currentPage == WizardPage::Installing)
 					continue;
 
-				g_isQuitting = true;
-				s_isVisible = false;
+				if (g_isQuitting)
+				{
+					s_isVisible = false;
+				}
+				else
+				{
+					Quit();
+				}
 			}
 		}
 

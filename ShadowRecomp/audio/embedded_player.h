@@ -12,5 +12,6 @@ struct EmbeddedPlayer
     static void Play(const char* name);
     static void PlayMusic();
     static void FadeOutMusic();
+    static bool IsPlayingSound();
     static void Shutdown();
 };
