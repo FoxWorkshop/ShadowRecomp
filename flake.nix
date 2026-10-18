@@ -59,7 +59,16 @@
     #  - sdlDeps: SDL2 dlopen's its platform backends
     #  - rest: shared deps missing from the binary's RUNPATH (pinned to $ORIGIN)
     gameRuntimeLibs = lib.makeLibraryPath (
-      [pkgs.vulkan-loader pkgs.freetype pkgs.nativefiledialog-extended pkgs.gcc-unwrapped.lib pkgs.libgcc pkgs.zlib]
+      [
+        pkgs.vulkan-loader
+        pkgs.freetype
+        pkgs.nativefiledialog-extended
+        pkgs.curl
+        pkgs.dbus
+        pkgs.gcc-unwrapped.lib
+        pkgs.libgcc
+        pkgs.zlib
+      ]
       ++ sdlDeps
     );
 
