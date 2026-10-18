@@ -580,28 +580,11 @@ static void DrawBackground(ImGuiViewport* viewport, ImVec2 winPos, ImVec2 winSiz
 {
 	auto drawList = ImGui::GetBackgroundDrawList();
 
-	// Colours
-	ImU32 bevCol = IM_COL32(14, 14, 110, 255); // Bevel Edge
-	ImU32 shaCol = IM_COL32(0, 0, 0, 255); // 'Shadow' (top + left)
-	ImU32 ligCol = IM_COL32(41, 41, 182, 255); // 'Light' (bottom + right)
-	ImU32 winCol = IM_COL32(0, 0, 69, 255);  // Main Window (nice) (yes that is the real colour Shadow uses)
-
 	// Bevel at edges
-	DrawScaledRect(drawList, winPos, scale, offsetX, offsetY, 21.0f, 54.0f, 598.0f, 362.0f, bevCol);
+	ImVec2 min = { winPos.x + offsetX + 21.0f * scale, winPos.y + offsetY + 54.0f * scale };
+	ImVec2 max = { min.x + 598.0f * scale, min.y + 362.0f * scale };
 
-	// Black shadow (top + left)
-	DrawScaledRect(drawList, winPos, scale, offsetX, offsetY, 25.0f, 58.0f, 589.0f, 353.0f, shaCol);
-
-	// Blue highlight (bottom + right)
-	drawList->AddTriangleFilled(
-		ScaleTriangleVert(winPos, scale, offsetX, offsetY, 25.0f, 411.0f),
-		ScaleTriangleVert(winPos, scale, offsetX, offsetY, 614.0f, 58.0f),
-		ScaleTriangleVert(winPos, scale, offsetX, offsetY, 614.0f, 411.0f),
-		ligCol
-	);
-
-	// Main window background
-	DrawScaledRect(drawList, winPos, scale, offsetX, offsetY, 26.0f, 59.0f, 587.0f, 351.0f, winCol);
+	DrawShadowWindow(drawList, min, max, scale);
 }
 
 static void DrawWizardParagraph(const char* text, float maxWidth, float lineMargin, const ImVec2& pos)

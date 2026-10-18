@@ -1118,11 +1118,43 @@ void DrawScaledRect(ImDrawList* drawList, ImVec2 winPos, float scale,
     drawList->AddRectFilled(topLeft, bottomRight, colour);
 };
 
-ImVec2 ScaleTriangleVert(ImVec2 winPos, float scale, float offsetX,
-    float offsetY, float baseLocX, float baseLocY)
+// 0x44A80C seems to be the box anim duration (3.33) so we can re use that value here
+constexpr float MSG_OPEN_SPEED = 10.0f / 3.0f;
+
+float StepOpenProgress(float progress, bool isClosing)
 {
-    return ImVec2(
-        winPos.x + offsetX + (baseLocX * scale),
-        winPos.y + offsetY + (baseLocY * scale)
-    );
-};
+    auto step = ImGui::GetIO().DeltaTime * MSG_OPEN_SPEED;
+    return isClosing ? std::max(progress - step, 0.0f) : std::min(progress + step, 1.0f);
+}
+
+void DrawShadowWindow(ImDrawList* drawList, ImVec2 min, ImVec2 max, float scale, float openProgress)
+{
+    auto centreX = (min.x + max.x) * 0.5f;
+    auto halfWidth = (max.x - min.x) * 0.5f * openProgress;
+    min.x = centreX - halfWidth;
+    max.x = centreX + halfWidth;
+
+    // Colours
+    ImU32 bevCol = IM_COL32(14, 14, 110, 255); // Bevel Edge
+    ImU32 shaCol = IM_COL32(0, 0, 0, 255); // 'Shadow' (top + left)
+    ImU32 ligCol = IM_COL32(41, 41, 182, 255); // 'Light' (bottom + right)
+    ImU32 winCol = IM_COL32(0, 0, 69, 255);  // Main Window (nice) (yes that is the real colour Shadow uses)
+
+    // clamp insets so the open anim doesn't invert the inner rects while thin
+    ImVec2 shaMin = { min.x + 4.0f * scale, min.y + 4.0f * scale };
+    ImVec2 shaMax = { std::max(max.x - 5.0f * scale, shaMin.x), std::max(max.y - 5.0f * scale, shaMin.y) };
+    ImVec2 winMin = { shaMin.x + scale, shaMin.y + scale };
+    ImVec2 winMax = { std::max(shaMax.x - scale, winMin.x), std::max(shaMax.y - scale, winMin.y) };
+
+    // Bevel at edges
+    drawList->AddRectFilled(min, max, bevCol);
+
+    // Black shadow (top + left)
+    drawList->AddRectFilled(shaMin, shaMax, shaCol);
+
+    // Blue highlight (bottom + right)
+    drawList->AddTriangleFilled({ shaMin.x, shaMax.y }, { shaMax.x, shaMin.y }, shaMax, ligCol);
+
+    // Main window background
+    drawList->AddRectFilled(winMin, winMax, winCol);
+}

@@ -50,8 +50,6 @@ static bool g_rightWasHeld;
 static bool g_hideFrame = false;
 static bool g_guestHasControl = false;
 
-// 0x44A80C seems to be the box anim duration (3.33) so we can re use that value here
-constexpr float MSG_OPEN_SPEED = 10.0f / 3.0f;
 static float g_openProgress = 0.0f;
 
 static bool g_hasLayout = false;
@@ -292,35 +290,7 @@ void DrawGameStyleMessageBox(ImVec2 center, ImVec2 size)
 	}
 
 
-	// Background fill - dark blue
-	dl->AddRectFilled(min, max, IM_COL32(1, 1, 70, 220));
-
-	// Outer border
-	dl->AddRect(min, max, IM_COL32(14, 14, 110, 255), 0.0f, 0, 2.0f);
-
-	// Inner border (inset by ~4px)
-	float inset = 4.0f;
-	ImVec2 innerMin = { min.x + inset, min.y + inset };
-	ImVec2 innerMax = { max.x - inset, max.y - inset };
-	dl->AddRect(innerMin, innerMax, IM_COL32(30, 60, 180, 255), 0.0f, 0, 1.0f);
-
-	// Corner accents - short lines in each corner
-	float cornerLen = 10.0f;
-	ImU32 cornerCol = IM_COL32(120, 160, 255, 255);
-
-	// Top-left
-	dl->AddLine(min, { min.x + cornerLen, min.y }, cornerCol, 2.0f);
-	dl->AddLine(min, { min.x, min.y + cornerLen }, cornerCol, 2.0f);
-	// Top-right
-	dl->AddLine({ max.x, min.y }, { max.x - cornerLen, min.y }, cornerCol, 2.0f);
-	dl->AddLine({ max.x, min.y }, { max.x, min.y + cornerLen }, cornerCol, 2.0f);
-	// Bottom-left
-	dl->AddLine({ min.x, max.y }, { min.x + cornerLen, max.y }, cornerCol, 2.0f);
-	dl->AddLine({ min.x, max.y }, { min.x, max.y - cornerLen }, cornerCol, 2.0f);
-	// Bottom-right
-	dl->AddLine(max, { max.x - cornerLen, max.y }, cornerCol, 2.0f);
-	dl->AddLine(max, { max.x, max.y - cornerLen }, cornerCol, 2.0f);
-
+	DrawShadowWindow(dl, min, max, Scale(1.0f), g_openProgress);
 
 	max.x += 1.f;
 	max.y += 1.f;
@@ -388,12 +358,9 @@ void MessageWindow::Draw()
 	if (!s_isVisible)
 		return;
 
-	// recreate the message box opening and closing anim 
+	// recreate the message box opening and closing anim
 	if (!g_hideFrame)
-	{
-		auto step = ImGui::GetIO().DeltaTime * MSG_OPEN_SPEED;
-		g_openProgress = g_isClosing ? std::max(g_openProgress - step, 0.0f) : std::min(g_openProgress + step, 1.0f);
-	}
+		g_openProgress = StepOpenProgress(g_openProgress, g_isClosing);
 
 	bool isClosed = g_hideFrame ? (ImGui::GetTime() - g_time) > (1.0 / 60.0) * 15.f : g_openProgress <= 0.0f;
 
@@ -448,7 +415,7 @@ void MessageWindow::Draw()
 	ImVec2 centre = { res.x / 2, res.y / 2 };
 	ImVec2 max = { res.x * 0.9f, res.y * 0.7f };
 
-	DrawGameStyleMessageBox(centre, { max.x * g_openProgress, max.y });
+	DrawGameStyleMessageBox(centre, max);
 
 	// show text once anim is complete
 	if (g_openProgress < 1.0f)

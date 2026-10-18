@@ -122,5 +122,11 @@ void AddTextCentered(ImDrawList* drawList, ImFont* font, float fontSize,
     const char* text);
 
 void DrawScaledRect(ImDrawList* drawList, ImVec2 winPos, float scale, float offsetX, float offsetY, float baseX, float baseY, float baseW, float baseH, ImU32 colour);
-ImVec2 ScaleTriangleVert(ImVec2 winPos, float scale, float offsetX, float offsetY, float baseLocX, float baseLocY);
+
+// advances the message box open (0 -> 1) or close (1 -> 0) anim
+float StepOpenProgress(float progress, bool isClosing);
+
+// installer style blue window, min/max is the outer bevel, scale is one pixel at shadow's 640x480
+// openProgress grows it out from the centre
+void DrawShadowWindow(ImDrawList* drawList, ImVec2 min, ImVec2 max, float scale, float openProgress = 1.0f);
 
