@@ -101,7 +101,7 @@ CONFIG_DEFINE_ENUM("Video", ETripleBuffering, TripleBuffering, ETripleBuffering:
 CONFIG_DEFINE_LOCALISED("Video", int32_t, FPS, 60, false);
 CONFIG_DEFINE_ENUM_LOCALISED("Video", ECutsceneFramerate, CutsceneFramerate, ECutsceneFramerate::Original, false);
 CONFIG_DEFINE("Video", bool, ShowFPS, false, false);
-CONFIG_DEFINE("Video", float, ProfilerFontScale, 1.0f, false);
+CONFIG_DEFINE("Video", float, ProfilerFontScale, 0.7f, false);
 CONFIG_DEFINE("Video", bool, ExtendedMultiplayer, false, false);
 CONFIG_DEFINE("Video", uint32_t, MaxFrameLatency, 2, false);
 CONFIG_DEFINE_LOCALISED("Video", float, Brightness, 0.5f, false);
