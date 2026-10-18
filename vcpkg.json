@@ -9,6 +9,10 @@
       "name": "directx12-agility",
       "platform": "windows"
     },
+    {
+      "name": "dbus",
+      "platform": "linux"
+    },
     "directx-dxc",
     "freetype",
     "curl",

@@ -9,6 +9,7 @@
     "--socket=wayland",
     "--socket=fallback-x11",
     "--socket=pulseaudio",
+    "--talk-name=org.mpris.MediaPlayer2.*",
     "--device=all",
     "--filesystem=host",
     "--filesystem=/media",

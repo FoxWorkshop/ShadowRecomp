@@ -407,6 +407,8 @@ if (CMAKE_SYSTEM_NAME MATCHES "Linux")
     target_link_libraries(ShadowRecomp PRIVATE ${X11_LIBRARIES})
     find_package(Freetype REQUIRED)
     target_link_libraries(ShadowRecomp PRIVATE Freetype::Freetype)
+    find_package(DBus1 CONFIG REQUIRED)
+    target_link_libraries(ShadowRecomp PRIVATE dbus-1)
 
     set_target_properties(ShadowRecomp PROPERTIES BUILD_RPATH "$ORIGIN")
     add_custom_command(TARGET ShadowRecomp POST_BUILD
