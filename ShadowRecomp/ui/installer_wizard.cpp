@@ -18,8 +18,8 @@
 #include <ui/fader.h>
 #include <res/images/common/TitleBg.png.h>
 #include <res/images/common/Options2.png.h>
-
 #include <decompressor.h>
+
 
 static std::unique_ptr<GuestTexture> g_upTexOptionsBG{};
 static std::unique_ptr<GuestTexture> g_upTexOptionsBG2{};
@@ -453,10 +453,10 @@ static void DrawQuitButton(ImVec2& panelMin, ImVec2& panelMax, float scale)
 
 	if (quitHovered && io.MouseClicked[0])
 	{
+		Game_PlaySound("cancel");
 		Quit();
 	}
 }
-
 
 static void DrawPrevButton(ImVec2& panelMin, ImVec2& panelMax, float scale)
 {
@@ -514,12 +514,13 @@ static void DrawPrevButton(ImVec2& panelMin, ImVec2& panelMax, float scale)
 
 	if (prevHovered && io.MouseClicked[0])
 	{
-		Game_PlaySound("decide");
+		Game_PlaySound("cancel");
 		g_currentPage = (WizardPage)((int)g_currentPage - 1);
 	}
-
 }
 
+// TODO: Maybe re-use this for the credits scroll on final page
+// Otherwise scrap it, its unused since we copied to Options
 static void DrawDescription(std::string s, float alpha = 1.0f)
 {
 	static std::string prevText;
@@ -1015,11 +1016,6 @@ void InstallerWizard::Draw()
 			);
 		}
 
-		// TODO: Check with gravity
-		//ImU32 playColor = playHovered ? IM_COL32(30, 180, 255, 255) : IM_COL32(0, 140, 200, 255);
-		//drawList->AddRectFilled(ImVec2(playBtnX, playBtnY), ImVec2(playBtnX + playBtnWidth, playBtnY + playBtnHeight), playColor, Scale(8.0f));
-		//drawList->AddText(font, descFontSize, ImVec2(playBtnX + (playBtnWidth - playSize.x) * 0.5f, playBtnY + (playBtnHeight - playSize.y) * 0.5f), IM_COL32(220, 235, 255, 255), playText);
-
 		if (playHovered && io.MouseClicked[0])
 		{
 			Game_PlaySound("decide");
@@ -1135,7 +1131,7 @@ bool InstallerWizard::Run(std::filesystem::path installPath)
 	GameWindow::SetFullscreenCursorVisibility(true);
 	s_isVisible = true;
 
-	constexpr auto frameTime = std::chrono::duration<float, std::milli>(1000.0f / 30.0f);
+	constexpr auto frameTime = std::chrono::duration<float, std::milli>(1000.0f / 60.0f);
 
 	while (s_isVisible)
 	{

@@ -25,8 +25,6 @@ enum class GameSoundID
 
 static const std::unordered_map<std::string_view, GameSoundID> g_GameSoundMap =
 {
-    { "window_open", GameSoundID::Decide },
-    { "window_close", GameSoundID::Cancel },
     { "cursor", GameSoundID::Cursor },
     { "decide", GameSoundID::Decide },
     { "cancel", GameSoundID::Cancel },

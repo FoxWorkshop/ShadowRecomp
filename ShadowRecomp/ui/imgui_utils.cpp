@@ -1,15 +1,9 @@
 #include "imgui_utils.h"
-#include <patches/aspect_ratio_patches.h>
-#include <app.h>
-#include <user/config.h>
 #include <map>
 #include <decompressor.h>
 #include <version.h>
-
-#include <res/images/common/gamemenu.png.h>
-#include <res/images/common/Options.png.h>
-#include <res/images/common/Options2.png.h>
-#include <res/images/common/TitleBg.png.h>
+#include <user/config.h>
+#include <patches/aspect_ratio_patches.h>
 #include <res/images/common/arrow.png.h>
 
 float g_fntSeuratSize = 0.0f;

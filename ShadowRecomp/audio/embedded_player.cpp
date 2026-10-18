@@ -3,7 +3,6 @@
 #include <user/config.h>
 #include <ui/game_window.h>
 
-
 #include <res/music/installer.ogg.h>
 #include <res/sounds/sys_menu_ok.ogg.h>
 #include <res/sounds/sys_menu_cancel.ogg.h>
@@ -13,17 +12,12 @@
 
 enum class EmbeddedSound
 {
-    WindowOpen,
-    WindowClose,
     Cursor,
     Decide,
-    MainDecide,
     CannotDecide,
     CancelDecide,
     Count
 };
-
-
 
 struct EmbeddedSoundData
 {
@@ -42,14 +36,11 @@ static float GetMasterVolume()
 
 static const std::unordered_map<std::string_view, EmbeddedSound> g_embeddedSoundMap =
 {
-    { "window_open", EmbeddedSound::WindowOpen },
-    { "window_close", EmbeddedSound::WindowClose },
     { "cursor", EmbeddedSound::Cursor },
     { "decide", EmbeddedSound::Decide },
     { "cancel", EmbeddedSound::CancelDecide },
     { "cannot_decide", EmbeddedSound::CannotDecide },
 };
-
 
 static size_t g_channelIndex;
 
