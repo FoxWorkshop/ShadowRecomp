@@ -1,5 +1,6 @@
 #include <os/media.h>
 #include <os/logger.h>
+#include <user/config.h>
 #include <dbus/dbus.h>
 
 static constexpr auto POLL_INTERVAL = std::chrono::milliseconds(250);
@@ -92,7 +93,7 @@ static void PollThread()
     dbus_connection_set_exit_on_disconnect(connection, false);
     while (dbus_connection_get_is_connected(connection))
     {
-        g_isPlaying = QueryIsPlaying(connection);
+        g_isPlaying = Config::MusicAttenuation && QueryIsPlaying(connection);
         while (DBusMessage* message = dbus_connection_pop_message(connection))
         {
             dbus_message_unref(message);

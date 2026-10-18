@@ -1,6 +1,7 @@
 #include <os/media.h>
 #include <os/logger.h>
 #include <os/version.h>
+#include <user/config.h>
 #include <winrt/Windows.Foundation.h>
 #include <winrt/Windows.Media.Control.h>
 
@@ -57,7 +58,7 @@ static void PollThread()
 
     while (true)
     {
-        g_isPlaying = QueryIsPlaying(sessionManager);
+        g_isPlaying = Config::MusicAttenuation && QueryIsPlaying(sessionManager);
         std::this_thread::sleep_for(POLL_INTERVAL);
     }
 }
