@@ -12,6 +12,7 @@
 // We can patch this on the AudioXBOX class level to make it works regardless of sound type
 // This was made with Goal Ring in mind, but shoud in theory work for any similar 3D sound issue in the game.
 
+static constexpr uint32_t g_LanguageText = 0x54DD88;
 static constexpr uint32_t SLOT_FLAGS = 0x00; // bit 0x4 = near
 static constexpr uint32_t SLOT_MUTED = 0x02; // sub_25FE80
 static constexpr uint32_t SLOT_BUFFER = 0x08; // Guest key for the IDirectSoundBuffer
@@ -560,7 +561,17 @@ X86_FUNC(sub_25F420)
 	const uint32_t slot = X86_LOAD_U32(ctx.esp.u32 + 0x4);
 	const int32_t stage = int32_t(X86_LOAD_U32(ctx.esp.u32 + 0x8));
 
+	// The SoundBanks check what language they should load with the variable text language instead of voices for some reason...
+	// so lie to the game about the current text language if needed then restore it after
+
+	uint32_t languageBackup = X86_LOAD_U32(g_LanguageText);
+
+	if (Config::VoiceLanguage.Value == EVoiceLanguage::Japanese)
+		X86_STORE_U32(g_LanguageText, 0x0);
+
 	__imp__sub_25F420(ctx, base);
+
+	X86_STORE_U32(g_LanguageText, languageBackup);
 
 	if (slot == PLAYER_BANK_SLOT)
 	{
