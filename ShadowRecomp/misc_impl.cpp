@@ -30,6 +30,17 @@ static uint64_t HostGetPerformanceCounter(bool acpi)
 	return Timer_GetScaledPerformanceCounter(period);
 }
 
+// The game's microsecond timer.
+// The original divides the 733.333...MHz counter by 733.
+// So it's 0.045% faster than should be. Return real ones instead.
+X86_FUNC(sub_116B0)
+{
+	uint64_t micros = Timer_GetScaledPerformanceCounter(1000000);
+	ctx.eax.u32 = uint32_t(micros);
+	ctx.edx.u32 = uint32_t(micros >> 32);
+	ctx.esp.u32 += 4;
+}
+
 uint32_t GetKeTickCountImpl()
 {
 	//return GetTickCount();

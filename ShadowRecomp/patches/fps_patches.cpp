@@ -123,14 +123,13 @@ void WaitForFrameBoundaryMidAsmHook(X86Register& edi, X86Register& ebp)
 	uint64_t lastFrame = (X86_LOAD_U64(0x541FC0) + frameTime - 1) / frameTime;
 	uint64_t deadline = (lastFrame + divisor - 1) * frameTime + 1;
 
-	// Same clock as sub_116B0.
-	constexpr uint64_t counterHz = 733333333;
-	uint64_t counter = Timer_GetScaledPerformanceCounter(counterHz);
-	uint64_t target = deadline * 733;
-	if (counter < target)
+	// Same clock as sub_116B0, but in nanoseconds.
+	uint64_t now = Timer_GetScaledPerformanceCounter(1000000000);
+	uint64_t target = deadline * 1000;
+	if (now < target)
 	{
 		thread_local FramePacer pacer;
-		pacer.Sleep((target - counter) * 1000.0 / counterHz, FramePacer::WaitMode::SleepThenSpin);
+		pacer.Sleep((target - now) / 1000000.0, FramePacer::WaitMode::SleepThenSpin);
 	}
 }
 
