@@ -4,6 +4,9 @@
 #include <app.h>
 #include <patches/global.h>
 #include <patches/patch_utils.h>
+#include <gpu/frame_pacing/frame_pacer.h>
+
+int64_t Timer_GetScaledPerformanceCounter(int64_t period);
 
 const uint32_t g_deltaTime = 0x541FA8;
 const uint32_t g_unroundedDeltaTime = 0x541FAC; // delta time pre-round (sub_56FC0)
@@ -106,9 +109,29 @@ float GetInternalFrameRate()
 	return (fps >= 1.0f && fps <= (float)FPS_MAX) ? fps : 0.0f;
 }
 
-// Skip the game's frame limiter.
-void SkipFrameLimiterMidAsmHook()
+// Replace game's sleep/wait code with our own.
+void WaitForFrameBoundaryMidAsmHook(X86Register& edi, X86Register& ebp)
 {
+	// kinda ripped from Ghidra with cleanup.
+	auto base = g_memory.base;
+	uint64_t frameTime = (uint64_t(ebp.u32) << 32) | edi.u32;
+	int32_t divisor = X86_LOAD_U32(g_frameRateDivisor);
+	if (frameTime == 0 || divisor <= 0)
+		return;
+
+	// +1 because the game rounds timestamps up.
+	uint64_t lastFrame = (X86_LOAD_U64(0x541FC0) + frameTime - 1) / frameTime;
+	uint64_t deadline = (lastFrame + divisor - 1) * frameTime + 1;
+
+	// Same clock as sub_116B0.
+	constexpr uint64_t counterHz = 733333333;
+	uint64_t counter = Timer_GetScaledPerformanceCounter(counterHz);
+	uint64_t target = deadline * 733;
+	if (counter < target)
+	{
+		thread_local FramePacer pacer;
+		pacer.Sleep((target - counter) * 1000.0 / counterHz, FramePacer::WaitMode::SleepThenSpin);
+	}
 }
 
 std::unordered_map<uint32_t, float> g_sfxTimers;

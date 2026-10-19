@@ -5174,22 +5174,6 @@ void Video::Present()
 		loadingFramePacer.SetFpsLimit(60.0);
 		loadingFramePacer.EndFrame(FramePacer::WaitMode::SleepOnly);
 	}
-	// A cap below the refresh rate still needs the frame pacer.
-	else if (!Config::VSync || Config::FPS.Value < GetDisplayRefreshRate())
-	{
-		// Pace at the slower rate to avoid the busy wait in 0x56FC0.
-		double targetFps = Config::FPS.Value;
-		float gameFps = GetInternalFrameRate();
-		if (gameFps > 0.0f && gameFps < targetFps)
-			targetFps = gameFps;
-
-		if (targetFps >= FPS_MIN && (targetFps < FPS_MAXSoft || targetFps < FPS_MAX && s_ExpandFPSLimit))
-		{
-			static FramePacer framePacer;
-			framePacer.SetFpsLimit(targetFps);
-			framePacer.EndFrame(FramePacer::WaitMode::SleepThenSpin);
-		}
-	}
 
 	g_presentProfiler.End();
 }

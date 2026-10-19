@@ -50,7 +50,6 @@ public:
      */
     void EndFrame(WaitMode waitMode);
 
-private:
     /**
      * \brief Pauses execution for the remaining of the time until the next
      * frame begins.
@@ -59,6 +58,7 @@ private:
      */
     void Sleep(double durationMs, WaitMode waitMode);
 
+private:
     /* Waits out the duration per WaitMode::SleepOnly. */
     void SleepOnly(double durationMs);
 

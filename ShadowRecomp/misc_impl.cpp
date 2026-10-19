@@ -9,10 +9,10 @@ static constexpr uint32_t XBOX_TSC_FREQUENCY = 733333333; // Xbox Time Stamp Cou
 static constexpr uint32_t XBOX_ACPI_FREQUENCY = 3375000;  // Xbox ACPI frequency (3.375 mhz)
 
 
-static auto g_StartTime = std::chrono::high_resolution_clock::now();
+static auto g_StartTime = std::chrono::steady_clock::now();
 int64_t Timer_GetScaledPerformanceCounter(int64_t Period)
 {
-	auto currentTime = std::chrono::high_resolution_clock::now();
+	auto currentTime = std::chrono::steady_clock::now();
 	auto elapsed = std::chrono::duration_cast<std::chrono::nanoseconds>(
 		currentTime - g_StartTime
 	).count();
