@@ -818,6 +818,7 @@ struct HudNumberState
 static HudNumberState g_hudNumber{};
 static bool g_isInStageMode = false;
 static bool g_isDrawingSynopsisText = false;
+static bool g_isDrawingLibraryText = false;
 static bool g_isDrawingStaffRoll = false;
 
 // The stage select CSD is squeezed towards the center, so the player's best time
@@ -1795,6 +1796,15 @@ X86_FUNC(sub_29C830)
 	g_isDrawingSynopsisText = false;
 }
 
+// same as above but for library sequence list
+X86_FUNC_IMPL(__imp__sub_2924B0);
+X86_FUNC(sub_2924B0)
+{
+	g_isDrawingLibraryText = true;
+	__imp__sub_2924B0(ctx, base);
+	g_isDrawingLibraryText = false;
+}
+
 // StaffRollDrawTask draw
 X86_FUNC_IMPL(__imp__sub_29CB50);
 X86_FUNC(sub_29CB50)
@@ -1842,7 +1852,7 @@ static Rt2dFontUnstretch g_rt2dFontUnstretch{};
 static bool ShouldUnstretchRt2dFont()
 {
 
-	if (g_isInStageMode || g_isDrawingSynopsisText || App::s_gamemode != -1)
+	if (g_isInStageMode || g_isDrawingSynopsisText || g_isDrawingLibraryText || App::s_gamemode != -1)
 	{
 		return false;
 	}
