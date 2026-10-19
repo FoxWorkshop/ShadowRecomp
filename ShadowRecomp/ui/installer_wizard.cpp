@@ -4,6 +4,7 @@
 #include <audio/embedded_player.h>
 #include <install/xiso_extract.h>
 #include <gpu/video.h>
+#include <gpu/frame_pacing/frame_pacer.h>
 #include <locale/locale.h>
 #include <user/config.h>
 #include <ui/game_window.h>
@@ -1131,12 +1132,11 @@ bool InstallerWizard::Run(std::filesystem::path installPath)
 	GameWindow::SetFullscreenCursorVisibility(true);
 	s_isVisible = true;
 
-	constexpr auto frameTime = std::chrono::duration<float, std::milli>(1000.0f / 60.0f);
+	FramePacer framePacer;
+	framePacer.SetFpsLimit(60.0);
 
 	while (s_isVisible)
 	{
-		auto frameStart = std::chrono::steady_clock::now();
-
 		Video::WaitOnSwapChain();
 
 		if (!g_isQuitting)
@@ -1189,7 +1189,7 @@ bool InstallerWizard::Run(std::filesystem::path installPath)
 		input::Update();
 		Video::Present();
 
-		std::this_thread::sleep_until(frameStart + frameTime);
+		framePacer.EndFrame(FramePacer::WaitMode::SleepOnly);
 	}
 
 	SDL_CaptureMouse(SDL_FALSE);
