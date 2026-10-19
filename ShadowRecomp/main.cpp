@@ -79,11 +79,11 @@ uint32_t LoadXbeModule(const std::filesystem::path& path)
     const uint32_t sectionHeadersOffset = header->sectionHeadersAddress - header->baseAddress;
     const auto* sectionHeaders = reinterpret_cast<const XbeSectionHeader*>(module.data() + sectionHeadersOffset);
 
-    uint32_t firstSectionVA = sectionHeaders[0].virtualAddress; 
-    uint32_t headersSize = firstSectionVA - header->baseAddress;        
+    uint32_t firstSectionVA = sectionHeaders[0].virtualAddress;
+    uint32_t headersSize = firstSectionVA - header->baseAddress;
 
     //Copy headers to their expected VA 
-    void* headersDest = g_memory.Translate(header->baseAddress); 
+    void* headersDest = g_memory.Translate(header->baseAddress);
     memcpy(headersDest, module.data(), headersSize);
 
     for (uint32_t i = 0; i < header->numSections; i++)
@@ -126,6 +126,33 @@ extern bool isHostThread;
 
 bool QuickBootConfig = false;
 int Ts_StageID = -1; // test spawn stage select
+std::vector<int> Ts_EventIDs; // events/cutscenes to play directly on boot
+bool Ts_EventAll = false; // will play all events
+
+static constexpr size_t EventListMaxSize = 256;
+
+static void ParseEventList(const char* arg)
+{
+    std::string list = arg;
+
+    for (char* token = strtok(list.data(), ","); token; token = strtok(nullptr, ","))
+    {
+        int first, last;
+        int read = sscanf(token, "%d-%d", &first, &last);
+
+        if (read < 1)
+            break;
+
+        if (read == 1)
+            last = first;
+
+        if (last < first)
+            std::swap(first, last);
+
+        for (int id = first; id <= last && Ts_EventIDs.size() < EventListMaxSize; id++)
+            Ts_EventIDs.push_back(id);
+    }
+}
 
 int main(int argc, char* argv[])
 {
@@ -180,6 +207,29 @@ int main(int argc, char* argv[])
                 LOGN_WARNING("No argument was specified for --level. Option will be ignored.");
         }
 
+        if (strcmp(argv[i], "--e") == 0 || strcmp(argv[i], "--event") == 0)
+        {
+            if ((i + 1) < argc)
+            {
+                const char* arg = argv[++i];
+
+                if (_stricmp(arg, "all") == 0)
+                {
+                    Ts_EventAll = true;
+                }
+                else
+                {
+                    ParseEventList(arg);
+
+                    if (Ts_EventIDs.empty())
+                        LOGN_WARNING("No valid event id was specified for --event. Option will be ignored.");
+                }
+            }
+            else
+            {
+                LOGN_WARNING("No argument was specified for --event. Option will be ignored.");
+            }
+        }
 
         if (strcmp(argv[i], "--sdl-video-driver") == 0)
         {
@@ -188,6 +238,12 @@ int main(int argc, char* argv[])
             else
                 LOGN_WARNING("No argument was specified for --sdl-video-driver. Option will be ignored.");
         }
+    }
+
+    if (Ts_StageID != -1 && (Ts_EventAll || !Ts_EventIDs.empty()))
+    {
+        Ts_EventAll = false;
+        Ts_EventIDs.clear();
     }
 
     if (!useDefaultWorkingDirectory)
@@ -296,5 +352,5 @@ int main(int argc, char* argv[])
 
 
     printf("function Main is returning 0\n");
-	return 0;
+    return 0;
 }
