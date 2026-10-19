@@ -1639,9 +1639,6 @@ static void CompilePendingPipelinesForShader(uint64_t runtimeHash, GuestShader* 
 	}
 }
 
-GuestSurface* g_XboxBackBuffer = nullptr;
-GuestSurface* g_XboxDefaultDepthStencilSurface = nullptr;
-
 template<X_D3DPRIMITIVETYPE PrimitiveType>
 struct PrimitiveIndexData
 {
@@ -6480,7 +6477,45 @@ static void SetViewport(GuestViewport* viewport, GuestSurface* surface)
 }
 
 
-X86_FUNC_IMPL(__imp__sub_3D0040);
+// The game doesn't create the backbuffer and depth surface in CreateSurface / CreateTexture like the other surfaces
+// Instead it does it in InitializeFramebuffers, since the function is complex we can't just blindly replace it.
+// So we let the code run instead, then copy each header into a host surface which we will give to the guest device directly.
+static constexpr uint32_t GuestDeviceBackBufferOffset = 0x1A14;
+static constexpr uint32_t GuestDeviceAutoDepthOffset = 0x1A20;
+
+static void ReplaceDeviceSurface(uint32_t device, uint32_t offset, GuestSurface* newSurface)
+{
+	auto base = g_memory.base;
+	X_D3DSurface* surface = (X_D3DSurface*)g_memory.Translate(X86_LOAD_U32(device + offset));
+	newSurface->guestResource.Common = surface->Common;
+	newSurface->guestResource.Data = surface->Data;
+	newSurface->guestResource.Format = surface->Format;
+	newSurface->guestResource.Lock = surface->Lock;
+	newSurface->guestResource.Size = surface->Size;
+	newSurface->padding = surface->Parent;
+
+	X86_STORE_U32(device + offset, g_memory.MapVirtual(newSurface));
+}
+
+//D3D8::CDevice_InitializeFrameBuffers 
+// (this function create backbuffer and stencil)
+X86_FUNC_IMPL(__imp__sub_3D5140);
+X86_FUNC(sub_3D5140)
+{
+	uint32_t device = ctx.ecx.u32;
+	__imp__sub_3D5140(ctx, base);
+
+	if ((int32_t)ctx.eax.u32 < 0)
+		return;
+
+	ReplaceDeviceSurface(device, GuestDeviceBackBufferOffset, g_backBuffer);
+
+	if (X86_LOAD_U32(device + GuestDeviceAutoDepthOffset))
+	{
+		g_defaultStencil = CreateSurface(512, 512, X_D3DFMT_LIN_D24S8);
+		ReplaceDeviceSurface(device, GuestDeviceAutoDepthOffset, g_defaultStencil);
+	}
+}
 
 
 // The main thread and the loading thread can both run SetRenderTarget at the same time, thus, they can read
@@ -6489,6 +6524,7 @@ static std::recursive_mutex g_guestRefCountMutex;
 
 //Specify where it should draws (Either framebuffer surface or texture surface)
 //on DX8 Xbox, SetDepthStencilSurface is merged with SetRenderTarget.
+X86_FUNC_IMPL(__imp__sub_3D0040);
 void D3DDevice_SetRenderTarget(GuestSurface* surface, GuestSurface* pNewZStencil)
 {
 	std::lock_guard lock(g_guestRefCountMutex);
@@ -6497,41 +6533,9 @@ void D3DDevice_SetRenderTarget(GuestSurface* surface, GuestSurface* pNewZStencil
 	auto base = g_memory.base;
 	auto device = X86_LOAD_U32(GuestDevicePtrAddr);
 
+	GuestSurface* newSurface = surface;
+	GuestSurface* newDepthStencil = pNewZStencil;
 
-	GuestSurface* newSurface = nullptr;
-	GuestSurface* newDepthStencil = nullptr;
-
-	if (!g_XboxBackBuffer)
-	{
-		g_XboxBackBuffer = surface;
-		g_XboxDefaultDepthStencilSurface = pNewZStencil;
-		g_defaultStencil = CreateSurface(512, 512, X_D3DFMT_LIN_D24S8);
-		newSurface = g_backBuffer;
-		newDepthStencil = g_defaultStencil;
-	}
-	else
-	{
-		if (g_XboxBackBuffer && g_XboxBackBuffer == surface)
-		{
-			newSurface = g_backBuffer;
-		}
-		else
-		{
-			newSurface = surface;
-		}
-
-		if (g_XboxDefaultDepthStencilSurface && g_XboxDefaultDepthStencilSurface == pNewZStencil)
-		{
-			newDepthStencil = g_defaultStencil;
-		}
-		else
-		{
-			newDepthStencil = pNewZStencil;
-		}
-	}
-
-
-	//printf("SetRenderTarget surface %x texture %x, width %d, height %d\n", newSurface, newSurface->texture, newSurface->width, newSurface->height);
 	// The currenct depth stencil is always replaced by whats passed in here (even a null)
 	g_ZScale = GetZScaleForPixelContainer(pNewZStencil != nullptr ? (X_D3DPixelContainer*)&pNewZStencil->guestResource : nullptr);
 
@@ -6558,12 +6562,8 @@ void D3DDevice_SetRenderTarget(GuestSurface* surface, GuestSurface* pNewZStencil
 	cmd2.setDepthStencilSurface.depthStencil = newDepthStencil;
 	g_renderQueue.enqueue(cmd2);
 
-	//SetDefaultViewport((GuestDevice*)g_memory.Translate(device), newDepthStencil);
 	g_next_RenderTarget = newSurface;
 	MarkFixedFunctionVertexShaderStateDirty();
-
-	//X86_STORE_U32(device + 0x954, surface->width);
-	//X86_STORE_U32(device + 0x958, surface->height);
 }
 
 
