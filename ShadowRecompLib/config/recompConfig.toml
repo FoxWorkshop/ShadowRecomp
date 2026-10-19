@@ -1815,3 +1815,8 @@ name = "GravityChangeTouchSFXMidAsmHook"
 address = 0x20E468
 registers = ["r4"]
 jump_address_on_true = 0x20E47C
+
+[[midasm_hook]]
+name = "AdxtPauseReloadStatMidAsmHook"
+address = 0x329ABE
+registers = ["r4", "r5"]

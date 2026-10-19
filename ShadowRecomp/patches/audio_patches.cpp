@@ -291,6 +291,20 @@ bool RnaPlayStateLatchMidAsmHook(X86Register& esi)
 	return true;
 }
 
+// Extra attempt: This patch is to fix audio Event not starting (which use ADX files too).
+// ADXT_Pause reads the stream state before it takes the CRI lock, then it tells the RNA to play
+// (or stop) when that state is 3 or 4. Meanwhile, TObjBGM::Play pauses a new track and unpauses it 2 frames later.
+// If the ADX vsync thread sets the stream to state 3 while the unpause waits on the lock, it will see the pause
+// flag set and skips the play. We can patch this by reading the state again once the lock is held.
+static constexpr uint32_t ADXT_STAT = 0x01;
+void AdxtPauseReloadStatMidAsmHook(X86Register& esi, X86Register& edi)
+{
+	auto base = g_memory.base;
+	const int32_t stat = int8_t(X86_LOAD_U8(esi.u32 + ADXT_STAT));
+
+	edi.u32 = uint32_t(stat);
+}
+
 /* --END MUSIC RACE ISSUE PATCH-- */
 
 bool IdleChaosPowersMusicMidAsmHook()
@@ -739,3 +753,5 @@ X86_FUNC(sub_20E260)
 	__imp__sub_20E260(ctx, base);
 }
 /** GravityChangeSwitch / GravityChangeZone SFX spam fix Patch END */
+
+
