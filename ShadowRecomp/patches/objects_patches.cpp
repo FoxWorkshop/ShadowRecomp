@@ -33,19 +33,91 @@ X86_FUNC(sub_1A1E60)
 }
 
 // sub_17E290 (ObjectUpdateVisibility (gadgets)) calls sub_17C130 (SetFadeAlpha)
-// with a fade value that gets added to skinned_pos.w in the vertex shader, causing bugged objects to flash bright during fade-in/fade-out
-// Only stub the fade alpha write when called from the object fade-in/fade-out
-static thread_local bool g_inSub17E290 = false;
+// fading moves clumps into world 10 (_AL)
+// most gadgets are supposed to use _A not _AL (hence the white flash, applying light when it shouldn't)
+// _AL has backface culling while _A doesn't, so we only remove the light and keep the other properties of _AL
+static std::unordered_map<uint32_t, uint32_t> g_fadeOriginalWorld;
 
+// RenderWare name, I call these layers personally but 'world' is accurate
+static uint32_t GetClumpWorld(uint8_t* base, uint32_t clump)
+{
+	return X86_LOAD_U32(clump + X86_LOAD_U32(0x55F4D8));
+}
+
+// render layers (world) table @ 0x4E50F0 (_O, _OS, _A, _AL etc...)
+// Gadgets that have the lit flag should actually use AL, so we skip patching them
+static bool IsUnlitLayer(uint8_t* base, uint32_t world)
+{
+	for (uint32_t layer = 0x4E50F0; layer < 0x4E50F0 + 15 * 0x18; layer += 0x18)
+	{
+		if (X86_LOAD_U32(layer + 0x8) == world)
+		{
+			return (X86_LOAD_U32(layer) & 0x1) == 0;
+		}
+	}
+	return false;
+}
+
+// SetFadeAlpha
 X86_FUNC_IMPL(__imp__sub_17C130);
 X86_FUNC(sub_17C130)
 {
-	if (g_inSub17E290)
+	const uint32_t gadget = ctx.ecx.u32;
+	if ((X86_LOAD_U32(gadget + 0x3C) & 0x40) == 0)
 	{
-		ctx.esp.u32 += 0x8;
-		return;
+		const uint32_t listEnd = X86_LOAD_U32(gadget + 0x50);
+		for (uint32_t node = X86_LOAD_U32(listEnd); node != listEnd; node = X86_LOAD_U32(node))
+		{
+			const uint32_t clump = X86_LOAD_U32(node + 0x8);
+			const uint32_t world = GetClumpWorld(base, clump);
+			// only patch if the gadget is supposed to be in _A
+			if (world && IsUnlitLayer(base, world))
+			{
+				g_fadeOriginalWorld[clump] = world;
+			}
+			else
+			{
+				g_fadeOriginalWorld.erase(clump);
+			}
+		}
 	}
 	__imp__sub_17C130(ctx, base);
+}
+
+// Fade end
+X86_FUNC_IMPL(__imp__sub_17C1C0);
+X86_FUNC(sub_17C1C0)
+{
+	const uint32_t gadget = ctx.ecx.u32;
+	if (X86_LOAD_U32(gadget + 0x3C) & 0x40)
+	{
+		const uint32_t listEnd = X86_LOAD_U32(gadget + 0x50);
+		for (uint32_t node = X86_LOAD_U32(listEnd); node != listEnd; node = X86_LOAD_U32(node))
+		{
+			const uint32_t clump = X86_LOAD_U32(node + 0x8);
+			g_fadeOriginalWorld.erase(clump);
+		}
+	}
+	__imp__sub_17C1C0(ctx, base);
+}
+
+// Gadget atomic render
+X86_FUNC_IMPL(__imp__sub_17A5C0);
+X86_FUNC(sub_17A5C0)
+{
+	const uint32_t atomic = X86_LOAD_U32(ctx.esp.u32 + 0x4);
+	const uint32_t clump = X86_LOAD_U32(atomic + 0x3C);
+	const auto originalWorld = g_fadeOriginalWorld.find(clump);
+	if (originalWorld == g_fadeOriginalWorld.end() || GetClumpWorld(base, clump) != X86_LOAD_U32(0x4E51E8))
+	{
+		__imp__sub_17A5C0(ctx, base);
+		return;
+	}
+	// restore the original mode
+	const uint32_t curWorld = X86_LOAD_U32(0x57DE04);
+	X86_STORE_U32(0x57DE04, originalWorld->second);
+	__imp__sub_17A5C0(ctx, base);
+	X86_STORE_U32(0x57DE04, curWorld);
 }
 
 // Shared AnimTask func (used by a lot of objects)
@@ -67,10 +139,7 @@ X86_FUNC(sub_17E290)
 		X86_STORE_F32(rateAddr, restoreRate * frames);
 	}
 
-	// Mark when the caller is sub_17E290 (for sub_17C130, to block the crappy DS1 fade bug Xbox has)
-	g_inSub17E290 = true;
 	__imp__sub_17E290(ctx, base);
-	g_inSub17E290 = false;
 
 	// deltatime patch
 	X86_STORE_F32(rateAddr, restoreRate);
