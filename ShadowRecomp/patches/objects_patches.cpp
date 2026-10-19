@@ -58,11 +58,52 @@ static bool IsUnlitLayer(uint8_t* base, uint32_t world)
 	return false;
 }
 
+// When an object switches world (e.g. _O to _AL) RW invokes LTM sync (both rwFRAMEPRIVATEHIERARCHYSYNCLTM and rwFRAMEPRIVATESUBTREESYNCLTM, thanks donut!)
+// When the world switches the object is does the sync and reset to origin (0,0,0) which was what I thought was a 'dropped frame'
+// If we track the flags we can just persist them across world moves
+struct FadeFrame
+{
+	uint32_t frame;
+	uint8_t privateFlags;
+	uint8_t rootPrivateFlags;
+};
+
+static void SaveFrameFlags(uint8_t* base, uint32_t clump, std::vector<FadeFrame>& frames)
+{
+	const auto save = [&](uint32_t frame)
+	{
+		if (frame)
+		{
+			const uint32_t root = X86_LOAD_U32(frame + 0xA0);
+			frames.push_back({ frame, X86_LOAD_U8(frame + 0x3), X86_LOAD_U8(root + 0x3) });
+		}
+	};
+
+	save(X86_LOAD_U32(clump + 0x4));
+	const uint32_t atomicEnd = clump + 0x8;
+	for (uint32_t link = X86_LOAD_U32(atomicEnd); link != atomicEnd; link = X86_LOAD_U32(link))
+	{
+		const uint32_t atomic = link - 0x40;
+		save(X86_LOAD_U32(atomic + 0x4));
+	}
+}
+
+static void ClearNewLtmSync(uint8_t* base, const std::vector<FadeFrame>& frames)
+{
+	for (const auto& saved : frames)
+	{
+		const uint32_t root = X86_LOAD_U32(saved.frame + 0xA0);
+		X86_STORE_U8(root + 0x3, X86_LOAD_U8(root + 0x3) & (saved.rootPrivateFlags | ~0x1));
+		X86_STORE_U8(saved.frame + 0x3, X86_LOAD_U8(saved.frame + 0x3) & (saved.privateFlags | ~0x4));
+	}
+}
+
 // SetFadeAlpha
 X86_FUNC_IMPL(__imp__sub_17C130);
 X86_FUNC(sub_17C130)
 {
 	const uint32_t gadget = ctx.ecx.u32;
+	std::vector<FadeFrame> frames;
 	if ((X86_LOAD_U32(gadget + 0x3C) & 0x40) == 0)
 	{
 		const uint32_t listEnd = X86_LOAD_U32(gadget + 0x50);
@@ -79,9 +120,11 @@ X86_FUNC(sub_17C130)
 			{
 				g_fadeOriginalWorld.erase(clump);
 			}
+			SaveFrameFlags(base, clump, frames);
 		}
 	}
 	__imp__sub_17C130(ctx, base);
+	ClearNewLtmSync(base, frames);
 }
 
 // Fade end
@@ -89,6 +132,7 @@ X86_FUNC_IMPL(__imp__sub_17C1C0);
 X86_FUNC(sub_17C1C0)
 {
 	const uint32_t gadget = ctx.ecx.u32;
+	std::vector<FadeFrame> frames;
 	if (X86_LOAD_U32(gadget + 0x3C) & 0x40)
 	{
 		const uint32_t listEnd = X86_LOAD_U32(gadget + 0x50);
@@ -96,9 +140,11 @@ X86_FUNC(sub_17C1C0)
 		{
 			const uint32_t clump = X86_LOAD_U32(node + 0x8);
 			g_fadeOriginalWorld.erase(clump);
+			SaveFrameFlags(base, clump, frames);
 		}
 	}
 	__imp__sub_17C1C0(ctx, base);
+	ClearNewLtmSync(base, frames);
 }
 
 // Gadget atomic render
