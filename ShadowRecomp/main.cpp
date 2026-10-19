@@ -199,7 +199,7 @@ int main(int argc, char* argv[])
         graphicsApiRetry = graphicsApiRetry || (strcmp(argv[i], "--graphics-api-retry") == 0);
         QuickBootConfig = QuickBootConfig || (strcmp(argv[i], "--quickboot") == 0);
 
-        if (strcmp(argv[i], "--l") == 0 || strcmp(argv[i], "--level") == 0)
+        if (strcmp(argv[i], "-l") == 0 || strcmp(argv[i], "--level") == 0)
         {
             if ((i + 1) < argc)
                 Ts_StageID = atoi(argv[++i]);
@@ -207,7 +207,7 @@ int main(int argc, char* argv[])
                 LOGN_WARNING("No argument was specified for --level. Option will be ignored.");
         }
 
-        if (strcmp(argv[i], "--e") == 0 || strcmp(argv[i], "--event") == 0)
+        if (strcmp(argv[i], "-e") == 0 || strcmp(argv[i], "--event") == 0)
         {
             if ((i + 1) < argc)
             {
