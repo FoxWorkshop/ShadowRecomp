@@ -2971,3 +2971,51 @@ X86_FUNC(sub_23950)
 	}
 	__imp__sub_23950(ctx, base);
 }
+
+/** --Weapon fire rate Patch START-- */
+// This is a pretty minor fix. Fix auto weapon fire rate to align with 60FPS behavior
+// For 2PGunAndroid for example:
+// Wait is 100ms + one frame
+// at 60fps its 100ms + 16ms
+// at 240fps its 100ms + 4ms
+static void WeaponFireRate60FPS(uint8_t* base, uint32_t control, float prevCooldown, float dt)
+{
+	const float step = 1.0f / 60.0f;
+	const float cooldown = X86_LOAD_F32(control + 0x10);
+	if (dt >= step || cooldown <= prevCooldown)
+	{
+		return;
+	}
+
+	int frames = 0;
+	float left = cooldown;
+	while (left > 0.0f)
+	{
+		left -= step;
+		frames++;
+	}
+	X86_STORE_F32(control + 0x10, frames * step - dt * 0.5f);
+}
+
+// ControlCannon
+X86_FUNC_IMPL(__imp__sub_A0CD0);
+X86_FUNC(sub_A0CD0)
+{
+	const uint32_t control = ctx.ecx.u32;
+	const float dt = X86_LOAD_F32(ctx.esp.u32 + 0x4);
+	const float cooldown = X86_LOAD_F32(control + 0x10);
+	__imp__sub_A0CD0(ctx, base);
+	WeaponFireRate60FPS(base, control, cooldown, dt);
+}
+
+// ControlGun
+X86_FUNC_IMPL(__imp__sub_A1740);
+X86_FUNC(sub_A1740)
+{
+	const uint32_t control = ctx.ecx.u32;
+	const float dt = X86_LOAD_F32(ctx.esp.u32 + 0x4);
+	const float cooldown = X86_LOAD_F32(control + 0x10);
+	__imp__sub_A1740(ctx, base);
+	WeaponFireRate60FPS(base, control, cooldown, dt);
+}
+/** --Weapon fire rate Patch END-- */
