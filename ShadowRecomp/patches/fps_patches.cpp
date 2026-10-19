@@ -2982,7 +2982,7 @@ static void WeaponFireRate60FPS(uint8_t* base, uint32_t control, float prevCoold
 {
 	const float step = 1.0f / 60.0f;
 	const float cooldown = X86_LOAD_F32(control + 0x10);
-	if (dt >= step || cooldown <= prevCooldown)
+	if (dt >= step || cooldown <= 0.0f || cooldown <= prevCooldown)
 	{
 		return;
 	}
