@@ -437,7 +437,7 @@ std::unordered_map<std::string_view, std::unordered_map<ELanguage, std::string>>
 	"Pause_Menu_Continue",
 	{
 		{ ELanguage::English,  "resume" },
-		{ ELanguage::Japanese, "" },
+		{ ELanguage::Japanese, "resume" },
 		{ ELanguage::German,   "weiter" },
 		{ ELanguage::French,   "reprendre" },
 		{ ELanguage::Spanish,  "continuar" },
@@ -450,7 +450,7 @@ std::unordered_map<std::string_view, std::unordered_map<ELanguage, std::string>>
 	"Pause_Menu_Restart",
 	{
 		{ ELanguage::English,  "restart" },
-		{ ELanguage::Japanese, "" },
+		{ ELanguage::Japanese, "restart" },
 		{ ELanguage::German,   "neustart" },
 		{ ELanguage::French,   "redemarrer" },
 		{ ELanguage::Spanish,  "volver a empezar" },
@@ -639,42 +639,6 @@ std::unordered_map<std::string_view, std::unordered_map<ELanguage, std::string>>
 		{ ELanguage::Italian,  "Gioco" }
 	}
 },
-// TODO: UNUSED
-{
-	"Installer_Step_Update",
-	{
-		{ ELanguage::English,  "Update" },
-		{ ELanguage::Japanese, "アップデート" },
-		{ ELanguage::German,   "Update" },
-		{ ELanguage::French,   "Mise à jour" },
-		{ ELanguage::Spanish,  "Actualización" },
-		{ ELanguage::Italian,  "Aggiornamento" }
-	}
-},
-// TODO: UNUSED
-{
-	"Installer_Step_RequiredSpace",
-	{
-		{ ELanguage::English,  "Required space: %2.3f GiB" },
-		{ ELanguage::Japanese, "[必要:ひつよう]な[容量:ようりょう]: %2.3f GiB" },
-		{ ELanguage::German,   "Benötigter Speicherplatz:\n%2.2f GiB" },
-		{ ELanguage::French,   "Espace nécessaire :\n%2.3f Gio" },
-		{ ELanguage::Spanish,  "Espacio necesario: %2.3f GiB" },
-		{ ELanguage::Italian,  "Spazio necessario: %2.3f GiB" }
-	}
-},
-// TODO: UNUSED
-{
-	"Installer_Step_AvailableSpace",
-	{
-		{ ELanguage::English,  "Available space: %2.3f GiB" },
-		{ ELanguage::Japanese, "[使用:しよう][可能:かのう]な[容量:ようりょう]: %2.3f GiB" },
-		{ ELanguage::German,   "Verfügbarer Speicherplatz:\n%2.3f GiB" },
-		{ ELanguage::French,   "Espace disponible :\n%2.3f Gio" },
-		{ ELanguage::Spanish,  "Espacio disponible: %2.3f GiB" },
-		{ ELanguage::Italian,  "Spazio disponibile: %2.3f GiB" }
-	}
-},
 {
 	"Installer_Button_Next",
 	{
@@ -719,18 +683,6 @@ std::unordered_map<std::string_view, std::unordered_map<ELanguage, std::string>>
 		{ ELanguage::Italian,  "Esci" }
 	}
 },
-// TODO: UNUSED, maybe use it when we add folder selection
-{
-	"Installer_Button_AddFiles",
-	{
-		{ ELanguage::English,  "Add Files" },
-		{ ELanguage::Japanese, "ファイルを追加" },
-		{ ELanguage::German,   "Dateien hinzufügen" },
-		{ ELanguage::French,   "Ajouter des fichiers" },
-		{ ELanguage::Spanish,  "Añadir archivos" },
-		{ ELanguage::Italian,  "Aggiungi file" }
-	}
-},
 {
 	"Installer_Button_PlayGame",
 	{
@@ -755,30 +707,6 @@ std::unordered_map<std::string_view, std::unordered_map<ELanguage, std::string>>
 	}
 },
 {
-	// TODO: UNUSED
-	"Installer_Message_FilePickerTutorial",
-	{
-		{ ELanguage::English,  "Select a digital dump with\ncontent from the game.\n\nThese files can be obtained from\nyour Xbox hard drive by\nfollowing the instructions on\nthe GitHub page.\n\nFor choosing a folder with extracted\nand unmodified game files, use\nthe \"Add Folder\" option instead." },
-		{ ELanguage::Japanese, "ゲームのコンテンツを[含:ふく]む デジタルダンプを[選択:せんたく]してください\n\nこれらのファイルは GitHubページの[指示:しじ]に[従:したが]って\nXboxハードドライブから[取得:しゅとく]できます\n\n[抽出:ちゅうしゅつ]された[変更:へんこう]されていない\nゲームファイルを[含:ふく]むフォルダーを[選択:せんたく]するには\n[代:か]わりに「フォルダの[追加:ついか]」オプションを[使用:しよう]してください" },
-		{ ELanguage::German,   "Wähle einen digitalen Dump von dem Spiel.\n\nDie Dateien können über die Festplatte deiner\nXbox erlangt werden.\nFolge hierfür den Anweisungen auf der GitHub Seite.\n\nUm einen Ordner mit unmodifizierten Spieldateien auszuwählen, benutze die \"Ordner Hinzufügen\" Option stattdessen." },
-		{ ELanguage::French,   "Sélectionnez une copie\ndématérialisée avec le contenu du\njeu de base.\n\nCes fichiers peuvent être obtenus\nà partir du disque dur de votre\nXbox en suivant les\ninstructions de la page GitHub.\n\nPour choisir un dossier contenant\nles fichiers de jeu extraits et\nnon modifiés, utilisez plutôt\nl'option \"Ajouter un dossier\"." },
-		{ ELanguage::Spanish,  "Selecciona una copia digital\ncon contenido del juego.\n\nPuedes obtener los archivos\nde tu disco duro de Xbox\nsiguiendo las instrucciones de\nla página de GitHub.\n\nPara elegir una carpeta con\narchivos extraídos sin modificar,\nutiliza la opción \"Añadir Carpeta\"." },
-		{ ELanguage::Italian,  "Seleziona una copia digitale\ncon i contenuti del gioco.\n\nQuesti file possono essere ottenuti\ndall'hard drive della tua Xbox\nseguendo le istruzioni\nsulla pagina GitHub.\n\nPer selezionare una cartella\ncon file estratti e non modificati\nusa l'opzione \"Aggiungi cartella\"." }
-	}
-},
-{
-	// TODO: Unused, if we support already extracted game, add it
-	"Installer_Message_FolderPickerTutorial",
-	{
-		{ ELanguage::English,  "Select a folder that contains the\nunmodified files that have been\nextracted from the game.\n\nThese files can be obtained from\nyour Xbox hard drive by\nfollowing the instructions on\nthe GitHub page.\n\nFor choosing a digital dump,\nuse the \"Add Files\" option instead." },
-		{ ELanguage::Japanese, "ゲームから[抽出:ちゅうしゅつ]された[変更:へんこう]されていない\nファイルを含むフォルダを[選択:せんたく]してください\n\nこれらのファイルは GitHubページの[指示:しじ]に[従:したが]って\nXboxハードドライブから[取得:しゅとく]できます\n\nデジタルダンプを[選択:せんたく]するには\n[代:か]わりに「ファイルの[追加:ついか]」オプションを[使用:しよう]してください" },
-		{ ELanguage::German,   "Wähle einen Ordner, der unmodifizierte Dateien, die vom Spiel extrahiert wurden enthält.\n\nDie Dateien können über die Festplatte deiner\nXbox erlangt werden.\nFolge hierfür den Anweisungen auf der GitHub Seite.\n\nUm einen digitalen Dump auszuwählen, benutze die \"Datei Hinzufügen\" Option stattdessen." },
-		{ ELanguage::French,   "Sélectionnez un dossier contenant\nles fichiers extraits du jeu de\nbase.\n\nCes fichiers peuvent être obtenus\nà partir du disque dur de votre\nXbox en suivant les\ninstructions de la page GitHub.\n\nPour choisir une copie\ndématérialisée, utilisez plutôt\nl'option \"Ajouter des fichiers\"." },
-		{ ELanguage::Spanish,  "Selecciona una carpeta que\ncontenga los archivos sin\nmodificar extraídos del juego.\n\nPuedes obtener los archivos\nde tu disco duro de Xbox\nsiguiendo las instrucciones de\nla página de GitHub.\n\nPara elegir una copia digital,\nutiliza la opción \"Añadir Archivos\"." },
-		{ ELanguage::Italian,  "Seleziona una cartella che contiene\ni file non modificati che sono stati\nestratti dal gioco.\n\nQuesti file possono essere ottenuti\ndall'hard drive della tua Xbox\nseguendo le istruzioni\nsulla pagina GitHub.\n\nPer selezionare una copia digitale\nusa l'opzione \"Aggiungi file\"." }
-	}
-},
-{
 	// Notes: message appears when pressing B at the title screen.
 	"Title_Message_Quit",
 	{
@@ -796,11 +724,11 @@ std::unordered_map<std::string_view, std::unordered_map<ELanguage, std::string>>
 	"Title_Message_CreateSave",
 	{
 		{ ELanguage::English,  "There is no Game Data on your PC.\nSHADOW THE HEDGEHOG™\nsupports an autosave feature.\nDo you want to create Game Data?" },
-		{ ELanguage::Japanese, "" },
-		{ ELanguage::German,   "" },
+		{ ELanguage::Japanese, "There is no Game Data on your PC.\nSHADOW THE HEDGEHOG™\nsupports an autosave feature.\nDo you want to create Game Data?" },
+		{ ELanguage::German,   "There is no Game Data on your PC.\nSHADOW THE HEDGEHOG™\nsupports an autosave feature.\nDo you want to create Game Data?" },
 		{ ELanguage::French,   "Pas de données de jeu sur ce PC.\nSHADOW THE HEDGEHOG™\ndispose d'un système de sauvegarde automatique.\nCréer des données de jeu sur\nce PC?" },
-		{ ELanguage::Spanish,  "" },
-		{ ELanguage::Italian,  "" }
+		{ ELanguage::Spanish,  "There is no Game Data on your PC.\nSHADOW THE HEDGEHOG™\nsupports an autosave feature.\nDo you want to create Game Data?" },
+		{ ELanguage::Italian,  "There is no Game Data on your PC.\nSHADOW THE HEDGEHOG™\nsupports an autosave feature.\nDo you want to create Game Data?" }
 	}
 },
 {
@@ -809,11 +737,11 @@ std::unordered_map<std::string_view, std::unordered_map<ELanguage, std::string>>
 	"Title_Message_CreateSaveFailed",
 	{
 		{ ELanguage::English,  "Start the game without creating\nGame Data.\nProgress of the game will not be saved." },
-		{ ELanguage::Japanese, "" },
-		{ ELanguage::German,   "" },
+		{ ELanguage::Japanese, "Start the game without creating\nGame Data.\nProgress of the game will not be saved." },
+		{ ELanguage::German,   "Start the game without creating\nGame Data.\nProgress of the game will not be saved." },
 		{ ELanguage::French,   "Démarrer le jeu sans créer de données du jeu.\nLa progression du jeu ne sera\npas sauvegardée." },
-		{ ELanguage::Spanish,  "" },
-		{ ELanguage::Italian,  "" }
+		{ ELanguage::Spanish,  "Start the game without creating\nGame Data.\nProgress of the game will not be saved." },
+		{ ELanguage::Italian,  "Start the game without creating\nGame Data.\nProgress of the game will not be saved." }
 	}
 },
 // Notes: on load if the save file is corrupted
