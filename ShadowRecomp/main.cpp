@@ -24,6 +24,7 @@
 #include <patches/reloaded_mod_patches.h>
 #include <audio/embedded_player.h>
 #include <ui/installer_wizard.h>
+#include <install/installer.h>
 #include <install/update_checker.h>
 #include <gpu/frame_pacing/timer_resolution.h>
 #include <patches/pause_patches.h>
@@ -260,11 +261,24 @@ int main(int argc, char* argv[])
 
     if (forceInstallationCheck)
     {
-        if (isGameInstalled)
-            printf("Installation check passed.\n");
-        else
-            printf("Installation check failed. Game files not found.\n");
-        return isGameInstalled ? 0 : 1;
+        os::process::ShowConsole();
+        int lastDecile = -1;
+        std::string errorMessage;
+        bool isInstallValid = Installer::CheckInstall(MainGameFolder, [&](const Installer::Progress& progress)
+        {
+            int decile = int(progress.ratio * 10.0f);
+            if (decile != lastDecile)
+            {
+                printf("Checking files: %d%%\n", decile * 10);
+                lastDecile = decile;
+            }
+        }, errorMessage);
+
+        char resultText[512];
+        snprintf(resultText, sizeof(resultText), Localise(isInstallValid ? "IntegrityCheck_Success" : "IntegrityCheck_Failed").c_str(), errorMessage.c_str());
+        fprintf(isInstallValid ? stdout : stderr, "%s\n", resultText);
+        SDL_ShowSimpleMessageBox(isInstallValid ? SDL_MESSAGEBOX_INFORMATION : SDL_MESSAGEBOX_ERROR, GameWindow::GetTitle(), resultText, GameWindow::s_pWindow);
+        return isInstallValid ? 0 : 1;
     }
 
     if (runInstallerWizard)

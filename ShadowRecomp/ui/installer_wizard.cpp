@@ -2,7 +2,7 @@
 
 #include <nfd.h>
 #include <audio/embedded_player.h>
-#include <install/xiso_extract.h>
+#include <install/installer.h>
 #include <gpu/video.h>
 #include <gpu/frame_pacing/frame_pacer.h>
 #include <locale/locale.h>
@@ -85,7 +85,7 @@ static int g_selectedBtn = -1;
 
 static WizardPage g_currentPage = WizardPage::SelectLanguage;
 static std::filesystem::path g_installPath;
-static std::string g_isoPath;
+static std::string g_sourcePath;
 static std::string g_statusMessage;
 
 static std::unique_ptr<std::thread> g_installerThread;
@@ -94,8 +94,7 @@ static std::atomic<bool> g_installerFailed{ false };
 static std::string g_installerErrorMessage;
 static float g_installerProgress = 0.0f;
 static std::atomic<float> g_installerProgressTarget{ 0.0f };
-static std::string g_installerCurrentFileName;
-static std::atomic<XisoExtract::Phase> g_installerPhase{ XisoExtract::Phase::Hashing };
+static std::atomic<const char*> g_installerCurrentFileName{ "" };
 static std::atomic<bool> g_installerCompiling{ false };
 
 static constexpr float INSTALL_EXTRACT_RATIO_END = 0.8f;
@@ -268,18 +267,18 @@ static void DrawButton(ImVec2 min, ImVec2 max, const char* buttonText, bool sour
 
 static void InstallerThread()
 {
-	auto progressCallback = [](const XisoExtract::Progress& progress)
+	auto progressCallback = [](const Installer::Progress& progress)
 		{
-			g_installerCurrentFileName = progress.currentFileName;
-			g_installerPhase.store(progress.phase);
+			g_installerCurrentFileName.store(progress.currentFileName);
 			g_installerProgressTarget.store(progress.ratio * INSTALL_EXTRACT_RATIO_END);
 		};
 
-	bool success = XisoExtract::Extract(g_isoPath, g_installPath, progressCallback);
+	std::filesystem::path sourcePath(std::u8string_view(reinterpret_cast<const char8_t*>(g_sourcePath.c_str())));
+	std::string errorMessage;
+	bool success = Installer::Install(sourcePath, g_installPath, progressCallback, errorMessage);
 	if (success)
 	{
 		g_installerCompiling.store(true);
-		g_installerCurrentFileName.clear();
 
 		Video::PrecompileShadersAndPipelinesForInstall([](float progress)
 			{
@@ -291,6 +290,8 @@ static void InstallerThread()
 	}
 	else
 	{
+		LOGF_ERROR("Installing from {} failed: {}", g_sourcePath, errorMessage);
+
 		g_installerProgressTarget.store(1.0f);
 		g_installerFailed.store(true);
 		g_installerErrorMessage = Localise("Installer_Message_InvalidFileSelected");
@@ -734,7 +735,7 @@ void InstallerWizard::Draw()
 
 		float pathClipWidth = (inputMax.x - (8.0f * scale)) - (inputMin.x + (8.0f * scale));
 
-		const std::string displayPathStorage = g_isoPath.empty() ? Localise("Installer_Page_NoFileSelected") : std::string(g_isoPath);
+		const std::string displayPathStorage = g_sourcePath.empty() ? Localise("Installer_Page_NoFileSelected") : std::string(g_sourcePath);
 		const char* displayPath = displayPathStorage.c_str();
 
 		auto displayTextSize = font->CalcTextSizeA(fileFontSize, FLT_MAX, 0.0f, displayPath);
@@ -827,7 +828,7 @@ void InstallerWizard::Draw()
 			drawList->AddText(font, smallFontSize, ImVec2(panelMin.x, panelMin.y), IM_COL32(255, 100, 100, 255), g_statusMessage.c_str());
 		}
 
-		if (!g_isoPath.empty())
+		if (!g_sourcePath.empty())
 		{
 			float nextBtnWidth = 45.0f * scale;
 			float nextBtnHeight = 20.0f * scale;
@@ -893,15 +894,10 @@ void InstallerWizard::Draw()
 	break;
 	case WizardPage::Installing:
 	{
-		auto phase = g_installerPhase.load();
 		const char* headerText;
 		if (g_installerCompiling.load())
 		{
 			headerText = Localise("Installer_Page_Compiling").c_str();
-		}
-		else if (phase == XisoExtract::Phase::Hashing)
-		{
-			headerText = Localise("Installer_Page_Verifying").c_str();
 		}
 		else
 		{
@@ -918,13 +914,14 @@ void InstallerWizard::Draw()
 		float barWidth = panelWidth - barPadding * 2.0f;
 		float barHeight = 24.0f * scale;
 
-		if (phase != XisoExtract::Phase::Hashing && !g_installerCompiling.load())
+		if (!g_installerCompiling.load())
 		{
-			if (!g_installerCurrentFileName.empty())
+			const char* currentFileName = g_installerCurrentFileName.load();
+			if (*currentFileName != '\0')
 			{
 				char fileText[512];
 				auto fileTxt = Localise("Common_File") + ": %s";
-				snprintf(fileText, sizeof(fileText), fileTxt.c_str(), g_installerCurrentFileName.c_str());
+				snprintf(fileText, sizeof(fileText), fileTxt.c_str(), currentFileName);
 				ImVec2 fileTextPosition = ImVec2(barX, panelMin.y + (10.0f * scale));
 
 				DrawTextParagraph(font, fileFontSize, barWidth, fileTextPosition, textMargin, fileText,
@@ -1116,7 +1113,7 @@ void InstallerWizard::Shutdown()
 	g_installerThread.reset();
 
 	g_currentPage = WizardPage::SelectLanguage;
-	g_isoPath.clear();
+	g_sourcePath.clear();
 	g_statusMessage.clear();
 	g_installerFinished.store(false);
 	g_installerFailed.store(false);
@@ -1155,13 +1152,13 @@ bool InstallerWizard::Run(std::filesystem::path installPath)
 		{
 			g_browseClicked = false;
 
-			nfdu8filteritem_t filters[] = { {"Xbox ISO", "iso"} };
+			nfdu8filteritem_t filters[] = { {"Xbox ISO or default.xbe", "iso,xbe"} };
 			nfdu8char_t* outPath = nullptr;
 			nfdresult_t result = NFD_OpenDialogU8(&outPath, filters, 1, nullptr);
 
 			if (result == NFD_OKAY && outPath != nullptr)
 			{
-				g_isoPath = outPath;
+				g_sourcePath = outPath;
 				g_statusMessage.clear();
 				NFD_FreePathU8(outPath);
 			}

@@ -173,8 +173,11 @@ set(SHADOW_RECOMP_USER_CXX_SOURCES
 )
 
 set(SHADOW_RECOMP_INSTALL_CXX_SOURCES
+    "install/directory_file_system.cpp"
+    "install/hashes/game.cpp"
+    "install/installer.cpp"
     "install/update_checker.cpp"
-    "install/xiso_extract.cpp"
+    "install/xiso_file_system.cpp"
 )
 
 set(SHADOW_RECOMP_UI_CXX_SOURCES

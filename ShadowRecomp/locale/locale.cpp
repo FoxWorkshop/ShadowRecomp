@@ -552,7 +552,6 @@ std::unordered_map<std::string_view, std::unordered_map<ELanguage, std::string>>
 	}
 },
 {
-	// TODO: Do we want to support 'extracted' folder?
 	"Installer_Page_SelectGame",
 	{
 		{ ELanguage::English,  "Add the source for the game." },
@@ -566,12 +565,12 @@ std::unordered_map<std::string_view, std::unordered_map<ELanguage, std::string>>
 {
 	"Installer_Page_NoFileSelected",
 	{
-		{ ELanguage::English,  "No file selected..." },
-		{ ELanguage::Japanese, "No file selected..." },
-		{ ELanguage::German,   "No file selected..." },
-		{ ELanguage::French,   "No file selected..." },
-		{ ELanguage::Spanish,  "No file selected..." },
-		{ ELanguage::Italian,  "No file selected..." }
+		{ ELanguage::English,  "Pick an ISO or default.xbe if already extracted." },
+		{ ELanguage::Japanese, "Pick an ISO or default.xbe if already extracted." },
+		{ ELanguage::German,   "Pick an ISO or default.xbe if already extracted." },
+		{ ELanguage::French,   "Pick an ISO or default.xbe if already extracted." },
+		{ ELanguage::Spanish,  "Pick an ISO or default.xbe if already extracted." },
+		{ ELanguage::Italian,  "Pick an ISO or default.xbe if already extracted." }
 	}
 },
 {
@@ -583,17 +582,6 @@ std::unordered_map<std::string_view, std::unordered_map<ELanguage, std::string>>
 		{ ELanguage::French,   "Le contenu sera installé dans le même dossier que le programme.\n" },
 		{ ELanguage::Spanish,  "El contenido será instalado a la carpeta del programa.\n\n" },
 		{ ELanguage::Italian,  "Il contenuto verrà installato nella cartella di questo programma.\n\n" }
-	}
-},
-{
-	"Installer_Page_Verifying",
-	{
-		{ ELanguage::English,  "Verifying game files..." },
-		{ ELanguage::Japanese, "Verifying game files..." },
-		{ ELanguage::German,   "Verifying game files..." },
-		{ ELanguage::French,   "Verifying game files..." },
-		{ ELanguage::Spanish,  "Verifying game files..." },
-		{ ELanguage::Italian,  "Verifying game files..." }
 	}
 },
 {
@@ -755,16 +743,15 @@ std::unordered_map<std::string_view, std::unordered_map<ELanguage, std::string>>
 	}
 },
 {
-	// TODO: This message needs to be redone when we support extracted game
-	// Notes: message appears when using the "Add Files" option and choosing any file that is not an Xbox game dump.
+	// Notes: message appears for any install failure
 	"Installer_Message_InvalidFileSelected",
 	{
-		{ ELanguage::English,  "The selected file is not a valid Shadow the Hedgehog Xbox ISO.\nPlease provide a valid ISO file." },
-		{ ELanguage::Japanese, "The selected file is not a valid Shadow the Hedgehog Xbox ISO.\nPlease provide a valid ISO file." },
-		{ ELanguage::German,   "The selected file is not a valid Shadow the Hedgehog Xbox ISO.\nPlease provide a valid ISO file." },
-		{ ELanguage::French,   "The selected file is not a valid Shadow the Hedgehog Xbox ISO.\nPlease provide a valid ISO file." },
-		{ ELanguage::Spanish,  "The selected file is not a valid Shadow the Hedgehog Xbox ISO.\nPlease provide a valid ISO file." },
-		{ ELanguage::Italian,  "The selected file is not a valid Shadow the Hedgehog Xbox ISO.\nPlease provide a valid ISO file." }
+		{ ELanguage::English,  "The selected source is not a valid Shadow the Hedgehog Xbox ISO\nor extracted game folder. Please provide a valid one." },
+		{ ELanguage::Japanese, "The selected source is not a valid Shadow the Hedgehog Xbox ISO\nor extracted game folder. Please provide a valid one." },
+		{ ELanguage::German,   "The selected source is not a valid Shadow the Hedgehog Xbox ISO\nor extracted game folder. Please provide a valid one." },
+		{ ELanguage::French,   "The selected source is not a valid Shadow the Hedgehog Xbox ISO\nor extracted game folder. Please provide a valid one." },
+		{ ELanguage::Spanish,  "The selected source is not a valid Shadow the Hedgehog Xbox ISO\nor extracted game folder. Please provide a valid one." },
+		{ ELanguage::Italian,  "The selected source is not a valid Shadow the Hedgehog Xbox ISO\nor extracted game folder. Please provide a valid one." }
 	}
 },
 {
@@ -1153,7 +1140,6 @@ std::unordered_map<std::string_view, std::unordered_map<ELanguage, std::string>>
 	}
 },
 {
-	// TODO: UNUSED, Do we want an integrity check feature?
 	"IntegrityCheck_Success",
 	{
 		{ ELanguage::English,  "Installation check has finished.\n\nAll files seem to be correct.\n\nThe game will now close. Remove the launch argument to play the game." },
@@ -1165,7 +1151,6 @@ std::unordered_map<std::string_view, std::unordered_map<ELanguage, std::string>>
 	}
 },
 {
-	// TODO: UNUSED, Do we want an integrity check feature?
 	"IntegrityCheck_Failed",
 	{
 		{ ELanguage::English,  "Installation check has failed.\n\nError: %s\n\nThe game will now close. Try reinstalling the game by using the --install launch argument." },
