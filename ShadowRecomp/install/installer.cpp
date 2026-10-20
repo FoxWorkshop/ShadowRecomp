@@ -82,6 +82,11 @@ namespace Installer
         std::unique_ptr<XXH3_state_t, decltype(&XXH3_freeState)> hashState(XXH3_createState(), XXH3_freeState);
         uint64_t checkedSize = 0;
         uint64_t reportedSize = 0;
+        auto reportProgress = [&](const char* fileName)
+        {
+            reportedSize = checkedSize;
+            callback({ float(double(checkedSize) / double(totalSize)), fileName });
+        };
 
         for (const FileEntry& fileEntry : fileEntries)
         {
@@ -104,6 +109,7 @@ namespace Installer
 
                 journal->files.push_back(targetPath);
             }
+            reportProgress(fileEntry.path);
             XXH3_64bits_reset(hashState.get());
             bool readSucceeded = source.Read(*fileEntry.source, buffer, [&](const uint8_t* data, size_t size)
             {
@@ -119,8 +125,7 @@ namespace Installer
                 // every 16 MiB
                 if (checkedSize - reportedSize >= 0x1000000)
                 {
-                    reportedSize = checkedSize;
-                    callback({ float(double(checkedSize) / double(totalSize)), fileEntry.path });
+                    reportProgress(fileEntry.path);
                 }
                 return true;
             });
