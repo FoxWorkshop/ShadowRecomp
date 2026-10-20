@@ -837,7 +837,15 @@ void InstallerWizard::Draw()
 
 		if (!g_statusMessage.empty())
 		{
-			drawList->AddText(font, smallFontSize, ImVec2(panelMin.x, panelMin.y), IM_COL32(255, 100, 100, 255), g_statusMessage.c_str());
+			float statusPadding = 6.0f * scale;
+			float statusMaxWidth = panelWidth - (statusPadding * 2.0f);
+			float statusFontSize = smallFontSize;
+			auto statusSize = font->CalcTextSizeA(statusFontSize, FLT_MAX, 0.0f, g_statusMessage.c_str());
+			if (statusSize.x > statusMaxWidth)
+			{
+				statusFontSize = std::floor(statusFontSize * (statusMaxWidth / statusSize.x));
+			}
+			drawList->AddText(font, statusFontSize, ImVec2(panelMin.x + statusPadding, panelMin.y + statusPadding), IM_COL32(255, 100, 100, 255), g_statusMessage.c_str(), nullptr, statusMaxWidth);
 		}
 
 		if (!g_sourcePath.empty())

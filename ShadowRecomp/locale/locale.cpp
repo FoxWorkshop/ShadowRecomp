@@ -565,12 +565,12 @@ std::unordered_map<std::string_view, std::unordered_map<ELanguage, std::string>>
 {
 	"Installer_Page_NoFileSelected",
 	{
-		{ ELanguage::English,  "Pick an ISO or default.xbe if already extracted." },
-		{ ELanguage::Japanese, "Pick an ISO or default.xbe if already extracted." },
-		{ ELanguage::German,   "Pick an ISO or default.xbe if already extracted." },
-		{ ELanguage::French,   "Pick an ISO or default.xbe if already extracted." },
-		{ ELanguage::Spanish,  "Pick an ISO or default.xbe if already extracted." },
-		{ ELanguage::Italian,  "Pick an ISO or default.xbe if already extracted." }
+		{ ELanguage::English,  "Drag & Drop or Select an ISO or default.xbe" },
+		{ ELanguage::Japanese, "Drag & Drop or Select an ISO or default.xbe" },
+		{ ELanguage::German,   "Drag & Drop or Select an ISO or default.xbe" },
+		{ ELanguage::French,   "Drag & Drop or Select an ISO or default.xbe" },
+		{ ELanguage::Spanish,  "Drag & Drop or Select an ISO or default.xbe" },
+		{ ELanguage::Italian,  "Drag & Drop or Select an ISO or default.xbe" }
 	}
 },
 {
