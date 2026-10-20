@@ -9,6 +9,7 @@
 #include <res/images/common/Options2.png.h>
 #include <res/images/common/gamemenu.png.h>
 #include <res/images/common/arrow.png.h>
+#include <res/images/common/HPgauge.png.h>
 #include <decompressor.h>
 #include <patches/aspect_ratio_patches.h>
 #include <patches/bloom_patches.h>
@@ -58,6 +59,7 @@ static std::unique_ptr<GuestTexture> g_upTexOptionsIcons{};
 static std::unique_ptr<GuestTexture> g_upTexOptionsText{}; // flame, options logo, hud etc.
 static std::unique_ptr<GuestTexture> g_upTexGameMenuText{}; // select, exit text etc.
 static std::unique_ptr<GuestTexture> g_upTexArrow{};
+static std::unique_ptr<GuestTexture> g_upTexHpGauge{};
 static ImFont* g_fntSeurat;
 
 static int g_categoryIndex{ -1 };
@@ -67,6 +69,9 @@ static int g_optionCount{};
 static bool g_livePreviewHudHidden{};
 static float g_optionPreviewFade{}; // 0 shows the background, 1 hides it
 static constexpr float g_options_preview_fade_frames = 24.0f;
+
+static ConfigDef<float>* g_sliderPreviewConfig{};
+static float g_sliderPreviewValue{};
 
 // customize input sub menu
 enum class ERemapSection
@@ -128,12 +133,33 @@ static void UpdateLivePreviewFade()
 		g_optionPreviewFade = std::min(g_optionPreviewFade + step, 1.0f);
 	else
 		g_optionPreviewFade = std::max(g_optionPreviewFade - step, 0.0f);
+
+
+	if (IsLivePreviewActive() && g_optionCurrent != &Config::MaxHUDWidth)
+	{
+		auto config = g_optionCurrent == &Config::Brightness ? &Config::Brightness : &Config::BloomIntensity;
+
+		if (g_sliderPreviewConfig != config)
+			g_sliderPreviewValue = config->Value;
+
+		g_sliderPreviewConfig = config;
+	}
+	else if (g_optionPreviewFade <= 0.0f)
+	{
+		g_sliderPreviewConfig = nullptr;
+	}
 }
 
 static float GetOptionPreviewFade()
 {
 	auto t = g_optionPreviewFade;
 	return t * t * (3.0f - 2.0f * t);
+}
+
+// Used when the whole options menu fades out while a slider is showed alone
+static float GetMenuAlpha()
+{
+	return g_sliderPreviewConfig ? 1.0f - GetOptionPreviewFade() : 1.0f;
 }
 
 static void EndPauseHudHide()
@@ -2561,6 +2587,125 @@ static void OpenButtonGuide()
 	ButtonGuide::SetLayout(BUTTON_GUIDE_LEFT, BUTTON_GUIDE_RIGHT, BUTTON_GUIDE_TOP);
 }
 
+// hide whole UI and show slider for specific options (like bloom and brightness)
+
+// slider preview layout (in 640x480 space)
+static constexpr float SLIDER_PREVIEW_CENTRE_Y = 344.0f;
+static constexpr float SLIDER_PREVIEW_TITLE_GAP = 46.0f;
+static constexpr float SLIDER_PREVIEW_ARROW_GAP = 45.0f;
+static constexpr float SLIDER_PREVIEW_TEXT_WIDTH = 160.0f;
+static constexpr float HP_GAUGE_SCALE = 0.8f;
+static constexpr float HP_GAUGE_FILL_HEIGHT = 10.0f;
+static constexpr float HP_GAUGE_TEX_SIZE = 128.0f;
+
+
+static void DrawGaugeStrip(ImDrawList* drawList, float srcX, float srcY, float srcW, float srcH, float x0, float x1, float y, float scale)
+{
+	// half a texel in so the empty rows around the strip don't bleed in
+	auto vMin = (srcY + 0.5f) / HP_GAUGE_TEX_SIZE;
+	auto vMax = (srcY + srcH - 0.5f) / HP_GAUGE_TEX_SIZE;
+	auto tileWidth = srcW * scale;
+
+	for (auto x = x0; x < x1; x += tileWidth)
+	{
+		auto width = std::min(tileWidth, x1 - x);
+		ImVec2 uvMin = { srcX / HP_GAUGE_TEX_SIZE, vMin };
+		ImVec2 uvMax = { (srcX + width / scale) / HP_GAUGE_TEX_SIZE, vMax };
+
+		drawList->AddImage(g_upTexHpGauge.get(), { x, y }, { x + width, y + srcH * scale }, uvMin, uvMax);
+	}
+}
+
+// returns the fill area so we can put text in
+static std::pair<ImVec2, ImVec2> DrawHpGauge(float centreX, float fillCentreY, float ratio)
+{
+	constexpr float HP_GAUGE_WIDTH = 256.0f;
+	constexpr float HP_GAUGE_FILL_TOP = 4.0f;
+	constexpr float HP_GAUGE_FILL_LEFT = 10.0f;
+	constexpr float HP_GAUGE_FILL_RIGHT = 11.0f;
+	constexpr float HP_GAUGE_LEFT_CAP_WIDTH = 48.0f;
+	constexpr float HP_GAUGE_RIGHT_CAP_WIDTH = 49.0f;
+	constexpr float HP_GAUGE_BOTTOM_TOP = 14.0f;
+
+	auto drawList = ImGui::GetBackgroundDrawList();
+	auto scale = Scale(HP_GAUGE_SCALE);
+
+	auto left = centreX - HP_GAUGE_WIDTH * scale * 0.5f;
+	auto right = centreX + HP_GAUGE_WIDTH * scale * 0.5f;
+	auto top = fillCentreY - (HP_GAUGE_FILL_TOP + HP_GAUGE_FILL_HEIGHT * 0.5f) * scale;
+
+	ImVec2 fillMin = { left + HP_GAUGE_FILL_LEFT * scale, top + HP_GAUGE_FILL_TOP * scale };
+	ImVec2 fillMax = { right - HP_GAUGE_FILL_RIGHT * scale, fillMin.y + HP_GAUGE_FILL_HEIGHT * scale };
+
+	// used to cover the dark empty part of the tex (as well as the green color in)
+	drawList->AddRectFilled(fillMin, fillMax, IM_COL32(0, 0, 0, 170));
+
+	auto fillRight = Lerp(fillMin.x, fillMax.x, std::clamp(ratio, 0.0f, 1.0f));
+
+	if (fillRight > fillMin.x)
+		DrawGaugeStrip(drawList, 0, 98, 128, 10, fillMin.x, fillRight, fillMin.y, scale);
+
+	auto stripLeft = left + HP_GAUGE_LEFT_CAP_WIDTH * scale;
+	auto stripRight = right - HP_GAUGE_RIGHT_CAP_WIDTH * scale;
+
+	DrawGaugeStrip(drawList, 0, 1, 128, 4, stripLeft, stripRight, top, scale);
+	DrawGaugeStrip(drawList, 0, 15, 128, 6, stripLeft, stripRight, top + HP_GAUGE_BOTTOM_TOP * scale, scale);
+
+	auto leftCapUVs = PIXELS_TO_UV_COORDS(128, 128, 5, 22, 48, 34);
+	auto rightCapUVs = PIXELS_TO_UV_COORDS(128, 128, 79, 56, 49, 33);
+
+	drawList->AddImage(g_upTexHpGauge.get(), { left, top }, { stripLeft, top + 34 * scale }, GET_UV_COORDS(leftCapUVs));
+	drawList->AddImage(g_upTexHpGauge.get(), { stripRight, top }, { right, top + 33 * scale }, GET_UV_COORDS(rightCapUVs));
+
+	return { fillMin, fillMax };
+}
+
+
+static void DrawSliderPreview()
+{
+	auto alpha = GetOptionPreviewFade();
+
+	if (!g_sliderPreviewConfig || alpha <= 0.0f)
+		return;
+
+	auto sliderConfig = g_sliderPreviewConfig;
+	auto drawList = ImGui::GetBackgroundDrawList();
+	auto vtxStart = drawList->VtxBuffer.Size;
+	auto& res = ImGui::GetIO().DisplaySize;
+
+	// slide the gauge to the new value smoothly
+	auto blend = 1.0f - std::exp(-ImGui::GetIO().DeltaTime * 15.0f);
+	g_sliderPreviewValue = Lerp(g_sliderPreviewValue, sliderConfig->Value, blend);
+
+	float centerX = res.x / 2.0f;
+	float centerY = g_aspectRatioOffsetY + Scale(SLIDER_PREVIEW_CENTRE_Y);
+
+	std::string valueText = fmt::format("{}%", int(round(sliderConfig->Value * 100.0f)));
+
+	auto [fillMin, fillMax] = DrawHpGauge(centerX, centerY, g_sliderPreviewValue);
+
+	float valueFontSize = g_fntSeuratSize * 0.6f;
+	ImVec2 valueSize = g_fntSeurat->CalcTextSizeA(valueFontSize, FLT_MAX, 0.0f, valueText.c_str());
+	ImVec2 valuePos = { centerX - valueSize.x * 0.5f, centerY - valueSize.y * 0.5f };
+
+	// draw percentage
+	DrawTextWithOutline(g_fntSeurat, valueFontSize, valuePos, IM_COL32_WHITE, valueText.c_str(), 3.0f, IM_COL32(0, 0, 0, 255));
+
+	float halfWidth = (fillMax.x - fillMin.x) * 0.5f + Scale(SLIDER_PREVIEW_ARROW_GAP);
+
+	std::string titleText = sliderConfig->GetNameLocalised(Config::Language);
+	ImVec2 titleSize = g_fntSeurat->CalcTextSizeA(g_fntSeuratSize, FLT_MAX, 0.0f, titleText.c_str());
+	ImVec2 titlePos = { centerX - titleSize.x * 0.5f, centerY - Scale(SLIDER_PREVIEW_TITLE_GAP) - titleSize.y * 0.5f };
+
+	// draw option name
+	DrawMenuText(g_fntSeuratSize, titlePos, HIGHLIGHT_COLOUR, titleText.c_str(), true);
+
+	ImVec2 arrowMin = { centerX - halfWidth, centerY - Scale(17) };
+	ImVec2 arrowMax = { centerX + halfWidth, centerY + Scale(17) };
+	DrawSelectionArrows(arrowMin, arrowMax, IsLivePreviewActive());
+
+	ScaleVertexAlpha(drawList, vtxStart, alpha);
+}
 
 static void BeginOpening()
 {
@@ -2860,6 +3005,10 @@ void OptionsMenu::Draw()
 
 	t = (float)ComputeLinearMotion(g_containerAnimTime, 0, g_options_container_frames, false);
 
+	float menuAlpha = GetMenuAlpha();
+	auto drawList = ImGui::GetBackgroundDrawList();
+	auto vtxStart = drawList->VtxBuffer.Size;
+
 	if (t >= 0.8f && !isTransition && s_state != OptionsMenuState::Closing)
 	{
 		DrawCategories(min, max);
@@ -2868,6 +3017,11 @@ void OptionsMenu::Draw()
 
 	if (!isTransition)
 		DrawMenuListContainer(min, max);
+
+	ScaleVertexAlpha(drawList, vtxStart, menuAlpha);
+	ButtonGuide::s_alpha = menuAlpha;
+
+	DrawSliderPreview();
 
 	g_up = false;
 	g_upWasHeld = upIsHeld;
@@ -2894,6 +3048,8 @@ void OptionsMenu::Open(bool isPause, uint32_t padIndex)
 	g_transitionTime = g_stateTime;
 	g_loopSceneTime = g_stateTime;
 	g_optionPreviewFade = 0.0f;
+	g_sliderPreviewConfig = nullptr;
+	ButtonGuide::s_alpha = 1.0f;
 	g_isControlsVisible = false;
 
 	s_isVisible = true;
@@ -2991,6 +3147,7 @@ void OptionsMenu::Init()
 	g_upTexOptionsIcons = LOAD_ZSTD_TEXTURE(g_optionsIcons);
 	g_upTexOptionsText = LOAD_ZSTD_TEXTURE(g_optionsText);
 	g_upTexArrow = LOAD_ZSTD_TEXTURE(g_arrow);
+	g_upTexHpGauge = LOAD_ZSTD_TEXTURE(g_hpGauge);
 
 	g_fntSeurat = ImFontAtlasSnapshot::GetFont("FOT-SeuratPro-DB.otf");
 }

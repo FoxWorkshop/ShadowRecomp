@@ -834,6 +834,25 @@ ImU32 ColourLerp(ImU32 c0, ImU32 c1, float t)
 
     return ImGui::ColorConvertFloat4ToU32(result);
 }
+
+// Fades everything drawn since vtxStart.
+// (useful to fade multiple draws at once)
+void ScaleVertexAlpha(ImDrawList* drawList, int vtxStart, float alpha)
+{
+    if (alpha >= 1.0f)
+        return;
+
+    alpha = std::max(alpha, 0.0f);
+
+    for (int i = vtxStart; i < drawList->VtxBuffer.Size; i++)
+    {
+        auto& col = drawList->VtxBuffer[i].col;
+        auto a = (col & IM_COL32_A_MASK) >> IM_COL32_A_SHIFT;
+
+        col = (col & ~IM_COL32_A_MASK) | ((ImU32)(a * alpha) << IM_COL32_A_SHIFT);
+    }
+}
+
 void DrawVersionString(const ImFont* font, const ImU32 col)
 {
     auto drawList = ImGui::GetBackgroundDrawList();

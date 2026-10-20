@@ -100,6 +100,7 @@ float Cubic(float a, float b, float t);
 float Hermite(float a, float b, float t);
 ImVec2 Lerp(const ImVec2& a, const ImVec2& b, float t);
 ImU32 ColourLerp(ImU32 c0, ImU32 c1, float t);
+void ScaleVertexAlpha(ImDrawList* drawList, int vtxStart, float alpha);
 void DrawVersionString(const ImFont* font, const ImU32 col = IM_COL32(255, 255, 255, 70));
 
 const char* CalcWordWrapPositionA(const ImFont* font, float scale, const char* text, const char* text_end, float wrap_width);

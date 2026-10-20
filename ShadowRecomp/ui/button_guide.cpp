@@ -186,10 +186,11 @@ static void DrawGuide(float* offset, ImVec2 regionMin, ImVec2 regionMax, EButton
 
 void ButtonGuide::Draw()
 {
-    if (!s_isVisible)
+    if (!s_isVisible || s_alpha <= 0.0f)
         return;
 
     auto drawList = ImGui::GetBackgroundDrawList();
+    auto vtxStart = drawList->VtxBuffer.Size;
 
     ImVec2 regionMin = { GetMenuBoxLeft() + GetMenuBoxWidth() * 0.1f, g_aspectRatioOffsetY * 2.0f + Scale(g_top)};
     ImVec2 regionMax = { g_aspectRatioOffsetX + Scale(640.f - g_sideMargins), g_aspectRatioOffsetY * 2.0f + Scale(480.f) };
@@ -267,6 +268,8 @@ void ButtonGuide::Draw()
 
         DrawGuide(&offsetRight, regionMin, regionMax, btn.Icon, btn.Alignment, iconMin, iconMax, textWidth, maxWidth, textScale, fontSize, str);
     }
+
+    ScaleVertexAlpha(drawList, vtxStart, s_alpha);
 }
 
 void ButtonGuide::Init()
