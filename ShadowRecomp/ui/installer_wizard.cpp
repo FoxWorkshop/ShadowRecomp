@@ -12,7 +12,6 @@
 #include <input/input.h>
 #include <thread>
 #include <atomic>
-#include <chrono>
 #include <exports.h>
 #include <gpu/imgui/imgui_snapshot.h>
 #include <ui/imgui_utils.h>
@@ -657,6 +656,12 @@ void InstallerWizard::Draw()
 	descFontSize = baseFontSize + std::floor(baseFontSize * 0.2f);
 	smallFontSize = std::floor(baseFontSize * 0.9f);
 	fileFontSize = std::floor(baseFontSize * 0.7f);
+
+	// prevent the anim stutter
+	if (ImGui::GetTime() < 1.0)
+	{
+		return;
+	}
 
 	// recreate the message box opening and closing anim
 	g_openProgress = StepOpenProgress(g_openProgress, g_isClosing);
