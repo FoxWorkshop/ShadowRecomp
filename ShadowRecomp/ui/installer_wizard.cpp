@@ -19,6 +19,7 @@
 #include <res/images/common/TitleBg.png.h>
 #include <res/images/common/Options2.png.h>
 #include <decompressor.h>
+#include <kernel/io/file_system.h>
 
 
 static std::unique_ptr<GuestTexture> g_upTexOptionsBG{};
@@ -105,6 +106,7 @@ static int g_currentCursorIndex = -1;
 static int g_currentCursorDefault = 0;
 static bool g_isQuitting = false;
 static bool g_browseClicked = false;
+static double g_sourceDropTime = -1.0;
 static float g_openProgress = 0.0f;
 static bool g_isClosing = false;
 
@@ -769,6 +771,16 @@ void InstallerWizard::Draw()
 
 		drawList->AddText(font, fileFontSize, ImVec2(inputMin.x + (10.0f * scale), inputMin.y + ((inputMax.y - inputMin.y) - displayTextSize.y) * 0.5f), IM_COL32(255, 255, 255, 127), pathToShow, nullptr, pathClipWidth);
 
+		// Create a short yellow flash on the field to confirm the drop worked
+		if (g_sourceDropTime >= 0.0)
+		{
+			float flash = 1.0f - float(ImGui::GetTime() - g_sourceDropTime) / 0.5f;
+			if (flash > 0.0f)
+				drawList->AddRect(inputMin, inputMax, IM_COL32(255, 255, 0, int(255 * flash)), 0.0f, 0, 2.0f * scale);
+			else
+				g_sourceDropTime = -1.0;
+		}
+
 		const std::string browseTextStorage = Localise("Installer_Header_Browse");
 		const char* browseText = browseTextStorage.c_str();
 		auto browseSize = font->CalcTextSizeA(smallFontSize, FLT_MAX, 0, browseText);
@@ -1115,9 +1127,41 @@ void InstallerWizard::Shutdown()
 	g_currentPage = WizardPage::SelectLanguage;
 	g_sourcePath.clear();
 	g_statusMessage.clear();
+	g_sourceDropTime = -1.0;
 	g_installerFinished.store(false);
 	g_installerFailed.store(false);
 	g_installerProgress = 0.0f;
+}
+
+// Dropping a file on the window works the same as Browse and a dropped folder
+// is taken as the extracted game.
+static void OnSourceDropped(const char* file)
+{
+	if (g_currentPage != WizardPage::SelectGame || g_isQuitting)
+		return;
+
+	std::error_code ec;
+	std::filesystem::path path(std::u8string_view(reinterpret_cast<const char8_t*>(file)));
+
+	if (std::filesystem::is_directory(path, ec))
+		path /= GameExecutableFile;
+
+	std::u8string extensionStr = path.extension().u8string();
+	std::string lowerExtension(extensionStr.begin(), extensionStr.end());
+	std::transform(lowerExtension.begin(), lowerExtension.end(), lowerExtension.begin(), [](unsigned char c) { return std::tolower(c); });
+
+	if ((lowerExtension != ".iso" && lowerExtension != ".xbe") || !std::filesystem::is_regular_file(path, ec))
+	{
+		Game_PlaySound("cannot_decide");
+		g_statusMessage = Localise("Installer_Message_InvalidFileSelected");
+		return;
+	}
+
+	std::u8string pathString = path.u8string();
+	g_sourcePath.assign(pathString.begin(), pathString.end());
+	g_statusMessage.clear();
+	g_sourceDropTime = ImGui::GetTime();
+	Game_PlaySound("decide");
 }
 
 bool InstallerWizard::Run(std::filesystem::path installPath)
@@ -1184,6 +1228,11 @@ bool InstallerWizard::Run(std::filesystem::path installPath)
 				{
 					Quit();
 				}
+			}
+			else if (event.type == SDL_DROPFILE)
+			{
+				OnSourceDropped(event.drop.file);
+				SDL_free(event.drop.file);
 			}
 		}
 
