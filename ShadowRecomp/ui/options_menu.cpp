@@ -1951,7 +1951,7 @@ static void DrawOptions(ImVec2 minClipRect, ImVec2 maxClipRect, ImVec2 min, ImVe
 		DrawOption(rowCount++, &Config::EffectsVolume, true, min, max);
 		DrawOption(rowCount++, &Config::MusicAttenuation, os::media::IsSupported(), min, max, &Localise("Options_Desc_OSNotSupported"));
 		DrawOption(rowCount++, &Config::MuteOnFocusLost, true, min, max);
-		DrawOption(rowCount++, &Config::IdleChaosPowersMusic, true, min, max);
+		DrawOption(rowCount++, &Config::IdleChaosPowersMusic, !OptionsMenu::s_isPause, min, max, cmnReason);
 		DrawActionOption(rowCount++, min, Localise("Options_Name_SoundTest"), Localise("Options_Desc_SoundTest"), !OptionsMenu::s_isPause, cmnReason, OpenSoundTest);
 		break;
 
