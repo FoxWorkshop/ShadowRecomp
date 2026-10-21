@@ -804,10 +804,11 @@ address = 0x572BD
 # is more CPU friendly.
 #
 # You win... for now... Black Doom
-[[midasm_hook]]
-name = "WaitForFrameBoundaryMidAsmHook"
-address = 0x570E7
-registers = ["r5", "r6"]
+#
+# Edit Edit: Found the reversing time. Replaced the whole thing.
+# It's overridden with X86_FUNC now; see sub_56FC0 in fps_patches.cpp.
+#
+# Who's laughing now, Black Doom? MUAHAHAHHAHAHAHAAH.
 
 [[midasm_hook]]
 name = "SFXTimingMidAsmHook"

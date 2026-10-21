@@ -5,14 +5,13 @@
 #include <patches/global.h>
 #include <patches/patch_utils.h>
 #include <gpu/frame_pacing/frame_pacer.h>
+#include <patches/guest_variable.h>
 
-int64_t Timer_GetScaledPerformanceCounter(int64_t period);
-
-const uint32_t g_deltaTime = 0x541FA8;
-const uint32_t g_unroundedDeltaTime = 0x541FAC; // delta time pre-round (sub_56FC0)
-const uint32_t g_refRate = 0x54DD80;
-const uint32_t g_frameRateDivisor = 0x54DD40;
-const uint32_t g_maxFrames = 0x54DD64; // Most frames' worth of time one frame can count for.
+static const GuestVariable<float> g_deltaTime{ 0x541FA8 };
+static const GuestVariable<float> g_unroundedDeltaTime{ 0x541FAC }; // delta time pre-round (sub_56FC0)
+static const GuestVariable<uint32_t> g_refRate{ 0x54DD80 };
+static const GuestVariable<int32_t> g_frameRateDivisor{ 0x54DD40 };
+static const GuestVariable<int32_t> g_maxFrames{ 0x54DD64 }; // Most frames' worth of time one frame can count for.
 
 static bool g_isEventPlaying = false; // Note for future self, we CANNOT use this for audio detection
 
@@ -24,14 +23,13 @@ static bool IsCutsceneFramerateUnlocked()
 thread_local bool g_isStartingEventAudio = false;
 void SetFramerateMidAsmHook()
 {
-	auto base = g_memory.base;
 	if (g_isEventPlaying && !IsCutsceneFramerateUnlocked())
 	{
 		return;
 	}
 
 	uint32_t refRate = (uint32_t)GetTargetFPS();
-	X86_STORE_U32(g_refRate, refRate);
+	g_refRate = refRate;
 	if (g_isEventPlaying == false)
 	{
 		// == Sewer note ==
@@ -64,12 +62,12 @@ void SetFramerateMidAsmHook()
 
 		// Always allow at least one frame.
 		maxFrames = std::max(maxFrames, 1u);
-		X86_STORE_U32(g_maxFrames, maxFrames);
+		g_maxFrames = maxFrames;
 	}
 	else
 	{
 		// matching TPjsEventActionManager audio sync of 1
-		X86_STORE_U32(g_maxFrames, std::max(refRate, 1u));
+		g_maxFrames = std::max(refRate, 1u);
 	}
 }
 
@@ -97,9 +95,8 @@ X86_FUNC(sub_2293E0)
 // 0 represents no internal framerate request (safe to do any limit)
 float GetInternalFrameRate()
 {
-	auto base = g_memory.base;
-	uint32_t refRate = X86_LOAD_U32(g_refRate);
-	int32_t divisor = (int32_t)X86_LOAD_U32(g_frameRateDivisor);
+	uint32_t refRate = g_refRate;
+	int32_t divisor = g_frameRateDivisor;
 	if (refRate == 0 || divisor <= 0)
 	{
 		return 0.0f;
@@ -109,28 +106,181 @@ float GetInternalFrameRate()
 	return (fps >= 1.0f && fps <= (float)FPS_MAX) ? fps : 0.0f;
 }
 
-// Replace game's sleep/wait code with our own.
-void WaitForFrameBoundaryMidAsmHook(X86Register& edi, X86Register& ebp)
+// Which frame a time falls in.
+static int64_t TimeToFrame(FramePacer::Clock::duration time, int64_t refRate)
+{
+	int64_t ns = std::chrono::duration_cast<std::chrono::nanoseconds>(time).count();
+
+	// Whole seconds first, so the multiply can't overflow.
+	int64_t seconds = ns / 1000000000;
+	int64_t leftoverNs = ns % 1000000000;
+
+	int64_t framesInSeconds = seconds * refRate;
+	int64_t framesInLeftover = leftoverNs * refRate / 1000000000;
+	return framesInSeconds + framesInLeftover;
+}
+
+// When a frame starts, rounded up to the next nanosecond.
+static FramePacer::Clock::duration FrameToTime(int64_t frame, int64_t refRate)
+{
+	// Whole seconds first, so the multiply can't overflow.
+	int64_t seconds = frame / refRate;
+	int64_t leftoverFrames = frame % refRate;
+
+	int64_t secondsNs = seconds * 1000000000;
+	int64_t leftoverNs = (leftoverFrames * 1000000000 + refRate - 1) / refRate; // round up
+	return std::chrono::ceil<FramePacer::Clock::duration>(std::chrono::nanoseconds(secondsNs + leftoverNs));
+}
+
+// == Settings, flipped by other parts of the game ==
+
+// e.g. 1 on loading screens and in cutscenes, 0 otherwise.
+// NowLoading and TPjsEventActionManager turn it on.
+static const GuestVariable<uint8_t> g_yieldEachFrame{ 0x54C770 };
+
+// e.g. 1 on loading screens and during FMVs, 0 otherwise.
+// Skips the wait. FMVs wait on the vblank instead; see g_movieManager.
+static const GuestVariable<uint8_t> g_frameLimiterOff{ 0x54DD44 };
+
+// e.g. always 0 as far as I can tell. No writers at runtime?? unused??
+// Above 0, every frame lasts exactly this many seconds, whatever the clock says.
+static const GuestVariable<float> g_fixedDeltaTime{ 0x541FB0 };
+
+// e.g. 1 at boot. And then cleared on first frame.
+// Maybe some sort of init flag. Weird nonetheless.
+static const GuestVariable<uint8_t> g_frameClockReset{ 0x4EACDD };
+
+// e.g. 1 while paused. TPauseManager sets it.
+static const GuestVariable<uint8_t> g_pauseFrameCounters{ 0x5415A0 };
+
+// e.g. a TMovieManager pointer while an FMV plays, 0 otherwise.
+static const GuestVariable<uint32_t> g_movieManager{ 0x541808 };
+
+// == How much time passed this frame. (See: sub_258340, it writes these bozos) ==
+//
+// e.g. Our last frame took (33.3ms), 2x the normal @ 60FPS
+//   - g_refRate = 60 (FPS):
+//   - g_frameStep = 2 (we passed 2 frames of time)
+//   - g_scaledDeltaTime = 0.0333 (2/60 seconds , @ g_timeScale = 1.0)
+
+// How many frames passed. Usually 1.
+static const GuestVariable<int32_t> g_frameStep{ 0x54DD3C };
+
+// e.g. 1.0 normally, 0 to freeze time.
+static const GuestVariable<float> g_timeScale{ 0x54DD4C };
+static const GuestVariable<float> g_timeScale2{ 0x54DD54 };
+
+// Delta time in seconds, times the time scale above.
+static const GuestVariable<float> g_scaledDeltaTime{ 0x54DD48 };
+static const GuestVariable<float> g_scaledDeltaTime2{ 0x54DD50 };
+
+// == Running totals. sub_258680 adds to these every frame ==
+
+// e.g. 100 after 100 frames.
+static const GuestVariable<int32_t> g_frameCount{ 0x54DDB8 };
+
+// e.g. 60 after 100 frames with 40 paused. Stop while g_pauseFrameCounters is set.
+static const GuestVariable<int32_t> g_unpausedFrameCount{ 0x54DDBC };
+static const GuestVariable<int32_t> g_unpausedFrameCount2{ 0x54DDC0 };
+
+// e.g. 1.6667 after 100 frames at 60 FPS. g_scaledDeltaTime2, added up.
+static const GuestVariable<float> g_playTime{ 0x54DDC4 };
+static const GuestVariable<float> g_playTime2{ 0x54DDC8 };
+
+// The game's frame limiter, rewritten to use Sewer's frame pacer.
+// (Hey! That's my ~~chaos emerald~~ framepacer! Eggman!)
+//
+// The original rounds each frame down to whole microseconds.
+// That introduces some error:
+//   - 60 FPS:  16666us a frame, 60.0024 FPS
+//   - 240 FPS: 4166us a frame,  240.038 FPS
+//   - 960 FPS: 1041us a frame,  960.615 FPS
+//
+//
+// We can do a bit better!
+//
+// Instead, we work out when each frame *should* start
+// from the time we started.
+//
+// e.g. at 60 FPS, counting from when the game started:
+//   - Frame 1 starts at 16.666...ms
+//   - Frame 2 starts at 33.333...ms
+//   - Frame 3 starts at 50ms exactly
+//   - Frame 60 starts at 1 second exactly
+X86_FUNC(sub_56FC0)
 {
 	// kinda ripped from Ghidra with cleanup.
-	auto base = g_memory.base;
-	uint64_t frameTime = (uint64_t(ebp.u32) << 32) | edi.u32;
-	int32_t divisor = X86_LOAD_U32(g_frameRateDivisor);
-	if (frameTime == 0 || divisor <= 0)
-		return;
+	using Clock = FramePacer::Clock;
+	static const Clock::time_point start = Clock::now();
+	static Clock::time_point lastTime = start;
 
-	// +1 because the game rounds timestamps up.
-	uint64_t lastFrame = (X86_LOAD_U64(0x541FC0) + frameTime - 1) / frameTime;
-	uint64_t deadline = (lastFrame + divisor - 1) * frameTime + 1;
+	int64_t refRate = std::max<int64_t>(int32_t(g_refRate), 1); // we divide by it, nyo div by 0 >:3
+	int32_t divisor = g_frameRateDivisor;
+	int32_t maxFrames = g_maxFrames;
 
-	// Same clock as sub_116B0, but in nanoseconds.
-	uint64_t now = Timer_GetScaledPerformanceCounter(1000000000);
-	uint64_t target = deadline * 1000;
-	if (now < target)
+	// Handle the flags.
+	if (g_frameClockReset)
 	{
-		thread_local FramePacer pacer;
-		pacer.Sleep((target - now) / 1000000.0, FramePacer::WaitMode::SleepThenSpin);
+		g_frameClockReset = 0;
+		lastTime = Clock::now();
 	}
+
+	if (g_yieldEachFrame)
+	{
+		ctx.SubEsp(1);
+		sub_2ADDC9(ctx, base); // NtYieldExecution
+	}
+
+	if (g_movieManager)
+	{
+		ctx.SubEsp(1);
+		sub_342960(ctx, base); // ends up in CRI_BlockUntilVerticalBlank
+	}
+
+	// Wait until `divisor` frames have passed.
+	int64_t lastFrame = TimeToFrame(lastTime - start, refRate);
+	if (!g_frameLimiterOff && divisor > 0)
+	{
+		static FramePacer pacer; // do the waitin'
+		auto deadline = start + FrameToTime(lastFrame + divisor, refRate);
+		pacer.SleepUntil(deadline, FramePacer::WaitMode::SleepThenSpin);
+	}
+
+	// Update the time.
+	auto now = Clock::now();
+	int64_t frames = TimeToFrame(now - start, refRate) - lastFrame;
+	float deltaTime = float(double(frames) / refRate);
+	float unroundedDeltaTime = float(std::chrono::duration<double>(now - lastTime).count());
+	lastTime = now;
+
+	float fixedDeltaTime = g_fixedDeltaTime;
+	if (fixedDeltaTime > 0.0f)
+		deltaTime = unroundedDeltaTime = fixedDeltaTime;
+
+	// A frame counts for between 1 and maxFrames frames.
+	float minDeltaTime = float(1.0 / refRate);
+	float maxDeltaTime = float(double(maxFrames) / refRate);
+	if (deltaTime > maxDeltaTime)
+		deltaTime = maxDeltaTime;
+	else if (deltaTime < minDeltaTime)
+		deltaTime = minDeltaTime;
+
+	g_deltaTime = deltaTime;
+	g_unroundedDeltaTime = unroundedDeltaTime;
+
+	// Pass the frame count and delta time on, to whatever the heck that does.
+	X86_PUSH(ctx, base, std::bit_cast<uint32_t>(deltaTime));
+	X86_PUSH(ctx, base, uint32_t(frames));
+	ctx.ecx.u32 = g_frameStep.address;
+	ctx.SubEsp(1);
+	sub_258340(ctx, base);
+
+	X86_PUSH(ctx, base, uint32_t(g_pauseFrameCounters));
+	ctx.ecx.u32 = g_frameCount.address;
+	ctx.SubEsp(1);
+	sub_258680(ctx, base);
+
+	ctx.esp.u32 += 4;
 }
 
 std::unordered_map<uint32_t, float> g_sfxTimers;
@@ -147,7 +297,7 @@ void SFXTimingMidAsmHook(X86Register &esi)
 	uint32_t timerAddr = esi.u32 + 0xc;
 	uint16_t timer = X86_LOAD_U16(timerAddr) + 1; // restore og value that the game removed using hardcoded 60 fps.
 
-	g_sfxTimers[esi.u32] += X86_LOAD_F32(g_deltaTime) * 60.f;
+	g_sfxTimers[esi.u32] += g_deltaTime * 60.f;
 	int steps = (int)(g_sfxTimers[esi.u32] + 0.5f); // use extra 0.5 for rounding, avoid having 0.999960 that prevent step to pass.
 
 	// Some sounds that loop uses a task that sets the timer back to 2 every frame.
@@ -238,7 +388,7 @@ void FootingMovableLinearMidAsmHook(X86Register& esi)
 	const uint32_t this_ = esi.u32;
 	const float speed = X86_LOAD_F32(this_ + 0x54); // degree
 	const float phase = X86_LOAD_F32(this_ + 0x7C); // also degree
-	const float frames = X86_LOAD_F32(g_deltaTime) * 60.0f;
+	const float frames = g_deltaTime * 60.0f;
 	X86_STORE_F32(this_ + 0x7C, phase + speed * (frames - 1.0f));
 }
 
@@ -249,7 +399,7 @@ static const uint32_t g_upDownReelStep = 0x468A18; // 0.18f originally
 static void UpDownReelPreBias(uint32_t this_, float sign)
 {
 	auto base = g_memory.base;
-	const float frames = X86_LOAD_F32(g_deltaTime) * 60.f;
+	const float frames = g_deltaTime * 60.f;
 	const float bias = sign * X86_LOAD_F32(g_upDownReelStep) * (frames - 1.0f);
 	X86_STORE_F32(this_ + 0x58, X86_LOAD_F32(this_ + 0x58) + bias);
 }
@@ -269,7 +419,7 @@ static const uint32_t g_upDownReelAngleRate = 0x54CD64;
 void UpDownReelAngleMidAsmHook(X86Register& edi)
 {
 	auto base = g_memory.base;
-	const float frames = X86_LOAD_F32(g_deltaTime) * 60.0f;
+	const float frames = g_deltaTime * 60.0f;
 	const float angle = X86_LOAD_F32(edi.u32 + 0x7C);
 	const float extra = X86_LOAD_F32(g_upDownReelAngleRate) * (frames - 1.0f);
 
@@ -285,8 +435,7 @@ void UpDownReelAngleMidAsmHook(X86Register& edi)
 
 void UpDownReelHangTurnMidAsmHook(X86Register& eax)
 {
-	auto base = g_memory.base;
-	const float frames = X86_LOAD_F32(g_deltaTime) * 60.0f;
+	const float frames = g_deltaTime * 60.0f;
 
 	if (!(frames > 0.0f) || std::fabs(frames - 1.0f) < 0.0001f)
 	{
@@ -312,7 +461,7 @@ void StretchGrassChargeMidAsmHook(X86Register& esi)
 {
 	auto base = g_memory.base;
 	const uint32_t this_ = esi.u32;
-	const float frames = X86_LOAD_F32(g_deltaTime) * 60.0f;
+	const float frames = g_deltaTime * 60.0f;
 	const float step = X86_LOAD_F32(g_stretchGrassChargeStep);
 	const float acc = X86_LOAD_F32(this_ + 0x4C) + step * frames;
 
@@ -325,7 +474,7 @@ void StretchGrassRecoverMidAsmHook(X86Register& esi)
 {
 	auto base = g_memory.base;
 	const uint32_t self = esi.u32;
-	const float frames = X86_LOAD_F32(g_deltaTime) * 60.0f;
+	const float frames = g_deltaTime * 60.0f;
 	const float step = X86_LOAD_F32(g_stretchGrassRecoverStep);
 	X86_STORE_F32(self + 0x48, X86_LOAD_F32(self + 0x48) - step * (frames - 1.0f));
 }
@@ -340,7 +489,7 @@ void StretchGrassDecayMidAsmHook(X86Register& esi)
 	const float factor = X86_LOAD_F32(g_stretchGrassDecayFactor);
 
 	float &carry = g_stretchGrassDecay[this_];
-	carry += X86_LOAD_F32(g_deltaTime) * 60.0f;
+	carry += g_deltaTime * 60.0f;
 
 	// just to be safe
 	int steps = std::min((int)carry, 128);
@@ -377,7 +526,7 @@ X86_FUNC_IMPL(__imp__sub_1AD1A0);
 X86_FUNC(sub_1AD1A0)
 {
 	const uint32_t rocketPtr = ctx.ecx.u32; // thiscall
-	const float frames = X86_LOAD_F32(g_deltaTime) * 60.0f;
+	const float frames = g_deltaTime * 60.0f;
 
 	const float velX = X86_LOAD_F32(rocketPtr + 0x4C);
 	const float velY = X86_LOAD_F32(rocketPtr + 0x50);
@@ -401,7 +550,7 @@ void ElecSearchLightPullMidAsmHook(X86Register &esp)
 {
 	auto base = g_memory.base;
 	const uint32_t scaleAddr = esp.u32;
-	float step = X86_LOAD_F32(scaleAddr) * (X86_LOAD_F32(g_deltaTime) * 60.0f);
+	float step = X86_LOAD_F32(scaleAddr) * (g_deltaTime * 60.0f);
 	X86_STORE_F32(scaleAddr, std::min(step, 45.0f));
 }
 
@@ -418,7 +567,7 @@ void ScatteringRingPhysicsMidAsmHook(X86Register& esi)
 {
 	auto base = g_memory.base;
 	const uint32_t this_ = esi.u32;
-	const float frames = X86_LOAD_F32(g_deltaTime) * 60.0f;
+	const float frames = g_deltaTime * 60.0f;
 
 	if (!(frames >= 0.0f) || std::fabs(frames - 1.0f) < 0.0001f)
 		return;
@@ -462,7 +611,7 @@ static const uint32_t g_scatteringRingSpinRate = 0x468054; // 1.5f
 void ScatteringRingSpinMidAsmHook(X86Register& esi)
 {
 	auto base = g_memory.base;
-	const float frames = X86_LOAD_F32(g_deltaTime) * 60.f;
+	const float frames = g_deltaTime * 60.f;
 	const float spinPi = X86_LOAD_F32(g_scatteringRingSpinPi);
 	const float spinDeg = X86_LOAD_F32(g_scatteringRingSpinDeg);
 	const float spinRate = X86_LOAD_F32(g_scatteringRingSpinRate);
@@ -480,7 +629,7 @@ static const uint32_t g_regularRingSpinAmplitude = 0x467D04; // 0.05f
 void RegularRingSpinMidAsmHook(X86Register& eax, X86Register& ebp)
 {
 	auto base = g_memory.base;
-	const float frames = X86_LOAD_F32(g_deltaTime) * 60.0f;
+	const float frames = g_deltaTime * 60.0f;
 
 	if (!(frames >= 0.0f) || std::fabs(frames - 1.0f) < 0.0001f)
 		return;
@@ -509,7 +658,7 @@ static const uint32_t g_weightFallSpeed = 0x468C74; // 2.5f
 void WeightRiseMidAsmHook(X86Register& eax)
 {
 	auto base = g_memory.base;
-	const float frames = X86_LOAD_F32(g_deltaTime) * 60.0f;
+	const float frames = g_deltaTime * 60.0f;
 
 	if (!(frames >= 0.0f) || std::fabs(frames - 1.0f) < 0.0001f)
 		return;
@@ -521,7 +670,7 @@ void WeightRiseMidAsmHook(X86Register& eax)
 void WeightFallMidAsmHook(X86Register& eax)
 {
 	auto base = g_memory.base;
-	const float frames = X86_LOAD_F32(g_deltaTime) * 60.0f;
+	const float frames = g_deltaTime * 60.0f;
 
 	if (!(frames >= 0.0f) || std::fabs(frames - 1.0f) < 0.0001f)
 		return;
@@ -540,7 +689,7 @@ void WeightFallMidAsmHook(X86Register& eax)
 void ContainerBehaviorFallMidAsmHook(X86Register& esi)
 {
 	auto base = g_memory.base;
-	const float frames = X86_LOAD_F32(g_deltaTime) * 60.0f;
+	const float frames = g_deltaTime * 60.0f;
 
 	if (!(frames >= 0.0f) || std::fabs(frames - 1.0f) < 0.0001f)
 		return;
@@ -1016,7 +1165,7 @@ X86_FUNC(sub_243BB0)
 
 	__imp__sub_243BB0(ctx, base);
 
-	const float frames = X86_LOAD_F32(g_deltaTime) * 60.0f;
+	const float frames = g_deltaTime * 60.0f;
 	if (!(frames > 0.0f) || std::fabs(frames - 1.0f) < 0.0001f)
 	{
 		return;
@@ -1146,7 +1295,7 @@ X86_FUNC(sub_1D860)
 		const uint32_t rateAddr = ctx.esp.u32 + 0xC;
 		const float a = X86_LOAD_F32(rateAddr);
 		const float b = X86_LOAD_F32(ctx.esp.u32 + 0x10);
-		const float frames = X86_LOAD_F32(g_deltaTime) * 60.0f;
+		const float frames = g_deltaTime * 60.0f;
 
 		// Handle the pow that scales with higher framerate and prevent divide by 0 or endless low speed
 		if (frames > 0.0f && a > 0.0f && b > 0.0f && std::fabs(frames - 1.0f) >= 0.0001f)
@@ -1281,7 +1430,7 @@ X86_FUNC(sub_2A7700)
 
 	__imp__sub_2A7700(ctx, base);
 
-	float frames = X86_LOAD_F32(g_deltaTime) * 60.0f;
+	float frames = g_deltaTime * 60.0f;
 	if (frames <= 0.0f)
 		frames = 1.0f;
 
@@ -1424,7 +1573,7 @@ X86_FUNC(sub_291B70)
 	if (after <= before)
 		return; // no cursor move this frame
 
-	const float frames = X86_LOAD_F32(g_deltaTime) * 60.0f;
+	const float frames = g_deltaTime * 60.0f;
 	if (frames <= 0.0f || frames >= 1.0f)
 		return;
 
@@ -1652,7 +1801,7 @@ X86_FUNC(sub_76A70)
 bool GunLiftAimMidAsmHook(X86Register& ecx, X86Register& esi)
 {
 	auto base = g_memory.base;
-	const float frames = X86_LOAD_F32(g_deltaTime) * 60.0f;
+	const float frames = g_deltaTime * 60.0f;
 
 	// 60 FPS
 	if (!(frames > 0.0f) || std::fabs(frames - 1.0f) < 0.0001f)
@@ -1685,7 +1834,7 @@ bool GunLiftAimMidAsmHook(X86Register& ecx, X86Register& esi)
 void SetWatchCameraSightChaseMidAsmHook(X86Register& esi, X86Register& esp)
 {
 	auto base = g_memory.base;
-	const float frames = X86_LOAD_F32(g_deltaTime) * 60.0f;
+	const float frames = g_deltaTime * 60.0f;
 
 	if (!(frames > 0.0f) || std::fabs(frames - 1.0f) < 0.0001f)
 	{
@@ -1712,7 +1861,7 @@ void SetWatchCameraSightChaseMidAsmHook(X86Register& esi, X86Register& esp)
 void SetWatchCameraSightMoveMidAsmHook(X86Register& edi)
 {
 	auto base = g_memory.base;
-	const float frames = X86_LOAD_F32(g_deltaTime) * 60.0f;
+	const float frames = g_deltaTime * 60.0f;
 
 	if (!(frames > 0.0f) || std::fabs(frames - 1.0f) < 0.0001f)
 	{
@@ -1733,7 +1882,7 @@ void SetWatchCameraSightMoveMidAsmHook(X86Register& edi)
 void VineFireBallTravelMidAsmHook(X86Register& esi)
 {
 	auto base = g_memory.base;
-	const float frames = X86_LOAD_F32(g_deltaTime) * 60.0f;
+	const float frames = g_deltaTime * 60.0f;
 
 	if (!(frames > 0.0f) || std::fabs(frames - 1.0f) < 0.0001f)
 	{
@@ -1765,7 +1914,7 @@ static const uint32_t g_weaponDropSettleThreshold = 0x46B380; // 0.1 (original t
 void WeaponDropSettleThresholdMidAsmHook()
 {
 	auto base = g_memory.base;
-	const float frames = X86_LOAD_F32(g_deltaTime) * 60.0f;
+	const float frames = g_deltaTime * 60.0f;
 
 	if (!(frames > 0.0f) || std::fabs(frames - 1.0f) < 0.0001f)
 	{
@@ -1788,8 +1937,7 @@ std::unordered_map<uint32_t, float> g_beltTrailCarry; // map per BeltTask to sup
 // Belt::Exec
 bool BeltTrailPushMidAsmHook(X86Register& esi)
 {
-	auto base = g_memory.base;
-	const float frames = X86_LOAD_F32(g_deltaTime) * 60.0f;
+	const float frames = g_deltaTime * 60.0f;
 	if (!(frames > 0.0f) || std::fabs(frames - 1.0f) < 0.0001f)
 	{
 		return true;
@@ -1853,8 +2001,7 @@ void BeltTrailFadeMidAsmHook(X86Register& esi)
 std::unordered_map<uint32_t, float> g_locusCarry; // map per Locus effect to support multiplayer
 static bool EffectLocusMultiVtxStep(uint32_t locus)
 {
-	auto base = g_memory.base;
-	const float frames = X86_LOAD_F32(g_deltaTime) * 60.0f;
+	const float frames = g_deltaTime * 60.0f;
 	if (!(frames > 0.0f) || std::fabs(frames - 1.0f) < 0.0001f)
 	{
 		return true;
@@ -1900,7 +2047,7 @@ bool MeleeEffectLocusMultiVtxTrailFadeMidAsmHook(X86Register& esi)
 static std::unordered_map<uint32_t, float> g_debrisStepCarry;
 static void DebrisStepGate(X86Context& ctx, uint8_t* base, X86Func* original)
 {
-	const float frames = X86_LOAD_F32(g_deltaTime) * 60.0f;
+	const float frames = g_deltaTime * 60.0f;
 
 	// 60FPS
 	if (!(frames > 0.0f) || std::fabs(frames - 1.0f) < 0.0001f)
@@ -2415,7 +2562,7 @@ X86_FUNC(sub_C23B0)
 	const float target = X86_LOAD_F32(enemy + 0x88);
 	__imp__sub_C23B0(ctx, base);
 
-	const float frames = X86_LOAD_F32(g_deltaTime) * 60.0f;
+	const float frames = g_deltaTime * 60.0f;
 	if (!(frames > 0.0f) || std::fabs(frames - 1.0f) < 0.0001f)
 	{
 		return;
@@ -2449,7 +2596,7 @@ X86_FUNC(sub_C23B0)
 void BirdVehicleTurnScaleMidAsmHook(X86Register& esp)
 {
 	auto base = g_memory.base;
-	const float frames = X86_LOAD_F32(g_deltaTime) * 60.0f;
+	const float frames = g_deltaTime * 60.0f;
 	if (!(frames > 0.0f) || std::fabs(frames - 1.0f) < 0.0001f)
 	{
 		return;
@@ -2532,8 +2679,7 @@ X86_FUNC(sub_1CD350)
 // Every frame gap target is halved each frame
 void ChaosGaugeFillMidAsmHook(X86Register& eax, X86Register& ecx)
 {
-	auto base = g_memory.base;
-	const float dt = X86_LOAD_F32(g_deltaTime);
+	const float dt = g_deltaTime;
 	const auto target = (int32_t)eax.u32;
 	const auto shown = (int32_t)ecx.u32;
 
@@ -2555,7 +2701,7 @@ X86_FUNC(sub_115A50)
 {
 	const uint32_t reel = ctx.ecx.u32;
 	__imp__sub_115A50(ctx, base);
-	const float dt = X86_LOAD_F32(g_deltaTime);
+	const float dt = g_deltaTime;
 	if (X86_LOAD_U32(reel) != 3 || dt <= 0.0f || dt >= 1.0f / 60.0f)
 	{
 		return;
@@ -2664,7 +2810,7 @@ X86_FUNC(sub_374A60)
 // Advertise has a 1.5s hardcoded to step at 1/60 instead of basing off dt.
 static float GetMessageTimerExcess(uint8_t* base)
 {
-	const float dt = X86_LOAD_F32(g_deltaTime);
+	const float dt = g_deltaTime;
 	const float minStep = X86_LOAD_F32(0x42BE10); // message timer's hardcoded 1/60 value
 	return dt > 0.0f && dt < minStep ? minStep - dt : 0.0f;
 }
@@ -2701,8 +2847,7 @@ void EventCreatedMidAsmHook()
 
 	if (IsCutsceneFramerateUnlocked())
 	{
-		auto base = g_memory.base;
-		X86_STORE_U32(g_frameRateDivisor, 1);
+		g_frameRateDivisor = 1;
 	}
 }
 
@@ -2713,8 +2858,7 @@ static constexpr float g_eventMaxDeltaTime = 1.0f;
 // real frametime without rounding so event audio doesn't desync
 static float GetEventDeltaTime()
 {
-	auto base = g_memory.base;
-	const float deltaTime = X86_LOAD_F32(g_unroundedDeltaTime);
+	const float deltaTime = g_unroundedDeltaTime;
 	return std::min(deltaTime, g_eventMaxDeltaTime);
 }
 
@@ -2972,7 +3116,7 @@ static float g_goalActionTickCarry = 0.0f;
 void GoalActionTicksMidAsmHook(X86Register& ticks)
 {
 	auto base = g_memory.base;
-	g_goalActionTickCarry += X86_LOAD_F32(g_unroundedDeltaTime) * X86_LOAD_F32(0x456784);
+	g_goalActionTickCarry += g_unroundedDeltaTime * X86_LOAD_F32(0x456784);
 	const float flooredTicks = std::floor(g_goalActionTickCarry);
 	g_goalActionTickCarry -= flooredTicks;
 	ticks.u32 = (uint32_t)flooredTicks;

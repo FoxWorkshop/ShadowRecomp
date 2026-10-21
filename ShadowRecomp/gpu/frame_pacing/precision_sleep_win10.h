@@ -16,6 +16,7 @@
 #endif
 #include <Windows.h>
 
+#include <chrono>
 #include <thread>
 
 namespace PrecisionSleep
@@ -24,9 +25,9 @@ namespace PrecisionSleep
        Cheap after the first call. */
     inline bool IsAvailable();
 
-    /* Sleeps for the given duration in milliseconds, sleep_for-style.
+    /* Sleeps for the given duration, sleep_for-style.
        Wakes after the requested time on the timer grid (no earlier). */
-    inline void Sleep(double durationMs);
+    inline void Sleep(std::chrono::nanoseconds duration);
 
     namespace Detail
     {
@@ -59,9 +60,9 @@ namespace PrecisionSleep
         return Detail::TimerSlot() != nullptr;
     }
 
-    inline void Sleep(double durationMs)
+    inline void Sleep(std::chrono::nanoseconds duration)
     {
-        if (durationMs <= 0.0)
+        if (duration <= std::chrono::nanoseconds::zero())
             return;
 
         const HANDLE timer = Detail::TimerSlot();
@@ -69,8 +70,9 @@ namespace PrecisionSleep
             return;
 
         // Due time is in 100ns units; negative means relative to now.
+        using Ticks = std::chrono::duration<LONGLONG, std::ratio<1, 10000000>>;
         LARGE_INTEGER dueTime;
-        dueTime.QuadPart = -static_cast<LONGLONG>(durationMs * 10000.0);
+        dueTime.QuadPart = -std::chrono::ceil<Ticks>(duration).count();
         if (!SetWaitableTimer(timer, &dueTime, 0, nullptr, nullptr, FALSE))
             return;
 

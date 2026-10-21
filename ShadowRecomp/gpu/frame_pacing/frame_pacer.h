@@ -17,6 +17,8 @@
 class FramePacer
 {
 public:
+    using Clock = std::chrono::steady_clock;
+
     /**
      * \brief How the remaining time to the next frame is waited out.
      */
@@ -51,49 +53,38 @@ public:
     void EndFrame(WaitMode waitMode);
 
     /**
-     * \brief Pauses execution for the remaining of the time until the next
-     * frame begins.
-     * \param durationMs The time in milliseconds to pause for.
+     * \brief Pauses execution until the next frame begins.
+     * \param deadline The time the next frame begins at.
      * \param waitMode See EndFrame.
      */
-    void Sleep(double durationMs, WaitMode waitMode);
+    void SleepUntil(Clock::time_point deadline, WaitMode waitMode);
 
 private:
-    /* Waits out the duration per WaitMode::SleepOnly. */
-    void SleepOnly(double durationMs);
+    /* Waits until the deadline per WaitMode::SleepOnly. */
+    void SleepOnly(Clock::time_point deadline);
 
-    /* Waits out the duration per WaitMode::SleepThenSpin. */
-    void SleepThenSpin(double durationMs);
+    /* Waits until the deadline per WaitMode::SleepThenSpin. */
+    void SleepThenSpin(Clock::time_point deadline);
 
-    /* Waits out the duration per WaitMode::SleepThenYield. */
-    void SleepThenYield(double durationMs);
+    /* Waits until the deadline per WaitMode::SleepThenYield. */
+    void SleepThenYield(Clock::time_point deadline);
 
     /* Spins until it is time to begin the next frame. */
-    void Spin(double durationMs);
+    void Spin(Clock::time_point deadline);
 
-    static double ElapsedMsSince(std::chrono::steady_clock::time_point start)
-    {
-        return std::chrono::duration<double, std::milli>(
-            std::chrono::steady_clock::now() - start).count();
-    }
+    /* The current set maximum allowed time that a frame
+       should be rendered in. 60 FPS until SetFpsLimit is called. */
+    Clock::duration m_frameTimeTarget = std::chrono::nanoseconds(16666667);
 
-    /* [Milliseconds] The current set maximum allowed time that a frame
-       should be rendered in. */
-    double m_frameTimeTargetMs = 1000.0 / 60.0;
-
-    /* [Milliseconds] How late the last frame ended.
+    /* How late the last frame ended.
 
        Basically, sometimes we can oversleep a little; and we need to keep
        track of how much we overslept in the last frame.
 
        Likewise, if the game isn't fully running at max speed, then we may
        need to 'catch up', to the 100% rate. */
-    double m_catchUpMs = 0.0;
+    Clock::duration m_catchUp {};
 
     /* Contains the stopwatch used for timing the frame time. */
-    std::chrono::steady_clock::time_point m_frameStart =
-        std::chrono::steady_clock::now();
-
-    /* Contains the stopwatch used for timing sleep periods. */
-    std::chrono::steady_clock::time_point m_sleepStart {};
+    Clock::time_point m_frameStart = Clock::now();
 };

@@ -8,159 +8,167 @@
 #include "precision_sleep_win10.h"
 #endif
 
+using Clock = FramePacer::Clock;
+
+// The sleep timer's granularity, rounded up to whole clock ticks.
+static Clock::duration GetTimerGranularity()
+{
+    return std::chrono::ceil<Clock::duration>(
+        std::chrono::duration<double, std::milli>(TimerResolution::GetGranularityMs()));
+}
+
 void FramePacer::SetFpsLimit(double fpsLimit)
 {
     if (fpsLimit > 0.0)
-        m_frameTimeTargetMs = 1000.0 / fpsLimit;
+        m_frameTimeTarget = std::chrono::round<Clock::duration>(std::chrono::duration<double>(1.0 / fpsLimit));
 }
 
 void FramePacer::EndFrame(WaitMode waitMode)
 {
     // Summarize stats for the current frame.
-    const double renderTimeMs = ElapsedMsSince(m_frameStart);
+    const auto sleepStart = Clock::now();
+    const auto renderTime = sleepStart - m_frameStart;
 
-    double sleepTimeMs = m_frameTimeTargetMs - m_catchUpMs - renderTimeMs;
-    double overrunMs = 0.0;
-    if (sleepTimeMs < 0.0)
+    auto sleepTime = m_frameTimeTarget - m_catchUp - renderTime;
+    Clock::duration overrun {};
+    if (sleepTime < Clock::duration::zero())
     {
         // Late frames (FPS drop) can't sleep.
         // Instead, carry this delay to the next frame.
         // That way, next frame can compensate by sleeping less..
-        overrunMs = std::min(-sleepTimeMs, m_frameTimeTargetMs);
-        sleepTimeMs = 0.0;
+        overrun = std::min(-sleepTime, m_frameTimeTarget);
+        sleepTime = Clock::duration::zero();
     }
 
     // Sleep
-    Sleep(sleepTimeMs, waitMode);
-    m_catchUpMs += overrunMs;
+    const auto deadline = sleepStart + sleepTime;
+    SleepUntil(deadline, waitMode);
 
-    // Restart calculation for new frame.
-    m_frameStart = std::chrono::steady_clock::now();
+    // Restart calculation for new frame, minus however late we woke up.
+    m_frameStart = Clock::now();
+    m_catchUp = m_frameStart - deadline + overrun;
 }
 
-void FramePacer::Sleep(double durationMs, WaitMode waitMode)
+void FramePacer::SleepUntil(Clock::time_point deadline, WaitMode waitMode)
 {
     // First pacer use on a thread raises its timer resolution; finer timer
     // ticks mean every mode wakes closer to its deadline.
     TimerResolution::GetGranularityMs();
 
-    m_sleepStart = std::chrono::steady_clock::now();
-
     switch (waitMode)
     {
     case WaitMode::SleepOnly:
-        SleepOnly(durationMs);
+        SleepOnly(deadline);
         break;
     case WaitMode::SleepThenSpin:
-        SleepThenSpin(durationMs);
+        SleepThenSpin(deadline);
         break;
     case WaitMode::SleepThenYield:
-        SleepThenYield(durationMs);
+        SleepThenYield(deadline);
         break;
     }
-
-    m_catchUpMs = ElapsedMsSince(m_sleepStart) - durationMs;
 }
 
-void FramePacer::SleepOnly(double durationMs)
+void FramePacer::SleepOnly(Clock::time_point deadline)
 {
     // Hands the OS the full remaining time instead of spinning/yielding
     // through the final slice; it can wake up to one sleep quantum late,
     // never early.
-    double timeLeftMs;
-    while ((timeLeftMs = durationMs - ElapsedMsSince(m_sleepStart)) > 0.0)
+    Clock::time_point now;
+    while ((now = Clock::now()) < deadline)
     {
 #ifdef _WIN32
         // High-resolution waitable timer; see precision_sleep_win10.h.
         if (PrecisionSleep::IsAvailable())
         {
-            PrecisionSleep::Sleep(timeLeftMs);
+            PrecisionSleep::Sleep(deadline - now);
             continue;
         }
 #endif
-        std::this_thread::sleep_for(
-            std::chrono::duration<double, std::milli>(timeLeftMs));
+        std::this_thread::sleep_for(deadline - now);
     }
 }
 
-void FramePacer::SleepThenSpin(double durationMs)
+void FramePacer::SleepThenSpin(Clock::time_point deadline)
 {
-    const double timerGranularity = TimerResolution::GetGranularityMs();
+    const auto timerGranularity = GetTimerGranularity();
 
-    double timeLeftMs;
-    while ((timeLeftMs = durationMs - ElapsedMsSince(m_sleepStart)) > 0.0)
+    Clock::time_point now;
+    while ((now = Clock::now()) < deadline)
     {
+        const auto timeLeft = deadline - now;
+
         // Spin if below allocation granularity.
-        if (timeLeftMs < timerGranularity)
+        if (timeLeft < timerGranularity)
         {
-            Spin(durationMs);
+            Spin(deadline);
             break;
         }
 
         // One granularity is subtracted because a sleep can wake up to one
         // granularity tick late (per Windows docs); the spin finishes the
         // rest. The same logic applies to Linux.
-        const double sleepTimeLeftMs = timeLeftMs - timerGranularity;
+        const auto sleepTimeLeft = timeLeft - timerGranularity;
 
 #ifdef _WIN32
         // High-resolution waitable timer; see precision_sleep_win10.h.
         if (PrecisionSleep::IsAvailable())
         {
-            PrecisionSleep::Sleep(sleepTimeLeftMs);
+            PrecisionSleep::Sleep(sleepTimeLeft);
             continue;
         }
 #else
-        if (sleepTimeLeftMs > 0.0)
-            std::this_thread::sleep_for(std::chrono::duration<double, std::milli>(sleepTimeLeftMs));
+        if (sleepTimeLeft > Clock::duration::zero())
+            std::this_thread::sleep_for(sleepTimeLeft);
 #endif
     }
 }
 
-void FramePacer::SleepThenYield(double durationMs)
+void FramePacer::SleepThenYield(Clock::time_point deadline)
 {
-    const double timerGranularity = TimerResolution::GetGranularityMs();
+    const auto timerGranularity = GetTimerGranularity();
 
-    double timeLeftMs;
-    while ((timeLeftMs = durationMs - ElapsedMsSince(m_sleepStart)) > 0.0)
+    Clock::time_point now;
+    while ((now = Clock::now()) < deadline)
     {
         // One granularity is subtracted because a sleep can wake up to one
         // granularity tick late (per Windows docs); the yield finishes the
         // rest. The same logic applies to Linux.
-        const double sleepTimeLeftMs = timeLeftMs - timerGranularity;
+        const auto sleepTimeLeft = deadline - now - timerGranularity;
 
 #ifdef _WIN32
         // High-resolution waitable timer; see precision_sleep_win10.h.
-        if (PrecisionSleep::IsAvailable() && sleepTimeLeftMs > 0.0)
+        if (PrecisionSleep::IsAvailable() && sleepTimeLeft > Clock::duration::zero())
         {
-            PrecisionSleep::Sleep(sleepTimeLeftMs);
+            PrecisionSleep::Sleep(sleepTimeLeft);
             continue;
         }
 #endif
-        if (sleepTimeLeftMs > 0.0)
-            std::this_thread::sleep_for(std::chrono::duration<double, std::milli>(sleepTimeLeftMs));
+        if (sleepTimeLeft > Clock::duration::zero())
+            std::this_thread::sleep_for(sleepTimeLeft);
         else
             std::this_thread::yield();
     }
 }
 
-void FramePacer::Spin(double durationMs)
+void FramePacer::Spin(Clock::time_point deadline)
 {
-    double lastYieldTimeMs = 0.0;
-    double timeLeftMs;
+    Clock::duration lastYieldTime {};
+    Clock::time_point now;
 
     // Spin!!
     auto runSpinIteration = [&]()
     {
-        const auto yieldStart = std::chrono::steady_clock::now();
+        const auto yieldStart = Clock::now();
         std::this_thread::yield();
-        lastYieldTimeMs = ElapsedMsSince(yieldStart);
+        lastYieldTime = Clock::now() - yieldStart;
     };
 
-    while ((timeLeftMs = durationMs - ElapsedMsSince(m_sleepStart)) > 0.0)
+    while ((now = Clock::now()) < deadline)
     {
-        if (lastYieldTimeMs > 0.0)
+        if (lastYieldTime > Clock::duration::zero())
         {
-            if (timeLeftMs > lastYieldTimeMs)
+            if (deadline - now > lastYieldTime)
                 runSpinIteration();
         }
         else
