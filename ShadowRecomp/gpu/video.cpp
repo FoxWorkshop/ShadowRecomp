@@ -5005,30 +5005,6 @@ static void ProcDrawImGui(const RenderCommand& cmd)
 	}
 }
 
-// We have to check for this to properly handle the following situation:
-// 1. Wait on swap chain.
-// 2. Create loading thread.
-// 3. Loading thread also waits on swap chain.
-// 4. Loading thread presents and quits.
-// 5. After the loading thread quits, application also presents.
-static bool g_pendingWaitOnSwapChain = true;
-
-void Video::WaitOnSwapChain()
-{
-	if (g_pendingWaitOnSwapChain)
-	{
-		// Pacing without vsync throttles to the compositor's vblank (Linux/Wayland).
-		if (g_swapChainValid && g_capabilities.presentWait && Config::VSync)
-		{
-			g_presentWaitProfiler.Begin();
-			g_swapChain->wait();
-			g_presentWaitProfiler.End();
-		}
-
-		g_pendingWaitOnSwapChain = false;
-	}
-}
-
 static std::atomic<bool> g_executedCommandList;
 static std::atomic<bool> presentExecuted(true);
 
@@ -5049,8 +5025,8 @@ void VideoDebug_DumpPresentState()
 	printf("=== VideoDebug_DumpPresentState ===\n");
 	printf("  swap chain: g_swapChain=%p g_swapChainValid=%d presentWait_capable=%d g_backBufferIndex=%u\n",
 		(void*)g_swapChain.get(), (int)g_swapChainValid, (int)g_capabilities.presentWait, g_backBufferIndex);
-	printf("  present pipeline: g_inPresent=%d presentExecuted=%d g_executedCommandList=%d g_pendingWaitOnSwapChain=%d\n",
-		(int)g_inPresent.load(), (int)presentExecuted.load(), (int)g_executedCommandList.load(), (int)g_pendingWaitOnSwapChain);
+	printf("  present pipeline: g_inPresent=%d presentExecuted=%d g_executedCommandList=%d\n",
+		(int)g_inPresent.load(), (int)presentExecuted.load(), (int)g_executedCommandList.load());
 	printf("  frames: g_frame=%u g_nextFrame=%u\n", g_frame, g_nextFrame);
 	printf("  commandListStates per frame:");
 	for (size_t i = 0; i < NUM_FRAMES; ++i)
@@ -5146,7 +5122,11 @@ void Video::Present()
 
 	// Pacing without vsync throttles to the compositor's vblank (Linux/Wayland).
 	if (g_vulkan && g_capabilities.presentWait && Config::VSync)
+	{
+		g_presentWaitProfiler.Begin();
 		g_swapChain->wait();
+		g_presentWaitProfiler.End();
+	}
 
 	CheckSwapChain();
 
@@ -5158,8 +5138,6 @@ void Video::Present()
 	g_beginCmdListWaitProfiler.End();
 
 	g_inPresent = false;
-
-	g_pendingWaitOnSwapChain = false;
 
 	if (aboutToDrawLoading && GuestThread::GetCurrentThreadId() == GetLoadingThreadID())
 	{

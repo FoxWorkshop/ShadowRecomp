@@ -49,8 +49,6 @@ int Window_OnSDLEvent(void*, SDL_Event* event);
 X86_FUNC_IMPL(__imp__sub_57630);
 X86_FUNC(sub_57630)
 {
-	Video::WaitOnSwapChain();
-
 	double targetFps = GetTargetFPS();
 	if (targetFps >= FPS_MIN && (targetFps < FPS_MAXSoft || targetFps < FPS_MAX && s_ExpandFPSLimit))
 	{

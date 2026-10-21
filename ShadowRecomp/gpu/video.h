@@ -62,7 +62,6 @@ struct Video
 	static void PrecompileShadersAndPipelines();
 	static void PrecompileShadersAndPipelinesForInstall(const std::function<void(float)>& progress);
 	static void Present();
-	static void WaitOnSwapChain();
 	static void WaitForGPU();
 	static void ComputeViewportDimensions();
 	static void Shutdown();

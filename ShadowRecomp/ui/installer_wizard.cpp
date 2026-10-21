@@ -1191,8 +1191,6 @@ bool InstallerWizard::Run(std::filesystem::path installPath)
 
 	while (s_isVisible)
 	{
-		Video::WaitOnSwapChain();
-
 		if (!g_isQuitting)
 		{
 			EmbeddedPlayer::PlayMusic();
