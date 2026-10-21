@@ -1533,6 +1533,26 @@ address = 0x27370E
 registers = ["r6", "r5"]
 # End Fire vacuum callback fix
 
+# Start Vacuum any enemy cheat
+# EnemyBase collision attribute, ecx = final attribute
+[[midasm_hook]]
+name = "VacuumAnyEnemyColliMidAsmHook"
+address = 0xCE4AB
+registers = ["r2"]
+
+# BkWingLargeAI
+[[midasm_hook]]
+name = "VacuumAnyEnemySkipResistMidAsmHook"
+address = 0x12A31F
+jump_address_on_true = 0x12A345
+
+# BkChaosAI
+[[midasm_hook]]
+name = "VacuumAnyEnemySkipResistMidAsmHook"
+address = 0x12739F
+jump_address_on_true = 0x1273B3
+# End Vacuum any enemy cheat
+
 [[midasm_hook]]
 name = "KatanaBulletSweepMidAsmHook"
 address = 0x2776DA

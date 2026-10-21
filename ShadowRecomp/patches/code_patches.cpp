@@ -182,3 +182,50 @@ X86_FUNC(sub_9FC00)
     __imp__sub_9FC00(ctx, base);
 }
 
+// Vacuum Any Enemy Cheat
+// Both Vacuum weapons look for the collisions flag 0x80 to detect if they can work on the current enemy
+// The game don't use it on some enemy like the BkNinja and Big Foot, so we add it manually 
+void VacuumAnyEnemyColliMidAsmHook(X86Register& ecx)
+{
+    if (Config::VacuumAnyEnemy)
+        ecx.u32 |= 0x80;
+}
+
+// Both BkWingLarge and BkChaos can resist the vacuum command, force it to always work.
+bool VacuumAnyEnemySkipResistMidAsmHook()
+{
+    return Config::VacuumAnyEnemy;
+}
+
+// BkNinja puts a head aim callback on one bone with the enemy as data, which makes the game reads freed memory if you suck it, this eventually corrupts and crash the game.
+// We can fix that by clearing all callback nodes.
+static void ClearNodeCallbacks(uint8_t* base, uint32_t node, uint32_t depth)
+{
+    while (node != 0 && depth < 64)
+    {
+        X86_STORE_U32(node + 0x1C, 0); // callback
+        X86_STORE_U32(node + 0x20, 0); // callback data
+        ClearNodeCallbacks(base, X86_LOAD_U32(node + 0x24), depth + 1); // child
+        node = X86_LOAD_U32(node + 0x28); // sibling
+    }
+}
+
+// CEnemyVacuumObject ctor
+X86_FUNC_IMPL(__imp__sub_CEED0);
+X86_FUNC(sub_CEED0)
+{
+    uint32_t vacuumObject = ctx.ecx.u32;
+    __imp__sub_CEED0(ctx, base);
+
+    if (!Config::VacuumAnyEnemy)
+        return;
+
+    uint32_t model = X86_LOAD_U32(vacuumObject + 0x34);
+    if (model == 0 || X86_LOAD_U32(model) == 0)
+        return;
+
+    uint32_t hierarchy = X86_LOAD_U32(X86_LOAD_U32(model) + 8);
+    if (hierarchy != 0)
+        ClearNodeCallbacks(base, X86_LOAD_U32(hierarchy + 0xC), 0);
+}
+
