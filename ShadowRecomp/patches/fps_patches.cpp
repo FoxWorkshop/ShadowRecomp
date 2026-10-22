@@ -138,6 +138,7 @@ std::unordered_map<uint32_t, float> g_sfxTimers;
 // We need to patch them so they don't cut too early
 void SFXTimingMidAsmHook(X86Register &esi)
 {
+	// TODO: this should NOT be using GetFPS, that is NOT intended for use in code patches
 	if (GetFPS() < 60)
 		return;
 
