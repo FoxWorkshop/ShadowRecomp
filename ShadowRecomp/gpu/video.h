@@ -46,7 +46,6 @@ extern std::atomic<uint32_t> g_fmvFrameHeight;
 
 void CopyVertexShaderConstant(int32_t Register, DWORD* pConstantData, const uint32_t count);
 float GetRenderTargetHeight();
-double GetFPS();
 double GetTargetFPS();
 
 inline bool g_needsResize;

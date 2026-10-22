@@ -4696,12 +4696,6 @@ static void DrawProfiler()
 	font->Scale = defaultScale;
 }
 
-static double s_fps = 0.0;
-double GetFPS()
-{
-	return s_fps;
-}
-
 // The refresh rate (Hz) of the display holding the game window, or 0 when
 // the display or its mode cannot be determined.
 static double GetDisplayRefreshRate()
@@ -4752,7 +4746,6 @@ static void DrawFPS()
 		double averageFps = 1000.0 * deltaTimes.size() / totalDeltaTime;
 		double blend = 1.0 - std::exp(-deltaTime / (0.25 * std::min(totalDeltaTime, 1000.0)));
 		fps = fps > 0.0 ? fps + blend * (averageFps - fps) : averageFps;
-		s_fps = fps;
 	}
 
 	if (!Config::ShowFPS)

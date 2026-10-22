@@ -288,12 +288,7 @@ std::unordered_map<uint32_t, float> g_sfxTimers;
 // We need to patch them so they don't cut too early
 void SFXTimingMidAsmHook(X86Register &esi)
 {
-	// TODO: this should NOT be using GetFPS, that is NOT intended for use in code patches
-	if (GetFPS() < 60)
-		return;
-
-	auto base = g_memory.base; // use base for the load and store macro.
-
+	auto base = g_memory.base;
 	uint32_t timerAddr = esi.u32 + 0xc;
 	uint16_t timer = X86_LOAD_U16(timerAddr) + 1; // restore og value that the game removed using hardcoded 60 fps.
 
@@ -304,16 +299,14 @@ void SFXTimingMidAsmHook(X86Register &esi)
 	// This creates a side effect: any slow frame or wrong rounding can make the sound stop and play 
 	// immediately again which acts like the sound played twice in a row.
 	// Ensure to never go faster than 1 per frame to prevent that.
+	// at 60 FPS or lower this is always 1 step
 	steps = std::min(steps, 1);
-
 	if (steps > 0)
 	{
 		g_sfxTimers[esi.u32] = std::min(g_sfxTimers[esi.u32] - steps, 1.0f);
 		int result = (int)timer - steps;
 		timer = (uint16_t)std::max(result, 0);
 	}
-
-
 	X86_STORE_U16(timerAddr, timer);
 }
 
