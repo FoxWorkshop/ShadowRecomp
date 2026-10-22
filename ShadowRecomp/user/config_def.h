@@ -112,7 +112,6 @@ CONFIG_DEFINE_LOCALISED("Video", float, Brightness, 0.5f, false);
 CONFIG_DEFINE("Video", uint32_t, AnisotropicFiltering, 16, false);
 CONFIG_DEFINE_ENUM_LOCALISED("Video", ETextureFiltering, TextureFiltering, ETextureFiltering::Auto, false);
 CONFIG_DEFINE_LOCALISED("Video", float, BloomIntensity, 0.7f, false);
-CONFIG_DEFINE_LOCALISED("Video", bool, Fog, true, false);
 CONFIG_DEFINE_LOCALISED("Video", float, MaxHUDWidth, 0.0f, false);
 
 CONFIG_DEFINE_LOCALISED("Misc", bool, ChaosPowerLEDSync, true, false);
