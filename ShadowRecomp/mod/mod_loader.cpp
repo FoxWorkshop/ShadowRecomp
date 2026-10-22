@@ -16,14 +16,23 @@
 
 namespace fs = std::filesystem;
 
+// for append tex
+struct TxdTexture
+{
+	std::string name;
+	std::vector<uint8_t> chunk; // whole chunk, header included
+};
+
 // Used to store the mod's file replacement data
 struct ModArchiveWorker
 {
-	std::string archive; // ex: .one file 
+	std::string archive; // ex: .one file
 	std::string asset;  // og asset name
 	std::filesystem::path file;
-	bool isWildcard; // used for massive assets replacement in different archives at once, ex: "event/*" 
+	bool isWildcard; // used for massive assets replacement in different archives at once, ex: "event/*"
 	bool fromIncludeDir; // for codeless config folders, they get priority over the mod root data
+	bool isAppend = false; // "TEXTURE.TXD+=" merge textures into the og txd instead of replacing it
+	std::vector<TxdTexture> textures; // textures to merge, read once at boot
 };
 
 struct Mod
@@ -185,7 +194,9 @@ static bool MatchWildcard(std::string_view pattern, std::string_view str)
 	}
 
 	while (p < pattern.size() && pattern[p] == '*')
+	{
 		p++;
+	}
 
 	return p == pattern.size();
 }
@@ -210,6 +221,253 @@ static bool handleRulesPriority(const ModArchiveWorker& a, const ModArchiveWorke
 		return a.archive.size() > b.archive.size();
 
 	return a.archive < b.archive;
+}
+
+// RenderWare chunk ids (used by texture dictionaries)
+constexpr uint32_t RW_PLATFORM_XBOX = 5;
+
+enum RwChunkType
+{
+	RW_STRUCT_TYPE = 0x01,
+	RW_STRING_TYPE = 0x02,
+	RW_EXTENSION_TYPE = 0x03,
+	RW_CAMERA_TYPE = 0x04,
+	RW_TEXTURE_NATIVE_TYPE = 0x15,
+	RW_TEX_DICTIONARY_TYPE = 0x16,
+};
+
+struct ParsedTxdData
+{
+	uint32_t version;
+	uint16_t deviceId;
+	std::vector<TxdTexture> textures;
+	std::vector<uint8_t> extension; // whole chunk
+};
+
+// Browse current TexDictionary and copy its native textures.
+static bool ParseTxd(std::span<const uint8_t> data, ParsedTxdData &txd, std::string& error)
+{
+	auto FuncReadU32 = [&](size_t pos) { uint32_t v; memcpy(&v, data.data() + pos, 4); return v; };
+
+	if (data.size() < 28 || FuncReadU32(0) != RW_TEX_DICTIONARY_TYPE || FuncReadU32(12) != RW_STRUCT_TYPE || FuncReadU32(16) < 4)
+	{
+		error = "not a texture dictionary";
+		return false;
+	}
+
+	size_t end = std::min<size_t>(data.size(), 12 + size_t(FuncReadU32(4)));
+	txd.version = FuncReadU32(8);
+	txd.deviceId = uint16_t(FuncReadU32(24) >> 16);
+	size_t pos = 24 + FuncReadU32(16);
+
+	while (pos + 12 <= end)
+	{
+		uint32_t type = FuncReadU32(pos);
+		size_t chunkSize = 12 + size_t(FuncReadU32(pos + 4));
+
+		if (pos + chunkSize > end)
+		{
+			error = "chunk goes past the end of the file";
+			return false;
+		}
+
+		if (type == RW_TEXTURE_NATIVE_TYPE)
+		{
+			if (chunkSize < 12 + 12 + 40 || FuncReadU32(pos + 12) != RW_STRUCT_TYPE)
+			{
+				error = "broken texture chunk";
+				return false;
+			}
+
+			if (FuncReadU32(pos + 24) != RW_PLATFORM_XBOX)
+			{
+				error = fmt::format("texture is not Xbox platform (platform {})", FuncReadU32(pos + 24));
+				return false;
+			}
+
+			auto name = reinterpret_cast<const char*>(data.data() + pos + 32);
+			txd.textures.push_back({ ToLower(std::string(name, strnlen(name, 32))), std::vector<uint8_t>(data.begin() + pos, data.begin() + pos + chunkSize) });
+		}
+		else if (type == RW_EXTENSION_TYPE)
+		{
+			txd.extension.assign(data.begin() + pos, data.begin() + pos + chunkSize);
+		}
+
+		pos += chunkSize;
+	}
+
+	return true;
+}
+
+static void WriteChunkHeader(std::vector<uint8_t>& out, uint32_t type, uint32_t size, uint32_t version)
+{
+	uint32_t header[3] = { type, size, version };
+	out.insert(out.end(), reinterpret_cast<uint8_t*>(header), reinterpret_cast<uint8_t*>(header) + sizeof(header));
+}
+
+// Same name replaces the og texture 
+// a new name however is added at the end of the txd.
+static std::vector<uint8_t> MergeTxd(ParsedTxdData &base, const std::vector<const ModArchiveWorker*>& appends, const std::string& archive)
+{
+	for (auto modWK : appends)
+	{
+		for (auto& texture : modWK->textures)
+		{
+			auto it = std::find_if(base.textures.begin(), base.textures.end(), [&](const TxdTexture& t) { return t.name == texture.name; });
+
+			if (it != base.textures.end())
+			{
+				LOGF_IMPL(Utility, "Mod Loader", "[{}] {}: texture {} replaced", archive, modWK->asset, texture.name);
+				it->chunk = texture.chunk;
+			}
+			else
+			{
+				base.textures.push_back(texture);
+			}
+		}
+	}
+
+	uint32_t bodySize = 12 + 4;
+	for (auto& texture : base.textures)
+		bodySize += uint32_t(texture.chunk.size());
+
+	if (base.extension.empty())
+		bodySize += 12;
+	else
+		bodySize += uint32_t(base.extension.size());
+
+	std::vector<uint8_t> out;
+	out.reserve(12 + bodySize);
+	WriteChunkHeader(out, RW_TEX_DICTIONARY_TYPE, bodySize, base.version);
+	WriteChunkHeader(out, RW_STRUCT_TYPE, 4, base.version);
+
+	uint32_t countAndDevice = uint32_t(base.textures.size() & 0xFFFF) | (uint32_t(base.deviceId) << 16);
+	out.insert(out.end(), reinterpret_cast<uint8_t*>(&countAndDevice), reinterpret_cast<uint8_t*>(&countAndDevice) + 4);
+
+	for (auto& texture : base.textures)
+		out.insert(out.end(), texture.chunk.begin(), texture.chunk.end());
+
+	if (base.extension.empty())
+		WriteChunkHeader(out, RW_EXTENSION_TYPE, 0, base.version);
+	else
+		out.insert(out.end(), base.extension.begin(), base.extension.end());
+
+	return out;
+}
+
+// PRS unpack, same as the game's Expand2. Control bits come one by one with low bit being first.
+static bool DecompressPRS(const uint8_t* src, std::vector<uint8_t>& out, size_t maxSize)
+{
+	uint32_t ctrl = 0;
+	int bits = 0;
+
+	auto getBit = [&]()
+		{
+			if (bits == 0)
+			{
+				ctrl = *src++;
+				bits = 8;
+			}
+
+			uint32_t bit = ctrl & 1;
+			ctrl >>= 1;
+			bits--;
+			return bit;
+		};
+
+	while (true)
+	{
+		if (getBit())
+		{
+			if (out.size() >= maxSize)
+				return false;
+
+			out.push_back(*src++);
+			continue;
+		}
+
+		ptrdiff_t offset;
+		size_t size;
+
+		if (getBit())
+		{
+			uint32_t value = src[0] | (src[1] << 8);
+			src += 2;
+
+			if (value == 0)
+				return true;
+
+			offset = ptrdiff_t(value >> 3) - 0x2000;
+			size = value & 7;
+			size = size == 0 ? size_t(*src++) + 1 : size + 2;
+		}
+		else
+		{
+			size = ((getBit() << 1) | getBit()) + 2;
+			offset = ptrdiff_t(*src++) - 0x100;
+		}
+
+		if (ptrdiff_t(out.size()) + offset < 0 || out.size() + size > maxSize)
+			return false;
+
+		size_t from = out.size() + offset;
+
+		for (size_t i = 0; i < size; i++)
+			out.push_back(out[from + i]);
+	}
+}
+
+static bool ReadTXDFile(const fs::path& path, std::vector<uint8_t>& data)
+{
+	std::ifstream file(path, std::ios::binary);
+
+	if (!file)
+		return false;
+
+	data.assign(std::istreambuf_iterator<char>(file), std::istreambuf_iterator<char>());
+	return true;
+}
+
+// Append TXD works by adding "texture+=PathOfTheTxd" in the master ini file. Extra "," can be added to add multiple txds at once
+// alternatively, user can specify a folder path and the TXD will append all the extra TXDs present at once.
+static std::vector<fs::path> GetAppendTXDFiles(const fs::path& iniDir, const std::string& value)
+{
+	std::vector<fs::path> files;
+	size_t start = 0;
+
+	while (start <= value.size())
+	{
+		size_t comma = value.find(',', start);
+		std::string text = value.substr(start, comma == std::string::npos ? std::string::npos : comma - start);
+		Trim(text);
+		start = comma == std::string::npos ? value.size() + 1 : comma + 1;
+
+		if (text.empty())
+			continue;
+
+		fs::path path = iniDir / text;
+		std::error_code ec;
+
+		if (fs::is_directory(path, ec)) // if user put a directory path, append all TXD files that exist in
+		{
+			std::vector<fs::path> folderFiles;
+
+			for (auto& entry : fs::directory_iterator(path, ec))
+			{
+				if (entry.is_regular_file() && ToLower(entry.path().extension().string()) == ".txd")
+					folderFiles.push_back(entry.path());
+			}
+
+			std::sort(folderFiles.begin(), folderFiles.end());
+			files.insert(files.end(), folderFiles.begin(), folderFiles.end());
+		}
+		else
+		{
+			files.push_back(std::move(path));
+		}
+	}
+
+	return files;
 }
 
 static void AddIndividualFileReplacement(Mod* modinf, ModArchiveWorker rule)
@@ -250,9 +508,59 @@ static void LoadReplaceIni(const fs::path& iniPath, Mod* modinf, bool fromInclud
 				continue;
 			}
 
+			bool isWildcard = archive.find_first_of("*?") != std::string::npos;
+
+			// the ini parser keeps the '+' of "+=" in the key
 			if (asset.ends_with('+'))
 			{
-				LOGF_WARNING("{}: [{}] {}= is not supported yet, skipped", modinf->Name, group, asset);
+				asset.pop_back();
+				Trim(asset);
+
+				if (!ToLower(asset).ends_with(".txd"))
+				{
+					LOGF_ERROR("{}: [{}] {}+= only works on .txd files", modinf->Name, group, asset);
+					continue;
+				}
+
+				ModArchiveWorker rule = { archive, ToLower(asset), {}, isWildcard, fromIncludeDir, true };
+
+				for (auto& txdPath : GetAppendTXDFiles(iniDir, value))
+				{
+					std::vector<uint8_t> data;
+					ParsedTxdData txd;
+					std::string error;
+
+					if (!ReadTXDFile(txdPath, data))
+					{
+						LOGF_ERROR("{}: [{}] {}: file does not exist: {}", modinf->Name, group, asset, txdPath.string());
+						continue;
+					}
+
+					if (!ParseTxd(data, txd, error))
+					{
+						LOGF_ERROR("{}: [{}] {}: {}: {}", modinf->Name, group, asset, txdPath.string(), error);
+						continue;
+					}
+
+					// game txd version is set to RW 3.7.0.2
+					// other versions may not load so warn player just in case
+					if (txd.version != 0x1C020037)
+						LOGF_WARNING("{}: {}: RW version {:#x} does not match the game (0x1c020037)", modinf->Name, txdPath.string(), txd.version);
+
+					if (rule.file.empty())
+						rule.file = txdPath;
+
+					for (auto& texture : txd.textures)
+						rule.textures.push_back(std::move(texture));
+				}
+
+				if (rule.textures.empty())
+				{
+					LOGF_ERROR("{}: [{}] {}+=: no texture to add", modinf->Name, group, asset);
+					continue;
+				}
+
+				AddIndividualFileReplacement(modinf, std::move(rule));
 				continue;
 			}
 
@@ -264,7 +572,6 @@ static void LoadReplaceIni(const fs::path& iniPath, Mod* modinf, bool fromInclud
 				continue;
 			}
 
-			bool isWildcard = archive.find_first_of("*?") != std::string::npos;
 			AddIndividualFileReplacement(modinf, { archive, ToLower(asset), assetPath, isWildcard, fromIncludeDir });
 		}
 	}
@@ -327,10 +634,12 @@ static void LogIndividualFilesReplacement()
 					matchesCount++;
 			}
 
+			const char* op = modwk.isAppend ? "+=" : "";
+
 			if (matchesCount == 0)
-				LOGF_IMPL(Error, "Mod Loader", "{}: [{}] {} matched no archive, check the names", mod.Name, modwk.archive, modwk.asset);
+				LOGF_IMPL(Error, "Mod Loader", "{}: [{}] {}{} matched no archive, check the names", mod.Name, modwk.archive, modwk.asset, op);
 			else
-				LOGF_IMPL(Utility, "Mod Loader", "{}: [{}] {} matched {} archive(s)", mod.Name, modwk.archive, modwk.asset, matchesCount);
+				LOGF_IMPL(Utility, "Mod Loader", "{}: [{}] {}{} matched {} archive(s)", mod.Name, modwk.archive, modwk.asset, op, matchesCount);
 		}
 	}
 }
@@ -345,6 +654,7 @@ struct OneFileReplacement
 {
 	std::filesystem::path filePath;
 	uint32_t size;
+	std::shared_ptr<const std::vector<uint8_t>> data; // merged txd, served from memory instead of filePath
 };
 static ankerl::unordered_dense::map<uint32_t, xxHashMap<OneFileReplacement>> g_oneFileReplacements;
 static bool flagIndividualFileReplace = false;
@@ -374,6 +684,9 @@ static const ModArchiveWorker* FindReplacedFiles(const std::string& archive, XXH
 		{
 			auto& modWK = g_mods[i].archiveWorker[index];
 
+			if (modWK.isAppend)
+				continue;
+
 			// if mod is replacing the same asset in multiple archives, pick the one with the highest priority
 			if (isMatchingName(modWK, archive) && (!currentArchive || handleRulesPriority(modWK, *currentArchive)))
 				currentArchive = &modWK;
@@ -384,6 +697,36 @@ static const ModArchiveWorker* FindReplacedFiles(const std::string& archive, XXH
 	}
 
 	return nullptr;
+}
+
+
+static std::vector<const ModArchiveWorker*> FindAppendedFiles(const std::string& archive, XXH64_hash_t assetHash)
+{
+	std::vector<const ModArchiveWorker*> resultWK;
+
+	// lowest priority first so the strongest one is merged last and wins.
+	for (auto& mod : g_mods)
+	{
+		auto ruleIt = mod.replaceRulesByAsset.find(assetHash);
+
+		if (ruleIt == mod.replaceRulesByAsset.end())
+			continue;
+
+		size_t modStart = resultWK.size();
+
+		for (uint32_t index : ruleIt->second)
+		{
+			auto& modWK = mod.archiveWorker[index];
+
+			if (modWK.isAppend && isMatchingName(modWK, archive))
+				resultWK.push_back(&modWK);
+		}
+
+
+		std::stable_sort(resultWK.begin() + modStart, resultWK.end(), [](auto a, auto b) { return handleRulesPriority(*b, *a); });
+	}
+
+	return resultWK;
 }
 
 // TOneFile::LoadOneFileAsync
@@ -397,6 +740,57 @@ X86_FUNC(sub_1F7F0)
 	}
 
 	__imp__sub_1F7F0(ctx, base);
+}
+
+// Memo: table record has the uncompressed size at +44, data pointer at +48 and flags at +52.
+static std::shared_ptr<const std::vector<uint8_t>> MergeAppendedTxd(const std::string& archive, uint32_t record, const ModArchiveWorker* replaceWK, const std::vector<const ModArchiveWorker*>& appends)
+{
+	auto base = g_memory.base;
+	std::vector<uint8_t> data;
+	std::string baseName;
+
+	if (replaceWK)
+	{
+		baseName = replaceWK->file.string();
+		
+		if (!ReadTXDFile(replaceWK->file, data))
+			return nullptr;
+	}
+	else
+	{
+		baseName = appends.back()->asset;
+		uint32_t size = X86_LOAD_U32(record + 96);
+		auto src = reinterpret_cast<const uint8_t*>(g_memory.Translate(X86_LOAD_U32(record + 100)));
+
+		if (X86_LOAD_U32(record + 104) & 1)
+		{
+			data.reserve(size);
+			if (!DecompressPRS(src, data, size) || data.size() != size)
+			{
+				LOGF_IMPL(Error, "Mod Loader", "[{}] {}: could not unpack the original file", archive, baseName);
+				return nullptr;
+			}
+		}
+		else
+		{
+			data.assign(src, src + size);
+		}
+	}
+
+	ParsedTxdData txd;
+	std::string error;
+
+	if (!ParseTxd(data, txd, error))
+	{
+		LOGF_IMPL(Error, "Mod Loader", "[{}] {}: can't add textures, {}", archive, baseName, error);
+		return nullptr;
+	}
+
+	size_t ogCount = txd.textures.size();
+	auto merged = std::make_shared<const std::vector<uint8_t>>(MergeTxd(txd, appends, archive));
+	LOGF_IMPL(Utility, "Mod Loader", "[{}] {}: {} textures, {} added by mods", archive, baseName, txd.textures.size(), txd.textures.size() - ogCount);
+
+	return merged;
 }
 
 // In order to implement individual file replacement in .one files, we need to patch the size of the asset table.
@@ -429,6 +823,18 @@ X86_FUNC(sub_1F360)
 			XXH64_hash_t assetHash = HashLowerName(std::string(assetName, strnlen(assetName, 44))); // fixed 44-byte name field
 
 			auto archiveWK = FindReplacedFiles(archive, assetHash);
+			auto appends = FindAppendedFiles(archive, assetHash);
+
+			if (!appends.empty())
+			{
+				auto mergedTXD = MergeAppendedTxd(archive, record, archiveWK, appends);
+				if (mergedTXD)
+				{
+					X86_STORE_U32(record + 96, static_cast<uint32_t>(mergedTXD->size()));
+					replacements[assetHash] = { archiveWK ? archiveWK->file : appends.back()->file, static_cast<uint32_t>(mergedTXD->size()), mergedTXD };
+					continue;
+				}
+			}
 
 			if (!archiveWK)
 				continue;
@@ -475,21 +881,31 @@ X86_FUNC(sub_1F570)
 		}
 	}
 
-	std::ifstream file;
+	auto dest = reinterpret_cast<char*>(GetHostParameter(3, CallConvention::Thiscall, ParameterType::Pointer));
 
-	if (replacement)
-		file.open(replacement->filePath, std::ios::binary);
-
-	if (!file.is_open())
+	if (replacement && replacement->data)
 	{
-		__imp__sub_1F570(ctx, base);
-		return;
+		memcpy(dest, replacement->data->data(), replacement->size);
+		ctx.eax.u32 = replacement->size;
+		LOGF_IMPL(Utility, "Mod Loader", "Loading merged file: \"{}\"", std::string_view(assetName, strnlen(assetName, 44)));
 	}
+	else
+	{
+		std::ifstream file;
 
+		if (replacement)
+			file.open(replacement->filePath, std::ios::binary);
 
-	file.read(reinterpret_cast<char*>(GetHostParameter(3, CallConvention::Thiscall, ParameterType::Pointer)), replacement->size);
-	ctx.eax.u32 = static_cast<uint32_t>(file.gcount());
-	LOGF_IMPL(Utility, "Mod Loader", "Loading file: \"{}\"", reinterpret_cast<const char*>(replacement->filePath.u8string().c_str()));
+		if (!file.is_open())
+		{
+			__imp__sub_1F570(ctx, base);
+			return;
+		}
+
+		file.read(dest, replacement->size);
+		ctx.eax.u32 = static_cast<uint32_t>(file.gcount());
+		LOGF_IMPL(Utility, "Mod Loader", "Loading file: \"{}\"", reinterpret_cast<const char*>(replacement->filePath.u8string().c_str()));
+	}
 
 	// async readers (events) pass a thread func and wait for a TOneFileNotice saying the data is ready
 	if (uint32_t threadFunc = GetHostParameter(4, CallConvention::Thiscall))
