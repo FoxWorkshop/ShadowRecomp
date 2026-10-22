@@ -24,6 +24,10 @@ CONFIG_DEFINE_LOCALISED("Input", float, StickDeadzone1P, 0.0f, false);
 CONFIG_DEFINE_LOCALISED("Input", float, StickDeadzone2P, 0.0f, false);
 CONFIG_DEFINE_LOCALISED("Input", float, StickDeadzone3P, 0.0f, false);
 CONFIG_DEFINE_LOCALISED("Input", float, StickDeadzone4P, 0.0f, false);
+CONFIG_DEFINE_LOCALISED("Input", float, StickSensitivity1P, 1.0f, false);
+CONFIG_DEFINE_LOCALISED("Input", float, StickSensitivity2P, 1.0f, false);
+CONFIG_DEFINE_LOCALISED("Input", float, StickSensitivity3P, 1.0f, false);
+CONFIG_DEFINE_LOCALISED("Input", float, StickSensitivity4P, 1.0f, false);
 
 CONFIG_DEFINE_ENUM("Bindings", SDL_Scancode, Key_A, SDL_SCANCODE_X, false);
 CONFIG_DEFINE_ENUM("Bindings", SDL_Scancode, Key_B, SDL_SCANCODE_C, false);

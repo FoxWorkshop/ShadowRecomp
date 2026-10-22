@@ -42,10 +42,9 @@ const input::PadBindings& input::GetPadBindings(uint32_t playerIndex)
 	return g_padBindings[std::min(playerIndex, 3u)];
 }
 
-// radial deadzone, rescaled
-static void ApplyStickDeadzone(int16_t& x, int16_t& y, float deadzone)
+static void ApplyStickResponse(int16_t& x, int16_t& y, float deadzone, float sensitivity)
 {
-	if (deadzone <= 0.0f)
+	if (deadzone <= 0.0f && sensitivity == 1.0f)
 	{
 		return;
 	}
@@ -61,10 +60,16 @@ static void ApplyStickDeadzone(int16_t& x, int16_t& y, float deadzone)
 		return;
 	}
 
-	auto scale = ((magnitude - deadzone) / (1.0f - deadzone)) / magnitude;
+	auto scale = ((magnitude - deadzone) / (1.0f - deadzone)) / magnitude * sensitivity;
 
-	x = (int16_t)std::clamp(fx * scale * 32767.0f, -32768.0f, 32767.0f);
-	y = (int16_t)std::clamp(fy * scale * 32767.0f, -32768.0f, 32767.0f);
+	auto peak = std::max(fabsf(fx), fabsf(fy)) * scale;
+	if (peak > 1.0f)
+	{
+		scale /= peak;
+	}
+
+	x = (int16_t)(fx * scale * 32767.0f);
+	y = (int16_t)(fy * scale * 32767.0f);
 }
 
 bool IsInputAllowed()
@@ -78,8 +83,6 @@ bool IsInputDeviceController()
 		input::g_inputDevice != input::EInputDevice::Mouse;
 }
 
-
-//todo implement vibration
 class Controller
 {
 public:
@@ -198,16 +201,17 @@ public:
 			pad.sThumbRX = (int16_t)std::clamp(-(int32_t)pad.sThumbRX, (int32_t)-32768, (int32_t)INT16_MAX);
 
 		float deadzone;
+		float sensitivity;
 		switch (playerIndex)
 		{
-		case 1:  deadzone = Config::StickDeadzone2P; break;
-		case 2:  deadzone = Config::StickDeadzone3P; break;
-		case 3:  deadzone = Config::StickDeadzone4P; break;
-		default: deadzone = Config::StickDeadzone1P; break;
+		case 1:  deadzone = Config::StickDeadzone2P; sensitivity = Config::StickSensitivity2P; break;
+		case 2:  deadzone = Config::StickDeadzone3P; sensitivity = Config::StickSensitivity3P; break;
+		case 3:  deadzone = Config::StickDeadzone4P; sensitivity = Config::StickSensitivity4P; break;
+		default: deadzone = Config::StickDeadzone1P; sensitivity = Config::StickSensitivity1P; break;
 		}
 
-		ApplyStickDeadzone(pad.sThumbLX, pad.sThumbLY, deadzone);
-		ApplyStickDeadzone(pad.sThumbRX, pad.sThumbRY, deadzone);
+		ApplyStickResponse(pad.sThumbLX, pad.sThumbLY, deadzone, sensitivity);
+		ApplyStickResponse(pad.sThumbRX, pad.sThumbRY, deadzone, sensitivity);
 	}
 
 	void Poll(uint32_t playerIndex)

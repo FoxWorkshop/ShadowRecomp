@@ -314,7 +314,7 @@ CONFIG_DEFINE_ENUM_LOCALE(ECameraRotationMode)
 
 CONFIG_DEFINE_LOCALE(Vibration1P)
 {
-    { ELanguage::English, { "1P Vibration", "Toggle controller vibration." } },
+    { ELanguage::English,  { "1P Vibration", "Toggle controller vibration." } },
     { ELanguage::Japanese, { "1P[振動:しんどう]", "[振動:しんどう]の\u200B[有無:うむ]を\u200B[選択:せんたく]できます" } },
     { ELanguage::German,   { "1P Vibration", "Schalte die Controllervibration an oder aus." } },
     { ELanguage::French,   { "1P Vibration", "Active les vibrations de la manette." } },
@@ -324,7 +324,7 @@ CONFIG_DEFINE_LOCALE(Vibration1P)
 
 CONFIG_DEFINE_LOCALE(Vibration2P)
 {
-    { ELanguage::English, { "2P Vibration", "Toggle controller vibration." } },
+    { ELanguage::English,  { "2P Vibration", "Toggle controller vibration." } },
     { ELanguage::Japanese, { "2P[振動:しんどう]", "[振動:しんどう]の\u200B[有無:うむ]を\u200B[選択:せんたく]できます" } },
     { ELanguage::German,   { "2P Vibration", "Schalte die Controllervibration an oder aus." } },
     { ELanguage::French,   { "2P Vibration", "Active les vibrations de la manette." } },
@@ -334,7 +334,7 @@ CONFIG_DEFINE_LOCALE(Vibration2P)
 
 CONFIG_DEFINE_LOCALE(Vibration3P)
 {
-    { ELanguage::English, { "3P Vibration", "Toggle controller vibration." } },
+    { ELanguage::English,  { "3P Vibration", "Toggle controller vibration." } },
     { ELanguage::Japanese, { "3P[振動:しんどう]", "[振動:しんどう]の\u200B[有無:うむ]を\u200B[選択:せんたく]できます" } },
     { ELanguage::German,   { "3P Vibration", "Schalte die Controllervibration an oder aus." } },
     { ELanguage::French,   { "3P Vibration", "Active les vibrations de la manette." } },
@@ -344,7 +344,7 @@ CONFIG_DEFINE_LOCALE(Vibration3P)
 
 CONFIG_DEFINE_LOCALE(Vibration4P)
 {
-    { ELanguage::English, { "4P Vibration", "Toggle controller vibration." } },
+    { ELanguage::English,  { "4P Vibration", "Toggle controller vibration." } },
     { ELanguage::Japanese, { "4P[振動:しんどう]", "[振動:しんどう]の\u200B[有無:うむ]を\u200B[選択:せんたく]できます" } },
     { ELanguage::German,   { "4P Vibration", "Schalte die Controllervibration an oder aus." } },
     { ELanguage::French,   { "4P Vibration", "Active les vibrations de la manette." } },
@@ -354,7 +354,7 @@ CONFIG_DEFINE_LOCALE(Vibration4P)
 
 CONFIG_DEFINE_LOCALE(AllowBackgroundInput)
 {
-    { ELanguage::English, { "Allow Background Input", "Allow controller input whilst the game window is unfocused." } },
+    { ELanguage::English,  { "Allow Background Input", "Allow controller input whilst the game window is unfocused." } },
     { ELanguage::Japanese, { "バックグラウンド[入力:にゅうりょく]", "フォーカスされていない\u200Bゲームに\u200B[入力:にゅうりょく]できるか\u200B[選択:せんたく]できます" } },
     { ELanguage::German,   { "Erlaube Hintergrundeingaben", "Erlaube Eingaben deines Controllers auch wenn das Spielfenster nicht fokussiert ist." } },
     { ELanguage::French,   { "Manette en arrière plan", "Permet d'utiliser la manette dans le jeu lorsque qu'il n'est pas au premier plan." } },
@@ -364,7 +364,7 @@ CONFIG_DEFINE_LOCALE(AllowBackgroundInput)
 
 CONFIG_DEFINE_LOCALE(StickDeadzone1P)
 {
-    { ELanguage::English, { "Stick Deadzone", "Adjust analog deadzone." } },
+    { ELanguage::English,  { "Stick Deadzone", "Adjust analog deadzone." } },
     { ELanguage::Japanese, { "Stick Deadzone", "Adjust analog deadzone." } },
     { ELanguage::German,   { "Stick Deadzone", "Adjust analog deadzone." } },
     { ELanguage::French,   { "Stick Deadzone", "Adjust analog deadzone." } },
@@ -376,6 +376,21 @@ CONFIG_DEFINE_LOCALE(StickDeadzone1P)
 CONFIG_LOCALE g_StickDeadzone2P_locale = g_StickDeadzone1P_locale;
 CONFIG_LOCALE g_StickDeadzone3P_locale = g_StickDeadzone1P_locale;
 CONFIG_LOCALE g_StickDeadzone4P_locale = g_StickDeadzone1P_locale;
+
+CONFIG_DEFINE_LOCALE(StickSensitivity1P)
+{
+    { ELanguage::English,  { "Stick Sensitivity", "Adjust analog sensitivity." } },
+    { ELanguage::Japanese, { "Stick Sensitivity", "Adjust analog sensitivity." } },
+    { ELanguage::German,   { "Stick Sensitivity", "Adjust analog sensitivity." } },
+    { ELanguage::French,   { "Stick Sensitivity", "Adjust analog sensitivity." } },
+    { ELanguage::Spanish,  { "Stick Sensitivity", "Adjust analog sensitivity." } },
+    { ELanguage::Italian,  { "Stick Sensitivity", "Adjust analog sensitivity." } }
+};
+
+// shared by all players
+CONFIG_LOCALE g_StickSensitivity2P_locale = g_StickSensitivity1P_locale;
+CONFIG_LOCALE g_StickSensitivity3P_locale = g_StickSensitivity1P_locale;
+CONFIG_LOCALE g_StickSensitivity4P_locale = g_StickSensitivity1P_locale;
 
 CONFIG_DEFINE_LOCALE(MasterVolume)
 {
@@ -389,7 +404,7 @@ CONFIG_DEFINE_LOCALE(MasterVolume)
 
 CONFIG_DEFINE_LOCALE(MusicVolume)
 {
-    { ELanguage::English, { "Music Volume", "Adjust the volume for the music." } },
+    { ELanguage::English,  { "Music Volume", "Adjust the volume for the music." } },
     { ELanguage::Japanese, { "BGMボリューム", "BGMボリュームの\u200B[大:おお]きさを\u200B[調整:ちょうせい]できます" } },
     { ELanguage::German,   { "Musiklautstärke", "Passe die Lautstärke der Musik an." } },
     { ELanguage::French,   { "Volume de la musique", "Réglage du volume de la musique." } },
@@ -399,7 +414,7 @@ CONFIG_DEFINE_LOCALE(MusicVolume)
 
 CONFIG_DEFINE_LOCALE(EffectsVolume)
 {
-    { ELanguage::English, { "Effects Volume", "Adjust the volume for sound effects." } },
+    { ELanguage::English,  { "Effects Volume", "Adjust the volume for sound effects." } },
     { ELanguage::Japanese, { "SEボリューム", "SEボリュームの\u200B[大:おお]きさを\u200B[調整:ちょうせい]できます" } },
     { ELanguage::German,   { "Soundeffektlautstärke", "Passe die Lautstärke der Soundeffekte an." } },
     { ELanguage::French,   { "Volume des effets sonores", "Réglage du volume des effets sonores." } },
@@ -409,7 +424,7 @@ CONFIG_DEFINE_LOCALE(EffectsVolume)
 
 CONFIG_DEFINE_LOCALE(VoicesVolume)
 {
-    { ELanguage::English, { "Voices Volume", "Adjust the volume for the voices." } },
+    { ELanguage::English,  { "Voices Volume", "Adjust the volume for the voices." } },
     { ELanguage::Japanese, { "ボイスボリューム", "ボイスボリュームの\u200B[大:おお]きさを\u200B[調整:ちょうせい]できます" } },
     { ELanguage::German,   { "Stimmenlautstärke", "Passe die Lautstärke der Stimmen an." } },
     { ELanguage::French,   { "Volume des voix", "Réglage du volume des voix." } },
@@ -440,7 +455,7 @@ CONFIG_DEFINE_LOCALE(MusicAttenuation)
 
 CONFIG_DEFINE_LOCALE(MuteOnFocusLost)
 {
-    { ELanguage::English, { "Mute on Focus Lost", "Mute the game's audio when the window is not in focus." } },
+    { ELanguage::English,  { "Mute on Focus Lost", "Mute the game's audio when the window is not in focus." } },
     { ELanguage::Japanese, { "フォーカスロストミュート", "ウィンドウがフォーカスされていないときにゲームのオーディオをミュートします" } },
     { ELanguage::German,   { "Stummstellen wenn nicht fokussiert", "Stellt das Audio des Spiels stumm solange das Fenster nicht im Fokus ist." } },
     { ELanguage::French,   { "Muet si fenêtre inactive", "Coupe le son du jeu lorsque la fenêtre n'est pas active." } },

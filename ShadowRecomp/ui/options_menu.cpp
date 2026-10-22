@@ -1516,6 +1516,7 @@ static const std::pair<const char*, ConfigDef<SDL_Scancode>*> g_keyboardBindings
 };
 
 static ConfigDef<float>* const g_stickDeadzones[] = { &Config::StickDeadzone1P, &Config::StickDeadzone2P, &Config::StickDeadzone3P, &Config::StickDeadzone4P };
+static ConfigDef<float>* const g_stickSensitivities[] = { &Config::StickSensitivity1P, &Config::StickSensitivity2P, &Config::StickSensitivity3P, &Config::StickSensitivity4P };
 
 static std::string GetPadButtonLabel(EPadButton button, bool isPlayStation, const std::string& fallback)
 {
@@ -1901,6 +1902,7 @@ static void DrawRemapOptions(int& rowCount, ImVec2 min, ImVec2 max)
 	auto playerIndex = g_remapSectionIndex - (int)ERemapSection::Gamepad1P;
 
 	DrawOption(rowCount++, g_stickDeadzones[playerIndex], true, min, max, nullptr, 0.0f, 0.0f, 0.5f);
+	DrawOption(rowCount++, g_stickSensitivities[playerIndex], true, min, max, nullptr, 0.5f, 1.0f, 2.0f);
 
 	auto& bindings = input::GetPadBindings(playerIndex);
 
