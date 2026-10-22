@@ -503,6 +503,80 @@ CONFIG_DEFINE_LOCALE(Subtitles)
     { ELanguage::Italian,  { "Sottotitoli", "Mostra i sottotitoli durante i dialoghi." } }
 };
 
+CONFIG_DEFINE_LOCALE(GraphicsAPI)
+{
+    { ELanguage::English,  { "Rendering Backend", "Change the graphics API used for rendering." } },
+    { ELanguage::Japanese, { "Rendering Backend", "Change the graphics API used for rendering." } },
+    { ELanguage::German,   { "Rendering Backend", "Change the graphics API used for rendering." } },
+    { ELanguage::French,   { "Rendering Backend", "Change the graphics API used for rendering." } },
+    { ELanguage::Spanish,  { "Rendering Backend", "Change the graphics API used for rendering." } },
+    { ELanguage::Italian,  { "Rendering Backend", "Change the graphics API used for rendering." } }
+};
+
+CONFIG_DEFINE_ENUM_LOCALE(EGraphicsAPI)
+{
+    {
+        ELanguage::English,
+        {
+            { EGraphicsAPI::Auto, { "AUTO", "Render using recommended backend." } },
+#ifdef SHADOW_RECOMP_D3D12
+            { EGraphicsAPI::D3D12, { "D3D12", "Render using Direct3D 12." } },
+#endif
+            { EGraphicsAPI::Vulkan, { "VULKAN", "Render using Vulkan." } }
+        }
+    },
+    {
+        ELanguage::Japanese,
+        {
+            { EGraphicsAPI::Auto, { "AUTO", "Render using recommended backend." } },
+#ifdef SHADOW_RECOMP_D3D12
+            { EGraphicsAPI::D3D12, { "D3D12", "Render using Direct3D 12." } },
+#endif
+            { EGraphicsAPI::Vulkan, { "VULKAN", "Render using Vulkan." } }
+        }
+    },
+    {
+        ELanguage::German,
+        {
+            { EGraphicsAPI::Auto, { "AUTO", "Render using recommended backend." } },
+#ifdef SHADOW_RECOMP_D3D12
+            { EGraphicsAPI::D3D12, { "D3D12", "Render using Direct3D 12." } },
+#endif
+            { EGraphicsAPI::Vulkan, { "VULKAN", "Render using Vulkan." } }
+        }
+    },
+    {
+        ELanguage::French,
+        {
+            { EGraphicsAPI::Auto, { "AUTO", "Render using recommended backend." } },
+#ifdef SHADOW_RECOMP_D3D12
+            { EGraphicsAPI::D3D12, { "D3D12", "Render using Direct3D 12." } },
+#endif
+            { EGraphicsAPI::Vulkan, { "VULKAN", "Render using Vulkan." } }
+        }
+    },
+    {
+        ELanguage::Spanish,
+        {
+            { EGraphicsAPI::Auto, { "AUTO", "Render using recommended backend." } },
+#ifdef SHADOW_RECOMP_D3D12
+            { EGraphicsAPI::D3D12, { "D3D12", "Render using Direct3D 12." } },
+#endif
+            { EGraphicsAPI::Vulkan, { "VULKAN", "Render using Vulkan." } }
+        }
+    },
+    {
+        ELanguage::Italian,
+        {
+            { EGraphicsAPI::Auto, { "AUTO", "Render using recommended backend." } },
+#ifdef SHADOW_RECOMP_D3D12
+            { EGraphicsAPI::D3D12, { "D3D12", "Render using Direct3D 12." } },
+#endif
+            { EGraphicsAPI::Vulkan, { "VULKAN", "Render using Vulkan." } }
+        }
+    }
+};
+
 CONFIG_DEFINE_LOCALE(WindowSize)
 {
     { ELanguage::English,  { "Resolution", "Adjust the resolution of the game in windowed mode." } },

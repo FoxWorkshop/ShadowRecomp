@@ -1987,6 +1987,9 @@ static void DrawOptions(ImVec2 minClipRect, ImVec2 maxClipRect, ImVec2 min, ImVe
 	{
 		bool canChangeResolution = Config::Fullscreen == false;
 
+#ifdef SHADOW_RECOMP_D3D12
+		DrawOption(rowCount++, &Config::GraphicsAPI, true, min, max, nullptr);
+#endif
 
 		DrawOption(rowCount++, &Config::WindowSize, canChangeResolution, min, max, devReason, 0, 0, (int)GameWindow::GetDisplayModes().size() - 1, false);
 
