@@ -25,6 +25,7 @@
 #include <cpu/guest_thread.h>
 #include <decompressor.h>
 #include <input/input.h>
+#include <plume_vulkan.h>
 
 #include <res/bc_diff/button_bc_diff_gc.bin.h>
 #include <res/bc_diff/button_bc_diff_ps2.bin.h>
@@ -2987,9 +2988,24 @@ static void CreateImGuiBackend()
 	LOG_UTILITY("ImGui Initialized");
 }
 
-static void CheckSwapChain()
+static VulkanSwapChain* GetVulkanSwapChain()
+{
+	return static_cast<VulkanSwapChain*>(g_swapChain.get());
+}
+
+static void SetSwapChainVsync()
 {
 	g_swapChain->setVsyncEnabled(Config::VSync);
+	// FIFO is default, MAILBOX if supported
+	if (g_vulkan && Config::VSync && GetVulkanSwapChain()->mailboxPresentModeSupported)
+	{
+		GetVulkanSwapChain()->requiredPresentMode = VK_PRESENT_MODE_MAILBOX_KHR;
+	}
+}
+
+static void CheckSwapChain()
+{
+	SetSwapChainVsync();
 	g_swapChainValid &= !g_swapChain->needsResize();
 
 	if (!g_swapChainValid)
@@ -3486,7 +3502,7 @@ bool Video::CreateHostDevice(const char* sdlVideoDriver, bool graphicsApiRetry)
 	swapChainDesc.enablePresentWait = g_capabilities.presentWait;
 
 	g_swapChain = g_queue->createSwapChain(swapChainDesc);
-	g_swapChain->setVsyncEnabled(Config::VSync);
+	SetSwapChainVsync();
 	g_swapChainValid = !g_swapChain->needsResize();
 
 	for (auto& acquireSemaphore : g_acquireSemaphores)
@@ -4185,6 +4201,21 @@ static const char* DeviceTypeName(RenderDeviceType type)
 	}
 }
 
+static const char* PresentModeName(VkPresentModeKHR mode)
+{
+	switch (mode)
+	{
+	case VK_PRESENT_MODE_IMMEDIATE_KHR:
+		return "Immediate";
+	case VK_PRESENT_MODE_MAILBOX_KHR:
+		return "Mailbox";
+	case VK_PRESENT_MODE_FIFO_KHR:
+		return "FIFO";
+	default:
+		return "Unknown";
+	}
+}
+
 static std::atomic<uint32_t> g_bufferUploadCount = 0;
 
 static void DrawProfiler()
@@ -4407,7 +4438,7 @@ static void DrawProfiler()
 				drawPerfRow("            Frame Fence (wait)", g_frameFenceProfiler.value.load(), frameFenceAvg, false, "Blocked waiting for the GPU to finish an older frame\n(backpressure from the buffered-frame pipeline).");
 				drawPerfRow("            Swap Chain Acquire", g_swapChainAcquireProfiler.value.load(), swapChainAcquireAvg, false, "Acquiring a free backbuffer image from the swap chain.");
 				drawPerfRow("            Begin CmdList (wait)", g_beginCmdListWaitProfiler.value.load(), beginCmdListWaitAvg, false, "Blocked waiting for the render thread to open the\nnext command list.");
-				drawPerfRow("        Present Wait (VSync)", g_presentWaitProfiler.value.load(), presentWaitAvg, false, "VSync pacing: waiting on the swap chain between frames\n(only with vsync + presentWait).");
+				drawPerfRow("        Present Wait (VSync)", g_presentWaitProfiler.value.load(), presentWaitAvg, false, "VSync pacing: waiting on the swap chain between frames\n(Vsync ON FIFO only).");
 				drawPerfGroup("    Render Thread");
 				drawPerfRow("        Queue Wait", g_rtQueueWaitInFrameAccum.value.load(), rtQueueWaitInFrameAvg, false, "Starved render thread: commands exhausted, waiting for the\ngame thread to send more.\n\nSame value as Queue Wait (idle) in the Render-Thread Breakdown.");
 
@@ -4690,6 +4721,11 @@ static void DrawProfiler()
 					IMGUI_GENERIC_ROW("Hardware Resolve", "%s", g_hardwareResolve ? "Enabled" : "Disabled");
 					IMGUI_GENERIC_ROW("Hardware Depth Resolve", "%s", g_hardwareDepthResolve ? "Enabled" : "Disabled");
 					IMGUI_GENERIC_ROW("Present Wait", "%s", g_capabilities.presentWait ? "Supported" : "Unsupported");
+					if (g_vulkan)
+					{
+						IMGUI_GENERIC_ROW("Mailbox Present Mode", "%s", GetVulkanSwapChain()->mailboxPresentModeSupported ? "Supported" : "Unsupported");
+						IMGUI_GENERIC_ROW("Present Mode", "%s", PresentModeName(GetVulkanSwapChain()->createdPresentMode));
+					}
 					IMGUI_GENERIC_ROW("Triangle Fan", "%s", g_capabilities.triangleFan ? "Supported" : "Unsupported");
 					IMGUI_GENERIC_ROW("UMA", "%s", g_capabilities.uma ? "Supported" : "Unsupported");
 
@@ -5119,14 +5155,14 @@ void Video::Present()
 	g_stagedBufferUploads[g_frame].reset();
 	g_quadIndexData.reset();
 
+	g_presentWaitProfiler.Begin();
 
-	// Pacing without vsync throttles to the compositor's vblank (Linux/Wayland).
-	if (g_vulkan && g_capabilities.presentWait && Config::VSync)
+	// wait on fifo only
+	if (g_vulkan && g_capabilities.presentWait && Config::VSync && GetVulkanSwapChain()->createdPresentMode == VK_PRESENT_MODE_FIFO_KHR)
 	{
-		g_presentWaitProfiler.Begin();
 		g_swapChain->wait();
-		g_presentWaitProfiler.End();
 	}
+	g_presentWaitProfiler.End();
 
 	CheckSwapChain();
 
