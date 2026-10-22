@@ -108,6 +108,7 @@ const uint32_t g_cameraAddr = 0x540C40;
 #include <ui/message_window.h>
 #include <ui/options_menu.h>
 #include <ui/button_guide.h>
+#include <deque>
 #include <fstream>
 #include <filesystem>
 #include "sdl_listener.h"
@@ -4733,22 +4734,25 @@ double GetTargetFPS()
 
 static void DrawFPS()
 {
-	double time = ImGui::GetTime();
-	static double updateTime = time;
-	static double fps = 0;
+	static std::deque<double> deltaTimes;
 	static double totalDeltaTime = 0.0;
-	static uint32_t totalDeltaCount = 0;
+	static double fps = 0.0;
 
-	totalDeltaTime += g_frameIntervalMs; // wall-clock frame interval; Previously g_presentProfiler.value.load();
-	totalDeltaCount++;
-
-	if (time - updateTime >= 0.25f) // TODO: Make measure rate a config option maybe?
+	double deltaTime = g_frameIntervalMs;
+	if (deltaTime > 0.0)
 	{
-		fps = 1000.0 / std::max(totalDeltaTime / double(totalDeltaCount), 1.0);
+		deltaTimes.push_back(deltaTime);
+		totalDeltaTime += deltaTime;
+		while (deltaTimes.size() > 1 && totalDeltaTime - deltaTimes.front() >= 1000.0)
+		{
+			totalDeltaTime -= deltaTimes.front();
+			deltaTimes.pop_front();
+		}
+
+		double averageFps = 1000.0 * deltaTimes.size() / totalDeltaTime;
+		double blend = 1.0 - std::exp(-deltaTime / (0.25 * std::min(totalDeltaTime, 1000.0)));
+		fps = fps > 0.0 ? fps + blend * (averageFps - fps) : averageFps;
 		s_fps = fps;
-		updateTime = time;
-		totalDeltaTime = 0.0;
-		totalDeltaCount = 0;
 	}
 
 	if (!Config::ShowFPS)
