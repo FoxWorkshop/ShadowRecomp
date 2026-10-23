@@ -12,28 +12,18 @@ RwV3d* GetPlayerPos(uint32_t slot)
 	return g_playerStructAddrs[slot] != 0 ? (RwV3d*)g_memory.Translate(g_playerStructAddrs[slot] + 4) : nullptr;
 }
 
-void TeleportPlayersToP1()
+// clear stage Shift+F5
+// TODO: remove before release
+void TriggerGoalAction()
 {
-	static bool s_f5Held = false;
+	static bool f5Held = false;
+	auto base = g_memory.base;
 	bool f5 = SDL_GetKeyboardState(nullptr)[SDL_SCANCODE_F5] != 0;
-	RwV3d* p1Pos = GetPlayerPos(0);
-	if (f5 && !s_f5Held && p1Pos)
+	if (f5 && !f5Held && (SDL_GetModState() & KMOD_SHIFT))
 	{
-		float x = p1Pos->x;
-		float y = p1Pos->y;
-		float z = p1Pos->z;
-		for (uint32_t i = 1; i < g_multiplayerPlayerCount; i++)
-		{
-			RwV3d* pos = GetPlayerPos(i);
-			if (pos)
-			{
-				pos->x = x;
-				pos->y = y;
-				pos->z = z;
-			}
-		}
+		X86_STORE_U32(0x5496C4, 6);
 	}
-	s_f5Held = f5;
+	f5Held = f5;
 }
 
 //Awake Set Chaos Control / Blast mode
@@ -120,7 +110,7 @@ X86_FUNC(sub_90D10)
 	auto mode = X86_LOAD_U16(a2Addr + 4);
 	__imp__sub_90D10(ctx, base);
 
-	TeleportPlayersToP1();
+	TriggerGoalAction();
 
 	RwV3d* p1Pos = GetPlayerPos(0);
 	if (p1Pos && !oncePos && mode == 2)
