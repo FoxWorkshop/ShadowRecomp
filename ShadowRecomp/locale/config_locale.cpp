@@ -905,7 +905,7 @@ CONFIG_DEFINE_ENUM_LOCALE(ETextureFiltering)
 CONFIG_DEFINE_LOCALE(BloomIntensity)
 {
     { ELanguage::English, { "Bloom Intensity", "Adjust the intensity of the bloom effect." } },
-    { ELanguage::Japanese, { "Bloom Intensity", "" } },
+    { ELanguage::Japanese, { "Bloom Intensity", "Adjust the intensity of the bloom effect." } },
     { ELanguage::German,   { "Bloom-Intensität", "Passe die Intensität des Bloom-Effekts an." } },
     { ELanguage::French,   { "Intensité du bloom", "Réglez l'intensité de l'effet du bloom." } },
     { ELanguage::Spanish,  { "Intensidad del bloom", "Ajusta la intensidad del efecto de bloom." } },
@@ -915,11 +915,11 @@ CONFIG_DEFINE_LOCALE(BloomIntensity)
 CONFIG_DEFINE_LOCALE(EnablePartnerIntro)
 {
     { ELanguage::English, { "Partner Intro", "Show partner's introduction when they are first met." } },
-    { ELanguage::Japanese, { "", "" } },
-    { ELanguage::German,   { "", "" } },
+    { ELanguage::Japanese, { "Partner Intro", "Show partner's introduction when they are first met." } },
+    { ELanguage::German,   { "Partner Intro", "Show partner's introduction when they are first met." } },
     { ELanguage::French,   { "Intro du Partenaire", "Afficher l'introduction du partenaire lorsqu'il est rencontré pour la première fois." } },
-    { ELanguage::Spanish,  { "", "" } },
-    { ELanguage::Italian,  { "", "" } }
+    { ELanguage::Spanish,  { "Partner Intro", "Show partner's introduction when they are first met." } },
+    { ELanguage::Italian,  { "Partner Intro", "Show partner's introduction when they are first met." } }
 };
 
 CONFIG_DEFINE_LOCALE(MaxHUDWidth)
