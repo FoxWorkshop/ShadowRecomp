@@ -7,7 +7,6 @@
 #include <res/images/common/Options.png.h>
 #include <res/images/common/options_icons.png.h>
 #include <res/images/common/Options2.png.h>
-#include <res/images/common/gamemenu.png.h>
 #include <res/images/common/arrow.png.h>
 #include <res/images/common/HPgauge.png.h>
 #include <decompressor.h>
@@ -72,6 +71,9 @@ static constexpr float g_options_preview_fade_frames = 24.0f;
 
 static ConfigDef<float>* g_sliderPreviewConfig{};
 static float g_sliderPreviewValue{};
+
+static constexpr ConfigDef<float>* const g_stickDeadzones[] = { &Config::StickDeadzone1P, &Config::StickDeadzone2P, &Config::StickDeadzone3P, &Config::StickDeadzone4P };
+static constexpr ConfigDef<float>* const g_stickSensitivities[] = { &Config::StickSensitivity1P, &Config::StickSensitivity2P, &Config::StickSensitivity3P, &Config::StickSensitivity4P };
 
 // customize input sub menu
 enum class ERemapSection
@@ -592,10 +594,7 @@ static void DrawOption
 	auto clipRectMin = drawList->GetClipRectMin();
 	auto clipRectMax = drawList->GetClipRectMax();
 
-	auto optionMotionTime = 1.0f; // ComputeLinearMotion(g_categoryTime, 0, 5, OptionsMenu::s_state != OptionsMenuState::Idle);
-
 	auto optionHeight = Scale(OPTION_ROW_HEIGHT);
-
 	// original offset from the container
 	float optionsOffsetX = Scale(170);
 	float optionsOffsetY = Scale(23);
@@ -624,17 +623,11 @@ static void DrawOption
 	ImVec2 titleBgFadeMin = { titleBgStretchMax.x - Scale(300), titleBgStretchMax.y };
 	ImVec2 titleBgFadeMax = titleBgStretchMax;
 
-	/**SetHorizontalGradient(titleBgFadeMin, titleBgFadeMax, bgColour, bgFadeColour);
-	drawList->AddImage(g_upTexMainMenu8.get(), titleBgEdgeMin, titleBgEdgeMax, GET_UV_COORDS(bgEdgeUVs), bgColour);
-	drawList->AddImage(g_upTexMainMenu8.get(), titleBgStretchMin, titleBgStretchMax, GET_UV_COORDS(bgStretchUVs), bgColour);
-	ResetGradient();*/
-
 	// value variables
 	float valueAreaWidth = Scale(105);
 	float valueAreaEnd = max.x - Scale(15);
 	float valueAreaStart = valueAreaEnd - valueAreaWidth;
 	float valueAreaCenter = valueAreaStart + (valueAreaWidth * 0.5f);
-
 
 	// options name variables
 	const float fontOptionSize = g_fntSeuratSize - 4.f;
@@ -691,11 +684,7 @@ static void DrawOption
 			: titleText;
 
 		DrawMenuText(fontOptionSize, titlePos, TexColor, displayTitle.c_str(), isHoverOrSelected);
-
-
 	}
-
-
 
 	if (isCurrent)
 	{
@@ -821,8 +810,6 @@ static void DrawOption
 				}
 			}
 
-
-
 			if (isSelected)
 			{
 				auto increment = g_right;
@@ -854,7 +841,9 @@ static void DrawOption
 				{
 					if (config == &Config::MasterVolume || config == &Config::MusicVolume || config == &Config::VoicesVolume ||
 						config == &Config::CutsceneVolume || config == &Config::EffectsVolume || config == &Config::ResolutionScale ||
-						config == &Config::Brightness || config == &Config::BloomIntensity)
+						config == &Config::Brightness || config == &Config::BloomIntensity ||
+						std::ranges::find(g_stickDeadzones, config) != std::end(g_stickDeadzones) ||
+						std::ranges::find(g_stickSensitivities, config) != std::end(g_stickSensitivities))
 					{
 						if (PJSPeripheral::IsJustPressed(OptionsMenu::s_padIndex, PJSPeripheral::BTN_WHITE | PJSPeripheral::BTN_LEFT_TRIG))
 						{
@@ -1515,8 +1504,6 @@ static const std::pair<const char*, ConfigDef<SDL_Scancode>*> g_keyboardBindings
 	{ "Black", &Config::Key_RightBumper }
 };
 
-static ConfigDef<float>* const g_stickDeadzones[] = { &Config::StickDeadzone1P, &Config::StickDeadzone2P, &Config::StickDeadzone3P, &Config::StickDeadzone4P };
-static ConfigDef<float>* const g_stickSensitivities[] = { &Config::StickSensitivity1P, &Config::StickSensitivity2P, &Config::StickSensitivity3P, &Config::StickSensitivity4P };
 
 static std::string GetPadButtonLabel(EPadButton button, bool isPlayStation, const std::string& fallback)
 {
@@ -1915,7 +1902,6 @@ static void DrawRemapOptions(int& rowCount, ImVec2 min, ImVec2 max)
 static void DrawOptions(ImVec2 minClipRect, ImVec2 maxClipRect, ImVec2 min, ImVec2 max)
 {
 	auto drawList = ImGui::GetBackgroundDrawList();
-
 	drawList->PushClipRect(minClipRect, maxClipRect);
 
 	auto cmnReason = &Localise("Options_Desc_NotAvailable");
@@ -1998,13 +1984,10 @@ static void DrawOptions(ImVec2 minClipRect, ImVec2 maxClipRect, ImVec2 min, ImVe
 		auto canChangeMonitor = Config::Fullscreen && displayCount > 1;
 		auto monitorReason = &Localise("Options_Desc_NotAvailableWindowed");
 
-
 		if (Config::Fullscreen && displayCount <= 1)
 			monitorReason = &Localise("Options_Desc_NotAvailableHardware");
 
-
 		auto monitorMax = GameWindow::CanSpanDisplays() ? displayCount : displayCount - 1;
-
 		DrawOption(rowCount++, &Config::Monitor, canChangeMonitor, min, max, devReason, 0, 0, std::max(monitorMax, 0), false);
 		DrawOption(rowCount++, &Config::AspectRatio, true, min, max, devReason);
 		DrawOption(rowCount++, &Config::FMVAspectRatio, true, min, max, nullptr);
