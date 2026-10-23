@@ -127,23 +127,6 @@ int Window_OnSDLEvent(void*, SDL_Event* event)
             m_isFullscreenKeyReleased = false;
         }
         break;
-
-        // Restore original window dimensions on F2.
-        case SDLK_F2:
-            Config::Fullscreen = GameWindow::SetFullscreen(false);
-            GameWindow::ResetDimensions();
-            break;
-
-            // Recentre window on F3.
-        case SDLK_F3:
-        {
-            if (GameWindow::IsFullscreen())
-                break;
-
-            GameWindow::SetDimensions(GameWindow::s_width, GameWindow::s_height);
-
-            break;
-        }
         }
     }
     break;

@@ -283,6 +283,7 @@ public:
 std::array<Controller, 4> g_controllers;
 Controller* g_activeController;
 uint32_t g_keyboardPort = 1;
+std::atomic<bool> g_chaosControlHoldCheat = false; // remove before release, dev use only (not the same as the CC code)
 
 class KeyboardController
 {
@@ -629,8 +630,7 @@ int Input_OnSDLEvent(void*, SDL_Event* event)
 		}
 		if (event->key.keysym.scancode == SDL_SCANCODE_F7 && event->key.repeat == 0)
 		{
-			auto base = g_memory.base;
-			X86_STORE_F32(0x5456C4, 30000.0f);
+			g_chaosControlHoldCheat = !g_chaosControlHoldCheat;
 		}
 		input::g_inputDevice = input::EInputDevice::Keyboard;
 		break;
@@ -744,6 +744,14 @@ uint32_t input::GetState(uint32_t dwUserIndex, XINPUT_STATE* pState)
 
 	if (IsInputAllowed())
 	{
+		// TODO: Remove before release
+		if (dwUserIndex == 1 && g_chaosControlHoldCheat)
+		{
+			auto base = g_memory.base;
+			X86_STORE_U32(0x5456C4, X86_LOAD_U32(0x5456C8));
+		}
+		// TODO: END Remove before release
+
 		if (dwUserIndex >= 1 && dwUserIndex <= 4 && g_controllers[dwUserIndex - 1].controller)
 		{
 			g_controllers[dwUserIndex - 1].Poll(dwUserIndex - 1);
