@@ -4706,7 +4706,8 @@ static double GetDisplayRefreshRate()
 	if (displayIndex >= 0 && SDL_GetCurrentDisplayMode(displayIndex, &mode) == 0 &&
 		mode.refresh_rate > 0)
 	{
-		return (double)mode.refresh_rate;
+		// TODO: rounding ourselves in advance of the SDL3 upgrade
+		return std::round((double)mode.refresh_rate);
 	}
 
 	return 0.0;
