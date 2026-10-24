@@ -12,22 +12,22 @@ CONFIG_DEFINE("System", bool, ShowConsole, false, false);
 
 CONFIG_DEFINE_ENUM_LOCALISED("Input", ECameraRotationMode, HorizontalCamera1P, ECameraRotationMode::Normal, false);
 CONFIG_DEFINE_ENUM_LOCALISED("Input", ECameraRotationMode, HorizontalCamera2P, ECameraRotationMode::Normal, false);
-CONFIG_DEFINE_ENUM_LOCALISED("Input", ECameraRotationMode, HorizontalCamera3P, ECameraRotationMode::Normal, false);
-CONFIG_DEFINE_ENUM_LOCALISED("Input", ECameraRotationMode, HorizontalCamera4P, ECameraRotationMode::Normal, false);
+CONFIG_DEFINE_ENUM_LOCALISED_OPTIONAL("Input", ECameraRotationMode, HorizontalCamera3P, ECameraRotationMode::Normal, false);
+CONFIG_DEFINE_ENUM_LOCALISED_OPTIONAL("Input", ECameraRotationMode, HorizontalCamera4P, ECameraRotationMode::Normal, false);
 CONFIG_DEFINE_LOCALISED("Input", bool, Vibration1P, true, false);
 CONFIG_DEFINE_LOCALISED("Input", bool, Vibration2P, true, false);
-CONFIG_DEFINE_LOCALISED("Input", bool, Vibration3P, true, false);
-CONFIG_DEFINE_LOCALISED("Input", bool, Vibration4P, true, false);
+CONFIG_DEFINE_LOCALISED_OPTIONAL("Input", bool, Vibration3P, true, false);
+CONFIG_DEFINE_LOCALISED_OPTIONAL("Input", bool, Vibration4P, true, false);
 CONFIG_DEFINE_LOCALISED("Input", bool, AllowBackgroundInput, false, false);
 CONFIG_DEFINE_ENUM_LOCALISED("Input", EControllerIcons, ControllerIcons, EControllerIcons::Auto, true);
 CONFIG_DEFINE_LOCALISED("Input", float, StickDeadzone1P, 0.0f, false);
 CONFIG_DEFINE_LOCALISED("Input", float, StickDeadzone2P, 0.0f, false);
-CONFIG_DEFINE_LOCALISED("Input", float, StickDeadzone3P, 0.0f, false);
-CONFIG_DEFINE_LOCALISED("Input", float, StickDeadzone4P, 0.0f, false);
+CONFIG_DEFINE_LOCALISED_OPTIONAL("Input", float, StickDeadzone3P, 0.0f, false);
+CONFIG_DEFINE_LOCALISED_OPTIONAL("Input", float, StickDeadzone4P, 0.0f, false);
 CONFIG_DEFINE_LOCALISED("Input", float, StickSensitivity1P, 1.0f, false);
 CONFIG_DEFINE_LOCALISED("Input", float, StickSensitivity2P, 1.0f, false);
-CONFIG_DEFINE_LOCALISED("Input", float, StickSensitivity3P, 1.0f, false);
-CONFIG_DEFINE_LOCALISED("Input", float, StickSensitivity4P, 1.0f, false);
+CONFIG_DEFINE_LOCALISED_OPTIONAL("Input", float, StickSensitivity3P, 1.0f, false);
+CONFIG_DEFINE_LOCALISED_OPTIONAL("Input", float, StickSensitivity4P, 1.0f, false);
 
 CONFIG_DEFINE_ENUM("Bindings", SDL_Scancode, Key_A, SDL_SCANCODE_X, false);
 CONFIG_DEFINE_ENUM("Bindings", SDL_Scancode, Key_B, SDL_SCANCODE_C, false);
@@ -52,28 +52,28 @@ CONFIG_DEFINE_ENUM("Bindings", SDL_Scancode, Key_RightStickDown, SDL_SCANCODE_K,
 CONFIG_DEFINE_ENUM("Bindings", SDL_Scancode, Key_RightStickLeft, SDL_SCANCODE_J, false);
 CONFIG_DEFINE_ENUM("Bindings", SDL_Scancode, Key_RightStickRight, SDL_SCANCODE_L, false);
 
-#define CONFIG_DEFINE_PAD_BINDINGS(player) \
-    CONFIG_DEFINE_ENUM("Bindings" #player "P", EPadButton, Pad##player##P_A, EPadButton::A, false); \
-    CONFIG_DEFINE_ENUM("Bindings" #player "P", EPadButton, Pad##player##P_B, EPadButton::B, false); \
-    CONFIG_DEFINE_ENUM("Bindings" #player "P", EPadButton, Pad##player##P_X, EPadButton::X, false); \
-    CONFIG_DEFINE_ENUM("Bindings" #player "P", EPadButton, Pad##player##P_Y, EPadButton::Y, false); \
-    CONFIG_DEFINE_ENUM("Bindings" #player "P", EPadButton, Pad##player##P_LeftTrigger, EPadButton::LeftTrigger, false); \
-    CONFIG_DEFINE_ENUM("Bindings" #player "P", EPadButton, Pad##player##P_RightTrigger, EPadButton::RightTrigger, false); \
-    CONFIG_DEFINE_ENUM("Bindings" #player "P", EPadButton, Pad##player##P_Start, EPadButton::Start, false); \
-    CONFIG_DEFINE_ENUM("Bindings" #player "P", EPadButton, Pad##player##P_Back, EPadButton::Back, false); \
-    CONFIG_DEFINE_ENUM("Bindings" #player "P", EPadButton, Pad##player##P_DPadUp, EPadButton::DPadUp, false); \
-    CONFIG_DEFINE_ENUM("Bindings" #player "P", EPadButton, Pad##player##P_DPadDown, EPadButton::DPadDown, false); \
-    CONFIG_DEFINE_ENUM("Bindings" #player "P", EPadButton, Pad##player##P_DPadLeft, EPadButton::DPadLeft, false); \
-    CONFIG_DEFINE_ENUM("Bindings" #player "P", EPadButton, Pad##player##P_DPadRight, EPadButton::DPadRight, false); \
-    CONFIG_DEFINE_ENUM("Bindings" #player "P", EPadButton, Pad##player##P_White, EPadButton::LeftShoulder, false); \
-    CONFIG_DEFINE_ENUM("Bindings" #player "P", EPadButton, Pad##player##P_Black, EPadButton::RightShoulder, false); \
-    CONFIG_DEFINE_ENUM("Bindings" #player "P", EPadButton, Pad##player##P_LeftThumb, EPadButton::LeftStick, false); \
-    CONFIG_DEFINE_ENUM("Bindings" #player "P", EPadButton, Pad##player##P_RightThumb, EPadButton::RightStick, false);
+#define CONFIG_DEFINE_PAD_BINDINGS(player, define) \
+    define("Bindings" #player "P", EPadButton, Pad##player##P_A, EPadButton::A, false); \
+    define("Bindings" #player "P", EPadButton, Pad##player##P_B, EPadButton::B, false); \
+    define("Bindings" #player "P", EPadButton, Pad##player##P_X, EPadButton::X, false); \
+    define("Bindings" #player "P", EPadButton, Pad##player##P_Y, EPadButton::Y, false); \
+    define("Bindings" #player "P", EPadButton, Pad##player##P_LeftTrigger, EPadButton::LeftTrigger, false); \
+    define("Bindings" #player "P", EPadButton, Pad##player##P_RightTrigger, EPadButton::RightTrigger, false); \
+    define("Bindings" #player "P", EPadButton, Pad##player##P_Start, EPadButton::Start, false); \
+    define("Bindings" #player "P", EPadButton, Pad##player##P_Back, EPadButton::Back, false); \
+    define("Bindings" #player "P", EPadButton, Pad##player##P_DPadUp, EPadButton::DPadUp, false); \
+    define("Bindings" #player "P", EPadButton, Pad##player##P_DPadDown, EPadButton::DPadDown, false); \
+    define("Bindings" #player "P", EPadButton, Pad##player##P_DPadLeft, EPadButton::DPadLeft, false); \
+    define("Bindings" #player "P", EPadButton, Pad##player##P_DPadRight, EPadButton::DPadRight, false); \
+    define("Bindings" #player "P", EPadButton, Pad##player##P_White, EPadButton::LeftShoulder, false); \
+    define("Bindings" #player "P", EPadButton, Pad##player##P_Black, EPadButton::RightShoulder, false); \
+    define("Bindings" #player "P", EPadButton, Pad##player##P_LeftThumb, EPadButton::LeftStick, false); \
+    define("Bindings" #player "P", EPadButton, Pad##player##P_RightThumb, EPadButton::RightStick, false);
 
-CONFIG_DEFINE_PAD_BINDINGS(1)
-CONFIG_DEFINE_PAD_BINDINGS(2)
-CONFIG_DEFINE_PAD_BINDINGS(3)
-CONFIG_DEFINE_PAD_BINDINGS(4)
+CONFIG_DEFINE_PAD_BINDINGS(1, CONFIG_DEFINE_ENUM)
+CONFIG_DEFINE_PAD_BINDINGS(2, CONFIG_DEFINE_ENUM)
+CONFIG_DEFINE_PAD_BINDINGS(3, CONFIG_DEFINE_ENUM_OPTIONAL)
+CONFIG_DEFINE_PAD_BINDINGS(4, CONFIG_DEFINE_ENUM_OPTIONAL)
 
 #undef CONFIG_DEFINE_PAD_BINDINGS
 

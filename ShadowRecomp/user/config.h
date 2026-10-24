@@ -161,6 +161,7 @@ public:
     std::function<void(ConfigDef<T, isHidden>*)> ApplyCallback;
     bool IsLoadedFromConfig{};
     bool IsRestartRequired{};
+    bool IsOptional{};
 
     // CONFIG_DEFINE
     ConfigDef(std::string section, std::string name, T defaultValue, bool requiresRestart);
@@ -217,6 +218,10 @@ public:
 #define CONFIG_DEFINE_LOCALISED(section, type, name, defaultValue, requiresRestart)      CONFIG_DECLARE(type, name)
 #define CONFIG_DEFINE_ENUM(section, type, name, defaultValue, requiresRestart)           CONFIG_DECLARE(type, name)
 #define CONFIG_DEFINE_ENUM_LOCALISED(section, type, name, defaultValue, requiresRestart) CONFIG_DECLARE(type, name)
+
+#define CONFIG_DEFINE_LOCALISED_OPTIONAL(section, type, name, defaultValue, requiresRestart)      CONFIG_DECLARE(type, name)
+#define CONFIG_DEFINE_ENUM_OPTIONAL(section, type, name, defaultValue, requiresRestart)           CONFIG_DECLARE(type, name)
+#define CONFIG_DEFINE_ENUM_LOCALISED_OPTIONAL(section, type, name, defaultValue, requiresRestart) CONFIG_DECLARE(type, name)
 
 
 class Config

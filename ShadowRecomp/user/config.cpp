@@ -384,6 +384,21 @@ CONFIG_DEFINE_ENUM_TEMPLATE(ECutsceneFramerate)
     extern CONFIG_ENUM_LOCALE(type) g_##type##_locale; \
     ConfigDef<type> Config::name{section, #name, &g_##name##_locale, defaultValue, requiresRestart, &g_##type##_template, &g_##type##_locale};
 
+#undef  CONFIG_DEFINE_LOCALISED_OPTIONAL
+#define CONFIG_DEFINE_LOCALISED_OPTIONAL(section, type, name, defaultValue, requiresRestart) \
+    CONFIG_DEFINE_LOCALISED(section, type, name, defaultValue, requiresRestart) \
+    static const bool g_##name##_optional = (Config::name.IsOptional = true);
+
+#undef  CONFIG_DEFINE_ENUM_OPTIONAL
+#define CONFIG_DEFINE_ENUM_OPTIONAL(section, type, name, defaultValue, requiresRestart) \
+    CONFIG_DEFINE_ENUM(section, type, name, defaultValue, requiresRestart) \
+    static const bool g_##name##_optional = (Config::name.IsOptional = true);
+
+#undef  CONFIG_DEFINE_ENUM_LOCALISED_OPTIONAL
+#define CONFIG_DEFINE_ENUM_LOCALISED_OPTIONAL(section, type, name, defaultValue, requiresRestart) \
+    CONFIG_DEFINE_ENUM_LOCALISED(section, type, name, defaultValue, requiresRestart) \
+    static const bool g_##name##_optional = (Config::name.IsOptional = true);
+
 #include "config_def.h"
 
 // CONFIG_DEFINE
@@ -426,7 +441,7 @@ ConfigDef<T, isHidden>::~ConfigDef() = default;
 template<typename T, bool isHidden>
 bool ConfigDef<T, isHidden>::IsHidden()
 {
-    return isHidden && !IsLoadedFromConfig;
+    return (isHidden || (IsOptional && IsDefaultValue())) && !IsLoadedFromConfig;
 }
 
 template<typename T, bool isHidden>
