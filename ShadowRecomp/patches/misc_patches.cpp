@@ -497,3 +497,13 @@ void UnhideSynopsisSkipPrompt(uint32_t cast, const std::string& path)
 		X86_STORE_U32(castInfo, 0x0); // disable hidden flag
 	}
 }
+
+// Allow skipping Expert Mode and Last Story credits
+// expert mode @ sub_23C7F0
+// last story @ sub_23CE90
+X86_FUNC_IMPL(__imp__sub_173A20);
+X86_FUNC(sub_173A20)
+{
+	X86_STORE_U32(ctx.esp.u32 + 0x8, 0);
+	__imp__sub_173A20(ctx, base);
+}
