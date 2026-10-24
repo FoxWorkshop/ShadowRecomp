@@ -8616,13 +8616,13 @@ static void ProcDrawPrimitiveUP(const RenderCommand& cmd)
 	g_inputSlots[0].stride = args.vertexStreamZeroStride;
 	g_dirtyStates.vertexStreamFirst = 0;
 
-
 	uint32_t indexCount = 0;
 
 	if (args.primitiveType == X_D3DPT_QUADLIST)
 	{
 		indexCount = g_quadIndexData.prepare(args.primitiveCount);
 	}
+	// TODO: Do we care about this?
 	/**else if (!g_capabilities.triangleFan && args.primitiveType == X_D3DPT_TRIANGLEFAN)
 		indexCount = g_triangleFanIndexData.prepare(args.primitiveCount);*/
 
@@ -8660,7 +8660,6 @@ static void ProcSetTextureStageState(const RenderCommand& cmd)
 		minFilter = RenderFilter::LINEAR;
 	}
 
-
 	bool anisotropyEnabled = Config::AnisotropicFiltering > 0 && mipFilter == RenderFilter::LINEAR;
 	if (anisotropyEnabled)
 	{
@@ -8678,7 +8677,7 @@ static void ProcSetTextureStageState(const RenderCommand& cmd)
 	SetDirtyValue(dirtySampler, samplerDesc.minFilter, minFilter);
 	SetDirtyValue(dirtySampler, samplerDesc.magFilter, magFilter);
 	SetDirtyValue(dirtySampler, samplerDesc.mipmapMode, RenderMipmapMode(mipFilter));
-	SetDirtyValue(dirtySampler, samplerDesc.maxAnisotropy, anisotropyEnabled ? Config::AnisotropicFiltering : 16u); // anisotropyEnabled ? Config::AnisotropicFiltering : 16u);
+	SetDirtyValue(dirtySampler, samplerDesc.maxAnisotropy, anisotropyEnabled ? Config::AnisotropicFiltering : 16u);
 	SetDirtyValue(dirtySampler, samplerDesc.anisotropyEnabled, anisotropyEnabled);
 	SetDirtyValue(dirtySampler, samplerDesc.borderColor, borderColor);
 
@@ -8689,17 +8688,12 @@ static void ProcSetTextureStageState(const RenderCommand& cmd)
 		{
 			descriptorIndex = g_samplerStates.size();
 			sampler = g_device->createSampler(samplerDesc);
-
 			g_samplerDescriptorSet->setSampler(descriptorIndex - 1, sampler.get());
-			//printf("Set Sampler index %d\n", descriptorIndex - 1);
 		}
-
 		SetDirtyValue(g_dirtyStates.sharedConstants, g_sharedConstants.samplerIndices[args.index], descriptorIndex - 1);
 	}
 
-
 	auto& sharedSamplerDesc = g_sharedSamplerDescs[args.index];
-
 	bool dirtyCombiner = false;
 	SetDirtyValue(dirtyCombiner, g_sharedConstants.color_op[args.index], cmd.SetTextureStageState.D3DTSS_COLOROP);
 	SetDirtyValue(dirtyCombiner, g_sharedConstants.color_arg0[args.index], cmd.SetTextureStageState.D3DTSS_COLORARG0);
@@ -8720,7 +8714,6 @@ static void ProcSetTextureStageState(const RenderCommand& cmd)
 	SetDirtyValue(dirtyTextureFlags, g_sharedConstants.BUMPENVLSCALE[args.index], cmd.SetTextureStageState.D3DTSS_BUMPENVLSCALE);
 	SetDirtyValue(dirtyTextureFlags, g_sharedConstants.BUMPENVLOFFSET[args.index], cmd.SetTextureStageState.D3DTSS_BUMPENVLOFFSET);
 	SetDirtyValue(dirtyTextureFlags, g_sharedConstants.TEXCOORDINDEX[args.index], cmd.SetTextureStageState.D3DTSS_TEXCOORDINDEX);
-
 
 	if (dirtyTextureFlags)
 	{
