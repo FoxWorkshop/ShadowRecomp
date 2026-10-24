@@ -1,5 +1,5 @@
 
-// This class is used to wrap config option callback that require SDL2 update
+// This class is used to wrap config option callback that require SDL3 update
 // This is needed because those callback originally don't run in the main thread of our program
 
 class MainThreadDispatcher

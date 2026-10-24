@@ -19,7 +19,7 @@ void TriggerGoalAction()
 	static bool f5Held = false;
 	auto base = g_memory.base;
 	bool f5 = SDL_GetKeyboardState(nullptr)[SDL_SCANCODE_F5] != 0;
-	if (f5 && !f5Held && (SDL_GetModState() & KMOD_SHIFT))
+	if (f5 && !f5Held && (SDL_GetModState() & SDL_KMOD_SHIFT))
 	{
 		X86_STORE_U32(0x5496C4, 6);
 	}

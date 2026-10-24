@@ -42,7 +42,7 @@ public:
     static float GetDisplayScale();
     static void SetDimensions(int w, int h, int x = SDL_WINDOWPOS_CENTERED, int y = SDL_WINDOWPOS_CENTERED);
     static void ResetDimensions();
-    static uint32_t GetWindowFlags();
+    static SDL_WindowFlags GetWindowFlags();
     static int GetDisplayCount();
     static int GetDisplay();
     static void SetDisplay(int displayIndex);

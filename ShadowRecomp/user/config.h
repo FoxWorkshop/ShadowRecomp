@@ -60,7 +60,7 @@ enum class EControllerIcons : uint32_t
     Gamecube
 };
 
-// matches SDL_GameControllerButton up to Touchpad
+// matches SDL_GamepadButton up to Touchpad
 enum class EPadButton : uint32_t
 {
     A,

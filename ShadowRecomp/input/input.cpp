@@ -1,6 +1,6 @@
 #include <stdafx.h>
 #include <array>
-#include <SDL.h>
+#include <SDL3/SDL.h>
 #include "input.h"
 #include <kernel/function.h>
 #include <string>
@@ -86,44 +86,43 @@ bool IsInputDeviceController()
 class Controller
 {
 public:
-	SDL_GameController* controller{};
+	SDL_Gamepad* controller{};
 	SDL_Joystick* joystick{};
-	SDL_JoystickID id{ -1 };
+	SDL_JoystickID id{};
 	_XINPUT_GAMEPAD_OG state{};
 
 	int index{};
 
 	Controller() = default;
 
-	explicit Controller(int index) : Controller(SDL_GameControllerOpen(index))
+	explicit Controller(SDL_JoystickID instanceID) : Controller(SDL_OpenGamepad(instanceID))
 	{
-		this->index = index;
 	}
 
-	Controller(SDL_GameController* controller) : controller(controller)
+	Controller(SDL_Gamepad* controller) : controller(controller)
 	{
 		if (!controller)
 			return;
 
-		joystick = SDL_GameControllerGetJoystick(controller);
-		id = SDL_JoystickInstanceID(joystick);
+		joystick = SDL_GetGamepadJoystick(controller);
+		id = SDL_GetJoystickID(joystick);
 	}
 
-	SDL_GameControllerType GetControllerType() const
+	SDL_GamepadType GetControllerType() const
 	{
-		return SDL_GameControllerGetType(controller);
+		return SDL_GetGamepadType(controller);
 	}
 
 	input::EInputDevice GetInputDevice() const
 	{
 		switch (GetControllerType())
 		{
-		case SDL_CONTROLLER_TYPE_PS3:
-		case SDL_CONTROLLER_TYPE_PS4:
-		case SDL_CONTROLLER_TYPE_PS5:
+		case SDL_GAMEPAD_TYPE_PS3:
+		case SDL_GAMEPAD_TYPE_PS4:
+		case SDL_GAMEPAD_TYPE_PS5:
 			return input::EInputDevice::PlayStation;
-		case SDL_CONTROLLER_TYPE_XBOX360:
-		case SDL_CONTROLLER_TYPE_XBOXONE:
+		case SDL_GAMEPAD_TYPE_XBOX360:
+		case SDL_GAMEPAD_TYPE_XBOXONE:
 			return input::EInputDevice::Xbox;
 		default:
 			return input::EInputDevice::Unknown;
@@ -132,7 +131,7 @@ public:
 
 	const char* GetControllerName() const
 	{
-		auto result = SDL_GameControllerName(controller);
+		auto result = SDL_GetGamepadName(controller);
 
 		if (!result)
 			return "Unknown Device";
@@ -145,11 +144,11 @@ public:
 		if (!controller)
 			return;
 
-		SDL_GameControllerClose(controller);
+		SDL_CloseGamepad(controller);
 
 		controller = nullptr;
 		joystick = nullptr;
-		id = -1;
+		id = 0;
 	}
 
 	bool CanPoll()
@@ -162,13 +161,13 @@ public:
 		switch (button)
 		{
 		case EPadButton::LeftTrigger:
-			return (uint8_t)std::clamp(SDL_GameControllerGetAxis(controller, SDL_CONTROLLER_AXIS_TRIGGERLEFT) / 128, 0, 255);
+			return (uint8_t)std::clamp(SDL_GetGamepadAxis(controller, SDL_GAMEPAD_AXIS_LEFT_TRIGGER) / 128, 0, 255);
 		case EPadButton::RightTrigger:
-			return (uint8_t)std::clamp(SDL_GameControllerGetAxis(controller, SDL_CONTROLLER_AXIS_TRIGGERRIGHT) / 128, 0, 255);
+			return (uint8_t)std::clamp(SDL_GetGamepadAxis(controller, SDL_GAMEPAD_AXIS_RIGHT_TRIGGER) / 128, 0, 255);
 		case EPadButton::None:
 			return 0;
 		default:
-			return SDL_GameControllerGetButton(controller, (SDL_GameControllerButton)button) ? 0xFF : 0;
+			return SDL_GetGamepadButton(controller, (SDL_GamepadButton)button) ? 0xFF : 0;
 		}
 	}
 
@@ -179,13 +178,13 @@ public:
 
 		auto& pad = state;
 
-		pad.sThumbLX = SDL_GameControllerGetAxis(controller, SDL_CONTROLLER_AXIS_LEFTX);
-		pad.sThumbLY = (int16_t)std::clamp(-(int32_t)SDL_GameControllerGetAxis(controller, SDL_CONTROLLER_AXIS_LEFTY),
+		pad.sThumbLX = SDL_GetGamepadAxis(controller, SDL_GAMEPAD_AXIS_LEFTX);
+		pad.sThumbLY = (int16_t)std::clamp(-(int32_t)SDL_GetGamepadAxis(controller, SDL_GAMEPAD_AXIS_LEFTY),
 			(int32_t)-32768, (int32_t)INT16_MAX); //clamp here, fix the int16 overflow with negative angle, this fix "press up" not working
 
 
-		pad.sThumbRX = SDL_GameControllerGetAxis(controller, SDL_CONTROLLER_AXIS_RIGHTX);
-		pad.sThumbRY = (int16_t)std::clamp(-(int32_t)SDL_GameControllerGetAxis(controller, SDL_CONTROLLER_AXIS_RIGHTY),
+		pad.sThumbRX = SDL_GetGamepadAxis(controller, SDL_GAMEPAD_AXIS_RIGHTX);
+		pad.sThumbRY = (int16_t)std::clamp(-(int32_t)SDL_GetGamepadAxis(controller, SDL_GAMEPAD_AXIS_RIGHTY),
 			(int32_t)-32768, (int32_t)INT16_MAX);
 
 		auto horizontalCamera = ECameraRotationMode::Normal;
@@ -271,12 +270,12 @@ public:
 		if (!CanPoll())
 			return;
 
-		SDL_GameControllerRumble(controller, vibration.wLeftMotorSpeed, vibration.wRightMotorSpeed, VIBRATION_TIMEOUT_MS);
+		SDL_RumbleGamepad(controller, vibration.wLeftMotorSpeed, vibration.wRightMotorSpeed, VIBRATION_TIMEOUT_MS);
 	}
 
 	void SetLED(const uint8_t r, const uint8_t g, const uint8_t b) const
 	{
-		SDL_GameControllerSetLED(controller, r, g, b);
+		SDL_SetGamepadLED(controller, r, g, b);
 	}
 };
 
@@ -295,7 +294,7 @@ public:
 
 	void Poll()
 	{
-		const uint8_t* keystate = SDL_GetKeyboardState(nullptr);
+		const bool* keystate = SDL_GetKeyboardState(nullptr);
 
 		state.wButtons = 0;
 
@@ -402,7 +401,7 @@ inline size_t FindFreeController()
 	return -1;
 }
 
-inline Controller* FindController(int which)
+inline Controller* FindController(SDL_JoystickID which)
 {
 	for (auto& controller : g_controllers)
 	{
@@ -479,14 +478,14 @@ static std::mutex s_deferredMutex;
 static bool s_devicesDirty = true;
 static bool s_stopVibration = false;
 static bool s_hideCursorForController = false;
-static SDL_JoystickID s_pendingActiveController = -1;
+static SDL_JoystickID s_pendingActiveController = 0;
 static std::atomic<bool> s_auraDirty = true;
 
 static void SyncControllers()
 {
 	for (auto& controller : g_controllers)
 	{
-		if (!controller.controller || !SDL_GameControllerGetAttached(controller.controller))
+		if (!controller.controller || !SDL_GamepadConnected(controller.controller))
 			continue;
 
 
@@ -496,15 +495,14 @@ static void SyncControllers()
 		controller.Close();
 	}
 
-	for (int i = 0; i < SDL_NumJoysticks(); i++)
+	auto gamepadCount = 0;
+	auto gamepads = SDL_GetGamepads(&gamepadCount);
+
+	for (int i = 0; i < gamepadCount; i++)
 	{
+		auto controller = Controller(gamepads[i]);
 
-		if (!SDL_IsGameController(i))
-			continue;
-
-		auto controller = Controller(i);
-
-		if (!controller.controller || FindController(SDL_JoystickGetDeviceInstanceID(i)))
+		if (!controller.controller || FindController(gamepads[i]))
 			continue;
 
 
@@ -513,9 +511,11 @@ static void SyncControllers()
 		if (freeIndex == -1)
 			break;
 
-		g_controllers[freeIndex] = Controller(i);
+		g_controllers[freeIndex] = Controller(gamepads[i]);
 
 	}
+
+	SDL_free(gamepads);
 
 	// a new pad was added which has no aura yet
 	s_auraDirty = true;
@@ -562,7 +562,7 @@ void input::Update()
 		devicesDirty = std::exchange(s_devicesDirty, false);
 		stopVibration = std::exchange(s_stopVibration, false);
 		hideCursor = std::exchange(s_hideCursorForController, false);
-		pendingActive = std::exchange(s_pendingActiveController, (SDL_JoystickID)-1);
+		pendingActive = std::exchange(s_pendingActiveController, (SDL_JoystickID)0);
 	}
 
 
@@ -576,9 +576,9 @@ void input::Update()
 	}
 
 	if (hideCursor && !GameWindow::s_isFullscreenCursorVisible)
-		SDL_ShowCursor(SDL_DISABLE);
+		SDL_HideCursor();
 
-	if (pendingActive != -1)
+	if (pendingActive != 0)
 	{
 		if (auto* controller = FindController(pendingActive))
 			SetControllerInputDevice(controller);
@@ -587,12 +587,12 @@ void input::Update()
 	ApplyChaosAura();
 }
 
-int Input_OnSDLEvent(void*, SDL_Event* event)
+bool Input_OnSDLEvent(void*, SDL_Event* event)
 {
 	switch (event->type)
 	{
-	case SDL_CONTROLLERDEVICEADDED:
-	case SDL_CONTROLLERDEVICEREMOVED:
+	case SDL_EVENT_GAMEPAD_ADDED:
+	case SDL_EVENT_GAMEPAD_REMOVED:
 	{
 		// opening or closing a pad could deadlock in specific situation so best to play safe
 		std::lock_guard lock(s_deferredMutex);
@@ -600,18 +600,18 @@ int Input_OnSDLEvent(void*, SDL_Event* event)
 
 		break;
 	}
-	case SDL_CONTROLLERBUTTONDOWN:
-	case SDL_CONTROLLERBUTTONUP:
-	case SDL_CONTROLLERAXISMOTION:
+	case SDL_EVENT_GAMEPAD_BUTTON_DOWN:
+	case SDL_EVENT_GAMEPAD_BUTTON_UP:
+	case SDL_EVENT_GAMEPAD_AXIS_MOTION:
 	{
-		auto* controller = FindController(event->cdevice.which);
+		auto* controller = FindController(event->gdevice.which);
 
 		if (!controller)
 			break;
 
 		if (g_activeController != controller)
 		{
-			if (event->type == SDL_CONTROLLERAXISMOTION && abs(event->caxis.value) <= 8000)
+			if (event->type == SDL_EVENT_GAMEPAD_AXIS_MOTION && abs(event->gaxis.value) <= 8000)
 				break;
 
 			std::lock_guard lock(s_deferredMutex);
@@ -622,48 +622,45 @@ int Input_OnSDLEvent(void*, SDL_Event* event)
 		break;
 	}
 
-	case SDL_KEYDOWN:
-		if (event->key.keysym.scancode == SDL_SCANCODE_F6 && event->key.repeat == 0)
+	case SDL_EVENT_KEY_DOWN:
+		if (event->key.scancode == SDL_SCANCODE_F6 && !event->key.repeat)
 		{
 			g_keyboardPort = (g_keyboardPort % 4) + 1;
 			printf("Keyboard now controlling PORT %d\n", g_keyboardPort);
 		}
-		if (event->key.keysym.scancode == SDL_SCANCODE_F7 && event->key.repeat == 0)
+		if (event->key.scancode == SDL_SCANCODE_F7 && !event->key.repeat)
 		{
 			g_chaosControlHoldCheat = !g_chaosControlHoldCheat;
 		}
 		input::g_inputDevice = input::EInputDevice::Keyboard;
 		break;
-	case SDL_KEYUP:
+	case SDL_EVENT_KEY_UP:
 		input::g_inputDevice = input::EInputDevice::Keyboard;
 		break;
 
-	case SDL_MOUSEMOTION:
-	case SDL_MOUSEBUTTONDOWN:
-	case SDL_MOUSEBUTTONUP:
+	case SDL_EVENT_MOUSE_MOTION:
+	case SDL_EVENT_MOUSE_BUTTON_DOWN:
+	case SDL_EVENT_MOUSE_BUTTON_UP:
 	{
 		if (!GameWindow::IsFullscreen() || GameWindow::s_isFullscreenCursorVisible)
-			SDL_ShowCursor(SDL_ENABLE);
+			SDL_ShowCursor();
 
 		input::g_inputDevice = input::EInputDevice::Mouse;
 
 		break;
 	}
 
-	case SDL_WINDOWEVENT:
+	case SDL_EVENT_WINDOW_FOCUS_LOST:
 	{
-		if (event->window.event == SDL_WINDOWEVENT_FOCUS_LOST)
-		{
-			// Stop vibrating controllers on focus lost.
-			std::lock_guard lock(s_deferredMutex);
-			s_stopVibration = true;
-		}
+		// Stop vibrating controllers on focus lost.
+		std::lock_guard lock(s_deferredMutex);
+		s_stopVibration = true;
 
 		break;
 	}
 	}
 
-	return 0;
+	return false;
 }
 
 void input::Init()
@@ -673,19 +670,16 @@ void input::Init()
 	SDL_SetHint(SDL_HINT_JOYSTICK_HIDAPI_GAMECUBE, "1");
 	SDL_SetHint(SDL_HINT_JOYSTICK_HIDAPI_PS3, "1");
 	SDL_SetHint(SDL_HINT_JOYSTICK_HIDAPI_PS4, "1");
-	SDL_SetHint(SDL_HINT_JOYSTICK_HIDAPI_PS4_RUMBLE, "1");
 	SDL_SetHint(SDL_HINT_JOYSTICK_HIDAPI_PS5, "1");
 	SDL_SetHint(SDL_HINT_JOYSTICK_HIDAPI_PS5_PLAYER_LED, "0");
-	SDL_SetHint(SDL_HINT_JOYSTICK_HIDAPI_PS5_RUMBLE, "1");
+	SDL_SetHint(SDL_HINT_JOYSTICK_ENHANCED_REPORTS, "1");
 	SDL_SetHint(SDL_HINT_JOYSTICK_HIDAPI_WII, "1");
 	SDL_SetHint(SDL_HINT_XINPUT_ENABLED, "1");
 	SDL_SetHint(SDL_HINT_JOYSTICK_THREAD, "1");
-	SDL_SetHint(SDL_HINT_GAMECONTROLLER_USE_BUTTON_LABELS, "0"); // Uses Button Labels. This hint is disabled for Nintendo Controllers.
 
 	SDL_InitSubSystem(SDL_INIT_EVENTS);
 	SDL_AddEventWatch(Input_OnSDLEvent, nullptr);
-
-	SDL_Init(SDL_INIT_JOYSTICK | SDL_INIT_GAMECONTROLLER);
+	SDL_Init(SDL_INIT_JOYSTICK | SDL_INIT_GAMEPAD);
 
 	input::Update(); // just to ensure controller is available frame 1
 }

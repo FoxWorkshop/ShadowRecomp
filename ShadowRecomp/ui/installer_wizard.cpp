@@ -1221,7 +1221,7 @@ bool InstallerWizard::Run(std::filesystem::path installPath)
 		SDL_Event event;
 		while (SDL_PollEvent(&event))
 		{
-			if (event.type == SDL_QUIT)
+			if (event.type == SDL_EVENT_QUIT)
 			{
 				if (g_currentPage == WizardPage::Installing)
 					continue;
@@ -1235,10 +1235,9 @@ bool InstallerWizard::Run(std::filesystem::path installPath)
 					Quit();
 				}
 			}
-			else if (event.type == SDL_DROPFILE)
+			else if (event.type == SDL_EVENT_DROP_FILE)
 			{
-				OnSourceDropped(event.drop.file);
-				SDL_free(event.drop.file);
+				OnSourceDropped(event.drop.data);
 			}
 		}
 
@@ -1249,10 +1248,10 @@ bool InstallerWizard::Run(std::filesystem::path installPath)
 		framePacer.EndFrame(FramePacer::WaitMode::SleepOnly);
 	}
 
-	SDL_CaptureMouse(SDL_FALSE);
+	SDL_CaptureMouse(false);
 
 	SDL_PumpEvents();
-	SDL_FlushEvents(SDL_FIRSTEVENT, SDL_LASTEVENT);
+	SDL_FlushEvents(SDL_EVENT_FIRST, SDL_EVENT_LAST);
 
 	GameWindow::SetFullscreenCursorVisibility(false);
 

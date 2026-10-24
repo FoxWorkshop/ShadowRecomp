@@ -316,12 +316,12 @@ inline void OutputDebugStringA(const char* s) { printf("%s", s); }
 #include <zstd.h>
 #include <stb_image.h>
 #include <blockingconcurrentqueue.h>
-#include <SDL.h>
-#include <SDL_mixer.h>
+#include <SDL3/SDL.h>
+#include <SDL3_mixer/SDL_mixer.h>
 #include <imgui.h>
 #include <imgui_internal.h>
 #include <implot.h>
-#include <backends/imgui_impl_sdl2.h>
+#include <backends/imgui_impl_sdl3.h>
 
 #ifdef None
 #undef None

@@ -1,7 +1,7 @@
 #include <kernel/function.h>
 #include <kernel/heap.h>
 #include <audio/audio.h>
-#include <audio/driver/sdl2_driver.h>
+#include <audio/driver/sdl3_driver.h>
 #include <user/config.h>
 #include <unordered_set>
 

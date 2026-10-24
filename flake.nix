@@ -17,7 +17,7 @@
     pkgs = nixpkgs.legacyPackages.${system};
     lib = nixpkgs.lib;
 
-    # SDL2 static build deps, exported via CMake find modules / pkg-config.
+    # SDL3 static build deps, exported via CMake find modules / pkg-config.
     sdlDeps = with pkgs; [
       # SDL - X11
       libX11 # also linked directly: find_package(X11) in ShadowRecomp/CMakeLists
@@ -56,7 +56,7 @@
 
     # Runtime libs for the game binary:
     #  - vulkan-loader: dlopen'd by volk
-    #  - sdlDeps: SDL2 dlopen's its platform backends
+    #  - sdlDeps: SDL3 dlopen's its platform backends
     #  - rest: shared deps missing from the binary's RUNPATH (pinned to $ORIGIN)
     gameRuntimeLibs = lib.makeLibraryPath (
       [
@@ -108,7 +108,7 @@
         lld
         libllvm # llvm-ar / llvm-ranlib: link-time optimization archives
         git # version.cmake: find_package(Git)
-        wayland-scanner # SDL2 wayland protocols
+        wayland-scanner # SDL3 wayland protocols
         gdb
         vulkan-tools
       ];

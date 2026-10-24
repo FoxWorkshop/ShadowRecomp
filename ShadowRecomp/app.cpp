@@ -8,7 +8,7 @@
 #include <volk.h>
 #include <user/paths.h>
 #include <user/registry.h>
-#include <audio/driver/sdl2_driver.h>
+#include <audio/driver/sdl3_driver.h>
 #include <cpu/guest_thread.h>
 #include <gpu/frame_pacing/timer_resolution.h>
 #include <input/input.h>
@@ -43,7 +43,7 @@ bool App::isInMainMenu() // 7 is library
 	return s_gamemode == -1 || s_gamemode == 7;
 }
 
-int Window_OnSDLEvent(void*, SDL_Event* event);
+bool Window_OnSDLEvent(void*, SDL_Event* event);
 
 //main game loop
 X86_FUNC_IMPL(__imp__sub_57630);
@@ -108,7 +108,7 @@ void UpdateSDLEventsMidAsmHook()
 		{
 			MainThreadDispatcher::Get().Flush(); // This runs the callbacks needed from user's config
 			SDL_PumpEvents();
-			SDL_FlushEvents(SDL_FIRSTEVENT, SDL_LASTEVENT);
+			SDL_FlushEvents(SDL_EVENT_FIRST, SDL_EVENT_LAST);
 			GameWindow::Update();
 			input::Update();
 		}

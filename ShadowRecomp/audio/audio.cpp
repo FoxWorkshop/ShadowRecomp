@@ -7,7 +7,7 @@
 #include <filesystem>
 #include <user/config.h>
 #include <audio/audio.h>
-#include <audio/driver/sdl2_driver.h>
+#include <audio/driver/sdl3_driver.h>
 
 
 HRESULT DirectSoundCreate_r(int* pcGuidDevice, SHTHR_SOUNDDEVICE* ppDS, int* pUnkOuter)

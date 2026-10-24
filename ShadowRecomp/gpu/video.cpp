@@ -128,19 +128,7 @@ namespace plume
 #ifdef SHADOW_RECOMP_D3D12
 	extern std::unique_ptr<RenderInterface> CreateD3D12Interface();
 #endif
-#ifdef PLUME_SDL_VULKAN_ENABLED
-	extern std::unique_ptr<RenderInterface> CreateVulkanInterface(RenderWindow sdlWindow);
-#else
 	extern std::unique_ptr<RenderInterface> CreateVulkanInterface();
-#endif
-
-	static std::unique_ptr<RenderInterface> CreateVulkanInterfaceWrapper() {
-#ifdef PLUME_SDL_VULKAN_ENABLED
-		return CreateVulkanInterface(GameWindow::s_renderWindow);
-#else
-		return CreateVulkanInterface();
-#endif
-	}
 }
 
 
@@ -2840,7 +2828,7 @@ static void CreateImGuiBackend()
 	MessageWindow::Init();
 
 
-	ImGui_ImplSDL2_InitForOther(GameWindow::s_pWindow);
+	ImGui_ImplSDL3_InitForOther(GameWindow::s_pWindow);
 
 
 #ifdef ENABLE_IM_FONT_ATLAS_SNAPSHOT 
@@ -3300,10 +3288,10 @@ bool Video::CreateHostDevice(const char* sdlVideoDriver, bool graphicsApiRetry)
 		g_vulkan = !g_vulkan;
 	}
 
-	interfaceFunctions.push_back(g_vulkan ? CreateVulkanInterfaceWrapper : CreateD3D12Interface);
-	interfaceFunctions.push_back(g_vulkan ? CreateD3D12Interface : CreateVulkanInterfaceWrapper);
+	interfaceFunctions.push_back(g_vulkan ? CreateVulkanInterface : CreateD3D12Interface);
+	interfaceFunctions.push_back(g_vulkan ? CreateD3D12Interface : CreateVulkanInterface);
 #else
-	interfaceFunctions.push_back(CreateVulkanInterfaceWrapper);
+	interfaceFunctions.push_back(CreateVulkanInterface);
 #endif
 
 	for (size_t i = 0; i < interfaceFunctions.size(); i++)
@@ -3335,7 +3323,7 @@ bool Video::CreateHostDevice(const char* sdlVideoDriver, bool graphicsApiRetry)
 					g_hardwareDepthResolve = (deviceDescription.vendor != RenderDeviceVendor::INTEL);
 				}
 
-				g_vulkan = (interfaceFunction == CreateVulkanInterfaceWrapper);
+				g_vulkan = (interfaceFunction == CreateVulkanInterface);
 #endif
 
 				break;
@@ -4701,13 +4689,10 @@ static void DrawProfiler()
 static double GetDisplayRefreshRate()
 {
 	// SDL caches display modes in memory; this is a cheap read.
-	SDL_DisplayMode mode;
-	int displayIndex = GameWindow::GetDisplay();
-	if (displayIndex >= 0 && SDL_GetCurrentDisplayMode(displayIndex, &mode) == 0 &&
-		mode.refresh_rate > 0)
+	auto mode = SDL_GetCurrentDisplayMode(SDL_GetDisplayForWindow(GameWindow::s_pWindow));
+	if (mode && mode->refresh_rate > 0.0f)
 	{
-		// TODO: rounding ourselves in advance of the SDL3 upgrade
-		return std::round((double)mode.refresh_rate);
+		return std::round((double)mode->refresh_rate);
 	}
 
 	return 0.0;
@@ -4775,7 +4760,7 @@ static void DrawImGui()
 	// and ImGui's input queue is originally not thread safe. We drain the queue here to ensure that all events are processed before NewFrame.
 	GameWindow::DrainImGuiEvents();
 
-	ImGui_ImplSDL2_NewFrame();
+	ImGui_ImplSDL3_NewFrame();
 
 	auto& io = ImGui::GetIO();
 	io.DisplaySize = { float(Video::s_viewportWidth), float(Video::s_viewportHeight) };
@@ -4998,7 +4983,7 @@ static int g_drawPrimitiveUP_ID = 0;
 // Remove this once the Wayland backgrounding hang is root-caused.
 void VideoDebug_DumpPresentState()
 {
-	const Uint32 sdlFlags = (GameWindow::s_pWindow != nullptr)
+	const SDL_WindowFlags sdlFlags = (GameWindow::s_pWindow != nullptr)
 		? SDL_GetWindowFlags(GameWindow::s_pWindow)
 		: 0u;
 	int winW = 0, winH = 0;
@@ -9028,7 +9013,7 @@ class PipelineCacheSDLEventListener : public SDLEventListener
 public:
 	bool OnSDLEvent(SDL_Event* event) override
 	{
-		if (event->type == SDL_QUIT)
+		if (event->type == SDL_EVENT_QUIT)
 		{
 			Video::Shutdown();
 		}

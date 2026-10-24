@@ -129,7 +129,7 @@ set(SHADOW_RECOMP_GPU_CXX_SOURCES
 
 set(SHADOW_RECOMP_APU_CXX_SOURCES
     "audio/audio.cpp"
-    "audio/driver/sdl2_driver.cpp"
+    "audio/driver/sdl3_driver.cpp"
     "audio/embedded_player.cpp"
 )
 
@@ -200,7 +200,7 @@ set(SHADOW_RECOMP_MOD_CXX_SOURCES
 
 
 set(SHADOW_RECOMP_THIRDPARTY_SOURCES
-    "${SHADOW_RECOMP_THIRDPARTY_ROOT}/imgui/backends/imgui_impl_sdl2.cpp"
+    "${SHADOW_RECOMP_THIRDPARTY_ROOT}/imgui/backends/imgui_impl_sdl3.cpp"
     "${SHADOW_RECOMP_THIRDPARTY_ROOT}/imgui/imgui.cpp"
     "${SHADOW_RECOMP_THIRDPARTY_ROOT}/imgui/imgui_demo.cpp"
     "${SHADOW_RECOMP_THIRDPARTY_ROOT}/imgui/imgui_draw.cpp"
@@ -227,6 +227,8 @@ set(SHADOW_RECOMP_THIRDPARTY_INCLUDES
 
 set_source_files_properties(${SHADOW_RECOMP_THIRDPARTY_SOURCES} PROPERTIES SKIP_PRECOMPILE_HEADERS ON)
 
+# TODO: remove this, this is a hack needed until we upgrade off imgui 1.91 (blocked by atlas change)
+set_source_files_properties("${SHADOW_RECOMP_THIRDPARTY_ROOT}/imgui/backends/imgui_impl_sdl3.cpp" PROPERTIES COMPILE_DEFINITIONS SDL_ENABLE_OLD_NAMES)
 
 set(SHADOW_RECOMP_CXX_SOURCES
     "app.cpp"
@@ -384,8 +386,8 @@ target_link_libraries(ShadowRecomp PRIVATE
     msdf-atlas-gen::msdf-atlas-gen
     o1heap
     XboxUtils
-    SDL2::SDL2-static
-    SDL2_mixer
+    SDL3::SDL3-static
+    SDL3_mixer::SDL3_mixer
     tomlplusplus::tomlplusplus
     ShadowRecompLib
     xxHash::xxhash

@@ -72,19 +72,18 @@ namespace input
     enum class EInputDeviceExplicit
     {
         Unknown,
+        Standard,
         Xbox360,
         XboxOne,
         DualShock3,
         DualShock4,
-        SwitchPro,
-        Virtual,
         DualSense,
-        Luna,
-        Stadia,
-        NvShield,
+        SwitchPro,
         SwitchJCLeft,
         SwitchJCRight,
-        SwitchJCPair
+        SwitchJCPair,
+        GameCube,
+        Steam
     };
 
     extern EInputDevice g_inputDevice;

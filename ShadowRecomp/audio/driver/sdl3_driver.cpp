@@ -3,7 +3,7 @@
 #include <kernel/heap.h>
 
 #include <kernel/function.h>
-#include <audio/driver/sdl2_driver.h>
+#include <audio/driver/sdl3_driver.h>
 #include <audio/xadpcm.h>
 
 #include <iostream>
@@ -29,7 +29,7 @@
 #define DSoundBufferGetXboxBufferSize(EmuFlags, size) (EmuFlags & DSE_FLAG_XADPCM) > 0 ? DWORD((size / float(XBOX_ADPCM_DSTSIZE)) * XBOX_ADPCM_SRCSIZE) : size
 
 SHTHR_SOUNDDEVICE* ppDS = nullptr;
-static volatile bool g_audioThreadShouldExit;
+static std::atomic<bool> g_audioShouldExit;
 
 static float GetMasterVolume()
 {
@@ -123,7 +123,7 @@ X86_FUNC(sub_25CBB0)
 
 void AudioShutDown()
 {
-	g_audioThreadShouldExit = true;
+	g_audioShouldExit = true;
 }
 
 void Interface::Release()
@@ -157,7 +157,6 @@ private:
 	std::vector<Uint8> mOutputBuffer;
 
 	SHTHR_SOUNDDEVICE_Impl* mParent;
-	SDL_AudioCVT mAudioCVT;
 
 	struct PendingWrite {
 		int offset;
@@ -181,10 +180,10 @@ private:
 	int mChannelCount = 0;
 	int mFrequency = 0;
 	int mOriginalFrequency = 0;
-	int mFormat = 0;
+	SDL_AudioFormat mFormat = SDL_AUDIO_UNKNOWN;
 
 	int mVolume = 0;
-	int mVolumeLinear = 128;
+	float mGain = 1.0f;
 	float mPan = 0.0f; // -1 left, 1 right
 
 	DWORD mPlayFlags = 0;
@@ -231,7 +230,6 @@ public:
 	void CalcVolumeLinear() override;
 	float GetUserVolume() const;
 	void DetermineStreamType();
-	int GetVolumeLinear() const { return mVolumeLinear; }
 
 	int SetFrequency(int lFrequency) override;
 	int SetBufferData(void* pvBufferData, int dwBufferBytes) override;
@@ -251,16 +249,11 @@ public:
 class SHTHR_SOUNDDEVICE_Impl : public SHTHR_SOUNDDEVICE
 {
 private:
-	SDL_Thread* mPullThread = nullptr;
-	SDL_atomic_t mPullThreadRunning;
-	static int PullThreadStatic(void* userdata);
-	int PullThreadFunc();
+	static void SDLCALL MixCallbackStatic(void* userdata, SDL_AudioStream* stream, int additionalAmount, int totalAmount);
+	void Mix(SDL_AudioStream* stream, int size);
 
-	// Tuning 
-	static constexpr int TARGET_QUEUE_BYTES = 8192;
-	static constexpr int FILL_CHUNK_BYTES = 2048;
-	static constexpr int SLEEP_FULL_MS = 5;
-	static constexpr int SLEEP_EMPTY_MS = 1;
+	std::vector<float> mMixBuffer;
+	std::vector<uint8_t> mSourceBuffer;
 
 	float mListenerPosition[3] = { 0, 0, 0 };
 	float mDistanceFactor = 1.0f;  // Default: (no scaling)
@@ -269,20 +262,18 @@ private:
 public:
 	std::mutex mutex;
 
-	SDL_AudioDeviceID mDeviceID = 0;
+	SDL_AudioStream* mDeviceStream = nullptr;
 	SDL_AudioSpec mAudioSpec;
 	std::unordered_set<SHTHR_SOUNDBUFFER_Impl*> mAudioQueues;
 
-	std::vector<unsigned char> read_buffer;
 	Listener3D paramsListener;
 
 	int32_t mChannelCount = 0;
 	int32_t mFrequency = 0;
-	int32_t mFormat = 0;
+	SDL_AudioFormat mFormat = SDL_AUDIO_UNKNOWN;
 
 	SHTHR_SOUNDDEVICE_Impl();
 	~SHTHR_SOUNDDEVICE_Impl();
-	void AudioCallback(Uint8* stream, int32_t len);
 	int32_t CreateSoundBuffer(X_DSBUFFERDESC* ppDesc, SHTHR_SOUNDBUFFER** ppBuffer) override;
 	bool ReleaseSoundBuffer(SHTHR_SOUNDBUFFER* pBuffer) override;
 	int SetAllParameters(Listener3D* params) override;
@@ -313,15 +304,15 @@ void SHTHR_SOUNDBUFFER_Impl::SetFormatTag(xpointer<WAVEFORMATEX> format)
 			switch (bitsPerSample)
 			{
 			case 8:
-				this->mFormat = AUDIO_U8;
+				this->mFormat = SDL_AUDIO_U8;
 				break;
 			case 16:
 			default:
-				this->mFormat = AUDIO_S16;
+				this->mFormat = SDL_AUDIO_S16LE;
 				break;
 			case 24:
 			case 32:
-				this->mFormat = AUDIO_S32;
+				this->mFormat = SDL_AUDIO_S32LE;
 				break;
 			}
 			mSourceType = SOURCE_TYPE_SFX;
@@ -329,11 +320,11 @@ void SHTHR_SOUNDBUFFER_Impl::SetFormatTag(xpointer<WAVEFORMATEX> format)
 		case WAVE_FORMAT_XBOX_ADPCM:
 			this->mG_flags |= DSE_FLAG_XADPCM;
 			this->mSourceFormat = SOURCE_FORMAT_ADPCM_XBOX;
-			this->mFormat = AUDIO_S16;
+			this->mFormat = SDL_AUDIO_S16LE;
 			break;
 		default:
 			this->mG_flags |= DSE_FLAG_PCM_UNKNOWN;
-			this->mFormat = AUDIO_S16;
+			this->mFormat = SDL_AUDIO_S16LE;
 			break;
 		}
 	}
@@ -435,7 +426,6 @@ SHTHR_SOUNDBUFFER_Impl::SHTHR_SOUNDBUFFER_Impl(SHTHR_SOUNDDEVICE_Impl* parent, X
 	mChannelCount = desc->lpwfxFormat->nChannels;
 	mFrequency = desc->lpwfxFormat->nSamplesPerSec;
 	mOriginalFrequency = mFrequency;
-	memset(&mAudioCVT, 0, sizeof(mAudioCVT));
 
 	mBufferSize = desc->dwBufferBytes;
 	mBuffer = (unsigned char*)g_userHeap.Alloc(mBufferSize);
@@ -473,7 +463,7 @@ SHTHR_SOUNDBUFFER_Impl::~SHTHR_SOUNDBUFFER_Impl()
 
 	if (mAudioStream != nullptr)
 	{
-		SDL_FreeAudioStream(mAudioStream);
+		SDL_DestroyAudioStream(mAudioStream);
 		mAudioStream = nullptr;
 	}
 
@@ -494,7 +484,7 @@ SHTHR_SOUNDBUFFER* GetCurrentSoundBuffer(const int32_t key)
 static std::atomic<int> globalSoundID{ 0 };
 int32_t SHTHR_SOUNDDEVICE_Impl::CreateSoundBuffer(X_DSBUFFERDESC* ppDesc, SHTHR_SOUNDBUFFER** ppBuffer)
 {
-	if (!mDeviceID)
+	if (!mDeviceStream)
 	{
 		return E_FAIL;
 	}
@@ -622,13 +612,13 @@ void SHTHR_SOUNDBUFFER_Impl::RebuildStream(
 
 	if (mAudioStream)
 	{
-		SDL_FreeAudioStream(mAudioStream);
+		SDL_DestroyAudioStream(mAudioStream);
 		mAudioStream = nullptr;
 	}
 
-	mAudioStream = SDL_NewAudioStream(
-		srcFormat, srcChannels, srcFreq,
-		dstFormat, dstChannels, dstFreq);
+	const SDL_AudioSpec srcSpec{ srcFormat, srcChannels, srcFreq };
+	const SDL_AudioSpec dstSpec{ dstFormat, dstChannels, dstFreq };
+	mAudioStream = SDL_CreateAudioStream(&srcSpec, &dstSpec);
 
 	if (!mAudioStream)
 	{
@@ -665,7 +655,7 @@ void SHTHR_SOUNDBUFFER_Impl::StopSfxEarly()
 		mPlay = false;
 		if (mAudioStream)
 		{
-			SDL_AudioStreamClear(mAudioStream);
+			SDL_ClearAudioStream(mAudioStream);
 		}
 	}
 }
@@ -775,14 +765,14 @@ PullResult SHTHR_SOUNDBUFFER_Impl::Pull(unsigned char* data, int32_t size)
 	if (!mLooping && mWrittenSize <= 0)
 	{
 		mPlay = false;
-		SDL_AudioStreamClear(mAudioStream);
+		SDL_ClearAudioStream(mAudioStream);
 	}
 
 	// Feed source data into the stream
-	SDL_AudioStreamPut(mAudioStream, mResampleBuffer.data(), actualRead);
+	SDL_PutAudioStreamData(mAudioStream, mResampleBuffer.data(), actualRead);
 
 	// SDL_AudioStream maintains filter state between calls
-	int available = SDL_AudioStreamAvailable(mAudioStream);
+	int available = SDL_GetAudioStreamAvailable(mAudioStream);
 	int writesize = std::min(size, available);
 	if (writesize <= 0 && this->isStreaming == false)
 	{
@@ -791,18 +781,18 @@ PullResult SHTHR_SOUNDBUFFER_Impl::Pull(unsigned char* data, int32_t size)
 	}
 
 	mOutputBuffer.resize(writesize);
-	SDL_AudioStreamGet(mAudioStream, mOutputBuffer.data(), writesize);
+	SDL_GetAudioStreamData(mAudioStream, mOutputBuffer.data(), writesize);
 	memcpy(data, mOutputBuffer.data(), writesize);
 	result.bytesRead = writesize;
 
-	if (mPan != 0.0f && mParent->mChannelCount == 2 && mParent->mFormat == AUDIO_S16SYS)
+	if (mPan != 0.0f)
 	{
-		const int farGain = int((1.0f - fabsf(mPan)) * 256.0f);
-		auto* samples = reinterpret_cast<int16_t*>(data);
-		const int sampleCount = writesize / int(sizeof(int16_t));
+		const float farGain = 1.0f - fabsf(mPan);
+		auto* samples = reinterpret_cast<float*>(data);
+		const int sampleCount = writesize / int(sizeof(float));
 		for (int i = mPan > 0.0f ? 0 : 1; i < sampleCount; i += 2)
 		{
-			samples[i] = int16_t((samples[i] * farGain) >> 8);
+			samples[i] *= farGain;
 		}
 	}
 
@@ -811,7 +801,7 @@ PullResult SHTHR_SOUNDBUFFER_Impl::Pull(unsigned char* data, int32_t size)
 		: 1.0f;
 
 	// apply user sliders here otherwise audio fades are full volume
-	result.mixVolume = mVolumeLinear * vol3D * GetUserVolume();
+	result.mixVolume = mGain * vol3D * GetUserVolume();
 	return result;
 }
 
@@ -1008,7 +998,7 @@ int SHTHR_SOUNDBUFFER_Impl::Play(int dwReserved1, int dwPriority, uint32_t dwFla
 		mBufferReadLoc = 0;
 		if (mAudioStream)
 		{
-			SDL_AudioStreamClear(mAudioStream);
+			SDL_ClearAudioStream(mAudioStream);
 		}
 		this->mPlayFlags &= ~X_DSBPLAY_FROMSTART;
 	}
@@ -1033,7 +1023,7 @@ int SHTHR_SOUNDBUFFER_Impl::Stop()
 	std::lock_guard<std::mutex> lock(mutex);
 	if (mAudioStream)
 	{
-		SDL_AudioStreamClear(mAudioStream);
+		SDL_ClearAudioStream(mAudioStream);
 	}
 	mPlay = false;
 	return S_OK;
@@ -1044,7 +1034,7 @@ int SHTHR_SOUNDBUFFER_Impl::StopEx(int64_t rtTimeStamp, uint32_t dwFlags)
 	std::lock_guard<std::mutex> lock(mutex);
 	if (mAudioStream)
 	{
-		SDL_AudioStreamClear(mAudioStream);
+		SDL_ClearAudioStream(mAudioStream);
 	}
 	mPlay = false;
 	if (dwFlags > X_DSBSTOPEX_ALL)
@@ -1081,28 +1071,20 @@ void SHTHR_SOUNDBUFFER_Impl::SetPan(float pan)
 
 void SHTHR_SOUNDBUFFER_Impl::CalcVolumeLinear()
 {
-	// Convert decibels to linear (0-128 for SDL)
-	// Formula: linear = 128 * 10^(dB/2000)
-	float db = mVolume / 100.0f;  // Convert centibels to decibels
-	float linear = powf(10.0f, db / 20.0f);  // dB to linear
-	mVolumeLinear = static_cast<int>(linear * SDL_MIX_MAXVOLUME);  // 0-128
+	if (mVolume <= DSBVOLUME_MIN)
+	{
+		mGain = 0.0f;
+		return;
+	}
 
+	mGain = powf(10.0f, mVolume / 2000.0f);
 	const float volScale = this->GetCaps() & XTL_DSBCAPS_CTRL3D ? SFX_3DVOLUME_SCALE : SFX_VOLUME_SCALE;
 	if (this->isStreaming == false)
 	{
-		mVolumeLinear = static_cast<int>(mVolumeLinear * volScale);
+		mGain *= volScale;
 	}
 
-	// Clamp
-	if (mVolumeLinear < 0)
-	{
-		mVolumeLinear = 0;
-	}
-
-	if (mVolumeLinear > SDL_MIX_MAXVOLUME)
-	{
-		mVolumeLinear = SDL_MIX_MAXVOLUME;
-	}
+	mGain = std::clamp(mGain, 0.0f, 1.0f);
 }
 
 int SHTHR_SOUNDBUFFER_Impl::SetFrequency(int lFrequency)
@@ -1128,74 +1110,62 @@ int SHTHR_SOUNDBUFFER_Impl::SetFrequency(int lFrequency)
 
 SHTHR_SOUNDDEVICE_Impl::~SHTHR_SOUNDDEVICE_Impl()
 {
-	mutex.lock();
-	SDL_AtomicSet(&mPullThreadRunning, 0);
-	if (mPullThread)
+	if (mDeviceStream)
 	{
-		SDL_WaitThread(mPullThread, nullptr);
-	}
-	if (mDeviceID)
-	{
-		SDL_CloseAudioDevice(mDeviceID);
-		mDeviceID = 0;
+		SDL_DestroyAudioStream(mDeviceStream);
+		mDeviceStream = nullptr;
 	}
 
+	mutex.lock();
 	mAudioQueues.clear();
 	mutex.unlock();
 	SDL_QuitSubSystem(SDL_INIT_AUDIO);
 }
 
-int SHTHR_SOUNDDEVICE_Impl::PullThreadStatic(void* userdata)
+void SDLCALL SHTHR_SOUNDDEVICE_Impl::MixCallbackStatic(void* userdata, SDL_AudioStream* stream, int additionalAmount, int totalAmount)
 {
-	return static_cast<SHTHR_SOUNDDEVICE_Impl*>(userdata)->PullThreadFunc();
+	static_cast<SHTHR_SOUNDDEVICE_Impl*>(userdata)->Mix(stream, additionalAmount);
 }
 
-int SHTHR_SOUNDDEVICE_Impl::PullThreadFunc()
+void SHTHR_SOUNDDEVICE_Impl::Mix(SDL_AudioStream* stream, int size)
 {
-	std::vector<uint8_t> mix_buf(FILL_CHUNK_BYTES, 0);
-	std::vector<uint8_t> src_buf(FILL_CHUNK_BYTES, 0);
-	while (SDL_AtomicGet(&mPullThreadRunning) && g_audioThreadShouldExit == false)
+	size -= size % SDL_AUDIO_FRAMESIZE(mAudioSpec);
+	if (size <= 0 || g_audioShouldExit)
 	{
-		const Uint32 queued = SDL_GetQueuedAudioSize(mDeviceID);
-		if (queued >= TARGET_QUEUE_BYTES)
-		{
-			SDL_Delay(SLEEP_FULL_MS);
-			continue;
-		}
+		return;
+	}
 
-		UpdateMusicAttenuation();
+	UpdateMusicAttenuation();
 
-		memset(mix_buf.data(), mAudioSpec.silence, FILL_CHUNK_BYTES);
+	const int sampleCount = size / int(sizeof(float));
+	mMixBuffer.assign(sampleCount, 0.0f);
+	mSourceBuffer.resize(size);
+
+	{
 		std::lock_guard<std::mutex> lk(mutex);
 		for (auto& queue : mAudioQueues)
 		{
-			auto result = queue->Pull(src_buf.data(), FILL_CHUNK_BYTES);
-			if (result.bytesRead > 0)
+			auto result = queue->Pull(mSourceBuffer.data(), size);
+			if (result.bytesRead <= 0)
 			{
-				float finalVol = result.mixVolume * GetMasterVolume();
-				finalVol = std::min(finalVol, (float)SDL_MIX_MAXVOLUME);
-				if (result.bytesRead < FILL_CHUNK_BYTES)
-				{
-					memset(src_buf.data() + result.bytesRead, mAudioSpec.silence,
-						FILL_CHUNK_BYTES - result.bytesRead);
-				}
-				SDL_MixAudioFormat(mix_buf.data(), src_buf.data(), mFormat, FILL_CHUNK_BYTES, (int)finalVol);
+				continue;
+			}
+
+			const float gain = std::min(result.mixVolume * GetMasterVolume(), 1.0f);
+			const auto* samples = reinterpret_cast<const float*>(mSourceBuffer.data());
+			const int count = result.bytesRead / int(sizeof(float));
+			for (int i = 0; i < count; i++)
+			{
+				mMixBuffer[i] += samples[i] * gain;
 			}
 		}
-
-		SDL_QueueAudio(mDeviceID, mix_buf.data(), FILL_CHUNK_BYTES);
-		if (queued < FILL_CHUNK_BYTES)
-		{
-			continue;
-		}
-		SDL_Delay(SLEEP_EMPTY_MS);
 	}
 
-	if (g_audioThreadShouldExit == true)
+	for (auto& sample : mMixBuffer)
 	{
-		this->Release();
+		sample = std::clamp(sample, -1.0f, 1.0f);
 	}
-	return 0;
+	SDL_PutAudioStreamData(stream, mMixBuffer.data(), size);
 }
 
 int SHTHR_SOUNDDEVICE_Impl::SetAllParameters(Listener3D* params)
@@ -1247,73 +1217,37 @@ int SHTHR_SOUNDDEVICE_Impl::SetPosition(float x, float y, float z, DWORD dwApply
 	return S_OK;
 }
 
-void SHTHR_SOUNDDEVICE_Impl::AudioCallback(Uint8* stream, int32_t len)
-{
-	memset(stream, mAudioSpec.silence, len);
-	if (mAudioQueues.size() == 0)
-	{
-		return;
-	}
-	read_buffer.resize(len);
-	mutex.lock();
-	for (auto& queue : mAudioQueues)
-	{
-		auto result = queue->Pull(&read_buffer[0], len);
-		if (result.bytesRead > 0)
-		{
-			if (result.bytesRead < len)
-			{
-				memset(&read_buffer[result.bytesRead], mAudioSpec.silence, len - result.bytesRead);
-			}
-			float finalVol = result.mixVolume * GetMasterVolume();
-			SDL_MixAudioFormat(stream, &read_buffer[0], mFormat, len, (int)finalVol);
-		}
-	}
-	mutex.unlock();
-}
-
-static void AudioCallbackStatic(void* userdata, Uint8* stream, int32_t len)
-{
-	SHTHR_SOUNDDEVICE_Impl* _this = (SHTHR_SOUNDDEVICE_Impl*)userdata;
-	_this->AudioCallback(stream, len);
-}
-
 SHTHR_SOUNDDEVICE_Impl::SHTHR_SOUNDDEVICE_Impl()
 {
 
 #ifdef _WIN32
 	// Force wasapi on Windows.
-	SDL_setenv("SDL_AUDIODRIVER", "wasapi", true);
+	SDL_SetHintWithPriority(SDL_HINT_AUDIO_DRIVER, "wasapi", SDL_HINT_OVERRIDE);
 #endif
 
 	SDL_SetHint(SDL_HINT_AUDIO_CATEGORY, "playback");
-	SDL_SetHint(SDL_HINT_AUDIO_DEVICE_APP_NAME, "Shadow Recompiled");
-	if (SDL_InitSubSystem(SDL_INIT_AUDIO) < 0)
+	SDL_SetAppMetadataProperty(SDL_PROP_APP_METADATA_NAME_STRING, "Shadow Recompiled");
+	SDL_SetHint(SDL_HINT_AUDIO_DEVICE_SAMPLE_FRAMES, "512"); // necessary for weapon SFX timing (SDL default is 1024)
+
+	if (!SDL_InitSubSystem(SDL_INIT_AUDIO))
 	{
 		LOGFN_ERROR("Failed to init audio subsystem: {}", SDL_GetError());
 		return;
 	}
 
-	SDL_AudioSpec desired{}, obtained{};
-	desired.freq = XAUDIO_SAMPLES_HZ;
-	desired.format = AUDIO_S16SYS;
-	desired.channels = 2;
-	desired.samples = 512;
-	desired.userdata = nullptr; // this;
-	desired.callback = nullptr; // AudioCallbackStatic;
+	mAudioSpec.freq = XAUDIO_SAMPLES_HZ;
+	mAudioSpec.format = SDL_AUDIO_F32;
+	mAudioSpec.channels = 2;
 
-	mDeviceID = SDL_OpenAudioDevice(nullptr, 0, &desired, &mAudioSpec, SDL_AUDIO_ALLOW_SAMPLES_CHANGE);
-	if (mDeviceID)
+	mChannelCount = mAudioSpec.channels;
+	mFrequency = mAudioSpec.freq;
+	mFormat = mAudioSpec.format;
+
+	mDeviceStream = SDL_OpenAudioDeviceStream(SDL_AUDIO_DEVICE_DEFAULT_PLAYBACK, &mAudioSpec, MixCallbackStatic, this);
+	if (mDeviceStream)
 	{
-		mChannelCount = mAudioSpec.channels;
-		mFrequency = mAudioSpec.freq;
-		mFormat = mAudioSpec.format;
-
-		SDL_AtomicSet(&mPullThreadRunning, 1);
-		mPullThread = SDL_CreateThread(PullThreadStatic, "AudioPull", this);
-
-		SDL_PauseAudioDevice(mDeviceID, SDL_FALSE);
-		LOGFN_UTILITY("Initialized SDL2 Audio", "SDLAudio");
+		SDL_ResumeAudioStreamDevice(mDeviceStream);
+		LOGFN_UTILITY("Initialized SDL3 Audio", "SDLAudio");
 	}
 }
 

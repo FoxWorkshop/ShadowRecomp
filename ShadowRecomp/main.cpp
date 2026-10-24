@@ -190,7 +190,7 @@ int main(int argc, char* argv[])
     bool useDefaultWorkingDirectory = false;
     bool forceInstallationCheck = false;
     bool graphicsApiRetry = false;
-    const char* sdlVideoDriver = "wayland";
+    const char* sdlVideoDriver = nullptr;
 
     for (uint32_t i = 1; i < argc; i++)
     {

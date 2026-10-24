@@ -105,7 +105,7 @@ run-release
 sr-help
 ```
 
-All dependencies (SDL2, freetype, GTK, Vulkan loader, ...) come from nixpkgs.
+All dependencies (SDL3, freetype, GTK, Vulkan loader, ...) come from nixpkgs.
 vcpkg is replaced by a stub.
 
 The prebuilt DXC shader compiler shipped in `tools/XShaderRecomp/thirdparty/dxc-bin`

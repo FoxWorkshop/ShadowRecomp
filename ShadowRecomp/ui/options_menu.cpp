@@ -102,7 +102,7 @@ static int g_remapReturnOptionIndex{};
 
 static EBindingCaptureState g_captureState{};
 static double g_captureTime{};
-static std::array<uint8_t, SDL_NUM_SCANCODES> g_capturePrevKeys{};
+static std::array<uint8_t, SDL_SCANCODE_COUNT> g_capturePrevKeys{};
 static input::PadButtonValues g_capturePrevPadButtons{};
 
 void AudioConfigValueChangedCallback(IConfigDef* config);
