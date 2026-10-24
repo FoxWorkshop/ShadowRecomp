@@ -412,7 +412,6 @@ inline Controller* FindController(SDL_JoystickID which)
 	return nullptr;
 }
 
-int controlLogSpam = 0;
 static void SetControllerInputDevice(Controller* controller)
 {
 	g_activeController = controller;
@@ -428,18 +427,13 @@ static void SetControllerInputDevice(Controller* controller)
 	{
 		input::g_inputDeviceExplicit = controllerType;
 
-		if (controlLogSpam < 20) // Limit log for plug controllers since tool like DS4 keep switching between 360 and ps4 type.
+		if (controllerType == input::EInputDeviceExplicit::Unknown)
 		{
-			if (controllerType == input::EInputDeviceExplicit::Unknown)
-			{
-				printf("Detected controller: %s (Unknown Controller Type)\n", controllerName);
-			}
-			else
-			{
-				printf("Detected controller: %s\n", controllerName);
-			}
-
-			controlLogSpam++;
+			printf("Detected controller: %s (Unknown Controller Type)\n", controllerName);
+		}
+		else
+		{
+			printf("Detected controller: %s\n", controllerName);
 		}
 	}
 }
@@ -485,13 +479,14 @@ static void SyncControllers()
 {
 	for (auto& controller : g_controllers)
 	{
-		if (!controller.controller || !SDL_GamepadConnected(controller.controller))
+		if (!controller.controller || SDL_GamepadConnected(controller.controller))
+		{
 			continue;
-
-
+		}
 		if (g_activeController == &controller)
+		{
 			g_activeController = nullptr;
-
+		}
 		controller.Close();
 	}
 
@@ -500,19 +495,23 @@ static void SyncControllers()
 
 	for (int i = 0; i < gamepadCount; i++)
 	{
-		auto controller = Controller(gamepads[i]);
-
-		if (!controller.controller || FindController(gamepads[i]))
+		if (FindController(gamepads[i]))
+		{
 			continue;
-
+		}
 
 		const auto freeIndex = FindFreeController();
 
 		if (freeIndex == -1)
+		{
 			break;
+		}
 
-		g_controllers[freeIndex] = Controller(gamepads[i]);
-
+		auto controller = Controller(gamepads[i]);
+		if (controller.controller)
+		{
+			g_controllers[freeIndex] = controller;
+		}
 	}
 
 	SDL_free(gamepads);
