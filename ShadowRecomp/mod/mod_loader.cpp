@@ -577,6 +577,148 @@ static void LoadReplaceIni(const fs::path& iniPath, Mod* modinf, bool fromInclud
 	}
 }
 
+// --- Aura Color Helper for Mods START ---
+//
+// The trail from spin dash / homing attack and jump aura color are all hardcoded
+// We will read the new colors from colors.ini to let mods change them.
+static constexpr uint32_t SpinTrailColorTable = 0x449D60; // RGB is located at at +0x20 +0x24 and +0x28
+static constexpr uint32_t SpinTrailColorStride = 0x2C;
+
+
+// Each id is used to loads its own model file, the order below match the game one.
+// The index is the game character id (stored at player+0x64) and the player always spawns as ID 14.
+static constexpr const char* ColorCharacters[] =
+{
+	nullptr, "Sonic", "Tails", "Knuckles", "Amy", "Rouge", "Omega", "Vector", "Espio", "Maria",
+	nullptr, nullptr, nullptr, "BossSonic", "Shadow",
+	"2PYellow", "2PGunPink", "2PGunBlue", "2PCannonOrange", "2PCannonGreen",
+};
+
+using ModAuraColor = std::optional<std::array<uint8_t, 3>>;
+static ModAuraColor g_spinTrailColors[std::size(ColorCharacters)];
+static ModAuraColor g_jumpBallColors[std::size(ColorCharacters)];
+
+// Table helper to find the charID used to spawn their jump ball, we look for the suffix directly
+static constexpr std::pair<const char*, uint32_t> JumpBallSuffixes[] =
+{
+	{ "", 14 }, { "_S", 1 }, { "_T", 2 }, { "_K", 3 }, { "_A", 4 }, { "_R", 5 }, { "_O", 6 }, { "_V", 7 }, { "_E", 8 },
+};
+
+static thread_local int32_t g_curJumpBallID = -1;
+
+template <size_t N>
+static void LoadColorSection(const IniFile& ini, const char* section, const char* const (&names)[N], ModAuraColor(&colors)[N], const fs::path& iniPath, const std::string& modName)
+{
+	const IniGroup* group = ini.getGroup(section);
+	
+	if (!group)
+		return;
+
+	for (auto& [key, data] : *group->data())
+	{
+		std::string name = key;
+		Trim(name);
+		name = ToLower(name);
+
+		auto it = std::find_if(std::begin(names), std::end(names), [&](const char* chara) { return chara && ToLower(chara) == name; });
+		if (it == std::end(names))
+		{
+			LOGF_ERROR("{}: {}: [{}] unknown character {}", modName, iniPath.string(), section, key);
+			continue;
+		}
+
+		int r, g, b;
+		if (sscanf(data.c_str(), " %d , %d , %d", &r, &g, &b) != 3)
+		{
+			continue;
+		}
+
+		colors[it - std::begin(names)] = std::array<uint8_t, 3>{ (uint8_t)std::clamp(r, 0, 255), (uint8_t)std::clamp(g, 0, 255), (uint8_t)std::clamp(b, 0, 255) };
+	}
+}
+
+static void LoadColorsIni(const fs::path& iniPath, const std::string& modName)
+{
+	if (!fs::exists(iniPath))
+		return;
+
+	IniFile ini(iniPath);
+	LoadColorSection(ini, "SpinTrail", ColorCharacters, g_spinTrailColors, iniPath, modName);
+	LoadColorSection(ini, "JumpBall", ColorCharacters, g_jumpBallColors, iniPath, modName);
+}
+
+// Player effect spawn
+// Jump and trail aura use this function
+X86_FUNC_IMPL(__imp__sub_8D1B0);
+X86_FUNC(sub_8D1B0)
+{
+	uint32_t player = X86_LOAD_U32(X86_LOAD_U32(ctx.ecx.u32 + 0x28));
+	uint32_t chara = player ? X86_LOAD_U32(player + 0x64) : UINT32_MAX;
+
+	int32_t backupID = g_curJumpBallID;
+	g_curJumpBallID = chara < std::size(ColorCharacters) ? static_cast<int32_t>(chara) : -1;
+	__imp__sub_8D1B0(ctx, base);
+	g_curJumpBallID = backupID;
+}
+
+// EffectObject ctor
+// Memo: second param is the EFD: +0 = name, +0x38 = color A R G B.
+X86_FUNC_IMPL(__imp__sub_38F810);
+X86_FUNC(sub_38F810)
+{
+	uint32_t this_ = ctx.ecx.u32;
+	uint32_t EFD = static_cast<uint32_t>(GetHostParameter(2, CallConvention::Thiscall));
+
+	__imp__sub_38F810(ctx, base);
+
+	if (!EFD)
+		return;
+
+	auto recordName = reinterpret_cast<const char*>(g_memory.Translate(EFD));
+	std::string_view name(recordName, strnlen(recordName, 32));
+
+	// Name always start with "Jump_ball" we can safely give up if it's something else
+	if (!name.starts_with("Jump_ball") || name.size() < 10)
+		return;
+
+	int32_t curCharID = g_curJumpBallID;
+	if (curCharID < 0)
+	{
+		std::string_view suffix = name.substr(10);
+		auto it = std::find_if(std::begin(JumpBallSuffixes), std::end(JumpBallSuffixes), [&](auto& s) { return suffix == s.first; });
+		
+		if (it == std::end(JumpBallSuffixes))
+			return;
+
+		curCharID = it->second;
+	}
+
+	if (!g_jumpBallColors[curCharID])
+		return;
+
+	// set new jump ball color
+	X86_STORE_U32(this_ + 260, (*g_jumpBallColors[curCharID])[0] << 22);
+	X86_STORE_U32(this_ + 264, (*g_jumpBallColors[curCharID])[1] << 22);
+	X86_STORE_U32(this_ + 268, (*g_jumpBallColors[curCharID])[2] << 22);
+}
+
+void ModLoader::ApplyHelperPatches()
+{
+	auto base = g_memory.base;
+
+	for (size_t i = 0; i < std::size(g_spinTrailColors); i++)
+	{
+		if (!g_spinTrailColors[i])
+			continue;
+
+		uint32_t row = SpinTrailColorTable + i * SpinTrailColorStride;
+		X86_STORE_U32(row + 0x20, (*g_spinTrailColors[i])[0]);
+		X86_STORE_U32(row + 0x24, (*g_spinTrailColors[i])[1]);
+		X86_STORE_U32(row + 0x28, (*g_spinTrailColors[i])[2]);
+	}
+}
+
+// --- Aura Color Helper for Mods END ---
 
 static std::vector<std::string> ReadOneFileAssetNames(const fs::path& path)
 {
@@ -752,7 +894,7 @@ static std::shared_ptr<const std::vector<uint8_t>> MergeAppendedTxd(const std::s
 	if (replaceWK)
 	{
 		baseName = replaceWK->file.string();
-		
+
 		if (!ReadTXDFile(replaceWK->file, data))
 			return nullptr;
 	}
@@ -1063,6 +1205,13 @@ void ModLoader::Init()
 		for (auto& includeDir : modinf.includeDirs)
 		{
 			LoadReplaceIni(includeDir.parent_path() / "replace.ini", &modinf, true); // next to the folder's "game" dir
+		}
+
+
+		LoadColorsIni(modDir / "colors.ini", mod_nameA);
+		for (auto& includeDir : modinf.includeDirs)
+		{
+			LoadColorsIni(includeDir.parent_path() / "colors.ini", mod_nameA);
 		}
 
 		if (commonDirExist || includeDirExist || !modinf.archiveWorker.empty())

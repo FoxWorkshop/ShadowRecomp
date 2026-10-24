@@ -10,6 +10,7 @@ struct ModLoader
 
     static std::vector<std::filesystem::path>* GetIncludeDirectories(size_t modIndex);
 
+    static void ApplyHelperPatches();
 
     static void Init();
 };
