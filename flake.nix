@@ -27,6 +27,7 @@
       libXi
       libXrandr
       libXScrnSaver
+      libXtst
 
       # SDL - X11 session management
       libSM
