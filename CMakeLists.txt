@@ -29,8 +29,6 @@ endif()
 if (MSVC)
     # To generate PDB needs DEBUG, but doing so disables REF, ICF (re-enabling).
     add_link_options("$<$<CONFIG:Release>:/DEBUG;/OPT:REF;/OPT:ICF>")
-else()
-    add_compile_options("$<$<CONFIG:Release>:-g>")
 endif()
 
 set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
