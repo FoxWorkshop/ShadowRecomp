@@ -696,16 +696,21 @@ void ContainerBehaviorFallMidAsmHook(X86Register& esi)
 
 /**	--Damage blink patch START-- */
 
+// anything that the game would not treat as a valid remaining time should use the original logic
+static bool isValidTimer(float timer)
+{
+	return (!(timer > 0.0f) || !std::isfinite(timer) || timer > 60.0f);
+}
+
 static bool DamageBlinkPhaseHidden(uint32_t player, uint32_t motion)
 {
 	auto base = g_memory.base;
-	const float remaining = player != 0 ? X86_LOAD_F32(player + 0x27C) : 0.0f;
+	const float timeLeft = player != 0 ? X86_LOAD_F32(player + 0x27C) : 0.0f;
 
-	// anything that the game would not treat as a valid remaining time should use the original logic
-	if (!(remaining > 0.0f) || remaining > 1.0e6f)
+	if (!isValidTimer(timeLeft))
 		return (X86_LOAD_U32(motion + 0x3EC) & 1) != 0;
 
-	return (static_cast<int>(remaining * 60.0f + 0.25f) & 1) != 0;
+	return (static_cast<int>(timeLeft * 60.0f + 0.25f) & 1) != 0;
 }
 
 // ShadowMotion::Exec, the counter above still run and can be used here to patch the timing being wrong at > 60 fps
@@ -736,7 +741,7 @@ static bool HitTimerBlinkPhaseOff(uint32_t timer)
 	auto base = g_memory.base;
 	const float timeLeft = timer != 0 ? X86_LOAD_F32(timer) : 0.0f;
 
-	if (!(timeLeft > 0.0f) || timeLeft > 1.0e6f)
+	if (!isValidTimer(timeLeft))
 		return (X86_LOAD_U32(0x54DDC0) & 2) == 0;
 
 	return (static_cast<int>(timeLeft * 60.0f + 0.25f) & 2) == 0;
@@ -772,6 +777,103 @@ bool PowerDeviceBlinkPhaseMidAsmHook(X86Register& esi)
 }
 
 /* --EggFleet hit blink patch END-- */
+
+/**	--Enemy Damage Blink Patch START-- */
+
+// How long enemies and bosses blink is correctly delta timed, however what toggle the flick is frame locked so it looks randomly wrong at high fps (similar to egg fleet).
+// Fix: We use a custom timer which uses delta time and process it in 1/60s steps (slices).
+struct EnemyBlinkPatch
+{
+	uint32_t lastFrame = 0;
+	float slices = 0.0f;
+
+	uint32_t Update(uint32_t frame)
+	{
+		if (frame != lastFrame)
+		{
+			lastFrame = frame;
+
+			// 60 fps or less steps one slice per frame
+			const float frames = g_deltaTime * 60.0f;
+			slices += (frames > 0.0f && frames < 0.99f) ? frames : 1.0f;
+
+			while (slices >= 4.0f) // lowkey arbitrary, but should be good enough me think
+				slices -= 4.0f;
+		}
+
+		return static_cast<uint32_t>(slices + 0.25f);
+	}
+};
+
+static bool AllFramesBlinkOdd()
+{
+	static EnemyBlinkPatch newPatchedTimer;
+	return (newPatchedTimer.Update(g_frameCount) & 1) != 0;
+}
+
+static bool UnpausedBlinkOdd()
+{
+	static EnemyBlinkPatch newPatchedTimer;
+	return (newPatchedTimer.Update(g_unpausedFrameCount2) & 1) != 0;
+}
+
+// Boss hit flash (MaterialBlinkTask::Exec)
+// True = no tint (0x58721)
+// false = tint (0x58706)
+bool MaterialBlinkPhaseMidAsmHook()
+{
+	return !AllFramesBlinkOdd();
+}
+
+// Enemy hit blink function seems to hide the model on odd frames
+// True = render (0xC6442)
+// false = hide (0xC642E)
+bool EnemyHitBlinkPhaseMidAsmHook()
+{
+	return !UnpausedBlinkOdd();
+}
+
+// Enemy death blink
+// True = hide (0xCC775)
+// false = render (0xCC76E)
+bool EnemyDeathBlinkPhaseMidAsmHook()
+{
+	return !UnpausedBlinkOdd();
+}
+
+// BkLarva death blink
+// True = render (0x137B6D)
+// false = hide (0x137B60)
+bool ObjectDeathBlinkPhaseMidAsmHook()
+{
+	return !UnpausedBlinkOdd();
+}
+
+// ThrowBombTask does flash the bomb between a full and dim red on odd frames
+// True = full color (0x63192)
+// false = dim (0x6316A)
+bool ThrowBombBlinkPhaseMidAsmHook()
+{
+	return !UnpausedBlinkOdd();
+}
+
+// Shared model draw classes (0x256AEF, 0x2581BD, 0x26A846) blink on odd frames as well
+bool ModelBlinkPhaseMidAsmHook()
+{
+	return !AllFramesBlinkOdd();
+}
+
+void SoldierFlashParityMidAsmHook(X86Register& ecx)
+{
+	ecx.u32 = AllFramesBlinkOdd() ? 1 : 0;
+}
+
+void SoldierFlashParityEdxMidAsmHook(X86Register& edx)
+{
+	edx.u32 = AllFramesBlinkOdd() ? 1 : 0;
+}
+
+/* --Enemy Damage Blink Patch END-- */
 
 // Helper to match exponential smoothing for vehicles
 static float ScaleFirstOrderLag(float before, float after, float retention, float frames)
