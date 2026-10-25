@@ -792,24 +792,6 @@ jump_address_on_true = 0x2E0568
 name = "SetFramerateMidAsmHook"
 address = 0x572BD
 
-# 0x56FC0 is the internal frame limiter.
-# Sewer says 'we have our own top of ze line-o frame pacing'.
-# So we KILL the game's. MUAHAHAHHAHAHAHAAH.
-#
-# Edit: Or that's what I would say... if I had more reversing time.
-# Cause game does some funny calc in there that screws with physics.
-#
-# And slapping my own limiter while removing the game's just makes it
-# act weird... So for now, I replace only the sleep/wait part; as mine
-# is more CPU friendly.
-#
-# You win... for now... Black Doom
-#
-# Edit Edit: Found the reversing time. Replaced the whole thing.
-# It's overridden with X86_FUNC now; see sub_56FC0 in fps_patches.cpp.
-#
-# Who's laughing now, Black Doom? MUAHAHAHHAHAHAHAAH.
-
 [[midasm_hook]]
 name = "SFXTimingMidAsmHook"
 address = 0x25E783
@@ -1206,7 +1188,6 @@ name = "FootingMovableLinearMidAsmHook"
 address = 0x19C6EC
 registers = ["r4"]
 
-
 # Pulley stuff 
 [[midasm_hook]]
 name = "UpDownReelRaiseMidAsmHook"
@@ -1417,7 +1398,6 @@ name = "WalkerDismountAnywhereMidAsmHook"
 address = 0x2562E7
 jump_address_on_true = 0x255F9F
 jump_address_on_false = 0x255FB0
-
 # End GUN Mech Vehicle Revamp (Reloaded) patches
 
 [[midasm_hook]]
@@ -1522,16 +1502,16 @@ registers = ["r7"]
 
 # Start Fire vacuum callback fix
 # WeaponVacuumPod::Exec
-[[midasm_hook]]
-name = "FireVacuumCallbackMidAsmHook"
-address = 0x26DBA0
-registers = ["r6", "r5"]
+#[[midasm_hook]]
+#name = "FireVacuumCallbackMidAsmHook"
+#address = 0x26DBA0
+#registers = ["r6", "r5"]
 
 # VacuumEggItem::Exec
-[[midasm_hook]]
-name = "FireVacuumCallbackMidAsmHook"
-address = 0x27370E
-registers = ["r6", "r5"]
+#[[midasm_hook]]
+#name = "FireVacuumCallbackMidAsmHook"
+#address = 0x27370E
+#registers = ["r6", "r5"]
 # End Fire vacuum callback fix
 
 # Start Vacuum any enemy cheat
