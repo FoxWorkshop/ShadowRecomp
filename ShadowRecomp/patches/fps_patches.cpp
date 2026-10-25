@@ -726,6 +726,40 @@ bool NpcMotionBlinkPhaseMidAsmHook(X86Register& esi)
 
 /* --Damage blink patch END-- */
 
+/**	--EggFleet hit blink patch START-- */
+
+// Sky Troops battleships blink for 0.5s when getting hit, the timer is correctly delta timed,
+// but the check to stop the blink isn't correct (& 2 moment) so it doesn't work.
+// We can remake the sequence from the timer instead using 2 slices of 1/60s when it's on, then 2 when it's off as intended.
+static bool EggFleetBlinkPhaseOff(uint32_t fleet)
+{
+	auto base = g_memory.base;
+	const float timeLeft = fleet != 0 ? X86_LOAD_F32(fleet + 0x44) : 0.0f;
+
+	if (!(timeLeft > 0.0f) || timeLeft > 1.0e6f)
+		return (X86_LOAD_U32(0x54DDC0) & 2) == 0;
+
+	return (static_cast<int>(timeLeft * 60.0f + 0.25f) & 2) == 0;
+}
+
+// EggFleet exec (sub_1C50A0)
+// True = regular (0x1C5051)
+// false = hit blink (0x1C504A)
+bool EggFleetBlinkPhaseMidAsmHook(X86Register& esi)
+{
+	return EggFleetBlinkPhaseOff(esi.u32);
+}
+
+// True = regular (0x1C429F)
+// false = hit blink (0x1C428A)
+bool EggFleetPartBlinkPhaseMidAsmHook(X86Register& esi)
+{
+	auto base = g_memory.base;
+	return EggFleetBlinkPhaseOff(X86_LOAD_U32(esi.u32 + 4));
+}
+
+/* --EggFleet hit blink patch END-- */
+
 // Helper to match exponential smoothing for vehicles
 static float ScaleFirstOrderLag(float before, float after, float retention, float frames)
 {

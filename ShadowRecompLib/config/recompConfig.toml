@@ -1317,6 +1317,21 @@ registers = ["r4"]
 jump_address_on_true = 0xAD749
 jump_address_on_false = 0xAD757
 
+# EggFleet hit blink
+[[midasm_hook]]
+name = "EggFleetBlinkPhaseMidAsmHook"
+address = 0x1C5048
+registers = ["r4"]
+jump_address_on_true = 0x1C5051
+jump_address_on_false = 0x1C504A
+
+[[midasm_hook]]
+name = "EggFleetPartBlinkPhaseMidAsmHook"
+address = 0x1C4288
+registers = ["r4"]
+jump_address_on_true = 0x1C429F
+jump_address_on_false = 0x1C428A
+
 [[midasm_hook]]
 name = "JetEffectRestoreFourthFlameMidAsmHook"
 address = 0x8DCA0
