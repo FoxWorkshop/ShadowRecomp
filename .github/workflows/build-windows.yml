@@ -91,7 +91,6 @@ jobs:
 
       - name: Upload PDB
         uses: actions/upload-artifact@v7
-        if: ${{ matrix.preset != 'x64-Clang-Release' }}
         with:
           name: ShadowRecomp-Windows-${{ env.CMAKE_PRESET }}-PDB
           path: .\out\build\${{ env.CMAKE_PRESET }}\ShadowRecomp\ShadowRecomp.pdb
