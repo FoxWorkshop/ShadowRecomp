@@ -5,17 +5,6 @@
 std::unordered_map<std::string_view, std::unordered_map<ELanguage, std::string>> g_locale =
 {
 	{
-		"Options_Header_Name",
-		{
-			{ ELanguage::English,  "OPTIONS" },
-			{ ELanguage::Japanese, "OPTION" },
-			{ ELanguage::German,   "OPTIONEN" },
-			{ ELanguage::French,   "OPTIONS" },
-			{ ELanguage::Spanish,  "OPCIONES" },
-			{ ELanguage::Italian,  "OPZIONI" }
-		}
-	},
-	{
 		"Options_Category_System",
 		{
 			{ ELanguage::English,  "SYSTEM" },
@@ -101,50 +90,6 @@ std::unordered_map<std::string_view, std::unordered_map<ELanguage, std::string>>
 			{ ELanguage::French,   "Modifier les paramètres vidéo." },
 			{ ELanguage::Spanish,  "Ajustar la configuración de vídeo." },
 			{ ELanguage::Italian,  "Modifica le impostazioni video." }
-		}
-	},
-	{
-		"Options_Category_Misc",
-		{
-			{ ELanguage::English,  "MISC" },
-			{ ELanguage::Japanese, "MISC" },
-			{ ELanguage::German,   "SONSTIGES" },
-			{ ELanguage::French,   "DIVERS" },
-			{ ELanguage::Spanish,  "VARIOS" },
-			{ ELanguage::Italian,  "VARI" }
-		}
-	},
-	{
-		"Options_Desc_Category_Misc",
-		{
-			{ ELanguage::English,  "Adjust miscellaneous settings." },
-			{ ELanguage::Japanese, "その他の設定を変更します" },
-			{ ELanguage::German,   "Verändere sonstige Einstellungen." },
-			{ ELanguage::French,   "Modifier les paramètres divers." },
-			{ ELanguage::Spanish,  "Ajustar la configuración diversa." },
-			{ ELanguage::Italian,  "Modifica le impostazioni varie." }
-		}
-	},
-	{
-		"Options_Category_Debug",
-		{
-			{ ELanguage::English,  "Debug settings" },
-			{ ELanguage::Japanese, "デバッグ設定" },
-			{ ELanguage::German,   "Debug-Einstellungen" },
-			{ ELanguage::French,   "Paramètres de débogage" },
-			{ ELanguage::Spanish,  "Configuración de depuración" },
-			{ ELanguage::Italian,  "Impostazioni debug" }
-		}
-	},
-	{
-		"Options_Desc_Category_Debug",
-		{
-			{ ELanguage::English,  "Adjust debug settings." },
-			{ ELanguage::Japanese, "デバッグの設定を変更します" },
-			{ ELanguage::German,   "Verändere Debug-Einstellungen." },
-			{ ELanguage::French,   "Modifier les paramètres de débogage." },
-			{ ELanguage::Spanish,  "Ajustar la configuración de depuración." },
-			{ ELanguage::Italian,  "Modifica le impostazioni debug." }
 		}
 	},
 	{
@@ -351,28 +296,6 @@ std::unordered_map<std::string_view, std::unordered_map<ELanguage, std::string>>
 	}
 },
 {
-	"Options_Name_WindowSize",
-	{
-		{ ELanguage::English,  "Resolution" },
-		{ ELanguage::Japanese, "解像度" },
-		{ ELanguage::German,   "Auflösung" },
-		{ ELanguage::French,   "Résolution" },
-		{ ELanguage::Spanish,  "Resolución" },
-		{ ELanguage::Italian,  "Risoluzione" }
-	}
-},
-{
-	"Options_Desc_WindowSize",
-	{
-		{ ELanguage::English,  "Adjust the resolution of the game in windowed mode." },
-		{ ELanguage::Japanese, "ゲームの\u200B[解像度:かいぞうど]を\u200B[設定:せってい]できます" },
-		{ ELanguage::German,   "Passe die Auflösung des Spiels im Fenstermodus an." },
-		{ ELanguage::French,   "Définir la résolution de jeu en mode fenêtré." },
-		{ ELanguage::Spanish,  "Ajusta la resolución del juego en modo ventana." },
-		{ ELanguage::Italian,  "Regola la risoluzione del gioco in modalità finestra." }
-	}
-},
-{
 	// Notes: description for options that cannot be accessed anywhere but the title screen or world map (e.g. Language).
 	"Options_Desc_NotAvailable",
 	{
@@ -382,18 +305,6 @@ std::unordered_map<std::string_view, std::unordered_map<ELanguage, std::string>>
 		{ ELanguage::French,   "Cette option n'est pas disponible pour l'instant." },
 		{ ELanguage::Spanish,  "Esta opción no está disponible en este momento." },
 		{ ELanguage::Italian,  "Questa opzione non può essere modificata in questo momento." }
-	}
-},
-{
-	// Notes: currently the description for Window Size when in fullscreen.
-	"Options_Desc_NotAvailableFullscreen",
-	{
-		{ ELanguage::English,  "This option is not available in fullscreen mode." },
-		{ ELanguage::Japanese, "この\u200Bオプションは\u200Bフルスクリーンモードでは\u200B[変更:へんこう]\u200Bできません" },
-		{ ELanguage::German,   "Diese Option ist im Vollbildmodus nicht verfügbar." },
-		{ ELanguage::French,   "Cette option n'est pas disponible en mode plein écran." },
-		{ ELanguage::Spanish,  "Esta opción no está disponible en modo pantalla completa." },
-		{ ELanguage::Italian,  "Questa opzione non è disponibile in modalità schermo pieno." }
 	}
 },
 {
@@ -495,6 +406,7 @@ std::unordered_map<std::string_view, std::unordered_map<ELanguage, std::string>>
 	}
 },
 {
+// TODO: This isn't even used? Check if its hardcoded or something
 	// Notes: used for the header in the achievements menu.
 	 // This font doesn't support accent so the typo in french is intended.
 	"Achievements_Name_Uppercase",
@@ -571,17 +483,6 @@ std::unordered_map<std::string_view, std::unordered_map<ELanguage, std::string>>
 		{ ELanguage::French,   "Drag & Drop or Select an ISO or default.xbe" },
 		{ ELanguage::Spanish,  "Drag & Drop or Select an ISO or default.xbe" },
 		{ ELanguage::Italian,  "Drag & Drop or Select an ISO or default.xbe" }
-	}
-},
-{
-	"Installer_Page_CheckSpace",
-	{
-		{ ELanguage::English,  "The content will be installed to the program's folder.\n\n" },
-		{ ELanguage::Japanese, "コンテンツはプログラムのフォルダに\nインストールされます\n" },
-		{ ELanguage::German,   "Der Inhalt wird in dem Ordner des Programms installiert.\n" },
-		{ ELanguage::French,   "Le contenu sera installé dans le même dossier que le programme.\n" },
-		{ ELanguage::Spanish,  "El contenido será instalado a la carpeta del programa.\n\n" },
-		{ ELanguage::Italian,  "Il contenuto verrà installato nella cartella di questo programma.\n\n" }
 	}
 },
 {
@@ -1009,6 +910,7 @@ std::unordered_map<std::string_view, std::unordered_map<ELanguage, std::string>>
 	}
 },
 {
+	// TODO: Unused?
 	// Notes: message appears when ACH-DATA is corrupted (mismatching file size, bad signature, incorrect version or invalid checksum) upon pressing start at the title screen.
 	// To make this occur, open the file in any editor and just remove a large chunk of data.
 	"Title_Message_AchievementDataCorrupt",
@@ -1022,6 +924,7 @@ std::unordered_map<std::string_view, std::unordered_map<ELanguage, std::string>>
 	}
 },
 {
+	// TODO: Unused?
 	// Notes: message appears when ACH-DATA cannot be loaded upon pressing start at the title screen.
 	// To make this occur, lock the ACH-DATA file using an external program so that it cannot be accessed by the game.
 	"Title_Message_AchievementDataIOError",

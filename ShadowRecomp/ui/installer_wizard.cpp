@@ -137,7 +137,6 @@ static std::string& GetWizardText(WizardPage page)
 	{
 	case WizardPage::SelectLanguage: return Localise("Installer_Page_SelectLanguage");
 	case WizardPage::Introduction: return Localise("Installer_Page_Introduction");
-		// case WizardPage::CheckSpace: return Localise("Installer_Page_CheckSpace"); // TODO: Should probably implement this esp for cloud drive?
 	case WizardPage::SelectGame: return Localise("Installer_Page_SelectGame");
 	case WizardPage::Installing: return Localise("Installer_Page_Installing");
 	case WizardPage::InstallSucceeded: return Localise("Installer_Page_InstallSucceeded");

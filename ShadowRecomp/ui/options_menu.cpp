@@ -238,8 +238,6 @@ static std::string& GetCategoryName(OptionsMenuCategory category)
 	case OptionsMenuCategory::Input: return Localise("Options_Category_Input");
 	case OptionsMenuCategory::Audio: return Localise("Options_Category_Audio");
 	case OptionsMenuCategory::Video: return Localise("Options_Category_Video");
-		//case OptionsMenuCategory::Misc: return Localise("Options_Category_Misc");
-	case OptionsMenuCategory::Debug: return Localise("Options_Category_Debug");
 	}
 
 	return g_localeMissing;
@@ -253,8 +251,6 @@ static std::string& GetCategoryDescription(OptionsMenuCategory category)
 	case OptionsMenuCategory::Input: return Localise("Options_Desc_Category_Input");
 	case OptionsMenuCategory::Audio: return Localise("Options_Desc_Category_Audio");
 	case OptionsMenuCategory::Video: return Localise("Options_Desc_Category_Video");
-		//case OptionsMenuCategory::Misc: return Localise("Options_Desc_Category_Misc");
-	case OptionsMenuCategory::Debug: return Localise("Options_Desc_Category_Debug");
 	}
 
 	return g_localeMissing;
