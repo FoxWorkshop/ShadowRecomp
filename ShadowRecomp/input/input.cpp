@@ -622,7 +622,7 @@ bool Input_OnSDLEvent(void*, SDL_Event* event)
 	}
 
 	case SDL_EVENT_KEY_DOWN:
-		if (event->key.scancode == SDL_SCANCODE_F6 && !event->key.repeat)
+		if (event->key.scancode == SDL_SCANCODE_F6 && (event->key.mod & SDL_KMOD_SHIFT) && !event->key.repeat)
 		{
 			g_keyboardPort = (g_keyboardPort % 4) + 1;
 			printf("Keyboard now controlling PORT %d\n", g_keyboardPort);
