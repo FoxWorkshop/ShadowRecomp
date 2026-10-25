@@ -14,8 +14,8 @@ jobs:
     strategy:
       matrix:
         preset: [
-          #"linux-release",
-          "linux-relwithdebinfo"
+          "linux-release",
+          #"linux-relwithdebinfo"
           ]
     env:
       LLVM_VERSION: 22

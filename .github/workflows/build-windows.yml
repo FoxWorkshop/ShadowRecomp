@@ -14,8 +14,8 @@ jobs:
     strategy:
       matrix:
         preset: [
-          #"x64-Clang-Release",
-          "x64-Clang-RelWithDebInfo-Aggressive"
+          "x64-Clang-Release",
+          #"x64-Clang-RelWithDebInfo-Aggressive"
           ]
     env:
       CMAKE_PRESET: ${{ matrix.preset }}
