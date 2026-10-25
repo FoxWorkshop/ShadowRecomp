@@ -1,5 +1,6 @@
 #include <kernel/function.h>
 #include <app.h>
+#include <os/logger.h>
 
 static const uint32_t g_groundSlopeCos = 0x448F00;   // cos80 originally
 static const uint32_t g_groundReachScale = 0x448F68; // 2.37f originally
@@ -292,6 +293,131 @@ bool CollisionToleranceSlopeGateMidAsmHook(X86Register& esi, X86Register& esp)
 	X86_STORE_F32(esp.u32 + 0x50, g_rayFloorNormal[1]);
 	X86_STORE_F32(esp.u32 + 0x54, g_rayFloorNormal[2]);
 	return true;
+}
+
+// Black Comet and Final Haunt have an issue with a specific collision (copy paste layout moment)
+// A few polygons which should be treated as "floor" are actually a small wall, lying across the trench floor.
+// It's not really an issue at 60 FPS since you will at worst get a tiny bump. Above however, it's enough to 
+// be considered as a fence per the game and block the player until they have enough speed where 
+// it eventually break.
+// Fix: We swap the fence polygons for copies of the floor polygons next to them and GG.
+
+struct ColiPolygonSwap
+{
+	uint16_t target;
+	std::array<uint16_t, 4> targetValues;
+	uint16_t source;
+	std::array<uint16_t, 4> sourceValues;
+};
+
+struct PatchedColiFence
+{
+	const char* name;
+	uint16_t numVertices;
+	uint16_t numPolygons;
+	uint64_t vertexHash; // hash the og vertex so the patch won't run for modded stages / cols
+	std::vector<ColiPolygonSwap> poly;
+};
+
+// thanks Heroes Power Plant and Blender
+static const PatchedColiFence coliFenceFixes[] =
+{
+	{ "STG0601_18_COLI_", 592, 764, 0x02A16541D0C519C4ull,
+		{
+			{ 1, { 2, 3, 4, 0 }, 3, { 6, 2, 4, 0 } },
+			{ 2, { 3, 2, 5, 0 }, 4, { 2, 1, 4, 0 } },
+			{ 5, { 2, 4, 5, 0 }, 3, { 6, 2, 4, 0 } },
+			{ 6, { 3, 5, 4, 0 }, 4, { 2, 1, 4, 0 } },
+			{ 8, { 4, 5, 8, 0 }, 7, { 7, 6, 4, 0 } },
+			{ 9, { 5, 4, 8, 0 }, 12, { 9, 7, 4, 0 } },
+			{ 10, { 7, 4, 8, 0 }, 7, { 7, 6, 4, 0 } },
+			{ 11, { 4, 7, 8, 0 }, 12, { 9, 7, 4, 0 } },
+		}
+	},
+	{ "STG0604_18_COLI_", 624, 790, 0xC896D1BFBB3E4CABull,
+		{
+			{ 693, { 522, 523, 524, 3 }, 696, { 523, 527, 524, 3 } },
+			{ 694, { 523, 522, 524, 3 }, 698, { 529, 523, 524, 3 } },
+		}
+	},
+};
+
+// polygon field order don't match between the stream and the RpPolygon version, so sort them to compare them properly.
+static bool PolygonMatches(uint32_t polygon, std::array<uint16_t, 4> expected)
+{
+	auto base = g_memory.base;
+	std::array<uint16_t, 4> values;
+
+	for (int i = 0; i < 4; i++)
+	{
+		values[i] = X86_LOAD_U16(polygon + i * 2);
+	}
+
+	std::sort(values.begin(), values.end());
+	std::sort(expected.begin(), expected.end());
+	return values == expected;
+}
+
+static void FixColiFences(uint32_t world)
+{
+	auto base = g_memory.base;
+
+	if (world == NULL)
+	{
+		return;
+	}
+
+	// (RpWorld rootSector, rwSECTORATOMIC)
+	uint32_t sector = X86_LOAD_U32(world + 0x1C);
+	if (sector == NULL || (int32_t)X86_LOAD_U32(sector) != -1)
+	{
+		return;
+	}
+
+	uint32_t polygons = X86_LOAD_U32(sector + 0x4);
+	uint32_t vertices = X86_LOAD_U32(sector + 0x8);
+
+	if (polygons == NULL || vertices == NULL)
+	{
+		return;
+	}
+
+	// Memo: Xbox RpWorldSector is 0x88 bytes, counts are written by sub_2CDAF0
+	uint16_t numVertices = X86_LOAD_U16(sector + 0x82);
+	uint16_t numPolygons = X86_LOAD_U16(sector + 0x84);
+
+	for (const auto& fixedCol : coliFenceFixes)
+	{
+		if (numVertices != fixedCol.numVertices || numPolygons != fixedCol.numPolygons || XXH3_64bits(base + vertices, fixedCol.numVertices * 12) != fixedCol.vertexHash)
+		{
+			continue;
+		}
+
+		for (const auto& swapPoly : fixedCol.poly)
+		{
+			if (!PolygonMatches(polygons + swapPoly.target * 8, swapPoly.targetValues) || !PolygonMatches(polygons + swapPoly.source * 8, swapPoly.sourceValues))
+			{
+				return;
+			}
+		}
+
+		for (const auto& swapPoly : fixedCol.poly)
+		{
+			X86_STORE_U32(polygons + swapPoly.target * 8, X86_LOAD_U32(polygons + swapPoly.source * 8));
+			X86_STORE_U32(polygons + swapPoly.target * 8 + 4, X86_LOAD_U32(polygons + swapPoly.source * 8 + 4));
+		}
+
+		return;
+	}
+}
+
+// stage section COLI world load callback 
+// (first param is the new RpWorld)
+X86_FUNC_IMPL(__imp__sub_1B010);
+X86_FUNC(sub_1B010)
+{
+	FixColiFences(X86_LOAD_U32(ctx.esp.u32 + 4));
+	__imp__sub_1B010(ctx, base);
 }
 
 // Patch Coaster's bar collision to allow bullets
