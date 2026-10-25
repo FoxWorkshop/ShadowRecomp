@@ -170,3 +170,47 @@ static void AppendUtf8(std::string& out, uint32_t c)
         out += (char)(0x80 | (c & 0x3F));
     }
 }
+
+constexpr uint32_t g_ResourceManager = 0x541C5C;
+
+// Helper function to get the slot of the first BON inside a loaded .one file, returns 0 if it had none.
+// Memo: ResourceOneFile is stored at +4 (node key at +12 and value at +16).
+// ResourceOneFile has its entries at +0x24 and their count at +0x28.
+static uint32_t FindBonSlot(uint8_t* base, uint32_t archive)
+{
+    uint32_t manager = X86_LOAD_U32(g_ResourceManager);
+
+    if (manager == 0)
+        return 0;
+
+    uint32_t resource = X86_LOAD_U32(manager + 4);
+    uint32_t curResource = resource;
+
+    for (uint32_t node = X86_LOAD_U32(resource + 4); X86_LOAD_U8(node + 21) == 0;)
+    {
+        if (X86_LOAD_U32(node + 12) >= archive)
+        {
+            curResource = node;
+            node = X86_LOAD_U32(node);
+        }
+        else
+        {
+            node = X86_LOAD_U32(node + 8);
+        }
+    }
+
+    if (curResource == resource || X86_LOAD_U32(curResource + 12) != archive)
+        return 0;
+
+    uint32_t oneFile = X86_LOAD_U32(curResource + 16);
+    uint32_t entries = X86_LOAD_U32(oneFile + 0x24);
+    uint32_t count = X86_LOAD_U32(oneFile + 0x28);
+
+    for (uint32_t i = 0; i < count; i++)
+    {
+        if (X86_LOAD_U32(entries + i * 0x3C + 0x2C) == 1)
+            return i + 2;
+    }
+
+    return 0;
+}
