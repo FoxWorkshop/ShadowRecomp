@@ -43,3 +43,6 @@
 [submodule "tools/XShaderRecomp"]
 	path = tools/XShaderRecomp
 	url = https://github.com/FoxWorkshop/XShaderRecomp
+[submodule "thirdparty/ddspp"]
+	path = thirdparty/ddspp
+	url = https://github.com/redorav/ddspp.git

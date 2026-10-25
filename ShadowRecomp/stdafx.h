@@ -314,6 +314,7 @@ inline void OutputDebugStringA(const char* s) { printf("%s", s); }
 #include <x86/x86_recomp_shared.h>
 #include <toml++/toml.hpp>
 #include <zstd.h>
+#include <ddspp.h>
 #include <stb_image.h>
 #include <blockingconcurrentqueue.h>
 #include <SDL3/SDL.h>
