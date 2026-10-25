@@ -728,18 +728,23 @@ bool NpcMotionBlinkPhaseMidAsmHook(X86Register& esi)
 
 /**	--EggFleet hit blink patch START-- */
 
-// Sky Troops battleships blink for 0.5s when getting hit, the timer is correctly delta timed,
+// Sky Troops battleships and jewel (power devices thing) blink for a short time when getting hit, the timer is correctly delta timed,
 // but the check to stop the blink isn't correct (& 2 moment) so it doesn't work.
 // We can remake the sequence from the timer instead using 2 slices of 1/60s when it's on, then 2 when it's off as intended.
-static bool EggFleetBlinkPhaseOff(uint32_t fleet)
+static bool HitTimerBlinkPhaseOff(uint32_t timer)
 {
 	auto base = g_memory.base;
-	const float timeLeft = fleet != 0 ? X86_LOAD_F32(fleet + 0x44) : 0.0f;
+	const float timeLeft = timer != 0 ? X86_LOAD_F32(timer) : 0.0f;
 
 	if (!(timeLeft > 0.0f) || timeLeft > 1.0e6f)
 		return (X86_LOAD_U32(0x54DDC0) & 2) == 0;
 
 	return (static_cast<int>(timeLeft * 60.0f + 0.25f) & 2) == 0;
+}
+
+static bool EggFleetBlinkPhaseOff(uint32_t fleet)
+{
+	return HitTimerBlinkPhaseOff(fleet != 0 ? fleet + 0x44 : 0);
 }
 
 // EggFleet exec (sub_1C50A0)
@@ -756,6 +761,14 @@ bool EggFleetPartBlinkPhaseMidAsmHook(X86Register& esi)
 {
 	auto base = g_memory.base;
 	return EggFleetBlinkPhaseOff(X86_LOAD_U32(esi.u32 + 4));
+}
+
+// PowerDeviceNaked exec (sub_1C78E0)
+// True = regular (0x1C7B0D)
+// false = hit blink (0x1C7B06)
+bool PowerDeviceBlinkPhaseMidAsmHook(X86Register& esi)
+{
+	return HitTimerBlinkPhaseOff(esi.u32 + 0x60);
 }
 
 /* --EggFleet hit blink patch END-- */
