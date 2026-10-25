@@ -924,10 +924,10 @@ CONFIG_DEFINE_LOCALE(EnablePartnerIntro)
 
 CONFIG_DEFINE_LOCALE(MaxHUDWidth)
 {
-    { ELanguage::English,  { "Max HUD Width", "Constrain HUD to a chosen aspect ratio. Primarily for ultrawide monitors." } },
-    { ELanguage::Japanese, { "Max HUD Width", "Constrain HUD to a chosen aspect ratio. Primarily for ultrawide monitors." } },
-    { ELanguage::German,   { "Max HUD Width", "Constrain HUD to a chosen aspect ratio. Primarily for ultrawide monitors." } },
-    { ELanguage::French,   { "Max HUD Width", "Constrain HUD to a chosen aspect ratio. Primarily for ultrawide monitors." } },
-    { ELanguage::Spanish,  { "Max HUD Width", "Constrain HUD to a chosen aspect ratio. Primarily for ultrawide monitors." } },
-    { ELanguage::Italian,  { "Max HUD Width", "Constrain HUD to a chosen aspect ratio. Primarily for ultrawide monitors." } }
+    { ELanguage::English,  { "HUD Width", "Constrain HUD to a chosen aspect ratio. Primarily for ultrawide monitors." } },
+    { ELanguage::Japanese, { "HUD Width", "Constrain HUD to a chosen aspect ratio. Primarily for ultrawide monitors." } },
+    { ELanguage::German,   { "HUD Width", "Constrain HUD to a chosen aspect ratio. Primarily for ultrawide monitors." } },
+    { ELanguage::French,   { "HUD Width", "Constrain HUD to a chosen aspect ratio. Primarily for ultrawide monitors." } },
+    { ELanguage::Spanish,  { "HUD Width", "Constrain HUD to a chosen aspect ratio. Primarily for ultrawide monitors." } },
+    { ELanguage::Italian,  { "HUD Width", "Constrain HUD to a chosen aspect ratio. Primarily for ultrawide monitors." } }
 };

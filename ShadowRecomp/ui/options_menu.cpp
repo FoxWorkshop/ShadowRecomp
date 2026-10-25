@@ -1916,7 +1916,6 @@ static void DrawOptions(ImVec2 minClipRect, ImVec2 maxClipRect, ImVec2 min, ImVe
 		DrawOption(rowCount++, &Config::ConfirmationPrompt, true, min, max);
 		DrawOption(rowCount++, &Config::Hints, !OptionsMenu::s_isPause, min, max);
 		DrawOption(rowCount++, &Config::AchievementNotifications, true, min, max);
-		DrawOption(rowCount++, &Config::ChaosPowerLEDSync, true, min, max);
 
 		break;
 
@@ -1940,6 +1939,7 @@ static void DrawOptions(ImVec2 minClipRect, ImVec2 maxClipRect, ImVec2 min, ImVe
 			DrawOption(rowCount++, &Config::Vibration4P, true, min, max);
 		}
 		DrawOption(rowCount++, &Config::ControllerIcons, !OptionsMenu::s_isPause, min, max, cmnReason);
+		DrawOption(rowCount++, &Config::ChaosPowerLEDSync, true, min, max);
 		DrawOption(rowCount++, &Config::AllowBackgroundInput, true, min, max);
 		DrawCustomizeInputOption(rowCount++, min, max);
 		break;
@@ -1956,9 +1956,9 @@ static void DrawOptions(ImVec2 minClipRect, ImVec2 maxClipRect, ImVec2 min, ImVe
 
 		DrawOption(rowCount++, &Config::MasterVolume, true, min, max);
 		DrawOption(rowCount++, &Config::MusicVolume, true, min, max);
+		DrawOption(rowCount++, &Config::EffectsVolume, true, min, max);
 		DrawOption(rowCount++, &Config::VoicesVolume, true, min, max);
 		DrawOption(rowCount++, &Config::CutsceneVolume, true, min, max);
-		DrawOption(rowCount++, &Config::EffectsVolume, true, min, max);
 		DrawOption(rowCount++, &Config::MusicAttenuation, os::media::IsSupported(), min, max, &Localise("Options_Desc_OSNotSupported"));
 		DrawOption(rowCount++, &Config::MuteOnFocusLost, true, min, max);
 		DrawOption(rowCount++, &Config::IdleChaosPowersMusic, !OptionsMenu::s_isPause, min, max, cmnReason);
@@ -1969,13 +1969,6 @@ static void DrawOptions(ImVec2 minClipRect, ImVec2 maxClipRect, ImVec2 min, ImVe
 	{
 		bool canChangeResolution = Config::Fullscreen == false;
 
-#ifdef SHADOW_RECOMP_D3D12
-		DrawOption(rowCount++, &Config::GraphicsAPI, !OptionsMenu::s_isPause, min, max, cmnReason);
-#endif
-
-		DrawOption(rowCount++, &Config::WindowSize, canChangeResolution, min, max, devReason, 0, 0, (int)GameWindow::GetDisplayModes().size() - 1, false);
-
-
 		auto displayCount = GameWindow::GetDisplayCount();
 		auto canChangeMonitor = Config::Fullscreen && displayCount > 1;
 		auto monitorReason = &Localise("Options_Desc_NotAvailableWindowed");
@@ -1985,17 +1978,23 @@ static void DrawOptions(ImVec2 minClipRect, ImVec2 maxClipRect, ImVec2 min, ImVe
 
 		auto monitorMax = GameWindow::CanSpanDisplays() ? displayCount : displayCount - 1;
 		DrawOption(rowCount++, &Config::Monitor, canChangeMonitor, min, max, devReason, 0, 0, std::max(monitorMax, 0), false);
-		DrawOption(rowCount++, &Config::AspectRatio, true, min, max, devReason);
-		DrawOption(rowCount++, &Config::FMVAspectRatio, true, min, max, nullptr);
-		DrawOption(rowCount++, &Config::ResolutionScale, true, min, max, nullptr, 0.25f, 1.0f, 2.0f);
 		DrawOption(rowCount++, &Config::Fullscreen, true, min, max, devReason);
+		DrawOption(rowCount++, &Config::AspectRatio, true, min, max, devReason);
+		DrawOption(rowCount++, &Config::WindowSize, canChangeResolution, min, max, devReason, 0, 0, (int)GameWindow::GetDisplayModes().size() - 1, false);
+		DrawOption(rowCount++, &Config::ResolutionScale, true, min, max, nullptr, 0.25f, 1.0f, 2.0f);
+		DrawOption(rowCount++, &Config::FMVAspectRatio, true, min, max, nullptr);
+		DrawOption(rowCount++, &Config::MaxHUDWidth, true, min, max, nullptr);
 		DrawOption(rowCount++, &Config::VSync, true, min, max, nullptr);
 		DrawOption(rowCount++, &Config::FPS, true, min, max, nullptr, FPS_MIN, 120, FPS_MAXSoft);
 		DrawOption(rowCount++, &Config::CutsceneFramerate, true, min, max, nullptr);
 		DrawOption(rowCount++, &Config::Brightness, true, min, max, nullptr);
-		DrawOption(rowCount++, &Config::TextureFiltering, true, min, max, nullptr);
-		DrawOption(rowCount++, &Config::MaxHUDWidth, true, min, max, nullptr);
 		DrawOption(rowCount++, &Config::BloomIntensity, true, min, max, nullptr);
+		DrawOption(rowCount++, &Config::TextureFiltering, true, min, max, nullptr);
+
+#ifdef SHADOW_RECOMP_D3D12
+		DrawOption(rowCount++, &Config::GraphicsAPI, !OptionsMenu::s_isPause, min, max, cmnReason);
+#endif
+
 		break;
 	}
 
