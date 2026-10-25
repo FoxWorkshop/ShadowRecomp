@@ -63,7 +63,7 @@ static constexpr uint32_t PORT_BUFFER = 0x8; // used as a guest key for IDirectS
 #define DSBVOLUME_MIN   -10000  // Silence (-100 dB)
 #define DSBVOLUME_MAX        0  // Full volume (0 dB no attenuation)
 #define SFX_VOLUME_SCALE 0.5f
-#define SFX_3DVOLUME_SCALE 1.0f
+#define SFX_3DVOLUME_SCALE 0.5f
 
 typedef struct _XDSMIXBINVOLUMEPAIR {
     uint32_t       dwMixBin;
