@@ -1154,7 +1154,6 @@ void StretchPictureVertex(uint32_t atomicAddr, uint8_t* base)
 		{
 			RwV3d* verts = morphTargetPtr->verts.get();
 
-
 			// We can't blindly stretch the same vertex to stretch the models,
 			// the in-plane vertical axis is whichever of Y/Z actually spans, the other one is 
 			// the plane normal and is constant with all four corners.
@@ -1229,8 +1228,6 @@ X86_FUNC(sub_1FE00)
 	if (mode == 4)
 	{
 		FindPictureBackgroundModel(&ctx, base);
-		BigfootCanopyOnClumpRead(&ctx, base);
-		ChaosEyeRotationOnClumpRead(&ctx, base);
 	}
 
 	__imp__sub_1FE00(ctx, base);
@@ -1240,8 +1237,6 @@ X86_FUNC(sub_1FE00)
 		g_currentQuadCallib = nullptr;
 	}
 }
-
-
 
 // -------------- CSD MODIFIERS --------------- //
 

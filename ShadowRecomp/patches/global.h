@@ -187,5 +187,3 @@ struct RpMorphTarget
 
 struct X86Context;
 char* TOneFileCheckFileName(TOneFile* this_, int32_t index);
-void BigfootCanopyOnClumpRead(X86Context* ctx, uint8_t* base);
-void ChaosEyeRotationOnClumpRead(X86Context* ctx, uint8_t* base);
