@@ -344,6 +344,15 @@ LONG ExQueryNonVolatileSetting(
 		}
 		break;
 
+	case xbox::XC_AUDIO:
+		if (ValueLength >= 4)
+		{
+			*(DWORD*)Value = 0; // force stereo
+			if (ResultLength) *ResultLength = 4;
+			return X_STATUS_SUCCESS;
+		}
+		break;
+
 	case xbox::XC_FACTORY_GAME_REGION:
 		if (ValueLength >= 4)
 		{
