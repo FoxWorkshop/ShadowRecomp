@@ -670,7 +670,7 @@ void InstallerWizard::Draw()
 	g_openProgress = StepOpenProgress(g_openProgress, g_isClosing);
 	if (g_isClosing && g_openProgress <= 0.0f)
 	{
-		if (!g_isQuitting && !EmbeddedPlayer::IsPlayingSound())
+		if (!g_isQuitting && !EmbeddedPlayer::IsPlayingSound() && !EmbeddedPlayer::IsPlayingMusic())
 		{
 			s_isVisible = false;
 		}
@@ -1043,6 +1043,7 @@ void InstallerWizard::Draw()
 		{
 			Game_PlaySound("decide");
 			g_isClosing = true;
+			EmbeddedPlayer::FadeOutMusic();
 		}
 		break;
 	}
@@ -1191,7 +1192,7 @@ bool InstallerWizard::Run(std::filesystem::path installPath)
 
 	while (s_isVisible)
 	{
-		if (!g_isQuitting)
+		if (!g_isClosing)
 		{
 			EmbeddedPlayer::PlayMusic();
 		}

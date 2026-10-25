@@ -145,6 +145,11 @@ bool EmbeddedPlayer::IsPlayingSound()
     return std::any_of(g_soundTracks.begin(), g_soundTracks.end(), [](MIX_Track* track) { return MIX_TrackPlaying(track); });
 }
 
+bool EmbeddedPlayer::IsPlayingMusic()
+{
+    return MIX_TrackPlaying(g_musicTrack);
+}
+
 void EmbeddedPlayer::Shutdown()
 {
     MIX_DestroyMixer(g_mixer);
