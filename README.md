@@ -40,7 +40,7 @@ The development of that recompiler was directly inspired by [XenonRecomp](https:
     - Windows 10 (version 1909)
     - A modern Linux distro such as Ubuntu 22.04 LTS
 - Storage:
-    - 4.5 GiB required
+    - 2.4 GiB required
 
 
 ## Features
