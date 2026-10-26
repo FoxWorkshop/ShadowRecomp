@@ -1,6 +1,7 @@
 #include "imgui_snapshot.h"
 
 #include <locale/locale.h>
+#include <locale/achievement_locale.h>
 #include <res/font/im_font_atlas.bin.h>
 #include <user/config.h>
 #include <decompressor.h>
@@ -170,16 +171,15 @@ void ImFontAtlasSnapshot::GenerateGlyphRanges()
             GetGlyphs(glyphs, value);
     }
 
-    /**for (size_t i = XDBF_LANGUAGE_ENGLISH; i <= XDBF_LANGUAGE_ITALIAN; i++)
+    for (auto& [id, locale] : g_shrLocale)
     {
-        auto achievements = g_xdbfWrapper.GetAchievements(static_cast<EXDBFLanguage>(i));
-        for (auto& achievement : achievements)
+        for (auto& [language, achievement] : locale)
         {
             GetGlyphs(glyphs, achievement.Name);
             GetGlyphs(glyphs, achievement.UnlockedDesc);
             GetGlyphs(glyphs, achievement.LockedDesc);
         }
-    }*/
+    }
 
     for (auto glyph : glyphs)
     {
