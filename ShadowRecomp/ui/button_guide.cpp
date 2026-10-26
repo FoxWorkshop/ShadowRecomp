@@ -5,11 +5,9 @@
 #include <input/input.h>
 #include <patches/aspect_ratio_patches.h>
 #include <user/config.h>
-#include <app.h>
 #include <decompressor.h>
 
 #include <res/images/common/controllerBtn.png.h>
-//#include <res/images/common/kbm.png.h>
 
 constexpr float DEFAULT_SIDE_MARGINS = 379;
 float g_sideMargins = DEFAULT_SIDE_MARGINS;
@@ -35,9 +33,6 @@ std::unordered_map<EButtonIcon, float> g_iconWidths =
     { EButtonIcon::B, widthC },
     { EButtonIcon::X, widthC },
     { EButtonIcon::Y, widthC },
-    { EButtonIcon::LMB, 40 },
-    { EButtonIcon::Enter, 40 },
-    { EButtonIcon::Escape, 40 },
 };
 
 std::unordered_map<EButtonIcon, float> g_iconHeights =
@@ -46,9 +41,6 @@ std::unordered_map<EButtonIcon, float> g_iconHeights =
     { EButtonIcon::B, heightC },
     { EButtonIcon::X, heightC },
     { EButtonIcon::Y, heightC },
-    { EButtonIcon::LMB, 40 },
-    { EButtonIcon::Enter, 40 },
-    { EButtonIcon::Escape, 40 },
 };
 
 std::tuple<std::tuple<ImVec2, ImVec2>, GuestTexture*> GetButtonIcon(EButtonIcon icon)
@@ -81,8 +73,6 @@ std::tuple<std::tuple<ImVec2, ImVec2>, GuestTexture*> GetButtonIcon(EButtonIcon 
         xOffsetCmn = 80;
     }
 
-
-
     switch (icon)
     {
     case EButtonIcon::X:
@@ -93,7 +83,6 @@ std::tuple<std::tuple<ImVec2, ImVec2>, GuestTexture*> GetButtonIcon(EButtonIcon 
         btn = PIXELS_TO_UV_COORDS(114, 120, xOffsetCmn, 0 + 30, 35, 30);
         texture = g_upControllerIcons.get();
         break;
-
     case EButtonIcon::B:
         btn = PIXELS_TO_UV_COORDS(114, 120, xOffsetCmn, 0 + 60, 35, 30);
         texture = g_upControllerIcons.get();
@@ -102,23 +91,8 @@ std::tuple<std::tuple<ImVec2, ImVec2>, GuestTexture*> GetButtonIcon(EButtonIcon 
         btn = PIXELS_TO_UV_COORDS(114, 120, xOffsetCmn, yOffsetBtnY, 35, 30);
         texture = g_upControllerIcons.get();
         break;
-
-    case EButtonIcon::LMB:
-        btn = PIXELS_TO_UV_COORDS(384, 128, 0, 0, 128, 128);
-        texture = g_upKBMIcons.get();
-        break;
-
-    case EButtonIcon::Enter:
-        btn = PIXELS_TO_UV_COORDS(384, 128, 128, 0, 128, 128);
-        texture = g_upKBMIcons.get();
-        break;
-
-    case EButtonIcon::Escape:
-        btn = PIXELS_TO_UV_COORDS(384, 128, 256, 0, 128, 128);
-        texture = g_upKBMIcons.get();
-        break;
+    default: ;
     }
-
 
     return std::make_tuple(btn, texture);
 }
@@ -275,13 +249,9 @@ void ButtonGuide::Draw()
 void ButtonGuide::Init()
 {
     auto& io = ImGui::GetIO();
-
-   // g_fntNewRodin = ImFontAtlasSnapshot::GetFont("FOT-SeuratPro-DB.otf");
     g_fntDFPZong = ImFontAtlasSnapshot::GetFont("DFPZongYiW5-B5.ttc");
     g_upControllerIcons = LOAD_ZSTD_TEXTURE(g_controller);
-    //g_upKBMIcons = LOAD_ZSTD_TEXTURE(g_kbm);
 }
-
 
 void ButtonGuide::Open(Button button)
 {
@@ -292,9 +262,7 @@ void ButtonGuide::Open(Button button)
 
     g_buttons = {};
     g_buttons.push_back(button);
-
 }
-
 
 void ButtonGuide::Open(const std::span<Button> buttons)
 {
@@ -304,7 +272,6 @@ void ButtonGuide::Open(const std::span<Button> buttons)
     g_isCenterAnchored = false;
     g_buttons = std::vector(buttons.begin(), buttons.end());
 }
-
 
 void ButtonGuide::SetSideMargins(float width = DEFAULT_SIDE_MARGINS)
 {

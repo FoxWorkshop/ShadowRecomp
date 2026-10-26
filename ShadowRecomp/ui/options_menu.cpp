@@ -56,7 +56,6 @@ static std::unique_ptr<GuestTexture> g_upTexOptionsBG2{};
 
 static std::unique_ptr<GuestTexture> g_upTexOptionsIcons{};
 static std::unique_ptr<GuestTexture> g_upTexOptionsText{}; // flame, options logo, hud etc.
-static std::unique_ptr<GuestTexture> g_upTexGameMenuText{}; // select, exit text etc.
 static std::unique_ptr<GuestTexture> g_upTexArrow{};
 static std::unique_ptr<GuestTexture> g_upTexHpGauge{};
 static ImFont* g_fntSeurat;
@@ -2558,7 +2557,6 @@ static void OpenButtonGuide()
 {
 	std::array<Button, 3> buttons =
 	{
-		//Button("Common_Switch", 115.0f, EButtonIcon::LBRB, EButtonAlignment::Left, &g_isControlsVisible),
 		Button("Common_Exit", 115.0f, EButtonIcon::Y, EButtonAlignment::Left, &g_isControlsVisible),
 		Button("Common_Reset", 100.0f, EButtonIcon::X, EButtonAlignment::Right, &g_optionCanReset),
 		Button("Common_Select", 75.0f, EButtonIcon::A, EButtonAlignment::Right, &g_isControlsVisible),

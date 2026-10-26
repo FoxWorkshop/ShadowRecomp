@@ -691,7 +691,6 @@ BIN2C(TARGET_OBJ ShadowRecomp SOURCE_FILE "${RESOURCES_SOURCE_PATH}/bc_diff/butt
 BIN2C(TARGET_OBJ ShadowRecomp SOURCE_FILE "${RESOURCES_SOURCE_PATH}/bc_diff/button_bc_diff_ps2.bin" DEST_FILE "${RESOURCES_OUTPUT_PATH}/bc_diff/button_bc_diff_ps2.bin" ARRAY_NAME "g_button_bc_diff_ps2" COMPRESSION_TYPE "zstd")
 BIN2C(TARGET_OBJ ShadowRecomp SOURCE_FILE "${RESOURCES_SOURCE_PATH}/font/im_font_atlas.bin" DEST_FILE "${RESOURCES_OUTPUT_PATH}/font/im_font_atlas.bin" ARRAY_NAME "g_im_font_atlas" COMPRESSION_TYPE "zstd")
 BIN2C(TARGET_OBJ ShadowRecomp SOURCE_FILE "${RESOURCES_SOURCE_PATH}/font/im_font_atlas.png" DEST_FILE "${RESOURCES_OUTPUT_PATH}/font/im_font_atlas.png" ARRAY_NAME "g_im_font_atlas_texture" COMPRESSION_TYPE "zstd")
-BIN2C(TARGET_OBJ ShadowRecomp SOURCE_FILE "${RESOURCES_SOURCE_PATH}/images/common/gamemenu.png" DEST_FILE "${RESOURCES_OUTPUT_PATH}/images/common/gamemenu.png" ARRAY_NAME "g_gameMenuText" COMPRESSION_TYPE "zstd")
 BIN2C(TARGET_OBJ ShadowRecomp SOURCE_FILE "${RESOURCES_SOURCE_PATH}/images/common/Options.png" DEST_FILE "${RESOURCES_OUTPUT_PATH}/images/common/Options.png" ARRAY_NAME "g_optionsText" COMPRESSION_TYPE "zstd")
 BIN2C(TARGET_OBJ ShadowRecomp SOURCE_FILE "${RESOURCES_SOURCE_PATH}/images/common/Options2.png" DEST_FILE "${RESOURCES_OUTPUT_PATH}/images/common/Options2.png" ARRAY_NAME "g_options_bg2" COMPRESSION_TYPE "zstd")
 BIN2C(TARGET_OBJ ShadowRecomp SOURCE_FILE "${RESOURCES_SOURCE_PATH}/images/common/HPgauge.png" DEST_FILE "${RESOURCES_OUTPUT_PATH}/images/common/HPgauge.png" ARRAY_NAME "g_hpGauge" COMPRESSION_TYPE "zstd")
