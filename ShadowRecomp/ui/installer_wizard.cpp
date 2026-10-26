@@ -30,6 +30,7 @@ enum class WizardPage
 	SelectLanguage,
 	Introduction,
 	SelectGame,
+	CheckSpace,
 	Installing,
 	InstallSucceeded,
 	InstallFailed,
@@ -97,6 +98,8 @@ static float g_installerProgress = 0.0f;
 static std::atomic<float> g_installerProgressTarget{ 0.0f };
 static std::atomic<const char*> g_installerCurrentFileName{ "" };
 static std::atomic<bool> g_installerCompiling{ false };
+static Installer::Sources g_installerSources;
+static uint64_t g_installerAvailableSize = 0;
 
 static constexpr float INSTALL_EXTRACT_RATIO_END = 0.8f;
 
@@ -138,6 +141,7 @@ static std::string& GetWizardText(WizardPage page)
 	case WizardPage::SelectLanguage: return Localise("Installer_Page_SelectLanguage");
 	case WizardPage::Introduction: return Localise("Installer_Page_Introduction");
 	case WizardPage::SelectGame: return Localise("Installer_Page_SelectGame");
+	case WizardPage::CheckSpace: return Localise("Installer_Page_CheckSpace");
 	case WizardPage::Installing: return Localise("Installer_Page_Installing");
 	case WizardPage::InstallSucceeded: return Localise("Installer_Page_InstallSucceeded");
 	}
@@ -854,7 +858,7 @@ void InstallerWizard::Draw()
 			float nextBtnX = panelMin.x + ((panelMax.x - panelMin.x) - nextBtnWidth) * 0.5f;
 			float nextBtnY = panelMax.y - nextBtnHeight - (70.0f * scale);
 
-			auto nextText = Localise("Common_Install").c_str();
+			auto nextText = Localise("Installer_Button_Next").c_str();
 			auto nextSize = font->CalcTextSizeA(smallFontSize, FLT_MAX, 0, nextText);
 
 			bool nextHovered = false;
@@ -898,17 +902,110 @@ void InstallerWizard::Draw()
 			if (nextHovered && io.MouseClicked[0])
 			{
 				Game_PlaySound("decide");
-				g_currentPage = WizardPage::Installing;
-				g_installerFinished.store(false);
-				g_installerFailed.store(false);
-				g_installerCompiling.store(false);
-				g_installerProgress = 0.0f;
-				g_installerProgressTarget.store(0.0f);
-				g_installerThread = std::make_unique<std::thread>(InstallerThread);
+
+				std::error_code spaceErrorCode;
+				std::filesystem::path spacePath = g_sourcePath;
+	
+				g_installerAvailableSize = 0;
+				std::filesystem::space_info spaceInfo = std::filesystem::space(spacePath.parent_path(), spaceErrorCode);
+				if (!spaceErrorCode)
+				{
+					g_installerAvailableSize = spaceInfo.available;
+				}
+		
+				std::string parseError;
+				if (Installer::ParseSources(g_sourcePath, g_installerSources, parseError))
+				{
+					g_statusMessage.clear();
+					g_currentPage = WizardPage::CheckSpace;
+				}
+				else
+				{
+					g_statusMessage = parseError;
+				}
 			}
 		}
 
 		DrawPrevButton(panelMin, panelMax, scale);
+	}
+	break;
+	case WizardPage::CheckSpace:
+	{
+		constexpr double DivisorGiB = (1024.0 * 1024.0 * 1024.0);
+		double requiredGiB = double(g_installerSources.totalSize) / DivisorGiB;
+		double availableGiB = double(g_installerAvailableSize) / DivisorGiB;
+
+		char requiredSpaceText[128];
+		char availableSpaceText[128];
+		snprintf(requiredSpaceText, sizeof(requiredSpaceText), Localise("Installer_Step_RequiredSpace").c_str(), requiredGiB);
+		snprintf(availableSpaceText, sizeof(availableSpaceText), (g_installerAvailableSize > 0) ? Localise("Installer_Step_AvailableSpace").c_str() : "", availableGiB);
+		char spaceText[512];
+		snprintf(spaceText, sizeof(spaceText), "%s\n%s", requiredSpaceText, availableSpaceText);
+
+		auto spaceTextSize = MeasureCentredParagraph(g_fntSeurat, descFontSize, textMaxWidth, textMargin, spaceText);
+		ImVec2 spaceTextPosition = ImVec2(panelMin.x + (panelWidth - spaceTextSize.x) * 0.5f, textPosition.y + textSize.y + descFontSize);
+
+		DrawWizardParagraph(spaceText, textMaxWidth, textMargin, spaceTextPosition);
+
+		DrawPrevButton(panelMin, panelMax, scale);
+
+		float nextBtnWidth = 45.0f * scale;
+		float nextBtnHeight = 20.0f * scale;
+		float nextBtnX = panelMin.x + ((panelMax.x - panelMin.x) - nextBtnWidth) * 0.5f;
+		float nextBtnY = panelMax.y - nextBtnHeight - (70.0f * scale);
+
+		auto nextText = Localise("Common_Install").c_str();
+		auto nextSize = font->CalcTextSizeA(smallFontSize, FLT_MAX, 0, nextText);
+
+		bool nextHovered = false;
+
+		if (io.MousePos.x >= nextBtnX && io.MousePos.x <= nextBtnX + nextBtnWidth &&
+			io.MousePos.y >= nextBtnY && io.MousePos.y <= nextBtnY + nextBtnHeight)
+		{
+			nextHovered = true;
+				if(!playedNextSound)
+			{
+				Game_PlaySound("cursor");
+				playedNextSound = true;
+			}
+		}
+		else { playedNextSound = false; }
+
+		if (nextHovered)
+		{
+			drawList->AddText(
+				font,
+				smallFontSize,
+				ImVec2(nextBtnX + (nextBtnWidth - nextSize.x) * 0.5f, nextBtnY + (nextBtnHeight - nextSize.y) * 0.5f),
+				IM_COL32(255, 255, 0, 255),
+				nextText
+			);
+		}
+		else
+		{
+			DrawTextWithShadow(
+				font,
+				smallFontSize,
+				ImVec2(nextBtnX + (nextBtnWidth - nextSize.x) * 0.5f, nextBtnY + (nextBtnHeight - nextSize.y) * 0.5f),
+				IM_COL32(255, 255, 255, 127),
+				nextText,
+				1.5,
+				1,
+				IM_COL32(0, 0, 0, 127)
+			);
+		}
+
+		if (nextHovered && io.MouseClicked[0])
+		{
+			Game_PlaySound("decide");
+			g_currentPage = WizardPage::Installing;
+			g_installerFinished.store(false);
+			g_installerFailed.store(false);
+			g_installerCompiling.store(false);
+			g_installerProgress = 0.0f;
+			g_installerProgressTarget.store(0.0f);
+			g_installerThread = std::make_unique<std::thread>(InstallerThread);
+		}
 	}
 	break;
 	case WizardPage::Installing:

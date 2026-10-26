@@ -70,6 +70,71 @@ namespace Installer
         return !ec;
     }
 
+    // picking .xbe = extracted folder
+    static std::filesystem::path GetSourceRoot(const std::filesystem::path& sourcePath)
+    {
+        std::u8string extension = sourcePath.extension().u8string();
+        if (VirtualFileSystem::ToLower(std::string(extension.begin(), extension.end())) == ".xbe")
+        {
+            return sourcePath.parent_path();
+        }
+        return sourcePath;
+    }
+
+    static std::unique_ptr<VirtualFileSystem> CreateFileSystemFromPath(const std::filesystem::path& sourceRoot, std::string& errorMessage)
+    {
+        std::error_code ec;
+        std::unique_ptr<VirtualFileSystem> source;
+        if (std::filesystem::is_directory(sourceRoot, ec))
+        {
+            if (!std::filesystem::is_regular_file(sourceRoot / GameExecutableFile, ec))
+            {
+                errorMessage = fmt::format("File {} is missing.", GameExecutableFile);
+                return nullptr;
+            }
+            source = DirectoryFileSystem::Create(sourceRoot);
+        }
+        else
+        {
+            source = XisoFileSystem::Create(sourceRoot);
+        }
+
+        if (source == nullptr)
+        {
+            errorMessage = "Unable to read the game source.";
+        }
+        return source;
+    }
+
+    static bool ComputeTotalSize(std::span<const FilePair> filePairs, const VirtualFileSystem& source, uint64_t& totalSize, std::string& errorMessage)
+    {
+        for (FilePair pair : filePairs)
+        {
+            const std::string filename(pair.first);
+            if (!source.exists(filename))
+            {
+                errorMessage = fmt::format("File {} is missing.", filename);
+                return false;
+            }
+
+            totalSize += source.getSize(filename);
+        }
+
+        return true;
+    }
+
+    bool ParseSources(const std::filesystem::path& sourcePath, Sources& sources, std::string& errorMessage)
+    {
+        sources = Sources();
+        sources.game = CreateFileSystemFromPath(GetSourceRoot(sourcePath), errorMessage);
+        if (sources.game == nullptr)
+        {
+            return false;
+        }
+
+        return ComputeTotalSize({ GameFiles, GameFilesSize }, *sources.game, sources.totalSize, errorMessage);
+    }
+
     static bool CheckFiles(const VirtualFileSystem& source, const std::vector<FileEntry>& fileEntries, Journal* journal, const ProgressCallback& callback, std::string& errorMessage)
     {
         uint64_t totalSize = 0;
@@ -177,38 +242,16 @@ namespace Installer
     bool Install(const std::filesystem::path& sourcePath, const std::filesystem::path& outputDir, const ProgressCallback& callback, std::string& errorMessage)
     {
         std::error_code ec;
-        std::filesystem::path sourceRoot = sourcePath;
-        std::u8string extension = sourcePath.extension().u8string();
-        if (VirtualFileSystem::ToLower(std::string(extension.begin(), extension.end())) == ".xbe")
-        {
-            // picking .xbe = extracted folder
-            sourceRoot = sourcePath.parent_path();
-        }
-
+        std::filesystem::path sourceRoot = GetSourceRoot(sourcePath);
         if (std::filesystem::equivalent(sourceRoot, outputDir, ec))
         {
             errorMessage = "Very funny -_- pick a different folder.";
             return false;
         }
 
-        std::unique_ptr<VirtualFileSystem> source;
-        if (std::filesystem::is_directory(sourceRoot, ec))
-        {
-            if (!std::filesystem::is_regular_file(sourceRoot / GameExecutableFile, ec))
-            {
-                errorMessage = fmt::format("File {} is missing.", GameExecutableFile);
-                return false;
-            }
-            source = DirectoryFileSystem::Create(sourceRoot);
-        }
-        else
-        {
-            source = XisoFileSystem::Create(sourceRoot);
-        }
-
+        std::unique_ptr<VirtualFileSystem> source = CreateFileSystemFromPath(sourceRoot, errorMessage);
         if (source == nullptr)
         {
-            errorMessage = "Unable to read the game source.";
             return false;
         }
 

@@ -47,6 +47,17 @@ struct VirtualFileSystem
         return findResult != files.end() ? &findResult->second : nullptr;
     }
 
+    bool exists(const std::string& path) const
+    {
+        return Find(path.c_str()) != nullptr;
+    }
+
+    uint64_t getSize(const std::string& path) const
+    {
+        const File* file = Find(path.c_str());
+        return file != nullptr ? file->size : 0;
+    }
+
     static FilePtr OpenFile(const std::filesystem::path& path)
     {
 #ifdef _WIN32

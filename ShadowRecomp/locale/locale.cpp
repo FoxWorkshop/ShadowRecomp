@@ -486,16 +486,52 @@ std::unordered_map<std::string_view, std::unordered_map<ELanguage, std::string>>
 	}
 },
 {
-	"Installer_Page_Installing",
-	{
-		{ ELanguage::English,  "Installing..." },
-		{ ELanguage::Japanese, "Installing..." },
-		{ ELanguage::German,   "Installing..." },
-		{ ELanguage::French,   "Installing..." },
-		{ ELanguage::Spanish,  "Installing..." },
-		{ ELanguage::Italian,  "Installing..." }
-	}
+		// Japanese Notes: This localization should include furigana.
+		"Installer_Page_CheckSpace",
+		{
+			{ ELanguage::English,  "The content will be installed to the program's folder.\n\n" },
+			{ ELanguage::Japanese, "コンテンツはプログラムのフォルダに\nインストールされます\n" },
+			{ ELanguage::German,   "Der Inhalt wird in dem Ordner des Programms installiert.\n" },
+			{ ELanguage::French,   "Le contenu sera installé dans le même dossier que le programme.\n" },
+			{ ELanguage::Spanish,  "El contenido será instalado a la carpeta del programa.\n\n" },
+			{ ELanguage::Italian,  "Il contenuto verrà installato nella cartella di questo programma.\n\n" }
+		}
 },
+{
+		// Japanese Notes: This localization should include furigana.
+		"Installer_Step_RequiredSpace",
+		{
+			{ ELanguage::English,  "Required space: %2.4f GiB" },
+			{ ELanguage::Japanese, "[必要:ひつよう]な[容量:ようりょう]: %2.4f GiB" },
+			{ ELanguage::German,   "Benötigter Speicherplatz:\n%2.4f GiB" },
+			{ ELanguage::French,   "Espace nécessaire :\n%2.4f Gio" },
+			{ ELanguage::Spanish,  "Espacio necesario: %2.4f GiB" },
+			{ ELanguage::Italian,  "Spazio necessario: %2.4f GiB" }
+		}
+},
+{
+		// Japanese Notes: This localization should include furigana.
+		"Installer_Step_AvailableSpace",
+		{
+			{ ELanguage::English,  "Available space: %2.4f GiB" },
+			{ ELanguage::Japanese, "[使用:しよう][可能:かのう]な[容量:ようりょう]: %2.4f GiB" },
+			{ ELanguage::German,   "Verfügbarer Speicherplatz:\n%2.4f GiB" },
+			{ ELanguage::French,   "Espace disponible :\n%2.4f Gio" },
+			{ ELanguage::Spanish,  "Espacio disponible: %2.4f GiB" },
+			{ ELanguage::Italian,  "Spazio disponibile: %2.4f GiB" }
+		}
+},
+	{
+		"Installer_Page_Installing",
+		{
+			{ ELanguage::English,  "Installing..." },
+			{ ELanguage::Japanese, "Installing..." },
+			{ ELanguage::German,   "Installing..." },
+			{ ELanguage::French,   "Installing..." },
+			{ ELanguage::Spanish,  "Installing..." },
+			{ ELanguage::Italian,  "Installing..." }
+		}
+	},
 {
 	"Installer_Page_Compiling",
 	{
