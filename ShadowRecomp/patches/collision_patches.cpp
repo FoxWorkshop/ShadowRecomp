@@ -1,6 +1,5 @@
 #include <kernel/function.h>
 #include <app.h>
-#include <os/logger.h>
 
 static const uint32_t g_groundSlopeCos = 0x448F00;   // cos80 originally
 static const uint32_t g_groundReachScale = 0x448F68; // 2.37f originally
