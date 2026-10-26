@@ -4,8 +4,17 @@
 #include <res/font/im_font_atlas.bin.h>
 #include <user/config.h>
 #include <decompressor.h>
-//#include <kernel/xdbf.h>
-#include <app.h>
+
+
+static size_t GetGlyphRangesCount(const ImWchar* glyphRanges)
+{
+    size_t count = 0;
+    while (glyphRanges[count] != 0)
+    {
+        count++;
+    }
+    return count + 1;
+}
 
 template<typename T1, typename T2>
 void ImFontAtlasSnapshot::SnapPointer(size_t offset, const T1& value, const T2& ptr, size_t count)
@@ -63,7 +72,7 @@ void ImFontAtlasSnapshot::Traverse(size_t offset, const T& value)
     }  
     else if constexpr (std::is_same_v<T, ImFontConfig>)
     {
-        SnapPointer(offset, value, value.GlyphRanges, value.GlyphRanges != nullptr ? wcslen(reinterpret_cast<const wchar_t*>(value.GlyphRanges)) + 1 : 0);
+        SnapPointer(offset, value, value.GlyphRanges, value.GlyphRanges != nullptr ? GetGlyphRangesCount(value.GlyphRanges) : 0);
         SnapPointer(offset, value, value.DstFont, 1);
     }
 }
