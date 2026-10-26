@@ -54,7 +54,7 @@ void ImFontAtlasSnapshot::Traverse(size_t offset, const T& value)
     }
     else if constexpr (std::is_same_v<T, ImFontAtlas>)
     {
-        SnapPointer(offset, value, value.ConfigData.Data, value.ConfigData.Size);
+        SnapPointer(offset, value, value.Sources.Data, value.Sources.Size);
         SnapPointer(offset, value, value.CustomRects.Data, value.CustomRects.Size);
         SnapPointer(offset, value, value.Fonts.Data, value.Fonts.Size);
     }
@@ -65,7 +65,7 @@ void ImFontAtlasSnapshot::Traverse(size_t offset, const T& value)
         SnapPointer(offset, value, value.Glyphs.Data, value.Glyphs.Size);
         SnapPointer(offset, value, value.FallbackGlyph, 1);
         SnapPointer(offset, value, value.ContainerAtlas, 1);
-        SnapPointer(offset, value, value.ConfigData, value.ConfigDataCount);
+        SnapPointer(offset, value, value.Sources, value.SourcesCount);
     }
     else if constexpr (std::is_same_v<T, ImFontAtlasCustomRect>)
     {
@@ -200,7 +200,7 @@ void ImFontAtlasSnapshot::GenerateGlyphRanges()
 ImFont* ImFontAtlasSnapshot::GetFont(const char* name)
 {
     auto fontAtlas = ImGui::GetIO().Fonts;
-    for (auto& configData : fontAtlas->ConfigData)
+    for (auto& configData : fontAtlas->Sources)
     {
         if (strstr(configData.Name, name) != nullptr)
         {

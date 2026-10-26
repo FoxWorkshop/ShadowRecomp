@@ -260,14 +260,14 @@ float ComputeTitleBlink(double time, bool isClosing)
     return value / 152.0f;
 }
 
-void DrawTextBasic(const ImFont* font, float fontSize, const ImVec2& pos, ImU32 colour, const char* text)
+void DrawTextBasic(ImFont* font, float fontSize, const ImVec2& pos, ImU32 colour, const char* text)
 {
     auto drawList = ImGui::GetBackgroundDrawList();
 
     drawList->AddText(font, fontSize, pos, colour, text, nullptr);
 }
 
-void DrawTextWithMarquee(const ImFont* font, float fontSize, const ImVec2& position, const ImVec2& min, const ImVec2& max, ImU32 color, const char* text, double time, double delay, double speed)
+void DrawTextWithMarquee(ImFont* font, float fontSize, const ImVec2& position, const ImVec2& min, const ImVec2& max, ImU32 color, const char* text, double time, double delay, double speed)
 {
     auto drawList = ImGui::GetBackgroundDrawList();
     auto rectWidth = max.x - min.x;
@@ -321,7 +321,7 @@ void DrawTextWithMarquee(const ImFont* font, float fontSize, const ImVec2& posit
     drawList->PopClipRect();
 }
 
-void DrawTextWithMarqueeShadow(const ImFont* font, float fontSize, const ImVec2& pos, const ImVec2& min, const ImVec2& max, ImU32 colour, const char* text, double time, double delay, double speed, float offset, float radius, ImU32 shadowColour)
+void DrawTextWithMarqueeShadow(ImFont* font, float fontSize, const ImVec2& pos, const ImVec2& min, const ImVec2& max, ImU32 colour, const char* text, double time, double delay, double speed, float offset, float radius, ImU32 shadowColour)
 {
     auto drawList = ImGui::GetBackgroundDrawList();
     auto rectWidth = max.x - min.x;
@@ -339,7 +339,7 @@ void DrawTextWithMarqueeShadow(const ImFont* font, float fontSize, const ImVec2&
     drawList->PopClipRect();
 }
 
-void DrawTextWithOutline(const ImFont* font, float fontSize, const ImVec2& pos, ImU32 color, const char* text, float outlineSize, ImU32 outlineColor, uint32_t shaderModifier)
+void DrawTextWithOutline(ImFont* font, float fontSize, const ImVec2& pos, ImU32 color, const char* text, float outlineSize, ImU32 outlineColor, uint32_t shaderModifier)
 {
     auto drawList = ImGui::GetBackgroundDrawList();
 
@@ -356,7 +356,7 @@ void DrawTextWithOutline(const ImFont* font, float fontSize, const ImVec2& pos, 
         SetShaderModifier(IMGUI_SHADER_MODIFIER_NONE);
 }
 
-void DrawTextWithShadow(const ImFont* font, float fontSize, const ImVec2& pos, ImU32 colour, const char* text, float offset, float radius, ImU32 shadowColour)
+void DrawTextWithShadow(ImFont* font, float fontSize, const ImVec2& pos, ImU32 colour, const char* text, float offset, float radius, ImU32 shadowColour)
 {
     auto drawList = ImGui::GetBackgroundDrawList();
 
@@ -369,7 +369,7 @@ void DrawTextWithShadow(const ImFont* font, float fontSize, const ImVec2& pos, I
     drawList->AddText(font, fontSize, pos, colour, text, nullptr);
 }
 
-float CalcWidestTextSize(const ImFont* font, float fontSize, std::span<std::string> strs)
+float CalcWidestTextSize(ImFont* font, float fontSize, std::span<std::string> strs)
 {
     auto result = 0.0f;
 
@@ -379,7 +379,7 @@ float CalcWidestTextSize(const ImFont* font, float fontSize, std::span<std::stri
     return result;
 }
 
-void DrawTextParagraph(const ImFont* font, float fontSize, float maxWidth, const ImVec2& pos, float lineMargin, const char* text, std::function<void(const char*, ImVec2)> drawMethod, bool isCentred)
+void DrawTextParagraph(ImFont* font, float fontSize, float maxWidth, const ImVec2& pos, float lineMargin, const char* text, std::function<void(const char*, ImVec2)> drawMethod, bool isCentred)
 {
     auto lines = Split(text, font, fontSize, maxWidth);
     auto paragraphSize = MeasureCentredParagraph(font, fontSize, lineMargin, lines);
@@ -701,7 +701,7 @@ std::string RemoveAnnotationFromParagraphLine(const std::vector<TextSegment>& an
     return result;
 }
 
-ImVec2 MeasureCentredParagraph(const ImFont* font, float fontSize, float lineMargin, const std::vector<std::string>& lines)
+ImVec2 MeasureCentredParagraph(ImFont* font, float fontSize, float lineMargin, const std::vector<std::string>& lines)
 {
     auto x = 0.0f;
     auto y = 0.0f;
@@ -727,7 +727,7 @@ ImVec2 MeasureCentredParagraph(const ImFont* font, float fontSize, float lineMar
     return { x, y };
 }
 
-ImVec2 MeasureCentredParagraph(const ImFont* font, float fontSize, float maxWidth, float lineMargin, const char* text)
+ImVec2 MeasureCentredParagraph(ImFont* font, float fontSize, float maxWidth, float lineMargin, const char* text)
 {
     const auto input = RemoveRubyAnnotations(text);
     auto lines = Split(input.first.c_str(), font, fontSize, maxWidth);
@@ -738,7 +738,7 @@ ImVec2 MeasureCentredParagraph(const ImFont* font, float fontSize, float maxWidt
     return MeasureCentredParagraph(font, fontSize, lineMargin, lines);
 }
 
-void DrawRubyAnnotatedText(const ImFont* font, float fontSize, float maxWidth, const ImVec2& pos, float lineMargin, const char* text, std::function<void(const char*, ImVec2)> drawMethod, std::function<void(const char*, float, ImVec2)> annotationDrawMethod, bool isCentred, bool leadingSpace)
+void DrawRubyAnnotatedText(ImFont* font, float fontSize, float maxWidth, const ImVec2& pos, float lineMargin, const char* text, std::function<void(const char*, ImVec2)> drawMethod, std::function<void(const char*, float, ImVec2)> annotationDrawMethod, bool isCentred, bool leadingSpace)
 {
     auto annotationFontSize = fontSize * ANNOTATION_FONT_SIZE_MODIFIER;
 
@@ -853,7 +853,7 @@ void ScaleVertexAlpha(ImDrawList* drawList, int vtxStart, float alpha)
     }
 }
 
-void DrawVersionString(const ImFont* font, const ImU32 col)
+void DrawVersionString(ImFont* font, const ImU32 col)
 {
     auto drawList = ImGui::GetBackgroundDrawList();
     auto& res = ImGui::GetIO().DisplaySize;

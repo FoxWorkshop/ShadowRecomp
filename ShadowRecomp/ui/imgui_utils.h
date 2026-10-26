@@ -79,12 +79,12 @@ float GetMenuBoxLeft();
 float GetMenuBoxWidth();
 double ComputeLinearMotion(double time, double offset, double total, bool reverse = false);
 double ComputeMotion(double duration, double offset, double total, bool reverse);
-void DrawTextBasic(const ImFont* font, float fontSize, const ImVec2& pos, ImU32 colour, const char* text);
-void DrawTextWithMarquee(const ImFont* font, float fontSize, const ImVec2& position, const ImVec2& min, const ImVec2& max, ImU32 color, const char* text, double time, double delay, double speed);
-void DrawTextWithMarqueeShadow(const ImFont* font, float fontSize, const ImVec2& pos, const ImVec2& min, const ImVec2& max, ImU32 colour, const char* text, double time, double delay, double speed, float offset = 2.0f, float radius = 1.0f, ImU32 shadowColour = IM_COL32(0, 0, 0, 255));
-void DrawTextWithOutline(const ImFont* font, float fontSize, const ImVec2& pos, ImU32 color, const char* text, float outlineSize, ImU32 outlineColor, uint32_t shaderModifier = IMGUI_SHADER_MODIFIER_NONE);
-void DrawTextWithShadow(const ImFont* font, float fontSize, const ImVec2& pos, ImU32 colour, const char* text, float offset = 2.0f, float radius = 1.0f, ImU32 shadowColour = IM_COL32(0, 0, 0, 255));
-float CalcWidestTextSize(const ImFont* font, float fontSize, std::span<std::string> strs);
+void DrawTextBasic(ImFont* font, float fontSize, const ImVec2& pos, ImU32 colour, const char* text);
+void DrawTextWithMarquee(ImFont* font, float fontSize, const ImVec2& position, const ImVec2& min, const ImVec2& max, ImU32 color, const char* text, double time, double delay, double speed);
+void DrawTextWithMarqueeShadow(ImFont* font, float fontSize, const ImVec2& pos, const ImVec2& min, const ImVec2& max, ImU32 colour, const char* text, double time, double delay, double speed, float offset = 2.0f, float radius = 1.0f, ImU32 shadowColour = IM_COL32(0, 0, 0, 255));
+void DrawTextWithOutline(ImFont* font, float fontSize, const ImVec2& pos, ImU32 color, const char* text, float outlineSize, ImU32 outlineColor, uint32_t shaderModifier = IMGUI_SHADER_MODIFIER_NONE);
+void DrawTextWithShadow(ImFont* font, float fontSize, const ImVec2& pos, ImU32 colour, const char* text, float offset = 2.0f, float radius = 1.0f, ImU32 shadowColour = IM_COL32(0, 0, 0, 255));
+float CalcWidestTextSize(ImFont* font, float fontSize, std::span<std::string> strs);
 std::string Truncate(const std::string& input, size_t maxLength, bool useEllipsis = true, bool usePrefixEllipsis = false);
 std::pair<std::string, std::map<std::string, std::string>> RemoveRubyAnnotations(const char* input);
 std::string ReAddRubyAnnotations(const std::string_view& wrappedText, const std::map<std::string, std::string>& rubyMap);
@@ -92,16 +92,16 @@ std::vector<std::string> Split(const char* strStart, const ImFont* font, float f
 Paragraph CalculateAnnotatedParagraph(const std::vector<std::string>& lines);
 std::vector<std::string> RemoveAnnotationFromParagraph(const std::vector<std::string>& lines);
 std::string RemoveAnnotationFromParagraphLine(const std::vector<TextSegment>& annotatedLine);
-ImVec2 MeasureCentredParagraph(const ImFont* font, float fontSize, float lineMargin, const std::vector<std::string>& lines);
-ImVec2 MeasureCentredParagraph(const ImFont* font, float fontSize, float maxWidth, float lineMargin, const char* text);
-void DrawRubyAnnotatedText(const ImFont* font, float fontSize, float maxWidth, const ImVec2& pos, float lineMargin, const char* text, std::function<void(const char*, ImVec2)> drawMethod, std::function<void(const char*, float, ImVec2)> annotationDrawMethod, bool isCentred = false, bool leadingSpace = false);
+ImVec2 MeasureCentredParagraph(ImFont* font, float fontSize, float lineMargin, const std::vector<std::string>& lines);
+ImVec2 MeasureCentredParagraph(ImFont* font, float fontSize, float maxWidth, float lineMargin, const char* text);
+void DrawRubyAnnotatedText(ImFont* font, float fontSize, float maxWidth, const ImVec2& pos, float lineMargin, const char* text, std::function<void(const char*, ImVec2)> drawMethod, std::function<void(const char*, float, ImVec2)> annotationDrawMethod, bool isCentred = false, bool leadingSpace = false);
 float Lerp(float a, float b, float t);
 float Cubic(float a, float b, float t);
 float Hermite(float a, float b, float t);
 ImVec2 Lerp(const ImVec2& a, const ImVec2& b, float t);
 ImU32 ColourLerp(ImU32 c0, ImU32 c1, float t);
 void ScaleVertexAlpha(ImDrawList* drawList, int vtxStart, float alpha);
-void DrawVersionString(const ImFont* font, const ImU32 col = IM_COL32(255, 255, 255, 70));
+void DrawVersionString(ImFont* font, const ImU32 col = IM_COL32(255, 255, 255, 70));
 
 const char* CalcWordWrapPositionA(const ImFont* font, float scale, const char* text, const char* text_end, float wrap_width);
 double ComputeEaseOut(double time, double duration, bool reverse);
@@ -113,7 +113,7 @@ void DrawScrollArrows(ImVec2 min, ImVec2 max, float scale, double& time, bool to
 double ComputeLoopMotion(double time, double offset, double total);
 void DrawArrowCursor(ImVec2 pos, double time, bool isIntroAnim, bool isBlinkingAnim, bool isReversed);
 GuestTexture* GetTexArrow();
-void DrawTextParagraph(const ImFont* font, float fontSize, float maxWidth, const ImVec2& pos, float lineMargin, const char* text, std::function<void(const char*, ImVec2)> drawMethod, bool isCentred = false);
+void DrawTextParagraph(ImFont* font, float fontSize, float maxWidth, const ImVec2& pos, float lineMargin, const char* text, std::function<void(const char*, ImVec2)> drawMethod, bool isCentred = false);
 void AddTextWithOutline(ImDrawList* drawList, ImFont* font, float fontSize,
     ImVec2 pos, ImU32 textColor, ImU32 outlineColor,
     const char* text, float outlineSize = 2.0f, float outlineOffsetX = 0.0f, float outlineOffsetY = 0.0f);

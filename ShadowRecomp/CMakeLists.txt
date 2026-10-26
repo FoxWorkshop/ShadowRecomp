@@ -229,9 +229,6 @@ set(SHADOW_RECOMP_THIRDPARTY_INCLUDES
 
 set_source_files_properties(${SHADOW_RECOMP_THIRDPARTY_SOURCES} PROPERTIES SKIP_PRECOMPILE_HEADERS ON)
 
-# TODO: remove this, this is a hack needed until we upgrade off imgui 1.91 (blocked by atlas change)
-set_source_files_properties("${SHADOW_RECOMP_THIRDPARTY_ROOT}/imgui/backends/imgui_impl_sdl3.cpp" PROPERTIES COMPILE_DEFINITIONS SDL_ENABLE_OLD_NAMES)
-
 set(SHADOW_RECOMP_CXX_SOURCES
     "app.cpp"
     "exports.cpp"
@@ -407,6 +404,8 @@ target_include_directories(ShadowRecomp PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}
     ${SHADOW_RECOMP_THIRDPARTY_INCLUDES}
 )
+
+target_compile_definitions(ShadowRecomp PRIVATE IMGUI_USER_CONFIG="gpu/imgui/imgui_config.h")
 
 if (CMAKE_SYSTEM_NAME MATCHES "Linux")
     find_package(X11 REQUIRED)
