@@ -74,7 +74,7 @@ Extra care and attention was taken to make the experience the best as possible:
 - Many audio issues exclusive to the Xbox port have been fixed (distance, loop etc.).
 - Player 2 can now properly control the Partner on the screen like on the others versions of the game.
 - Some issues with gravity such as landing or spin dashing have been fixed.
-- Various minor graphics glitches like transparency issues, white flash, or incorrect rotation on model have been fixed.
+- Various minor graphics glitches like transparency issues and white flash have been fixed.
 
 ### Achievements
 
@@ -88,7 +88,6 @@ Achievements cannot be used with platforms such as Steam or RetroAchievements.
 ## Known Issues
 
 Before reporting any issues, check if they are listed [here](https://github.com/FoxWorkshop/ShadowRecomp/issues).
-
 
 ## FAQ
 
@@ -128,8 +127,9 @@ This project does not plan to support any more platforms other than Windows and 
 - Rawlins
 - DarkShadow17
 - The Spectral Star
-- Jesus_PK
+- [Jesus_PK](https://github.com/Jesus-PK)
 - Pixel
+- [Deep-Sea Berry](https://github.com/Deep-SeaBerry)
 - Many others who helped briefly test
 
 ### Special Thanks
@@ -139,6 +139,8 @@ This project does not plan to support any more platforms other than Windows and 
 - [extract-xiso](https://github.com/XboxDev/extract-xiso): extract-xiso devs (in@fishtank.com and other extract-xiso contributors) for core extraction in the installer.
 
 - Unleashed Recompiled Development Team: Created much of the ground work that made all of this possible and sped up development time considerably.
+
+- [Marathon Recompiled](https://github.com/sonicnext-dev/MarathonRecomp): Used as a reference for various features and help with debugging.
 
 - [Skyth](https://github.com/blueskythlikesclouds): Provided help to understand how Recompilation works, also the author of the original graphics pipeline code which was (mostly) reused here.
 
