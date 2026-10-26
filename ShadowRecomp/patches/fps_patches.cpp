@@ -697,7 +697,7 @@ void ContainerBehaviorFallMidAsmHook(X86Register& esi)
 /**	--Damage blink patch START-- */
 
 // anything that the game would not treat as a valid remaining time should use the original logic
-static bool isValidTimer(float timer)
+static bool isNotValidTimer(float timer)
 {
 	return (!(timer > 0.0f) || !std::isfinite(timer) || timer > 60.0f);
 }
@@ -707,7 +707,7 @@ static bool DamageBlinkPhaseHidden(uint32_t player, uint32_t motion)
 	auto base = g_memory.base;
 	const float timeLeft = player != 0 ? X86_LOAD_F32(player + 0x27C) : 0.0f;
 
-	if (!isValidTimer(timeLeft))
+	if (isNotValidTimer(timeLeft))
 		return (X86_LOAD_U32(motion + 0x3EC) & 1) != 0;
 
 	return (static_cast<int>(timeLeft * 60.0f + 0.25f) & 1) != 0;
@@ -741,7 +741,7 @@ static bool HitTimerBlinkPhaseOff(uint32_t timer)
 	auto base = g_memory.base;
 	const float timeLeft = timer != 0 ? X86_LOAD_F32(timer) : 0.0f;
 
-	if (!isValidTimer(timeLeft))
+	if (isNotValidTimer(timeLeft))
 		return (X86_LOAD_U32(0x54DDC0) & 2) == 0;
 
 	return (static_cast<int>(timeLeft * 60.0f + 0.25f) & 2) == 0;
@@ -804,6 +804,7 @@ struct EnemyBlinkPatch
 		return static_cast<uint32_t>(slices + 0.25f);
 	}
 };
+
 
 static bool AllFramesBlinkOdd()
 {
