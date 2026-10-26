@@ -430,6 +430,41 @@ void StageActionGoalActionMidAsmHook()
             AchievementManager::SaveBinary();
         }
     }
+}
+
+// Ending achievement check
+// the route table at 0x4EB160 contains the boss node of each ending (10 entries). 
+X86_FUNC_IMPL(__imp__sub_2378B0);
+X86_FUNC(sub_2378B0)
+{
+    __imp__sub_2378B0(ctx, base);
+
+    if (X86_LOAD_U32(g_menuModeAddr) != 1)
+        return;
+
+    const uint32_t node = X86_LOAD_U32(0x54DDDC);
+    const uint32_t mission = X86_LOAD_U32(0x54DDF4);
+
+    for (uint32_t ending = 0; ending < 10; ending++)
+    {
+        if (X86_LOAD_U32(0x4EB160 + (60 + ending) * 4) != node)
+            continue;
+
+        // Both neutral endings share node 0x27,
+        // so we split them with the mission picked (0 dark, 2 hero).  
+        if (node == 0x27)
+        {
+            if (mission == 1) // nani
+                return;
+
+            ending = mission == 0 ? 4 : 5;
+        }
+
+        AchievementManager::Unlock(ending + 1);
+        AchievementManager::SaveBinary();
+        return;
+    }
+}
 
 
 // Memo: State / Behavior 27 is DriveVehicle
@@ -464,7 +499,7 @@ X86_FUNC(sub_1D0900)
     __imp__sub_1D0900(ctx, base);
 
     if (isDestroyed && X86_LOAD_U32(g_currentStageIDAddr) == 202 && IsAnyPlayerDriving())
-{
+    {
         AchievementManager::Unlock(Ach_TankVehicle);
         AchievementManager::SaveBinary();
     }
