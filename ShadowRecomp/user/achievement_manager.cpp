@@ -20,6 +20,7 @@
 #include <res/images/common/key.png.h>
 #include <res/images/common/LastStoryComplete.png.h>
 #include <decompressor.h>
+#include <patches/global.h>
 
 enum EAchievementID
 {
@@ -27,6 +28,7 @@ enum EAchievementID
     Ach_AllARanks = 12,
     Ach_AllKeys = 13,
     Ach_ExpertMode = 14,
+    Ach_TankVehicle = 15,
 };
 std::unordered_map<uint16_t, std::unique_ptr<GuestTexture>> g_achievementsTextureCache;
 
@@ -427,5 +429,43 @@ void StageActionGoalActionMidAsmHook()
             AchievementManager::Unlock(Ach_LastStory);
             AchievementManager::SaveBinary();
         }
+    }
+
+
+// Memo: State / Behavior 27 is DriveVehicle
+bool IsAnyPlayerDriving()
+{
+    auto base = g_memory.base;
+
+    for (uint32_t i = 0; i < 4; i++)
+    {
+        auto player = g_playerStructAddrs[i];
+        if (!player)
+            continue;
+
+        auto executer = X86_LOAD_U32(player + 0x22C);
+        if (!executer)
+            continue;
+
+        auto behavior = X86_LOAD_U32(executer + 0x30);
+        if (behavior && X86_LOAD_U32(behavior + 0x10) == 27)
+            return true;
+    }
+
+    return false;
+}
+
+// Lethal Highway tank (BKTank::SetBKTank) Exec sub_1D0C40 calls this
+// with 0 when HP drops to 50 and with 1 once when HP hits 0
+X86_FUNC_IMPL(__imp__sub_1D0900);
+X86_FUNC(sub_1D0900)
+{
+    const bool isDestroyed = X86_LOAD_U32(ctx.esp.u32 + 4) == 1;
+    __imp__sub_1D0900(ctx, base);
+
+    if (isDestroyed && X86_LOAD_U32(g_currentStageIDAddr) == 202 && IsAnyPlayerDriving())
+{
+        AchievementManager::Unlock(Ach_TankVehicle);
+        AchievementManager::SaveBinary();
     }
 }

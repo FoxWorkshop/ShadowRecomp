@@ -765,9 +765,63 @@ std::unordered_map<int, std::unordered_map<ELanguage, AchievementLocale>> g_shrL
 			},
 		}
 	},
-	// I Am... All Of Me (Get all achievements)
+	// I'm the coolest (Destroy the Lethal Highway tank while driving a vehicle)
 	{
 		15,
+		{
+			{
+				ELanguage::English,
+				{
+					"I'm the Coolest",
+					"Destroy the Black Arms tank in Lethal Highway while driving a vehicle!",
+					"Destroyed the Black Arms tank in Lethal Highway while driving a vehicle."
+				}
+			},
+			{
+				ELanguage::Japanese,
+				{
+					"I'm the Coolest",
+					"Destroy the Black Arms tank in Lethal Highway while driving a vehicle!",
+					"Destroyed the Black Arms tank in Lethal Highway while driving a vehicle."
+				}
+			},
+			{
+				ELanguage::German,
+				{
+					"I'm the Coolest",
+					"Destroy the Black Arms tank in Lethal Highway while driving a vehicle!",
+					"Destroyed the Black Arms tank in Lethal Highway while driving a vehicle."
+				}
+			},
+			{
+				ELanguage::French,
+				{
+					"I'm the Coolest",
+					"Détruisez le tank des Black Arms dans Lethal Highway en conduisant un véhicule !",
+					"Tank des Black Arms détruit dans Lethal Highway en conduisant un véhicule."
+				}
+			},
+			{
+				ELanguage::Spanish,
+				{
+					"I'm the Coolest",
+					"Destroy the Black Arms tank in Lethal Highway while driving a vehicle!",
+					"Destroyed the Black Arms tank in Lethal Highway while driving a vehicle."
+				}
+			},
+			{
+				ELanguage::Italian,
+				{
+					"I'm the Coolest",
+					"Destroy the Black Arms tank in Lethal Highway while driving a vehicle!",
+					"Destroyed the Black Arms tank in Lethal Highway while driving a vehicle."
+				}
+			},
+		}
+	},
+	// I Am... All Of Me (Get all achievements)
+	{
+		16,
 		{
 			{
 				ELanguage::English,
