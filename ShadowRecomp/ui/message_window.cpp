@@ -232,7 +232,7 @@ void DrawMessageInWindow(const char* text, ImVec2 center, ImVec2 size)
 	dl->PopClipRect();
 }
 
-void DrawButton(int rowIndex, float yOffset, float width, float height, std::string& text)
+void DrawButton(X86Context* ctx, int rowIndex, float yOffset, float width, float height, std::string& text)
 {
 	auto drawList = ImGui::GetBackgroundDrawList();
 
@@ -356,7 +356,7 @@ void MessageWindow::Init()
 	g_fntSeurat = ImFontAtlasSnapshot::GetFont("FOT-SeuratPro-DB.otf");
 }
 
-void MessageWindow::Draw()
+void MessageWindow::Draw(X86Context* ctx)
 {
 	if (!s_isVisible)
 		return;
@@ -452,7 +452,7 @@ void MessageWindow::Draw()
 		auto rowCount = 0;
 
 		for (auto& button : g_buttons)
-			DrawButton(rowCount++, windowMarginY, itemWidth, itemHeight, button);
+			DrawButton(ctx, rowCount++, windowMarginY, itemWidth, itemHeight, button);
 
 		if (g_guestHasControl)
 			return;
@@ -477,7 +477,7 @@ void MessageWindow::Draw()
 
 		if (scrollLeft || scrollRight)
 		{
-			Game_PlaySound("cursor");
+			Game_PlaySound(ctx, "cursor");
 			g_prevSelectedRowIndex = prevSelectedRowIndex;
 			g_joypadAxis.x = 0;
 		}
@@ -489,7 +489,7 @@ void MessageWindow::Draw()
 		{
 			g_selectedRowIndex = g_cancelButtonIndex;
 			g_result = g_cancelButtonIndex;
-			Game_PlaySound("cancel");
+			Game_PlaySound(ctx, "cancel");
 			MessageWindow::Close();
 			g_isDeclined = false;
 		}
@@ -503,9 +503,9 @@ void MessageWindow::Draw()
 		{
 			g_result = g_selectedRowIndex;
 			if (g_selectedRowIndex != g_cancelButtonIndex)
-				Game_PlaySound("decide");
+				Game_PlaySound(ctx, "decide");
 			else
-				Game_PlaySound("cancel");
+				Game_PlaySound(ctx, "cancel");
 			MessageWindow::Close();
 		}
 

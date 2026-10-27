@@ -130,16 +130,15 @@ X86_FUNC(sub_90D10)
 // Show Flame: 0x8CC50
 // Hide Flame: 0x8CC80
 // Slots: 0x5C (bone 7), 0x60 (bone 8), 0x64 (bone 9), 0x68 (bone 10)
-void JetEffectRestoreFourthFlameMidAsmHook(X86Register& esi)
+void JetEffectRestoreFourthFlameMidAsmHook(X86Context& __restrict ctx, uint8_t* base)
 {
-	auto base = g_memory.base;
-	const uint32_t jet = esi.u32;
+	const uint32_t jet = ctx.esi.u32;
 	const uint32_t firstFlame = X86_LOAD_U32(jet + 0x5C);
 	if (firstFlame != 0 && X86_LOAD_U32(jet + 0x68) == 0)
 	{
 		// 0x2CB460 - model clone func
 		// TODO: Probably re-use this for Awake effect clone too for MP patches
-		const uint32_t clone = GuestToHostFunction<uint32_t, CallConvention::Cdecl>(sub_2CB460, firstFlame);
+		const uint32_t clone = GuestToHostFunction<uint32_t, CallConvention::Cdecl>(ctx, sub_2CB460, firstFlame);
 		if (clone != 0)
 		{
 			X86_STORE_U32(jet + 0x68, clone);

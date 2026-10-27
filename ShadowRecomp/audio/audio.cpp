@@ -18,7 +18,6 @@ HRESULT DirectSoundCreate_r(int* pcGuidDevice, SHTHR_SOUNDDEVICE* ppDS, int* pUn
 	if (device <= 0)
 		return E_FAIL;
 
-	auto ctx = GetX86Context();
 	auto base = g_memory.base;
 	X86_STORE_U32(ppDSAddr, device);
 	return S_OK;
@@ -122,7 +121,6 @@ int32_t IDirectSoundBuffer_SetCurrentPosition(int32_t keyBuffer, int32_t dwNewPo
 int32_t IDirectSound_CreateSoundBuffer(int32_t keyDevice, X_DSBUFFERDESC* pdsbd, SHTHR_SOUNDBUFFER** ppBufferOut, int a4)
 {
 
-	auto ctx = GetX86Context();
 	auto base = g_memory.base;
 
 	auto pThis = ppDS;
@@ -183,7 +181,6 @@ int32_t IDirectSoundBuffer_Stop(int32_t keyDevice)
 //this function had originally 3 params, but ended being 4 by the compiler due to the use of int 64 bits.
 int32_t IDirectSoundBuffer_StopEx(int32_t key, uint32_t rtTimeStamp_Low, uint32_t rtTimeStamp_High, dword_xt dwFlags)
 {
-	auto ctx = GetX86Context();
 
 	auto pThis = GetCurrentSoundBuffer(key);
 
@@ -396,12 +393,12 @@ int32_t IDirectSound_CommitDeferredSettings(int a1)
 }
 
 
-void AudioConfigValueChangedCallback(IConfigDef* config)
+void AudioConfigValueChangedCallback(X86Context* ctx, IConfigDef* config)
 {
 	if (config == &Config::VoiceLanguage)
 	{
 		auto base = g_memory.base;
-		GuestToHostFunction<void>(sub_25C750); // stop all sound
+		GuestToHostFunction<void>(*ctx, sub_25C750); // stop all sound
 
 		const uint32_t newVoiceLang = (uint32_t)Config::VoiceLanguage.Value;
 		X86_STORE_U32(0x54DD8C, newVoiceLang);  // set voice language to new value (eng or jp)
@@ -409,20 +406,20 @@ void AudioConfigValueChangedCallback(IConfigDef* config)
 		// Call ADXF_LoadPartitionNw to re load voice asf file 
 		if (newVoiceLang == (uint32_t)EVoiceLanguage::English)
 		{
-			GuestToHostFunction<void, CallConvention::Cdecl>(sub_328BB0, 0, X86_LOAD_U32(0x51DDA0), 0, 0x54DED0);
+			GuestToHostFunction<void, CallConvention::Cdecl>(*ctx, sub_328BB0, 0, X86_LOAD_U32(0x51DDA0), 0, 0x54DED0);
 		}
 		else
 		{
-			GuestToHostFunction<void, CallConvention::Cdecl>(sub_328BB0, 0, X86_LOAD_U32(0x51DD9C), 0, 0x54DED0);
+			GuestToHostFunction<void, CallConvention::Cdecl>(*ctx, sub_328BB0, 0, X86_LOAD_U32(0x51DD9C), 0, 0x54DED0);
 		}
 
 		// wait for the adx server to update its value properly (logic re used from IsndADX::CreateTask)
 		int stat;
 		int failSafeCount = 0; // I'm paranoid
-		while ((stat = GuestToHostFunction<int>(sub_328B90, 0)) != 3 && stat != 4)
+		while ((stat = GuestToHostFunction<int>(*ctx, sub_328B90, 0)) != 3 && stat != 4)
 		{
-			GuestToHostFunction<void>(sub_32AC10);
-			GuestToHostFunction<void>(sub_328F30);
+			GuestToHostFunction<void>(*ctx, sub_32AC10);
+			GuestToHostFunction<void>(*ctx, sub_328F30);
 			failSafeCount++;
 			if (failSafeCount >= 5000)
 				break;

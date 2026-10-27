@@ -105,7 +105,7 @@ static double g_captureTime{};
 static std::array<uint8_t, SDL_SCANCODE_COUNT> g_capturePrevKeys{};
 static input::PadButtonValues g_capturePrevPadButtons{};
 
-void AudioConfigValueChangedCallback(IConfigDef* config);
+void AudioConfigValueChangedCallback(X86Context* ctx, IConfigDef* config);
 
 static bool IsLivePreviewActive()
 {
@@ -561,7 +561,7 @@ static float GetRowScrollOffset(float optionHeight)
 	return -GetOptionScrollTop() * optionHeight;
 }
 
-static void StepMaxHudWidth(bool increment, bool decrement)
+static void StepMaxHudWidth(X86Context* ctx, bool increment, bool decrement)
 {
 	if (!increment && !decrement)
 	{
@@ -580,12 +580,13 @@ static void StepMaxHudWidth(bool increment, bool decrement)
 	}
 
 	Config::MaxHUDWidth.Value = g_hudWidthPresets[preset].AspectRatio;
-	Game_PlaySound("cursor");
+	Game_PlaySound(ctx, "cursor");
 }
 
 template <typename T, bool isHidden = false>
 static void DrawOption
 (
+	X86Context* ctx,
 	int rowIndex,
 	ConfigDef<T, isHidden>* config,
 	bool isAccessible,
@@ -739,7 +740,7 @@ static void DrawOption
 			static T s_oldValue;
 			if (CheckAndDiscard(g_isAccepted))
 			{
-				Game_PlaySound("decide");
+				Game_PlaySound(ctx, "decide");
 				if (OptionsMenu::s_flowState == OptionsMenuFlowState::OptionCursor)
 				{
 					g_leftWasHeld = false;
@@ -763,7 +764,7 @@ static void DrawOption
 					if (config->Value != s_oldValue)
 					{
 						VideoConfigValueChangedCallback(config);
-						AudioConfigValueChangedCallback(config);
+						AudioConfigValueChangedCallback(ctx, config);
 
 						if (config->ApplyCallback)
 						{
@@ -779,7 +780,7 @@ static void DrawOption
 			}
 			else if (CheckAndDiscard(g_isDeclined))
 			{
-				Game_PlaySound("cancel");
+				Game_PlaySound(ctx, "cancel");
 
 				if (config->Value != s_oldValue)
 				{
@@ -804,7 +805,7 @@ static void DrawOption
 
 			if (g_optionCanReset && CheckAndDiscard(g_isReset))
 			{
-				Game_PlaySound("cancel");
+				Game_PlaySound(ctx, "cancel");
 
 				if (!config->IsDefaultValue())
 				{
@@ -835,13 +836,13 @@ static void DrawOption
 					{
 						if (PJSPeripheral::IsJustPressed(OptionsMenu::s_padIndex, PJSPeripheral::BTN_WHITE | PJSPeripheral::BTN_LEFT_TRIG))
 						{
-							Game_PlaySound("cursor");
+							Game_PlaySound(ctx, "cursor");
 							config->Value = std::clamp(config->Value - 30, valueMin, valueMax);
 							FpsConfigValueChangedCallback(config);
 						}
 						else if (PJSPeripheral::IsJustPressed(OptionsMenu::s_padIndex, PJSPeripheral::BTN_BLACK | PJSPeripheral::BTN_RIGHT_TRIG))
 						{
-							Game_PlaySound("cursor");
+							Game_PlaySound(ctx, "cursor");
 							config->Value = std::clamp(config->Value + 30, valueMin, valueMax);
 							FpsConfigValueChangedCallback(config);
 						}
@@ -858,13 +859,13 @@ static void DrawOption
 					{
 						if (PJSPeripheral::IsJustPressed(OptionsMenu::s_padIndex, PJSPeripheral::BTN_WHITE | PJSPeripheral::BTN_LEFT_TRIG))
 						{
-							Game_PlaySound("cursor");
+							Game_PlaySound(ctx, "cursor");
 							config->Value = std::clamp(std::round((config->Value - 0.1f) * 100.0f) / 100.0f, valueMin, valueMax);
 							BloomConfigValueChangedCallback(config);
 						}
 						else if (PJSPeripheral::IsJustPressed(OptionsMenu::s_padIndex, PJSPeripheral::BTN_BLACK | PJSPeripheral::BTN_RIGHT_TRIG))
 						{
-							Game_PlaySound("cursor");
+							Game_PlaySound(ctx, "cursor");
 							config->Value = std::clamp(std::round((config->Value + 0.1f) * 100.0f) / 100.0f, valueMin, valueMax);
 							BloomConfigValueChangedCallback(config);
 						}
@@ -897,7 +898,7 @@ static void DrawOption
 					{
 						UpdateOptionDescription(config, optionDescription);
 
-						Game_PlaySound("cursor");
+						Game_PlaySound(ctx, "cursor");
 
 						if (config->Callback)
 							config->Callback(config);
@@ -905,7 +906,7 @@ static void DrawOption
 				}
 				else if ((void*)config == (void*)&Config::MaxHUDWidth)
 				{
-					StepMaxHudWidth(increment, decrement);
+					StepMaxHudWidth(ctx, increment, decrement);
 				}
 				else if constexpr (isSliderType)
 				{
@@ -973,7 +974,7 @@ static void DrawOption
 
 					if ((increment || decrement) && isValueInBounds && playIncrementSound)
 					{
-						Game_PlaySound("cursor");
+						Game_PlaySound(ctx, "cursor");
 
 						s_lastIncrementSoundTime = time;
 					}
@@ -984,7 +985,7 @@ static void DrawOption
 				{
 					if (increment || decrement)
 					{
-						Game_PlaySound("cursor");
+						Game_PlaySound(ctx, "cursor");
 
 						config->Value = !config->Value;
 					}
@@ -1010,7 +1011,7 @@ static void DrawOption
 		else
 		{
 			if (CheckAndDiscard(g_isAccepted))
-				Game_PlaySound("cannot_decide");
+				Game_PlaySound(ctx, "cannot_decide");
 		}
 	}
 
@@ -1180,6 +1181,7 @@ static void DrawOption
 
 static void DrawActionOption
 (
+	X86Context* ctx,
 	int rowIndex,
 	ImVec2 min,
 	const std::string& name,
@@ -1217,12 +1219,12 @@ static void DrawActionOption
 	{
 		if (isAccessible)
 		{
-			Game_PlaySound("decide");
+			Game_PlaySound(ctx, "decide");
 			onAccept();
 		}
 		else
 		{
-			Game_PlaySound("cannot_decide");
+			Game_PlaySound(ctx, "cannot_decide");
 		}
 	}
 }
@@ -1369,7 +1371,7 @@ static void CloseSoundTest()
 	g_scrollArrows = {};
 }
 
-void OptionsMenu::UpdateSoundTest()
+void OptionsMenu::UpdateSoundTest(X86Context& ctx)
 {
 	auto request = g_soundTestRequest.exchange(soundTestRequestNone);
 
@@ -1379,15 +1381,15 @@ void OptionsMenu::UpdateSoundTest()
 	auto base = g_memory.base;
 
 	// stop the current song, then play the requested track
-	auto bgmSlots = GuestToHostFunction<uint32_t>(sub_5CD00);
+	auto bgmSlots = GuestToHostFunction<uint32_t>(ctx, sub_5CD00);
 	auto slot = request == soundTestRequestRestore ? bgmSlotOptions : bgmSlotStop;
-	GuestToHostFunction<void, CallConvention::Thiscall>(sub_28D8B0, bgmSlots, slot);
+	GuestToHostFunction<void, CallConvention::Thiscall>(ctx, sub_28D8B0, bgmSlots, slot);
 
 	if (request >= 0)
 	{
 		auto fileName = X86_LOAD_U32(g_soundTestFilenamesAddr + 4 * request);
-		auto soundEffects = GuestToHostFunction<uint32_t>(sub_55B40);
-		GuestToHostFunction<void, CallConvention::Thiscall>(sub_25BE10, soundEffects, fileName);
+		auto soundEffects = GuestToHostFunction<uint32_t>(ctx, sub_55B40);
+		GuestToHostFunction<void, CallConvention::Thiscall>(ctx, sub_25BE10, soundEffects, fileName);
 	}
 }
 
@@ -1589,7 +1591,7 @@ static void DrawCustomOption(int rowIndex, ImVec2 min, ImVec2 max, const std::st
 	DrawSelectionArrows(arrowAreaMin, arrowAreaMax, isSelected);
 }
 
-static void DrawCustomizeInputOption(int rowIndex, ImVec2 min, ImVec2 max)
+static void DrawCustomizeInputOption(X86Context* ctx, int rowIndex, ImVec2 min, ImVec2 max)
 {
 	DrawCustomOption(rowIndex, min, max, Localise("Options_Name_CustomizeInput"), "", false);
 
@@ -1610,7 +1612,7 @@ static void DrawCustomizeInputOption(int rowIndex, ImVec2 min, ImVec2 max)
 
 	if (CheckAndDiscard(g_isAccepted))
 	{
-		Game_PlaySound("decide");
+		Game_PlaySound(ctx, "decide");
 
 		g_isRemapMenu = true;
 		g_remapSectionIndex = 0;
@@ -1765,7 +1767,7 @@ static void ClearDuplicateBindings(ConfigDef<T>* config, int playerIndex)
 
 // playerIndex -1 for keyboard
 template <typename T>
-static void DrawBindingOption(int rowIndex, ImVec2 min, ImVec2 max, const std::string& title, ConfigDef<T>* config, int playerIndex)
+static void DrawBindingOption(X86Context* ctx, int rowIndex, ImVec2 min, ImVec2 max, const std::string& title, ConfigDef<T>* config, int playerIndex)
 {
 	constexpr bool isKeyboard = std::is_same_v<T, SDL_Scancode>;
 
@@ -1816,14 +1818,14 @@ static void DrawBindingOption(int rowIndex, ImVec2 min, ImVec2 max, const std::s
 
 		if (CheckAndDiscard(g_isAccepted))
 		{
-			Game_PlaySound("decide");
+			Game_PlaySound(ctx, "decide");
 
 			BeginBindingCapture(playerIndex);
 			OptionsMenu::SetFlowState(OptionsMenuFlowState::OptionSelected);
 		}
 		else if (CheckAndDiscard(g_isReset))
 		{
-			Game_PlaySound("cancel");
+			Game_PlaySound(ctx, "cancel");
 
 			config->MakeDefault();
 			ClearDuplicateBindings(config, playerIndex);
@@ -1870,7 +1872,7 @@ static void DrawBindingOption(int rowIndex, ImVec2 min, ImVec2 max, const std::s
 
 		if (isCaptured || isCancelled)
 		{
-			Game_PlaySound(isCaptured ? "decide" : "cancel");
+			Game_PlaySound(ctx, isCaptured ? "decide" : "cancel");
 
 			g_captureState = EBindingCaptureState::WaitRelease;
 			g_captureTime = time;
@@ -1894,13 +1896,13 @@ static void DrawBindingOption(int rowIndex, ImVec2 min, ImVec2 max, const std::s
 	}
 }
 
-static void DrawRemapOptions(int& rowCount, ImVec2 min, ImVec2 max)
+static void DrawRemapOptions(X86Context* ctx, int& rowCount, ImVec2 min, ImVec2 max)
 {
 	if (IsKeyboardRemapSection())
 	{
 		for (auto& [title, config] : g_keyboardBindings)
 		{
-			DrawBindingOption(rowCount++, min, max, title, config, -1);
+			DrawBindingOption(ctx, rowCount++, min, max, title, config, -1);
 		}
 
 		return;
@@ -1908,18 +1910,18 @@ static void DrawRemapOptions(int& rowCount, ImVec2 min, ImVec2 max)
 
 	auto playerIndex = g_remapSectionIndex - (int)ERemapSection::Gamepad1P;
 
-	DrawOption(rowCount++, g_stickDeadzones[playerIndex], true, min, max, nullptr, 0.0f, 0.0f, 0.5f);
-	DrawOption(rowCount++, g_stickSensitivities[playerIndex], true, min, max, nullptr, 0.5f, 1.0f, 2.0f);
+	DrawOption(ctx, rowCount++, g_stickDeadzones[playerIndex], true, min, max, nullptr, 0.0f, 0.0f, 0.5f);
+	DrawOption(ctx, rowCount++, g_stickSensitivities[playerIndex], true, min, max, nullptr, 0.5f, 1.0f, 2.0f);
 
 	auto& bindings = input::GetPadBindings(playerIndex);
 
 	for (size_t i = 0; i < bindings.size(); i++)
 	{
-		DrawBindingOption(rowCount++, min, max, g_xboxButtonNames[i], bindings[i], playerIndex);
+		DrawBindingOption(ctx, rowCount++, min, max, g_xboxButtonNames[i], bindings[i], playerIndex);
 	}
 }
 
-static void DrawOptions(ImVec2 minClipRect, ImVec2 maxClipRect, ImVec2 min, ImVec2 max)
+static void DrawOptions(X86Context* ctx, ImVec2 minClipRect, ImVec2 maxClipRect, ImVec2 min, ImVec2 max)
 {
 	auto drawList = ImGui::GetBackgroundDrawList();
 	drawList->PushClipRect(minClipRect, maxClipRect);
@@ -1933,39 +1935,39 @@ static void DrawOptions(ImVec2 minClipRect, ImVec2 maxClipRect, ImVec2 min, ImVe
 	switch ((OptionsMenuCategory)g_categoryIndex)
 	{
 	case OptionsMenuCategory::System:
-		DrawOption(rowCount++, &Config::Language, !OptionsMenu::s_isPause, min, max, cmnReason);
-		DrawOption(rowCount++, &Config::VoiceLanguage, !OptionsMenu::s_isPause, min, max, cmnReason);
-		DrawOption(rowCount++, &Config::Subtitles, true, min, max);
-		DrawOption(rowCount++, &Config::EnablePartnerIntro, true, min, max);
-		DrawOption(rowCount++, &Config::ConfirmationPrompt, true, min, max);
-		DrawOption(rowCount++, &Config::Hints, true, min, max);
-		DrawOption(rowCount++, &Config::AchievementNotifications, true, min, max);
+		DrawOption(ctx, rowCount++, &Config::Language, !OptionsMenu::s_isPause, min, max, cmnReason);
+		DrawOption(ctx, rowCount++, &Config::VoiceLanguage, !OptionsMenu::s_isPause, min, max, cmnReason);
+		DrawOption(ctx, rowCount++, &Config::Subtitles, true, min, max);
+		DrawOption(ctx, rowCount++, &Config::EnablePartnerIntro, true, min, max);
+		DrawOption(ctx, rowCount++, &Config::ConfirmationPrompt, true, min, max);
+		DrawOption(ctx, rowCount++, &Config::Hints, true, min, max);
+		DrawOption(ctx, rowCount++, &Config::AchievementNotifications, true, min, max);
 
 		break;
 
 	case OptionsMenuCategory::Input:
 		if (g_isRemapMenu)
 		{
-			DrawRemapOptions(rowCount, min, max);
+			DrawRemapOptions(ctx, rowCount, min, max);
 			break;
 		}
 
-		DrawOption(rowCount++, &Config::HorizontalCamera1P, true, min, max);
-		DrawOption(rowCount++, &Config::HorizontalCamera2P, true, min, max);
+		DrawOption(ctx, rowCount++, &Config::HorizontalCamera1P, true, min, max);
+		DrawOption(ctx, rowCount++, &Config::HorizontalCamera2P, true, min, max);
 		if (Config::ExtendedMultiplayer.Value) {
-			DrawOption(rowCount++, &Config::HorizontalCamera3P, true, min, max);
-			DrawOption(rowCount++, &Config::HorizontalCamera4P, true, min, max);
+			DrawOption(ctx, rowCount++, &Config::HorizontalCamera3P, true, min, max);
+			DrawOption(ctx, rowCount++, &Config::HorizontalCamera4P, true, min, max);
 		}
-		DrawOption(rowCount++, &Config::Vibration1P, true, min, max);
-		DrawOption(rowCount++, &Config::Vibration2P, true, min, max);
+		DrawOption(ctx, rowCount++, &Config::Vibration1P, true, min, max);
+		DrawOption(ctx, rowCount++, &Config::Vibration2P, true, min, max);
 		if (Config::ExtendedMultiplayer.Value) {
-			DrawOption(rowCount++, &Config::Vibration3P, true, min, max);
-			DrawOption(rowCount++, &Config::Vibration4P, true, min, max);
+			DrawOption(ctx, rowCount++, &Config::Vibration3P, true, min, max);
+			DrawOption(ctx, rowCount++, &Config::Vibration4P, true, min, max);
 		}
-		DrawOption(rowCount++, &Config::ControllerIcons, !OptionsMenu::s_isPause, min, max, cmnReason);
-		DrawOption(rowCount++, &Config::ChaosPowerLEDSync, true, min, max);
-		DrawOption(rowCount++, &Config::AllowBackgroundInput, true, min, max);
-		DrawCustomizeInputOption(rowCount++, min, max);
+		DrawOption(ctx, rowCount++, &Config::ControllerIcons, !OptionsMenu::s_isPause, min, max, cmnReason);
+		DrawOption(ctx, rowCount++, &Config::ChaosPowerLEDSync, true, min, max);
+		DrawOption(ctx, rowCount++, &Config::AllowBackgroundInput, true, min, max);
+		DrawCustomizeInputOption(ctx, rowCount++, min, max);
 		break;
 
 	case OptionsMenuCategory::Audio:
@@ -1978,15 +1980,15 @@ static void DrawOptions(ImVec2 minClipRect, ImVec2 maxClipRect, ImVec2 min, ImVe
 			break;
 		}
 
-		DrawOption(rowCount++, &Config::MasterVolume, true, min, max);
-		DrawOption(rowCount++, &Config::MusicVolume, true, min, max, nullptr, 0.0f, 1.0f, 1.5f);
-		DrawOption(rowCount++, &Config::EffectsVolume, true, min, max, nullptr, 0.0f, 1.0f, 1.5f);
-		DrawOption(rowCount++, &Config::VoicesVolume, true, min, max, nullptr, 0.0f, 1.0f, 1.5f);
-		DrawOption(rowCount++, &Config::CutsceneVolume, true, min, max, nullptr, 0.0f, 1.0f, 1.5f);
-		DrawOption(rowCount++, &Config::MusicAttenuation, os::media::IsSupported(), min, max, &Localise("Options_Desc_OSNotSupported"));
-		DrawOption(rowCount++, &Config::MuteOnFocusLost, true, min, max);
-		DrawOption(rowCount++, &Config::IdleChaosPowersMusic, !OptionsMenu::s_isPause, min, max, cmnReason);
-		DrawActionOption(rowCount++, min, Localise("Options_Name_SoundTest"), Localise("Options_Desc_SoundTest"), !OptionsMenu::s_isPause, cmnReason, OpenSoundTest);
+		DrawOption(ctx, rowCount++, &Config::MasterVolume, true, min, max);
+		DrawOption(ctx, rowCount++, &Config::MusicVolume, true, min, max, nullptr, 0.0f, 1.0f, 1.5f);
+		DrawOption(ctx, rowCount++, &Config::EffectsVolume, true, min, max, nullptr, 0.0f, 1.0f, 1.5f);
+		DrawOption(ctx, rowCount++, &Config::VoicesVolume, true, min, max, nullptr, 0.0f, 1.0f, 1.5f);
+		DrawOption(ctx, rowCount++, &Config::CutsceneVolume, true, min, max, nullptr, 0.0f, 1.0f, 1.5f);
+		DrawOption(ctx, rowCount++, &Config::MusicAttenuation, os::media::IsSupported(), min, max, &Localise("Options_Desc_OSNotSupported"));
+		DrawOption(ctx, rowCount++, &Config::MuteOnFocusLost, true, min, max);
+		DrawOption(ctx, rowCount++, &Config::IdleChaosPowersMusic, !OptionsMenu::s_isPause, min, max, cmnReason);
+		DrawActionOption(ctx, rowCount++, min, Localise("Options_Name_SoundTest"), Localise("Options_Desc_SoundTest"), !OptionsMenu::s_isPause, cmnReason, OpenSoundTest);
 		break;
 
 	case OptionsMenuCategory::Video:
@@ -2001,22 +2003,22 @@ static void DrawOptions(ImVec2 minClipRect, ImVec2 maxClipRect, ImVec2 min, ImVe
 			monitorReason = &Localise("Options_Desc_NotAvailableHardware");
 
 		auto monitorMax = GameWindow::CanSpanDisplays() ? displayCount : displayCount - 1;
-		DrawOption(rowCount++, &Config::Monitor, canChangeMonitor, min, max, monitorReason, 0, 0, std::max(monitorMax, 0), false);
-		DrawOption(rowCount++, &Config::Fullscreen, true, min, max, devReason);
-		DrawOption(rowCount++, &Config::AspectRatio, true, min, max, devReason);
-		DrawOption(rowCount++, &Config::WindowSize, canChangeResolution, min, max, &Localise("Options_Desc_NotAvailableFullscreen"), 0, 0, (int)GameWindow::GetDisplayModes().size() - 1, false);
-		DrawOption(rowCount++, &Config::ResolutionScale, true, min, max, nullptr, 0.25f, 1.0f, 2.0f);
-		DrawOption(rowCount++, &Config::FMVAspectRatio, true, min, max, nullptr);
-		DrawOption(rowCount++, &Config::MaxHUDWidth, true, min, max, nullptr);
-		DrawOption(rowCount++, &Config::VSync, true, min, max, nullptr);
-		DrawOption(rowCount++, &Config::FPS, true, min, max, nullptr, FPS_MIN, 120, FPS_MAXSoft);
-		DrawOption(rowCount++, &Config::CutsceneFramerate, true, min, max, nullptr);
-		DrawOption(rowCount++, &Config::ShowFPS, true, min, max, nullptr);
-		DrawOption(rowCount++, &Config::Brightness, true, min, max, nullptr);
-		DrawOption(rowCount++, &Config::BloomIntensity, true, min, max, nullptr);
+		DrawOption(ctx, rowCount++, &Config::Monitor, canChangeMonitor, min, max, monitorReason, 0, 0, std::max(monitorMax, 0), false);
+		DrawOption(ctx, rowCount++, &Config::Fullscreen, true, min, max, devReason);
+		DrawOption(ctx, rowCount++, &Config::AspectRatio, true, min, max, devReason);
+		DrawOption(ctx, rowCount++, &Config::WindowSize, canChangeResolution, min, max, &Localise("Options_Desc_NotAvailableFullscreen"), 0, 0, (int)GameWindow::GetDisplayModes().size() - 1, false);
+		DrawOption(ctx, rowCount++, &Config::ResolutionScale, true, min, max, nullptr, 0.25f, 1.0f, 2.0f);
+		DrawOption(ctx, rowCount++, &Config::FMVAspectRatio, true, min, max, nullptr);
+		DrawOption(ctx, rowCount++, &Config::MaxHUDWidth, true, min, max, nullptr);
+		DrawOption(ctx, rowCount++, &Config::VSync, true, min, max, nullptr);
+		DrawOption(ctx, rowCount++, &Config::FPS, true, min, max, nullptr, FPS_MIN, 120, FPS_MAXSoft);
+		DrawOption(ctx, rowCount++, &Config::CutsceneFramerate, true, min, max, nullptr);
+		DrawOption(ctx, rowCount++, &Config::ShowFPS, true, min, max, nullptr);
+		DrawOption(ctx, rowCount++, &Config::Brightness, true, min, max, nullptr);
+		DrawOption(ctx, rowCount++, &Config::BloomIntensity, true, min, max, nullptr);
 
 #ifdef SHADOW_RECOMP_D3D12
-		DrawOption(rowCount++, &Config::GraphicsAPI, !OptionsMenu::s_isPause, min, max, cmnReason);
+		DrawOption(ctx, rowCount++, &Config::GraphicsAPI, !OptionsMenu::s_isPause, min, max, cmnReason);
 #endif
 
 		break;
@@ -2031,7 +2033,7 @@ static void DrawOptions(ImVec2 minClipRect, ImVec2 maxClipRect, ImVec2 min, ImVe
 
 			//  def->SetHidden(false);
 
-			DrawOption(rowCount++, (ConfigDef<bool, true>*)def, true, min, max);
+			DrawOption(ctx, rowCount++, (ConfigDef<bool, true>*)def, true, min, max);
 		}
 
 		break;
@@ -2084,7 +2086,7 @@ static void ResetSelection()
 }
 
 
-static void MoveCursor(int& cursorIndex, double& cursorTime, int min = 0, int max = INT_MAX, std::function<void(bool isDown)> onCursorMoved = nullptr)
+static void MoveCursor(X86Context* ctx, int& cursorIndex, double& cursorTime, int min = 0, int max = INT_MAX, std::function<void(bool isDown)> onCursorMoved = nullptr)
 {
 	auto time = ImGui::GetTime();
 
@@ -2131,7 +2133,7 @@ static void MoveCursor(int& cursorIndex, double& cursorTime, int min = 0, int ma
 
 	if (scrollUp || scrollDown)
 	{
-		Game_PlaySound("cursor");
+		Game_PlaySound(ctx, "cursor");
 
 		cursorTime = time;
 
@@ -2359,7 +2361,7 @@ void DrawBackground(bool isPause = false)
 	}
 }
 
-void DrawMenuListContainer(ImVec2 min, ImVec2 max)
+void DrawMenuListContainer(X86Context* ctx, ImVec2 min, ImVec2 max)
 {
 	auto* drawList = ImGui::GetBackgroundDrawList();
 	auto& res = ImGui::GetIO().DisplaySize;
@@ -2402,7 +2404,7 @@ void DrawMenuListContainer(ImVec2 min, ImVec2 max)
 	optionsOffsetX -= Scale(170);
 	ImVec2 minClipRect = { containerMin.x + optionsOffsetX, containerMin.y + optionsOffsetY };
 	ImVec2 maxClipRect = { containerMax.x, minClipRect.y + Scale(OPTION_ROW_HEIGHT) * MAX_VISIBLE_ROWS };
-	DrawOptions(minClipRect, maxClipRect, minOptions, maxOptions);
+	DrawOptions(ctx, minClipRect, maxClipRect, minOptions, maxOptions);
 	if (OptionsMenu::s_flowState == OptionsMenuFlowState::OptionCursor || OptionsMenu::s_flowState == OptionsMenuFlowState::OptionSelected)
 		DrawDescription(optionDescription); // we draw option description separately so they don't get discard by the clip rect.
 
@@ -2743,7 +2745,7 @@ static void FinishClosing()
 	OptionsMenu::s_isVisible = false;
 }
 
-void OptionsMenu::Draw()
+void OptionsMenu::Draw(X86Context* ctx)
 {
 	if (!s_isVisible)
 		return;
@@ -2890,7 +2892,7 @@ void OptionsMenu::Draw()
 	{
 		if (g_isRemapMenu)
 		{
-			MoveCursor(g_remapSectionIndex, g_flowStateTime, 0, GetRemapSectionCount(), [](bool)
+			MoveCursor(ctx, g_remapSectionIndex, g_flowStateTime, 0, GetRemapSectionCount(), [](bool)
 				{
 					ResetOptionSelection();
 
@@ -2900,7 +2902,7 @@ void OptionsMenu::Draw()
 
 			if (CheckAndDiscard(g_isAccepted))
 			{
-				Game_PlaySound("decide");
+				Game_PlaySound(ctx, "decide");
 
 				SetFlowState(OptionsMenuFlowState::OptionCursor);
 
@@ -2909,7 +2911,7 @@ void OptionsMenu::Draw()
 
 			if (CheckAndDiscard(g_isDeclined))
 			{
-				Game_PlaySound("cancel");
+				Game_PlaySound(ctx, "cancel");
 
 				g_isRemapMenu = false;
 				g_optionIndex = g_remapReturnOptionIndex;
@@ -2933,7 +2935,7 @@ void OptionsMenu::Draw()
 		/**if (s_isPause)
 			categoryCount -= 1;*/
 
-		MoveCursor(g_categoryIndex, g_flowStateTime, 0, categoryCount, [](bool)
+		MoveCursor(ctx, g_categoryIndex, g_flowStateTime, 0, categoryCount, [](bool)
 			{
 				ResetOptionSelection();
 
@@ -2944,7 +2946,7 @@ void OptionsMenu::Draw()
 
 		if (CheckAndDiscard(g_isAccepted))
 		{
-			Game_PlaySound("decide");
+			Game_PlaySound(ctx, "decide");
 
 			SetFlowState(OptionsMenuFlowState::OptionCursor);
 
@@ -2954,7 +2956,7 @@ void OptionsMenu::Draw()
 		if (CheckAndDiscard(g_isDeclined) || CheckAndDiscard(g_isLeaving) || OptionsMenu::s_GoToLegacyMenu == true)
 		{
 			if (OptionsMenu::s_GoToLegacyMenu == false)
-				Game_PlaySound("cancel");
+				Game_PlaySound(ctx, "cancel");
 
 			g_stateTime = ImGui::GetTime();
 			g_categoryTime = g_stateTime;
@@ -2978,7 +2980,7 @@ void OptionsMenu::Draw()
 
 	case OptionsMenuFlowState::OptionCursor:
 	{
-		MoveCursor(g_optionIndex, g_flowStateTime, 0, g_optionCount, [](bool isDown)
+		MoveCursor(ctx, g_optionIndex, g_flowStateTime, 0, g_optionCount, [](bool isDown)
 			{
 				g_cursorArrowsTime = ImGui::GetTime();
 
@@ -2994,13 +2996,13 @@ void OptionsMenu::Draw()
 
 		if (g_isSoundTest && CheckAndDiscard(g_isDeclined))
 		{
-			Game_PlaySound("cancel");
+			Game_PlaySound(ctx, "cancel");
 			CloseSoundTest();
 		}
 
 		if (CheckAndDiscard(g_isDeclined))
 		{
-			Game_PlaySound("cancel");
+			Game_PlaySound(ctx, "cancel");
 
 			SetFlowState(OptionsMenuFlowState::CategoryCursor);
 
@@ -3035,7 +3037,7 @@ void OptionsMenu::Draw()
 	}
 
 	if (!isTransition)
-		DrawMenuListContainer(min, max);
+		DrawMenuListContainer(ctx, min, max);
 
 	ScaleVertexAlpha(drawList, vtxStart, menuAlpha);
 	ButtonGuide::s_alpha = menuAlpha;

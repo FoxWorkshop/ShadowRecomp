@@ -47,14 +47,14 @@ X86_FUNC(sub_3258A0)
 
 	BloomData bwk;
 	memset(&bwk, 0, sizeof(BloomData));
-	bwk.offsetX = GetHostParameterFloat(2, CallConvention::Thiscall);
-	bwk.offsetY = GetHostParameterFloat(3, CallConvention::Thiscall);
-	bwk.width = GetHostParameterFloat(4, CallConvention::Thiscall);
-	bwk.height = GetHostParameterFloat(5, CallConvention::Thiscall);
-	bwk.u0 = GetHostParameterFloat(6, CallConvention::Thiscall);
-	bwk.v0 = GetHostParameterFloat(7, CallConvention::Thiscall);
-	bwk.u1 = GetHostParameterFloat(8, CallConvention::Thiscall);
-	bwk.v1 = GetHostParameterFloat(9, CallConvention::Thiscall);
+	bwk.offsetX = GetHostParameterFloat(ctx, 2, CallConvention::Thiscall);
+	bwk.offsetY = GetHostParameterFloat(ctx, 3, CallConvention::Thiscall);
+	bwk.width = GetHostParameterFloat(ctx, 4, CallConvention::Thiscall);
+	bwk.height = GetHostParameterFloat(ctx, 5, CallConvention::Thiscall);
+	bwk.u0 = GetHostParameterFloat(ctx, 6, CallConvention::Thiscall);
+	bwk.v0 = GetHostParameterFloat(ctx, 7, CallConvention::Thiscall);
+	bwk.u1 = GetHostParameterFloat(ctx, 8, CallConvention::Thiscall);
+	bwk.v1 = GetHostParameterFloat(ctx, 9, CallConvention::Thiscall);
 
 
 	if (bwk.width != 0.0f)

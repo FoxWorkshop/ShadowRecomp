@@ -343,9 +343,9 @@ bool IsEndingUnlocked(uint16_t flag)
     return false;
 }
 
-void SetEndingAchievementMidAsmHook(X86Register& rEcx)
+void SetEndingAchievementMidAsmHook(X86Context& __restrict ctx, uint8_t* base)
 {
-   const uint8_t id = rEcx.u8_lo;
+   const uint8_t id = ctx.ecx.u8_lo;
     if (id > 9 || id < 0)
         return;
 
@@ -353,9 +353,9 @@ void SetEndingAchievementMidAsmHook(X86Register& rEcx)
     AchievementManager::SaveBinary();
 }
 
-void UpdateARankCountMidAsmHook(X86Register& rEdx)
+void UpdateARankCountMidAsmHook(X86Context& __restrict ctx, uint8_t* base)
 {
-    if (rEdx.u32 >= 71)
+    if (ctx.edx.u32 >= 71)
     {
         AchievementManager::Unlock(Ach_AllARanks);
         AchievementManager::SaveBinary();
@@ -411,9 +411,8 @@ constexpr float g_centralCityHeroTimeLimit = 180.0f;
 
 
 //StageAction Goal action destructor
-void StageActionGoalActionMidAsmHook()
+void StageActionGoalActionMidAsmHook(X86Context& __restrict ctx, uint8_t* base)
 {
-    auto base = g_memory.base;
     auto menuModeAddr = X86_LOAD_U32(g_menuModeAddr);
     auto currentLevel = X86_LOAD_U32(g_currentStageIDAddr);
   

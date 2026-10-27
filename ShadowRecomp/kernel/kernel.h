@@ -88,6 +88,6 @@ inline T* QueryKernelObject(XDISPATCHER_HEADER &header)
 
 void InitDpcData();
 void InitMultiCoreMutexesPatches();
-void RtlEnterCriticalSection(XRTL_CRITICAL_SECTION* CritSec);
+void RtlEnterCriticalSection(X86Context& ctx, XRTL_CRITICAL_SECTION* CritSec);
 void RtlLeaveCriticalSection(XRTL_CRITICAL_SECTION* CritSec);
 void RtlInitializeCriticalSection(XRTL_CRITICAL_SECTION* CritSec);

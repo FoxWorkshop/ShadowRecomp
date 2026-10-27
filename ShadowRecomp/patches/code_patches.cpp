@@ -12,27 +12,25 @@
 // Fire VacuumCommand handler @ 0x1AA820
 // Fire attack callback @ 0x19B550
 X86_FUNC_IMPL(__imp__sub_5C4D0); // ScoreCommand
-void FireVacuumCallbackMidAsmHook(X86Register& ebp, X86Register& edi)
+void FireVacuumCallbackMidAsmHook(X86Context& __restrict ctx, uint8_t* base)
 {
     if (!Config::VacuumGivePointsOnFireSuck)
     {
         return;
     }
 
-    auto ctx = GetX86Context();
-    auto base = g_memory.base;
 
     // ebp = GadgetCharInfo (object being sucked)
     // ebp+0x50 = GadgetID, 0x1A = Fire
     // ebp+0x64 = CharCommandUnit, handler instance is 0x8 inside CharCommandUnit
     // edi = Vacuum weapon instance (0xC = player who is holding it)
-    if (ebp.u32 == 0 || X86_LOAD_U32(ebp.u32 + 0x50) != 0x1A)
+    if (ctx.ebp.u32 == 0 || X86_LOAD_U32(ctx.ebp.u32 + 0x50) != 0x1A)
     {
         // skip if not fire
         return;
     }
 
-    auto cmdUnit = X86_LOAD_U32(ebp.u32 + 0x64);
+    auto cmdUnit = X86_LOAD_U32(ctx.ebp.u32 + 0x64);
     if (cmdUnit == 0) // command null check (matching OG)
     {
         return;
@@ -53,30 +51,29 @@ void FireVacuumCallbackMidAsmHook(X86Register& ebp, X86Register& edi)
     }
 
     // safety check if the vac command drops
-    if (X86_LOAD_U32(edi.u32 + 0xC) == 0)
+    if (X86_LOAD_U32(ctx.edi.u32 + 0xC) == 0)
     {
         return;
     }
 
-    ctx->esp.u32 -= 4;
-    X86_STORE_U32(ctx->esp.u32, 0x1B); // score callback entry
-    ctx->esp.u32 -= 4;
-    X86_STORE_U32(ctx->esp.u32, edi.u32 + 0xC); // player instance
-    ctx->esp.u32 -= 4;
-    __imp__sub_5C4D0(*ctx, base);
-    ctx->esp.u32 += 8;
+    ctx.esp.u32 -= 4;
+    X86_STORE_U32(ctx.esp.u32, 0x1B); // score callback entry
+    ctx.esp.u32 -= 4;
+    X86_STORE_U32(ctx.esp.u32, ctx.edi.u32 + 0xC); // player instance
+    ctx.esp.u32 -= 4;
+    __imp__sub_5C4D0(ctx, base);
+    ctx.esp.u32 += 8;
 }
 
 // Expert Select (port of Reloaded v1.2 version)
 // TODO: Switch to Zetti's version before release
 // TODO: Move to reloaded or cheat code only (probably a code)
 // This one has the bug where it can apply to Story Mode / Last Story too
-void ExpertSelectMidAsmHook(X86Register& edx)
+void ExpertSelectMidAsmHook(X86Context& __restrict ctx, uint8_t* base)
 {
     if (PJSPeripheral::IsHeld(0, PJSPeripheral::BTN_X))
     {
-        auto base = g_memory.base;
-        X86_STORE_U8(edx.u32 + 0x59, 1);
+        X86_STORE_U8(ctx.edx.u32 + 0x59, 1);
     }
 }
 
@@ -191,14 +188,14 @@ X86_FUNC(sub_9FC00)
 // Vacuum Any Enemy Cheat
 // Both Vacuum weapons look for the collisions flag 0x80 to detect if they can work on the current enemy
 // The game don't use it on some enemy like the BkNinja and Big Foot, so we add it manually 
-void VacuumAnyEnemyColliMidAsmHook(X86Register& ecx)
+void VacuumAnyEnemyColliMidAsmHook(X86Context& __restrict ctx, uint8_t* base)
 {
     if (Config::VacuumAnyEnemy)
-        ecx.u32 |= 0x80;
+        ctx.ecx.u32 |= 0x80;
 }
 
 // Both BkWingLarge and BkChaos can resist the vacuum command, force it to always work.
-bool VacuumAnyEnemySkipResistMidAsmHook()
+bool VacuumAnyEnemySkipResistMidAsmHook(X86Context& __restrict ctx, uint8_t* base)
 {
     return Config::VacuumAnyEnemy;
 }

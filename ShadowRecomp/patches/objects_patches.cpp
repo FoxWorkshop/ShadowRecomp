@@ -193,26 +193,24 @@ X86_FUNC(sub_17E290)
 }
 
 // BombingWall filter patch for CB
-void BombingWallBreakMidAsmHook(X86Register& ecx)
+void BombingWallBreakMidAsmHook(X86Context& __restrict ctx, uint8_t* base)
 {
-	if (ecx.u32 & 0x10)
+	if (ctx.ecx.u32 & 0x10)
 	{
-		ecx.u32 |= 0x200;
+		ctx.ecx.u32 |= 0x200;
 	}
 }
 
 // Switch attacker filter callback (Ball switch)
 // Extend to include melee swing (0x80) + melee generic (0x2)
-bool BallSwitchTriggerMidAsmHook(X86Register& eax)
+bool BallSwitchTriggerMidAsmHook(X86Context& __restrict ctx, uint8_t* base)
 {
-	auto base = g_memory.base;
-	return eax.u32 != 0 && (X86_LOAD_U32(eax.u32 + 0x40) & 0x82) != 0;
+	return ctx.eax.u32 != 0 && (X86_LOAD_U32(ctx.eax.u32 + 0x40) & 0x82) != 0;
 }
 
 // BKTank only responds to damage once in StopAction
 // Ignore it for StopAction (passing to damage callback)
-bool BKTankStopActionDamageFixMidAsmHook(X86Register& esi)
+bool BKTankStopActionDamageFixMidAsmHook(X86Context& __restrict ctx, uint8_t* base)
 {
-	auto base = g_memory.base;
-	return X86_LOAD_F32(esi.u32 + 0x28) > 0.0f;
+	return X86_LOAD_F32(ctx.esi.u32 + 0x28) > 0.0f;
 }

@@ -1,5 +1,4 @@
 #pragma once
-#include "cpu/x86_context.h"
 #include "memory.h"
 #include <tuple>
 #include <array>
@@ -59,6 +58,18 @@ constexpr std::tuple<T...> function_args(R(*)(T...)) noexcept
 {
     return std::tuple<T...>();
 }
+
+template <typename R, typename... T>
+constexpr std::tuple<T...> function_args(R(*)(X86Context&, T...)) noexcept
+{
+    return std::tuple<T...>();
+}
+
+template <typename F>
+struct takes_ctx_t : std::false_type {};
+
+template <typename R, typename... T>
+struct takes_ctx_t<R(*)(X86Context&, T...)> : std::true_type {};
 
 template<auto V>
 static constexpr decltype(V) constant_v = V;
@@ -384,19 +395,25 @@ std::enable_if_t<(I < sizeof...(TArgs)), void>
 template<auto Func, CallConvention CC>
 X86_FUNC(HostToGuestFunction)
 {
-    using ret_t = decltype(std::apply(Func, function_args(Func)));
-
     auto args = function_args(Func);
-
     _translate_args_to_host<Func, CC>(ctx, base, args);
-	//LogStackValues(ctx, base, arg_count_t<Func>::value);    
+
+    auto call = [&]() -> decltype(auto)
+    {
+        if constexpr (takes_ctx_t<decltype(Func)>::value)
+            return std::apply([&](auto... rest) { return Func(ctx, rest...); }, args);
+        else
+            return std::apply(Func, args);
+    };
+    using ret_t = decltype(call());
+
     if constexpr (std::is_same_v<ret_t, void>)
     {
-        std::apply(Func, args);
+        call();
     }
     else
     {
-        auto v = std::apply(Func, args);
+        auto v = call();
 
         if constexpr (std::is_pointer_v<ret_t>)
         {
@@ -412,6 +429,10 @@ X86_FUNC(HostToGuestFunction)
         else
         {
             ctx.eax.u32 = static_cast<uint32_t>(v);
+
+            // 64-bit results come back in edx:eax.
+            if constexpr (sizeof(ret_t) == 8)
+                ctx.edx.u32 = static_cast<uint32_t>(static_cast<uint64_t>(v) >> 32);
         }
     }
 
@@ -433,10 +454,9 @@ X86_FUNC(HostToGuestFunction)
 // Function to call from guest (x86) to host (C++)
 template<typename T, CallConvention CC = CallConvention::Cdecl,
     typename TFunction, typename... TArgs>
-T GuestToHostFunction(const TFunction& func, TArgs&&... argv)
+T GuestToHostFunction(const X86Context& currentCtx, const TFunction& func, TArgs&&... argv)
 {
     auto args = std::make_tuple(std::forward<TArgs>(argv)...);
-    auto& currentCtx = *GetX86Context();
 
     X86Context newCtx{}; // Create a fresh context
     newCtx.esp = currentCtx.esp;
@@ -447,16 +467,12 @@ T GuestToHostFunction(const TFunction& func, TArgs&&... argv)
     // Set up the arguments
     _translate_args_to_guest<CC>(newCtx, g_memory.base, args);
 
-    SetX86Context(newCtx);
     newCtx.esp.u32 -= 4; //adjust esp for CALL instruction
 
     if constexpr (std::is_function_v<TFunction>)
         func(newCtx, g_memory.base);
     else
         g_memory.FindFunction(func)(newCtx, g_memory.base);
-
-    // Restore the original context
-    SetX86Context(currentCtx);
 
     if constexpr (std::is_pointer_v<T>)
     {
@@ -480,13 +496,8 @@ T GuestToHostFunction(const TFunction& func, TArgs&&... argv)
 * ParamType - specify if the parameter is a int, a float or a pointer using ParameterType enum. Default to int.
 * Float parameters are returned as raw bits; use GetHostParameterFloat to get the value as a float.
 */
-inline uintptr_t GetHostParameter(int8_t paramID, CallConvention funcType = CallConvention::Cdecl, ParameterType ParamType = ParameterType::Integer, ParameterSize paramSize = ParameterSize::U32)
+inline uintptr_t GetHostParameter(const X86Context& ctx, int8_t paramID, CallConvention funcType = CallConvention::Cdecl, ParameterType ParamType = ParameterType::Integer, ParameterSize paramSize = ParameterSize::U32)
 {
-    auto ctx = GetX86Context();
-
-    if (!ctx)
-        return 0;
-
     if (paramID <= 0)
         paramID = 1;
 
@@ -499,7 +510,7 @@ inline uintptr_t GetHostParameter(int8_t paramID, CallConvention funcType = Call
     default:
         if (ParamType == ParameterType::Pointer)
         {
-            auto ptr = X86_LOAD_U32(ctx->esp.u32 + (4 * paramID));
+            auto ptr = X86_LOAD_U32(ctx.esp.u32 + (4 * paramID));
             if (!ptr)
                 return 0;
 
@@ -508,24 +519,24 @@ inline uintptr_t GetHostParameter(int8_t paramID, CallConvention funcType = Call
         else
         {
             if (paramSize == ParameterSize::U8)
-                return (uintptr_t)X86_LOAD_U8(ctx->esp.u32 + (4 * paramID));
+                return (uintptr_t)X86_LOAD_U8(ctx.esp.u32 + (4 * paramID));
             else if (paramSize == ParameterSize::U16)
-                return (uintptr_t)X86_LOAD_U16(ctx->esp.u32 + (4 * paramID));
+                return (uintptr_t)X86_LOAD_U16(ctx.esp.u32 + (4 * paramID));
             else
-                return (uintptr_t)X86_LOAD_U32(ctx->esp.u32 + (4 * paramID));
+                return (uintptr_t)X86_LOAD_U32(ctx.esp.u32 + (4 * paramID));
         }
         break;
     case CallConvention::Thiscall:
         if (paramID == 1)
         {
-            if (ctx->ecx.u32 == 0)
+            if (ctx.ecx.u32 == 0)
                 return 0;
 
-            return (uintptr_t)g_memory.Translate(ctx->ecx.u32);
+            return (uintptr_t)g_memory.Translate(ctx.ecx.u32);
         }
         if (ParamType == ParameterType::Pointer)
         {
-            auto ptr = X86_LOAD_U32(ctx->esp.u32 + (4 * (paramID - 1)));
+            auto ptr = X86_LOAD_U32(ctx.esp.u32 + (4 * (paramID - 1)));
             if (!ptr)
                 return 0;
 
@@ -533,7 +544,7 @@ inline uintptr_t GetHostParameter(int8_t paramID, CallConvention funcType = Call
         }
         else
         {
-            return (uintptr_t)X86_LOAD_U32(ctx->esp.u32 + (4 * (paramID - 1)));
+            return (uintptr_t)X86_LOAD_U32(ctx.esp.u32 + (4 * (paramID - 1)));
         }
         break;
     case CallConvention::Fastcall:
@@ -541,47 +552,47 @@ inline uintptr_t GetHostParameter(int8_t paramID, CallConvention funcType = Call
         {
             if (ParamType == ParameterType::Pointer)
             {
-                if (ctx->ecx.u32 == 0)
+                if (ctx.ecx.u32 == 0)
                     return 0;
 
-                return (uintptr_t)g_memory.Translate(ctx->ecx.u32);
+                return (uintptr_t)g_memory.Translate(ctx.ecx.u32);
             }
             else
-                return (uintptr_t)X86_LOAD_U32(ctx->ecx.u32);
+                return (uintptr_t)X86_LOAD_U32(ctx.ecx.u32);
         }
         else if (paramID == 2)
         {
             if (ParamType == ParameterType::Pointer)
             {
-                if (ctx->edx.u32 == 0)
+                if (ctx.edx.u32 == 0)
                     return 0;
 
-                return (uintptr_t)g_memory.Translate(ctx->edx.u32);
+                return (uintptr_t)g_memory.Translate(ctx.edx.u32);
             }
             else
-                return (uintptr_t)X86_LOAD_U32(ctx->edx.u32);
+                return (uintptr_t)X86_LOAD_U32(ctx.edx.u32);
         }
         else
         {
             if (ParamType == ParameterType::Pointer)
             {
-                auto ptr = X86_LOAD_U32(ctx->esp.u32 + (4 * (paramID - 2)));
+                auto ptr = X86_LOAD_U32(ctx.esp.u32 + (4 * (paramID - 2)));
                 if (!ptr)
                     return 0;
 
                 return (uintptr_t)g_memory.Translate(ptr);
             }
             else
-                return (uintptr_t)X86_LOAD_U32(ctx->esp.u32 + (4 * (paramID - 2)));
+                return (uintptr_t)X86_LOAD_U32(ctx.esp.u32 + (4 * (paramID - 2)));
         }
 
        break;
     }
 }
 
-inline float GetHostParameterFloat(int8_t paramID, CallConvention funcType = CallConvention::Cdecl)
+inline float GetHostParameterFloat(const X86Context& ctx, int8_t paramID, CallConvention funcType = CallConvention::Cdecl)
 {
-    return std::bit_cast<float>(static_cast<uint32_t>(GetHostParameter(paramID, funcType, ParameterType::Float)));
+    return std::bit_cast<float>(static_cast<uint32_t>(GetHostParameter(ctx, paramID, funcType, ParameterType::Float)));
 }
 
 X86_FUNC(StubWithCleanStack);

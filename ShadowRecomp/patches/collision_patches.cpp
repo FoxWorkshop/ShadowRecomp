@@ -10,16 +10,15 @@ static uint32_t g_rayFloorPlayer = 0;
 static float g_rayFloorNormal[3];
 
 // 0x84FEA runs once per pass on both branches
-void CollisionToleranceResetMidAsmHook()
+void CollisionToleranceResetMidAsmHook(X86Context& __restrict ctx, uint8_t* base)
 {
 	g_rayFloorPlayer = 0;
 }
 
 // ground ray at 0x85338 has no normal output, using it for side coli ray slot (esp+0x68)
-void CollisionGroundRayNormalMidAsmHook(X86Register& esp)
+void CollisionGroundRayNormalMidAsmHook(X86Context& __restrict ctx, uint8_t* base)
 {
-	auto base = g_memory.base;
-	X86_STORE_U32(esp.u32 + 0x8, esp.u32 + 0x44 + 0x68);
+	X86_STORE_U32(ctx.esp.u32 + 0x8, ctx.esp.u32 + 0x44 + 0x68);
 }
 
 static float Length(const float v[3])
@@ -59,10 +58,9 @@ static bool IsFloorNormal(const float normal[3], const float ground[3])
 }
 
 // same call as 0x85338, shifted by offset
-static float RecastGroundRay(uint32_t playerSlot, uint32_t filter, uint32_t stackTop, const float ray[6], const float offset[3], float hit[3], float normal[3])
+static float RecastGroundRay(const X86Context& ctx, uint8_t* base, uint32_t playerSlot, uint32_t filter, uint32_t stackTop, const float ray[6], const float offset[3], float hit[3], float normal[3])
 {
-	auto base = g_memory.base;
-	X86Context call = *GetX86Context();
+	X86Context call = ctx;
 
 	// ray +0, hit +0x18, normal +0x24 (below the live stack)
 	uint32_t scratch = (stackTop - 0x40) & ~0xFu;
@@ -100,12 +98,11 @@ static float RecastGroundRay(uint32_t playerSlot, uint32_t filter, uint32_t stac
 // Westopolis light pole before the goal ring is a good example of this, visible in HPP
 // only helps over real floor, uses the ground normal so any gravity works
 // after the ground ray, esp+0x14 is the distance (-1 = miss)
-void CollisionToleranceMidAsmHook(X86Register& esi, X86Register& ebp, X86Register& esp)
+void CollisionToleranceMidAsmHook(X86Context& __restrict ctx, uint8_t* base)
 {
-	auto base = g_memory.base;
 	g_rayFloorPlayer = 0;
 
-	uint32_t player = X86_LOAD_U32(esi.u32);
+	uint32_t player = X86_LOAD_U32(ctx.esi.u32);
 
 	// skip if not already grounded
 	if ((X86_LOAD_U32(player + 0xa8) & 0x4) == 0)
@@ -128,7 +125,7 @@ void CollisionToleranceMidAsmHook(X86Register& esi, X86Register& ebp, X86Registe
 
 	float reach = radius * X86_LOAD_F32(g_groundReachScale);
 	float stick = radius * X86_LOAD_F32(g_groundStickScale);
-	float dist = X86_LOAD_F32(esp.u32 + 0x14);
+	float dist = X86_LOAD_F32(ctx.esp.u32 + 0x14);
 	float rayNormal[3];
 
 	if (dist < 0.0f)
@@ -137,7 +134,7 @@ void CollisionToleranceMidAsmHook(X86Register& esi, X86Register& ebp, X86Registe
 		float ray[6];
 		for (int i = 0; i < 6; i++)
 		{
-			ray[i] = X86_LOAD_F32(esp.u32 + 0x74 + i * 4);
+			ray[i] = X86_LOAD_F32(ctx.esp.u32 + 0x74 + i * 4);
 		}
 
 		// two tangents of the ground plane
@@ -161,17 +158,17 @@ void CollisionToleranceMidAsmHook(X86Register& esi, X86Register& ebp, X86Registe
 			float offset[3] = { sides[s][0] * shift, sides[s][1] * shift, sides[s][2] * shift };
 			float hit[3];
 
-			float recastDist = RecastGroundRay(esi.u32, ebp.u32, esp.u32, ray, offset, hit, rayNormal);
+			float recastDist = RecastGroundRay(ctx, base, ctx.esi.u32, ctx.ebp.u32, ctx.esp.u32, ray, offset, hit, rayNormal);
 			if (recastDist < 0.0f || recastDist > reach || !IsFloorNormal(rayNormal, ground))
 			{
 				continue;
 			}
 
 			dist = recastDist;
-			X86_STORE_F32(esp.u32 + 0x8c, hit[0]);
-			X86_STORE_F32(esp.u32 + 0x90, hit[1]);
-			X86_STORE_F32(esp.u32 + 0x94, hit[2]);
-			X86_STORE_F32(esp.u32 + 0x14, dist);
+			X86_STORE_F32(ctx.esp.u32 + 0x8c, hit[0]);
+			X86_STORE_F32(ctx.esp.u32 + 0x90, hit[1]);
+			X86_STORE_F32(ctx.esp.u32 + 0x94, hit[2]);
+			X86_STORE_F32(ctx.esp.u32 + 0x14, dist);
 		}
 
 		// real ledge
@@ -184,7 +181,7 @@ void CollisionToleranceMidAsmHook(X86Register& esi, X86Register& ebp, X86Registe
 	{
 		for (int i = 0; i < 3; i++)
 		{
-			rayNormal[i] = X86_LOAD_F32(esp.u32 + 0x68 + i * 4);
+			rayNormal[i] = X86_LOAD_F32(ctx.esp.u32 + 0x68 + i * 4);
 		}
 
 		// fallback to original behavior if our checks fail (walls)
@@ -205,7 +202,7 @@ void CollisionToleranceMidAsmHook(X86Register& esi, X86Register& ebp, X86Registe
 	// snap instead of the second ray
 	if (dist > stick)
 	{
-		X86_STORE_F32(esp.u32 + 0x14, stick);
+		X86_STORE_F32(ctx.esp.u32 + 0x14, stick);
 	}
 }
 
@@ -223,14 +220,13 @@ struct SnapFallbackState
 static std::unordered_map<uint32_t, SnapFallbackState> g_snapFallback;
 
 // ray found floor but the sweep missed, stay grounded (with timer check to prevent wall exploits and fix ottotto)
-bool CollisionToleranceSnapFallbackMidAsmHook(X86Register& esi, X86Register& eax, X86Register& esp)
+bool CollisionToleranceSnapFallbackMidAsmHook(X86Context& __restrict ctx, uint8_t* base)
 {
-	auto base = g_memory.base;
-	uint32_t player = X86_LOAD_U32(esi.u32);
+	uint32_t player = X86_LOAD_U32(ctx.esi.u32);
 	auto& state = g_snapFallback[player];
 
 	// sweep hit
-	if (eax.u8_lo != 0)
+	if (ctx.eax.u8_lo != 0)
 	{
 		if (state.missing)
 		{
@@ -259,22 +255,21 @@ bool CollisionToleranceSnapFallbackMidAsmHook(X86Register& esi, X86Register& eax
 	}
 
 	// 0x856B1 (write ignoring state for coli and player)
-	X86_STORE_F32(esp.u32 + 0x68, X86_LOAD_F32(esp.u32 + 0x18));
-	X86_STORE_F32(esp.u32 + 0x6c, X86_LOAD_F32(esp.u32 + 0x1c));
-	X86_STORE_F32(esp.u32 + 0x70, X86_LOAD_F32(esp.u32 + 0x20));
-	X86_STORE_F32(esp.u32 + 0x4c, g_rayFloorNormal[0]);
-	X86_STORE_F32(esp.u32 + 0x50, g_rayFloorNormal[1]);
-	X86_STORE_F32(esp.u32 + 0x54, g_rayFloorNormal[2]);
+	X86_STORE_F32(ctx.esp.u32 + 0x68, X86_LOAD_F32(ctx.esp.u32 + 0x18));
+	X86_STORE_F32(ctx.esp.u32 + 0x6c, X86_LOAD_F32(ctx.esp.u32 + 0x1c));
+	X86_STORE_F32(ctx.esp.u32 + 0x70, X86_LOAD_F32(ctx.esp.u32 + 0x20));
+	X86_STORE_F32(ctx.esp.u32 + 0x4c, g_rayFloorNormal[0]);
+	X86_STORE_F32(ctx.esp.u32 + 0x50, g_rayFloorNormal[1]);
+	X86_STORE_F32(ctx.esp.u32 + 0x54, g_rayFloorNormal[2]);
 	return true;
 }
 
 // 0x84E50 slope re-check @ 0x856AF
 // sweep sometimes return an edge normal at a seam (Westopolis)
 // now uses the ray floor normal as a fallback (shifted)
-bool CollisionToleranceSlopeGateMidAsmHook(X86Register& esi, X86Register& esp)
+bool CollisionToleranceSlopeGateMidAsmHook(X86Context& __restrict ctx, uint8_t* base)
 {
-	auto base = g_memory.base;
-	uint32_t player = X86_LOAD_U32(esi.u32);
+	uint32_t player = X86_LOAD_U32(ctx.esi.u32);
 	if (g_rayFloorPlayer != player)
 	{
 		return false;
@@ -282,15 +277,15 @@ bool CollisionToleranceSlopeGateMidAsmHook(X86Register& esi, X86Register& esp)
 
 	g_rayFloorPlayer = 0;
 	float ground[3] = { X86_LOAD_F32(player + 0x1c8), X86_LOAD_F32(player + 0x1cc), X86_LOAD_F32(player + 0x1d0) };
-	float sweep[3] = { X86_LOAD_F32(esp.u32 + 0x4c), X86_LOAD_F32(esp.u32 + 0x50), X86_LOAD_F32(esp.u32 + 0x54) };
+	float sweep[3] = { X86_LOAD_F32(ctx.esp.u32 + 0x4c), X86_LOAD_F32(ctx.esp.u32 + 0x50), X86_LOAD_F32(ctx.esp.u32 + 0x54) };
 	if (IsFloorNormal(sweep, ground))
 	{
 		return false;
 	}
 
-	X86_STORE_F32(esp.u32 + 0x4c, g_rayFloorNormal[0]);
-	X86_STORE_F32(esp.u32 + 0x50, g_rayFloorNormal[1]);
-	X86_STORE_F32(esp.u32 + 0x54, g_rayFloorNormal[2]);
+	X86_STORE_F32(ctx.esp.u32 + 0x4c, g_rayFloorNormal[0]);
+	X86_STORE_F32(ctx.esp.u32 + 0x50, g_rayFloorNormal[1]);
+	X86_STORE_F32(ctx.esp.u32 + 0x54, g_rayFloorNormal[2]);
 	return true;
 }
 
@@ -420,8 +415,7 @@ X86_FUNC(sub_1B010)
 }
 
 // Patch Coaster's bar collision to allow bullets
-void CoasterHangbarCollisionMidAsmHook(X86Register& esp)
+void CoasterHangbarCollisionMidAsmHook(X86Context& __restrict ctx, uint8_t* base)
 {
-	auto base = g_memory.base;
-	X86_STORE_U32(esp.u32, 0x40000);
+	X86_STORE_U32(ctx.esp.u32, 0x40000);
 }

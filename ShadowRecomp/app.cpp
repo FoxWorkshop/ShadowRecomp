@@ -98,7 +98,7 @@ std::atomic<bool> shouldQuit = false;
 // If we don't, the game window will act unresponsive, preventing resizing, closing, etc to work.
 // unfortunately Shadow immediately create a new thread in the entry point function and move on
 // So we do a mid asm hook in the entry point function and put our loop there instead
-void UpdateSDLEventsMidAsmHook()
+void UpdateSDLEventsMidAsmHook(X86Context& __restrict ctx, uint8_t* base)
 {
 	SDL_Event event;
 	while (!shouldQuit)

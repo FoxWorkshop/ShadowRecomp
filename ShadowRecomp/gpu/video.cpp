@@ -4058,14 +4058,13 @@ void UpdateVertexShader(uint32_t Handle)
 // DX8 has a fixed pipeline, meaning we won't always have a shader from this function, sometimes it can be FVF too
 // Since DX12 only support Shader, we will use a uber shader to emulate FVF stuff, see FixedFunctionVertexShader.hlsl
 X86_FUNC_IMPL(__imp__sub_3D2280);
-static void SetVertexShader(uint32_t Handle)
+static void SetVertexShader(X86Context& ctx, uint32_t Handle)
 {
 
 	//let original code run first so it will call SelectVertexShader function
-	auto ctx = GetX86Context();
 	auto base = g_memory.base;
-	__imp__sub_3D2280(*ctx, base);
-	ctx->esp.u32 -= 8; //1 arg + ret value*/
+	__imp__sub_3D2280(ctx, base);
+	ctx.esp.u32 -= 8; //1 arg + ret value*/
 
 	UpdateVertexShader(Handle);
 
@@ -4827,7 +4826,7 @@ static void DrawFPS()
 	drawList->AddText(font, fontSize, textPos, IM_COL32_WHITE, fmt.c_str());
 }
 
-static void DrawImGui()
+static void DrawImGui(X86Context* ctx)
 {
 
 	// Must happen on this thread, before NewFrame the SDL event watch can run on the main thread or via SDL_PushEvent on a guest thread 
@@ -4871,18 +4870,18 @@ static void DrawImGui()
 
 	ResetImGuiCallbacks();
 
-	DrawPauseText();
+	DrawPauseText(ctx);
 
-	AchievementMenu::Draw();
-	OptionsMenu::Draw();
-	AchievementOverlay::Draw();
+	AchievementMenu::Draw(ctx);
+	OptionsMenu::Draw(ctx);
+	AchievementOverlay::Draw(ctx);
 
 	ButtonGuide::Draw();
 
 
-	InstallerWizard::Draw();
+	InstallerWizard::Draw(ctx);
 	//BlackBar::Draw();
-	MessageWindow::Draw();
+	MessageWindow::Draw(ctx);
 	Fader::Draw();
 
 	assert(ImGui::GetBackgroundDrawList()->_ClipRectStack.Size == 1 && "Some clip rects were not removed from the stack!");
@@ -5097,7 +5096,7 @@ void Video::EndGameThreadProfiler()
 	g_gtStateFlushAccum.SnapshotAndReset();
 }
 
-void Video::Present()
+void Video::Present(X86Context* ctx)
 {
 	bool expected = false;
 	if (!g_inPresent.compare_exchange_strong(expected, true))
@@ -5119,7 +5118,7 @@ void Video::Present()
 	cmd.type = RenderCommandType::ExecutePendingCopyRectsCommands;
 	g_renderQueue.enqueue(cmd);
 
-	DrawImGui();
+	DrawImGui(ctx);
 
 	g_readyForCommands = false;
 	cmd.type = RenderCommandType::ExecuteCommandList;
@@ -5540,7 +5539,6 @@ static RenderHeapType GetBufferHeapType()
 GuestBuffer* CreateVertexBuffer(uint32_t length)
 {
 	auto base = g_memory.base;
-	auto ctx = GetX86Context();
 
 
 	//if (ctx->eax.u32 != 0)
@@ -5675,18 +5673,17 @@ static GuestSurface* GetSurfaceLevel(GuestTexture* texture, int32_t level, X_D3D
 X86_FUNC_IMPL(__imp__sub_3DA010);
 //CreateSurfaceLevel = "view" or "interface" to access ONE specific level/slice of a texture resource.
 //todo figure out this
-GuestSurface* CreateSurfaceOfTexture(X_D3DFORMAT Format, uint32_t size, GuestBaseTexture* pParent, int32_t pvData)
+GuestSurface* CreateSurfaceOfTexture(X86Context& ctx, X_D3DFORMAT Format, uint32_t size, GuestBaseTexture* pParent, int32_t pvData)
 {
-	auto ctx = GetX86Context();
 	auto base = g_memory.base;
-	__imp__sub_3DA010(*ctx, base);
-	ctx->esp.u32 -= 20;
+	__imp__sub_3DA010(ctx, base);
+	ctx.esp.u32 -= 20;
 
 
-	auto gSurface = (X_D3DSurface*)g_memory.Translate(ctx->eax.u32);
+	auto gSurface = (X_D3DSurface*)g_memory.Translate(ctx.eax.u32);
 	auto newSurface = GetSurfaceLevel((GuestTexture*)pParent, 0, Format);
 	memcpy(&newSurface->guestResource, gSurface, sizeof(X_D3DSurface));
-	ctx->eax.u32 = g_memory.MapVirtual(newSurface);
+	ctx.eax.u32 = g_memory.MapVirtual(newSurface);
 	g_userHeap.Free(gSurface);
 	return newSurface;
 	//return CreateSurface(pParent->width, pParent->height, (X_D3DFORMAT)pParent->format, true);
@@ -5860,14 +5857,13 @@ X_D3DFORMAT MapToLinearD3DFORMAT(X_D3DFORMAT a1)
 
 X86_FUNC_IMPL(__imp__sub_3DDAB0); //CreateDevice
 
-int32_t Direct3D_CreateDevice_r(int32_t Adapter, int32_t DeviceType, int32_t hFocusWindow, char Flags, X_D3DPRESENT_PARAMETERS* pPresentationParameters, uint32_t* device)
+int32_t Direct3D_CreateDevice_r(X86Context& ctx, int32_t Adapter, int32_t DeviceType, int32_t hFocusWindow, char Flags, X_D3DPRESENT_PARAMETERS* pPresentationParameters, uint32_t* device)
 {
 	LOG_UTILITY("CREATE GUEST D3D DEVICE!");
 
 
 	InitAchievementTextures();
 
-	auto ctx = GetX86Context();
 	auto base = g_memory.base;
 
 	// Move backbuffer to guest memory.
@@ -5904,8 +5900,8 @@ int32_t Direct3D_CreateDevice_r(int32_t Adapter, int32_t DeviceType, int32_t hFo
 	InitGuestRenderStatePointer((uint32_t*)(base + g_RenderStateAddr));
 	BuildRenderStateMappingTable();
 
-	__imp__sub_3DDAB0(*ctx, base);
-	ctx->esp.u32 -= 28; //readjust esp because of calling original function
+	__imp__sub_3DDAB0(ctx, base);
+	ctx.esp.u32 -= 28; //readjust esp because of calling original function
 
 	return 0; //success
 }
@@ -5934,13 +5930,13 @@ static void ProcDestructResource(const RenderCommand& cmd)
 }
 
 
-bool DestructResourceMidAsmHook(X86Register& esi)
+bool DestructResourceMidAsmHook(X86Context& __restrict ctx, uint8_t* base)
 {
-	if (esi.u32 == 0)
+	if (ctx.esi.u32 == 0)
 		return false;
 
 
-	auto resource = (GuestResource*)g_memory.Translate(esi.u32);
+	auto resource = (GuestResource*)g_memory.Translate(ctx.esi.u32);
 
 	switch (resource->type)
 	{
@@ -6530,19 +6526,18 @@ static std::recursive_mutex g_guestRefCountMutex;
 //Specify where it should draws (Either framebuffer surface or texture surface)
 //on DX8 Xbox, SetDepthStencilSurface is merged with SetRenderTarget.
 X86_FUNC_IMPL(__imp__sub_3D0040);
-void D3DDevice_SetRenderTarget(GuestSurface* surface, GuestSurface* pNewZStencil)
+void D3DDevice_SetRenderTarget(X86Context& ctx, GuestSurface* surface, GuestSurface* pNewZStencil)
 {
 	std::lock_guard lock(g_guestRefCountMutex);
 
-	auto ctx = GetX86Context();
 	auto base = g_memory.base;
 	auto device = X86_LOAD_U32(GuestDevicePtrAddr);
 
 	GuestSurface* newSurface = surface;
 	GuestSurface* newDepthStencil = pNewZStencil;
 
-	__imp__sub_3D0040(*ctx, base);
-	ctx->SubEsp(3); 
+	__imp__sub_3D0040(ctx, base);
+	ctx.SubEsp(3); 
 
 	// The game calls this function with no depth buffer for render target composites.
 	// The previous code here was making g_ZScale fallback to 1.0 in that case. After that, the shader was doing the math
@@ -6625,14 +6620,13 @@ static void ProcSetDepthStencilSurface(const RenderCommand& cmd)
 }
 
 X86_FUNC_IMPL(__imp__sub_3D0680);
-void D3DDevice_SetViewport(GuestViewport* viewport)
+void D3DDevice_SetViewport(X86Context& ctx, GuestViewport* viewport)
 {
 
 	//call original func first
-	auto ctx = GetX86Context();
 	auto base = g_memory.base;
-	__imp__sub_3D0680(*ctx, base);
-	ctx->esp.u32 -= 8;
+	__imp__sub_3D0680(ctx, base);
+	ctx.esp.u32 -= 8;
 
 	if (viewport == nullptr) //they can call this with a null viewport for some reason
 	{
@@ -7127,9 +7121,9 @@ void SetFixedFunctionDefaultVertexAttributes(size_t Handle)
 }
 
 
-int D3DDevice_Swap(int32_t a1)
+int D3DDevice_Swap(X86Context& ctx, int32_t a1)
 {
-	Video::Present();
+	Video::Present(&ctx);
 	return 0;
 }
 

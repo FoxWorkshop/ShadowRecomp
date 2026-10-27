@@ -31,7 +31,7 @@ static const std::unordered_map<std::string_view, GameSoundID> g_GameSoundMap =
     { "cannot_decide", GameSoundID::Cannot },
 };
 
-void Game_PlaySound(const char* pName)
+void Game_PlaySound(X86Context* ctx, const char* pName)
 {
     if (EmbeddedPlayer::s_isActive || EmbeddedPlayer::s_isActive && IsndSeInstance == 0)
     {
@@ -43,7 +43,7 @@ void Game_PlaySound(const char* pName)
         if (it != g_GameSoundMap.end())
         {
             GameSoundID id = it->second;
-            GuestToHostFunction<void, CallConvention::Thiscall>(sub_25BF80, IsndSeInstance, id, 0, 0);
+            GuestToHostFunction<void, CallConvention::Thiscall>(*ctx, sub_25BF80, IsndSeInstance, id, 0, 0);
         }
 
     }

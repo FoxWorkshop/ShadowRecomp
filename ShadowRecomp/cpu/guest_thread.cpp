@@ -200,7 +200,7 @@ GuestThreadContext::GuestThreadContext(GuestThreadParams params)
 
 
 	// Default flags (Interrupts enabled)
-	x86Context.eflags.value = 0x202; // IF=1, reserved bit 1=1
+	x86Context.eflags.rare = 0x202; // IF=1, reserved bit 1=1
 
 	// Floating point control
 	x86Context.fpu.cw = 0x037F;
@@ -208,9 +208,6 @@ GuestThreadContext::GuestThreadContext(GuestThreadParams params)
 	x86Context.kpcr_ptr = g_memory.MapVirtual(thread);
 
 	x86Context.stack_ptr = *(uint32_t*)(NewPcr + 0x04); //unused for now
-
-	assert(GetX86Context() == nullptr);
-	SetX86Context(x86Context);
 
 	isHostThread = false;
 }

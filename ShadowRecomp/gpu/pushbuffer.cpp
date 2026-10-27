@@ -61,12 +61,11 @@ void HLE_draw_inline_array(X_D3DPRIMITIVETYPE primitiveMode, int32_t VertexCount
 	}
 }
 
-void ClearWithQuadsMidAsmHook(X86Register& eax)
+void ClearWithQuadsMidAsmHook(X86Context& __restrict ctx, uint8_t* base)
 {
 
-	auto base = g_memory.base;
 	//since the pointer of push buffer moved until its end, we have to go back to the beginning to extract vertex data
-	intptr_t addr = eax.u32 - (16 * sizeof(DWORD)) - 4; //16 (size of the stride) * number of vertex - offset
+	intptr_t addr = ctx.eax.u32 - (16 * sizeof(DWORD)) - 4; //16 (size of the stride) * number of vertex - offset
 
 	X_D3DPRIMITIVETYPE primitiveMode = (X_D3DPRIMITIVETYPE)X86_LOAD_U32(addr - 8);
 	for (int i = 0; i < 16; i++)
@@ -79,13 +78,12 @@ void ClearWithQuadsMidAsmHook(X86Register& eax)
 }
 
 //todo check if this one is correct, I don't know where the game uses that
-void RasterRenderQuadMidAsmHook(X86Register& eax)
+void RasterRenderQuadMidAsmHook(X86Context& __restrict ctx, uint8_t* base)
 {
 
-	auto base = g_memory.base;
 
 
-	intptr_t addr = eax.u32 - (24 * sizeof(DWORD)) - 4;
+	intptr_t addr = ctx.eax.u32 - (24 * sizeof(DWORD)) - 4;
 
 	X_D3DPRIMITIVETYPE primitiveMode = (X_D3DPRIMITIVETYPE)X86_LOAD_U32(addr - 8);
 	// Vertex data starts after: 0x417FC, 8, 0x40601818
@@ -103,10 +101,9 @@ void RasterRenderQuadMidAsmHook(X86Register& eax)
 
 const int32_t dword_55FDEC = 0x55FDEC;  //used to detect the flag for stride 24 vs 16
 // This is used to draw the homing attack or spin dash aura, as well as shooting from guns.
-void _XbSubmitNodeMidAsmHook(X86Register& eax)
+void _XbSubmitNodeMidAsmHook(X86Context& __restrict ctx, uint8_t* base)
 {
 
-	auto base = g_memory.base;
 
 	//Get stride from flag
 	uint32_t v1_addr = X86_LOAD_U32(dword_55FDEC) + 12;
@@ -127,7 +124,7 @@ void _XbSubmitNodeMidAsmHook(X86Register& eax)
 	// Calculate total vertex data size
 	const int32_t totalDwords = vertexCount * stride;
 
-	int32_t vertexDataAddr = eax.u32 - sizeof(DWORD) - (totalDwords * sizeof(DWORD));
+	int32_t vertexDataAddr = ctx.eax.u32 - sizeof(DWORD) - (totalDwords * sizeof(DWORD));
 
 	// Primitive type is at vertexDataAddr - 8
 	X_D3DPRIMITIVETYPE primitiveType = (X_D3DPRIMITIVETYPE)X86_LOAD_U32(vertexDataAddr - 8);

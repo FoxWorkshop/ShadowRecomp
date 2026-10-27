@@ -15,7 +15,7 @@ public:
     static inline uint32_t s_padIndex = 0;
 
     static void Init();
-    static void Draw();
+    static void Draw(X86Context* ctx);
     static void Open(uint32_t padIndex = 0);
     static void Close();
     static void SetState(AchievementMenuState state);

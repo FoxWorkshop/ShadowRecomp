@@ -10,39 +10,35 @@ else()
     add_compile_options(-ffp-model=strict)
 endif()
 
-target_compile_definitions(XboxRecomp PRIVATE 
-    XBOX_RECOMP_CONFIG_FILE_PATH=\"${CMAKE_CURRENT_SOURCE_DIR}/config/recompConfig.toml\"
-    XBOX_RECOMP_HEADER_FILE_PATH=\"${SHADOW_RECOMP_TOOLS_ROOT}/XboxRecomp/XboxUtils/x86_context.h\")
+# Note(sewer): Recompiled functions are huge.
+#
+# Especially since we have to emulate, a lot of things like eflags, stacks, etc.
+# every original instruction is bloated a fair bit.
+#
+# This sometimes makes Clang's (LLVM's) default analysis limits give up on
+# functions a little too soon.
+if (CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
+    set(SHADOW_RECOMP_LLVM_LIMITS
+        -dse-memoryssa-scanlimit=100000
+        -dse-memoryssa-walklimit=100000
+        -dse-memoryssa-path-check-limit=100000
+        -dse-memoryssa-defs-per-block-limit=100000
+        -dse-memoryssa-otherbb-cost=1
+        -memssa-check-limit=100000
+        -memdep-block-number-limit=100000
+        -memdep-block-scan-limit=100000
+        -gvn-max-num-insns=100000
+        -gvn-max-num-deps=100000
+        -gvn-max-block-speculations=100000
+        -available-load-scan-limit=100000
+    )
+    foreach(limit IN LISTS SHADOW_RECOMP_LLVM_LIMITS)
+        # clang and clang-cl both accept `-mllvm`.
+        add_compile_options("SHELL:-mllvm ${limit}")
+    endforeach()
+endif()
 
-set(SHADOW_RECOMP_X86_RECOMPILED_SOURCES 
-    "${CMAKE_CURRENT_SOURCE_DIR}/x86/x86_config.h"
-    "${CMAKE_CURRENT_SOURCE_DIR}/x86/x86_context.h"
-    "${CMAKE_CURRENT_SOURCE_DIR}/x86/x86_func_mapping.cpp"
-    "${CMAKE_CURRENT_SOURCE_DIR}/x86/x86_recomp_shared.h"
-)
-
-foreach(i RANGE 0 119)
-    list(APPEND SHADOW_RECOMP_X86_RECOMPILED_SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/x86/x86_recomp.${i}.cpp")
-endforeach()
-
-add_custom_command(
-    OUTPUT 
-        ${SHADOW_RECOMP_X86_RECOMPILED_SOURCES}
-    COMMAND 
-        $<TARGET_FILE:XboxRecomp>
-    DEPENDS 
-        "${CMAKE_CURRENT_SOURCE_DIR}/private/default.xbe"
-        "${CMAKE_CURRENT_SOURCE_DIR}/config/recompConfig.toml"
-    USES_TERMINAL
-)
-
-
-file(GLOB XBOX_RECOMP_SOURCES 
-    "${XBOX_RECOMP_ROOT}/*.h"
-    "${XBOX_RECOMP_ROOT}/*.cpp"
-)
-
-
+include("${CMAKE_CURRENT_SOURCE_DIR}/cmake/recompile.cmake")
 
 set(OPTIONAL_SOURCES "")
 if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/shader/shader_cache.cpp")
@@ -55,8 +51,8 @@ add_library(ShadowRecompLib
     ${OPTIONAL_SOURCES}
 )
 
-target_include_directories(ShadowRecompLib PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
-target_precompile_headers(ShadowRecompLib PUBLIC "x86/x86_recomp_shared.h")
+target_include_directories(ShadowRecompLib PUBLIC ${CMAKE_CURRENT_BINARY_DIR} ${CMAKE_CURRENT_SOURCE_DIR})
+target_precompile_headers(ShadowRecompLib PUBLIC "${CMAKE_CURRENT_BINARY_DIR}/x86/x86_recomp_shared.h")
 
 # Speed hack: x87 emulation in double instead of long double.
 # MSVC long double is already 64-bit, so this only affects GCC/Clang.

@@ -88,15 +88,15 @@ X86_FUNC(sub_7FA10)
 	const uint32_t gravityInverse = scratch + 0x60;
 
 	// R = FromTo(up, gravity up)
-	GuestToHostFunction<void, CallConvention::Cdecl>(__imp__sub_7FA10, gravityQuat, player + PLAYER_TARGET_GRAVITY_UP);
+	GuestToHostFunction<void, CallConvention::Cdecl>(ctx, __imp__sub_7FA10, gravityQuat, player + PLAYER_TARGET_GRAVITY_UP);
 
 	// normal rotated into gravity space
-	GuestToHostFunction<void, CallConvention::Cdecl>(sub_30FDB0, gravityMatrix, gravityQuat);
-	GuestToHostFunction<void, CallConvention::Thiscall>(sub_3100F0, gravityMatrix, gravityInverse);
-	GuestToHostFunction<void, CallConvention::Thiscall>(sub_30F970, gravityInverse, localNormal, inVector);
+	GuestToHostFunction<void, CallConvention::Cdecl>(ctx, sub_30FDB0, gravityMatrix, gravityQuat);
+	GuestToHostFunction<void, CallConvention::Thiscall>(ctx, sub_3100F0, gravityMatrix, gravityInverse);
+	GuestToHostFunction<void, CallConvention::Thiscall>(ctx, sub_30F970, gravityInverse, localNormal, inVector);
 
 	// apply with corrected arc and normal
-	GuestToHostFunction<void, CallConvention::Cdecl>(__imp__sub_7FA10, localArc, localNormal);
+	GuestToHostFunction<void, CallConvention::Cdecl>(ctx, __imp__sub_7FA10, localArc, localNormal);
 
 	// out = R * arc
 	const Quaternion q = GravityMul(GravityLoadQuat(gravityQuat), GravityLoadQuat(localArc));
@@ -135,9 +135,8 @@ X86_FUNC(sub_908C0)
 }
 
 X86_FUNC_IMPL(__imp__sub_30F010);
-static void GravityCarryVelocityBaseRelative(uint32_t slot, X86Register& esp, uint32_t yawSlotOffset)
+static void GravityCarryVelocityBaseRelative(X86Context& ctx, uint8_t* base, uint32_t slot, uint32_t yawSlotOffset)
 {
-	auto base = g_memory.base;
 
 	if (!GravityValidPtr(slot))
 	{
@@ -150,7 +149,7 @@ static void GravityCarryVelocityBaseRelative(uint32_t slot, X86Register& esp, ui
 		return;
 	}
 
-	const float oldYaw = X86_LOAD_F32(esp.u32 + yawSlotOffset);
+	const float oldYaw = X86_LOAD_F32(ctx.esp.u32 + yawSlotOffset);
 	const float newYaw = X86_LOAD_F32(player + PLAYER_EULER_YAW);
 	const float dyaw = newYaw - oldYaw;
 
@@ -160,17 +159,17 @@ static void GravityCarryVelocityBaseRelative(uint32_t slot, X86Register& esp, ui
 	}
 
 	// need to allocate stack to do real calls
-	const uint32_t originalStack = esp.u32;
+	const uint32_t originalStack = ctx.esp.u32;
 	const uint32_t staging = (originalStack - 0x200) & ~0xF;
 	const uint32_t inverse = (originalStack - 0x400) & ~0xF;
 	const uint32_t local = inverse + 0x30;
 
-	esp.u32 = staging;
-	GuestToHostFunction<void, CallConvention::Thiscall>(sub_3100F0, player + PLAYER_BASE_MATRIX, inverse);
-	GuestToHostFunction<void, CallConvention::Thiscall>(sub_30F970, inverse, local, player + PLAYER_VELOCITY);
-	GuestToHostFunction<uint32_t, CallConvention::Cdecl>(__imp__sub_30F010, local, local, dyaw);
-	GuestToHostFunction<void, CallConvention::Thiscall>(sub_30F970, player + PLAYER_BASE_MATRIX, player + PLAYER_VELOCITY, local);
-	esp.u32 = originalStack;
+	ctx.esp.u32 = staging;
+	GuestToHostFunction<void, CallConvention::Thiscall>(ctx, sub_3100F0, player + PLAYER_BASE_MATRIX, inverse);
+	GuestToHostFunction<void, CallConvention::Thiscall>(ctx, sub_30F970, inverse, local, player + PLAYER_VELOCITY);
+	GuestToHostFunction<uint32_t, CallConvention::Cdecl>(ctx, __imp__sub_30F010, local, local, dyaw);
+	GuestToHostFunction<void, CallConvention::Thiscall>(ctx, sub_30F970, player + PLAYER_BASE_MATRIX, player + PLAYER_VELOCITY, local);
+	ctx.esp.u32 = originalStack;
 
 	X86_STORE_F32(originalStack + yawSlotOffset, newYaw);
 }
@@ -178,16 +177,16 @@ static void GravityCarryVelocityBaseRelative(uint32_t slot, X86Register& esp, ui
 // Right after the steering call in sub_7A800 (Sliding::Exec)
 // esi = player
 // esp+0x18 = yaw
-void SlideCarryMidAsmHook(X86Register& esi, X86Register& esp)
+void SlideCarryMidAsmHook(X86Context& __restrict ctx, uint8_t* base)
 {
-	GravityCarryVelocityBaseRelative(esi.u32, esp, 0x18);
+	GravityCarryVelocityBaseRelative(ctx, base, ctx.esi.u32, 0x18);
 }
 
 
 // SpinDash Exec (spin/moving)
 // esi = player
 // esp+0x1C = yaw
-void SpinCarryMidAsmHook(X86Register& esi, X86Register& esp)
+void SpinCarryMidAsmHook(X86Context& __restrict ctx, uint8_t* base)
 {
-	GravityCarryVelocityBaseRelative(esi.u32, esp, 0x1C);
+	GravityCarryVelocityBaseRelative(ctx, base, ctx.esi.u32, 0x1C);
 }

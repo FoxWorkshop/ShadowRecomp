@@ -103,7 +103,7 @@ X86_FUNC(sub_29EA60)
 }
 
 // Always allow skipping the title screen logos
-void AlwaysAllowLogoSkipMidAsmHook() {}
+void AlwaysAllowLogoSkipMidAsmHook(X86Context& __restrict ctx, uint8_t* base) {}
 
 /* -- BOOT TO EVENT START -- */
 
@@ -215,17 +215,17 @@ static void FillEventQueue(uint8_t* base)
 }
 
 // Memo: both boot to level and event start the same stage sequence
-static void PrepareStageSequenceBoot(uint8_t* base)
+static void PrepareStageSequenceBoot(const X86Context& ctx, uint8_t* base)
 {
 	// reset the stage sequence state
-	GuestToHostFunction<void, CallConvention::Thiscall>(sub_258610, g_StageSequenceManager);
+	GuestToHostFunction<void, CallConvention::Thiscall>(ctx, sub_258610, g_StageSequenceManager);
 
 	// we need to assign the pad num to the controller data
 	// otherwise Vibration::Manager will crash the game with a vector out of range
 	uint32_t padState = X86_LOAD_U32(0x5356F0);
 
 	if (!padState)
-		padState = GuestToHostFunction<uint32_t, CallConvention::Cdecl>(sub_11410);
+		padState = GuestToHostFunction<uint32_t, CallConvention::Cdecl>(ctx, sub_11410);
 
 	if (padState) // set pad num per player
 	{
@@ -266,7 +266,7 @@ X86_FUNC(sub_5C5E0)
 			LOGN("--event: starting playback");
 		}
 
-		PrepareStageSequenceBoot(base);
+		PrepareStageSequenceBoot(ctx, base);
 	}
 
 	__imp__sub_5C5E0(ctx, base);

@@ -21,7 +21,7 @@ static bool IsCutsceneFramerateUnlocked()
 }
 
 thread_local bool g_isStartingEventAudio = false;
-void SetFramerateMidAsmHook()
+void SetFramerateMidAsmHook(X86Context& __restrict ctx, uint8_t* base)
 {
 	if (g_isEventPlaying && !IsCutsceneFramerateUnlocked())
 	{
@@ -286,14 +286,13 @@ X86_FUNC(sub_56FC0)
 std::unordered_map<uint32_t, float> g_sfxTimers;
 // SFX duration are hardcoded without using any kind of delta time
 // We need to patch them so they don't cut too early
-void SFXTimingMidAsmHook(X86Register &esi)
+void SFXTimingMidAsmHook(X86Context& __restrict ctx, uint8_t* base)
 {
-	auto base = g_memory.base;
-	uint32_t timerAddr = esi.u32 + 0xc;
+	uint32_t timerAddr = ctx.esi.u32 + 0xc;
 	uint16_t timer = X86_LOAD_U16(timerAddr) + 1; // restore og value that the game removed using hardcoded 60 fps.
 
-	g_sfxTimers[esi.u32] += g_deltaTime * 60.f;
-	int steps = (int)(g_sfxTimers[esi.u32] + 0.5f); // use extra 0.5 for rounding, avoid having 0.999960 that prevent step to pass.
+	g_sfxTimers[ctx.esi.u32] += g_deltaTime * 60.f;
+	int steps = (int)(g_sfxTimers[ctx.esi.u32] + 0.5f); // use extra 0.5 for rounding, avoid having 0.999960 that prevent step to pass.
 
 	// Some sounds that loop uses a task that sets the timer back to 2 every frame.
 	// This creates a side effect: any slow frame or wrong rounding can make the sound stop and play 
@@ -303,16 +302,16 @@ void SFXTimingMidAsmHook(X86Register &esi)
 	steps = std::min(steps, 1);
 	if (steps > 0)
 	{
-		g_sfxTimers[esi.u32] = std::min(g_sfxTimers[esi.u32] - steps, 1.0f);
+		g_sfxTimers[ctx.esi.u32] = std::min(g_sfxTimers[ctx.esi.u32] - steps, 1.0f);
 		int result = (int)timer - steps;
 		timer = (uint16_t)std::max(result, 0);
 	}
 	X86_STORE_U16(timerAddr, timer);
 }
 
-void FreeSFXMapMidAsmHook(X86Register& esi)
+void FreeSFXMapMidAsmHook(X86Context& __restrict ctx, uint8_t* base)
 {
-	g_sfxTimers.erase(esi.u32);
+	g_sfxTimers.erase(ctx.esi.u32);
 }
 
 void FpsConfigValueChangedCallback(IConfigDef* config)
@@ -340,9 +339,8 @@ static int g_launchCollisionPass = 0;
 // Mainly for higher framerates, since even small slopes broke
 // Unlike the original 61FPS+ patch, I scope to non-grounded (no more camera, snap, or slide Y push issue!)
 // There are a few spots that originally break on 60 too (Space Gadget CC Orb area, Death Ruins spawn)
-bool CollisionGroundStickMidAsmHook(X86Register& esi, X86Register& esp)
+bool CollisionGroundStickMidAsmHook(X86Context& __restrict ctx, uint8_t* base)
 {
-	auto base = g_memory.base;
 
 	// Don't interfere with the Launch fix
 	if (g_launchCollisionPass > 0)
@@ -350,7 +348,7 @@ bool CollisionGroundStickMidAsmHook(X86Register& esi, X86Register& esp)
 		return false;
 	}
 
-	const uint32_t player = X86_LOAD_U32(esi.u32);
+	const uint32_t player = X86_LOAD_U32(ctx.esi.u32);
 	if (player == NULL)
 	{
 		return false;
@@ -363,7 +361,7 @@ bool CollisionGroundStickMidAsmHook(X86Register& esi, X86Register& esp)
 	}
 
 	// ray did not hit
-	if (X86_LOAD_U8(esp.u32 + 0x3f) == 0)
+	if (X86_LOAD_U8(ctx.esp.u32 + 0x3f) == 0)
 	{
 		return false;
 	}
@@ -375,10 +373,9 @@ bool CollisionGroundStickMidAsmHook(X86Register& esi, X86Register& esp)
 // Common platforms that are used in many different stages
 // the mode linear type movement don't use delta time so the platforms move way too fast above 60 fps
 // we can patch this to cap the speed properly
-void FootingMovableLinearMidAsmHook(X86Register& esi)
+void FootingMovableLinearMidAsmHook(X86Context& __restrict ctx, uint8_t* base)
 {
-	auto base = g_memory.base;
-	const uint32_t this_ = esi.u32;
+	const uint32_t this_ = ctx.esi.u32;
 	const float speed = X86_LOAD_F32(this_ + 0x54); // degree
 	const float phase = X86_LOAD_F32(this_ + 0x7C); // also degree
 	const float frames = g_deltaTime * 60.0f;
@@ -397,36 +394,35 @@ static void UpDownReelPreBias(uint32_t this_, float sign)
 	X86_STORE_F32(this_ + 0x58, X86_LOAD_F32(this_ + 0x58) + bias);
 }
 
-void UpDownReelRaiseMidAsmHook(X86Register& edi)
+void UpDownReelRaiseMidAsmHook(X86Context& __restrict ctx, uint8_t* base)
 {
-	UpDownReelPreBias(edi.u32, 1.0f);
+	UpDownReelPreBias(ctx.edi.u32, 1.0f);
 }
 
-void UpDownReelLowerMidAsmHook(X86Register& edi)
+void UpDownReelLowerMidAsmHook(X86Context& __restrict ctx, uint8_t* base)
 {
-	UpDownReelPreBias(edi.u32, -1.0f);
+	UpDownReelPreBias(ctx.edi.u32, -1.0f);
 }
 
 static const uint32_t g_upDownReelAngleRate = 0x54CD64;
 
-void UpDownReelAngleMidAsmHook(X86Register& edi)
+void UpDownReelAngleMidAsmHook(X86Context& __restrict ctx, uint8_t* base)
 {
-	auto base = g_memory.base;
 	const float frames = g_deltaTime * 60.0f;
-	const float angle = X86_LOAD_F32(edi.u32 + 0x7C);
+	const float angle = X86_LOAD_F32(ctx.edi.u32 + 0x7C);
 	const float extra = X86_LOAD_F32(g_upDownReelAngleRate) * (frames - 1.0f);
 
 	if (extra >= std::fabs(angle))
 	{
-		X86_STORE_F32(edi.u32 + 0x7C, 0.0f);
+		X86_STORE_F32(ctx.edi.u32 + 0x7C, 0.0f);
 	}
 	else
 	{
-		X86_STORE_F32(edi.u32 + 0x7C, angle - (angle >= 0.0f ? extra : -extra));
+		X86_STORE_F32(ctx.edi.u32 + 0x7C, angle - (angle >= 0.0f ? extra : -extra));
 	}
 }
 
-void UpDownReelHangTurnMidAsmHook(X86Register& eax)
+void UpDownReelHangTurnMidAsmHook(X86Context& __restrict ctx, uint8_t* base)
 {
 	const float frames = g_deltaTime * 60.0f;
 
@@ -435,8 +431,8 @@ void UpDownReelHangTurnMidAsmHook(X86Register& eax)
 		return;
 	}
 
-	const float rate = std::bit_cast<float>(eax.u32) * frames;
-	eax.u32 = std::bit_cast<uint32_t>(rate);
+	const float rate = std::bit_cast<float>(ctx.eax.u32) * frames;
+	ctx.eax.u32 = std::bit_cast<uint32_t>(rate);
 }
 
 /**	--SetStretchGrass Patch START-- */
@@ -450,10 +446,9 @@ static const uint32_t g_stretchGrassDecayFactor = 0x46A608; // -0.93f
 
 // for mode 2 of the object
 // the charge builds with frame count and then launch gets stronger the higher the framerate goes
-void StretchGrassChargeMidAsmHook(X86Register& esi)
+void StretchGrassChargeMidAsmHook(X86Context& __restrict ctx, uint8_t* base)
 {
-	auto base = g_memory.base;
-	const uint32_t this_ = esi.u32;
+	const uint32_t this_ = ctx.esi.u32;
 	const float frames = g_deltaTime * 60.0f;
 	const float step = X86_LOAD_F32(g_stretchGrassChargeStep);
 	const float acc = X86_LOAD_F32(this_ + 0x4C) + step * frames;
@@ -463,10 +458,9 @@ void StretchGrassChargeMidAsmHook(X86Register& esi)
 }
 
 // for mode 3 of the object
-void StretchGrassRecoverMidAsmHook(X86Register& esi)
+void StretchGrassRecoverMidAsmHook(X86Context& __restrict ctx, uint8_t* base)
 {
-	auto base = g_memory.base;
-	const uint32_t self = esi.u32;
+	const uint32_t self = ctx.esi.u32;
 	const float frames = g_deltaTime * 60.0f;
 	const float step = X86_LOAD_F32(g_stretchGrassRecoverStep);
 	X86_STORE_F32(self + 0x48, X86_LOAD_F32(self + 0x48) - step * (frames - 1.0f));
@@ -475,10 +469,9 @@ void StretchGrassRecoverMidAsmHook(X86Register& esi)
 // for mode 4 of the object
 std::unordered_map<uint32_t, float> g_stretchGrassDecay;
 
-void StretchGrassDecayMidAsmHook(X86Register& esi)
+void StretchGrassDecayMidAsmHook(X86Context& __restrict ctx, uint8_t* base)
 {
-	auto base = g_memory.base;
-	const uint32_t this_ = esi.u32;
+	const uint32_t this_ = ctx.esi.u32;
 	const float factor = X86_LOAD_F32(g_stretchGrassDecayFactor);
 
 	float &carry = g_stretchGrassDecay[this_];
@@ -539,10 +532,9 @@ X86_FUNC(sub_1AD1A0)
 // Light in digital circuit that yeet Shadow
 // the speed when getting launch is way too high above 60
 // we can patch the scale value stored in the vector just before the launch to use delta time.
-void ElecSearchLightPullMidAsmHook(X86Register &esp)
+void ElecSearchLightPullMidAsmHook(X86Context& __restrict ctx, uint8_t* base)
 {
-	auto base = g_memory.base;
-	const uint32_t scaleAddr = esp.u32;
+	const uint32_t scaleAddr = ctx.esp.u32;
 	float step = X86_LOAD_F32(scaleAddr) * (g_deltaTime * 60.0f);
 	X86_STORE_F32(scaleAddr, std::min(step, 45.0f));
 }
@@ -556,10 +548,9 @@ static const uint32_t g_scatteringRingDamp = 0x46806C; // 0.98437297f
 static const uint32_t g_scatteringRingDrag = 0x46B380; // 0.1f
 static const uint32_t g_scatteringRingGravity = 0x468030; // 0.12138f
 
-void ScatteringRingPhysicsMidAsmHook(X86Register& esi)
+void ScatteringRingPhysicsMidAsmHook(X86Context& __restrict ctx, uint8_t* base)
 {
-	auto base = g_memory.base;
-	const uint32_t this_ = esi.u32;
+	const uint32_t this_ = ctx.esi.u32;
 	const float frames = g_deltaTime * 60.0f;
 
 	if (!(frames >= 0.0f) || std::fabs(frames - 1.0f) < 0.0001f)
@@ -601,16 +592,15 @@ static const uint32_t g_scatteringRingSpinPi = 0x47E0A4; // pi
 static const uint32_t g_scatteringRingSpinDeg = 0x42A880; // 1/180
 static const uint32_t g_scatteringRingSpinRate = 0x468054; // 1.5f
 
-void ScatteringRingSpinMidAsmHook(X86Register& esi)
+void ScatteringRingSpinMidAsmHook(X86Context& __restrict ctx, uint8_t* base)
 {
-	auto base = g_memory.base;
 	const float frames = g_deltaTime * 60.f;
 	const float spinPi = X86_LOAD_F32(g_scatteringRingSpinPi);
 	const float spinDeg = X86_LOAD_F32(g_scatteringRingSpinDeg);
 	const float spinRate = X86_LOAD_F32(g_scatteringRingSpinRate);
 	const float stepRes = spinPi * spinDeg * spinRate;
 
-	X86_STORE_F32(esi.u32 + 0x64, X86_LOAD_F32(esi.u32 + 0x64) + stepRes * (frames - 1.0f));
+	X86_STORE_F32(ctx.esi.u32 + 0x64, X86_LOAD_F32(ctx.esi.u32 + 0x64) + stepRes * (frames - 1.0f));
 }
 
 /** --ScatteringRing Patch END-- */
@@ -619,16 +609,15 @@ void ScatteringRingSpinMidAsmHook(X86Register& esi)
 static const uint32_t g_regularRingSpinStep = 0x467D00; // 0.01f
 static const uint32_t g_regularRingSpinAmplitude = 0x467D04; // 0.05f
 
-void RegularRingSpinMidAsmHook(X86Register& eax, X86Register& ebp)
+void RegularRingSpinMidAsmHook(X86Context& __restrict ctx, uint8_t* base)
 {
-	auto base = g_memory.base;
 	const float frames = g_deltaTime * 60.0f;
 
 	if (!(frames >= 0.0f) || std::fabs(frames - 1.0f) < 0.0001f)
 		return;
 
 	// eax is the current ring array while ebp is the current offset
-	const uint32_t entry = eax.u32 + ebp.u32;
+	const uint32_t entry = ctx.eax.u32 + ctx.ebp.u32;
 	const float step = X86_LOAD_F32(g_regularRingSpinStep);
 	const float amplitude = X86_LOAD_F32(g_regularRingSpinAmplitude);
 	const float phase = X86_LOAD_F32(entry + 0x24);
@@ -648,28 +637,26 @@ static const uint32_t g_weightRiseSpeed = 0x46B438; // 1.0f
 static const uint32_t g_weightFallSpeed = 0x468C74; // 2.5f
 
 // eax is the transform the block is positioned through
-void WeightRiseMidAsmHook(X86Register& eax)
+void WeightRiseMidAsmHook(X86Context& __restrict ctx, uint8_t* base)
 {
-	auto base = g_memory.base;
 	const float frames = g_deltaTime * 60.0f;
 
 	if (!(frames >= 0.0f) || std::fabs(frames - 1.0f) < 0.0001f)
 		return;
 
 	const float step = X86_LOAD_F32(g_weightRiseSpeed);
-	X86_STORE_F32(eax.u32 + 0x8, X86_LOAD_F32(eax.u32 + 0x8) + step * (frames - 1.0f));
+	X86_STORE_F32(ctx.eax.u32 + 0x8, X86_LOAD_F32(ctx.eax.u32 + 0x8) + step * (frames - 1.0f));
 }
 
-void WeightFallMidAsmHook(X86Register& eax)
+void WeightFallMidAsmHook(X86Context& __restrict ctx, uint8_t* base)
 {
-	auto base = g_memory.base;
 	const float frames = g_deltaTime * 60.0f;
 
 	if (!(frames >= 0.0f) || std::fabs(frames - 1.0f) < 0.0001f)
 		return;
 
 	const float step = X86_LOAD_F32(g_weightFallSpeed);
-	X86_STORE_F32(eax.u32 + 0x8, X86_LOAD_F32(eax.u32 + 0x8) - step * (frames - 1.0f));
+	X86_STORE_F32(ctx.eax.u32 + 0x8, X86_LOAD_F32(ctx.eax.u32 + 0x8) - step * (frames - 1.0f));
 }
 
 /**	--Weight Patch END-- */
@@ -679,15 +666,14 @@ void WeightFallMidAsmHook(X86Register& eax)
 // ContainerBehavior
 // 0x20 = Y
 // 0x34 = Fall speed
-void ContainerBehaviorFallMidAsmHook(X86Register& esi)
+void ContainerBehaviorFallMidAsmHook(X86Context& __restrict ctx, uint8_t* base)
 {
-	auto base = g_memory.base;
 	const float frames = g_deltaTime * 60.0f;
 
 	if (!(frames >= 0.0f) || std::fabs(frames - 1.0f) < 0.0001f)
 		return;
 
-	const uint32_t containerBehavior = esi.u32; // ContainerBehavior
+	const uint32_t containerBehavior = ctx.esi.u32; // ContainerBehavior
 	const float fallSpeed = X86_LOAD_F32(containerBehavior + 0x34); // applies per frame, usually static per container type
 
 	X86_STORE_F32(containerBehavior + 0x20, X86_LOAD_F32(containerBehavior + 0x20) + fallSpeed * (frames - 1.0f));
@@ -715,18 +701,16 @@ static bool DamageBlinkPhaseHidden(uint32_t player, uint32_t motion)
 
 // ShadowMotion::Exec, the counter above still run and can be used here to patch the timing being wrong at > 60 fps
 // False = run original code
-bool ShadowMotionBlinkPhaseMidAsmHook(X86Register& esi)
+bool ShadowMotionBlinkPhaseMidAsmHook(X86Context& __restrict ctx, uint8_t* base)
 {
-	auto base = g_memory.base;
-	return DamageBlinkPhaseHidden(X86_LOAD_U32(esi.u32 + 0x58), esi.u32);
+	return DamageBlinkPhaseHidden(X86_LOAD_U32(ctx.esi.u32 + 0x58), ctx.esi.u32);
 }
 
 // Partners have similar blink logic than Shadow
 // False = run original code
-bool NpcMotionBlinkPhaseMidAsmHook(X86Register& esi)
+bool NpcMotionBlinkPhaseMidAsmHook(X86Context& __restrict ctx, uint8_t* base)
 {
-	auto base = g_memory.base;
-	return DamageBlinkPhaseHidden(X86_LOAD_U32(esi.u32 + 0x458), esi.u32);
+	return DamageBlinkPhaseHidden(X86_LOAD_U32(ctx.esi.u32 + 0x458), ctx.esi.u32);
 }
 
 /* --Damage blink patch END-- */
@@ -755,25 +739,24 @@ static bool EggFleetBlinkPhaseOff(uint32_t fleet)
 // EggFleet exec (sub_1C50A0)
 // True = regular (0x1C5051)
 // false = hit blink (0x1C504A)
-bool EggFleetBlinkPhaseMidAsmHook(X86Register& esi)
+bool EggFleetBlinkPhaseMidAsmHook(X86Context& __restrict ctx, uint8_t* base)
 {
-	return EggFleetBlinkPhaseOff(esi.u32);
+	return EggFleetBlinkPhaseOff(ctx.esi.u32);
 }
 
 // True = regular (0x1C429F)
 // false = hit blink (0x1C428A)
-bool EggFleetPartBlinkPhaseMidAsmHook(X86Register& esi)
+bool EggFleetPartBlinkPhaseMidAsmHook(X86Context& __restrict ctx, uint8_t* base)
 {
-	auto base = g_memory.base;
-	return EggFleetBlinkPhaseOff(X86_LOAD_U32(esi.u32 + 4));
+	return EggFleetBlinkPhaseOff(X86_LOAD_U32(ctx.esi.u32 + 4));
 }
 
 // PowerDeviceNaked exec (sub_1C78E0)
 // True = regular (0x1C7B0D)
 // false = hit blink (0x1C7B06)
-bool PowerDeviceBlinkPhaseMidAsmHook(X86Register& esi)
+bool PowerDeviceBlinkPhaseMidAsmHook(X86Context& __restrict ctx, uint8_t* base)
 {
-	return HitTimerBlinkPhaseOff(esi.u32 + 0x60);
+	return HitTimerBlinkPhaseOff(ctx.esi.u32 + 0x60);
 }
 
 /* --EggFleet hit blink patch END-- */
@@ -828,7 +811,7 @@ static bool UnpausedBlinkOdd()
 // Boss hit flash (MaterialBlinkTask::Exec)
 // True = no tint (0x58721)
 // false = tint (0x58706)
-bool MaterialBlinkPhaseMidAsmHook()
+bool MaterialBlinkPhaseMidAsmHook(X86Context& __restrict ctx, uint8_t* base)
 {
 	return !AllFramesBlinkOdd();
 }
@@ -836,7 +819,7 @@ bool MaterialBlinkPhaseMidAsmHook()
 // Enemy hit blink function seems to hide the model on odd frames
 // True = render (0xC6442)
 // false = hide (0xC642E)
-bool EnemyHitBlinkPhaseMidAsmHook()
+bool EnemyHitBlinkPhaseMidAsmHook(X86Context& __restrict ctx, uint8_t* base)
 {
 	return !UnpausedBlinkOdd();
 }
@@ -844,7 +827,7 @@ bool EnemyHitBlinkPhaseMidAsmHook()
 // Enemy death blink
 // True = hide (0xCC775)
 // false = render (0xCC76E)
-bool EnemyDeathBlinkPhaseMidAsmHook()
+bool EnemyDeathBlinkPhaseMidAsmHook(X86Context& __restrict ctx, uint8_t* base)
 {
 	return !UnpausedBlinkOdd();
 }
@@ -852,7 +835,7 @@ bool EnemyDeathBlinkPhaseMidAsmHook()
 // BkLarva death blink
 // True = render (0x137B6D)
 // false = hide (0x137B60)
-bool ObjectDeathBlinkPhaseMidAsmHook()
+bool ObjectDeathBlinkPhaseMidAsmHook(X86Context& __restrict ctx, uint8_t* base)
 {
 	return !UnpausedBlinkOdd();
 }
@@ -860,29 +843,29 @@ bool ObjectDeathBlinkPhaseMidAsmHook()
 // ThrowBombTask does flash the bomb between a full and dim red on odd frames
 // True = full color (0x63192)
 // false = dim (0x6316A)
-bool ThrowBombBlinkPhaseMidAsmHook()
+bool ThrowBombBlinkPhaseMidAsmHook(X86Context& __restrict ctx, uint8_t* base)
 {
 	return !UnpausedBlinkOdd();
 }
 
 // Shared model draw classes (0x256AEF, 0x2581BD, 0x26A846) blink on odd frames as well
-bool ModelBlinkPhaseMidAsmHook()
+bool ModelBlinkPhaseMidAsmHook(X86Context& __restrict ctx, uint8_t* base)
 {
 	return !AllFramesBlinkOdd();
 }
 
-void SoldierFlashParityMidAsmHook(X86Register& ecx)
+void SoldierFlashParityMidAsmHook(X86Context& __restrict ctx, uint8_t* base)
 {
-	ecx.u32 = AllFramesBlinkOdd() ? 1 : 0;
+	ctx.ecx.u32 = AllFramesBlinkOdd() ? 1 : 0;
 }
 
-void SoldierFlashParityEdxMidAsmHook(X86Register& edx)
+void SoldierFlashParityEdxMidAsmHook(X86Context& __restrict ctx, uint8_t* base)
 {
-	edx.u32 = AllFramesBlinkOdd() ? 1 : 0;
+	ctx.edx.u32 = AllFramesBlinkOdd() ? 1 : 0;
 }
 
 // Other objects (we should probably rename EnemyBlinkPatch)
-bool SkipBlinkToggleMidAsmHook()
+bool SkipBlinkToggleMidAsmHook(X86Context& __restrict ctx, uint8_t* base)
 {
 	static EnemyBlinkPatch toggleTimer;
 	toggleTimer.Update(g_frameCount);
@@ -1511,16 +1494,15 @@ static void PreStepCarCounter(uint8_t* base, uint32_t counter)
 }
 
 // Car Motion / 'bounce' over surface animation
-void CarMotionFrameMidAsmHook(X86Register& esi, X86Register& edi)
+void CarMotionFrameMidAsmHook(X86Context& __restrict ctx, uint8_t* base)
 {
-	auto base = g_memory.base;
 	const float frames = g_deltaTime * 60.0f;
 	if (!NeedsFpsRescale(frames))
 	{
 		return;
 	}
-	const uint32_t car = esi.u32;
-	const uint32_t config = edi.u32;
+	const uint32_t car = ctx.esi.u32;
+	const uint32_t config = ctx.edi.u32;
 	const float step = X86_LOAD_F32(config + 0x54) / X86_LOAD_F32(config + 0x18) * X86_LOAD_F32(car + 0x23C);
 	X86_STORE_F32(car + 0x40, X86_LOAD_F32(car + 0x40) + step * (frames - 1.0f));
 }
@@ -1581,25 +1563,24 @@ static void SetCarAngleBlend(uint32_t args, bool valueFirst)
 }
 
 // Roll damper
-void CarAngleLagMidAsmHook(X86Register& esp)
+void CarAngleLagMidAsmHook(X86Context& __restrict ctx, uint8_t* base)
 {
-	SetCarAngleBlend(esp.u32, false);
+	SetCarAngleBlend(ctx.esp.u32, false);
 }
 
 // Body pitch / roll
-void CarAngleChaseMidAsmHook(X86Register& esp)
+void CarAngleChaseMidAsmHook(X86Context& __restrict ctx, uint8_t* base)
 {
-	SetCarAngleBlend(esp.u32, true);
+	SetCarAngleBlend(ctx.esp.u32, true);
 }
 
 // Steer lean
-void CarSteerLeanMidAsmHook(X86Register& edi, X86Register& esp)
+void CarSteerLeanMidAsmHook(X86Context& __restrict ctx, uint8_t* base)
 {
-	auto base = g_memory.base;
 	const float frames = g_deltaTime * 60.0f;
 	if (NeedsFpsRescale(frames))
 	{
-		const uint32_t car = edi.u32;
+		const uint32_t car = ctx.edi.u32;
 		const uint32_t config = 0x51CCD8 + 0xAC * X86_LOAD_U32(car + 0x25C);
 
 		// 0x134 = yaw of prior frame
@@ -1611,9 +1592,9 @@ void CarSteerLeanMidAsmHook(X86Register& edi, X86Register& esp)
 		}
 
 		const float cap = X86_LOAD_F32(config + 0xA0);
-		X86_STORE_F32(esp.u32, std::min(std::max(target, -cap), cap));
+		X86_STORE_F32(ctx.esp.u32, std::min(std::max(target, -cap), cap));
 	}
-	SetCarAngleBlend(esp.u32, false);
+	SetCarAngleBlend(ctx.esp.u32, false);
 }
 
 // Per-frame sweep fix
@@ -2083,9 +2064,8 @@ X86_FUNC(sub_76A70)
 // esi = command (aim / move command)
 // 0x14 = stickX
 // 0x1C = stickY
-bool GunLiftAimMidAsmHook(X86Register& ecx, X86Register& esi)
+bool GunLiftAimMidAsmHook(X86Context& __restrict ctx, uint8_t* base)
 {
-	auto base = g_memory.base;
 	const float frames = g_deltaTime * 60.0f;
 
 	// 60 FPS
@@ -2095,8 +2075,8 @@ bool GunLiftAimMidAsmHook(X86Register& ecx, X86Register& esi)
 	}
 
 	// 61+ FPS
-	const uint32_t vehicle = ecx.u32;
-	const uint32_t command = esi.u32;
+	const uint32_t vehicle = ctx.ecx.u32;
+	const uint32_t command = ctx.esi.u32;
 	const float deg2rad = X86_LOAD_F32(0x47E0A4) * X86_LOAD_F32(0x42A880); // pi * 1/180
 	const float delta = deg2rad * X86_LOAD_F32(0x46D830) * frames; // 1.5 GUNLift sensitivity value
 	const float pitch = X86_LOAD_F32(vehicle + 0x160) + X86_LOAD_F32(command + 0x1C) * delta;
@@ -2116,9 +2096,8 @@ bool GunLiftAimMidAsmHook(X86Register& ecx, X86Register& esi)
 // Subfuncs that do not (per frame instead)
 
 // Idle behavior @ 0x21B670
-void SetWatchCameraSightChaseMidAsmHook(X86Register& esi, X86Register& esp)
+void SetWatchCameraSightChaseMidAsmHook(X86Context& __restrict ctx, uint8_t* base)
 {
-	auto base = g_memory.base;
 	const float frames = g_deltaTime * 60.0f;
 
 	if (!(frames > 0.0f) || std::fabs(frames - 1.0f) < 0.0001f)
@@ -2126,8 +2105,8 @@ void SetWatchCameraSightChaseMidAsmHook(X86Register& esi, X86Register& esp)
 		return;
 	}
 
-	const uint32_t watchCamera = esi.u32;
-	const uint32_t deltaAddr = esp.u32 + 0x14;
+	const uint32_t watchCamera = ctx.esi.u32;
+	const uint32_t deltaAddr = ctx.esp.u32 + 0x14;
 
 	const float ramp = std::min(X86_LOAD_F32(watchCamera + 0xC4) + 0.01f * frames, 1.0f);
 	X86_STORE_F32(watchCamera + 0xC4, std::min(ramp - 0.01f, 1.0f));
@@ -2143,9 +2122,8 @@ void SetWatchCameraSightChaseMidAsmHook(X86Register& esi, X86Register& esp)
 }
 
 // Position update @ 0x21BCF0
-void SetWatchCameraSightMoveMidAsmHook(X86Register& edi)
+void SetWatchCameraSightMoveMidAsmHook(X86Context& __restrict ctx, uint8_t* base)
 {
-	auto base = g_memory.base;
 	const float frames = g_deltaTime * 60.0f;
 
 	if (!(frames > 0.0f) || std::fabs(frames - 1.0f) < 0.0001f)
@@ -2153,7 +2131,7 @@ void SetWatchCameraSightMoveMidAsmHook(X86Register& edi)
 		return;
 	}
 
-	const uint32_t watchCamera = edi.u32;
+	const uint32_t watchCamera = ctx.edi.u32;
 	for (uint32_t i = 0; i < 3; i++)
 	{
 		X86_STORE_F32(watchCamera + 0xE0 + i * 4, X86_LOAD_F32(watchCamera + 0xE0 + i * 4) + X86_LOAD_F32(watchCamera + 0xC8 + i * 4) * (frames - 1.0f));
@@ -2164,9 +2142,8 @@ void SetWatchCameraSightMoveMidAsmHook(X86Register& edi)
 
 // Vine::FireBall::Exec @ 0x1E3540
 // AKA "Killer Plant"
-void VineFireBallTravelMidAsmHook(X86Register& esi)
+void VineFireBallTravelMidAsmHook(X86Context& __restrict ctx, uint8_t* base)
 {
-	auto base = g_memory.base;
 	const float frames = g_deltaTime * 60.0f;
 
 	if (!(frames > 0.0f) || std::fabs(frames - 1.0f) < 0.0001f)
@@ -2174,7 +2151,7 @@ void VineFireBallTravelMidAsmHook(X86Register& esi)
 		return;
 	}
 
-	const uint32_t vine = esi.u32;
+	const uint32_t vine = ctx.esi.u32;
 
 	if (X86_LOAD_U32(vine + 0x60) != 1) // state check for fireball
 	{
@@ -2195,9 +2172,8 @@ void VineFireBallTravelMidAsmHook(X86Register& esi)
 // issue where the weapons collide with each other. Katana02 tends to get stuck the most at 240FPS
 static const uint32_t g_weaponDropSettleThreshold = 0x46B380; // 0.1 (original threshold)
 static float g_weaponDropSettleSaved = 0.0f;
-void WeaponDropSettleThresholdMidAsmHook()
+void WeaponDropSettleThresholdMidAsmHook(X86Context& __restrict ctx, uint8_t* base)
 {
-	auto base = g_memory.base;
 	const float frames = g_deltaTime * 60.0f;
 	g_weaponDropSettleSaved = X86_LOAD_F32(g_weaponDropSettleThreshold);
 
@@ -2208,9 +2184,8 @@ void WeaponDropSettleThresholdMidAsmHook()
 	X86_STORE_F32(g_weaponDropSettleThreshold, g_weaponDropSettleSaved * frames);
 }
 
-void WeaponDropSettleThresholdRestoreMidAsmHook()
+void WeaponDropSettleThresholdRestoreMidAsmHook(X86Context& __restrict ctx, uint8_t* base)
 {
-	auto base = g_memory.base;
 	X86_STORE_F32(g_weaponDropSettleThreshold, g_weaponDropSettleSaved);
 }
 
@@ -2220,7 +2195,7 @@ void WeaponDropSettleThresholdRestoreMidAsmHook()
 
 std::unordered_map<uint32_t, float> g_beltTrailCarry; // map per BeltTask to support multiplayer
 // Belt::Exec
-bool BeltTrailPushMidAsmHook(X86Register& esi)
+bool BeltTrailPushMidAsmHook(X86Context& __restrict ctx, uint8_t* base)
 {
 	const float frames = g_deltaTime * 60.0f;
 	if (!(frames > 0.0f) || std::fabs(frames - 1.0f) < 0.0001f)
@@ -2228,7 +2203,7 @@ bool BeltTrailPushMidAsmHook(X86Register& esi)
 		return true;
 	}
 
-	float &carry = g_beltTrailCarry[esi.u32];
+	float &carry = g_beltTrailCarry[ctx.esi.u32];
 	carry += frames;
 	if (carry >= 1.0f)
 	{
@@ -2247,10 +2222,9 @@ struct BeltFadeTiming
 	float carry;
 };
 std::unordered_map<uint32_t, BeltFadeTiming> g_beltFadeTimings;
-void BeltTrailFadeMidAsmHook(X86Register& esi)
+void BeltTrailFadeMidAsmHook(X86Context& __restrict ctx, uint8_t* base)
 {
-	auto base = g_memory.base;
-	const uint32_t beltEff = esi.u32;
+	const uint32_t beltEff = ctx.esi.u32;
 	const auto now = std::chrono::steady_clock::now();
 
 	if (g_beltFadeTimings.size() > 64)
@@ -2310,18 +2284,17 @@ static bool EffectLocusMultiVtxStep(uint32_t locus)
 // Locus push @ sub_260B40
 // esi = locus
 // locus+0x20 sample count
-bool MeleeEffectLocusMultiVtxTrailPushMidAsmHook(X86Register& esi)
+bool MeleeEffectLocusMultiVtxTrailPushMidAsmHook(X86Context& __restrict ctx, uint8_t* base)
 {
-	auto base = g_memory.base;
 	// first sample always push, not perfect depending on current MTN the player is doing,
 	// but makes the effect start much more consistently
-	return X86_LOAD_U32(esi.u32 + 0x20) == 0 || EffectLocusMultiVtxStep(esi.u32);
+	return X86_LOAD_U32(ctx.esi.u32 + 0x20) == 0 || EffectLocusMultiVtxStep(ctx.esi.u32);
 }
 
 // Locus fade @ sub_260B40
-bool MeleeEffectLocusMultiVtxTrailFadeMidAsmHook(X86Register& esi)
+bool MeleeEffectLocusMultiVtxTrailFadeMidAsmHook(X86Context& __restrict ctx, uint8_t* base)
 {
-	return EffectLocusMultiVtxStep(esi.u32);
+	return EffectLocusMultiVtxStep(ctx.esi.u32);
 }
 /** --Eff::LocusMultiVtx Patch END-- */
 
@@ -2897,11 +2870,10 @@ X86_FUNC(sub_C3580)
 // BkSoldier / BkNinja / GUNRobot
 // Just like the vac cheat BkNinja head has a call to this but it actually passes it to the arm.
 // More proof BkNinja was rushed as hell lol
-void EnemyAimLerpMidAsmHook(X86Register& esp)
+void EnemyAimLerpMidAsmHook(X86Context& __restrict ctx, uint8_t* base)
 {
-	auto base = g_memory.base;
 	const float frames = g_deltaTime * 60.0f;
-	const uint32_t tAddr = esp.u32 + 0x8;
+	const uint32_t tAddr = ctx.esp.u32 + 0x8;
 	const float t = X86_LOAD_F32(tAddr);
 	if (NeedsFpsRescale(frames) && t > 0.0f && t < 1.0f)
 	{
@@ -2915,16 +2887,15 @@ void EnemyAimLerpMidAsmHook(X86Register& esp)
 // BirdBase Vehicle aka the rideable BlackVolt / BlackHawk
 // Rotation update @ 0x251F00 (called by the bird Exec @ 0x253740)
 // Only the stick release rotation was not using delta time
-void BirdVehicleTurnScaleMidAsmHook(X86Register& esp)
+void BirdVehicleTurnScaleMidAsmHook(X86Context& __restrict ctx, uint8_t* base)
 {
-	auto base = g_memory.base;
 	const float frames = g_deltaTime * 60.0f;
 	if (!(frames > 0.0f) || std::fabs(frames - 1.0f) < 0.0001f)
 	{
 		return;
 	}
 
-	const uint32_t rotationRate = esp.u32 + 0x10;
+	const uint32_t rotationRate = ctx.esp.u32 + 0x10;
 	X86_STORE_F32(rotationRate, std::min(X86_LOAD_F32(rotationRate) * frames, 1.0f));
 }
 
@@ -2999,11 +2970,11 @@ X86_FUNC(sub_1CD350)
 
 // Hero / Dark gauge fill draw callback @ sub_280B60
 // Every frame gap target is halved each frame
-void ChaosGaugeFillMidAsmHook(X86Register& eax, X86Register& ecx)
+void ChaosGaugeFillMidAsmHook(X86Context& __restrict ctx, uint8_t* base)
 {
 	const float dt = g_deltaTime;
-	const auto target = (int32_t)eax.u32;
-	const auto shown = (int32_t)ecx.u32;
+	const auto target = (int32_t)ctx.eax.u32;
+	const auto shown = (int32_t)ctx.ecx.u32;
 
 	// Always render 1 from target, never above (OG behavior)
 	if (target - shown <= 1 || dt <= 0.0f || dt >= 1.0f / 60.0f)
@@ -3014,7 +2985,7 @@ void ChaosGaugeFillMidAsmHook(X86Register& eax, X86Register& ecx)
 	// match 60FPS behavior for high FPS
 	const float step = (float)(target - shown) * (1.0f - std::pow(0.5f, dt * 60.0f));
 	const int32_t next = std::min(shown + (int32_t)std::ceil(step), target - 1);
-	eax.u32 = ecx.u32 = (uint32_t)next;
+	ctx.eax.u32 = ctx.ecx.u32 = (uint32_t)next;
 }
 
 // Egg Dealer roulette UI bounce fix
@@ -3142,16 +3113,14 @@ static float GetMessageTimerExcess(uint8_t* base)
 
 // Message timer @ sub_2A6020
 // esi = message
-void AdvertiseMessageElapsedTimerMidAsmHook(X86Register& esi)
+void AdvertiseMessageElapsedTimerMidAsmHook(X86Context& __restrict ctx, uint8_t* base)
 {
-	auto base = g_memory.base;
-	X86_STORE_F32(esi.u32 + 0x24, X86_LOAD_F32(esi.u32 + 0x24) - GetMessageTimerExcess(base));
+	X86_STORE_F32(ctx.esi.u32 + 0x24, X86_LOAD_F32(ctx.esi.u32 + 0x24) - GetMessageTimerExcess(base));
 }
 
-void AdvertiseMessageHoldTimerMidAsmHook(X86Register& esi)
+void AdvertiseMessageHoldTimerMidAsmHook(X86Context& __restrict ctx, uint8_t* base)
 {
-	auto base = g_memory.base;
-	X86_STORE_F32(esi.u32 + 0x20, X86_LOAD_F32(esi.u32 + 0x20) + GetMessageTimerExcess(base));
+	X86_STORE_F32(ctx.esi.u32 + 0x20, X86_LOAD_F32(ctx.esi.u32 + 0x20) + GetMessageTimerExcess(base));
 }
 /** --Advertise Message Timer Patch END-- */
 
@@ -3164,7 +3133,7 @@ static float g_eventBattleFadeHoldTime = 0.0f;
 
 // TPjsEventActionManager constructor
 // Hooked after the divisor is set (override for unlocked)
-void EventCreatedMidAsmHook()
+void EventCreatedMidAsmHook(X86Context& __restrict ctx, uint8_t* base)
 {
 	g_isEventCameraCutting = false;
 	g_eventStreamWaitCarry = 0.0f;
@@ -3187,12 +3156,11 @@ static float GetEventDeltaTime()
 	return std::min(deltaTime, g_eventMaxDeltaTime);
 }
 
-void EventClockStepMidAsmHook(X86Register& esp)
+void EventClockStepMidAsmHook(X86Context& __restrict ctx, uint8_t* base)
 {
 	if (IsCutsceneFramerateUnlocked())
 	{
-		auto base = g_memory.base;
-		X86_STORE_F32(esp.u32 + 0xC, GetEventDeltaTime());
+		X86_STORE_F32(ctx.esp.u32 + 0xC, GetEventDeltaTime());
 	}
 }
 
@@ -3292,32 +3260,30 @@ static bool IsCameraMotionCut(uint32_t cameraMotion, float frame)
 
 // Event camera frame
 // use prior frame on a camera switch to avoid the awkward snap at 61FPS+
-void EventCameraFrameMidAsmHook(X86Register& esi, X86Register& esp)
+void EventCameraFrameMidAsmHook(X86Context& __restrict ctx, uint8_t* base)
 {
 	if (!IsCutsceneFramerateUnlocked())
 	{
 		return;
 	}
-	auto base = g_memory.base;
 	const float frame = X86_LOAD_F32(g_eventClockFrame);
-	g_isEventCameraCutting = IsCameraMotionCut(X86_LOAD_U32(esi.u32), frame);
-	X86_STORE_F32(esp.u32 + 0x4, g_isEventCameraCutting ? std::trunc(frame) : frame);
+	g_isEventCameraCutting = IsCameraMotionCut(X86_LOAD_U32(ctx.esi.u32), frame);
+	X86_STORE_F32(ctx.esp.u32 + 0x4, g_isEventCameraCutting ? std::trunc(frame) : frame);
 }
 
 // sub_22A540 (Single Frame Mode setter for events)
 // If true we skip the set, if false we let it enable the mode
-bool EventMotionSingleFrameMidAsmHook()
+bool EventMotionSingleFrameMidAsmHook(X86Context& __restrict ctx, uint8_t* base)
 {
 	return IsCutsceneFramerateUnlocked();
 }
 
 // Event actor frame
-void EventActorFrameMidAsmHook(X86Register& ebp)
+void EventActorFrameMidAsmHook(X86Context& __restrict ctx, uint8_t* base)
 {
 	if (g_isEventCameraCutting)
 	{
-		auto base = g_memory.base;
-		X86_STORE_F32(ebp.u32 + 0xC, std::trunc(X86_LOAD_F32(ebp.u32 + 0xC)));
+		X86_STORE_F32(ctx.ebp.u32 + 0xC, std::trunc(X86_LOAD_F32(ctx.ebp.u32 + 0xC)));
 	}
 }
 
@@ -3397,18 +3363,17 @@ X86_FUNC(sub_379D20)
 
 // Event stream wait
 // sub_228740 pauses to align with the audio track
-void EventStreamWaitMidAsmHook(X86Register& ecx)
+void EventStreamWaitMidAsmHook(X86Context& __restrict ctx, uint8_t* base)
 {
 	if (!IsCutsceneFramerateUnlocked())
 	{
 		return;
 	}
 
-	auto base = g_memory.base;
 	g_eventStreamWaitCarry += GetEventDeltaTime() * X86_LOAD_F32(g_eventFramesPerSecond);
 	if (g_eventStreamWaitCarry < 1.0f)
 	{
-		ecx.u32 -= 1;
+		ctx.ecx.u32 -= 1;
 		return;
 	}
 	g_eventStreamWaitCarry = std::min(g_eventStreamWaitCarry - 1.0f, 1.0f);
@@ -3438,14 +3403,16 @@ X86_FUNC(sub_2280D0)
 // Per frame step
 // 0x456784 = goal tick rate
 static float g_goalActionTickCarry = 0.0f;
-void GoalActionTicksMidAsmHook(X86Register& ticks)
+static void GoalActionTicks(uint8_t* base, X86Register& ticks)
 {
-	auto base = g_memory.base;
 	g_goalActionTickCarry += g_unroundedDeltaTime * X86_LOAD_F32(0x456784);
 	const float flooredTicks = std::floor(g_goalActionTickCarry);
 	g_goalActionTickCarry -= flooredTicks;
 	ticks.u32 = (uint32_t)flooredTicks;
 }
+
+void GoalActionTicksEaxMidAsmHook(X86Context& __restrict ctx, uint8_t* base) { GoalActionTicks(base, ctx.eax); }
+void GoalActionTicksEcxMidAsmHook(X86Context& __restrict ctx, uint8_t* base) { GoalActionTicks(base, ctx.ecx); }
 
 // Boss / special camera 61FPS+ fix
 X86_FUNC_IMPL(__imp__sub_23950);
@@ -3570,15 +3537,14 @@ X86_FUNC(sub_268C40)
 /** --Awake (Chaos Control/Blast) idle drain Patch START-- */
 static std::unordered_map<uint32_t, float> g_awakeDrainCarry; // per awake (multiplayer support)
 // Awake idle drain
-void AwakeIdleDrainMidAsmHook(X86Register& ecx, X86Register& esi)
+void AwakeIdleDrainMidAsmHook(X86Context& __restrict ctx, uint8_t* base)
 {
-	auto base = g_memory.base;
-	const uint32_t awake = esi.u32;
+	const uint32_t awake = ctx.esi.u32;
 	const float dt = X86_LOAD_F32(X86_LOAD_U32(X86_LOAD_U32(awake + 0x28) + 0x60));
 	float& carry = g_awakeDrainCarry[awake];
 	carry += dt * X86_LOAD_F32(0x449BD0) / (float)GetAwakeDrainDivisor(awake); // -1500.0f originally
 	const int32_t drain = (int32_t)carry;
 	carry -= drain;
-	ecx.u32 = (uint32_t)drain;
+	ctx.ecx.u32 = (uint32_t)drain;
 }
 /** --Awake (Chaos Control/Blast) idle drain Patch END-- */

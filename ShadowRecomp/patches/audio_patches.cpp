@@ -154,14 +154,13 @@ X86_FUNC(sub_25FD60)
 }
 
 // Original just plays at max volume instead of getting the distance volume
-void SE3DStartVolumeMidAsmHook(X86Register& esi)
+void SE3DStartVolumeMidAsmHook(X86Context& __restrict ctx, uint8_t* base)
 {
-	auto base = g_memory.base;
-	const uint32_t callSE = esi.u32;
+	const uint32_t callSE = ctx.esi.u32;
 	if ((X86_LOAD_U32(callSE + CALLSE_FLAGS) & CALLSE_3D) != 0)
 	{
 		// IsndCallSE::GetOffsetVolume
-		const uint32_t volume = GuestToHostFunction<uint32_t, CallConvention::Thiscall>(sub_25DC30, callSE);
+		const uint32_t volume = GuestToHostFunction<uint32_t, CallConvention::Thiscall>(ctx, sub_25DC30, callSE);
 		X86_STORE_U8(callSE + CALLSE_VOLUME, uint8_t(volume));
 	}
 }
@@ -190,14 +189,13 @@ static void SetSlotBufferPan(int32_t handle, int8_t pan)
 }
 
 // Pan angle (pi/2 radians; rather than GC BAMS)
-void SEPanAngleMidAsmHook(X86Register& esp)
+void SEPanAngleMidAsmHook(X86Context& __restrict ctx, uint8_t* base)
 {
-	auto base = g_memory.base;
-	const uint32_t yaw = esp.u32 + 0x4;
+	const uint32_t yaw = ctx.esp.u32 + 0x4;
 	X86_STORE_F32(yaw, X86_LOAD_F32(yaw) + float(M_PI) / 2.0f);
 }
 
-void SEPanSkipGCBAMSMidAsmHook() {}
+void SEPanSkipGCBAMSMidAsmHook(X86Context& __restrict ctx, uint8_t* base) {}
 
 // Slot pan
 // OG function is a nullsub since DirectSound + HRTF handles panning normally
@@ -267,9 +265,9 @@ static bool RnaPortIsPlaying(uint32_t rna)
 }
 
 // true means we skip it, so the game asks for the play again next vblank call
-bool RnaPlayStateLatchMidAsmHook(X86Register& esi)
+bool RnaPlayStateLatchMidAsmHook(X86Context& __restrict ctx, uint8_t* base)
 {
-	const uint32_t rna = esi.u32;
+	const uint32_t rna = ctx.esi.u32;
 
 	std::lock_guard<std::mutex> lock(g_rnaPlayRetriesMutex);
 
@@ -297,17 +295,16 @@ bool RnaPlayStateLatchMidAsmHook(X86Register& esi)
 // If the ADX vsync thread sets the stream to state 3 while the unpause waits on the lock, it will see the pause
 // flag set and skips the play. We can patch this by reading the state again once the lock is held.
 static constexpr uint32_t ADXT_STAT = 0x01;
-void AdxtPauseReloadStatMidAsmHook(X86Register& esi, X86Register& edi)
+void AdxtPauseReloadStatMidAsmHook(X86Context& __restrict ctx, uint8_t* base)
 {
-	auto base = g_memory.base;
-	const int32_t stat = int8_t(X86_LOAD_U8(esi.u32 + ADXT_STAT));
+	const int32_t stat = int8_t(X86_LOAD_U8(ctx.esi.u32 + ADXT_STAT));
 
-	edi.u32 = uint32_t(stat);
+	ctx.edi.u32 = uint32_t(stat);
 }
 
 /* --END MUSIC RACE ISSUE PATCH-- */
 
-bool IdleChaosPowersMusicMidAsmHook()
+bool IdleChaosPowersMusicMidAsmHook(X86Context& __restrict ctx, uint8_t* base)
 {
 	return !Config::IdleChaosPowersMusic;
 }
@@ -349,7 +346,7 @@ static constexpr uint32_t g_FILE_LOADER = 0x537768; // sub_25F2F0 sets it up bef
 static constexpr char ORGANIC_GRIND_BANK[] = "sound/bank7b.pac";
 
 
-static uint32_t LoadOrganicGrindBankSound()
+static uint32_t LoadOrganicGrindBankSound(const X86Context& ctx)
 {
 	static uint32_t image = 0;
 
@@ -366,7 +363,7 @@ static uint32_t LoadOrganicGrindBankSound()
 	auto* path = static_cast<char*>(g_userHeap.Alloc(sizeof(ORGANIC_GRIND_BANK)));
 	memcpy(path, ORGANIC_GRIND_BANK, sizeof(ORGANIC_GRIND_BANK));
 
-	image = GuestToHostFunction<uint32_t, CallConvention::Thiscall>(sub_1A330, loader,
+	image = GuestToHostFunction<uint32_t, CallConvention::Thiscall>(ctx, sub_1A330, loader,
 		g_memory.MapVirtual(path), 0);
 
 	return image;
@@ -417,7 +414,7 @@ static void PointEntryAtSample(uint32_t entry, uint32_t header)
 	X86_STORE_U32(entry + SAMPLE_SIZE, X86_LOAD_U32(header + 28));
 }
 
-static void InstallOrganicGrindSound()
+static void InstallOrganicGrindSound(const X86Context& ctx)
 {
 	auto base = g_memory.base;
 
@@ -425,7 +422,7 @@ static void InstallOrganicGrindSound()
 	if (X86_LOAD_U32(StageBankEntry(GRIND_LOOP) + SAMPLE_SIZE) == ORGANIC_GRIND_SIZE)
 		return;
 
-	const uint32_t image = LoadOrganicGrindBankSound();
+	const uint32_t image = LoadOrganicGrindBankSound(ctx);
 	if (!image)
 		return;
 
@@ -598,7 +595,7 @@ X86_FUNC(sub_25F420)
 
 	// black comet levels
 	if (stage == 601 || stage == 604 || stage == 700)
-		InstallOrganicGrindSound();
+		InstallOrganicGrindSound(ctx);
 
 	RestoreGrindLoop(GRIND_LOOP);
 	RestoreGrindLoop(GRIND2_LOOP);
@@ -632,92 +629,90 @@ constexpr uint8_t SE_SPECIAL_SLOT_START = 0x26;
 constexpr uint8_t SE_SPECIAL_SLOT_END = 0x2B;
 
 // allocator scan count 0x20 (32) -> 0x3B (59)
-void SESlotScanCountMidAsmHook(X86Register& esp)
+void SESlotScanCountMidAsmHook(X86Context& __restrict ctx, uint8_t* base)
 {
-	auto base = g_memory.base;
-	X86_STORE_U8(esp.u32 + 0x20, SE_NORMAL_SLOT_COUNT);
+	X86_STORE_U8(ctx.esp.u32 + 0x20, SE_NORMAL_SLOT_COUNT);
 }
 
 // allocator index wrap
-bool SESlotIndexWrapMidAsmHook(X86Register& ecx, X86Register& eax)
+bool SESlotIndexWrapMidAsmHook(X86Context& __restrict ctx, uint8_t* base)
 {
-	if (ecx.u8_lo == SE_SPECIAL_SLOT_START)
+	if (ctx.ecx.u8_lo == SE_SPECIAL_SLOT_START)
 	{
-		ecx.u8_lo = SE_SPECIAL_SLOT_END;
-		eax.u32 += (SE_SPECIAL_SLOT_END - SE_SPECIAL_SLOT_START) * SE_SLOT_SIZE;
+		ctx.ecx.u8_lo = SE_SPECIAL_SLOT_END;
+		ctx.eax.u32 += (SE_SPECIAL_SLOT_END - SE_SPECIAL_SLOT_START) * SE_SLOT_SIZE;
 		return true;
 	}
-	return ecx.u8_lo < SE_SLOT_COUNT;
+	return ctx.ecx.u8_lo < SE_SLOT_COUNT;
 }
 
 // allocator search start wrap
-bool SESlotSearchStartWrapMidAsmHook(X86Register& eax, X86Register& edi)
+bool SESlotSearchStartWrapMidAsmHook(X86Context& __restrict ctx, uint8_t* base)
 {
-	auto base = g_memory.base;
-	if (eax.u8_lo == SE_SPECIAL_SLOT_START)
+	if (ctx.eax.u8_lo == SE_SPECIAL_SLOT_START)
 	{
-		X86_STORE_U8(edi.u32 + 0xC, SE_SPECIAL_SLOT_END);
+		X86_STORE_U8(ctx.edi.u32 + 0xC, SE_SPECIAL_SLOT_END);
 		return true;
 	}
-	return eax.u8_lo < SE_SLOT_COUNT;
+	return ctx.eax.u8_lo < SE_SLOT_COUNT;
 }
 
 // slot table allocation size
-void SESlotTableSizeMidAsmHook(X86Register& esp)
+void SESlotTableSizeMidAsmHook(X86Context& __restrict ctx, uint8_t* base)
 {
-	auto base = g_memory.base;
-	X86_STORE_U32(esp.u32, 4 + SE_SLOT_COUNT * SE_SLOT_SIZE);
+	X86_STORE_U32(ctx.esp.u32, 4 + SE_SLOT_COUNT * SE_SLOT_SIZE);
 }
 
 // slot table count header and vector constructor count
-void SESlotTableCountMidAsmHook(X86Register& eax, X86Register& esp)
+void SESlotTableCountMidAsmHook(X86Context& __restrict ctx, uint8_t* base)
 {
-	auto base = g_memory.base;
-	X86_STORE_U32(eax.u32, SE_SLOT_COUNT);
-	X86_STORE_U32(esp.u32 + 0x8, SE_SLOT_COUNT);
+	X86_STORE_U32(ctx.eax.u32, SE_SLOT_COUNT);
+	X86_STORE_U32(ctx.esp.u32 + 0x8, SE_SLOT_COUNT);
 }
 
 // slot table bounds (for the funcs byte stepping)
-bool SESlotLoopMidAsmHook(X86Register& offset)
+static bool SESlotLoop(const X86Register& offset)
 {
 	return offset.u32 < SE_SLOT_COUNT * SE_SLOT_SIZE;
 }
 
+bool SESlotLoopEsiMidAsmHook(X86Context& __restrict ctx, uint8_t* base) { return SESlotLoop(ctx.esi); }
+bool SESlotLoopEdiMidAsmHook(X86Context& __restrict ctx, uint8_t* base) { return SESlotLoop(ctx.edi); }
+bool SESlotLoopEbpMidAsmHook(X86Context& __restrict ctx, uint8_t* base) { return SESlotLoop(ctx.ebp); }
+
 // per frame update loop count
-void SESlotUpdateLoopCountMidAsmHook(X86Register& esp)
+void SESlotUpdateLoopCountMidAsmHook(X86Context& __restrict ctx, uint8_t* base)
 {
-	auto base = g_memory.base;
-	X86_STORE_U32(esp.u32 + 0xC, SE_SLOT_COUNT);
+	X86_STORE_U32(ctx.esp.u32 + 0xC, SE_SLOT_COUNT);
 }
 
 // stop all loop count
-void SESlotStopAllLoopCountMidAsmHook(X86Register& ebp)
+void SESlotStopAllLoopCountMidAsmHook(X86Context& __restrict ctx, uint8_t* base)
 {
-	ebp.u32 = SE_SLOT_COUNT;
+	ctx.ebp.u32 = SE_SLOT_COUNT;
 }
 
 // find slot loop
-bool SESlotFindLoopMidAsmHook(X86Register& ecx)
+bool SESlotFindLoopMidAsmHook(X86Context& __restrict ctx, uint8_t* base)
 {
-	return ecx.u8_lo < SE_SLOT_COUNT;
+	return ctx.ecx.u8_lo < SE_SLOT_COUNT;
 }
 
 // normal vs special check
 // in the OG code >= 0x26 is considered special
 // include the new extra slots in normal slot availability
-bool SESlotIsNormalMidAsmHook(X86Register& eax)
+bool SESlotIsNormalMidAsmHook(X86Context& __restrict ctx, uint8_t* base)
 {
-	return eax.u8_lo <= SE_SPECIAL_SLOT_START || eax.u8_lo >= SE_SPECIAL_SLOT_END;
+	return ctx.eax.u8_lo <= SE_SPECIAL_SLOT_START || ctx.eax.u8_lo >= SE_SPECIAL_SLOT_END;
 }
 /** --SFX limit increase Patch END-- */
 
-void SatelliteLaserWeaponSFXFixMidAsmHook(X86Register& esp)
+void SatelliteLaserWeaponSFXFixMidAsmHook(X86Context& __restrict ctx, uint8_t* base)
 {
 	// 0xE027 = SE_SY39_HUGELASER1
 	// 0xE028 = SE_SY40_HUGELASER2
-	auto base = g_memory.base;
-	const uint32_t sfxId = X86_LOAD_U32(esp.u32);
-	X86_STORE_U32(esp.u32, sfxId == 0xE027 ? 0xE028 : 0xE027);
+	const uint32_t sfxId = X86_LOAD_U32(ctx.esp.u32);
+	X86_STORE_U32(ctx.esp.u32, sfxId == 0xE027 ? 0xE028 : 0xE027);
 }
 
 /** GravityChangeSwitch / GravityChangeZone SFX spam fix Patch START */
@@ -726,9 +721,9 @@ void SatelliteLaserWeaponSFXFixMidAsmHook(X86Register& esp)
 // Patch to do one sound per object per contact
 
 static std::unordered_set<uint32_t> g_gravityChangeTouches;
-bool GravityChangeTouchSFXMidAsmHook(X86Register& esi)
+bool GravityChangeTouchSFXMidAsmHook(X86Context& __restrict ctx, uint8_t* base)
 {
-	return !g_gravityChangeTouches.insert(esi.u32).second;
+	return !g_gravityChangeTouches.insert(ctx.esi.u32).second;
 }
 
 // GravityChangeSwitch state

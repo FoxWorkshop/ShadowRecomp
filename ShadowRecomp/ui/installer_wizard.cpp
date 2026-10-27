@@ -222,7 +222,7 @@ static ImVec2 ComputeTextSize(ImFont* font, const char* text, float size, float&
 	return textSize;
 }
 
-static void DrawButton(ImVec2 min, ImVec2 max, const char* buttonText, bool sourceButton, int i, bool buttonEnabled, bool& buttonPressed, float maxTextWidth = FLT_MAX, bool makeDefault = false)
+static void DrawButton(X86Context* ctx, ImVec2 min, ImVec2 max, const char* buttonText, bool sourceButton, int i, bool buttonEnabled, bool& buttonPressed, float maxTextWidth = FLT_MAX, bool makeDefault = false)
 {
 	buttonPressed = false;
 
@@ -247,7 +247,7 @@ static void DrawButton(ImVec2 min, ImVec2 max, const char* buttonText, bool sour
 	{
 		btnHovered = true;
 		if(!playedLangSound[i] && !buttonEnabled){
-			Game_PlaySound("cursor");
+			Game_PlaySound(ctx, "cursor");
 			playedLangSound[i] = true;
 		}
 	}
@@ -258,7 +258,7 @@ static void DrawButton(ImVec2 min, ImVec2 max, const char* buttonText, bool sour
 
 	if (btnHovered && io.MouseClicked[0] && !buttonEnabled)
 	{
-		Game_PlaySound("decide");
+		Game_PlaySound(ctx, "decide");
 		buttonPressed = true;
 		g_selectedBtn = i;
 	}
@@ -342,7 +342,7 @@ static void InstallerThread()
 	g_installerFinished.store(true);
 }
 
-static void DrawLanguagePicker(ImVec2 panelMin, ImVec2 panelMax)
+static void DrawLanguagePicker(X86Context* ctx, ImVec2 panelMin, ImVec2 panelMax)
 {
 	bool buttonPressed = false;
 	float panelWidth = panelMax.x - panelMin.x;
@@ -370,7 +370,7 @@ static void DrawLanguagePicker(ImVec2 panelMin, ImVec2 panelMax)
 		ImVec2 min = { minX, btnMinY };
 		ImVec2 max = { maxX, btnMaxY };
 
-		DrawButton(min, max, LANGUAGE_TEXT[i], false, i,
+		DrawButton(ctx, min, max, LANGUAGE_TEXT[i], false, i,
 			i == g_selectedBtn, buttonPressed, FLT_MAX,
 			LANGUAGE_ENUM[i] == ELanguage::English);
 
@@ -381,7 +381,7 @@ static void DrawLanguagePicker(ImVec2 panelMin, ImVec2 panelMax)
 	}
 }
 
-static void DrawNextButton(ImVec2& panelMin, ImVec2& panelMax, float scale)
+static void DrawNextButton(X86Context* ctx, ImVec2& panelMin, ImVec2& panelMax, float scale)
 {
 	auto& io = ImGui::GetIO();
 	auto drawList = ImGui::GetBackgroundDrawList();
@@ -404,7 +404,7 @@ static void DrawNextButton(ImVec2& panelMin, ImVec2& panelMax, float scale)
 		nextHovered = true;
 		if(!playedNextSound)
 		{
-			Game_PlaySound("cursor");
+			Game_PlaySound(ctx, "cursor");
 			playedNextSound = true;
 		}
 	}
@@ -439,12 +439,12 @@ static void DrawNextButton(ImVec2& panelMin, ImVec2& panelMax, float scale)
 
 	if (nextHovered && io.MouseClicked[0])
 	{
-		Game_PlaySound("decide");
+		Game_PlaySound(ctx, "decide");
 		g_currentPage = (WizardPage)((int)g_currentPage + 1);
 	}
 }
 
-static void DrawQuitButton(ImVec2& panelMin, ImVec2& panelMax, float scale)
+static void DrawQuitButton(X86Context* ctx, ImVec2& panelMin, ImVec2& panelMax, float scale)
 {
 	auto& io = ImGui::GetIO();
 	auto drawList = ImGui::GetBackgroundDrawList();
@@ -465,7 +465,7 @@ static void DrawQuitButton(ImVec2& panelMin, ImVec2& panelMax, float scale)
 	{
 		quitHovered = true;
 		if(!playedPrevSound){
-			Game_PlaySound("cursor");
+			Game_PlaySound(ctx, "cursor");
 			playedPrevSound = true;
 		}
 	}
@@ -497,12 +497,12 @@ static void DrawQuitButton(ImVec2& panelMin, ImVec2& panelMax, float scale)
 
 	if (quitHovered && io.MouseClicked[0])
 	{
-		Game_PlaySound("cancel");
+		Game_PlaySound(ctx, "cancel");
 		Quit();
 	}
 }
 
-static void DrawPrevButton(ImVec2& panelMin, ImVec2& panelMax, float scale, bool enabled = true)
+static void DrawPrevButton(X86Context* ctx, ImVec2& panelMin, ImVec2& panelMax, float scale, bool enabled = true)
 {
 	auto& io = ImGui::GetIO();
 	auto drawList = ImGui::GetBackgroundDrawList();
@@ -523,7 +523,7 @@ static void DrawPrevButton(ImVec2& panelMin, ImVec2& panelMax, float scale, bool
 	{
 		prevHovered = true;
 		if(!playedPrevSound){
-			Game_PlaySound("cursor");
+			Game_PlaySound(ctx, "cursor");
 			playedPrevSound = true;
 		}
 	}
@@ -558,7 +558,7 @@ static void DrawPrevButton(ImVec2& panelMin, ImVec2& panelMax, float scale, bool
 
 	if (prevHovered && io.MouseClicked[0])
 	{
-		Game_PlaySound("cancel");
+		Game_PlaySound(ctx, "cancel");
 		g_currentPage = (WizardPage)((int)g_currentPage - 1);
 	}
 }
@@ -665,7 +665,7 @@ static void DrawWizardParagraph(const char* text, float maxWidth, float lineMarg
 		draw);
 }
 
-void InstallerWizard::Draw()
+void InstallerWizard::Draw(X86Context* ctx)
 {
 	if (!s_isVisible)
 		return;
@@ -774,18 +774,18 @@ void InstallerWizard::Draw()
 	{
 	case WizardPage::SelectLanguage:
 	{
-		DrawLanguagePicker(panelMin, panelMax);
+		DrawLanguagePicker(ctx, panelMin, panelMax);
 
-		DrawNextButton(panelMin, panelMax, scale);
+		DrawNextButton(ctx, panelMin, panelMax, scale);
 
-		DrawQuitButton(panelMin, panelMax, scale);
+		DrawQuitButton(ctx, panelMin, panelMax, scale);
 	}
 	break;
 	case WizardPage::Introduction:
 	{
-		DrawPrevButton(panelMin, panelMax, scale);
+		DrawPrevButton(ctx, panelMin, panelMax, scale);
 
-		DrawNextButton(panelMin, panelMax, scale);
+		DrawNextButton(ctx, panelMin, panelMax, scale);
 	}
 	break;
 	case WizardPage::SelectGame:
@@ -899,7 +899,7 @@ void InstallerWizard::Draw()
 		{
 			btnHovered = true;
 			if(!playedBrowseSound){
-				Game_PlaySound("cursor");
+				Game_PlaySound(ctx, "cursor");
 				playedBrowseSound = true;
 			}
 		}
@@ -934,7 +934,7 @@ void InstallerWizard::Draw()
 
 		if (btnHovered && io.MouseClicked[0])
 		{
-			Game_PlaySound("decide");
+			Game_PlaySound(ctx, "decide");
 			g_browseClicked = true;
 		}
 
@@ -969,7 +969,7 @@ void InstallerWizard::Draw()
 				nextHovered = true;
 				if(!playedNextSound)
 				{
-					Game_PlaySound("cursor");
+					Game_PlaySound(ctx, "cursor");
 					playedNextSound = true;
 				}
 			}
@@ -1001,7 +1001,7 @@ void InstallerWizard::Draw()
 
 			if (nextHovered && io.MouseClicked[0])
 			{
-				Game_PlaySound("decide");
+				Game_PlaySound(ctx, "decide");
 
 				std::error_code spaceErrorCode;
 				std::filesystem::path spacePath = g_installPath;
@@ -1022,7 +1022,7 @@ void InstallerWizard::Draw()
 			}
 		}
 
-		DrawPrevButton(panelMin, panelMax, scale, !isParsing);
+		DrawPrevButton(ctx, panelMin, panelMax, scale, !isParsing);
 	}
 	break;
 	case WizardPage::CheckSpace:
@@ -1043,7 +1043,7 @@ void InstallerWizard::Draw()
 
 		DrawWizardParagraph(spaceText, textMaxWidth, textMargin, spaceTextPosition);
 
-		DrawPrevButton(panelMin, panelMax, scale);
+		DrawPrevButton(ctx, panelMin, panelMax, scale);
 
 		float nextBtnWidth = 45.0f * scale;
 		float nextBtnHeight = 20.0f * scale;
@@ -1061,7 +1061,7 @@ void InstallerWizard::Draw()
 			nextHovered = true;
 				if(!playedNextSound)
 			{
-				Game_PlaySound("cursor");
+				Game_PlaySound(ctx, "cursor");
 				playedNextSound = true;
 			}
 		}
@@ -1093,7 +1093,7 @@ void InstallerWizard::Draw()
 
 		if (nextHovered && io.MouseClicked[0])
 		{
-			Game_PlaySound("decide");
+			Game_PlaySound(ctx, "decide");
 			g_currentPage = WizardPage::Installing;
 			g_installerFinished.store(false);
 			g_installerFailed.store(false);
@@ -1200,7 +1200,7 @@ void InstallerWizard::Draw()
 		float creditsY = logoY + logoHeight + (10.0f * scale);
 		DrawScrollingCredits(ImVec2(panelMin.x + creditsPadding, creditsY), ImVec2(panelMax.x - creditsPadding, creditsY + fileFontSize * 1.5f), scale);
 
-		DrawQuitButton(panelMin, panelMax, scale);
+		DrawQuitButton(ctx, panelMin, panelMax, scale);
 
 		float playBtnWidth = 75.0f * scale;
 		float playBtnHeight = 20.0f * scale;
@@ -1216,7 +1216,7 @@ void InstallerWizard::Draw()
 			playHovered = true;
 			if(!playedNextSound)
 			{
-				Game_PlaySound("cursor");
+				Game_PlaySound(ctx, "cursor");
 				playedNextSound = true;
 			}
 		}
@@ -1248,7 +1248,7 @@ void InstallerWizard::Draw()
 
 		if (playHovered && io.MouseClicked[0])
 		{
-			Game_PlaySound("decide");
+			Game_PlaySound(ctx, "decide");
 			g_isClosing = true;
 			EmbeddedPlayer::FadeOutMusic();
 		}
@@ -1279,7 +1279,7 @@ void InstallerWizard::Draw()
 			retryHovered = true;
 			if(!playedNextSound)
 			{
-				Game_PlaySound("cursor");
+				Game_PlaySound(ctx, "cursor");
 				playedNextSound = true;
 			}
 		}
@@ -1314,7 +1314,7 @@ void InstallerWizard::Draw()
 
 		if (retryHovered && io.MouseClicked[0])
 		{
-			Game_PlaySound("decide");
+			Game_PlaySound(ctx, "decide");
 			if (g_installerThread && g_installerThread->joinable())
 				g_installerThread->join();
 			g_installerThread.reset();
@@ -1327,7 +1327,7 @@ void InstallerWizard::Draw()
 			g_installerProgress = 0.0f;
 		}
 
-		DrawQuitButton(panelMin, panelMax, scale);
+		DrawQuitButton(ctx, panelMin, panelMax, scale);
 
 		break;
 	}
@@ -1356,7 +1356,7 @@ void InstallerWizard::Shutdown()
 
 // Dropping a file on the window works the same as Browse and a dropped folder
 // is taken as the extracted game.
-static void OnSourceDropped(const char* file)
+static void OnSourceDropped(X86Context* ctx, const char* file)
 {
 	if (g_currentPage != WizardPage::SelectGame || g_isQuitting || IsParsingSources())
 		return;
@@ -1373,7 +1373,7 @@ static void OnSourceDropped(const char* file)
 
 	if ((lowerExtension != ".iso" && lowerExtension != ".xbe") || !std::filesystem::is_regular_file(path, ec))
 	{
-		Game_PlaySound("cannot_decide");
+		Game_PlaySound(ctx, "cannot_decide");
 		g_statusMessage = Localise("Installer_Message_InvalidFileSelected");
 		return;
 	}
@@ -1382,7 +1382,7 @@ static void OnSourceDropped(const char* file)
 	g_sourcePath.assign(pathString.begin(), pathString.end());
 	g_statusMessage.clear();
 	g_sourceDropTime = ImGui::GetTime();
-	Game_PlaySound("decide");
+	Game_PlaySound(ctx, "decide");
 }
 
 bool InstallerWizard::Run(std::filesystem::path installPath)
@@ -1451,13 +1451,13 @@ bool InstallerWizard::Run(std::filesystem::path installPath)
 			}
 			else if (event.type == SDL_EVENT_DROP_FILE)
 			{
-				OnSourceDropped(event.drop.data);
+				OnSourceDropped(nullptr, event.drop.data);
 			}
 		}
 
 		GameWindow::Update();
 		input::Update();
-		Video::Present();
+		Video::Present(nullptr); // host thread: no guest context
 
 		framePacer.EndFrame(FramePacer::WaitMode::SleepOnly);
 	}

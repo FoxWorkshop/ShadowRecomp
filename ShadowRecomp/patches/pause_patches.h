@@ -1,7 +1,7 @@
 #pragma once
 
 void PausePatchesInit();
-void DrawPauseText();
+void DrawPauseText(X86Context* ctx);
 
 void RequestQuitOptionForPause();
 void TogglePauseCSD(bool toggle);

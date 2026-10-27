@@ -1,278 +1,185 @@
 [main]
 file_path = "../private/default.xbe"
 out_directory_path = "../x86"
-switch_table_file_path = "jumpTable.toml"
-fast_trig = true #64-bit instead of 80-bit x87 trig for speed
-tls_indexAddress = 0x5599A8
+
+[optimizations]
+enable = true                   # master toggle
+eliminate_return_slot = true    # don't put return addresses on the stack where possible
+eliminate_stack_args = true     # optimise away push+pop across function calls
+x87_lowering = true             # lower x87 stack code to C variables
+eliminate_dead_flags = true     # compute only flags later instructions read
+fuse_compare_branch = true      # turn cmp + jump into a plain `if (a < b)`
+
+# Hacks that sacrifice accuracy for speed. Usually safe.
+[speed_hacks]
+enable = true # master toggle
+
+# Let the compiler keep stack values in registers.
+# Side effect: Unsafe if another thread could read your thread's stack.
+#              But this has practically 0% chance of happening.
+nonvolatile_stack = true
+
+# CMOV only reads memory when it actually moves.
+# Side effect: Invalid addresses are skipped.
+#              Stops game from crashing where real HW might have crashed.
+lazy_cmov_load = true
+
+# Don't wrap STOS addresses around at 4 GB.
+# Side effect: Stores that wrap around the 4 GB boundary are not handled correctly.
+#              Rarely an issue.
+unwrapped_string_addresses = true
+
+# Assume calls never pass results in eflags.
+# Side effect: Breaks hand-written asm that does this. (Compilers never do this.)
+#              Only affects calls we can't trace, e.g. indirect calls/callbacks etc.
+#              Other calls we do trace correctly.
+clobber_eflags_for_unknown_code = true
+
+# Let the compiler merge or drop packed SSE loads and stores.
+# Side effect: Loads whose result is never used are skipped.
+#              So like CMOV, a guest crash is avoided when it should happen.
+plain_sse_memory = true
+
+# 64-bit instead of 80-bit x87 trig and 2^x.
+# Side effect: Results can differ in the last few bits (tiny accuracy difference).
+fast_trig = true
+
+# Don't track x87 overflow, divide-by-zero and precision-loss flags.
+# Side effect: Games almost never read these.
+fast_x87_status = true
+
+# Don't check for x87 stack overflow and underflow.
+# Side effect: Only buggy code over- or underflows the stack, and it goes unnoticed.
+fast_x87_stack = true
+
+# FSCALE uses a double-only path.
+# Side effect: Huge scales (beyond 2^±1022) give wrong results. Only math library error paths use them.
+fast_fscale = true
+
+# Don't track SSE exception flags.
+# Side effect: Games almost never read these.
+fast_sse_status = true
+
+[fixes]
+# When you replace a function using:
+# - X86_FUNC
+# - GUEST_FUNCTION_HOOK.
+# - GUEST_FUNCTION_STUB
+#
+# Update this. Failure to do so will result in build error.
+# You'll know when you see it.
+function_hooks = [
+	0x11430, 0x116B0, 0x11AD0, 0x12700, 0x14710, 0x17ED0, 0x184E0, 0x19730,
+	0x1A6D0, 0x1B010, 0x1E5A0, 0x1E930, 0x1F360, 0x1F570, 0x1F7F0, 0x1FE00,
+	0x21A30, 0x21C70, 0x23950, 0x24CF0, 0x25DF0, 0x261A0, 0x55A80, 0x55BE0,
+	0x56FC0, 0x57630, 0x578B0, 0x59430, 0x59AE0, 0x59BB0, 0x5A240, 0x5A750,
+	0x5A7B0, 0x5AAF0, 0x5AEE0, 0x5C5E0, 0x6D700, 0x76A70, 0x76B20, 0x76DE0,
+	0x7FA10, 0x7FB30, 0x80BA0, 0x84E50, 0x897A0, 0x8D1B0, 0x8E690, 0x8E9A0,
+	0x908C0, 0x90D10, 0x93190, 0x934D0, 0x96AD0, 0x96B50, 0x977D0, 0x98670,
+	0x995C0, 0x9C420, 0x9FA10, 0x9FC00, 0xA0CD0, 0xA1740, 0xA1C10, 0xBF050,
+	0xC0DC0, 0xC23B0, 0xC3580, 0xCEED0, 0x114650, 0x115A50, 0x125DA0,
+	0x125F50, 0x1269D0, 0x126AF0, 0x1715B0, 0x173A20, 0x178850, 0x178AD0,
+	0x17A5C0, 0x17C130, 0x17C1C0, 0x17E290, 0x181F80, 0x1A1E60, 0x1AD1A0,
+	0x1B2C30, 0x1CD350, 0x1D0900, 0x1F89B0, 0x20D980, 0x20E260, 0x226B00,
+	0x2280D0, 0x228740, 0x2293E0, 0x22A240, 0x22D120, 0x22D250, 0x2378B0,
+	0x23BF90, 0x23C410, 0x242240, 0x242470, 0x243BB0, 0x2443F0, 0x245FB0,
+	0x246120, 0x24B5F0, 0x24B6F0, 0x24B880, 0x24BA90, 0x24BEC0, 0x24C190,
+	0x24C600, 0x2546B0, 0x2549F0, 0x255780, 0x2595A0, 0x25B280, 0x25CBB0,
+	0x25F120, 0x25F420, 0x25FD60, 0x25FEC0, 0x2621A0, 0x268C40, 0x268FD0,
+	0x2704F0, 0x281550, 0x282F80, 0x28AF30, 0x28C180, 0x28D950, 0x28D9E0,
+	0x28DA70, 0x28E770, 0x28F200, 0x28F720, 0x291B70, 0x2924B0, 0x292CF0,
+	0x29A850, 0x29C830, 0x29CB50, 0x29EA60, 0x29EB20, 0x2A0790, 0x2A4420,
+	0x2A57E0, 0x2A5B60, 0x2A5DD0, 0x2A6020, 0x2A6530, 0x2A6D00, 0x2A7560,
+	0x2A7F30, 0x2AAC20, 0x2AAEDE, 0x2AAF10, 0x2ABFCB, 0x2AC3EF, 0x2ACB6A,
+	0x2ACD5E, 0x2AD48C, 0x2AD93C, 0x2ADA49, 0x2ADA9A, 0x2ADAC8, 0x2ADB04,
+	0x2ADC8D, 0x2ADF79, 0x2ADFF0, 0x2AE0DD, 0x2AE237, 0x2AE331, 0x2AE420,
+	0x2AE45E, 0x2AEC9A, 0x2AF174, 0x2AF4B3, 0x2AF653, 0x2B0164, 0x2B0494,
+	0x2B04AE, 0x2B0C27, 0x2B0CE1, 0x2B126A, 0x2B17E8, 0x2B1A00, 0x2B39A0,
+	0x2B3ED0, 0x2B4440, 0x2B47C0, 0x2B4AC0, 0x2C51C0, 0x2C9B50, 0x2CA020,
+	0x2CBA40, 0x2CBA70, 0x2D4A90, 0x2D82E0, 0x2D8400, 0x2D8440, 0x2D8460,
+	0x2D8470, 0x2D8D80, 0x2DB9C0, 0x2DCDB0, 0x2DCDE0, 0x2DD080, 0x2DD1C0,
+	0x2DF870, 0x2DF9F0, 0x2DFE20, 0x2E1300, 0x2E1890, 0x2E6140, 0x2E6750,
+	0x2E67D0, 0x2EC0C0, 0x2EC110, 0x2EC140, 0x2EC170, 0x2EC190, 0x2EC720,
+	0x2ECC80, 0x2ED0D0, 0x304E70, 0x3065C0, 0x309F90, 0x315220, 0x316240,
+	0x3167D0, 0x316BC0, 0x3258A0, 0x32EFE0, 0x332B60, 0x34AB40, 0x34C140,
+	0x366B60, 0x369BB0, 0x36E3B0, 0x36FC90, 0x374A60, 0x376DC0, 0x376FE0,
+	0x377720, 0x379D20, 0x37DEC0, 0x37E820, 0x37EB60, 0x37EBE6, 0x37F1E0,
+	0x37FC10, 0x37FC20, 0x37FD10, 0x37FDA0, 0x3800E0, 0x38066D, 0x380720,
+	0x380F60, 0x388458, 0x3899C0, 0x38B5E0, 0x38F810, 0x3CFCD0, 0x3CFDF0,
+	0x3CFE70, 0x3D0040, 0x3D0680, 0x3D08B0, 0x3D0B70, 0x3D0CD0, 0x3D0F10,
+	0x3D0F40, 0x3D1320, 0x3D1CE0, 0x3D1D30, 0x3D1E10, 0x3D1EA0, 0x3D1F00,
+	0x3D1F70, 0x3D2010, 0x3D2280, 0x3D2420, 0x3D3240, 0x3D4720, 0x3D4740,
+	0x3D4760, 0x3D4950, 0x3D5140, 0x3D5DB0, 0x3D5F10, 0x3D5F60, 0x3D5FE0,
+	0x3D6BF0, 0x3D7000, 0x3D7B81, 0x3DA010, 0x3DA0A0, 0x3DA150, 0x3DBFE0,
+	0x3DC150, 0x3DC1F0, 0x3DC590, 0x3DC790, 0x3DD560, 0x3DD710, 0x3DD810,
+	0x3DD8B0, 0x3DD950, 0x3DDAB0, 0x3E34B8, 0x3E34BD, 0x3E35B5, 0x3E412C,
+	0x3E4148, 0x3E4164, 0x3E4180, 0x3E419C, 0x3E41C0, 0x3E41D8, 0x3E41FC,
+	0x3E421C, 0x3E4238, 0x3E4258, 0x3E4274, 0x3E48FA, 0x3E4916, 0x3E4932,
+	0x3E4956, 0x3E497A, 0x3E499E, 0x3E4EE9, 0x3E4FB4, 0x3E52DC, 0x3E5756,
+	0x3E577A, 0x3E579A, 0x3E57BE, 0x3E5808, 0x3E583D, 0x3E5861, 0x3E5A27,
+	0x40634F, 0x40B363, 0x41A46B, 0x41C0D5, 0x41CD65, 0x41D78A, 0x4248A6,
+	0x424919,
+]
 
 functions = [
-    { address = 0xE9180, size = 0x671 },  #wrong size     
-	{ address = 0x133700, size = 0x7AE },  #wrong size 
-	{ address = 0xE7C20, size = 0x11C },	
-	{ address = 0x2b8080, size = 0xC0 }, 	
-	{ address = 0x383735, size = 0xB7D }, 	
-	{ address = 0x3872fe, size = 0xC5 }, 		
-	{ address = 0xDCCF0, size = 0x84 },  # todo check if this is correct, this could be multiple functions that ida failed to detect
-	{ address = 0xE0690, size = 0x83 },  # same	
-	{ address = 0xEBEF0, size = 0x301 },  # same	
-	{ address = 0xFFE00, size = 0x99 },  # same	
-	{ address = 0x2AFADF, size = 0x74 },  #callback in the start function	
-	{ address = 0x2ABFCB, size = 0x424 },  #failed to detect full size of it	
-	{ address = 0x381F6C, size = 0x73 },  #vftable which had no reference
-	{ address = 0x3864B8, size = 0x10 }, 	
-	{ address = 0x3864C8, size = 0x61 }, 		 	
-	{ address = 0x37d835, size = 0x14 }, 			
-	{ address = 0x386389, size = 0x28 }, 		 	
-	{ address = 0x382BA0, size = 0xC }, 				 	
-	{ address = 0x2DE4D0, size = 0x298 }, 	
-	{ address = 0x2D9020, size = 0x13 }, 	
-	{ address = 0x2E4250, size = 0xB }, 
-	{ address = 0x2DEC20, size = 0x49 }, 	
-	{ address = 0x2CB920, size = 0x92 }, 	
-	{ address = 0x2CB9B2, size = 0x23 }, 			
-	{ address = 0x423B38, size = 0x20B }, 	
-	{ address = 0x424433, size = 0x6C },	
-	{ address = 0x427F5C, size = 0xE2 }, 	
-	{ address = 0x427945, size = 0x50 }, 		 	
-	{ address = 0x2DF870, size = 0x161 }, 
-	{ address = 0x2DD9C0, size = 0x22F }, 
-	{ address = 0x2E05C0, size = 0x1B }, 
-	{ address = 0x2E0670, size = 0x26 }, 	
-	{ address = 0x2DDC00, size = 0x4D }, 	
-	{ address = 0x38066D, size = 0xA5 }, 			
-	{ address = 0x37FC10, size = 0x7 }, #size is wrong but we will patch this with a hook anyway	
-	{ address = 0x37FC20, size = 0xF8 }, 	
-	{ address = 0x55560, size = 0xC }, 
-	{ address = 0x558A0, size = 0x114 },
+	# Entry discovery excludes its patched first 24 bytes. Keep the entry through its ret.
+	{ address = 0x2AFB53, size = 0x72 },
+	{ address = 0xE9180, size = 0x671 },  #wrong size (auto 0x8)
+	{ address = 0xE7C20, size = 0x11C },  #wrong size (auto 0x8)
+	{ address = 0xDCCF0, size = 0x84 },   #wrong size (auto 0x8); todo check if this is correct, this could be multiple functions that ida failed to detect
+	{ address = 0xE0690, size = 0x83 },   #wrong size (auto 0x8); same
+	{ address = 0xEBEF0, size = 0x301 },  #wrong size (auto 0x8); same
+	{ address = 0xFFE00, size = 0x99 },   #wrong size (auto 0x8); same
+	{ address = 0x3864C8, size = 0x61 },  #wrong size (auto 0x34)
+	{ address = 0x37d835, size = 0x14 },
+	{ address = 0x2DE4D0, size = 0x298 },
+	{ address = 0x2E4250, size = 0xB },
+	{ address = 0x2DEC20, size = 0x49 },
+	{ address = 0x2CB920, size = 0x92 },  #wrong size (auto 0xB5)
+	{ address = 0x2CB9B2, size = 0x23 },
+	{ address = 0x423B38, size = 0x20B },
+	{ address = 0x424433, size = 0x6C },
+	{ address = 0x427F5C, size = 0xE2 },
+	{ address = 0x427945, size = 0x50 },
+	{ address = 0x2DDC00, size = 0x4D },
+	{ address = 0x37FC20, size = 0xF8 },  #wrong size (auto 0xE8)
 	{ address = 0x25C10, size = 0x3F },
-	{ address = 0x26D30, size = 0xAC },
-	{ address = 0x3FBF0, size = 0x5C4 },
-	{ address = 0x415E0, size = 0x4E },	
-	{ address = 0x51830, size = 0x6C },
-	{ address = 0x51910, size = 0x70 },
-	{ address = 0x5FF80, size = 0x3A },	
-	{ address = 0x37DF88, size = 0x1C5 }, #todo check if this is correct	
-	{ address = 0x3E32CC, size = 0xD },
-	{ address = 0x3E32D9, size = 0x11 },
-	{ address = 0x3E4F98, size = 0x1C },
-	{ address = 0x2B1921, size = 0x8 },
-	{ address = 0x3E7BAE, size = 0x1B },
-	{ address = 0x3E7CB4, size = 0x1B },
-	{ address = 0x3E9479, size = 0x1B },
-	{ address = 0x37E52A, size = 0x14 },
-	{ address = 0x3EA118, size = 0x1B },
-	{ address = 0x3E9FAF, size = 0x58 },
-	{ address = 0x3E99A5, size = 0x47 },
-	{ address = 0x3E9A87, size = 0x2F },
-	{ address = 0x3EA0C9, size = 0x4F },
-	{ address = 0x3EBADF, size = 0x1B },
-	{ address = 0x3E38B8, size = 0x47 },
-	{ address = 0x3E38FF, size = 0x4A },
-	{ address = 0x3E42CD, size = 0x1B },
-	{ address = 0x3E44B0, size = 0x1B },
-	{ address = 0x3E46DA, size = 0x1B },
-	{ address = 0x3E49D3, size = 0xC9 },
-	{ address = 0x3E504E, size = 0x1B },
-	{ address = 0x3E573B, size = 0x1B },
-	{ address = 0x3E5CAC, size = 0xB },
-	{ address = 0x3E5CB7, size = 0xB },
-	{ address = 0x3E5DAF, size = 0x49 },
-	{ address = 0x3E5DF8, size = 0x163 },
-	{ address = 0x3E5F5B, size = 0x96 },
-	{ address = 0x3E5FF1, size = 0x4B },
-	{ address = 0x3E603C, size = 0x111 },
-	{ address = 0x3E614D, size = 0x90 },
-	{ address = 0x3E61DD, size = 0xCF },
-	{ address = 0x3E62AC, size = 0xA2 },
-	{ address = 0x3E634E, size = 0x79 },
-	{ address = 0x3E63C7, size = 0x11C },
-	{ address = 0x3E67E7, size = 0x14 },
-	{ address = 0x3E67FB, size = 0x17 },
-	{ address = 0x3E6CCE, size = 0x2C },
-	{ address = 0x3E71C7, size = 0x1C },	
-	{ address = 0x3E7661, size = 0x89 },
-	{ address = 0x3EC32F, size = 0xF },	
-	{ address = 0x3E7DB3, size = 0xB }, 
-	{ address = 0x3E7DBE, size = 0xB }, 
-	{ address = 0x415AB5, size = 0xC },
-	{ address = 0x415AC1, size = 0xC },
-	{ address = 0x415ACD, size = 0xC },
-	{ address = 0x251450, size = 0xB }, #added start here
-	{ address = 0x253660, size = 0xDA }, 
-	{ address = 0x255BF0, size = 0x2A2 },
-	{ address = 0x257A70, size = 0x5C }, 
-	{ address = 0x25A4D0, size = 0x5 }, 
-	{ address = 0x25A4F0, size = 0x15 }, 
-	{ address = 0x25A520, size = 0x3 }, 
-	{ address = 0x264B10, size = 0x22 }, 
-	{ address = 0x2676E0, size = 0xA8 }, 
-	{ address = 0x26B130, size = 0xA8 }, 
-	{ address = 0x26D450, size = 0x6B }, 
-	{ address = 0x26D65C, size = 0x16 }, 
-	{ address = 0x26D760, size = 0x561 },
-	{ address = 0x26E430, size = 0xA8 }, 
-	{ address = 0x2717E0, size = 0x7D }, 
-	{ address = 0x271E00, size = 0x1F }, 
-	{ address = 0x27298C, size = 0x16 }, 
-	{ address = 0x273310, size = 0x521 },
-	{ address = 0x287940, size = 0x22 }, 
-	{ address = 0x3810B8, size = 0x3E },
-	{ address = 0x2CBDB0, size = 0x22 }, 
-	{ address = 0x157570, size = 0x46 },	
-	{ address = 0x2DCD60, size = 0x41 },	
-	{ address = 0x347820, size = 0x8 },	
-	{ address = 0x3569B0, size = 0x9D },
-	{ address = 0x3FFA00, size = 0x421 },
-	{ address = 0x402120, size = 0xE5 },
-	{ address = 0x401B70, size = 0x82 }, 
-	{ address = 0x401DE0, size = 0xC8 }, 
-	{ address = 0x401EB0, size = 0x7D }, 
-	{ address = 0x401F30, size = 0x92 }, 
-	{ address = 0x401FD0, size = 0x92 }, 
-	{ address = 0x402070, size = 0xAF }, 
-	{ address = 0x402210, size = 0x84 }, 
-	{ address = 0x4022A0, size = 0x120 },
-	{ address = 0x4023C0, size = 0xA6 }, 
-	{ address = 0x402470, size = 0x91 }, 
-	{ address = 0x402510, size = 0x77 },
-	{ address = 0x400030, size = 0x6FC },
-	{ address = 0x400730, size = 0x67D },
+	{ address = 0x37DF88, size = 0x1C5 }, #wrong size (auto 0x45D7); todo check if this is correct
+	{ address = 0x2CBDB0, size = 0x22 },
+	{ address = 0x347820, size = 0x8 },
 	{ address = 0x399098, size = 0xE },
 	{ address = 0x3823FB, size = 0x3F },
-	{ address = 0x38562A, size = 0x147 },	
-	{ address = 0x3E4069, size = 0x4E }, #wrong size
-	{ address = 0x3E68EC, size = 0xA9 }, #wrong size	
-	{ address = 0x3E6782, size = 0x65 },	
-	{ address = 0x3E6D68, size = 0xE7 }, #wrong size
-	{ address = 0x3358C0, size = 0xCE },	
-	{ address = 0x3E763F, size = 0x22 },	
-	{ address = 0x3E7608, size = 0x1E }, #wrong size	
-	{ address = 0x1842F0, size = 0x10 }, #missing	
-	{ address = 0x28F6A0, size = 0x60 }, #missing
-	{ address = 0x3827f7, size = 0x5A }, 
-	{ address = 0x37D8C9, size = 0x28 },
-	{ address = 0x3834DA, size = 0xA9 }, 
-	{ address = 0x386694, size = 0x65 },
-	{ address = 0x382B8E, size = 0x12 },	
-	{ address = 0x1B2CD0, size = 0x14 },	
-	{ address = 0x19dc30, size = 0x10 },	
-	{ address = 0x50090, size = 0x28F }, #wrong size	
-	{ address = 0x9A130, size = 0xCB }, #missing	
-	{ address = 0x3737b0, size = 0x353 }, #missing	
-	{ address = 0x37E70D, size = 0xAE }, #wrong size	
-	{ address = 0x2C89D0, size = 0x405 }, #missing	
-	{ address = 0x2C5380, size = 0xA74 },  #wrong size	
-	{ address = 0x35B2E0, size = 0x35A3 },  #wrong size
-	{ address = 0x40E48D, size = 0x21 },  #missing	
-	{ address = 0x410760, size = 0x18 },  #missing	
-	{ address = 0x40e275, size = 0x21 },  #missing	
-	{ address = 0x40D1EB, size = 0x24 },  #missing	
-	{ address = 0x40E43D, size = 0x21 },  #missing	
-	{ address = 0x41208E, size = 0x24 },  #missing	
-	{ address = 0x4108cc, size = 0x18 },  #missing	
-	{ address = 0x40EAF2, size = 0x26 },  #missing	
-	{ address = 0x40e3f4, size = 0x26 },  #missing		
-	{ address = 0x1D7740, size = 0x82 },  #missing	
-	{ address = 0x38259D, size = 0xA3 },  #wrong size	
-	{ address = 0x1a3ea0, size = 0x27 },  #missing		
-	{ address = 0x2f4bd0, size = 0x51 },  #missing		
-	{ address = 0x87e50, size = 0x3C },  #missing		
-	{ address = 0x99d40, size = 0x184 },  #missing		
-	{ address = 0xBF600, size = 0x197 },  #wrong size		
-	{ address = 0x76b20, size = 0x2B4 },  #missing		
-	{ address = 0x533e0, size = 0xB8 },  #missing		
-	{ address = 0x1d8800, size = 0x82 },  #missing		
-	
-	{ address = 0x142ED0, size = 0x10F },  #missing		
-	{ address = 0x24FD90, size = 0x32 },  #missing		
-	{ address = 0x236700, size = 0x52 },  #missing			
-	{ address = 0x767B0, size = 0x93 },  #missing			
-	{ address = 0x75f50, size = 0x59 },  #missing				
-	
-	{ address = 0x000962c0, size = 0x40 }, #missing	
-	{ address = 0x00183900, size = 0x10 }, #missing	
-	{ address = 0x001d88e0, size = 0x10 },	#missing	
-	{ address = 0x86720, size = 0x12A }, #missing		
-	
-	{ address = 0x14C120, size = 0xE7 }, #missing	
-	{ address = 0x183F40, size = 0x74 }, #missing	
-	{ address = 0x6dae0, size = 0x51 }, #missing	
-	
-	{ address = 0x3FBF0, size = 0x5C4 }, #wrong size	
-	
-	{ address = 0x761f0, size = 0x1A9 }, #missing	
-	{ address = 0x8FD90, size = 0x130 }, #chunk 	
-	
-	{ address = 0x9FF40, size = 0x214 }, #missing 	
-	{ address = 0x79930, size = 0x58 }, #missing 	
-	
-	{ address = 0x29ed80, size = 0x30 }, #missing 
-	{ address = 0x1e64c0, size = 0x10 }, #missing 	
-	{ address = 0x1E71D0, size = 0x28 }, #missing 	
-	{ address = 0x29ED50, size = 0x30 }, #missing 	
-	{ address = 0x1B58C0, size = 0x6C }, #missing 	
-	{ address = 0x18B250, size = 0x5C }, #missing 
-	{ address = 0x214670, size = 0x10 }, #missing 	
-	{ address = 0x131a20, size = 0x29 }, #missing 	
-	{ address = 0x12e3e0, size = 0x29 }, #missing 	
-	{ address = 0x285B40, size = 0x155 }, #missing 	
-	{ address = 0x1E9AC0, size = 0x10 }, #missing 	
-	{ address = 0x12EC80, size = 0x29 }, #missing 	
-	{ address = 0x140bd0, size = 0x7 }, #missing 
-	{ address = 0x99b00, size = 0x96 }, #missing 	
-	{ address = 0x1476e0, size = 0x301 }, #missing 	
-	{ address = 0x96300, size = 0x40 }, #missing 	
-	{ address = 0x214680, size = 0x160 }, #missing 	
-	{ address = 0xab680, size = 0xFF }, #missing 	
-	{ address = 0x219e20, size = 0x43 }, #missing 	
-	{ address = 0xb38f0, size = 0xC1 }, #missing 	
-	{ address = 0x188d20, size = 0x6C }, #missing 	
-	{ address = 0xcf310, size = 0x4 }, #missing 	
-	{ address = 0x81f70, size = 0x18C }, #missing 	
-	{ address = 0x795D0, size = 0x46 }, #missing 	
-	{ address = 0xC6590, size = 0x78 }, #missing 	
-	{ address = 0xA63b0, size = 0x58 }, #missing 	
-	{ address = 0x1887E0, size = 0x3B }, #missing 	
-	{ address = 0x1B3B10, size = 0x48 }, #missing 
-	{ address = 0x1825E0, size = 0x10 }, #missing 	
-	{ address = 0x236A00, size = 0x36 }, #missing 
-	{ address = 0x186FF0, size = 0x14 }, #missing 		
-	
-	{ address = 0x12e520, size = 0x78 },	
-	{ address = 0x213AE0, size = 0x10 },	
-	{ address = 0xb2900, size = 0xC1 },	
-	{ address = 0x9FE60, size = 0x5C },	
-	{ address = 0x96380, size = 0x40 },	
-	{ address = 0x13B720, size = 0xAD },
-	{ address = 0x263510, size = 0x5B },  #missing
-	
-	{ address = 0x400708, size = 0x24 }, #added automatically from ida
-	{ address = 0x407f17, size = 0x49 },
-	{ address = 0x40d30c, size = 0x21 },
-	{ address = 0x40d460, size = 0x21 },
-	{ address = 0x40e191, size = 0x21 },
-	{ address = 0x40e1ef, size = 0x21 },
-	{ address = 0x40e2be, size = 0x21 },
-	{ address = 0x40e9ea, size = 0x26 },
-	{ address = 0x40ea10, size = 0x26 },
-	{ address = 0x40ea36, size = 0x26 },
-	{ address = 0x40ea5c, size = 0x26 },
-	{ address = 0x40ea82, size = 0x24 },
-	{ address = 0x40eaa6, size = 0x26 },
-	{ address = 0x40eacc, size = 0x26 },
-	{ address = 0x40eaf2, size = 0x26 },
-	{ address = 0x40f4ca, size = 0x24 },
-	{ address = 0x40f54a, size = 0x28 },
-	{ address = 0x41081e, size = 0x18 },
-	{ address = 0x410869, size = 0x1c },
-	{ address = 0x4108cc, size = 0x18 },
-	{ address = 0x41090e, size = 0x2c },
-	{ address = 0x4116d3, size = 0x42 },
-	{ address = 0x4117de, size = 0x24 },
-	{ address = 0x411dd6, size = 0x24 },
-	{ address = 0x411ec4, size = 0x24 },
-	{ address = 0x411fc6, size = 0x24 },
-	{ address = 0x415a9a, size = 0x1b },
+	{ address = 0x3358C0, size = 0xCE },
+	{ address = 0x1842F0, size = 0x10 },  #missing
+	{ address = 0x1B2CD0, size = 0x14 },
+	{ address = 0x19dc30, size = 0x10 },
+	{ address = 0x9A130, size = 0xCB },   #missing
+	{ address = 0x37E70D, size = 0xAE },  #wrong size (auto 0x3E52)
+	{ address = 0x2C89D0, size = 0x405 }, #missing
+	{ address = 0x40e3f4, size = 0x26 },  #wrong size (auto 0x21)
+	{ address = 0x99d40, size = 0x184 },  #missing
+
+	{ address = 0x142ED0, size = 0x10F }, #missing
+	{ address = 0x236700, size = 0x52 },  #missing
+	{ address = 0x75f50, size = 0x59 },   #missing
+
+	{ address = 0x000962c0, size = 0x40 }, #missing
+	{ address = 0x00183900, size = 0x10 }, #missing
+
+	{ address = 0x214670, size = 0x10 },  #missing
+	{ address = 0x285B40, size = 0x155 }, #missing
+	{ address = 0x96300, size = 0x40 },   #missing
+	{ address = 0x214680, size = 0x160 }, #wrong size (auto 0x15F)
+	{ address = 0xA63b0, size = 0x58 },   #missing
+	{ address = 0x1825E0, size = 0x10 },  #missing
+	{ address = 0x236A00, size = 0x36 },  #missing
+	{ address = 0x186FF0, size = 0x14 },  #missing
+
+	{ address = 0x213AE0, size = 0x10 },
+	{ address = 0x96380, size = 0x40 },
+	{ address = 0x263510, size = 0x5B }, #missing
+
+	{ address = 0x400708, size = 0x24 },  #added automatically from ida
 	{ address = 0x415ad9, size = 0x24 },
 	{ address = 0x415afd, size = 0x24 },
 	{ address = 0x415b21, size = 0x24 },
@@ -292,125 +199,37 @@ functions = [
 	{ address = 0x417ae9, size = 0xdc },
 	{ address = 0x417bc5, size = 0xdc },
 	{ address = 0x417ca1, size = 0x117 },
-	{ address = 0x41f6af, size = 0x225 },
-	{ address = 0x41fa98, size = 0x3 },
-	{ address = 0x41faa2, size = 0x8c },
-	{ address = 0x41fc84, size = 0x21 },
-	{ address = 0x41fca5, size = 0x24 },
-	{ address = 0x424c17, size = 0xbc },
-	{ address = 0x424cd3, size = 0x8a },
 	{ address = 0x424d5d, size = 0x52 },
 	{ address = 0x424daf, size = 0x24 },
-	{ address = 0x424e00, size = 0x66 },
-	{ address = 0x424e66, size = 0x11 },
-	{ address = 0x424ec4, size = 0x8a },
-	{ address = 0x424f4e, size = 0x9d },
-	{ address = 0x425009, size = 0x84 },
-	{ address = 0x42508d, size = 0x8b },
 	{ address = 0x4251a3, size = 0x3b },
-	{ address = 0x42547e, size = 0xf4 },
 	{ address = 0x4257c2, size = 0x154 },
-	{ address = 0x42614d, size = 0x2b },
-	{ address = 0x4267f3, size = 0xdb },
-	{ address = 0x4268ce, size = 0x147 },
-	{ address = 0x426b15, size = 0xb9 },
 	{ address = 0x426d19, size = 0x54 },
-	{ address = 0x427097, size = 0x3b },
-	{ address = 0x42735b, size = 0x2c },
-	{ address = 0x427387, size = 0x24 },
-	{ address = 0x427660, size = 0x63 },
-	{ address = 0x4277fe, size = 0x91 },
-	{ address = 0x42788f, size = 0x5b },
-	{ address = 0x4278ea, size = 0x5b },
-	{ address = 0x427995, size = 0xcc },
-	{ address = 0x427a61, size = 0xc0 },
-	{ address = 0x427b21, size = 0x6b },
-	{ address = 0x427c8f, size = 0x80 },
-	{ address = 0x427d0f, size = 0xab },
-	{ address = 0x427dba, size = 0x7c },
-	{ address = 0x427e36, size = 0x126 },
-	{ address = 0xc10e0, size = 0x1d },	
-	
-	{ address = 0x12a3c, size = 0x16 }, #added automatically from ida PART 2
+
 	{ address = 0x1bdc0, size = 0x52 },
 	{ address = 0x1ffd0, size = 0x8a },
 	{ address = 0x23580, size = 0x2f },
-	{ address = 0x2aa2c, size = 0x16 },
 	{ address = 0x30116, size = 0xb6 },
-	{ address = 0x36f3c, size = 0x16 },
-	{ address = 0x40a64, size = 0x982 },
 	{ address = 0x413e6, size = 0xb },
-	{ address = 0x41808, size = 0x8f },
 	{ address = 0x41e6c, size = 0x32 },
-	{ address = 0x4302c, size = 0x16 },
-	{ address = 0x4f96c, size = 0x16 },
-	{ address = 0x516fc, size = 0x16 },
-	{ address = 0x51b40, size = 0xbf },
-	{ address = 0x51c00, size = 0x9c },
-	{ address = 0x51d50, size = 0x9c },
-	{ address = 0x5281c, size = 0x16 },
-	{ address = 0x52f9c, size = 0x16 },
 	{ address = 0x58986, size = 0x16 },
-	{ address = 0x5899c, size = 0x16 },
-	{ address = 0x5a3fc, size = 0x16 },
-	{ address = 0x5f8fc, size = 0x16 },
 	{ address = 0x61480, size = 0xea },
-	{ address = 0x63ddc, size = 0x16 },
 	{ address = 0x64c00, size = 0xaf },
-	{ address = 0x67e1c, size = 0x16 },
-	{ address = 0x69d10, size = 0x22 },
-	{ address = 0x6dedc, size = 0x16 },
-	{ address = 0x7720c, size = 0x16 },
-	{ address = 0x786bc, size = 0x16 },
-	{ address = 0x7cbd0, size = 0x1a },
-	{ address = 0x871c0, size = 0xc7 },
-	{ address = 0x88680, size = 0xad },
-	{ address = 0x94790, size = 0x22 },
 	{ address = 0x96340, size = 0x40 },
 	{ address = 0x96380, size = 0x40 },
 	{ address = 0x963c0, size = 0x40 },
 	{ address = 0x96400, size = 0x40 },
 	{ address = 0x96440, size = 0x46 },
 	{ address = 0x96600, size = 0x40 },
-	{ address = 0x97430, size = 0x22 },
-	{ address = 0x97970, size = 0x22 },
 	{ address = 0x98cc0, size = 0xa6 },
 	{ address = 0x9de40, size = 0x5f },
-	{ address = 0x9fe60, size = 0x5c },
-	{ address = 0xa6150, size = 0xa0 },
-	{ address = 0xa7b0c, size = 0x16 },
-	{ address = 0xac0f0, size = 0x22 },
-	{ address = 0xae130, size = 0x22 },
-	{ address = 0xb2900, size = 0xc1 },
-	{ address = 0xb4750, size = 0xc1 },
-	{ address = 0xb57e0, size = 0xc1 },
-	{ address = 0xb6630, size = 0xc1 },
-	{ address = 0xb8060, size = 0xae },
 	{ address = 0xb98f0, size = 0x10 },
-	{ address = 0xba480, size = 0xc1 },
-	{ address = 0xbb9a0, size = 0x211 },
-	{ address = 0xc494c, size = 0x16 },
-	{ address = 0xcb850, size = 0x22 },
 	{ address = 0xd21e0, size = 0xb1 },
 	{ address = 0xd4010, size = 0xa1 },
-	{ address = 0xd6770, size = 0x2b8 },
-	{ address = 0xeb11c, size = 0x16 },
 	{ address = 0xf4240, size = 0x1 },
-	{ address = 0xf872c, size = 0x16 },
 	{ address = 0x100300, size = 0x7d },
 	{ address = 0x10037d, size = 0x1d },
-	{ address = 0x102d7c, size = 0x16 },
 	{ address = 0x105450, size = 0x8d },
-	{ address = 0x105ea0, size = 0x22 },
-	{ address = 0x106230, size = 0x22 },
-	{ address = 0x106960, size = 0x22 },
-	{ address = 0x106c80, size = 0x22 },
 	{ address = 0x10dfa0, size = 0x43 },
-	{ address = 0x10e87c, size = 0x16 },
-	{ address = 0x110a40, size = 0xf5 },
-	{ address = 0x110d90, size = 0x30 },
-	{ address = 0x112280, size = 0x5d },
-	{ address = 0x118ec0, size = 0x20 },
 	{ address = 0x11bba0, size = 0x29d },
 	{ address = 0x11be40, size = 0x5d },
 	{ address = 0x11bea0, size = 0x13d },
@@ -419,212 +238,63 @@ functions = [
 	{ address = 0x11e330, size = 0x1db },
 	{ address = 0x11e510, size = 0xcd },
 	{ address = 0x11e5e0, size = 0x307 },
-	{ address = 0x124cb0, size = 0x147 },
-	{ address = 0x1272d0, size = 0x29 },
-	{ address = 0x127520, size = 0x22 },
-	{ address = 0x1279b0, size = 0xe9 },
-	{ address = 0x128720, size = 0xd7 },
-	{ address = 0x129680, size = 0x13 },
-	{ address = 0x129fc0, size = 0x18 },
-	{ address = 0x12d540, size = 0x46 },
-	{ address = 0x12db40, size = 0x30 },
-	{ address = 0x12db70, size = 0x13 },
-	{ address = 0x12e520, size = 0x78 },
-	{ address = 0x130530, size = 0x30 },
-	{ address = 0x130560, size = 0x29 },
-	{ address = 0x1324f0, size = 0x50 },
-	{ address = 0x132540, size = 0x1f },
-	{ address = 0x132590, size = 0x7 },
-	{ address = 0x1332b0, size = 0xb3 },
-	{ address = 0x133460, size = 0x137 },
-	{ address = 0x1361e0, size = 0xb },
-	{ address = 0x138d50, size = 0x6a },
-	{ address = 0x138f50, size = 0x2aa },
-	{ address = 0x13b720, size = 0xad },
-	{ address = 0x13ba5c, size = 0x16 },
-	{ address = 0x13bce0, size = 0x1ee },
 	{ address = 0x13c530, size = 0xf8 },
-	{ address = 0x13efc0, size = 0x2e },
-	{ address = 0x13f1d0, size = 0xca },
-	{ address = 0x13fce0, size = 0x23d },
-	{ address = 0x1407d0, size = 0xb },
-	{ address = 0x140a30, size = 0x3d },
-	{ address = 0x144e80, size = 0x7 },
-	{ address = 0x146650, size = 0x22 },
-	{ address = 0x147220, size = 0xb2 },
-	{ address = 0x149520, size = 0xb },
-	{ address = 0x14ab90, size = 0x212 },
-	{ address = 0x14b5a0, size = 0x11 },
-	{ address = 0x14c000, size = 0x9d },
-	{ address = 0x1582b0, size = 0x1e },
-	{ address = 0x15ef80, size = 0x1e },
 	{ address = 0x167e5c, size = 0x26 },
-	{ address = 0x168420, size = 0x26 },
 	{ address = 0x16a75c, size = 0x26 },
 	{ address = 0x16feb5, size = 0x15 },
-	{ address = 0x17a86c, size = 0x16 },
-	{ address = 0x18213c, size = 0x16 },
-	{ address = 0x183d80, size = 0x1bf },
 	{ address = 0x184300, size = 0x7a },
 	{ address = 0x185820, size = 0x14 },
-	{ address = 0x186a00, size = 0x92 },
-	{ address = 0x189400, size = 0x2a },
-	{ address = 0x189510, size = 0x72 },
 	{ address = 0x18a6b0, size = 0xf5 },
-	{ address = 0x18be3c, size = 0x16 },
-	{ address = 0x18cc70, size = 0x164 },
-	{ address = 0x18de40, size = 0x71 },
-	{ address = 0x18fccc, size = 0x16 },
 	{ address = 0x192960, size = 0xf5 },
-	{ address = 0x192ec0, size = 0x38 },
-	{ address = 0x1947f0, size = 0x10 },
-	{ address = 0x194cc0, size = 0x8 },
-	{ address = 0x196d70, size = 0x109 },
-	{ address = 0x198260, size = 0x1f },
-	{ address = 0x1993e0, size = 0x6d },
-	{ address = 0x199ab0, size = 0xf },
 	{ address = 0x199dc0, size = 0x110 },
-	{ address = 0x19b110, size = 0xc3 },
-	{ address = 0x19b2f0, size = 0x66 },
-	{ address = 0x19bc60, size = 0x6c },
-	{ address = 0x19da60, size = 0x171 },
 	{ address = 0x19e670, size = 0x65 },
-	{ address = 0x19ec10, size = 0x65 },
-	{ address = 0x19f0a0, size = 0x2a },
-	{ address = 0x1a1320, size = 0x77 },
-	{ address = 0x1ad050, size = 0x22 },
-	{ address = 0x1ae020, size = 0x13b },
-	{ address = 0x1ae7d0, size = 0x10a },
-	{ address = 0x1b24f0, size = 0xa3 },
-	{ address = 0x1b44c0, size = 0x46 },
 	{ address = 0x1b76e0, size = 0x6c },
 	{ address = 0x1b9280, size = 0x133 },
-	{ address = 0x1bb030, size = 0x6c },
 	{ address = 0x1bb9b0, size = 0x10 },
-	{ address = 0x1bc360, size = 0x212 },
-	{ address = 0x1bd580, size = 0x170 },
-	{ address = 0x1bff7c, size = 0x16 },
-	{ address = 0x1c0f70, size = 0x4e },
 	{ address = 0x1c1650, size = 0x154 },
 	{ address = 0x1c4bc0, size = 0x4d6 },
-	{ address = 0x1c67e0, size = 0xab },
-	{ address = 0x1c8650, size = 0x22 },
-	{ address = 0x1c9770, size = 0x22 },
-	{ address = 0x1cd090, size = 0x22 },
-	{ address = 0x1cf650, size = 0x22 },
-	{ address = 0x1d3f70, size = 0x22 },
-	{ address = 0x1d4ed0, size = 0x8 },
-	{ address = 0x1daf00, size = 0x88 },
-	{ address = 0x1db0b0, size = 0xf },
 	{ address = 0x1dd670, size = 0x10 },
-	{ address = 0x1dd680, size = 0x22 },
-	{ address = 0x1e0560, size = 0x25 },
 	{ address = 0x1e2060, size = 0x10 },
-	{ address = 0x1e3ab0, size = 0x6f },
-	{ address = 0x1e60b0, size = 0x82 },
 	{ address = 0x1e61e0, size = 0x2ca },
 	{ address = 0x1ea5f0, size = 0x95 },
-	{ address = 0x1ed6c0, size = 0x66 },
-	{ address = 0x1ee8c0, size = 0xf },
-	{ address = 0x1f24e0, size = 0x71 },
-	{ address = 0x1f2c60, size = 0x34 },
 	{ address = 0x1f2cc0, size = 0xef },
 	{ address = 0x1f3380, size = 0x6c },
-	{ address = 0x1f55b0, size = 0x10 },
-	{ address = 0x1f5790, size = 0xf2 },
-	{ address = 0x1f5dd0, size = 0x23 },
-	{ address = 0x1f7970, size = 0x6c },
 	{ address = 0x1f8f40, size = 0x6f },
-	{ address = 0x1fb580, size = 0x95 },
-	{ address = 0x1fd330, size = 0x8c },
-	{ address = 0x1fd8f0, size = 0xf8 },
-	{ address = 0x200250, size = 0x44 },
 	{ address = 0x203a34, size = 0x491 },
-	{ address = 0x205100, size = 0x44 },
 	{ address = 0x2069e0, size = 0xbd },
-	{ address = 0x208c60, size = 0x7c },
-	{ address = 0x20d840, size = 0x131 },
-	{ address = 0x20dfe0, size = 0x6c },
-	{ address = 0x20e120, size = 0x139 },
 	{ address = 0x20f460, size = 0x6f },
-	{ address = 0x2108b0, size = 0x22 },
-	{ address = 0x211a10, size = 0xf },
-	{ address = 0x211c20, size = 0x10 },
 	{ address = 0x213ae0, size = 0x10 },
-	{ address = 0x2171b0, size = 0x14b },
-	{ address = 0x2192d0, size = 0x6c },
-	{ address = 0x21b460, size = 0x5f },
 	{ address = 0x21e420, size = 0x11 },
-	{ address = 0x21f240, size = 0xe3 },
-	{ address = 0x2227a0, size = 0x6c },
-	{ address = 0x2228d0, size = 0x51 },
-	{ address = 0x223ab0, size = 0x5c },
-	{ address = 0x2242a0, size = 0x29f },
 	{ address = 0x2246b0, size = 0xeb },
 	{ address = 0x2285b0, size = 0xe },
 	{ address = 0x22b620, size = 0xdf },
 	{ address = 0x2366e0, size = 0x10 },
 	{ address = 0x2366f0, size = 0x10 },
-	{ address = 0x2409c0, size = 0x19 },
-	{ address = 0x240a90, size = 0x22 },
-	{ address = 0x241dd0, size = 0x9d },
-	{ address = 0x2440a0, size = 0xaa },
 	{ address = 0x24ab60, size = 0x191 },
-	{ address = 0x24df80, size = 0x84 },
 	{ address = 0x256cc0, size = 0xd2 },
 	{ address = 0x259400, size = 0x61 },
-	{ address = 0x25ba50, size = 0x25 },
 	{ address = 0x25c830, size = 0x1b },
-	{ address = 0x28db10, size = 0x22 },
-	{ address = 0x29edb0, size = 0x14 },
-	{ address = 0x2a837c, size = 0x16 },
-	{ address = 0x2aa28c, size = 0x16 },
 	{ address = 0x2b1206, size = 0x64 },
 	{ address = 0x2b1803, size = 0x12 },
-	{ address = 0x2b1889, size = 0x19 },
 	{ address = 0x2b18a2, size = 0x3 },
-	{ address = 0x2b18a5, size = 0x56 },
-	{ address = 0x2c3020, size = 0x55b },
 	{ address = 0x2c9990, size = 0x84 },
 	{ address = 0x2c9fc0, size = 0x54 },
-	{ address = 0x2f9040, size = 0x4ed },
-	{ address = 0x30cba0, size = 0x3b },
-	{ address = 0x30d7a0, size = 0xb7 },
-	{ address = 0x30d8a0, size = 0xf },
-	{ address = 0x30ddb0, size = 0x89 },
-	{ address = 0x32e930, size = 0xc },
 	{ address = 0x337f10, size = 0x8f },
 	{ address = 0x349b50, size = 0x40 },
 	{ address = 0x349b90, size = 0x61 },
 	{ address = 0x349c60, size = 0x60 },
-	{ address = 0x371600, size = 0xeb },
-	{ address = 0x37b390, size = 0x2bb },
-	{ address = 0x37d767, size = 0x1c },
 	{ address = 0x37d783, size = 0x18 },
 	{ address = 0x37d7fc, size = 0x1 },
 	{ address = 0x37d9fa, size = 0x3b },
-	{ address = 0x37dafc, size = 0xb2 },
 	{ address = 0x37e199, size = 0xc },
-	{ address = 0x37e2c7, size = 0x1c },
-	{ address = 0x37e421, size = 0xd },
 	{ address = 0x37e447, size = 0x18 },
 	{ address = 0x37e4be, size = 0x18 },
-	{ address = 0x37e4d6, size = 0x1c },
-	{ address = 0x37e4f2, size = 0x1c },
-	{ address = 0x37e50e, size = 0x1c },
 	{ address = 0x37e704, size = 0x9 },
-	{ address = 0x380ffb, size = 0x58 },
-	{ address = 0x381053, size = 0x4b },
-	{ address = 0x38109e, size = 0x1a },
-	{ address = 0x3813a6, size = 0x51 },
 	{ address = 0x38209c, size = 0x68 },
 	{ address = 0x38219c, size = 0x2f },
 	{ address = 0x382261, size = 0x32 },
 	{ address = 0x382398, size = 0x2 },
-	{ address = 0x3823a1, size = 0x5 },
-	{ address = 0x38244d, size = 0xa },
-	{ address = 0x383583, size = 0x14 },
-	{ address = 0x385f70, size = 0x9 },
+	{ address = 0x383583, size = 0x14 },  #wrong size (auto 0x355D)
 	{ address = 0x3863b1, size = 0x2a },
 	{ address = 0x386a65, size = 0x84 },
 	{ address = 0x399084, size = 0xa },
@@ -636,13 +306,6 @@ functions = [
 	{ address = 0x3992b8, size = 0x8 },
 	{ address = 0x3992f8, size = 0x8 },
 	{ address = 0x399300, size = 0x8 },
-	{ address = 0x3cb6fd, size = 0xa },
-	{ address = 0x3cb869, size = 0xa },
-	{ address = 0x3cbbb0, size = 0xa },
-	{ address = 0x3cbbe2, size = 0xa },
-	{ address = 0x3cbc1e, size = 0xa },
-	{ address = 0x3d1370, size = 0x229 },
-	{ address = 0x3d7450, size = 0x62 },
 	{ address = 0x3ec8f0, size = 0x25 },
 
 	#syntax moment
@@ -650,63 +313,55 @@ functions = [
 	{ address = 0x267990, size = 0x4A },
 	{ address = 0x9a580, size = 0x19B },
 	{ address = 0x99160, size = 0xB1 },
-	{ address = 0xe7d00, size = 0x3C },
-	{ address = 0xffea0, size = 0x2AC }, 
-	{ address = 0x1d1f90, size = 0x251 },
-	{ address = 0x2367e0, size = 0x44 }, # digital circuit
-	{ address = 0x2368d0, size = 0x44 }, # mad matrix
+	{ address = 0xe7d00, size = 0x3C },   #wrong size (auto 0x8)
+	{ address = 0x1d1f90, size = 0x251 }, #wrong size (auto 0x253)
+	{ address = 0x2367e0, size = 0x44 },  # digital circuit
+	{ address = 0x2368d0, size = 0x44 },  # mad matrix
 	{ address = 0x262c30, size = 0x5B },
 	{ address = 0x273c10, size = 0x5B },
 	{ address = 0x265ec0, size = 0x5B },
-	{ address = 0x109940, size = 0x179 },
 	{ address = 0x223A50, size = 0x60 },
 	{ address = 0x96680, size = 0x40 },
-	{ address = 0x254160, size = 0x3 },
 	{ address = 0x266D70, size = 0x5B },
 	{ address = 0x26CF00, size = 0x5B },
 	{ address = 0x26B3E0, size = 0x5B },
-	{ address = 0xA5DC0, size = 0x20 },
-	{ address = 0x22D170, size = 0xB4 },
+	{ address = 0x22D170, size = 0xB4 },  #wrong size (auto 0xA7)
 	{ address = 0x966C0, size = 0x40 },
 	{ address = 0x96640, size = 0x40 },
 	{ address = 0x96780, size = 0x46 },
 	{ address = 0x96740, size = 0x40 },
 	{ address = 0x2368C0, size = 0x10 },
 	{ address = 0x96700, size = 0x40 },
-	{ address = 0x238bf0, size = 0x1C },
 
-	{ address = 0x12BB0, size = 0x11C }, #broken size	
-	{ address = 0x203970, size = 0x555 }, #broken size	
-	{ address = 0x1F50B0, size = 0x123 }, #broken size
-	{ address = 0x2369f0, size = 0x10 }, 
-	{ address = 0x2367D0, size = 0x10 }, 	
-	{ address = 0x37F4A5, size = 0xAE }, # broken size
+	{ address = 0x2369f0, size = 0x10 },
+	{ address = 0x2367D0, size = 0x10 },
+	{ address = 0x37F4A5, size = 0xAE }, #wrong size (auto 0x30BA)
 ]
 
 banned_addresses = [
-    { start = 0x41FF90, end = 0x423B37 }, # variables xgraphics    
-	{ start = 0x37E8FD, end = 0x37E91F }, # jmp table mid function	
+	{ start = 0x41FF90, end = 0x423B37 }, # variables xgraphics
+	{ start = 0x37E8FD, end = 0x37E91F }, # jmp table mid function
 	{ start = 0x37FE7D, end = 0x37FE9F }, # jmp table mid function
-	{ start = 0x37FE03, end = 0x37FE0F }, # jmp table mid function	
+	{ start = 0x37FE03, end = 0x37FE0F }, # jmp table mid function
 	{ start = 0x37FEEA, end = 0x37FEFB }, # jmp table mid function
-	{ start = 0x380086, end = 0x380097 }, # jmp table mid function		
-	{ start = 0x37E96A, end = 0x37E97B }, # jmp table mid function		
-	{ start = 0x37EA99, end = 0x37EABB }, # jmp table mid function	
-	{ start = 0x37EB06, end = 0x37EB17 }, # jmp table mid function		
-	{ start = 0x2DD6D3, end = 0x2DD716 }, # force XBOXDeviceSystemOpen to work due to a weird adapter mode check that fail	
-	{ start = 0x35E884, end = 0x35ED1F },	
+	{ start = 0x380086, end = 0x380097 }, # jmp table mid function
+	{ start = 0x37E96A, end = 0x37E97B }, # jmp table mid function
+	{ start = 0x37EA99, end = 0x37EABB }, # jmp table mid function
+	{ start = 0x37EB06, end = 0x37EB17 }, # jmp table mid function
+	{ start = 0x2DD6D3, end = 0x2DD716 }, # force XBOXDeviceSystemOpen to work due to a weird adapter mode check that fail
+	{ start = 0x35E884, end = 0x35ED1F },
 	{ start = 0x365DE0, end = 0x36629F }, # jmp table mid function
 	{ start = 0x362304, end = 0x36279F }, # data between two functions
 ]
 
 invalid_instructions = [
-    { data = 0x3D5A6A, size = 2 }, # infinite loop in D3D device creation.    
-	{ data = 0x3D47BA, size = 2 }, # infinite loop in D3D device creation.	
-	{ data = 0x2AFB53, size = 24 }, # remove hardware access in entry point function	
-	{ data = 0x2DD6B3, size = 2 }, # force XBOXDeviceSystemOpen to work due to a weird adapter mode check that fail	
-	{ data = 0x2DD6BC, size = 2 }, # same as above	
-	{ data = 0x32107F, size = 13 }, # Remove XboxSignature flag thing on RenderState	
-	{ data = 0x3D2481, size = 13 }, # same as above	
+	{ data = 0x3D5A6A, size = 2 },  # infinite loop in D3D device creation.
+	{ data = 0x3D47BA, size = 2 },  # infinite loop in D3D device creation.
+	{ data = 0x2AFB53, size = 24 }, # remove hardware access in entry point function
+	{ data = 0x2DD6B3, size = 2 },  # force XBOXDeviceSystemOpen to work due to a weird adapter mode check that fail
+	{ data = 0x2DD6BC, size = 2 },  # same as above
+	{ data = 0x32107F, size = 13 }, # Remove XboxSignature flag thing on RenderState
+	{ data = 0x3D2481, size = 13 }, # same as above
 ]
 
 [[midasm_hook]]
@@ -716,17 +371,14 @@ address = 0x2AFBBC
 [[midasm_hook]]
 name = "ClearWithQuadsMidAsmHook"
 address = 0x2DE00B
-registers = ["r0"]
 
 [[midasm_hook]]
 name = "RasterRenderQuadMidAsmHook"
 address = 0x2ED959
-registers = ["r0"]
 
 [[midasm_hook]]
 name = "_XbSubmitNodeMidAsmHook"
 address = 0x2F1056
-registers = ["r0"]
 
 [[midasm_hook]]
 name = "SkipPartnerIntroMidAsmHook"
@@ -741,36 +393,33 @@ jump_address_on_true = 0x29A464
 [[midasm_hook]]
 name = "GetCurrentDictionaryThreadMidAsmHook"
 address = 0x2D8512
-registers = ["r0"]
 
 [[midasm_hook]]
 name = "GetCurrentDictionaryThreadMidAsmHook"
 address = 0x2D8D0D
-registers = ["r0"]
 
 [[midasm_hook]]
 name = "CreateSaveMetaMidAsmHook"
 address = 0x2AEE1C
-jump_address=0x2AEE22
+jump_address = 0x2AEE22
 
 # BVH Stack Overflow Fix
 #[[midasm_hook]]
 #name = "BVHStackRedirectInit"
 #address = 0x303375
-#registers = ["r2", "r4"]
+#registers = ["ecx", "esi"]
 #jump_address = 0x303380
 #
 #[[midasm_hook]]
 #name = "BVHStackRedirectCmp"
 #address = 0x30392B
-#registers = ["r0"]
+#registers = ["eax"]
 #jump_address = 0x303932
 # End BVH Stack Overflow Fix
 
 [[midasm_hook]]
 name = "DrawAdvertiseMessageMidAsmHook"
 address = 0x2A60D8
-registers = ["r4"]
 jump_address_on_true = 0x2A62CF
 
 [[midasm_hook]]
@@ -785,7 +434,6 @@ jump_address = 0x29E9DE
 [[midasm_hook]]
 name = "DestructResourceMidAsmHook"
 address = 0x2E0562
-registers = ["r4"]
 jump_address_on_true = 0x2E0568
 
 [[midasm_hook]]
@@ -795,50 +443,41 @@ address = 0x572BD
 [[midasm_hook]]
 name = "SFXTimingMidAsmHook"
 address = 0x25E783
-registers = ["r4"]
 
 [[midasm_hook]]
 name = "FreeSFXMapMidAsmHook"
 address = 0x25E813
-registers = ["r4"]
 
 [[midasm_hook]]
 name = "RenderCsdCastNodeMidAsmHook"
 address = 0x38B576
-registers = ["r0"]
 
 [[midasm_hook]]
 name = "RenderCsdCastMidAsmHook"
 address = 0x38B57B
-registers = ["r4"]
 
 [[midasm_hook]]
 name = "CPlatformRWDrawPrimitive2DMidAsmHook"
 address = 0x2B2C46
-registers = ["r2"]
 jump_address = 0x2B2C4C
 
 [[midasm_hook]]
 name = "CPlatformRWDrawPrimitive2DMidAsmHook2"
 address = 0x2B2E0B
-registers = ["r4"]
 jump_address = 0x2B2E11
 
 [[midasm_hook]]
 name = "DrawHudMidAsmHook"
 address = 0x281729
-registers = ["r0"]
 
-#Enemy HP bar scaling stuff 
+#Enemy HP bar scaling stuff
 [[midasm_hook]]
 name = "HpBarProjectionMidAsmHook"
 address = 0x2859FA
-registers = ["r4", "r0"]
 
 [[midasm_hook]]
 name = "HpBarScaleMidAsmHook"
 address = 0x285AAD
-registers = ["r4"]
 
 # Checkpoint reward item icon
 [[midasm_hook]]
@@ -849,62 +488,51 @@ address = 0x289B54
 [[midasm_hook]]
 name = "LockOnProjectionMidAsmHook"
 address = 0x269293
-registers = ["r0", "r7"]
 
 # Button prompt above air saucers and checkpoints
 [[midasm_hook]]
 name = "VHArrowProjectionMidAsmHook"
 address = 0x288D81
-registers = ["r0", "r7"]
 
 [[midasm_hook]]
 name = "VHArrowProjectionSplitMidAsmHook"
 address = 0x288EF8
-registers = ["r0", "r7"]
 
 [[midasm_hook]]
 name = "VHArrowScaleMidAsmHook"
 address = 0x288E0B
-registers = ["r7"]
 
 [[midasm_hook]]
 name = "VHArrowScaleMidAsmHook"
 address = 0x288FA7
-registers = ["r7"]
 
 [[midasm_hook]]
 name = "OneFileCsdBufferMidAsmHook"
 address = 0x2A0558
-registers = ["r0", "r6"]
 
 # Watch camera red alert filter (Gun Fortress) 
 [[midasm_hook]]
 name = "WatchCameraFilterScaleMidAsmHook"
 address = 0x21BAAD
-registers = ["r7"]
 
 # Same 4:3-locked full-screen quad as the watch camera filter above
 [[midasm_hook]]
 name = "RainEffectScaleMidAsmHook"
 address = 0x1C8004
-registers = ["r7"]
 
 # Inlined Homing Attack Speed 1000f -> 2000f [Reloaded Phys]
 [[midasm_hook]]
 name = "HomingAttackSpeedMidAsmHook"
 address = 0x74757
-registers = ["r7"]
 jump_address = 0x7475C
 
 [[midasm_hook]]
 name = "SetEndingAchievementMidAsmHook"
 address = 0x23D620
-registers = ["r2"]
 
 [[midasm_hook]]
 name = "UpdateARankCountMidAsmHook"
 address = 0x237CD4
-registers = ["r3"]
 
 [[midasm_hook]]
 name = "StageActionGoalActionMidAsmHook"
@@ -913,7 +541,6 @@ address = 0x16EF87
 [[midasm_hook]]
 name = "EasierUnlockLastStoryMidAsmHook"
 address = 0x23D64A
-registers = ["r5"]
 jump_address_on_true = 0x23D64F
 
 [[midasm_hook]]
@@ -932,40 +559,34 @@ address = 0x23CCE3
 [[midasm_hook]]
 name = "ExtendedMultiplayerCameraAttachMidAsmHook"
 address = 0x165047
-registers = ["r0"]
 jump_address_on_true = 0x165049
 jump_address_on_false = 0x165085
 
 [[midasm_hook]]
 name = "ExtendedMultiplayerPlayerSpawnMidAsmHook"
 address = 0x16F842
-registers = ["r0"]
 jump_address_on_true = 0x16F854
 jump_address_on_false = 0x16F844
 
 [[midasm_hook]]
 name = "ExtendedMultiplayerCameraAllocationLoopMidAsmHook"
 address = 0x2A763
-registers = ["r5"]
 jump_address_on_true = 0x2A6A0
 jump_address_on_false = 0x2A769
 
 [[midasm_hook]]
 name = "ExtendedMultiplayerExtraSpawnMidAsmHook"
 address = 0x16F891
-registers = ["r7"]
 jump_address_on_true = 0x16F882
 
 [[midasm_hook]]
 name = "ExtendedMultiplayerExtraSpawnRedirectMidAsmHook"
 address = 0x16F887
-registers = ["r7"]
 jump_address_on_true = 0x16F891
 
 [[midasm_hook]]
 name = "ExtendedMultiplayerPlayerPositionIDOverrideMidAsmHook"
 address = 0x16F733
-registers = ["r3"]
 
 [[midasm_hook]]
 name = "ExtendedMultiplayerPlayerPositionLoopMidAsmHook"
@@ -975,28 +596,23 @@ jump_address_on_true = 0x16F6DA
 [[midasm_hook]]
 name = "ExtendedMultiplayerPlayerPositionIDOverrideContinue0MidAsmHook"
 address = 0x16F788
-registers = ["r3"]
 
 [[midasm_hook]]
 name = "ExtendedMultiplayerPlayerPositionLoopContinue0MidAsmHook"
 address = 0x16F78E
-registers = ["r0", "r7"]
 jump_address_on_true = 0x16F76A
 
 [[midasm_hook]]
 name = "AssignPadPlayerIdSaveMidAsmHook"
 address = 0x91AEA
-registers = ["r2"]
 
 [[midasm_hook]]
 name = "AssignPadPlayerIdOverrideMidAsmHook"
 address = 0x91B0F
-registers = ["r3"]
 
 [[midasm_hook]]
 name = "PADBoundsCheckMidAsmHook"
 address = 0x91AF7
-registers = ["r0"]
 jump_address_on_false = 0x91AF9
 
 # Partner PAD remapping
@@ -1011,31 +627,26 @@ address = 0x97391
 [[midasm_hook]]
 name = "PartnerPADMidAsmHook"
 address = 0x91AF1
-registers = ["r0"]
 # End Partner PAD remapping
 
 [[midasm_hook]]
-name = "ViewportDivMidAsmHook"
+name = "ViewportDivEaxMidAsmHook"
 address = 0x3CC76F
-registers = ["r0"]
 jump_address_on_true = 0x3CC771
 
 [[midasm_hook]]
-name = "ViewportDivMidAsmHook"
+name = "ViewportDivEcxMidAsmHook"
 address = 0x3CC78F
-registers = ["r2"]
 jump_address_on_true = 0x3CC791
 
 [[midasm_hook]]
-name = "ViewportDivMidAsmHook"
+name = "ViewportDivEaxMidAsmHook"
 address = 0x3CC868
-registers = ["r0"]
 jump_address_on_true = 0x3CC86A
 
 [[midasm_hook]]
-name = "ViewportDivMidAsmHook"
+name = "ViewportDivEcxMidAsmHook"
 address = 0x3CC87E
-registers = ["r2"]
 jump_address_on_true = 0x3CC880
 
 [[midasm_hook]]
@@ -1045,13 +656,11 @@ address = 0x3CC92B
 [[midasm_hook]]
 name = "CameraAttachSetupMidAsmHook"
 address = 0x165049
-registers = ["r6"]
 jump_address_on_true = 0x165050
 
 [[midasm_hook]]
 name = "CameraAttachPlayerIdMidAsmHook"
 address = 0x165063
-registers = ["r7"]
 jump_address_on_true = 0x165065
 
 [[midasm_hook]]
@@ -1062,38 +671,32 @@ jump_address_on_true = 0x165049
 [[midasm_hook]]
 name = "PlayerPostManagerLoopMidAsmHook"
 address = 0x95E96
-registers = ["r0"]
 jump_address_on_true = 0x958B0
 jump_address_on_false = 0x95E9C
 
 [[midasm_hook]]
 name = "SplitscreenTypeInitializeUnpauseMidAsmHook"
 address = 0x2386CF
-registers = ["r0"]
 jump_address_on_true = 0x2386D1
 jump_address_on_false = 0x23872C
 
 [[midasm_hook]]
 name = "RenderDivSaveThisMidAsmHook"
 address = 0x5B745
-registers = ["r5"]
 
 [[midasm_hook]]
 name = "RenderDivExtraPassMidAsmHook"
 address = 0x5B77A
-registers = ["r5"]
 jump_address_on_true = 0x5B739
 
 [[midasm_hook]]
 name = "RenderDivCameraLookupMidAsmHook"
 address = 0x5B76B
-registers = ["r0"]
 jump_address_on_true = 0x5B772
 
 [[midasm_hook]]
 name = "RenderDivPlayerOverrideMidAsmHook"
 address = 0x5B74C
-registers = ["r7"]
 jump_address_on_true = 0x5B74E
 
 [[midasm_hook]]
@@ -1105,20 +708,17 @@ jump_address_on_true = 0x5B760
 [[midasm_hook]]
 name = "EffectSlotPlayerIdOverrideMidAsmHook"
 address = 0x182225
-registers = ["r3"]
 # End Effect Slot Registration
 
 # ItemIconManagerLoopCreation
 [[midasm_hook]]
 name = "ItemIconManagerLoopPushCountMidAsmHook"
 address = 0x28A690
-registers = ["r7"]
 jump_address_on_true = 0x28A692
 
 [[midasm_hook]]
 name = "ItemIconManagerLoopCountMidAsmHook"
 address = 0x28A846
-registers = ["r0"]
 jump_address_on_true = 0x28A710
 jump_address_on_false = 0x28A84C
 # End ItemIconManagerLoopCreation
@@ -1127,7 +727,6 @@ jump_address_on_false = 0x28A84C
 [[midasm_hook]]
 name = "SetObjLoadMultiplayerBranchMidAsmHook"
 address = 0x25A429
-registers = ["r0"]
 jump_address_on_true = 0x25A458
 jump_address_on_false = 0x25A42B
 
@@ -1141,25 +740,21 @@ jump_address_on_false = 0x181F95
 [[midasm_hook]]
 name = "AddAllScoreToP1MidAsmHook"
 address = 0x22D630
-registers = ["r2"]
 
 # AwakeExec Idle Drain Fix (fps carry + mp split)
 [[midasm_hook]]
 name = "AwakeIdleDrainMidAsmHook"
 address = 0x8EB8F
-registers = ["r2", "r4"]
 
 # DarkShadow Sync
 [[midasm_hook]]
 name = "AwakeDarkThresholdBypassMidAsmHook"
 address = 0x9835F
-registers = ["r3", "r0"]
 
 # HeroShadow Sync
 [[midasm_hook]]
 name = "AwakeHeroThresholdBypassMidAsmHook"
 address = 0x9837C
-registers = ["r2", "r0"]
 # End Awake sync
 
 # Skip ChaosControl Cam
@@ -1180,84 +775,69 @@ jump_address_on_true = 0x6C075
 name = "CollisionGroundStickMidAsmHook"
 address = 0x85420
 jump_address_on_true = 0x855E4
-registers = ["r4", "r7"]
 
 # Platforms stuff
 [[midasm_hook]]
 name = "FootingMovableLinearMidAsmHook"
 address = 0x19C6EC
-registers = ["r4"]
 
-# Pulley stuff 
+# Pulley stuff
 [[midasm_hook]]
 name = "UpDownReelRaiseMidAsmHook"
 address = 0x1BDCCF
-registers = ["r5"]
 
 [[midasm_hook]]
 name = "UpDownReelLowerMidAsmHook"
 address = 0x1BDD05
-registers = ["r5"]
 
 [[midasm_hook]]
 name = "UpDownReelRaiseMidAsmHook"
 address = 0x1BDD3B
-registers = ["r5"]
 
 [[midasm_hook]]
 name = "UpDownReelLowerMidAsmHook"
 address = 0x1BDD60
-registers = ["r5"]
 
 [[midasm_hook]]
 name = "UpDownReelHangTurnMidAsmHook"
 address = 0x1BD6D2
-registers = ["r0"]
 
 [[midasm_hook]]
 name = "UpDownReelAngleMidAsmHook"
 address = 0x1BDF5D
-registers = ["r5"]
 
 # plant thing that launch you in Death Ruins
 
 [[midasm_hook]]
 name = "StretchGrassChargeMidAsmHook"
 address = 0x1E1770
-registers = ["r4"]
 
 [[midasm_hook]]
 name = "StretchGrassRecoverMidAsmHook"
 address = 0x1E17C9
-registers = ["r4"]
 
 [[midasm_hook]]
 name = "StretchGrassDecayMidAsmHook"
 address = 0x1E17FA
-registers = ["r4"]
 
 # Light in Digital Circuit that yeet Shadow
 [[midasm_hook]]
 name = "ElecSearchLightPullMidAsmHook"
 address = 0x201DB9
-registers = ["r7"]
 
 # Ring drop FPS fix
 [[midasm_hook]]
 name = "ScatteringRingPhysicsMidAsmHook"
 address = 0x1B140D
-registers = ["r4"]
 
 [[midasm_hook]]
 name = "ScatteringRingSpinMidAsmHook"
 address = 0x1B14C8
-registers = ["r4"]
 
 # Regular ring rotation fix for High FPS
 [[midasm_hook]]
 name = "RegularRingSpinMidAsmHook"
 address = 0x1AC05C
-registers = ["r0", "r6"]
 
 # Start vert bump patches
 # reset ray floor state once per pass
@@ -1269,13 +849,11 @@ address = 0x84FEA
 [[midasm_hook]]
 name = "CollisionGroundRayNormalMidAsmHook"
 address = 0x85338
-registers = ["r7"]
 
 # adjust tolerance in sub_84E50, recast side coli on ray miss
 [[midasm_hook]]
 name = "CollisionToleranceMidAsmHook"
 address = 0x85344
-registers = ["r4", "r6", "r7"]
 
 # ray hit, sweep fails
 # short timed fallback to ignore state reset
@@ -1283,42 +861,35 @@ registers = ["r4", "r6", "r7"]
 name = "CollisionToleranceSnapFallbackMidAsmHook"
 address = 0x85690
 jump_address_on_true = 0x85692
-registers = ["r4", "r0", "r7"]
 
 # run the dot < cos80 check, then use our new backup side coli check
 [[midasm_hook]]
 name = "CollisionToleranceSlopeGateMidAsmHook"
 address = 0x856AF
 jump_address_on_true = 0x856B1
-registers = ["r4", "r7"]
 # End vert bump patches
 
 [[midasm_hook]]
 name = "WeightRiseMidAsmHook"
 address = 0x1C1479
-registers = ["r0"]
 
 [[midasm_hook]]
 name = "WeightFallMidAsmHook"
 address = 0x1C1563
-registers = ["r0"]
 
 [[midasm_hook]]
 name = "ContainerBehaviorFallMidAsmHook"
 address = 0x18FEE5
-registers = ["r4"]
 
 [[midasm_hook]]
 name = "ShadowMotionBlinkPhaseMidAsmHook"
 address = 0x9C82F
-registers = ["r4"]
 jump_address_on_true = 0x9C83E
 jump_address_on_false = 0x9C831
 
 [[midasm_hook]]
 name = "NpcMotionBlinkPhaseMidAsmHook"
 address = 0xAD747
-registers = ["r4"]
 jump_address_on_true = 0xAD749
 jump_address_on_false = 0xAD757
 
@@ -1326,14 +897,12 @@ jump_address_on_false = 0xAD757
 [[midasm_hook]]
 name = "EggFleetBlinkPhaseMidAsmHook"
 address = 0x1C5048
-registers = ["r4"]
 jump_address_on_true = 0x1C5051
 jump_address_on_false = 0x1C504A
 
 [[midasm_hook]]
 name = "EggFleetPartBlinkPhaseMidAsmHook"
 address = 0x1C4288
-registers = ["r4"]
 jump_address_on_true = 0x1C429F
 jump_address_on_false = 0x1C428A
 
@@ -1341,7 +910,6 @@ jump_address_on_false = 0x1C428A
 [[midasm_hook]]
 name = "PowerDeviceBlinkPhaseMidAsmHook"
 address = 0x1C7B04
-registers = ["r4"]
 jump_address_on_true = 0x1C7B0D
 jump_address_on_false = 0x1C7B06
 
@@ -1403,17 +971,14 @@ jump_address_on_false = 0x26A84F
 [[midasm_hook]]
 name = "SoldierFlashParityMidAsmHook"
 address = 0x129044
-registers = ["r2"]
 
 [[midasm_hook]]
 name = "SoldierFlashParityMidAsmHook"
 address = 0x1298A2
-registers = ["r2"]
 
 [[midasm_hook]]
 name = "SoldierFlashParityEdxMidAsmHook"
 address = 0x129AD0
-registers = ["r3"]
 
 # ScatteringRing timeout blink
 [[midasm_hook]]
@@ -1450,19 +1015,16 @@ jump_address_on_true = 0x17E523
 [[midasm_hook]]
 name = "JetEffectRestoreFourthFlameMidAsmHook"
 address = 0x8DCA0
-registers = ["r4"]
 
 #music race issue stuff
 [[midasm_hook]]
 name = "RnaPlayStateLatchMidAsmHook"
 address = 0x3313F0
-registers = ["r4"]
 jump_address_on_true = 0x331455
 
 [[midasm_hook]]
 name = "CoasterHangbarCollisionMidAsmHook"
 address = 0x1E95F4
-registers = ["r7"]
 
 [[midasm_hook]]
 name = "IdleChaosPowersMusicMidAsmHook"
@@ -1477,36 +1039,30 @@ jump_address_on_true = 0x8EA63
 [[midasm_hook]]
 name = "BombingWallBreakMidAsmHook"
 address = 0x222451
-registers = ["r2"]
 
 [[midasm_hook]]
 name = "ExpertSelectMidAsmHook"
 address = 0x25862B
-registers = ["r3"]
 
 [[midasm_hook]]
 name = "CircuitSpeedControlMidAsmHook"
 address = 0x6F9E0
-registers = ["r2"]
 jump_address = 0x6F9E8
 
 [[midasm_hook]]
 name = "BallSwitchTriggerMidAsmHook"
 address = 0x1B9F2C
 jump_address_on_true = 0x1B9F69
-registers = ["r0"]
 
 [[midasm_hook]]
 name = "BKTankStopActionDamageFixMidAsmHook"
 address = 0x1CFE93
 jump_address_on_true = 0x1CFE99
-registers = ["r4"]
 
 # Start GUN Mech Vehicle Revamp (Reloaded) patches
 [[midasm_hook]]
 name = "WalkerHoverMoveMidAsmHook"
 address = 0x254B77
-registers = ["r4"]
 
 # 0x1 Jump
 [[midasm_hook]]
@@ -1534,19 +1090,16 @@ jump_address_on_false = 0x255FB0
 [[midasm_hook]]
 name = "SlideStateExtensionMidAsmHook"
 address = 0x8B949
-registers = ["r0"]
 jump_address_on_true = 0x8B952
 jump_address_on_false = 0x8B971
 
 [[midasm_hook]]
 name = "SlideBadTransitionMidAsmHook"
 address = 0x73551
-registers = ["r2"]
 
 [[midasm_hook]]
 name = "SlideBadTransitionMidAsmHook"
 address = 0x7365E
-registers = ["r2"]
 
 [[midasm_hook]]
 name = "SlideSteerMidAsmHook"
@@ -1556,13 +1109,11 @@ jump_address = 0x7A84B
 [[midasm_hook]]
 name = "HoldableSlideMidAsmHook"
 address = 0x7A9C3
-registers = ["r1"]
 jump_address_on_true = 0x7AA71
 
 [[midasm_hook]]
 name = "HoldableSlideReleaseMidAsmHook"
 address = 0x7A9C5
-registers = ["r1"]
 jump_address_on_true = 0x7A9DD
 
 [[midasm_hook]]
@@ -1573,39 +1124,33 @@ jump_address_on_true = 0x7AC40
 [[midasm_hook]]
 name = "LightDashTransitionMidAsmHook"
 address = 0x8B02F
-registers = ["r0"]
 jump_address_on_true = 0x8B03C
 jump_address_on_false = 0x8B199
 
 [[midasm_hook]]
 name = "LightDashTransitionMidAsmHook"
 address = 0x77271
-registers = ["r0"]
 jump_address_on_true = 0x7727A
 jump_address_on_false = 0x772FE
 
 [[midasm_hook]]
 name = "LightDashExitStateMidAsmHook"
 address = 0x77DF8
-registers = ["r7"]
 jump_address = 0x77E00
 
 [[midasm_hook]]
 name = "LightDashSkydiveBlurDisableMidAsmHook"
 address = 0x76F09
-registers = ["r7"]
 jump_address_on_true = 0x76F38
 
 [[midasm_hook]]
 name = "WallRunSpeedMidAsmHook"
 address = 0x7E330
-registers = ["r7"]
 jump_address = 0x7E335
 
 [[midasm_hook]]
 name = "TriangleJumpSpeedMidAsmHook"
 address = 0x7E857
-registers = ["r7"]
 jump_address = 0x7E85C
 
 [[midasm_hook]]
@@ -1617,35 +1162,30 @@ jump_address_on_true = 0x7EBAE
 [[midasm_hook]]
 name = "WalkTurnSpeedMidAsmHook"
 address = 0x7285B
-registers = ["r7"]
 jump_address = 0x72860
 
 # walk mid-speed
 [[midasm_hook]]
 name = "WalkTurnSpeedMidAsmHook"
 address = 0x72911
-registers = ["r7"]
 jump_address = 0x72916
 
 # walk full speed
 [[midasm_hook]]
 name = "WalkTurnSpeedMidAsmHook"
 address = 0x72B0C
-registers = ["r7"]
 jump_address = 0x72B11
 
 # strafe slow speed
 [[midasm_hook]]
 name = "WalkTurnSpeedMidAsmHook"
 address = 0x7292B
-registers = ["r7"]
 jump_address = 0x72930
 
 # strafe full speed
 [[midasm_hook]]
 name = "WalkTurnSpeedMidAsmHook"
 address = 0x7325C
-registers = ["r7"]
 jump_address = 0x73261
 
 [[midasm_hook]]
@@ -1666,7 +1206,6 @@ jump_address_on_true = 0x243CA6
 [[midasm_hook]]
 name = "CarBrakeButtonMidAsmHook"
 address = 0x243D1A
-registers = ["r0", "r3"]
 jump_address_on_true = 0x243D20
 jump_address_on_false = 0x243D47
 
@@ -1695,13 +1234,11 @@ jump_address_on_true = 0x244015
 [[midasm_hook]]
 name = "AirSaucerJumpMidAsmHook"
 address = 0x24D773
-registers = ["r7"]
 jump_address = 0x24D778
 
 [[midasm_hook]]
 name = "AirSaucerStompMidAsmHook"
 address = 0x24D7EA
-registers = ["r7"]
 jump_address = 0x24D7EF
 
 [[midasm_hook]]
@@ -1742,7 +1279,6 @@ jump_address = 0x14A1FF
 [[midasm_hook]]
 name = "ElecCodeSpeedMidAsmHook"
 address = 0x203215
-registers = ["r7"]
 jump_address = 0x20321A
 
 [[midasm_hook]]
@@ -1768,7 +1304,6 @@ jump_address = 0x3CE875
 [[midasm_hook]]
 name = "SolidCollisionTriggerMidAsmHook"
 address = 0x1B3D0E
-registers = ["r0"]
 jump_address = 0x1B3D13
 
 # Cannon
@@ -1858,13 +1393,11 @@ jump_address = 0x1DF338
 [[midasm_hook]]
 name = "EggBalloonGaugeMidAsmHook"
 address = 0x1DF035
-registers = ["r7"]
 jump_address = 0x1DF03A
 
 [[midasm_hook]]
 name = "LastStoryUnlocksExpertMidAsmHook"
 address = 0x23D629
-registers = ["r4"]
 
 [[midasm_hook]]
 name = "ARankRecountMidAsmHook"
@@ -1879,12 +1412,10 @@ jump_address_on_true = 0x237CE0
 [[midasm_hook]]
 name = "DevilDoomAwakePlayMidAsmHook"
 address = 0x8E924
-registers = ["r2"]
 
 [[midasm_hook]]
 name = "DevilDoomAwakeStopMidAsmHook"
 address = 0x8EA5D
-registers = ["r2"]
 
 [[midasm_hook]]
 name = "DevilDoomAndLastWayRankedMidAsmHook"
@@ -1894,12 +1425,10 @@ jump_address_on_true = 0x2380F5
 [[midasm_hook]]
 name = "ExpertRingLossMidAsmHook"
 address = 0xA42BD
-registers = ["r4"]
 
 [[midasm_hook]]
 name = "ExpertRingRadiusMidAsmHook"
 address = 0x1B17EC
-registers = ["r7"]
 jump_address = 0x1B17F1
 
 [[midasm_hook]]
@@ -1920,7 +1449,6 @@ jump_address_on_true = 0x1049BB
 [[midasm_hook]]
 name = "ChaosSpearChargeMidAsmHook"
 address = 0x2651D8
-registers = ["r7"]
 
 [[midasm_hook]]
 name = "ChaosSpearMaxChargeMidAsmHook"
@@ -1936,32 +1464,27 @@ jump_address_on_true = 0x265061
 [[midasm_hook]]
 name = "LastWayInclusiveScoringMidAsmHook"
 address = 0x22D66A
-registers = ["r4", "r2"]
 
 # hero
 [[midasm_hook]]
 name = "LastWayInclusiveScoringMidAsmHook"
 address = 0x22D67B
-registers = ["r4", "r2"]
 
 [[midasm_hook]]
-name = "SRankSystemMidAsmHook"
+name = "SRankSystemEcxMidAsmHook"
 address = 0x237C7B
-registers = ["r2"]
 jump_address_on_true = 0x237C7F
 jump_address_on_false = 0x237C85
 
 [[midasm_hook]]
 name = "SRankSystemMemMidAsmHook"
 address = 0x237C8F
-registers = ["r6"]
 jump_address_on_true = 0x237C95
 jump_address_on_false = 0x237C9B
 
 [[midasm_hook]]
-name = "SRankSystemMidAsmHook"
+name = "SRankSystemEaxMidAsmHook"
 address = 0x237CA8
-registers = ["r0"]
 jump_address_on_true = 0x237CAC
 jump_address_on_false = 0x237CB2
 
@@ -1973,20 +1496,17 @@ jump_address_on_true = 0x297F8B
 [[midasm_hook]]
 name = "LifeCounterFloorMidAsmHook"
 address = 0x173C4F
-registers = ["r0"]
 jump_address_on_true = 0x173C5C
 jump_address_on_false = 0x173C53
 
 [[midasm_hook]]
 name = "LifeRestartMidAsmHook"
 address = 0x173BD2
-registers = ["r7"]
 jump_address = 0x173BD4
 
 [[midasm_hook]]
 name = "EggDealerLifeEasterEggMidAsmHook"
 address = 0x10FCC0
-registers = ["r0"]
 jump_address_on_true = 0x10FCC4
 jump_address_on_false = 0x10FCC9
 
@@ -2003,12 +1523,10 @@ jump_address_on_true = 0x286659
 [[midasm_hook]]
 name = "InStageMissionsAlwaysUnlockedSwitchableMidAsmHook"
 address = 0x284D07
-registers = ["r4"]
 
 [[midasm_hook]]
 name = "MissionFocusDpadMidAsmHook"
 address = 0x8C733
-registers = ["r0"]
 
 [[midasm_hook]]
 name = "MissionFocusPauseMidAsmHook"
@@ -2039,12 +1557,10 @@ jump_address_on_true = 0xA5BFF
 [[midasm_hook]]
 name = "MusicUpdateEndingTracksMidAsmHook"
 address = 0x25A8BD
-registers = ["r0"]
 
 [[midasm_hook]]
 name = "ExpertEndingMidAsmHook"
 address = 0x172CA4
-registers = ["r0"]
 
 [[midasm_hook]]
 name = "GhostRedRingsGDTRedirectMidAsmHook"
@@ -2053,94 +1569,78 @@ address = 0x1B2C2F
 [[midasm_hook]]
 name = "GhostRedRingsSaveSkipMidAsmHook"
 address = 0x1B2C49
-registers = ["r2"]
 jump_address_on_true = 0x1B2C95
 
 [[midasm_hook]]
 name = "SelectMenuExpansionMidAsmHook"
 address = 0x28D967
-registers = ["r4", "r5"]
 jump_address_on_true = 0x28D96C
 
 [[midasm_hook]]
 name = "MeleeModeToggleMidAsmHook"
 address = 0x919E3
-registers = ["r3"]
 
 [[midasm_hook]]
 name = "MeleeHitCountMidAsmHook"
 address = 0x2708AB
-registers = ["r4"]
 jump_address_on_true = 0x2708AE
 
 [[midasm_hook]]
 name = "MeleeRehitMidAsmHook"
 address = 0x153CAB
-registers = ["r0", "r4", "r1"]
 jump_address_on_true = 0x153CB3
 
 [[midasm_hook]]
 name = "MeleeMotionColliMidAsmHook"
 address = 0x93CD6
-registers = ["r0", "r5"]
 jump_address_on_true = 0x93CF2
 
 [[midasm_hook]]
 name = "MeleeRapidMotionMidAsmHook"
 address = 0x99E70
-registers = ["r4", "r5"]
 
 [[midasm_hook]]
 name = "LockOnShotIntervalMidAsmHook"
 address = 0x268D91
-registers = ["r4"]
 
 [[midasm_hook]]
 name = "LockOnShotIntervalMidAsmHook"
 address = 0x268E12
-registers = ["r4"]
 ## End Reloaded patches
 
 [[midasm_hook]]
 name = "GunLiftAimMidAsmHook"
 address = 0x2245E5
-registers = ["r2", "r4"]
 jump_address_on_true = 0x224688
 
 # Gravity Fix
 [[midasm_hook]]
 name = "SlideCarryMidAsmHook"
 address = 0x7A87B
-registers = ["r4", "r7"]
 
 [[midasm_hook]]
 name = "SpinCarryMidAsmHook"
 address = 0x7BC36
-registers = ["r4", "r7"]
 # End Gravity Fix
 
 [[midasm_hook]]
 name = "EggPierrotStageIdFixMidAsmHook"
 address = 0x142F01
 jump_address_on_true = 0x142F87
-registers = ["r0"]
 
 # Start SetWatchCamera (GUN Fortress) fixes
 [[midasm_hook]]
 name = "SetWatchCameraSightChaseMidAsmHook"
 address = 0x21B69D
-registers = ["r4", "r7"]
 
 [[midasm_hook]]
 name = "SetWatchCameraSightMoveMidAsmHook"
 address = 0x21BD35
-registers = ["r5"]
 # End SetWatchCamera fixes
 
 [[midasm_hook]]
 name = "VineFireBallTravelMidAsmHook"
 address = 0x1E35D3
-registers = ["r4"]
 
 # Start ScatteringWeapon (Shadow Box weapon drops) fixes
 [[midasm_hook]]
@@ -2156,26 +1656,22 @@ address = 0x249516
 [[midasm_hook]]
 name = "BeltTrailPushMidAsmHook"
 address = 0x8CE23
-registers = ["r4"]
 jump_address_on_false = 0x8CE32
 
 [[midasm_hook]]
 name = "BeltTrailFadeMidAsmHook"
 address = 0x260712
-registers = ["r4"]
 # End Belt::Eff fixes
 
 # Start Eff::LocusMultiVtx fixes (melee trails)
 [[midasm_hook]]
 name = "MeleeEffectLocusMultiVtxTrailPushMidAsmHook"
 address = 0x260B93
-registers = ["r4"]
 jump_address_on_false = 0x260B9C
 
 [[midasm_hook]]
 name = "MeleeEffectLocusMultiVtxTrailFadeMidAsmHook"
 address = 0x260C46
-registers = ["r4"]
 jump_address_on_false = 0x260C4A
 # End Eff::LocusMultiVtx fixes
 
@@ -2183,12 +1679,10 @@ jump_address_on_false = 0x260C4A
 [[midasm_hook]]
 name = "BirdVehicleTurnScaleMidAsmHook"
 address = 0x25217D
-registers = ["r7"]
 
 [[midasm_hook]]
 name = "BirdVehicleTurnScaleMidAsmHook"
 address = 0x2526D5
-registers = ["r7"]
 # End BirdBase rotation on stick release fix
 
 # Start Vacuum Fire patch
@@ -2196,13 +1690,11 @@ registers = ["r7"]
 [[midasm_hook]]
 name = "FireVacuumCallbackMidAsmHook"
 address = 0x26DBA0
-registers = ["r6", "r5"]
 
 # VacuumEggItem::Exec
 [[midasm_hook]]
 name = "FireVacuumCallbackMidAsmHook"
 address = 0x27370E
-registers = ["r6", "r5"]
 # End Vacuum Fire patch
 
 # Start Vacuum any enemy cheat
@@ -2210,7 +1702,6 @@ registers = ["r6", "r5"]
 [[midasm_hook]]
 name = "VacuumAnyEnemyColliMidAsmHook"
 address = 0xCE4AB
-registers = ["r2"]
 
 # BkWingLargeAI
 [[midasm_hook]]
@@ -2228,7 +1719,6 @@ jump_address_on_true = 0x1273B3
 [[midasm_hook]]
 name = "KatanaBulletSweepMidAsmHook"
 address = 0x2776DA
-registers = ["r4"]
 
 # Start EggBreaker0411 eff fix patch
 # Intro
@@ -2251,13 +1741,11 @@ jump_address_on_true = 0xFF903
 [[midasm_hook]]
 name = "SESlotScanCountMidAsmHook"
 address = 0x25BD0C
-registers = ["r7"]
 
 # index wrap @ sub_25BBF0
 [[midasm_hook]]
 name = "SESlotIndexWrapMidAsmHook"
 address = 0x25BD6F
-registers = ["r2", "r0"]
 jump_address_on_true = 0x25BD75
 jump_address_on_false = 0x25BD71
 
@@ -2265,7 +1753,6 @@ jump_address_on_false = 0x25BD71
 [[midasm_hook]]
 name = "SESlotSearchStartWrapMidAsmHook"
 address = 0x25BD94
-registers = ["r0", "r5"]
 jump_address_on_true = 0x25BD9A
 jump_address_on_false = 0x25BD96
 
@@ -2274,74 +1761,63 @@ jump_address_on_false = 0x25BD96
 [[midasm_hook]]
 name = "SESlotTableSizeMidAsmHook"
 address = 0x25B4D3
-registers = ["r7"]
 
 # count @ sub_25B480
 [[midasm_hook]]
 name = "SESlotTableCountMidAsmHook"
 address = 0x25B503
-registers = ["r0", "r7"]
 
 ## sound management (start/stop, invoke etc)
 # init @ sub_25B480
 [[midasm_hook]]
-name = "SESlotLoopMidAsmHook"
+name = "SESlotLoopEsiMidAsmHook"
 address = 0x25B537
-registers = ["r4"]
 jump_address_on_true = 0x25B522
 
 # reinit @ sub_25B550
 [[midasm_hook]]
-name = "SESlotLoopMidAsmHook"
+name = "SESlotLoopEdiMidAsmHook"
 address = 0x25B625
-registers = ["r5"]
 jump_address_on_true = 0x25B610
 
 # reinit @ sub_25B6C0
 [[midasm_hook]]
-name = "SESlotLoopMidAsmHook"
+name = "SESlotLoopEdiMidAsmHook"
 address = 0x25B6F5
-registers = ["r5"]
 jump_address_on_true = 0x25B6E0
 
 # reinit @ sub_25B790
 [[midasm_hook]]
-name = "SESlotLoopMidAsmHook"
+name = "SESlotLoopEdiMidAsmHook"
 address = 0x25B7C5
-registers = ["r5"]
 jump_address_on_true = 0x25B7B0
 
 # pause @ sub_25B8E0
 [[midasm_hook]]
-name = "SESlotLoopMidAsmHook"
+name = "SESlotLoopEdiMidAsmHook"
 address = 0x25B95A
-registers = ["r5"]
 jump_address_on_true = 0x25B8F2
 
 # resume @ sub_25B970
 [[midasm_hook]]
-name = "SESlotLoopMidAsmHook"
+name = "SESlotLoopEbpMidAsmHook"
 address = 0x25B9F0
-registers = ["r6"]
 jump_address_on_true = 0x25B980
 
 # per frame update @ sub_25BAA0
 [[midasm_hook]]
 name = "SESlotUpdateLoopCountMidAsmHook"
 address = 0x25BAC7
-registers = ["r7"]
 
 # stop all @ sub_25B3D0
 [[midasm_hook]]
 name = "SESlotStopAllLoopCountMidAsmHook"
 address = 0x25B3DE
-registers = ["r6"]
 
 # find slot @ sub_25BB70
 [[midasm_hook]]
 name = "SESlotFindLoopMidAsmHook"
 address = 0x25BBC4
-registers = ["r2"]
 jump_address_on_true = 0x25BBB2
 jump_address_on_false = 0x25BBC6
 
@@ -2350,7 +1826,6 @@ jump_address_on_false = 0x25BBC6
 [[midasm_hook]]
 name = "SESlotIsNormalMidAsmHook"
 address = 0x25DA74
-registers = ["r0"]
 jump_address_on_true = 0x25DA88
 jump_address_on_false = 0x25DA76
 
@@ -2358,7 +1833,6 @@ jump_address_on_false = 0x25DA76
 [[midasm_hook]]
 name = "SESlotIsNormalMidAsmHook"
 address = 0x25DFAA
-registers = ["r0"]
 jump_address_on_true = 0x25DFB9
 jump_address_on_false = 0x25DFAC
 
@@ -2366,7 +1840,6 @@ jump_address_on_false = 0x25DFAC
 [[midasm_hook]]
 name = "SESlotIsNormalMidAsmHook"
 address = 0x25E06D
-registers = ["r0"]
 jump_address_on_true = 0x25E07B
 jump_address_on_false = 0x25E06F
 
@@ -2374,7 +1847,6 @@ jump_address_on_false = 0x25E06F
 [[midasm_hook]]
 name = "SESlotIsNormalMidAsmHook"
 address = 0x25E2CE
-registers = ["r0"]
 jump_address_on_true = 0x25E2DE
 jump_address_on_false = 0x25E2D0
 # End SFX limit patch
@@ -2383,13 +1855,11 @@ jump_address_on_false = 0x25E2D0
 [[midasm_hook]]
 name = "SE3DStartVolumeMidAsmHook"
 address = 0x25E371
-registers = ["r4"]
 
 # pan angle @ sub_25DE20
 [[midasm_hook]]
 name = "SEPanAngleMidAsmHook"
 address = 0x25DF3A
-registers = ["r7"]
 
 # skip the GC pan leftover BAMs add @ sub_25DE20
 [[midasm_hook]]
@@ -2401,7 +1871,6 @@ jump_address = 0x25DF44
 [[midasm_hook]]
 name = "ChaosGaugeFillMidAsmHook"
 address = 0x280BF3
-registers = ["r0", "r2"]
 
 # START PAD assignment patches
 [[midasm_hook]]
@@ -2424,12 +1893,10 @@ address = 0x29707B
 [[midasm_hook]]
 name = "AdvertiseMessageElapsedTimerMidAsmHook"
 address = 0x2A6057
-registers = ["r4"]
 
 [[midasm_hook]]
 name = "AdvertiseMessageHoldTimerMidAsmHook"
 address = 0x2A6082
-registers = ["r4"]
 
 ## START Event FPS patches
 # TPjsEventActionManager constructor
@@ -2441,13 +1908,11 @@ address = 0x2291B4
 [[midasm_hook]]
 name = "EventClockStepMidAsmHook"
 address = 0x22B859
-registers = ["r7"]
 
 # sub_22BBE0 frame arg is at esp+4
 [[midasm_hook]]
 name = "EventCameraFrameMidAsmHook"
 address = 0x22BD43
-registers = ["r4", "r7"]
 
 # sub_22A540 single-frame MTN mode patch
 [[midasm_hook]]
@@ -2464,125 +1929,102 @@ jump_address_on_true = 0x22A5F5
 [[midasm_hook]]
 name = "EventActorFrameMidAsmHook"
 address = 0x22A391
-registers = ["r6"]
 
 # sub_228740 wait counter, to align audio
 [[midasm_hook]]
 name = "EventStreamWaitMidAsmHook"
 address = 0x228BB6
-registers = ["r2"]
 ## END Event FPS patches
 
 ## START GoalAction timer patches
 [[midasm_hook]]
-name = "GoalActionTicksMidAsmHook"
+name = "GoalActionTicksEaxMidAsmHook"
 address = 0x237DE6
-registers = ["r0"]
 
 [[midasm_hook]]
-name = "GoalActionTicksMidAsmHook"
+name = "GoalActionTicksEaxMidAsmHook"
 address = 0x238071
-registers = ["r0"]
 
 [[midasm_hook]]
-name = "GoalActionTicksMidAsmHook"
+name = "GoalActionTicksEcxMidAsmHook"
 address = 0x238143
-registers = ["r2"]
 
 [[midasm_hook]]
-name = "GoalActionTicksMidAsmHook"
+name = "GoalActionTicksEaxMidAsmHook"
 address = 0x23821D
-registers = ["r0"]
 ## END GoalAction timer patches
 
 [[midasm_hook]]
 name = "SatelliteLaserWeaponSFXFixMidAsmHook"
 address = 0x27BC3C
-registers = ["r7"]
 
 [[midasm_hook]]
 name = "SatelliteLaserWeaponSFXFixMidAsmHook"
 address = 0x27B979
-registers = ["r7"]
 
 [[midasm_hook]]
 name = "GravityChangeTouchSFXMidAsmHook"
 address = 0x20DB1F
-registers = ["r4"]
 jump_address_on_true = 0x20DB33
 
 [[midasm_hook]]
 name = "GravityChangeTouchSFXMidAsmHook"
 address = 0x20E468
-registers = ["r4"]
 jump_address_on_true = 0x20E47C
 
 [[midasm_hook]]
 name = "AdxtPauseReloadStatMidAsmHook"
 address = 0x329ABE
-registers = ["r4", "r5"]
 
 # Start TVehicleCar patches
 [[midasm_hook]]
 name = "CarAngleLagMidAsmHook"
 address = 0x246655
-registers = ["r7"]
 
 [[midasm_hook]]
 name = "CarAngleChaseMidAsmHook"
 address = 0x2469A2
-registers = ["r7"]
 
 [[midasm_hook]]
 name = "CarAngleChaseMidAsmHook"
 address = 0x2469CB
-registers = ["r7"]
 
 [[midasm_hook]]
 name = "CarSteerLeanMidAsmHook"
 address = 0x246A9B
-registers = ["r5", "r7"]
 
 [[midasm_hook]]
 name = "CarMotionFrameMidAsmHook"
 address = 0x2444F2
-registers = ["r4", "r5"]
 # End TVehicleCar patches
 
 # Enemy aim bone snap patch (BkSoldier, GUNRobot, BkNinja)
 [[midasm_hook]]
 name = "EnemyAimLerpMidAsmHook"
 address = 0x13B166
-registers = ["r7"]
 
 [[midasm_hook]]
 name = "EnemyAimLerpMidAsmHook"
 address = 0x13B198
-registers = ["r7"]
 
 [[midasm_hook]]
 name = "EnemyAimLerpMidAsmHook"
 address = 0x139106
-registers = ["r7"]
 
 [[midasm_hook]]
 name = "EnemyAimLerpMidAsmHook"
 address = 0x139138
-registers = ["r7"]
 
 [[midasm_hook]]
 name = "EnemyAimLerpMidAsmHook"
 address = 0x14A090
-registers = ["r7"]
 
 [[midasm_hook]]
 name = "EnemyAimLerpMidAsmHook"
 address = 0x14A0C2
-registers = ["r7"]
 # End Enemy aim bone patches
 
 # Allow B press before start action (Pause Menu)
 [[midasm_hook]]
 name = "PauseBCheckMidAsmHook"
 address = 0x5AD82
-registers = ["r6"]

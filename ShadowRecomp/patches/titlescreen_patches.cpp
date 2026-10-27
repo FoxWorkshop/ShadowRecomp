@@ -132,7 +132,7 @@ X86_FUNC(sub_28F720)
 {
 	
 	// for the custom reimplementation of the sound test menu in custom settings
-	OptionsMenu::UpdateSoundTest(); 
+	OptionsMenu::UpdateSoundTest(ctx); 
 
 	GameMenuCommon::g_currentModeAddr = X86_LOAD_U32(ctx.ecx.u32 + 4);
 	auto menuMode = X86_LOAD_U32(GameMenuCommon::g_currentModeAddr);

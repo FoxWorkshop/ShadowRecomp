@@ -698,7 +698,7 @@ X86_FUNC_IMPL(__imp__sub_38F810);
 X86_FUNC(sub_38F810)
 {
 	uint32_t this_ = ctx.ecx.u32;
-	uint32_t EFD = static_cast<uint32_t>(GetHostParameter(2, CallConvention::Thiscall));
+	uint32_t EFD = static_cast<uint32_t>(GetHostParameter(ctx, 2, CallConvention::Thiscall));
 
 	__imp__sub_38F810(ctx, base);
 
@@ -906,7 +906,7 @@ static std::vector<const ModArchiveWorker*> FindAppendedFiles(const std::string&
 X86_FUNC_IMPL(__imp__sub_1F7F0);
 X86_FUNC(sub_1F7F0)
 {
-	if (auto name = (const char*)GetHostParameter(2, CallConvention::Thiscall, ParameterType::Pointer))
+	if (auto name = (const char*)GetHostParameter(ctx, 2, CallConvention::Thiscall, ParameterType::Pointer))
 	{
 		std::lock_guard lock(g_oneFileMutex);
 		g_asyncOneFileNames[ctx.ecx.u32] = NormalizeArchiveName(name);
@@ -1036,8 +1036,8 @@ X86_FUNC(sub_1F360)
 X86_FUNC_IMPL(__imp__sub_1F570);
 X86_FUNC(sub_1F570)
 {
-	TOneFile* oneFile = (TOneFile*)GetHostParameter(1, CallConvention::Thiscall, ParameterType::Pointer);
-	auto assetName = oneFile ? TOneFileCheckFileName(oneFile, GetHostParameter(2, CallConvention::Thiscall)) : nullptr;
+	TOneFile* oneFile = (TOneFile*)GetHostParameter(ctx, 1, CallConvention::Thiscall, ParameterType::Pointer);
+	auto assetName = oneFile ? TOneFileCheckFileName(oneFile, GetHostParameter(ctx, 2, CallConvention::Thiscall)) : nullptr;
 	std::optional<OneFileReplacement> replacement;
 
 	if (assetName)
@@ -1054,7 +1054,7 @@ X86_FUNC(sub_1F570)
 		}
 	}
 
-	auto dest = reinterpret_cast<char*>(GetHostParameter(3, CallConvention::Thiscall, ParameterType::Pointer));
+	auto dest = reinterpret_cast<char*>(GetHostParameter(ctx, 3, CallConvention::Thiscall, ParameterType::Pointer));
 
 	if (replacement && replacement->data)
 	{
@@ -1081,10 +1081,10 @@ X86_FUNC(sub_1F570)
 	}
 
 	// async readers (events) pass a thread func and wait for a TOneFileNotice saying the data is ready
-	if (uint32_t threadFunc = GetHostParameter(4, CallConvention::Thiscall))
+	if (uint32_t threadFunc = GetHostParameter(ctx, 4, CallConvention::Thiscall))
 	{
 		// TOneFileNotice::Create
-		GuestToHostFunction<void, CallConvention::Cdecl>(sub_1F470, threadFunc, ctx.eax.u32, GetHostParameter(5, CallConvention::Thiscall));
+		GuestToHostFunction<void, CallConvention::Cdecl>(ctx, sub_1F470, threadFunc, ctx.eax.u32, GetHostParameter(ctx, 5, CallConvention::Thiscall));
 	}
 
 	ctx.AddEsp(5); // we loaded the file ourselves, clean up the stack for the skipped function (4 args + ret addr)

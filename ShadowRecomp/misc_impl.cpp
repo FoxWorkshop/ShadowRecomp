@@ -52,33 +52,12 @@ uint32_t GetKeTickCountImpl()
 BOOL QueryPerformanceCounterImpl(LARGE_INTEGER* lpPerformanceCount)
 {
 	lpPerformanceCount->QuadPart = HostGetPerformanceCounter(false);
-
-	auto ctx = GetX86Context();
-
-	ctx->eax.u32 = lpPerformanceCount->LowPart;
-	ctx->edx.u32 = lpPerformanceCount->HighPart;
-	auto base = g_memory.base;
-	ctx->ecx.u32 = (uint32_t)(uintptr_t)lpPerformanceCount;
-
-
-	X86_STORE_U32(ctx->ecx.u32, ctx->eax.u32);
-	X86_STORE_U32(ctx->ecx.u32 + 4, ctx->edx.u32);
-
 	return TRUE;
 }
 
-unsigned long long GetRdtSc()
+uint64_t GetRdtSc()
 {
-	uint64_t counter = HostGetPerformanceCounter(false);
-
-	auto ctx = GetX86Context();
-
-	ctx->eax.u32 = (uint32_t)(counter & 0xFFFFFFFF);
-	ctx->edx.u32 = (uint32_t)(counter >> 32);
-
-
-
-	return ctx->eax.u32;
+	return HostGetPerformanceCounter(false);
 }
 
 
@@ -145,4 +124,5 @@ GUEST_FUNCTION_HOOK(sub_2EC140, _strlwr);
 GUEST_FUNCTION_HOOK(sub_38066D, strtok);
 
 
-GUEST_FUNCTION_HOOK(sub_2AAEDE, OutputDebugStringA);
+// The guest version ends in `ret 4`, so it pops its own argument.
+GUEST_FUNCTION_HOOK_STDCALL(sub_2AAEDE, OutputDebugStringA);

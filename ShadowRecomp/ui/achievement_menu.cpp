@@ -56,7 +56,7 @@ static bool g_isControlsVisible = false;
 
 static ImFont* g_fntSeurat;
 
-static void MoveCursor(int& cursorIndex, int min = 0, int max = INT_MAX)
+static void MoveCursor(X86Context* ctx, int& cursorIndex, int min = 0, int max = INT_MAX)
 {
 	auto time = ImGui::GetTime();
 
@@ -103,7 +103,7 @@ static void MoveCursor(int& cursorIndex, int min = 0, int max = INT_MAX)
 
 	if (scrollUp || scrollDown)
 	{
-		Game_PlaySound("cursor");
+		Game_PlaySound(ctx, "cursor");
 
 		g_rowSelectionTime = time;
 
@@ -474,7 +474,7 @@ static void DrawAchievement(int rowIndex, Achievement& achievement, bool isUnloc
 	DrawTextWithMarquee(g_fntSeurat, descFontSize, descPos, marqueeMin, marqueeMax, textColour, descText.c_str(), g_rowSelectionTime, marqueeDelay, shouldMarquee ? Scale(200) : 0);
 }
 
-void AchievementMenu::Draw()
+void AchievementMenu::Draw(X86Context* ctx)
 {
 
 	if (!s_isVisible)
@@ -568,10 +568,10 @@ void AchievementMenu::Draw()
 			if (CheckAndDiscard(g_isDeclined))
 			{
 				Close();
-				Game_PlaySound("cancel");
+				Game_PlaySound(ctx, "cancel");
 			}
 
-			MoveCursor(g_selectedIndex, 0, g_rowCount);
+			MoveCursor(ctx, g_selectedIndex, 0, g_rowCount);
 
 			g_up = false;
 			g_upWasHeld = upIsHeld;

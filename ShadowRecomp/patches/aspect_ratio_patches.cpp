@@ -220,8 +220,8 @@ X86_FUNC(sub_2B47C0)
 {
 	std::lock_guard lock2(g_bufferMutex);
 
-	void* thisPtr = (void*)GetHostParameter(1, CallConvention::Thiscall, ParameterType::Pointer);
-	char* path = (char*)GetHostParameter(2, CallConvention::Thiscall, ParameterType::Pointer);
+	void* thisPtr = (void*)GetHostParameter(ctx, 1, CallConvention::Thiscall, ParameterType::Pointer);
+	char* path = (char*)GetHostParameter(ctx, 2, CallConvention::Thiscall, ParameterType::Pointer);
 
 	__imp__sub_2B47C0(ctx, base);
 
@@ -275,12 +275,12 @@ X86_FUNC(sub_1A6D0)
 // sub_29FF30 read the entry into a buffer then parse it with sub_2B4AC0, so we can intercept the data safely here.
 // There is no path at all, so we just store the csd filename.
 // Memo: eax = buffer from TOneFileAsync::Create, ebp = archive entry name
-void OneFileCsdBufferMidAsmHook(X86Register& rEax, X86Register& rEbp)
+void OneFileCsdBufferMidAsmHook(X86Context& __restrict ctx, uint8_t* base)
 {
-	if (!rEax.u32 || !rEbp.u32)
+	if (!ctx.eax.u32 || !ctx.ebp.u32)
 		return;
 
-	std::string path = (const char*)g_memory.Translate(rEbp.u32);
+	std::string path = (const char*)g_memory.Translate(ctx.ebp.u32);
 	std::string lower = path;
 	std::transform(lower.begin(), lower.end(), lower.begin(), [](unsigned char c) { return (char)std::tolower(c); });
 
@@ -288,7 +288,7 @@ void OneFileCsdBufferMidAsmHook(X86Register& rEax, X86Register& rEbp)
 		return;
 
 	std::lock_guard lock(g_asyncCsdMutex);
-	g_asyncCsdPaths[rEax.u32] = std::move(path);
+	g_asyncCsdPaths[ctx.eax.u32] = std::move(path);
 }
 
 // CSD loader from memory
@@ -297,7 +297,7 @@ X86_FUNC(sub_2B4AC0)
 {
 	std::lock_guard lock2(g_bufferMutex);
 
-	void* thisPtr = (void*)GetHostParameter(1, CallConvention::Thiscall, ParameterType::Pointer);
+	void* thisPtr = (void*)GetHostParameter(ctx, 1, CallConvention::Thiscall, ParameterType::Pointer);
 	auto buffer = X86_LOAD_U32(ctx.esp.u32 + 4);
 	std::string path;
 
@@ -360,11 +360,10 @@ void ToggleHud(bool toggle)
 	s_hudDisabled = toggle == false;
 }
 
-void PatchDisableHudMidAsmHook()
+void PatchDisableHudMidAsmHook(X86Context& __restrict ctx, uint8_t* base)
 {
 	if (s_hudDisabled)
 	{
-		auto base = g_memory.base;
 		X86_STORE_U16(0x54DE78, 0x0);
 	}
 }
@@ -419,14 +418,14 @@ X86_FUNC(sub_184E0)
 	__imp__sub_184E0(ctx, base);
 }
 
-void RenderCsdCastNodeMidAsmHook(X86Register& rEax)
+void RenderCsdCastNodeMidAsmHook(X86Context& __restrict ctx, uint8_t* base)
 {
-	g_castNodeModifier = FindCsdModifier(rEax.u32);
+	g_castNodeModifier = FindCsdModifier(ctx.eax.u32);
 }
 
-void RenderCsdCastMidAsmHook(X86Register& rEsi)
+void RenderCsdCastMidAsmHook(X86Context& __restrict ctx, uint8_t* base)
 {
-	g_castModifier = FindCsdModifier(rEsi.u32);
+	g_castModifier = FindCsdModifier(ctx.esi.u32);
 }
 
 int FindHudWidthPreset(float aspectRatio)
@@ -733,20 +732,16 @@ void Draw(X86Context& ctx, uint8_t* base, X86Func* original, void* vertexData, u
 }
 
 X86_FUNC_IMPL(__imp__sub_2ECC80);
-void CPlatformRWDrawPrimitive2DMidAsmHook(X86Register& rEcx)
+void CPlatformRWDrawPrimitive2DMidAsmHook(X86Context& __restrict ctx, uint8_t* base)
 {
 	// ecx = vertex stride
-	auto ctx = GetX86Context();
-	auto base = g_memory.base;
-	Draw(*ctx, base, __imp__sub_2ECC80, g_memory.Translate(rEcx.u32), 28);
+	Draw(ctx, base, __imp__sub_2ECC80, g_memory.Translate(ctx.ecx.u32), 28);
 }
 
-void CPlatformRWDrawPrimitive2DMidAsmHook2(X86Register& rEsi)
+void CPlatformRWDrawPrimitive2DMidAsmHook2(X86Context& __restrict ctx, uint8_t* base)
 {
 	// ecx = vertex stride
-	auto ctx = GetX86Context();
-	auto base = g_memory.base;
-	Draw(*ctx, base, __imp__sub_2ECC80, g_memory.Translate(rEsi.u32), 28);
+	Draw(ctx, base, __imp__sub_2ECC80, g_memory.Translate(ctx.esi.u32), 28);
 }
 
 // DrawNumberHud is also used on the stage select to show current record.
@@ -902,14 +897,14 @@ X86_FUNC(sub_281550)
 	g_hudNumber = {};
 }
 
-void DrawHudMidAsmHook(X86Register& rEax)
+void DrawHudMidAsmHook(X86Context& __restrict ctx, uint8_t* base)
 {
-	if (!rEax.u32 || App::isInMainMenu() && !g_isInStageMode) // this affect text on stage select mode badly
+	if (!ctx.eax.u32 || App::isInMainMenu() && !g_isInStageMode) // this affect text on stage select mode badly
 		return;
 
 	// the digits are drawn right away, so there is nothing to restore after
 	CsdSavedVertices saved{};
-	UnstretchPrimitive(g_memory.Translate(rEax.u32), CSDVertexCount, g_hudNumber.Flags, saved, g_hudNumber.Anchor, g_hudNumber.AnchorY);
+	UnstretchPrimitive(g_memory.Translate(ctx.eax.u32), CSDVertexCount, g_hudNumber.Flags, saved, g_hudNumber.Anchor, g_hudNumber.AnchorY);
 }
 
 
@@ -918,35 +913,33 @@ void DrawHudMidAsmHook(X86Register& rEax)
 // The projection uses the camera's own fov, which we never widen. thus, we cannot patch it at vertex levels,
 // so we will do it the old way.
 
-void HpBarProjectionMidAsmHook(X86Register& rEsi, X86Register& rEax)
+void HpBarProjectionMidAsmHook(X86Context& __restrict ctx, uint8_t* base)
 {
 	if (g_hudUnstretchX >= 1.0f)
 		return;
 
-	auto base = g_memory.base;
 
 	// rEax = SonicteamUSA::System::Camera::GetScreenRectangle(screenType)
-	float rectX = float(int32_t(X86_LOAD_U32(rEax.u32)));
-	float rectW = float(int32_t(X86_LOAD_U32(rEax.u32 + 8)));
+	float rectX = float(int32_t(X86_LOAD_U32(ctx.eax.u32)));
+	float rectW = float(int32_t(X86_LOAD_U32(ctx.eax.u32 + 8)));
 	float centreX = rectX + rectW * 0.5f;
 
 	// esi + 0x2C = projected screen X, still to be culled against the screen rect below
-	float screenX = X86_LOAD_F32(rEsi.u32 + 0x2C);
-	X86_STORE_F32(rEsi.u32 + 0x2C, centreX + (screenX - centreX) * g_hudUnstretchX);
+	float screenX = X86_LOAD_F32(ctx.esi.u32 + 0x2C);
+	X86_STORE_F32(ctx.esi.u32 + 0x2C, centreX + (screenX - centreX) * g_hudUnstretchX);
 }
 
 // the game scales the bar against a fixed 640x480 space (rect.w * scale / 640, rect.h * scale / 480),
 // and the 2D layer then stretches that space over the whole viewport, so like everything else here
 // the bar comes out too wide on wide screens. squeeze X back to square pixels.
-void HpBarScaleMidAsmHook(X86Register& rEsi)
+void HpBarScaleMidAsmHook(X86Context& __restrict ctx, uint8_t* base)
 {
 	if (g_hudUnstretchX >= 1.0f)
 		return;
 
-	auto base = g_memory.base;
 
 	// esi + 0x38 = scale X, consumed by the CSD SetScale call further down.
-	X86_STORE_F32(rEsi.u32 + 0x38, X86_LOAD_F32(rEsi.u32 + 0x38) * g_hudUnstretchX);
+	X86_STORE_F32(ctx.esi.u32 + 0x38, X86_LOAD_F32(ctx.esi.u32 + 0x38) * g_hudUnstretchX);
 }
 
 // Item reward icon from CP
@@ -954,7 +947,7 @@ void HpBarScaleMidAsmHook(X86Register& rEsi)
 // the quad is rebuilt every frame, so we can unstretch it right before the draw
 static constexpr uint32_t g_itemIconVertices = 0x559688;
 
-void ItemIconDrawMidAsmHook()
+void ItemIconDrawMidAsmHook(X86Context& __restrict ctx, uint8_t* base)
 {
 	CsdSavedVertices saved{};
 	UnstretchPrimitive(g_memory.Translate(g_itemIconVertices), CSDVertexCount, CSD_UNSTRETCH | CSD_ALIGN_BOTTOM_CENTRE, saved);
@@ -963,21 +956,20 @@ void ItemIconDrawMidAsmHook()
 
 // Weapon lock-on reticle (This includes birbo targets in the ark)
 // Those have the same problem than enemy hp bar above
-void LockOnProjectionMidAsmHook(X86Register& rEax, X86Register& rEsp)
+void LockOnProjectionMidAsmHook(X86Context& __restrict ctx, uint8_t* base)
 {
 	if (g_hudUnstretchX >= 1.0f)
 		return;
 
 	//eax is camera's screen rectangle
 	// esp + 8 is the project screen X
-	auto base = g_memory.base;
 
-	float rectX = float(int32_t(X86_LOAD_U32(rEax.u32)));
-	float rectW = float(int32_t(X86_LOAD_U32(rEax.u32 + 8)));
+	float rectX = float(int32_t(X86_LOAD_U32(ctx.eax.u32)));
+	float rectW = float(int32_t(X86_LOAD_U32(ctx.eax.u32 + 8)));
 	float centreX = rectX + rectW * 0.5f;
 
-	float screenX = X86_LOAD_F32(rEsp.u32 + 8);
-	X86_STORE_F32(rEsp.u32 + 8, centreX + (screenX - centreX) * g_hudUnstretchX);
+	float screenX = X86_LOAD_F32(ctx.esp.u32 + 8);
+	X86_STORE_F32(ctx.esp.u32 + 8, centreX + (screenX - centreX) * g_hudUnstretchX);
 }
 
 // sub_268FD0 creates one reticle (quad) which isn't called, so it's safe to patch the corners here
@@ -1042,26 +1034,25 @@ static void UnstretchVHArrowX(uint32_t screenRect, uint32_t screenX)
 }
 
 // Memo: eax = GetScreenRectangle(0), esp + 0x10 = projected screen X
-void VHArrowProjectionMidAsmHook(X86Register& rEax, X86Register& rEsp)
+void VHArrowProjectionMidAsmHook(X86Context& __restrict ctx, uint8_t* base)
 {
-	UnstretchVHArrowX(rEax.u32, rEsp.u32 + 0x10);
+	UnstretchVHArrowX(ctx.eax.u32, ctx.esp.u32 + 0x10);
 }
 
 // split screen variant for MP
 // Memo: esp+0xC = projected screen X, eax = GetScreenRectangle(screen).
-void VHArrowProjectionSplitMidAsmHook(X86Register& rEax, X86Register& rEsp)
+void VHArrowProjectionSplitMidAsmHook(X86Context& __restrict ctx, uint8_t* base)
 {
-	UnstretchVHArrowX(rEax.u32, rEsp.u32 + 0xC);
+	UnstretchVHArrowX(ctx.eax.u32, ctx.esp.u32 + 0xC);
 }
 
 // Memo: esp = scale X pushed for sub_2BBB40, esp+4 = scale Y
-void VHArrowScaleMidAsmHook(X86Register& rEsp)
+void VHArrowScaleMidAsmHook(X86Context& __restrict ctx, uint8_t* base)
 {
 	if (g_hudUnstretchX >= 1.0f)
 		return;
 
-	auto base = g_memory.base;
-	X86_STORE_F32(rEsp.u32, X86_LOAD_F32(rEsp.u32) * g_hudUnstretchX);
+	X86_STORE_F32(ctx.esp.u32, X86_LOAD_F32(ctx.esp.u32) * g_hudUnstretchX);
 }
 
 
@@ -1809,16 +1800,16 @@ static void StretchFullScreenQuadScale(uint32_t scaleArgs)
 }
 
 // The camera that shows a red filter that covers the screen in Gun Fortress.
-void WatchCameraFilterScaleMidAsmHook(X86Register& esp)
+void WatchCameraFilterScaleMidAsmHook(X86Context& __restrict ctx, uint8_t* base)
 {
-	StretchFullScreenQuadScale(esp.u32);
+	StretchFullScreenQuadScale(ctx.esp.u32);
 }
 
 // RainEffect (ctor sub_1C7C70) does the same thing for the rain overlay than the camera red filter in Gun Fortress
 // So we can just re use the same code
-void RainEffectScaleMidAsmHook(X86Register& esp)
+void RainEffectScaleMidAsmHook(X86Context& __restrict ctx, uint8_t* base)
 {
-	StretchFullScreenQuadScale(esp.u32);
+	StretchFullScreenQuadScale(ctx.esp.u32);
 }
 
 X86_FUNC_IMPL(__imp__sub_29A850);

@@ -60,7 +60,7 @@ struct Video
 	static bool CreateHostDevice(const char* sdlVideoDriver, bool graphicsApiRetry);
 	static void PrecompileShadersAndPipelines();
 	static void PrecompileShadersAndPipelinesForInstall(const std::function<void(float)>& progress);
-	static void Present();
+	static void Present(X86Context* ctx);
 	static void WaitForGPU();
 	static void ComputeViewportDimensions();
 	static void Shutdown();

@@ -43,7 +43,7 @@ public:
 
 
     static void Init();
-    static void Draw();
+    static void Draw(X86Context* ctx);
     static void Open(bool isPause = false, uint32_t padIndex = 0);
     static void Close();
 
@@ -52,7 +52,7 @@ public:
 
     static bool CanClose();
 
-    static void UpdateSoundTest();
+    static void UpdateSoundTest(X86Context& ctx);
 };
 
 void DrawAnimatedFire(ImVec2 min, ImVec2 max, float fade = 1.0f);

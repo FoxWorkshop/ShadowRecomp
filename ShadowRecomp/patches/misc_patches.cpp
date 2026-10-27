@@ -56,7 +56,7 @@ X86_FUNC(sub_41CD65)
 	ctx.esp.u32 += 4;
 }
 
-bool SkipPartnerIntroMidAsmHook()
+bool SkipPartnerIntroMidAsmHook(X86Context& __restrict ctx, uint8_t* base)
 {
 	return !Config::EnablePartnerIntro;
 }
@@ -103,23 +103,23 @@ X86_FUNC(sub_2A0790)
 }
 
 // trick the game that stage is already unlocked 
-bool SelectModeUnlockCheckBypassMidAsmHook()
+bool SelectModeUnlockCheckBypassMidAsmHook(X86Context& __restrict ctx, uint8_t* base)
 {
 	return Config::AllStagesUnlocked;
 }
 
-bool EasierUnlockLastStoryMidAsmHook(X86Register& edi)
+bool EasierUnlockLastStoryMidAsmHook(X86Context& __restrict ctx, uint8_t* base)
 {
 	if (Config::EasyLastStoryUnlock)
 	{
-		if (edi.u32 >= 5)
+		if (ctx.edi.u32 >= 5)
 		{
 			return true;
 		}
 	}
 	else if (Config::ReloadedMod)
 	{
-		if (edi.u32 >= 3)
+		if (ctx.edi.u32 >= 3)
 		{
 			return true;
 		}
@@ -162,7 +162,7 @@ bool foundTex = false;
 X86_FUNC_IMPL(__imp__sub_2D82E0);
 X86_FUNC(sub_2D82E0)
 {
-	char* str = (char*)GetHostParameter(2, CallConvention::Cdecl, ParameterType::Pointer);
+	char* str = (char*)GetHostParameter(ctx, 2, CallConvention::Cdecl, ParameterType::Pointer);
 	std::string s = str;
 	for (int i = 0; i < 8; i++)
 	{
@@ -188,7 +188,7 @@ X86_FUNC(sub_1E5A0)
 	__imp__sub_1E5A0(ctx, base);
 }
 
-void DisableMessageMidAsmHook()
+void DisableMessageMidAsmHook(X86Context& __restrict ctx, uint8_t* base)
 {
 	shouldSkipMessage = Config::Subtitles.Value == 0;
 }
@@ -251,9 +251,9 @@ char* TOneFileCheckFileName(TOneFile* this_, int32_t index)
 // Fix EggPierrot wrong asset
 // sub_142ED0 picks which .ONE to load
 // Intercept and check for the typo (501 -> 511)
-bool EggPierrotStageIdFixMidAsmHook(X86Register& eax)
+bool EggPierrotStageIdFixMidAsmHook(X86Context& __restrict ctx, uint8_t* base)
 {
-	return eax.u32 == 511;
+	return ctx.eax.u32 == 511;
 }
 
 // Fix the Xbox exclusive 'more transparent/alpha' subtitle bug
@@ -350,12 +350,10 @@ X86_FUNC(sub_1F89B0)
 // Bullet @ esi
 // BulletType @ esi+0x4C
 // Type 5 is Katana01, Type 6 is Katana02
-void KatanaBulletSweepMidAsmHook(X86Register& esi)
+void KatanaBulletSweepMidAsmHook(X86Context& __restrict ctx, uint8_t* base)
 {
-	auto ctx = GetX86Context();
-	auto base = g_memory.base;
 
-	auto bulletType = X86_LOAD_U32(esi.u32 + 0x4C);
+	auto bulletType = X86_LOAD_U32(ctx.esi.u32 + 0x4C);
 	if (bulletType != 5 && bulletType != 6)
 	{
 		return;
@@ -364,9 +362,9 @@ void KatanaBulletSweepMidAsmHook(X86Register& esi)
 	// out buffer @ esp
 	// old pos @ esp+0x8
 	// next frame pos @ esp+0xC
-	auto outPtr = X86_LOAD_U32(ctx->esp.u32);
-	auto posA = X86_LOAD_U32(ctx->esp.u32 + 0x08);
-	auto posB = X86_LOAD_U32(ctx->esp.u32 + 0x0C);
+	auto outPtr = X86_LOAD_U32(ctx.esp.u32);
+	auto posA = X86_LOAD_U32(ctx.esp.u32 + 0x08);
+	auto posB = X86_LOAD_U32(ctx.esp.u32 + 0x0C);
 
 	float ax = X86_LOAD_F32(posA + 0x0);
 	float az = X86_LOAD_F32(posA + 0x8);
@@ -402,8 +400,8 @@ void KatanaBulletSweepMidAsmHook(X86Register& esi)
 	X86_STORE_F32(outPtr + 0x20, bz + pz * halfWidth);
 
 	// update sweep with new size
-	X86_STORE_U32(ctx->esp.u32 + 0x08, outPtr);
-	X86_STORE_U32(ctx->esp.u32 + 0x0C, outPtr + 0x18);
+	X86_STORE_U32(ctx.esp.u32 + 0x08, outPtr);
+	X86_STORE_U32(ctx.esp.u32 + 0x0C, outPtr + 0x18);
 }
 
 // Fix Mipmapped textures breaking on 3D models
@@ -454,32 +452,28 @@ X86_FUNC(sub_114650)
 // 0x5356E8 = PAD2
 
 // PAD constructor (game init)
-void PADManagerInitMidAsmHook()
+void PADManagerInitMidAsmHook(X86Context& __restrict ctx, uint8_t* base)
 {
-	auto base = g_memory.base;
 	X86_STORE_U32(0x5356E4, 0);
 	X86_STORE_U32(0x5356E8, 1);
 }
 
 // Advertise (first blue message on main menu)
-void PADAdvertiseMidAsmHook()
+void PADAdvertiseMidAsmHook(X86Context& __restrict ctx, uint8_t* base)
 {
-	auto base = g_memory.base;
 	X86_STORE_U32(0x5356E4, 0);
 	X86_STORE_U32(0x5356E8, 1);
 }
 
 // BATTLE MODE char select (If P2 backs out it sets P1 back to 5)
-void PADBattleModeP2BackOutMidAsmHook()
+void PADBattleModeP2BackOutMidAsmHook(X86Context& __restrict ctx, uint8_t* base)
 {
-	auto base = g_memory.base;
 	X86_STORE_U32(0x5356E4, 0);
 }
 
 // BATTLE MODE stage select (sets both if either player backs out)
-void PADBattleStageSelMidAsmHook()
+void PADBattleStageSelMidAsmHook(X86Context& __restrict ctx, uint8_t* base)
 {
-	auto base = g_memory.base;
 	X86_STORE_U32(0x5356E4, 0);
 	X86_STORE_U32(0x5356E8, 1);
 }

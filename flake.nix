@@ -103,6 +103,8 @@
       nativeBuildInputs = with pkgs; [
         cmake
         ninja
+        cargo
+        rustc
         pkg-config
         clang
         clang-tools # clangd: IDE language server
@@ -131,7 +133,8 @@
         ++ sdlDeps;
 
       # Project is non-PIE (recomp assumptions).
-      hardeningDisable = ["pic"];
+      # zerocallusedregs: clears registers before every return; bloats recompiled code.
+      hardeningDisable = ["pic" "zerocallusedregs"];
 
       # Portable script from nix/ does the actual work.
       shellHook = ''

@@ -49,7 +49,7 @@ X86_FUNC(sub_2E1300)
 		auto flag = (uint32_t)X86_LOAD_U8(frameRoot + 0x3);
 		if ((flag & 3) == 0) //dirty list only get updated if this condition pass
 		{
-			RtlEnterCriticalSection(&dirtyListLock);
+			RtlEnterCriticalSection(ctx, &dirtyListLock);
 			valid = true;
 		}
 	}
@@ -64,7 +64,7 @@ X86_FUNC(sub_2E1300)
 X86_FUNC_IMPL(__imp__sub_2EC720);
 X86_FUNC(sub_2EC720)
 {
-	RtlEnterCriticalSection(&dirtyListLock);
+	RtlEnterCriticalSection(ctx, &dirtyListLock);
 	__imp__sub_2EC720(ctx, base);
 	RtlLeaveCriticalSection(&dirtyListLock);
 }
@@ -131,12 +131,12 @@ X86_FUNC(sub_2D8460)
 }
 
 // for inlined RwTexDictionaryGetCurrent
-void GetCurrentDictionaryThreadMidAsmHook(X86Register& eax)
+void GetCurrentDictionaryThreadMidAsmHook(X86Context& __restrict ctx, uint8_t* base)
 {
 	auto res = GetCurrentDictionaryThread();
 	if (res)
 	{
-		eax.u32 = res;
+		ctx.eax.u32 = res;
 	}
 
 }
@@ -196,7 +196,7 @@ X86_FUNC(sub_2B4440)
 
 	lastThreadIDCSDNode = GuestThread::GetCurrentThreadId();
 
-	RtlEnterCriticalSection(&csdNodeLock);
+	RtlEnterCriticalSection(ctx, &csdNodeLock);
 	__imp__sub_2B4440(ctx, base);
 	RtlLeaveCriticalSection(&csdNodeLock);
 
@@ -206,7 +206,7 @@ X86_FUNC(sub_2B4440)
 X86_FUNC_IMPL(__imp__sub_2B3ED0);
 X86_FUNC(sub_2B3ED0)
 {
-	RtlEnterCriticalSection(&csdNodeLock);
+	RtlEnterCriticalSection(ctx, &csdNodeLock);
 	__imp__sub_2B3ED0(ctx, base);
 	RtlLeaveCriticalSection(&csdNodeLock);
 
@@ -278,7 +278,7 @@ X86_FUNC(sub_59AE0)
 X86_FUNC_IMPL(__imp__sub_34AB40);
 X86_FUNC(sub_34AB40)
 {
-	RtlEnterCriticalSection(&fmvPtrDataLock);
+	RtlEnterCriticalSection(ctx, &fmvPtrDataLock);
 
 	auto a1 = X86_LOAD_U32(ctx.esp.u32 + 4);
 
@@ -299,7 +299,7 @@ X86_FUNC(sub_34AB40)
 X86_FUNC_IMPL(__imp__sub_34C140);
 X86_FUNC(sub_34C140)
 {
-	RtlEnterCriticalSection(&fmvPtrDataLock);
+	RtlEnterCriticalSection(ctx, &fmvPtrDataLock);
 
 	auto a1 = X86_LOAD_U32(ctx.esp.u32 + 4);
 
@@ -322,7 +322,7 @@ X86_FUNC(sub_34C140)
 X86_FUNC_IMPL(__imp__sub_2DCDE0);
 X86_FUNC(sub_2DCDE0)
 {
-	RtlEnterCriticalSection(&globalcurCamera);
+	RtlEnterCriticalSection(ctx, &globalcurCamera);
 
 	__imp__sub_2DCDE0(ctx, base);
 
@@ -346,7 +346,7 @@ X86_FUNC(sub_2DCDB0)
 X86_FUNC_IMPL(__imp__sub_2CBA40);
 X86_FUNC(sub_2CBA40)
 {
-	RtlEnterCriticalSection(&globalCurWorld);
+	RtlEnterCriticalSection(ctx, &globalCurWorld);
 	__imp__sub_2CBA40(ctx, base);
 
 	if (!ctx.eax.u32) // end update won't be called if function failed

@@ -79,69 +79,65 @@ uint32_t GetAwakeDrainDivisor(uint32_t awake)
     return std::max(CountActiveAwakePlayers(awakeBit), 1u);
 }
 
-void AwakeDarkThresholdBypassMidAsmHook(X86Register& edx, X86Register& eax)
+void AwakeDarkThresholdBypassMidAsmHook(X86Context& __restrict ctx, uint8_t* base)
 {
     if (!Config::ExtendedMultiplayer) {
         return;
     }
 
-    auto base = g_memory.base;
 
-    int32_t darkThreshold = (int32_t)X86_LOAD_U32(eax.u32 + 0x71C);
-    if ((int32_t)edx.u32 >= darkThreshold) {
+    int32_t darkThreshold = (int32_t)X86_LOAD_U32(ctx.eax.u32 + 0x71C);
+    if ((int32_t)ctx.edx.u32 >= darkThreshold) {
         return;
     }
 
     if (CountActiveAwakePlayers(0x08) > 0) { // handle vehicle case or egg dealer
-        edx.u32 = darkThreshold;
+        ctx.edx.u32 = darkThreshold;
     }
 }
 
-void AwakeHeroThresholdBypassMidAsmHook(X86Register& ecx, X86Register& eax)
+void AwakeHeroThresholdBypassMidAsmHook(X86Context& __restrict ctx, uint8_t* base)
 {
     if (!Config::ExtendedMultiplayer) {
         return;
     }
 
-    auto base = g_memory.base;
 
-    int32_t heroThreshold = (int32_t)X86_LOAD_U32(eax.u32 + 0x710);
-    if ((int32_t)ecx.u32 >= heroThreshold) {
+    int32_t heroThreshold = (int32_t)X86_LOAD_U32(ctx.eax.u32 + 0x710);
+    if ((int32_t)ctx.ecx.u32 >= heroThreshold) {
         return;
     }
 
     if (CountActiveAwakePlayers(0x04) > 0) {
-        ecx.u32 = heroThreshold;
+        ctx.ecx.u32 = heroThreshold;
     }
 }
 // End ChaosPowerSync
 
-bool ExtendedMultiplayerCameraAttachMidAsmHook(X86Register& eax)
+bool ExtendedMultiplayerCameraAttachMidAsmHook(X86Context& __restrict ctx, uint8_t* base)
 {
-	auto base = g_memory.base;
     if (Config::ExtendedMultiplayer)
     {
         return true;
     }
-    auto val = X86_LOAD_U8(eax.u32 + 8);
+    auto val = X86_LOAD_U8(ctx.eax.u32 + 8);
     return (val & 4) != 0;
 }
 
-bool ExtendedMultiplayerPlayerSpawnMidAsmHook(X86Register& eax)
+bool ExtendedMultiplayerPlayerSpawnMidAsmHook(X86Context& __restrict ctx, uint8_t* base)
 {
-	auto base = g_memory.base;
     if (Config::ExtendedMultiplayer)
     {
         return true;
     }
-    auto val = X86_LOAD_U8(eax.u32 + 8);
+    auto val = X86_LOAD_U8(ctx.eax.u32 + 8);
     return (val & 4) != 0;
 }
 
-bool ExtendedMultiplayerCameraAllocationLoopMidAsmHook(X86Register& edi)
+bool ExtendedMultiplayerCameraAllocationLoopMidAsmHook(X86Context& __restrict ctx, uint8_t* base)
 {
 	uint32_t limit = Config::ExtendedMultiplayer ? g_multiplayerPlayerCount : 2;
-    return edi.u32 < limit;
+    return ctx.edi.u32 < limit;
 }
 
 static bool s_extraSpawnActive = false;
@@ -149,14 +145,13 @@ static bool s_extraSpawnDone = false;
 static uint32_t s_extraSpawnRemaining = 0;
 static uint32_t s_extraSpawnPlayerIndex = 2;
 
-bool ExtendedMultiplayerExtraSpawnMidAsmHook(X86Register& esp)
+bool ExtendedMultiplayerExtraSpawnMidAsmHook(X86Context& __restrict ctx, uint8_t* base)
 {
-	auto base = g_memory.base;
     if (s_extraSpawnDone)
     {
         s_extraSpawnDone = false;
         s_extraSpawnActive = false;
-        esp.u32 += 3 * (g_multiplayerPlayerCount - 2) * 4;
+        ctx.esp.u32 += 3 * (g_multiplayerPlayerCount - 2) * 4;
         return false;
     }
     if (!Config::ExtendedMultiplayer || g_multiplayerPlayerCount <= 2)
@@ -169,20 +164,19 @@ bool ExtendedMultiplayerExtraSpawnMidAsmHook(X86Register& esp)
         s_extraSpawnRemaining = g_multiplayerPlayerCount - 2;
         s_extraSpawnPlayerIndex = 2;
     }
-    esp.u32 -= 4;
-    X86_STORE_U32(esp.u32, s_extraSpawnPlayerIndex);
-    esp.u32 -= 4;
-    X86_STORE_U32(esp.u32, s_extraSpawnPlayerIndex);
-    esp.u32 -= 4;
-    X86_STORE_U32(esp.u32, 14 + s_extraSpawnPlayerIndex);
+    ctx.esp.u32 -= 4;
+    X86_STORE_U32(ctx.esp.u32, s_extraSpawnPlayerIndex);
+    ctx.esp.u32 -= 4;
+    X86_STORE_U32(ctx.esp.u32, s_extraSpawnPlayerIndex);
+    ctx.esp.u32 -= 4;
+    X86_STORE_U32(ctx.esp.u32, 14 + s_extraSpawnPlayerIndex);
     s_extraSpawnRemaining--;
     s_extraSpawnPlayerIndex++;
     return true;
 }
 
-bool ExtendedMultiplayerExtraSpawnRedirectMidAsmHook(X86Register& esp)
+bool ExtendedMultiplayerExtraSpawnRedirectMidAsmHook(X86Context& __restrict ctx, uint8_t* base)
 {
-	auto base = g_memory.base;
     if (s_extraSpawnActive)
     {
         if (s_extraSpawnRemaining == 0)
@@ -194,13 +188,13 @@ bool ExtendedMultiplayerExtraSpawnRedirectMidAsmHook(X86Register& esp)
 
 static uint32_t s_extraPlayerPositionID = 0;
 
-void ExtendedMultiplayerPlayerPositionIDOverrideMidAsmHook(X86Register& reg)
+void ExtendedMultiplayerPlayerPositionIDOverrideMidAsmHook(X86Context& __restrict ctx, uint8_t* base)
 {
     if (Config::ExtendedMultiplayer && s_extraPlayerPositionID != 0)
-        reg.u32 = s_extraPlayerPositionID;
+        ctx.edx.u32 = s_extraPlayerPositionID;
 }
 
-bool ExtendedMultiplayerPlayerPositionLoopMidAsmHook()
+bool ExtendedMultiplayerPlayerPositionLoopMidAsmHook(X86Context& __restrict ctx, uint8_t* base)
 {
     if (!Config::ExtendedMultiplayer)
         return false;
@@ -219,17 +213,16 @@ bool ExtendedMultiplayerPlayerPositionLoopMidAsmHook()
 
 static uint32_t s_extraPlayerPositionID_Continue0 = 0;
 
-void ExtendedMultiplayerPlayerPositionIDOverrideContinue0MidAsmHook(X86Register& reg)
+void ExtendedMultiplayerPlayerPositionIDOverrideContinue0MidAsmHook(X86Context& __restrict ctx, uint8_t* base)
 {
     if (Config::ExtendedMultiplayer && s_extraPlayerPositionID_Continue0 != 0)
-        reg.u32 = s_extraPlayerPositionID_Continue0;
+        ctx.edx.u32 = s_extraPlayerPositionID_Continue0;
 }
 
 // Checkpoint Table @ 0x544FB8
 // Save Data @ 0x545780 (overflow read on P3/P4, so force to P2)
-bool ExtendedMultiplayerPlayerPositionLoopContinue0MidAsmHook(X86Register& eax, X86Register& esp)
+bool ExtendedMultiplayerPlayerPositionLoopContinue0MidAsmHook(X86Context& __restrict ctx, uint8_t* base)
 {
-    auto base = g_memory.base;
     if (!Config::ExtendedMultiplayer || g_multiplayerPlayerCount <= 2)
         return false;
 
@@ -240,8 +233,8 @@ bool ExtendedMultiplayerPlayerPositionLoopContinue0MidAsmHook(X86Register& eax, 
 
     if (s_extraPlayerPositionID_Continue0 <= g_multiplayerPlayerCount - 1)
     {
-        esp.u32 += 12;
-        eax.u32 = X86_LOAD_U32(0x4EE658); // force read P2 data
+        ctx.esp.u32 += 12;
+        ctx.eax.u32 = X86_LOAD_U32(0x4EE658); // force read P2 data
         return true;
     }
 
@@ -254,13 +247,13 @@ static bool s_playerPadAssign = false;
 
 // Player ctor (sub_97340)
 // Marking so we know its a player when PAD construction (sub_91AD0) runs
-void PlayerPADAssignBeginMidAsmHook()
+void PlayerPADAssignBeginMidAsmHook(X86Context& __restrict ctx, uint8_t* base)
 {
 	s_playerPadAssign = true;
 }
 
 // Cleanup hook from above
-void PlayerPADAssignEndMidAsmHook()
+void PlayerPADAssignEndMidAsmHook(X86Context& __restrict ctx, uint8_t* base)
 {
 	s_playerPadAssign = false;
 }
@@ -268,33 +261,33 @@ void PlayerPADAssignEndMidAsmHook()
 // Partner PAD assignment (we would extend this also if we later want to do multi partner separate controllers)
 // Using the last unused next PAD/PORT
 // If playing 4P partners are AI controlled only
-void PartnerPADMidAsmHook(X86Register& eax)
+void PartnerPADMidAsmHook(X86Context& __restrict ctx, uint8_t* base)
 {
 	if (Config::ExtendedMultiplayer && !s_playerPadAssign)
 	{
-		eax.u32 = g_multiplayerPlayerCount < 4 ? g_multiplayerPlayerCount : 4;
+		ctx.eax.u32 = g_multiplayerPlayerCount < 4 ? g_multiplayerPlayerCount : 4;
 	}
 }
 
-void AssignPadPlayerIdSaveMidAsmHook(X86Register& ecx)
+void AssignPadPlayerIdSaveMidAsmHook(X86Context& __restrict ctx, uint8_t* base)
 {
-    s_assignPadPlayerId = ecx.u32;
+    s_assignPadPlayerId = ctx.ecx.u32;
 }
 
-void AssignPadPlayerIdOverrideMidAsmHook(X86Register& edx)
+void AssignPadPlayerIdOverrideMidAsmHook(X86Context& __restrict ctx, uint8_t* base)
 {
     if (Config::ExtendedMultiplayer && s_playerPadAssign)
-        edx.u32 = s_assignPadPlayerId;
+        ctx.edx.u32 = s_assignPadPlayerId;
 }
 
-bool PADBoundsCheckMidAsmHook(X86Register& eax)
+bool PADBoundsCheckMidAsmHook(X86Context& __restrict ctx, uint8_t* base)
 {
-    if (Config::ExtendedMultiplayer && s_playerPadAssign && g_multiplayerPlayerCount >= 4 && eax.u32 >= 4)
+    if (Config::ExtendedMultiplayer && s_playerPadAssign && g_multiplayerPlayerCount >= 4 && ctx.eax.u32 >= 4)
         return false;
     return true;
 }
 
-bool ViewportDivMidAsmHook(X86Register& reg)
+static bool ViewportDiv(X86Register& reg)
 {
     if (Config::ExtendedMultiplayer && g_multiplayerPlayerCount > 2)
     {
@@ -304,9 +297,11 @@ bool ViewportDivMidAsmHook(X86Register& reg)
     return false;
 }
 
-void ViewportExtendedPlayerCalcOverrideMidAsmHook()
+bool ViewportDivEaxMidAsmHook(X86Context& __restrict ctx, uint8_t* base) { return ViewportDiv(ctx.eax); }
+bool ViewportDivEcxMidAsmHook(X86Context& __restrict ctx, uint8_t* base) { return ViewportDiv(ctx.ecx); }
+
+void ViewportExtendedPlayerCalcOverrideMidAsmHook(X86Context& __restrict ctx, uint8_t* base)
 {
-	auto base = g_memory.base;
     if (!Config::ExtendedMultiplayer || g_multiplayerPlayerCount <= 2)
         return;
 
@@ -380,19 +375,19 @@ void ViewportExtendedPlayerCalcOverrideMidAsmHook()
 static uint32_t s_renderDivExtraPass = 0;
 static uint32_t s_renderDivSavedThis = 0;
 
-void RenderDivSaveThisMidAsmHook(X86Register& edi)
+void RenderDivSaveThisMidAsmHook(X86Context& __restrict ctx, uint8_t* base)
 {
-    s_renderDivSavedThis = edi.u32;
+    s_renderDivSavedThis = ctx.edi.u32;
 }
 
-bool RenderDivExtraPassMidAsmHook(X86Register& edi)
+bool RenderDivExtraPassMidAsmHook(X86Context& __restrict ctx, uint8_t* base)
 {
     if (Config::ExtendedMultiplayer && g_multiplayerPlayerCount > 2)
     {
         if (s_renderDivExtraPass < g_multiplayerPlayerCount - 2)
         {
             s_renderDivExtraPass++;
-            edi.u32 = s_renderDivSavedThis;
+            ctx.edi.u32 = s_renderDivSavedThis;
             return true;
         }
         s_renderDivExtraPass = 0;
@@ -400,31 +395,29 @@ bool RenderDivExtraPassMidAsmHook(X86Register& edi)
     return false;
 }
 
-bool RenderDivCameraLookupMidAsmHook(X86Register& eax)
+bool RenderDivCameraLookupMidAsmHook(X86Context& __restrict ctx, uint8_t* base)
 {
     if (s_renderDivExtraPass > 0)
     {
-        eax.u32 = s_renderDivExtraPass + 1;
+        ctx.eax.u32 = s_renderDivExtraPass + 1;
         return true;
     }
     return false;
 }
 
-bool RenderDivPlayerOverrideMidAsmHook(X86Register& esp)
+bool RenderDivPlayerOverrideMidAsmHook(X86Context& __restrict ctx, uint8_t* base)
 {
-	auto base = g_memory.base;
     if (Config::ExtendedMultiplayer && g_multiplayerPlayerCount > 2 && s_renderDivExtraPass > 0)
     {
-        esp.u32 -= 4;
-        X86_STORE_U32(esp.u32, s_renderDivExtraPass + 2);
+        ctx.esp.u32 -= 4;
+        X86_STORE_U32(ctx.esp.u32, s_renderDivExtraPass + 2);
         return true;
     }
     return false;
 }
 
-bool RenderDivCameraTargetOverrideMidAsmHook()
+bool RenderDivCameraTargetOverrideMidAsmHook(X86Context& __restrict ctx, uint8_t* base)
 {
-	auto base = g_memory.base;
     if (Config::ExtendedMultiplayer && g_multiplayerPlayerCount > 2 && s_renderDivExtraPass > 0)
     {
         X86_STORE_U32(0x54DD9C, s_renderDivExtraPass + 2);
@@ -435,12 +428,11 @@ bool RenderDivCameraTargetOverrideMidAsmHook()
 
 static uint32_t s_cameraAttachPlayerIndex = 0;
 
-bool CameraAttachSetupMidAsmHook(X86Register& ebp)
+bool CameraAttachSetupMidAsmHook(X86Context& __restrict ctx, uint8_t* base)
 {
-    auto base = g_memory.base;
     if (Config::ExtendedMultiplayer)
     {
-        X86_STORE_U32(ebp.u32, g_multiplayerPlayerCount);
+        X86_STORE_U32(ctx.ebp.u32, g_multiplayerPlayerCount);
         if (s_cameraAttachPlayerIndex == 0)
             s_cameraAttachPlayerIndex = 1;
         return true;
@@ -448,18 +440,17 @@ bool CameraAttachSetupMidAsmHook(X86Register& ebp)
     return false;
 }
 
-bool CameraAttachPlayerIdMidAsmHook(X86Register& esp)
+bool CameraAttachPlayerIdMidAsmHook(X86Context& __restrict ctx, uint8_t* base)
 {
-    auto base = g_memory.base;
     if (!Config::ExtendedMultiplayer)
         return false;
-    esp.u32 -= 4;
-    X86_STORE_U32(esp.u32, s_cameraAttachPlayerIndex);
+    ctx.esp.u32 -= 4;
+    X86_STORE_U32(ctx.esp.u32, s_cameraAttachPlayerIndex);
     s_cameraAttachPlayerIndex++;
     return true;
 }
 
-bool CameraAttachLoopMidAsmHook()
+bool CameraAttachLoopMidAsmHook(X86Context& __restrict ctx, uint8_t* base)
 {
     if (!Config::ExtendedMultiplayer)
         return false;
@@ -469,39 +460,36 @@ bool CameraAttachLoopMidAsmHook()
     return false;
 }
 
-bool PlayerPostManagerLoopMidAsmHook(X86Register& eax)
+bool PlayerPostManagerLoopMidAsmHook(X86Context& __restrict ctx, uint8_t* base)
 {
     if (Config::ExtendedMultiplayer)
-        return eax.u32 < g_multiplayerPlayerCount;
-    return eax.u32 < 2;
+        return ctx.eax.u32 < g_multiplayerPlayerCount;
+    return ctx.eax.u32 < 2;
 }
 
 // TODO: Needs further investigation - should prevent freezes as is, but may be corrupting memory (observed in GC)
-bool ItemIconManagerLoopPushCountMidAsmHook(X86Register& esp)
+bool ItemIconManagerLoopPushCountMidAsmHook(X86Context& __restrict ctx, uint8_t* base)
 {
-    auto ctx = GetX86Context();
-    auto base = g_memory.base;
     if (Config::ExtendedMultiplayer)
     {
-        esp.u32 -= 4;
-        X86_STORE_U32(esp.u32, g_multiplayerPlayerCount);
+        ctx.esp.u32 -= 4;
+        X86_STORE_U32(ctx.esp.u32, g_multiplayerPlayerCount);
         return true;
     }
     return false;
 }
 
 // TODO: Needs further investigation - should prevent freezes as is, but may be corrupting memory (observed in GC)
-bool ItemIconManagerLoopCountMidAsmHook(X86Register& eax)
+bool ItemIconManagerLoopCountMidAsmHook(X86Context& __restrict ctx, uint8_t* base)
 {
     if (Config::ExtendedMultiplayer)
-        return eax.u32 < g_multiplayerPlayerCount;
-    return eax.u32 < 2;
+        return ctx.eax.u32 < g_multiplayerPlayerCount;
+    return ctx.eax.u32 < 2;
 }
 
 // Refresh/set custom viewports on init and unpause
-bool SplitscreenTypeInitializeUnpauseMidAsmHook(X86Register& eax)
+bool SplitscreenTypeInitializeUnpauseMidAsmHook(X86Context& __restrict ctx, uint8_t* base)
 {
-    auto base = g_memory.base;
     if (Config::ExtendedMultiplayer)
     {
         if (g_multiplayerPlayerCount == 3) {
@@ -522,18 +510,17 @@ bool SplitscreenTypeInitializeUnpauseMidAsmHook(X86Register& eax)
         }
         return true;
     }
-    return (eax.u8_lo & 0x2) != 0;
+    return (ctx.eax.u8_lo & 0x2) != 0;
 }
 
-void AddAllScoreToP1MidAsmHook(X86Register& ecx)
+void AddAllScoreToP1MidAsmHook(X86Context& __restrict ctx, uint8_t* base)
 {
     // 0x22D630
     if (Config::ExtendedMultiplayer)
     {
-        auto base = g_memory.base;
         uint32_t gameStateBase = X86_LOAD_U32(0x54963C);
         if (gameStateBase != 0) {
-            ecx.u32 = gameStateBase + 0x754;
+            ctx.ecx.u32 = gameStateBase + 0x754;
         }
     }
 }
@@ -546,29 +533,28 @@ void AddAllScoreToP1MidAsmHook(X86Register& ecx)
 //   P1 (0) -> 0, P2 (1) -> 1, P3 (2) -> 0, P4 (3) -> unchanged.
 // P3 is spoofed to P1's slot to dodge the collision issues with a few objects
 // (DashRamps, Boosters, Springs, etc).
-void EffectSlotPlayerIdOverrideMidAsmHook(X86Register& edx)
+void EffectSlotPlayerIdOverrideMidAsmHook(X86Context& __restrict ctx, uint8_t* base)
 {
     if (Config::ExtendedMultiplayer && g_multiplayerPlayerCount > 2)
     {
-        switch (edx.u32)
+        switch (ctx.edx.u32)
         {
-            case 2: edx.u32 = 4; // P3 -> bullshit
+            case 2: ctx.edx.u32 = 4; // P3 -> bullshit
             default: break; // P1, P2, P4 -> no change
         }
     }
 }
 
 // Start Layout Distance Check Patches
-bool SetObjLoadMultiplayerBranchMidAsmHook(X86Register& eax)
+bool SetObjLoadMultiplayerBranchMidAsmHook(X86Context& __restrict ctx, uint8_t* base)
 {
 	if (Config::ExtendedMultiplayer)
 		return false;
-	return eax.u8_lo == 0;
+	return ctx.eax.u8_lo == 0;
 }
 
-bool SetObjUnloadMultiplayerBranchMidAsmHook()
+bool SetObjUnloadMultiplayerBranchMidAsmHook(X86Context& __restrict ctx, uint8_t* base)
 {
-    auto base = g_memory.base;
     if (Config::ExtendedMultiplayer)
 	    return false;
     return X86_LOAD_U8(0x54DDE2) == 0;
@@ -646,7 +632,7 @@ X86_FUNC(sub_181F80)
 }
 // END Layout Distance Check Patches
 
-bool SkipCameraDemoMidAsmHook()
+bool SkipCameraDemoMidAsmHook(X86Context& __restrict ctx, uint8_t* base)
 {
 	return Config::ExtendedMultiplayer;
 }

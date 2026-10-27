@@ -189,7 +189,7 @@ static PJSPeripheral::ControllerSlot* GetPadSlot(uint32_t port)
 	return reinterpret_cast<PJSPeripheral::ControllerSlot*>(MmGetHostAddress(0x535550 + 0x50 + port * 0x28));
 }
 
-void DrawPauseText()
+void DrawPauseText(X86Context* ctx)
 {
 	if (s_isVisible == false || g_pauseCSD == false) // ensure our CSD patch worked so we can draw pause text safely
 		return;
@@ -275,7 +275,7 @@ void DrawPauseText()
 			if (row < 0)
 			{
 				row = itemCount - 1;
-				Game_PlaySound("cursor");
+				Game_PlaySound(ctx, "cursor");
 			}
 
 			s_index = items[row];
@@ -286,13 +286,13 @@ void DrawPauseText()
 
 			if (row < itemCount && items[row] == SelQuit)
 			{
-				Game_PlaySound("cursor");
+				Game_PlaySound(ctx, "cursor");
 			}
 
 			if (row >= itemCount)
 			{
 				row = 0;
-				Game_PlaySound("cursor");
+				Game_PlaySound(ctx, "cursor");
 			}
 
 			s_index = items[row];
@@ -303,11 +303,11 @@ void DrawPauseText()
 			switch (s_index)
 			{
 			case SelOptions:
-				Game_PlaySound("decide");
+				Game_PlaySound(ctx, "decide");
 				s_OptionsRequest = true;
 				break;
 			case SelAchievements:
-				Game_PlaySound("decide");
+				Game_PlaySound(ctx, "decide");
 				s_AchievementRequest = true;
 				break;
 			case SelQuit:
@@ -455,9 +455,9 @@ X86_FUNC(sub_5AEE0)
 	s_isVisible = !flagdisabled && (mode == ModeRunningP1 || mode == ModeRunningP2);
 }
 
-void PauseBCheckMidAsmHook(X86Register& ebp)
+void PauseBCheckMidAsmHook(X86Context& __restrict ctx, uint8_t* base)
 {
-	g_isBPressed = GetPadSlot(ebp.u32)->justPressed & PJSPeripheral::BTN_B;
+	g_isBPressed = GetPadSlot(ctx.ebp.u32)->justPressed & PJSPeripheral::BTN_B;
 }
 
 // This function check input and set cursor for the pause menu

@@ -1,5 +1,4 @@
 ﻿#include <stdafx.h>
-#include <cpu/x86_context.h>
 #include <cpu/guest_thread.h>
 #include "io/file_system.h"
 #include <gpu/video.h>
@@ -79,7 +78,7 @@ public:
 		m_InterruptMode = InterruptMode;
 	}
 
-	void Trigger(xbox::PKINTERRUPT Interrupt, X86Context* ctx) {
+	void Trigger(xbox::PKINTERRUPT Interrupt, X86Context& ctx) {
 		// If interrupt was level sensitive, we clear the pending flag, preventing the interrupt from being triggered 
 		// until it is deasserted then asserted again. Latched interrupts are triggered until the line is Deasserted!
 		if (m_InterruptMode == xbox::KINTERRUPT_MODE::LevelSensitive) {
@@ -101,11 +100,11 @@ public:
 
 		uint32_t interrupt = (uint32_t)(uintptr_t)Interrupt;
 
-		X86_STORE_U32(ctx->esp.u32, interrupt);
-		X86_STORE_U32(ctx->esp.u32 + 4, (uint32_t)Interrupt->ServiceContext);
+		X86_STORE_U32(ctx.esp.u32, interrupt);
+		X86_STORE_U32(ctx.esp.u32 + 4, (uint32_t)Interrupt->ServiceContext);
 
-		ctx->esp.u32 -= 4; //in x86, the CPU always adjust the stack pointer by 4 bytes before calling a function
-		g_memory.FindFunction(funcAddr)(*ctx, g_memory.base);	//call function, if it crashes there the function was most likely not found in the map array
+		ctx.esp.u32 -= 4; //in x86, the CPU always adjust the stack pointer by 4 bytes before calling a function
+		g_memory.FindFunction(funcAddr)(ctx, g_memory.base);	//call function, if it crashes there the function was most likely not found in the map array
 	}
 private:
 	bool m_Asserted = false;
@@ -1225,9 +1224,9 @@ void RtlInitializeCriticalSection(XRTL_CRITICAL_SECTION* CritSec)
 	CritSec->OwningThread = 0;
 }
 
-void RtlEnterCriticalSection(XRTL_CRITICAL_SECTION* CritSec)
+void RtlEnterCriticalSection(X86Context& ctx, XRTL_CRITICAL_SECTION* CritSec)
 {
-	uint32_t thisThread = g_x86Context->kpcr_ptr;
+	uint32_t thisThread = ctx.kpcr_ptr;
 	assert(thisThread != NULL);
 
 	std::atomic_ref owningThread(CritSec->OwningThread);

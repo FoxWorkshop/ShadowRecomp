@@ -101,9 +101,9 @@ X86_FUNC(sub_3D5FE0)
 X86_FUNC_IMPL(__imp__sub_3D1E10);
 X86_FUNC(sub_3D1E10) {
 
-	auto StreamNumber = (uint32_t)GetHostParameter(1);
-	auto buffer = (GuestBuffer*)GetHostParameter(2, CallConvention::Stdcall, ParameterType::Pointer);
-	auto stride = (uint32_t)GetHostParameter(3);
+	auto StreamNumber = (uint32_t)GetHostParameter(ctx, 1);
+	auto buffer = (GuestBuffer*)GetHostParameter(ctx, 2, CallConvention::Stdcall, ParameterType::Pointer);
+	auto stride = (uint32_t)GetHostParameter(ctx, 3);
 
 	g_Xbox_SetStreamSource[StreamNumber].VertexBuffer = buffer;
 	g_Xbox_SetStreamSource[StreamNumber].Stride = stride;

@@ -75,7 +75,7 @@ static double DrawWindow(const ImVec2 min, const ImVec2 max, bool isAnimated, do
     return motionTime;
 }
 
-void AchievementOverlay::Draw()
+void AchievementOverlay::Draw(X86Context* ctx)
 {
     if (!AchievementOverlay::s_isVisible && CanDequeueAchievement())
     {

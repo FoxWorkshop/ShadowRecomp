@@ -37,29 +37,26 @@ static uint32_t GetBehaviorId(uint32_t player)
 }
 
 // Inlined Homing Attack Speed 1000f -> 2000f [Reloaded Phys]
-void HomingAttackSpeedMidAsmHook(X86Register& esp)
+void HomingAttackSpeedMidAsmHook(X86Context& __restrict ctx, uint8_t* base)
 {
-	auto base = g_memory.base;
-	esp.u32 -= 4;
-	X86_STORE_F32(esp.u32, Config::ReloadedMod ? 2000.0f : 1000.0f);
+	ctx.esp.u32 -= 4;
+	X86_STORE_F32(ctx.esp.u32, Config::ReloadedMod ? 2000.0f : 1000.0f);
 }
 
 // Circuit Speed Control
 // Electric::Apply @ sub_6F9E0
 // Spline::Circuit read speed @ 0x4EC5E8
-void CircuitSpeedControlMidAsmHook(X86Register& ecx)
+void CircuitSpeedControlMidAsmHook(X86Context& __restrict ctx, uint8_t* base)
 {
-	auto ctx = GetX86Context();
-	auto base = g_memory.base;
 	if (!Config::ReloadedMod)
 	{
-		ctx->xmm[0].f32[0] = X86_LOAD_F32(0x4EC5E8);
+		ctx.xmm[0].f32[0] = X86_LOAD_F32(0x4EC5E8);
 		return;
 	}
 
 	// ecx = Behavior::ElectricCircuit
 	// ecx+4 = player instance
-	uint32_t player = X86_LOAD_U32(ecx.u32 + 4);
+	uint32_t player = X86_LOAD_U32(ctx.ecx.u32 + 4);
 	uint32_t padIndex = 0;
 	for (uint32_t i = 0; i < 4; i++)
 	{
@@ -78,31 +75,30 @@ void CircuitSpeedControlMidAsmHook(X86Register& ecx)
 	{
 		speed = 400.0f;
 	}
-	ctx->xmm[0].f32[0] = speed;
+	ctx.xmm[0].f32[0] = speed;
 }
 
 // GUNMech Walker Revamp
-bool WalkerDismountAnywhereMidAsmHook()
+bool WalkerDismountAnywhereMidAsmHook(X86Context& __restrict ctx, uint8_t* base)
 {
 	return Config::ReloadedMod;
 }
 
-void WalkerHoverMoveMidAsmHook(X86Register& esi)
+void WalkerHoverMoveMidAsmHook(X86Context& __restrict ctx, uint8_t* base)
 {
 	if (!Config::ReloadedMod)
 	{
 		return;
 	}
 
-	auto base = g_memory.base;
-	if ((X86_LOAD_U8(esi.u32 + 0x104) & 0x8) == 0)
+	if ((X86_LOAD_U8(ctx.esi.u32 + 0x104) & 0x8) == 0)
 	{
 		return;
 	}
 
 	// Get the vehicle stats
-	const float friction = X86_LOAD_F32(esi.u32 + 0xE8);
-	const float driveMult = X86_LOAD_F32(esi.u32 + 0xE0);
+	const float friction = X86_LOAD_F32(ctx.esi.u32 + 0xE8);
+	const float driveMult = X86_LOAD_F32(ctx.esi.u32 + 0xE0);
 	const float walkFriction = X86_LOAD_F32(0x4721CC);
 
 	if (friction <= 0.0f || driveMult <= 0.0f || walkFriction <= 0.0f)
@@ -111,32 +107,31 @@ void WalkerHoverMoveMidAsmHook(X86Register& esi)
 	}
 
 	const float speed = driveMult / walkFriction;
-	float stickX = X86_LOAD_F32(esi.u32 + 0xF8);
-	float stickZ = X86_LOAD_F32(esi.u32 + 0x100);
+	float stickX = X86_LOAD_F32(ctx.esi.u32 + 0xF8);
+	float stickZ = X86_LOAD_F32(ctx.esi.u32 + 0x100);
 
-	X86_STORE_F32(esi.u32 + 0x28, stickX * speed * friction);
-	X86_STORE_F32(esi.u32 + 0x30, stickZ * speed * friction);
-	X86_STORE_F32(esi.u32 + 0xE4, friction);
-	X86_STORE_F32(esi.u32 + 0xE8, friction);
+	X86_STORE_F32(ctx.esi.u32 + 0x28, stickX * speed * friction);
+	X86_STORE_F32(ctx.esi.u32 + 0x30, stickZ * speed * friction);
+	X86_STORE_F32(ctx.esi.u32 + 0xE4, friction);
+	X86_STORE_F32(ctx.esi.u32 + 0xE8, friction);
 
 	// Rotation fix
-	X86_STORE_F32(esi.u32 + 0xF8, 0.0f);
-	X86_STORE_F32(esi.u32 + 0xFC, 0.0f);
-	X86_STORE_F32(esi.u32 + 0x100, 0.0f);
+	X86_STORE_F32(ctx.esi.u32 + 0xF8, 0.0f);
+	X86_STORE_F32(ctx.esi.u32 + 0xFC, 0.0f);
+	X86_STORE_F32(ctx.esi.u32 + 0x100, 0.0f);
 }
 
 // Restore EggBreaker0411 Digitize Effect
 // true skips mov [edx+0x24A], al
-bool EggBreakerDigitizeEffectMidAsmHook()
+bool EggBreakerDigitizeEffectMidAsmHook(X86Context& __restrict ctx, uint8_t* base)
 {
 	return Config::ReloadedMod;
 }
 
 // Disable Slide on B-press on ground and state extension
-bool SlideStateExtensionMidAsmHook(X86Register& eax)
+bool SlideStateExtensionMidAsmHook(X86Context& __restrict ctx, uint8_t* base)
 {
-	auto base = g_memory.base;
-	const uint32_t player = eax.u32;
+	const uint32_t player = ctx.eax.u32;
 	if (!Config::ReloadedMod || X86_LOAD_U32(player + 0x238) == 0)
 	{
 		return (X86_LOAD_U32(player + 0xA0) & 0x10) != 0;
@@ -147,20 +142,18 @@ bool SlideStateExtensionMidAsmHook(X86Register& eax)
 }
 
 // Slide State Extension - Bad Transition Bugfix
-void SlideBadTransitionMidAsmHook(X86Register& ecx)
+void SlideBadTransitionMidAsmHook(X86Context& __restrict ctx, uint8_t* base)
 {
-	if (Config::ReloadedMod && (ecx.u32 == 0xF8 || ecx.u32 == 0xF9))
+	if (Config::ReloadedMod && (ctx.ecx.u32 == 0xF8 || ctx.ecx.u32 == 0xF9))
 	{
-		ecx.u32 = 0xFA;
+		ctx.ecx.u32 = 0xFA;
 	}
 }
 
 // Slide Steer 2 -> 4
-void SlideSteerMidAsmHook()
+void SlideSteerMidAsmHook(X86Context& __restrict ctx, uint8_t* base)
 {
-	auto ctx = GetX86Context();
-	auto base = g_memory.base;
-	ctx->xmm[0].f32[0] *= Config::ReloadedMod ? 4.0f : X86_LOAD_F32(0x429F74);
+	ctx.xmm[0].f32[0] *= Config::ReloadedMod ? 4.0f : X86_LOAD_F32(0x429F74);
 }
 
 static bool IsSlideHeld(uint32_t sliding)
@@ -174,28 +167,27 @@ static bool IsSlideHeld(uint32_t sliding)
 	return input != 0 && (X86_LOAD_U32(input + 0x18) & 0x60) != 0;
 }
 
-bool HoldableSlideMidAsmHook(X86Register& ebx)
+bool HoldableSlideMidAsmHook(X86Context& __restrict ctx, uint8_t* base)
 {
-	return Config::ReloadedMod && IsSlideHeld(ebx.u32);
+	return Config::ReloadedMod && IsSlideHeld(ctx.ebx.u32);
 }
 
-bool HoldableSlideReleaseMidAsmHook(X86Register& ebx)
+bool HoldableSlideReleaseMidAsmHook(X86Context& __restrict ctx, uint8_t* base)
 {
-	return Config::ReloadedMod && !IsSlideHeld(ebx.u32);
+	return Config::ReloadedMod && !IsSlideHeld(ctx.ebx.u32);
 }
 
 // TODO: Might move this as an always on patch, haven't decided, arguably its a bug
 // Fix Sliding on Steep Slopes
-bool SlideSteepSlopeMidAsmHook()
+bool SlideSteepSlopeMidAsmHook(X86Context& __restrict ctx, uint8_t* base)
 {
 	return Config::ReloadedMod;
 }
 
 // LightDash Transition Expansion
-bool LightDashTransitionMidAsmHook(X86Register& eax)
+bool LightDashTransitionMidAsmHook(X86Context& __restrict ctx, uint8_t* base)
 {
-	auto base = g_memory.base;
-	const uint32_t player = eax.u32;
+	const uint32_t player = ctx.eax.u32;
 	if ((X86_LOAD_U32(player + 0xA0) & 0x8) != 0)
 	{
 		return true;
@@ -211,184 +203,164 @@ bool LightDashTransitionMidAsmHook(X86Register& eax)
 }
 
 // LightDash Exit State Change to Launched for Westopolis
-void LightDashExitStateMidAsmHook(X86Register& esp)
+void LightDashExitStateMidAsmHook(X86Context& __restrict ctx, uint8_t* base)
 {
-	auto base = g_memory.base;
 	if (!Config::ReloadedMod || X86_LOAD_U32(g_currentStageId) != 100)
 	{
-		X86_STORE_U32(esp.u32 + 0x3C, BEHAVIOR_FALL);
+		X86_STORE_U32(ctx.esp.u32 + 0x3C, BEHAVIOR_FALL);
 		return;
 	}
 
 	// InitializeArgsLaunch
-	X86_STORE_U32(esp.u32 + 0x38, 0x448FAC);
-	X86_STORE_U32(esp.u32 + 0x3C, BEHAVIOR_LAUNCH);
-	X86_STORE_U32(esp.u32 + 0x40, LAUNCH_FLAG_NO_BLUR); // skydive
+	X86_STORE_U32(ctx.esp.u32 + 0x38, 0x448FAC);
+	X86_STORE_U32(ctx.esp.u32 + 0x3C, BEHAVIOR_LAUNCH);
+	X86_STORE_U32(ctx.esp.u32 + 0x40, LAUNCH_FLAG_NO_BLUR); // skydive
 }
 
 // No Radial Blur after LightDash (for the Westopolis skydive hack)
-bool LightDashSkydiveBlurDisableMidAsmHook(X86Register& esp)
+bool LightDashSkydiveBlurDisableMidAsmHook(X86Context& __restrict ctx, uint8_t* base)
 {
-	auto base = g_memory.base;
-	const uint32_t args = X86_LOAD_U32(esp.u32 + 0x1C);
+	const uint32_t args = X86_LOAD_U32(ctx.esp.u32 + 0x1C);
 	return (X86_LOAD_U32(args + 0x8) & LAUNCH_FLAG_NO_BLUR) != 0;
 }
 
 // WallRun Speed 500 -> 550
-void WallRunSpeedMidAsmHook(X86Register& esp)
+void WallRunSpeedMidAsmHook(X86Context& __restrict ctx, uint8_t* base)
 {
-	auto base = g_memory.base;
-	esp.u32 -= 4;
-	X86_STORE_F32(esp.u32, Config::ReloadedMod ? 550.0f : 500.0f);
+	ctx.esp.u32 -= 4;
+	X86_STORE_F32(ctx.esp.u32, Config::ReloadedMod ? 550.0f : 500.0f);
 }
 
 // Triangle Jump Speed 450 -> 1000
-void TriangleJumpSpeedMidAsmHook(X86Register& esp)
+void TriangleJumpSpeedMidAsmHook(X86Context& __restrict ctx, uint8_t* base)
 {
-	auto base = g_memory.base;
-	esp.u32 -= 4;
-	X86_STORE_F32(esp.u32, Config::ReloadedMod ? 1000.0f : 450.0f);
+	ctx.esp.u32 -= 4;
+	X86_STORE_F32(ctx.esp.u32, Config::ReloadedMod ? 1000.0f : 450.0f);
 }
 
 // No Tri-Jump Exit
-bool NoTriJumpExitMidAsmHook()
+bool NoTriJumpExitMidAsmHook(X86Context& __restrict ctx, uint8_t* base)
 {
 	if (!Config::ReloadedMod)
 	{
 		return false;
 	}
 
-	auto ctx = GetX86Context();
-	ctx->xmm[0].f32[0] = 0.0f;
+	ctx.xmm[0].f32[0] = 0.0f;
 	return true;
 }
 
 // Walk Turn Speed 15 -> 20
-void WalkTurnSpeedMidAsmHook(X86Register& esp)
+void WalkTurnSpeedMidAsmHook(X86Context& __restrict ctx, uint8_t* base)
 {
-	auto base = g_memory.base;
-	esp.u32 -= 4;
-	X86_STORE_F32(esp.u32, Config::ReloadedMod ? 20.0f : 15.0f);
+	ctx.esp.u32 -= 4;
+	X86_STORE_F32(ctx.esp.u32, Config::ReloadedMod ? 20.0f : 15.0f);
 }
 
 // No Skidding
-bool NoSkiddingMidAsmHook()
+bool NoSkiddingMidAsmHook(X86Context& __restrict ctx, uint8_t* base)
 {
 	return Config::ReloadedMod;
 }
 
 // Keep Melee Weapons when Mounting Vehicles
-bool KeepMeleeOnVehicleMidAsmHook()
+bool KeepMeleeOnVehicleMidAsmHook(X86Context& __restrict ctx, uint8_t* base)
 {
 	return Config::ReloadedMod;
 }
 
 // CarType Vehicles Revamp
-bool CarGasReleaseMidAsmHook()
+bool CarGasReleaseMidAsmHook(X86Context& __restrict ctx, uint8_t* base)
 {
 	if (!Config::ReloadedMod)
 	{
 		return false;
 	}
 
-	auto ctx = GetX86Context();
-	ctx->xmm[1].f32[0] = ctx->xmm[0].f32[0];
+	ctx.xmm[1].f32[0] = ctx.xmm[0].f32[0];
 	return true;
 }
 
-bool CarBrakeButtonMidAsmHook(X86Register& eax, X86Register& edx)
+bool CarBrakeButtonMidAsmHook(X86Context& __restrict ctx, uint8_t* base)
 {
-	auto base = g_memory.base;
-	const uint8_t held = X86_LOAD_U8(eax.u32 + edx.u32 * 8);
+	const uint8_t held = X86_LOAD_U8(ctx.eax.u32 + ctx.edx.u32 * 8);
 	return (held & (Config::ReloadedMod ? PJSPeripheral::BTN_Y : PJSPeripheral::BTN_B)) != 0;
 }
 
-bool CarRevampMidAsmHook()
+bool CarRevampMidAsmHook(X86Context& __restrict ctx, uint8_t* base)
 {
 	return Config::ReloadedMod;
 }
 
 // TODO: I may want to rework this later to drift with LB and RB, but tabling that for now
-bool CarNoDriftMidAsmHook()
+bool CarNoDriftMidAsmHook(X86Context& __restrict ctx, uint8_t* base)
 {
 	return Config::ReloadedMod;
 }
 
 // Super AirSaucer JumpStrength 100 -> 200
-void AirSaucerJumpMidAsmHook(X86Register& esp)
+void AirSaucerJumpMidAsmHook(X86Context& __restrict ctx, uint8_t* base)
 {
-	auto base = g_memory.base;
-	esp.u32 -= 4;
-	X86_STORE_F32(esp.u32, Config::ReloadedMod ? 200.0f : 100.0f);
+	ctx.esp.u32 -= 4;
+	X86_STORE_F32(ctx.esp.u32, Config::ReloadedMod ? 200.0f : 100.0f);
 }
 
 // AirSaucer Replace Second Jump with Stomp
-void AirSaucerStompMidAsmHook(X86Register& esp)
+void AirSaucerStompMidAsmHook(X86Context& __restrict ctx, uint8_t* base)
 {
-	auto base = g_memory.base;
-	esp.u32 -= 4;
-	X86_STORE_F32(esp.u32, Config::ReloadedMod ? -400.0f : 100.0f);
+	ctx.esp.u32 -= 4;
+	X86_STORE_F32(ctx.esp.u32, Config::ReloadedMod ? -400.0f : 100.0f);
 }
 
 // Heal Unit Explosion Hitbox Size 20 -> 45
-void HealUnitBlastRadiusMidAsmHook()
+void HealUnitBlastRadiusMidAsmHook(X86Context& __restrict ctx, uint8_t* base)
 {
-	auto ctx = GetX86Context();
-	auto base = g_memory.base;
-	ctx->xmm[0].f32[0] = Config::ReloadedMod ? 45.0f : X86_LOAD_F32(0x42B45C);
+	ctx.xmm[0].f32[0] = Config::ReloadedMod ? 45.0f : X86_LOAD_F32(0x42B45C);
 }
 
 // Triple Spring Origin Shift 10 -> 5
-void TripleSpringOriginMidAsmHook()
+void TripleSpringOriginMidAsmHook(X86Context& __restrict ctx, uint8_t* base)
 {
 	if (Config::ReloadedMod)
 	{
-		auto ctx = GetX86Context();
-		ctx->xmm[0].f32[0] = 5.0f;
+		ctx.xmm[0].f32[0] = 5.0f;
 	}
 }
 
 // Enemy AppearType WARP Faster Spawn 1 -> 0.25
-void EnemyWarpAppearTimeMidAsmHook()
+void EnemyWarpAppearTimeMidAsmHook(X86Context& __restrict ctx, uint8_t* base)
 {
-	auto ctx = GetX86Context();
-	auto base = g_memory.base;
-	ctx->xmm[0].f32[0] = Config::ReloadedMod ? 0.25f : X86_LOAD_F32(0x46B438);
+	ctx.xmm[0].f32[0] = Config::ReloadedMod ? 0.25f : X86_LOAD_F32(0x46B438);
 }
 
 // ElecCode Enemy Faster Movement Speed 50 -> 350
-void ElecCodeSpeedMidAsmHook(X86Register& esp)
+void ElecCodeSpeedMidAsmHook(X86Context& __restrict ctx, uint8_t* base)
 {
-	auto base = g_memory.base;
-	esp.u32 -= 4;
-	X86_STORE_F32(esp.u32, Config::ReloadedMod ? 350.0f : 50.0f);
+	ctx.esp.u32 -= 4;
+	X86_STORE_F32(ctx.esp.u32, Config::ReloadedMod ? 350.0f : 50.0f);
 }
 
 // Katana LV1 Ammo 4 -> 18
-void KatanaLv1AmmoMidAsmHook()
+void KatanaLv1AmmoMidAsmHook(X86Context& __restrict ctx, uint8_t* base)
 {
-	auto base = g_memory.base;
 	X86_STORE_U32(0x5594B0, Config::ReloadedMod ? 18 : 4);
 }
 
 // Katana LV2 Ammo 8 -> 32
-void KatanaLv2AmmoMidAsmHook()
+void KatanaLv2AmmoMidAsmHook(X86Context& __restrict ctx, uint8_t* base)
 {
-	auto base = g_memory.base;
 	X86_STORE_U32(0x5594E0, Config::ReloadedMod ? 32 : 8);
 }
 
 // SatelliteLaser LV1 Ammo 6 -> 18
-void SatelliteLaserLv1AmmoMidAsmHook()
+void SatelliteLaserLv1AmmoMidAsmHook(X86Context& __restrict ctx, uint8_t* base)
 {
-	auto base = g_memory.base;
 	X86_STORE_U32(0x559514, Config::ReloadedMod ? 18 : 6);
 }
 
 // SatelliteLaser LV2 Ammo 10 -> 30
-void SatelliteLaserLv2AmmoMidAsmHook()
+void SatelliteLaserLv2AmmoMidAsmHook(X86Context& __restrict ctx, uint8_t* base)
 {
-	auto base = g_memory.base;
 	X86_STORE_U32(0x559544, Config::ReloadedMod ? 30 : 10);
 }
 
@@ -410,127 +382,110 @@ X86_FUNC(sub_2621A0)
 }
 
 // Global Lock-On Revamp
-void LockOnShotIntervalMidAsmHook(X86Register& esi)
+void LockOnShotIntervalMidAsmHook(X86Context& __restrict ctx, uint8_t* base)
 {
 	if (!Config::ReloadedMod)
 	{
 		return;
 	}
 
-	auto base = g_memory.base;
-	X86_STORE_F32(esi.u32 + 0x54, std::max(X86_LOAD_F32(esi.u32 + 0x54) - 0.175f, 0.0f));
+	X86_STORE_F32(ctx.esi.u32 + 0x54, std::max(X86_LOAD_F32(ctx.esi.u32 + 0x54) - 0.175f, 0.0f));
 }
 
 // SolidCollision Triggers are GroundCollision
-void SolidCollisionTriggerMidAsmHook(X86Register& eax)
+void SolidCollisionTriggerMidAsmHook(X86Context& __restrict ctx, uint8_t* base)
 {
-	eax.u32 = Config::ReloadedMod ? 0x101 : 0x102;
+	ctx.eax.u32 = Config::ReloadedMod ? 0x101 : 0x102;
 }
 
 // Cannon & Lock On Weapons No Knockback
-bool WeaponNoKnockbackMidAsmHook()
+bool WeaponNoKnockbackMidAsmHook(X86Context& __restrict ctx, uint8_t* base)
 {
 	return Config::ReloadedMod;
 }
 
 // EscapePlane / EggBalloon Stat Adjustment
-bool ChaseObjNoInvulnerabilityMidAsmHook()
+bool ChaseObjNoInvulnerabilityMidAsmHook(X86Context& __restrict ctx, uint8_t* base)
 {
 	return Config::ReloadedMod;
 }
 
 // EscapePlane phase 2 600 -> 1600
-void EscapePlanePhase2MidAsmHook()
+void EscapePlanePhase2MidAsmHook(X86Context& __restrict ctx, uint8_t* base)
 {
-	auto ctx = GetX86Context();
-	auto base = g_memory.base;
-	ctx->xmm[0].f32[0] = Config::ReloadedMod ? 1600.0f : X86_LOAD_F32(0x456B0C);
+	ctx.xmm[0].f32[0] = Config::ReloadedMod ? 1600.0f : X86_LOAD_F32(0x456B0C);
 }
 
 // EscapePlane phase 3 400 -> 1000
-void EscapePlanePhase3MidAsmHook()
+void EscapePlanePhase3MidAsmHook(X86Context& __restrict ctx, uint8_t* base)
 {
-	auto ctx = GetX86Context();
-	auto base = g_memory.base;
-	ctx->xmm[0].f32[0] = Config::ReloadedMod ? 1000.0f : X86_LOAD_F32(0x44BB18);
+	ctx.xmm[0].f32[0] = Config::ReloadedMod ? 1000.0f : X86_LOAD_F32(0x44BB18);
 }
 
 // EscapePlane phase 4 200 -> 300
-void EscapePlanePhase4MidAsmHook()
+void EscapePlanePhase4MidAsmHook(X86Context& __restrict ctx, uint8_t* base)
 {
-	auto ctx = GetX86Context();
-	auto base = g_memory.base;
-	ctx->xmm[0].f32[0] = Config::ReloadedMod ? 300.0f : X86_LOAD_F32(0x449B38);
+	ctx.xmm[0].f32[0] = Config::ReloadedMod ? 300.0f : X86_LOAD_F32(0x449B38);
 }
 
 // EggBalloon phase 2 300 -> 800
-void EggBalloonPhase2MidAsmHook()
+void EggBalloonPhase2MidAsmHook(X86Context& __restrict ctx, uint8_t* base)
 {
-	auto ctx = GetX86Context();
-	auto base = g_memory.base;
-	ctx->xmm[0].f32[0] = Config::ReloadedMod ? 800.0f : X86_LOAD_F32(0x454388);
+	ctx.xmm[0].f32[0] = Config::ReloadedMod ? 800.0f : X86_LOAD_F32(0x454388);
 }
 
 // EggBalloon phase 3 200 -> 500
-void EggBalloonPhase3MidAsmHook()
+void EggBalloonPhase3MidAsmHook(X86Context& __restrict ctx, uint8_t* base)
 {
-	auto ctx = GetX86Context();
-	auto base = g_memory.base;
-	ctx->xmm[0].f32[0] = Config::ReloadedMod ? 500.0f : X86_LOAD_F32(0x449B38);
+	ctx.xmm[0].f32[0] = Config::ReloadedMod ? 500.0f : X86_LOAD_F32(0x449B38);
 }
 
 // EggBalloon phase 4 100 -> 200
-void EggBalloonPhase4MidAsmHook()
+void EggBalloonPhase4MidAsmHook(X86Context& __restrict ctx, uint8_t* base)
 {
-	auto ctx = GetX86Context();
-	auto base = g_memory.base;
-	ctx->xmm[0].f32[0] = Config::ReloadedMod ? 200.0f : X86_LOAD_F32(0x42BA7C);
+	ctx.xmm[0].f32[0] = Config::ReloadedMod ? 200.0f : X86_LOAD_F32(0x42BA7C);
 }
 
 // EggBalloon gauge 300 -> 800
-void EggBalloonGaugeMidAsmHook(X86Register& esp)
+void EggBalloonGaugeMidAsmHook(X86Context& __restrict ctx, uint8_t* base)
 {
-	auto base = g_memory.base;
-	esp.u32 -= 4;
-	X86_STORE_F32(esp.u32, Config::ReloadedMod ? 800.0f : 300.0f);
+	ctx.esp.u32 -= 4;
+	X86_STORE_F32(ctx.esp.u32, Config::ReloadedMod ? 800.0f : 300.0f);
 }
 
 // Beating Last Story unlocks Expert
-void LastStoryUnlocksExpertMidAsmHook(X86Register& esi)
+void LastStoryUnlocksExpertMidAsmHook(X86Context& __restrict ctx, uint8_t* base)
 {
 	if (Config::ReloadedMod)
 	{
-		auto base = g_memory.base;
-		X86_STORE_U8(esi.u32 + 0x16C9, 1);
+		X86_STORE_U8(ctx.esi.u32 + 0x16C9, 1);
 	}
 }
 
-bool ARankRecountMidAsmHook()
+bool ARankRecountMidAsmHook(X86Context& __restrict ctx, uint8_t* base)
 {
 	return Config::ReloadedMod;
 }
 
 // Devil Doom Boss Has No Awake Music
-void DevilDoomAwakePlayMidAsmHook(X86Register& ecx)
+void DevilDoomAwakePlayMidAsmHook(X86Context& __restrict ctx, uint8_t* base)
 {
-	auto base = g_memory.base;
 	if (Config::ReloadedMod && X86_LOAD_U32(g_currentStageId) == 710)
 	{
-		ecx.u32 = 7; // invalid (purposely skip)
+		ctx.ecx.u32 = 7; // invalid (purposely skip)
 	}
 }
 
-void DevilDoomAwakeStopMidAsmHook(X86Register& ecx)
+void DevilDoomAwakeStopMidAsmHook(X86Context& __restrict ctx, uint8_t* base)
 {
-	auto base = g_memory.base;
 	if (Config::ReloadedMod && X86_LOAD_U32(g_currentStageId) == 710)
 	{
-		ecx.u32 = 0;
+		ctx.ecx.u32 = 0;
 	}
 }
 
 // Devil Doom and The Last Way are Ranked Missions
-bool DevilDoomAndLastWayRankedMidAsmHook()
+bool DevilDoomAndLastWayRankedMidAsmHook(X86Context& __restrict ctx, uint8_t* base)
 {
 	return Config::ReloadedMod;
 }
@@ -543,40 +498,35 @@ static bool IsExpertRingLoss()
 }
 
 // Expert Ring Loss
-void ExpertRingLossMidAsmHook(X86Register& esi)
+void ExpertRingLossMidAsmHook(X86Context& __restrict ctx, uint8_t* base)
 {
 	if (IsExpertRingLoss())
 	{
-		esi.u32 = 999;
+		ctx.esi.u32 = 999;
 	}
 }
 
 // Expert ring radius 5 -> 0
-void ExpertRingRadiusMidAsmHook(X86Register& esp)
+void ExpertRingRadiusMidAsmHook(X86Context& __restrict ctx, uint8_t* base)
 {
-	auto base = g_memory.base;
-	esp.u32 -= 4;
-	X86_STORE_F32(esp.u32, IsExpertRingLoss() ? 0.0f : 5.0f);
+	ctx.esp.u32 -= 4;
+	X86_STORE_F32(ctx.esp.u32, IsExpertRingLoss() ? 0.0f : 5.0f);
 }
 
 // Expert ring lifetime 10 -> 0.8
-void ExpertRingLifetimeMidAsmHook()
+void ExpertRingLifetimeMidAsmHook(X86Context& __restrict ctx, uint8_t* base)
 {
-	auto ctx = GetX86Context();
-	auto base = g_memory.base;
-	ctx->xmm[0].f32[0] = IsExpertRingLoss() ? 0.8f : X86_LOAD_F32(0x468058);
+	ctx.xmm[0].f32[0] = IsExpertRingLoss() ? 0.8f : X86_LOAD_F32(0x468058);
 }
 
 // Expert ring blink 1.5 -> 10
-void ExpertRingBlinkMidAsmHook()
+void ExpertRingBlinkMidAsmHook(X86Context& __restrict ctx, uint8_t* base)
 {
-	auto ctx = GetX86Context();
-	auto base = g_memory.base;
-	ctx->xmm[0].f32[0] = IsExpertRingLoss() ? 10.0f : X86_LOAD_F32(0x468054);
+	ctx.xmm[0].f32[0] = IsExpertRingLoss() ? 10.0f : X86_LOAD_F32(0x468054);
 }
 
 // Disable Diablon Warp Player Function
-bool DiablonNoWarpMidAsmHook()
+bool DiablonNoWarpMidAsmHook(X86Context& __restrict ctx, uint8_t* base)
 {
 	return Config::ReloadedMod;
 }
@@ -594,32 +544,30 @@ static bool IsChaosPowerActive()
 }
 
 // SuperShadow Always Has Fully Charged Spears while ChaosPowers Active
-void ChaosSpearChargeMidAsmHook(X86Register& esp)
+void ChaosSpearChargeMidAsmHook(X86Context& __restrict ctx, uint8_t* base)
 {
 	if (IsChaosPowerActive())
 	{
-		auto base = g_memory.base;
-		X86_STORE_F32(esp.u32 + 0x14, 1.0f);
+		X86_STORE_F32(ctx.esp.u32 + 0x14, 1.0f);
 	}
 }
 
-bool ChaosSpearMaxChargeMidAsmHook()
+bool ChaosSpearMaxChargeMidAsmHook(X86Context& __restrict ctx, uint8_t* base)
 {
 	return IsChaosPowerActive();
 }
 
-bool ChaosSpearChargedVoiceMidAsmHook()
+bool ChaosSpearChargedVoiceMidAsmHook(X86Context& __restrict ctx, uint8_t* base)
 {
 	return IsChaosPowerActive();
 }
 
 // The Last Way Inclusive Scoring
-void LastWayInclusiveScoringMidAsmHook(X86Register& esi, X86Register& ecx)
+void LastWayInclusiveScoringMidAsmHook(X86Context& __restrict ctx, uint8_t* base)
 {
-	auto base = g_memory.base;
 	if (Config::ReloadedMod && X86_LOAD_U32(g_currentStageId) == 700)
 	{
-		X86_STORE_U32(esi.u32, X86_LOAD_U32(esi.u32) + ecx.u32);
+		X86_STORE_U32(ctx.esi.u32, X86_LOAD_U32(ctx.esi.u32) + ctx.ecx.u32);
 	}
 }
 
@@ -629,26 +577,22 @@ static bool CountsAsARank(uint32_t rank)
 }
 
 // S Rank System
-bool SRankSystemMidAsmHook(X86Register& rank)
-{
-	return CountsAsARank(rank.u32);
-}
+bool SRankSystemEcxMidAsmHook(X86Context& __restrict ctx, uint8_t* base) { return CountsAsARank(ctx.ecx.u32); }
+bool SRankSystemEaxMidAsmHook(X86Context& __restrict ctx, uint8_t* base) { return CountsAsARank(ctx.eax.u32); }
 
-bool SRankSystemMemMidAsmHook(X86Register& ebp)
+bool SRankSystemMemMidAsmHook(X86Context& __restrict ctx, uint8_t* base)
 {
-	auto base = g_memory.base;
-	return CountsAsARank(X86_LOAD_U32(ebp.u32));
+	return CountsAsARank(X86_LOAD_U32(ctx.ebp.u32));
 }
 
 // Select Mode cursor no reset
-bool SelectModeCursorNoResetMidAsmHook()
+bool SelectModeCursorNoResetMidAsmHook(X86Context& __restrict ctx, uint8_t* base)
 {
 	if (!Config::ReloadedMod)
 	{
 		return false;
 	}
 
-	auto base = g_memory.base;
 	if (X86_LOAD_U32(0x5285E4) == 0 && X86_LOAD_U32(0x5285E8) == 0)
 	{
 		X86_STORE_U32(0x5285E8, 2);
@@ -657,71 +601,69 @@ bool SelectModeCursorNoResetMidAsmHook()
 }
 
 // Life System Modifier
-bool LifeCounterFloorMidAsmHook(X86Register& eax)
+bool LifeCounterFloorMidAsmHook(X86Context& __restrict ctx, uint8_t* base)
 {
-	return static_cast<int32_t>(eax.u32) <= (Config::ReloadedMod ? 1 : 0);
+	return static_cast<int32_t>(ctx.eax.u32) <= (Config::ReloadedMod ? 1 : 0);
 }
 
-void LifeRestartMidAsmHook(X86Register& esp)
+void LifeRestartMidAsmHook(X86Context& __restrict ctx, uint8_t* base)
 {
-	auto base = g_memory.base;
-	esp.u32 -= 4;
-	X86_STORE_U32(esp.u32, Config::ReloadedMod ? 0 : UINT32_MAX);
+	ctx.esp.u32 -= 4;
+	X86_STORE_U32(ctx.esp.u32, Config::ReloadedMod ? 0 : UINT32_MAX);
 }
 
-bool EggDealerLifeEasterEggMidAsmHook(X86Register& eax)
+bool EggDealerLifeEasterEggMidAsmHook(X86Context& __restrict ctx, uint8_t* base)
 {
-	if (eax.u32 != (Config::ReloadedMod ? 1u : 0u))
+	if (ctx.eax.u32 != (Config::ReloadedMod ? 1u : 0u))
 	{
 		return false;
 	}
-	eax.u32 = 0; // enable easter egg
+	ctx.eax.u32 = 0; // enable easter egg
 	return true;
 }
 
 // Respawn at last activated checkpoint
-bool RespawnLastCheckpointMidAsmHook()
+bool RespawnLastCheckpointMidAsmHook(X86Context& __restrict ctx, uint8_t* base)
 {
 	return Config::ReloadedMod;
 }
 
 // Time Bonus Penalty Always Active
-bool TimeBonusPenaltyMidAsmHook()
+bool TimeBonusPenaltyMidAsmHook(X86Context& __restrict ctx, uint8_t* base)
 {
 	return Config::ReloadedMod;
 }
 
 // In Stage Missions Unlocked (always switchable)
-void InStageMissionsAlwaysUnlockedSwitchableMidAsmHook(X86Register& esi)
+void InStageMissionsAlwaysUnlockedSwitchableMidAsmHook(X86Context& __restrict ctx, uint8_t* base)
 {
 	if (Config::ReloadedMod)
 	{
-		auto base = g_memory.base;
-		X86_STORE_U8(esi.u32 + 0x14, 1);
+		X86_STORE_U8(ctx.esi.u32 + 0x14, 1);
 	}
 }
 
 // Mission Focus
 static bool s_missionFocus = false;
 
-void MissionFocusDpadMidAsmHook(X86Register& eax)
+void MissionFocusDpadMidAsmHook(X86Context& __restrict ctx, uint8_t* base)
 {
 	if (!Config::ReloadedMod)
 	{
 		return;
 	}
 
-	if (eax.u32 & 0x1000) // d-pad up
+	if (ctx.eax.u32 & 0x1000) // d-pad up
 	{
 		s_missionFocus = false;
 	}
-	else if (eax.u32 & 0xE00) // any other d-pad
+	else if (ctx.eax.u32 & 0xE00) // any other d-pad
 	{
 		s_missionFocus = true;
 	}
 }
 
-void MissionFocusPauseMidAsmHook()
+void MissionFocusPauseMidAsmHook(X86Context& __restrict ctx, uint8_t* base)
 {
 	if (Config::ReloadedMod)
 	{
@@ -729,18 +671,18 @@ void MissionFocusPauseMidAsmHook()
 	}
 }
 
-void MissionFocusClearMidAsmHook()
+void MissionFocusClearMidAsmHook(X86Context& __restrict ctx, uint8_t* base)
 {
 	s_missionFocus = false;
 }
 
-bool MissionFocusSkipMidAsmHook()
+bool MissionFocusSkipMidAsmHook(X86Context& __restrict ctx, uint8_t* base)
 {
 	return Config::ReloadedMod && s_missionFocus;
 }
 
 // Music Update Ending Tracks and Lava Shelter Boss
-void MusicUpdateEndingTracksMidAsmHook(X86Register& eax)
+void MusicUpdateEndingTracksMidAsmHook(X86Context& __restrict ctx, uint8_t* base)
 {
 	if (!Config::ReloadedMod)
 	{
@@ -750,8 +692,7 @@ void MusicUpdateEndingTracksMidAsmHook(X86Register& eax)
 	static const uint32_t vox07 = AllocGuestString("sng_vox07.adx");
 	static const uint32_t stg0613 = AllocGuestString("sng_stg0613.adx");
 
-	auto base = g_memory.base;
-	const int32_t stage = eax.i32;
+	const int32_t stage = ctx.eax.i32;
 
 	// ending different songs
 	if (stage < 614)
@@ -770,15 +711,14 @@ void MusicUpdateEndingTracksMidAsmHook(X86Register& eax)
 }
 
 // Expert Ending SFD Overrides
-void ExpertEndingMidAsmHook(X86Register& eax)
+void ExpertEndingMidAsmHook(X86Context& __restrict ctx, uint8_t* base)
 {
 	if (!Config::ReloadedMod)
 	{
 		return;
 	}
 
-	auto base = g_memory.base;
-	const bool expert = eax.u32 == 6;
+	const bool expert = ctx.eax.u32 == 6;
 
 	// sng_EV_music3 -> sng_EV_music4
 	X86_STORE_U8(0x446DA0, expert ? '4' : '3');
@@ -802,14 +742,13 @@ void ExpertEndingMidAsmHook(X86Register& eax)
 }
 
 // Ghost Red Rings (gdt -> gd2)
-void GhostRedRingsGDTRedirectMidAsmHook()
+void GhostRedRingsGDTRedirectMidAsmHook(X86Context& __restrict ctx, uint8_t* base)
 {
 	if (!Config::ReloadedMod)
 	{
 		return;
 	}
 
-	auto base = g_memory.base;
 	bool allCollected = true;
 	for (uint32_t i = 0; i < 5; i++)
 	{
@@ -827,15 +766,14 @@ void GhostRedRingsGDTRedirectMidAsmHook()
 	}
 }
 
-bool GhostRedRingsSaveSkipMidAsmHook(X86Register& ecx)
+bool GhostRedRingsSaveSkipMidAsmHook(X86Context& __restrict ctx, uint8_t* base)
 {
 	if (!Config::ReloadedMod)
 	{
 		return false;
 	}
 
-	auto base = g_memory.base;
-	const uint32_t save = ecx.u32 + X86_LOAD_U32(0x54DDDC) * 0x60 + 0xF4;
+	const uint32_t save = ctx.ecx.u32 + X86_LOAD_U32(0x54DDDC) * 0x60 + 0xF4;
 	for (uint32_t i = 0; i < 5; i++)
 	{
 		const uint32_t ring = X86_LOAD_U32(0x54CD0C + i * 4);
@@ -850,9 +788,9 @@ bool GhostRedRingsSaveSkipMidAsmHook(X86Register& ecx)
 // Last Way & Devil Doom in Select Menu
 // TODO: Probably make this a code too, nice to have for vanilla shadow too
 // TODO: Maybe later we can actually expand this with imgui or a csd edit
-bool SelectMenuExpansionMidAsmHook(X86Register& esi, X86Register& edi)
+bool SelectMenuExpansionMidAsmHook(X86Context& __restrict ctx, uint8_t* base)
 {
-	return Config::ReloadedMod && esi.u32 == 5 && edi.u32 == 5;
+	return Config::ReloadedMod && ctx.esi.u32 == 5 && ctx.edi.u32 == 5;
 }
 
 // Melee Weapon Core Revamp
@@ -877,7 +815,7 @@ static uint32_t GetReloadedMeleePad(uint32_t player)
 	return pad;
 }
 
-static bool HasMeleeWeapon(uint32_t player)
+static bool HasMeleeWeapon(const X86Context& ctx, uint32_t player)
 {
 	auto base = g_memory.base;
 	const uint32_t weapon = X86_LOAD_U32(player + 0x238);
@@ -888,30 +826,28 @@ static bool HasMeleeWeapon(uint32_t player)
 
 	// Type 5 is melee in pWeapon
 	const uint32_t getType = X86_LOAD_U32(X86_LOAD_U32(weapon) + 0x18);
-	return GuestToHostFunction<uint32_t, CallConvention::Thiscall>(getType, weapon) == 5;
+	return GuestToHostFunction<uint32_t, CallConvention::Thiscall>(ctx, getType, weapon) == 5;
 }
 
 // RB to toggle reloaded mode (per pad)
-void MeleeModeToggleMidAsmHook(X86Register& edx)
+void MeleeModeToggleMidAsmHook(X86Context& __restrict ctx, uint8_t* base)
 {
-	auto base = g_memory.base;
-	const uint32_t slot = (edx.u32 - 0x541A68) / 0x2C;
-	if (Config::ReloadedMod && edx.u32 >= 0x541A68 && slot < 4 && (X86_LOAD_U32(edx.u32 + 0x8) & 0xFF) == PJSPeripheral::BTN_BLACK)
+	const uint32_t slot = (ctx.edx.u32 - 0x541A68) / 0x2C;
+	if (Config::ReloadedMod && ctx.edx.u32 >= 0x541A68 && slot < 4 && (X86_LOAD_U32(ctx.edx.u32 + 0x8) & 0xFF) == PJSPeripheral::BTN_BLACK)
 	{
 		s_reloadedMelee[slot] = !s_reloadedMelee[slot];
 	}
 }
 
 // hit count locked to 1 per coli hit
-bool MeleeHitCountMidAsmHook(X86Register& esi)
+bool MeleeHitCountMidAsmHook(X86Context& __restrict ctx, uint8_t* base)
 {
 	if (!Config::ReloadedMod)
 	{
 		return false;
 	}
 
-	auto base = g_memory.base;
-	X86_STORE_U32(esi.u32 + 0x40, 1);
+	X86_STORE_U32(ctx.esi.u32 + 0x40, 1);
 	return true;
 }
 
@@ -922,23 +858,22 @@ static bool IsMeleeRehitWaiting(float time, float next)
 }
 
 // black knight mode (ignore per collision rules)
-bool MeleeRehitMidAsmHook(X86Register& eax, X86Register& attacker, X86Register& defender)
+bool MeleeRehitMidAsmHook(X86Context& __restrict ctx, uint8_t* base)
 {
-	if (!Config::ReloadedMod || eax.u8_lo == 0)
+	if (!Config::ReloadedMod || ctx.eax.u8_lo == 0)
 	{
 		return false;
 	}
 
-	auto base = g_memory.base;
 	const float time = X86_LOAD_F32(0x54DDC4);
-	auto it = s_meleeRehitTimes.find(attacker.u32);
+	auto it = s_meleeRehitTimes.find(ctx.esi.u32);
 	if (it != s_meleeRehitTimes.end() && IsMeleeRehitWaiting(time, it->second))
 	{
 		return false;
 	}
 
 	std::erase_if(s_meleeRehitTimes, [time](const auto& entry) { return !IsMeleeRehitWaiting(time, entry.second); });
-	s_meleeRehitTimes[attacker.u32] = time + 0.1f;
+	s_meleeRehitTimes[ctx.esi.u32] = time + 0.1f;
 	return true;
 }
 
@@ -948,37 +883,35 @@ X86_FUNC(sub_897A0)
 {
 	const uint32_t player = X86_LOAD_U32(X86_LOAD_U32(ctx.ecx.u32 + 0x28));
 	__imp__sub_897A0(ctx, base);
-	if (ctx.eax.u8_lo == 0 && GetReloadedMeleePad(player) && HasMeleeWeapon(player))
+	if (ctx.eax.u8_lo == 0 && GetReloadedMeleePad(player) && HasMeleeWeapon(ctx, player))
 	{
 		ctx.eax.u8_lo = 1;
 	}
 }
 
 // reloaded melee ignore motion collision flag
-bool MeleeMotionColliMidAsmHook(X86Register& eax, X86Register& edi)
+bool MeleeMotionColliMidAsmHook(X86Context& __restrict ctx, uint8_t* base)
 {
-	auto base = g_memory.base;
-	return eax.u32 == 5 && GetReloadedMeleePad(X86_LOAD_U32(edi.u32 + 0x58));
+	return ctx.eax.u32 == 5 && GetReloadedMeleePad(X86_LOAD_U32(ctx.edi.u32 + 0x58));
 }
 
 // reloaded melee X + LT rapid attack
-void MeleeRapidMotionMidAsmHook(X86Register& esi, X86Register& edi)
+void MeleeRapidMotionMidAsmHook(X86Context& __restrict ctx, uint8_t* base)
 {
-	auto base = g_memory.base;
-	const uint32_t player = X86_LOAD_U32(esi.u32 + 0x58);
+	const uint32_t player = X86_LOAD_U32(ctx.esi.u32 + 0x58);
 	const uint32_t pad = GetReloadedMeleePad(player);
-	if (!pad || !HasMeleeWeapon(player) || (X86_LOAD_U32(pad) & 0xFFFF) != (PJSPeripheral::BTN_X | PJSPeripheral::BTN_LEFT_TRIG))
+	if (!pad || !HasMeleeWeapon(ctx, player) || (X86_LOAD_U32(pad) & 0xFFFF) != (PJSPeripheral::BTN_X | PJSPeripheral::BTN_LEFT_TRIG))
 	{
 		return;
 	}
 
-	if (edi.u32 == 4)
+	if (ctx.edi.u32 == 4)
 	{
-		const float speed = X86_LOAD_F32(esi.u32 + 0x43C) * 2.0f;
-		X86_STORE_F32(esi.u32 + 0x43C, speed * speed);
+		const float speed = X86_LOAD_F32(ctx.esi.u32 + 0x43C) * 2.0f;
+		X86_STORE_F32(ctx.esi.u32 + 0x43C, speed * speed);
 	}
-	X86_STORE_U32(esi.u32 + 0x420, 0x89);
-	X86_STORE_U32(esi.u32 + 0x424, UINT32_MAX);
+	X86_STORE_U32(ctx.esi.u32 + 0x420, 0x89);
+	X86_STORE_U32(ctx.esi.u32 + 0x424, UINT32_MAX);
 }
 
 static uint32_t FindMtpEntry(uint32_t mtp, const char* name)

@@ -52,6 +52,15 @@ if (SHADOW_RECOMP_ARCHITECTURE STREQUAL "x86_64" OR SHADOW_RECOMP_ARCHITECTURE S
     )
 endif()
 
+# Sewer says: Don't clear used registers before every return.
+# Some toolchains (e.g. Nix's clang wrapper) turn this on by default.
+# It adds a few `xor`s to every function: ~1.8% code size, with only speed loss.
+include(CheckCXXCompilerFlag)
+check_cxx_compiler_flag(-fzero-call-used-regs=skip SHADOW_RECOMP_HAS_ZERO_CALL_USED_REGS)
+if (SHADOW_RECOMP_HAS_ZERO_CALL_USED_REGS)
+    add_compile_options($<$<COMPILE_LANGUAGE:C,CXX>:-fzero-call-used-regs=skip>)
+endif()
+
 
 add_subdirectory(${SHADOW_RECOMP_THIRDPARTY_ROOT})
 add_subdirectory(${SHADOW_RECOMP_TOOLS_ROOT})

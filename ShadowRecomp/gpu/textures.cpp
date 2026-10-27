@@ -719,8 +719,8 @@ X86_FUNC(sub_2DF870)
 X86_FUNC_IMPL(__imp__sub_40B363);
 X86_FUNC(sub_40B363)
 {
-	auto textureData = GetHostParameter(4, CallConvention::Stdcall, ParameterType::Pointer);
-	auto bytesPerPixel = GetHostParameter(8, CallConvention::Stdcall, ParameterType::Integer);
+	auto textureData = GetHostParameter(ctx, 4, CallConvention::Stdcall, ParameterType::Pointer);
+	auto bytesPerPixel = GetHostParameter(ctx, 8, CallConvention::Stdcall, ParameterType::Integer);
 
 	__imp__sub_40B363(ctx, base);
 

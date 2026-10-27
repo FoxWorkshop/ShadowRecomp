@@ -259,17 +259,15 @@ FileHandle* XCreateFile_r(const char* SourceString, ULONG CreateDisposition, ULO
 
 // Because the game call ntCreateFile for save file creation and we don't have it implemented, we use a mid asm hook
 // to redirect it to XCreateFile instead.
-void CreateSaveMetaMidAsmHook()
+void CreateSaveMetaMidAsmHook(X86Context& __restrict ctx, uint8_t* base)
 {
-	auto ctx = GetX86Context();
-	ctx->esp.u32 -= 4; // adjust esp to simulate guest call instruction that was skipped from ntCreateFile hook
-	auto base = g_memory.base;
+	ctx.esp.u32 -= 4; // adjust esp to simulate guest call instruction that was skipped from ntCreateFile hook
 
 	// The hook is right when the game is about to call ntCreateFile so we can safely pull the parameters at the same region than ntCreateFile
-	auto ObjectAttributes_ = GetHostParameter(3, CallConvention::Stdcall);
-	auto DesiredAccess = GetHostParameter(2, CallConvention::Stdcall);
-	auto ShareAccess = GetHostParameter(7, CallConvention::Stdcall);
-	auto FileHandlePtr = (uint32_t*)GetHostParameter(1, CallConvention::Stdcall, ParameterType::Pointer);
+	auto ObjectAttributes_ = GetHostParameter(ctx, 3, CallConvention::Stdcall);
+	auto DesiredAccess = GetHostParameter(ctx, 2, CallConvention::Stdcall);
+	auto ShareAccess = GetHostParameter(ctx, 7, CallConvention::Stdcall);
+	auto FileHandlePtr = (uint32_t*)GetHostParameter(ctx, 1, CallConvention::Stdcall, ParameterType::Pointer);
 
 	// Get the string that contains the path destination for the file
 	auto ObjectAttributesAddr = X86_LOAD_U32(ObjectAttributes_ + 4);
@@ -281,7 +279,7 @@ void CreateSaveMetaMidAsmHook()
 
 	*FileHandlePtr = g_memory.MapVirtual(newFileHandle);
 
-	ctx->esp.u32 += (4 * 9) + 4; // re adjust esp to simulate guest function clean up (clear 9 params + ret instruction)
+	ctx.esp.u32 += (4 * 9) + 4; // re adjust esp to simulate guest function clean up (clear 9 params + ret instruction)
 }
 
 uint32_t XReadFile_r(FileHandle* Handle, void* buffer, int length, uint32_t* bytesRead, XOVERLAPPED* overLapped)
