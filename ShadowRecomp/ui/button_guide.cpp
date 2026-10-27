@@ -152,7 +152,7 @@ static void DrawGuide(float* offset, ImVec2 regionMin, ImVec2 regionMax, EButton
     SetScale({ textScale, 1.0f });
     SetOrigin(textPos);
 
-    DrawTextWithOutline(g_fntDFPZong, fontSize, textPos, IM_COL32_WHITE, text, 4, IM_COL32_BLACK);
+    DrawTextWithOutline(g_fntDFPZong, fontSize, textPos, IM_COL32(204, 204, 204, 255), text, 4, IM_COL32_BLACK);
 
     SetScale({ 1.0f, 1.0f });
     SetOrigin({ 0.0f, 0.0f });

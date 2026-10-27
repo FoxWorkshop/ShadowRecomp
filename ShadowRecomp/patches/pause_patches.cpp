@@ -367,7 +367,7 @@ void DrawPauseText()
 	for (uint8_t i = 0; i < itemCount; i++)
 	{
 		uint8_t selection = items[i];
-		uint8_t color = selection == s_index ? 255 : 127;
+		uint8_t color = selection == s_index ? 255 : 150;
 		AddTextCentered(drawList, g_fntDFPZong, fontSize,
 			res.x / 2.0f,
 			startY + i * spacing + rowOffsetY,
