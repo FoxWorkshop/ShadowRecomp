@@ -1,9 +1,15 @@
 #pragma once
 
-inline std::array<const char*, 4> g_credits =
+inline std::array<const char*, 10> g_credits =
 {
     "Sora",
-    "Dreamsyntax",
-    "Donut",
+    "dreamsyntax",
     "Sewer56",
+    "Donut",
+    "TheHatedGravity",
+    "Deep-Sea Berry",
+    "Rawlins",
+    "DarkShadow17",
+    "The Spectral Star",
+    "Jesus_PK",
 };
