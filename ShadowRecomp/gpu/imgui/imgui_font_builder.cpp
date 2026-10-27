@@ -205,6 +205,7 @@ static bool FontBuilder_Build(ImFontAtlas* atlas)
     packer.dimensionsConstraint = msdf_atlas::DimensionsConstraint::POWER_OF_TWO_RECTANGLE;
     packer.miterLimit = 1.0;
     packer.pxRange = 8.0;
+    packer.scale = 1.7725;
     packer.pack(glyphs.data(), glyphs.size(), customRects.data(), customRects.size());
 
     for (size_t i = 0; i < customRects.size(); i++)
