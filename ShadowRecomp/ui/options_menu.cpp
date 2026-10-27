@@ -1954,10 +1954,10 @@ static void DrawOptions(ImVec2 minClipRect, ImVec2 maxClipRect, ImVec2 min, ImVe
 		}
 
 		DrawOption(rowCount++, &Config::MasterVolume, true, min, max);
-		DrawOption(rowCount++, &Config::MusicVolume, true, min, max);
-		DrawOption(rowCount++, &Config::EffectsVolume, true, min, max);
-		DrawOption(rowCount++, &Config::VoicesVolume, true, min, max);
-		DrawOption(rowCount++, &Config::CutsceneVolume, true, min, max);
+		DrawOption(rowCount++, &Config::MusicVolume, true, min, max, nullptr, 0.0f, 1.0f, 1.5f);
+		DrawOption(rowCount++, &Config::EffectsVolume, true, min, max, nullptr, 0.0f, 1.0f, 1.5f);
+		DrawOption(rowCount++, &Config::VoicesVolume, true, min, max, nullptr, 0.0f, 1.0f, 1.5f);
+		DrawOption(rowCount++, &Config::CutsceneVolume, true, min, max, nullptr, 0.0f, 1.0f, 1.5f);
 		DrawOption(rowCount++, &Config::MusicAttenuation, os::media::IsSupported(), min, max, &Localise("Options_Desc_OSNotSupported"));
 		DrawOption(rowCount++, &Config::MuteOnFocusLost, true, min, max);
 		DrawOption(rowCount++, &Config::IdleChaosPowersMusic, !OptionsMenu::s_isPause, min, max, cmnReason);

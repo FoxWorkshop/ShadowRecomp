@@ -39,6 +39,18 @@ static float GetMasterVolume()
 	return Config::MasterVolume.Value;
 }
 
+static float SoftClip(float sample)
+{
+	constexpr float knee = 0.8f;
+	constexpr float headroom = 1.0f - knee;
+	const float magnitude = fabsf(sample);
+	if (magnitude <= knee)
+	{
+		return sample;
+	}
+	return copysignf(knee + headroom * tanhf((magnitude - knee) / headroom), sample);
+}
+
 // IsndADX::CreateTask (sub_25CEA0)
 // 2 TObjBGM (music, jingles)
 // 2 TObjSERIF (voices)
@@ -1151,7 +1163,7 @@ void SHTHR_SOUNDDEVICE_Impl::Mix(SDL_AudioStream* stream, int size)
 				continue;
 			}
 
-			const float gain = std::min(result.mixVolume * GetMasterVolume(), 1.0f);
+			const float gain = result.mixVolume * GetMasterVolume();
 			const auto* samples = reinterpret_cast<const float*>(mSourceBuffer.data());
 			const int count = result.bytesRead / int(sizeof(float));
 			for (int i = 0; i < count; i++)
@@ -1163,7 +1175,7 @@ void SHTHR_SOUNDDEVICE_Impl::Mix(SDL_AudioStream* stream, int size)
 
 	for (auto& sample : mMixBuffer)
 	{
-		sample = std::clamp(sample, -1.0f, 1.0f);
+		sample = SoftClip(sample);
 	}
 	SDL_PutAudioStreamData(stream, mMixBuffer.data(), size);
 }
