@@ -1221,6 +1221,9 @@ void InstallerWizard::Draw()
 		break;
 	}
 	}
+
+
+	DrawVersionString(g_fntSeurat, IM_COL32(255, 255, 255, (int)(70)));
 }
 
 void InstallerWizard::Shutdown()
