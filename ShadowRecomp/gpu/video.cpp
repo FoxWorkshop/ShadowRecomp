@@ -6412,6 +6412,7 @@ static void SetViewport(GuestViewport* viewport, GuestSurface* surface)
 // So we let the code run instead, then copy each header into a host surface which we will give to the guest device directly.
 static constexpr uint32_t GuestDeviceBackBufferOffset = 0x1A14;
 static constexpr uint32_t GuestDeviceAutoDepthOffset = 0x1A20;
+static constexpr uint32_t GuestDeviceZScaleOffset = 0x948;
 
 static void ReplaceDeviceSurface(uint32_t device, uint32_t offset, GuestSurface* newSurface)
 {
@@ -6466,11 +6467,17 @@ void D3DDevice_SetRenderTarget(GuestSurface* surface, GuestSurface* pNewZStencil
 	GuestSurface* newSurface = surface;
 	GuestSurface* newDepthStencil = pNewZStencil;
 
-	// The currenct depth stencil is always replaced by whats passed in here (even a null)
-	g_ZScale = GetZScaleForPixelContainer(pNewZStencil != nullptr ? (X_D3DPixelContainer*)&pNewZStencil->guestResource : nullptr);
-
 	__imp__sub_3D0040(*ctx, base);
-	ctx->esp.u32 -= 12;
+	ctx->SubEsp(3); 
+
+	// The game calls this function with no depth buffer for render target composites.
+	// The previous code here was making g_ZScale fallback to 1.0 in that case. After that, the shader was doing the math
+	// z * 16777215 / 1 which made any value above 0 went way paste 1, resulting to no geometry visible in-game.
+	// Rather than hardcode a cap on the shader like before, we can fall back to the old code only if g_ZScale is 0 or less.
+	
+	g_ZScale = X86_LOAD_F32(device + GuestDeviceZScaleOffset);
+	if (g_ZScale <= 0.0f)
+		g_ZScale = GetZScaleForPixelContainer(pNewZStencil != nullptr ? (X_D3DPixelContainer*)&pNewZStencil->guestResource : nullptr);
 
 	RenderCommand cmd;
 	cmd.type = RenderCommandType::SetRenderTarget;

@@ -60,30 +60,19 @@ VS_OUTPUT main(VS_INPUT xIn)
 	init_v(8);init_v(9);init_v(10);init_v(11);
 	init_v(12);init_v(13);init_v(14);init_v(15);
     
-    float resolution_Width = UserInfo.x;
-    float resolution_Height = UserInfo.y;
-    
-    if (UserInfo.z > 0 && resolution_Width > 0 && resolution_Height > 0)
-    {
-       /* if (v0.x < resolution_Width)
-            v0.x = (v0.x / 640.0f) * resolution_Width;
-    
-        if (v0.y < resolution_Height)
-            v0.y = (v0.y / 480.0f) * resolution_Height;*/
-    }
-    
-    
-
     // For some reason, some vertex for 2D elements have their position w set to an absurdly high number
+    // (This is the result of RenderWare doing the math: 1 / RwIm2DGetNearScreenZ())
 	// while Xbox may not care about this, modern api definitely do, so we have to fix this
 	// this isn't a recomp instruction bug, I checked on CXBX Reloaded and logged the values, pos.w is supposed to be high.
-	// for what I saw, message box have it set to inf, while fadeout and credits text have them around 10.f.
-    
-    if (isinf(v0.w) || isnan(v0.w) || v0.w > 1.f)
+	// for what I saw, message box have it set to inf, while fadeout and credits text have their entry around 10.f.
+
+   // if (isinf(v0.w) || isnan(v0.w) || v0.w > 1.f)
+
+    if ((asuint(v0.w) & 0x7F800000) == 0x7F800000)
     {
         v0.w = 1.f;
     }
-
+    
     
 	// Temp variable for paired VS instruction
     float4 temp;
@@ -103,12 +92,7 @@ VS_OUTPUT main(VS_INPUT xIn)
 
     
     xOut.oPos = reverseScreenspaceTransform(oPos);
-    
-    
-    
-    //ensure depth is clamped to [0, 1] this fix a bug that prevent geometry to show up in the game due to RT composite shenanigans.
-    if (xOut.oPos.z > 1.0f)
-        xOut.oPos.z = 1.0f;
+       
         
     xOut.oD0 = saturate(oD0);
     xOut.oD1 = saturate(oD1);
