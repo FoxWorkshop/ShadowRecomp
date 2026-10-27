@@ -4,9 +4,6 @@
 
 ---
 
-> [!CAUTION]
-> This recompilation is still under active development, expect bugs and crashes.
-
 Shadow Recompiled is an unofficial PC port of the original Xbox version of Shadow the Hedgehog (2005) created through the process of static recompilation.
 The port supports Windows and Linux.
 
@@ -38,7 +35,7 @@ The development of that recompiler was directly inspired by [XenonRecomp](https:
     - 8 GB minimum
 - Operating System:
     - Windows 10 (version 1909)
-    - A modern Linux distro such as Ubuntu 22.04 LTS
+    - A modern Linux distro (or one with flatpak support)
 - Storage:
     - 2.4 GiB required
 
@@ -56,7 +53,7 @@ Get access to many quality of life features and graphics options directly in-gam
 
 ### Widescreen and Ultrawide Support
 
-Aspect ratios for 16:9 and 16:10, as well as ultrawide displays (such as 21:9 or even wider) are supported with options to adjust the alignment of the UI to a very specific area, if desired.
+Aspect ratios for 16:9 and 16:10, as well as ultrawide displays (such as 21:9 or even wider) are supported with options to adjust the alignment of the UI.
 
 ### High Frame Rate Support
 
@@ -66,15 +63,16 @@ Cutscenes have also an option to play at unlocked frame rate.
 ### Enhancements
 
 Extra care and attention was taken to make the experience the best as possible:
-- The Bloom has been overhauled to fixes many issues such as not covering the whole screen, visual bottom artifacts and extra dark band / box visibe on the screen.
-- Edge Artifacts that is present on the left edge on every version of the game has been completely fixed.
+- Bloom has been overhauled to fixes many issues such as not covering the whole screen, bottom artifacts, and extra dark band / box blending on the screen.
+- Sound effect limits are expanded to fix sound cutting off in areas with many sound effects.
+- Edge artifacts that are in every version of the game has been completely fixed.
 - Shadow's shoes have been patched to restore the use of 4 Jet Effects instead of 3.
 - Cutscenes can always be skipped even if you never watched them before.
-- Animated Textures which normally have a chance to not work have been fixed.
-- Many audio issues exclusive to the Xbox port have been fixed (distance, loop etc.).
 - Player 2 can now properly control the Partner on the screen like on the others versions of the game.
-- Some issues with gravity such as landing or spin dashing have been fixed.
-- Various minor graphics glitches like transparency issues and white flash have been fixed.
+- Animated textures which normally have a chance to not work in every version of the game have been fixed.
+- Space Gadget's gravity system has been updated to fix wrong rotation issues, fixing the infamous inverted Spin Dash, slide, and landing flip bugs.
+- Many audio issues exclusive to the Xbox port have been fixed (distance, loop etc.).
+- Various minor graphics glitches like transparency issues and the Xbox exclusive 'white flash' on object load-in have been fixed.
 
 ### Achievements
 
@@ -100,6 +98,14 @@ Before reporting any issues, check if they are listed [here](https://github.com/
 
 **You cannot use the files from the GameCube or PlayStation 2 version of the game.** Supporting these files would require an entirely new recompilation to handle all the differences.
 
+### Why are there line breaks on some of the UI?
+
+Shadow was designed for 480p, and unfortuntely defects in the art are exasperated at higher resolutions. This is not a bug, please do not open an issue about this. We use the original files the game ships with. You will need to use a HD GUI mod to fix these defects.
+
+### Why are some sound effects missing
+
+The Xbox version of the game has several missing sound effects. See [details here](https://github.com/FoxWorkshop/ShadowRecomp/issues/44) if interested. You will need to use a SFX Restoration mod to fix these defects.
+
 ### What other platforms will be supported?
 
 This project does not plan to support any more platforms other than Windows and Linux at the moment. Any contributors who wish to support more platforms should do so through a fork.
@@ -123,12 +129,17 @@ This project does not plan to support any more platforms other than Windows and 
 
 - [Deep-Sea Berry](https://github.com/Deep-SeaBerry): Artist behind the project logo.
 
+
+TODO: Add translation credits too
+
+
 ### Tester Thanks
 - Rawlins
 - DarkShadow17
 - The Spectral Star
 - [Jesus_PK](https://github.com/Jesus-PK)
 - Pixel
+- [ultra0000](https://github.com/ultra0000)
 - [Deep-Sea Berry](https://github.com/Deep-SeaBerry)
 - Many others who helped briefly test
 
