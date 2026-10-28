@@ -3383,6 +3383,21 @@ X86_FUNC(sub_23950)
 // Wait is 100ms + one frame
 // at 60fps its 100ms + 16ms
 // at 240fps its 100ms + 4ms
+static float Get60FPSWait(float wait, float late, float dt, int holdFrames = 0)
+{
+	const float step = 1.0f / 60.0f * (dt / g_deltaTime);
+	int steps = holdFrames;
+	float left = wait;
+	while (left > 0.0f)
+	{
+		left -= step;
+		steps++;
+	}
+	const float wait60 = steps * step - holdFrames * dt;
+	late = std::min(std::max(late, 0.0f), std::max(wait60, 0.0f));
+	return std::max(wait60 - late - 1.0e-6f, 0.0f);
+}
+
 static void WeaponFireRate60FPS(uint8_t* base, uint32_t control, float prevCooldown, float dt)
 {
 	const float frames = g_deltaTime * 60.0f;
@@ -3391,18 +3406,7 @@ static void WeaponFireRate60FPS(uint8_t* base, uint32_t control, float prevCoold
 	{
 		return;
 	}
-
-	const float step = 1.0f / 60.0f * (dt / g_deltaTime);
-	int steps = 0;
-	float left = cooldown;
-	while (left > 0.0f)
-	{
-		left -= step;
-		steps++;
-	}
-	const float wait = steps * step;
-	const float late = prevCooldown > 0.0f ? std::min(std::max(dt - prevCooldown, 0.0f), wait) : 0.0f;
-	X86_STORE_F32(control + 0x10, std::max(wait - late - 1.0e-6f, 0.0f));
+	X86_STORE_F32(control + 0x10, Get60FPSWait(cooldown, prevCooldown > 0.0f ? dt - prevCooldown : 0.0f, dt));
 }
 
 // ControlCannon
@@ -3425,5 +3429,53 @@ X86_FUNC(sub_A1740)
 	const float cooldown = X86_LOAD_F32(control + 0x10);
 	__imp__sub_A1740(ctx, base);
 	WeaponFireRate60FPS(base, control, cooldown, dt);
+}
+
+// ControlLockon
+X86_FUNC_IMPL(__imp__sub_A1C10);
+X86_FUNC(sub_A1C10)
+{
+	const uint32_t control = ctx.ecx.u32;
+	const float dt = X86_LOAD_F32(ctx.esp.u32 + 0x4);
+	const float cooldown = X86_LOAD_F32(control + 0x14);
+	__imp__sub_A1C10(ctx, base);
+
+	const float frames = g_deltaTime * 60.0f;
+	const float set = X86_LOAD_F32(control + 0x14);
+	if (NeedsFpsRescale(frames) && dt > 0.0f && set > 0.0f && set > cooldown)
+	{
+		X86_STORE_F32(control + 0x14, Get60FPSWait(set, 0.0f, dt, 2));
+	}
+}
+
+// Lock-on execution
+// 0x54 shot interval
+// 0x58 lock interval
+X86_FUNC_IMPL(__imp__sub_268C40);
+X86_FUNC(sub_268C40)
+{
+	const uint32_t lockon = ctx.ecx.u32;
+	const float dt = X86_LOAD_F32(ctx.esp.u32 + 0x4);
+	const float lockBefore = X86_LOAD_F32(lockon + 0x58);
+	const float shotBefore = X86_LOAD_F32(lockon + 0x54);
+	__imp__sub_268C40(ctx, base);
+
+	const float frames = g_deltaTime * 60.0f;
+	if (!NeedsFpsRescale(frames) || !(dt > 0.0f))
+	{
+		return;
+	}
+
+	const float lockAfter = X86_LOAD_F32(lockon + 0x58);
+	if (lockAfter > 0.0f && lockAfter > lockBefore)
+	{
+		X86_STORE_F32(lockon + 0x58, Get60FPSWait(lockAfter, lockBefore > 0.0f ? dt - lockBefore : 0.0f, dt));
+	}
+
+	const float shotAfter = X86_LOAD_F32(lockon + 0x54);
+	if (shotAfter > 0.0f && shotAfter > shotBefore - dt)
+	{
+		X86_STORE_F32(lockon + 0x54, Get60FPSWait(shotAfter, shotBefore > 0.0f ? dt - shotBefore : 0.0f, dt));
+	}
 }
 /** --Weapon fire rate Patch END-- */
