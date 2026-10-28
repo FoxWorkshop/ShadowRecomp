@@ -1923,3 +1923,30 @@ jump_address_on_true = 0x20E47C
 name = "AdxtPauseReloadStatMidAsmHook"
 address = 0x329ABE
 registers = ["r4", "r5"]
+
+# Start TVehicleCar patches
+[[midasm_hook]]
+name = "CarAngleLagMidAsmHook"
+address = 0x246655
+registers = ["r7"]
+
+[[midasm_hook]]
+name = "CarAngleChaseMidAsmHook"
+address = 0x2469A2
+registers = ["r7"]
+
+[[midasm_hook]]
+name = "CarAngleChaseMidAsmHook"
+address = 0x2469CB
+registers = ["r7"]
+
+[[midasm_hook]]
+name = "CarSteerLeanMidAsmHook"
+address = 0x246A9B
+registers = ["r5", "r7"]
+
+[[midasm_hook]]
+name = "CarMotionFrameMidAsmHook"
+address = 0x2444F2
+registers = ["r4", "r5"]
+# End TVehicleCar patches

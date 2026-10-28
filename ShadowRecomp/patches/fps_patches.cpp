@@ -1274,9 +1274,13 @@ X86_FUNC(sub_255780)
 
 // Input low-pass @ sub_243BB0
 // Axle velocity blend @ sub_246120 (tail)
+// Drift turn @ sub_247210
+// Angle smoothing @ sub_1D860 (called by sub_246120)
 // In-air velocity projection @ sub_245FB0 (tail)
+// In-air accel / drift turn move @ sub_242240 / sub_242470
+// Damage / framecounting cooldowns @ sub_246120 / sub_2443F0
+// Motion frame @ sub_2443F0
 // Sweep slide gate / resting pad @ sub_244CD0, fixed in sub_245FB0
-// coast dead-stop that falls out of the gate @ sub_245FB0
 
 // The byte flags record which held/released K the game used, so the lag can be carried.
 struct VehicleInputChannel
@@ -1291,8 +1295,8 @@ static const VehicleInputChannel g_vehicleInputChannels[] =
 {
 	{ 0x58, 0x00, 0x51CC1C, 0x51CC1C }, // steering
 	{ 0x64, 0x5E, 0x51CC20, 0x51CC24 }, // accelerate
-	{ 0x68, 0x5F, 0x51CC30, 0x51CC34 }, // trigger
-	{ 0x6C, 0x60, 0x51CC28, 0x51CC2C }, // brake / reverse
+	{ 0x68, 0x5F, 0x51CC30, 0x51CC34 }, // reverse
+	{ 0x6C, 0x60, 0x51CC28, 0x51CC2C }, // brake
 };
 
 X86_FUNC_IMPL(__imp__sub_243BB0);
@@ -1334,18 +1338,55 @@ X86_FUNC(sub_243BB0)
 // Per-wheel sweep request
 static float g_vehicleReq[2][3];
 
+// Per-wheel accel given to the axle integrator
+static float g_vehicleAxleAccel[2][3];
+
+// Per-wheel move from the drift turn
+static float g_vehicleDriftMove[2][3];
+
+static void RecordAxleStep(X86Context& ctx, uint8_t* base, bool drift)
+{
+	const uint32_t car = ctx.ecx.u32;
+	const uint32_t axle = X86_LOAD_U32(ctx.esp.u32 + 0x8);
+	const uint32_t accel = X86_LOAD_U32(ctx.esp.u32 + 0xC);
+	const uint32_t wheel = axle == car + 0xEC ? 1 : 0;
+	for (uint32_t i = 0; i < 3; i++)
+	{
+		g_vehicleAxleAccel[wheel][i] = X86_LOAD_F32(accel + i * 4);
+		g_vehicleDriftMove[wheel][i] = drift ? X86_LOAD_F32(axle + i * 4) - X86_LOAD_F32(axle + 0x11C + i * 4) : 0.0f;
+	}
+}
+
+// Axle integrator
+X86_FUNC_IMPL(__imp__sub_242240);
+X86_FUNC(sub_242240)
+{
+	RecordAxleStep(ctx, base, false);
+	__imp__sub_242240(ctx, base);
+}
+
+// Drift axle integrator
+// called by sub_247210 when doing the left stick + A special movement
+X86_FUNC_IMPL(__imp__sub_242470);
+X86_FUNC(sub_242470)
+{
+	RecordAxleStep(ctx, base, true);
+	__imp__sub_242470(ctx, base);
+}
+
 // sub_246120
 // Fix not being able to move at higher fps by removing the per frame blend, then re-applying as if running at 60fps
 // Also fix in-air movement
-static void VehicleRelaxAxleVelocity(uint8_t* base, uint32_t axle, uint32_t prevPos, float invDt,
-	float retention, float adhesion, float frames, const float* req)
+static void VehicleRelaxAxleVelocity(uint8_t* base, uint32_t axle, uint32_t prevPos, float invDt, float dt60,
+	float frames, float adhesion, const float* req, const float* accel, const float* driftMove)
 {
+	const float retention = std::pow(0.5f, frames);
 	if (adhesion != 0.0f)
 	{
 		const float dt = 1.0f / invDt;
-		constexpr float dt60 = 1.0f / 60.0f;
-		const float fixH = 3.75f * (dt60 - dt) * 0.5f;
-		const float fixY = 0.6666667f * (dt60 - dt) * 0.5f;
+
+		// sub_242240 in-air drag, 3.75 for sideways drag and 0.6667 for vertical
+		const float drag[3] = { 3.75f, 0.6667f, 3.75f };
 		float v0[3];
 		float m[3];
 		float m60[3];
@@ -1357,9 +1398,8 @@ static void VehicleRelaxAxleVelocity(uint8_t* base, uint32_t axle, uint32_t prev
 			const float blended = X86_LOAD_F32(axle + 12 + i * 4);
 			v0[i] = blended + blended - m[i];
 
-			// Trapezoid fix vertical: v - a/k, a/k = -190.5 [note: this is kind of a crap workaround, maybe should use base gravity]
-			const float fix = i == 1 ? (v0[1] + 190.5f) * fixY : v0[i] * fixH;
-			m60[i] = m[i] + fix;
+			// trapezoid fix over a 60 fps frame
+			m60[i] = m[i] + (v0[i] * drag[i] - accel[i]) * (dt60 - dt) * 0.5f;
 		}
 
 		const float axis[3] = { req[0], req[1] + adhesion * dt, req[2] };
@@ -1372,19 +1412,94 @@ static void VehicleRelaxAxleVelocity(uint8_t* base, uint32_t axle, uint32_t prev
 			for (uint32_t i = 0; i < 3; i++)
 			{
 				const float v60 = (axis[i] / len * dot + m60[i]) * 0.5f;
-				X86_STORE_F32(axle + 12 + i * 4, v0[i] + frames * (v60 - v0[i]));
+				X86_STORE_F32(axle + 12 + i * 4, v0[i] + (1.0f - retention) * 2.0f * (v60 - v0[i]));
 			}
 		}
 		return;
 	}
 
-	for (uint32_t i = 0; i < 12; i += 4)
+	float measured[3];
+	float previous[3];
+	float speedSq = 0.0f;
+	float moved = 0.0f;
+	for (uint32_t i = 0; i < 3; i++)
 	{
-		const float measured = (X86_LOAD_F32(axle + i) - X86_LOAD_F32(prevPos + i)) * invDt;
-		const float blended = X86_LOAD_F32(axle + 12 + i);
-		const float previous = blended + blended - measured;
-		X86_STORE_F32(axle + 12 + i, measured + (previous - measured) * retention);
+		measured[i] = (X86_LOAD_F32(axle + i * 4) - X86_LOAD_F32(prevPos + i * 4)) * invDt;
+		const float blended = X86_LOAD_F32(axle + 12 + i * 4);
+		previous[i] = blended + blended - measured[i];
+		speedSq += previous[i] * previous[i];
+		moved += measured[i] * previous[i];
 	}
+
+	const float transfer = speedSq > 0.000001f ? std::clamp(moved / speedSq, 0.0f, 1.0f) : 0.0f;
+	const float blend = 1.0f - retention + (retention - 0.5f) * transfer;
+	float v[3];
+	float newSpeedSq = 0.0f;
+	float turnAlong = 0.0f;
+	for (uint32_t i = 0; i < 3; i++)
+	{
+		v[i] = previous[i] + (measured[i] - previous[i]) * blend;
+		newSpeedSq += v[i] * v[i];
+		turnAlong += v[i] * driftMove[i];
+	}
+
+	// drift
+	if (newSpeedSq > 0.000001f)
+	{
+		const float across = frames - 1.0f;
+		const float along = (0.5f * frames - blend - across) * turnAlong / newSpeedSq;
+		for (uint32_t i = 0; i < 3; i++)
+		{
+			v[i] += (driftMove[i] * across + v[i] * along) * invDt;
+		}
+	}
+
+	for (uint32_t i = 0; i < 3; i++)
+	{
+		X86_STORE_F32(axle + 12 + i * 4, v[i]);
+	}
+}
+
+// Scale the 'per frame' across deltatime
+static std::unordered_map<uint32_t, float> g_carCounterCarry;
+static void PreStepCarCounter(uint8_t* base, uint32_t counter)
+{
+	const int32_t value = (int32_t)X86_LOAD_U32(counter);
+	const float frames = g_deltaTime * 60.0f;
+	if (value <= 0 || !NeedsFpsRescale(frames))
+	{
+		g_carCounterCarry.erase(counter);
+		return;
+	}
+	float& carry = g_carCounterCarry[counter];
+	carry += frames;
+	const int32_t steps = (int32_t)(carry + 0.0001f);
+	carry -= steps;
+	X86_STORE_U32(counter, (uint32_t)(std::max(value - steps, 0) + 1));
+}
+
+// Car Motion / 'bounce' over surface animation
+void CarMotionFrameMidAsmHook(X86Register& esi, X86Register& edi)
+{
+	auto base = g_memory.base;
+	const float frames = g_deltaTime * 60.0f;
+	if (!NeedsFpsRescale(frames))
+	{
+		return;
+	}
+	const uint32_t car = esi.u32;
+	const uint32_t config = edi.u32;
+	const float step = X86_LOAD_F32(config + 0x54) / X86_LOAD_F32(config + 0x18) * X86_LOAD_F32(car + 0x23C);
+	X86_STORE_F32(car + 0x40, X86_LOAD_F32(car + 0x40) + step * (frames - 1.0f));
+}
+
+// MTN files can reference per-frame timers >:|
+// 0x2A4 = car's motion 5 (drive_dam) hold timer (in frames normally)
+X86_FUNC_IMPL(__imp__sub_2443F0);
+X86_FUNC(sub_2443F0)
+{
+	PreStepCarCounter(base, ctx.ecx.u32 + 0x2A4);
+	__imp__sub_2443F0(ctx, base);
 }
 
 X86_FUNC_IMPL(__imp__sub_246120);
@@ -1393,16 +1508,18 @@ X86_FUNC(sub_246120)
 	const uint32_t self = ctx.ecx.u32;
 	const float dt = X86_LOAD_F32(ctx.esp.u32 + 4);
 
+	// damage cooldown (sub_2440A0)
+	PreStepCarCounter(base, self + 0x44);
 	__imp__sub_246120(ctx, base);
 
-	const float frames = dt * 60.0f;
-	if (!(frames > 0.0f) || std::fabs(frames - 1.0f) < 0.0001f)
+	const float frames = g_deltaTime * 60.0f;
+	if (!(dt > 0.0f) || !NeedsFpsRescale(frames))
 	{
 		return;
 	}
 
-	const float retention = std::pow(0.5f, frames);
 	const float invDt = 1.0f / dt;
+	const float dt60 = dt / frames;
 
 	const uint32_t config = 0x51CCD8 + 0xAC * X86_LOAD_U32(self + 604);
 	const float adhesion = X86_LOAD_F32(config + 0x38);
@@ -1410,118 +1527,96 @@ X86_FUNC(sub_246120)
 	const float frontAir = (X86_LOAD_U8(self + 220) & 1) == 0 ? adhesion : 0.0f;
 	const float rearAir = (X86_LOAD_U8(self + 272) & 1) == 0 ? adhesion : 0.0f;
 
-	VehicleRelaxAxleVelocity(base, self + 184, self + 468, invDt, retention, frontAir, frames, g_vehicleReq[0]);
-	VehicleRelaxAxleVelocity(base, self + 236, self + 520, invDt, retention, rearAir, frames, g_vehicleReq[1]);
+	VehicleRelaxAxleVelocity(base, self + 184, self + 468, invDt, dt60, frames, frontAir, g_vehicleReq[0], g_vehicleAxleAccel[0], g_vehicleDriftMove[0]);
+	VehicleRelaxAxleVelocity(base, self + 236, self + 520, invDt, dt60, frames, rearAir, g_vehicleReq[1], g_vehicleAxleAccel[1], g_vehicleDriftMove[1]);
 }
 
-// Helper to scope our angle fix just to TVehicle
-static bool VehicleShouldScaleAngleLag(uint32_t returnAddress)
+// Angle smoothing calls in sub_246120
+static void SetCarAngleBlend(uint32_t args, bool valueFirst)
 {
-	switch (returnAddress)
+	auto base = g_memory.base;
+	const float frames = g_deltaTime * 60.0f;
+	const uint32_t rateAddr = args + 0x8;
+	const float rate = X86_LOAD_F32(rateAddr);
+	const float weight = X86_LOAD_F32(args + 0xC);
+	if (!NeedsFpsRescale(frames) || !(rate > 0.0f) || !(weight > 0.0f))
 	{
-	case 0x24665A: // CarType chassis roll damper @ 0x246655
-	case 0x2469A7: // CarType body pitch (0xAC) @ 0x2469A2
-	case 0x2469D0: // CarType body roll (0xB4) @ 0x2469CB
-	case 0x246AA0: // CarType steer lean (0x4C) @ 0x246A9B
-		return true;
-	default:
-		return false;
+		return;
 	}
+	const float keep = std::pow((valueFirst ? weight : rate) / (rate + weight), frames);
+	const float blend = std::min(valueFirst ? 1.0f - keep : keep, 0.99999f);
+	X86_STORE_F32(rateAddr, weight * blend / (1.0f - blend));
 }
 
-// Shared angle smoother (TVehicle and other unknown objects use it)
-X86_FUNC_IMPL(__imp__sub_1D860);
-X86_FUNC(sub_1D860)
+// Roll damper
+void CarAngleLagMidAsmHook(X86Register& esp)
 {
-	if (VehicleShouldScaleAngleLag(X86_LOAD_U32(ctx.esp.u32)))
-	{
-		const uint32_t rateAddr = ctx.esp.u32 + 0xC;
-		const float a = X86_LOAD_F32(rateAddr);
-		const float b = X86_LOAD_F32(ctx.esp.u32 + 0x10);
-		const float frames = g_deltaTime * 60.0f;
+	SetCarAngleBlend(esp.u32, false);
+}
 
-		// Handle the pow that scales with higher framerate and prevent divide by 0 or endless low speed
-		if (frames > 0.0f && a > 0.0f && b > 0.0f && std::fabs(frames - 1.0f) >= 0.0001f)
+// Body pitch / roll
+void CarAngleChaseMidAsmHook(X86Register& esp)
+{
+	SetCarAngleBlend(esp.u32, true);
+}
+
+// Steer lean
+void CarSteerLeanMidAsmHook(X86Register& edi, X86Register& esp)
+{
+	auto base = g_memory.base;
+	const float frames = g_deltaTime * 60.0f;
+	if (NeedsFpsRescale(frames))
+	{
+		const uint32_t car = edi.u32;
+		const uint32_t config = 0x51CCD8 + 0xAC * X86_LOAD_U32(car + 0x25C);
+
+		// 0x134 = yaw of prior frame
+		const float turn = WrapAngle(X86_LOAD_F32(car + 0x18) - X86_LOAD_F32(car + 0x134)) / frames;
+		float target = X86_LOAD_F32(config + 0x98) * turn;
+		if (X86_LOAD_F32(car + 0x18C) > 0.0f)
 		{
-			const float retention = std::pow(a / (a + b), frames);
-			const float span = 1.0f - retention;
-			X86_STORE_F32(rateAddr, span > 0.0001f ? b * (retention / span) : b * 10000.0f);
+			target += X86_LOAD_F32(config + 0x9C) * X86_LOAD_F32(car + 0x84);
 		}
+
+		const float cap = X86_LOAD_F32(config + 0xA0);
+		X86_STORE_F32(esp.u32, std::min(std::max(target, -cap), cap));
 	}
-	__imp__sub_1D860(ctx, base);
+	SetCarAngleBlend(esp.u32, false);
 }
 
 // Per-frame sweep fix
-// Swap below globals in sub_245FB0 only. If we ignore it constant missing, if we overcorrect it makes slopes crawl
-// 0x42A18C (0.001) 'minimum' pad/slider
-// 0x51CCD4 (0.02) 'pad' for ground
+static const uint32_t g_carSlideGateAddr = 0x42A18C;
 static const uint32_t g_carPadAddr = 0x51CCD4;
-static const float g_carPadAt60 = 0.02f;
 X86_FUNC_IMPL(__imp__sub_245FB0);
 X86_FUNC(sub_245FB0)
 {
 	const uint32_t self = ctx.ecx.u32;
 	const float dt = X86_LOAD_F32(ctx.esp.u32 + 4);
 	const uint32_t axle = X86_LOAD_U32(ctx.esp.u32 + 8);
-
-	constexpr uint32_t slideGateAddr = 0x42A18C;
-	constexpr float slideGateAt60 = 0.001f;
-
-	float frames = dt * 60.0f;
-	if (!(frames > 0.0f))
-	{
-		frames = 1.0f;
-	}
-	frames = std::min(frames, 1.0f);
-	frames = std::max(frames, 0.05f);
+	const uint32_t prevPos = X86_LOAD_U32(ctx.esp.u32 + 0xC);
 
 	// Remove the blend and let VehicleRelaxAxleVelocity handle it
-	const float rawFrames = dt * 60.0f;
-	const bool correctProjection = rawFrames > 0.0f && std::fabs(rawFrames - 1.0f) >= 0.0001f;
+	const float rawFrames = g_deltaTime * 60.0f;
+	const bool correctProjection = dt > 0.0f && NeedsFpsRescale(rawFrames);
+	const float frames = rawFrames > 0.0f ? std::max(rawFrames, 0.05f) : 1.0f;
 
 	float velPre[3];
+	float* const req = g_vehicleReq[axle == self + 236 ? 1 : 0];
 	for (uint32_t i = 0; i < 3; i++)
 	{
 		velPre[i] = X86_LOAD_F32(axle + 12 + i * 4);
+		req[i] = X86_LOAD_F32(axle + i * 4) - X86_LOAD_F32(prevPos + i * 4);
 	}
-	{
-		// Coasting fix (ignored while accelerating)
-		const uint32_t prevPos = X86_LOAD_U32(ctx.esp.u32 + 0xC);
-		float* const req = g_vehicleReq[axle == self + 236 ? 1 : 0];
-		if (correctProjection &&
-			(X86_LOAD_U8(axle + 0x24) & 1) != 0 &&
-			std::fabs(X86_LOAD_F32(self + 100)) < 0.02f &&
-			std::fabs(X86_LOAD_F32(self + 108)) < 0.02f)
-		{
-			const float hSq = (X86_LOAD_F32(axle) - X86_LOAD_F32(prevPos)) *
-				(X86_LOAD_F32(axle) - X86_LOAD_F32(prevPos)) +
-				(X86_LOAD_F32(axle + 8) - X86_LOAD_F32(prevPos + 8)) *
-				(X86_LOAD_F32(axle + 8) - X86_LOAD_F32(prevPos + 8));
-			const float freeze = std::sqrt(slideGateAt60);
-			if (hSq < freeze * freeze)
-			{
-				X86_STORE_F32(axle, X86_LOAD_F32(prevPos));
-				X86_STORE_F32(axle + 8, X86_LOAD_F32(prevPos + 8));
-			}
-		}
-		for (uint32_t i = 0; i < 3; i++)
-		{
-			req[i] = X86_LOAD_F32(axle + i * 4) - X86_LOAD_F32(prevPos + i * 4);
-		}
-	}
-	const float restoreGate = X86_LOAD_F32(slideGateAddr);
-	const float restorePad = X86_LOAD_F32(g_carPadAddr);
 
-	const float gate = slideGateAt60 * frames * frames * frames * frames;
-	const float pad = g_carPadAt60 * frames;
-
-	X86_STORE_F32(slideGateAddr, gate);
-	X86_STORE_F32(g_carPadAddr, pad);
+	const float gate = X86_LOAD_F32(g_carSlideGateAddr);
+	const float pad = X86_LOAD_F32(g_carPadAddr);
+	X86_STORE_F32(g_carSlideGateAddr, gate * frames * frames);
+	X86_STORE_F32(g_carPadAddr, pad * frames);
 
 	__imp__sub_245FB0(ctx, base);
 
-	X86_STORE_F32(slideGateAddr, restoreGate);
-	X86_STORE_F32(g_carPadAddr, restorePad);
+	X86_STORE_F32(g_carSlideGateAddr, gate);
+	X86_STORE_F32(g_carPadAddr, pad);
 
 	if (correctProjection && (X86_LOAD_U8(axle + 0x24) & 1) == 0)
 	{
