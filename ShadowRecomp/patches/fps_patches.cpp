@@ -893,7 +893,6 @@ static float ScaleFirstOrderLag(float before, float after, float retention, floa
 // Collide & slide (sub_24E780) is tuned for 60 fps steps
 // Solve and mover are fixed at 60FPS and interpolate at higher FPS
 
-static constexpr float g_vehicleStepDt = 1.0f / 60.0f;
 static constexpr int g_vehicleMaxSteps = 4;
 
 // collider+0x1C
@@ -916,6 +915,7 @@ struct VehicleStep
 
 static std::unordered_map<uint32_t, VehicleStep> g_vehicleSteps;
 static uint32_t g_steppedVehicle = 0;
+static int g_steppedVehicleSteps = 0;
 
 static bool NeedsFpsRescale(float frames)
 {
@@ -937,15 +937,26 @@ static bool TryStepVehicle(X86Context& ctx, uint8_t* base, uint32_t colliderOffs
 	uint32_t vehicle = ctx.ecx.u32;
 	uint32_t collider = X86_LOAD_U32(vehicle + colliderOffset);
 	float dt = X86_LOAD_F32(ctx.esp.u32 + 4);
-	float frames = dt * 60.0f;
+	float frames = g_deltaTime * 60.0f;
 
 	g_steppedVehicle = 0;
-	if (collider == 0 || !NeedsFpsRescale(frames))
+	if (collider == 0 || !(dt > 0.0f) || !(frames > 0.0f))
+	{
+		return false;
+	}
+
+	// handle inconsistent framerate
+	auto found = g_vehicleSteps.find(vehicle);
+	const bool midStep = found != g_vehicleSteps.end() && found->second.collider == collider &&
+		(found->second.phase < 0.9999 || found->second.groundHidden) &&
+		App::s_time - found->second.lastTime <= App::s_deltaTime * 1.5;
+	if (!NeedsFpsRescale(frames) && !midStep)
 	{
 		return false;
 	}
 
 	auto& step = g_vehicleSteps[vehicle];
+	const float stepDt = dt / frames;
 	float pos[3] = { X86_LOAD_F32(vehicle + 0x4), X86_LOAD_F32(vehicle + 0x8), X86_LOAD_F32(vehicle + 0xC) };
 	float accel[3] = { X86_LOAD_F32(vehicle + 0x28), X86_LOAD_F32(vehicle + 0x2C), X86_LOAD_F32(vehicle + 0x30) };
 
@@ -978,6 +989,12 @@ static bool TryStepVehicle(X86Context& ctx, uint8_t* base, uint32_t colliderOffs
 	step.phase += frames;
 	while (step.phase > 1.0001 && steps < g_vehicleMaxSteps)
 	{
+		// handle damp case
+		if (steps > 0 && afterMove != nullptr)
+		{
+			CallWithDt(ctx, base, afterMove, vehicle, stepDt);
+		}
+
 		if (step.groundHidden)
 		{
 			X86_STORE_U32(collider + 0x1C, step.realFlags);
@@ -992,12 +1009,8 @@ static bool TryStepVehicle(X86Context& ctx, uint8_t* base, uint32_t colliderOffs
 			X86_STORE_F32(vehicle + 0x28 + i * 4, accel[i]);
 		}
 
-		CallWithDt(ctx, base, solver, vehicle, g_vehicleStepDt);
-		CallWithDt(ctx, base, mover, vehicle, g_vehicleStepDt);
-		if (afterMove != nullptr)
-		{
-			CallWithDt(ctx, base, afterMove, vehicle, g_vehicleStepDt);
-		}
+		CallWithDt(ctx, base, solver, vehicle, stepDt);
+		CallWithDt(ctx, base, mover, vehicle, stepDt);
 
 		for (int i = 0; i < 3; i++)
 		{
@@ -1029,6 +1042,7 @@ static bool TryStepVehicle(X86Context& ctx, uint8_t* base, uint32_t colliderOffs
 	}
 
 	g_steppedVehicle = vehicle;
+	g_steppedVehicleSteps = steps;
 	ctx.esp.u32 += 8;
 	return true;
 }
@@ -1090,10 +1104,12 @@ X86_FUNC(sub_24B5F0)
 X86_FUNC_IMPL(__imp__sub_24C190);
 X86_FUNC(sub_24C190)
 {
-	if (!SkipIfStepped(ctx))
+	if (ctx.ecx.u32 == g_steppedVehicle && g_steppedVehicleSteps == 0)
 	{
-		__imp__sub_24C190(ctx, base);
+		ctx.esp.u32 += 8;
+		return;
 	}
+	__imp__sub_24C190(ctx, base);
 }
 
 // Solver
@@ -1121,7 +1137,7 @@ X86_FUNC(sub_24BEC0)
 {
 	uint32_t saucer = ctx.ecx.u32;
 	float dt = X86_LOAD_F32(ctx.esp.u32 + 4);
-	float frames = dt * 60.0f;
+	float frames = g_deltaTime * 60.0f;
 	if (!NeedsFpsRescale(frames))
 	{
 		__imp__sub_24BEC0(ctx, base);
@@ -1147,7 +1163,8 @@ X86_FUNC(sub_24BEC0)
 	// copy sub_23E930
 	uint32_t colliMove = X86_LOAD_U32(saucer + 0x7C);
 	uint32_t floorVel = colliMove != 0 ? X86_LOAD_U32(colliMove + 0x28) + 0x98 : 0x5601C4;
-	float chase = 1.0f - std::pow(grip, frames);
+	float chase60 = std::min(std::max(dt / frames * X86_LOAD_F32(0x456784) * (1.0f - grip), 0.0f), 1.0f);
+	float chase = 1.0f - std::pow(1.0f - chase60, frames);
 	float slack = X86_LOAD_F32(g_saucerAnchorSlack);
 
 	for (int i = 0; i < 3; i++)
@@ -1178,7 +1195,7 @@ X86_FUNC(sub_24C600)
 
 	__imp__sub_24C600(ctx, base);
 
-	float frames = dt * 60.0f;
+	float frames = g_deltaTime * 60.0f;
 	if (NeedsFpsRescale(frames))
 	{
 		float turn = (1.0f - X86_LOAD_F32(saucer + 0x154)) * dt * X86_LOAD_F32(g_saucerTurnSpeed) * 0.017453294f;
@@ -1190,11 +1207,11 @@ X86_FUNC(sub_24C600)
 static void Set60FPSSlerpDt(X86Context& ctx, uint8_t* base, uint32_t rateAddr)
 {
 	uint32_t dtAddr = ctx.esp.u32 + 4;
-	float frames = X86_LOAD_F32(dtAddr) * 60.0f;
+	float frames = g_deltaTime * 60.0f;
 	float rate = X86_LOAD_F32(rateAddr);
 	if (NeedsFpsRescale(frames) && rate > 0.0f)
 	{
-		float step = std::min(rate / 60.0f, 1.0f);
+		float step = std::min(X86_LOAD_F32(dtAddr) / frames * rate, 1.0f);
 		X86_STORE_F32(dtAddr, (1.0f - std::pow(1.0f - step, frames)) / rate);
 	}
 }
@@ -1256,7 +1273,7 @@ X86_FUNC(sub_255780)
 
 	__imp__sub_255780(ctx, base);
 
-	float frames = dt * 60.0f;
+	float frames = g_deltaTime * 60.0f;
 	if (NeedsFpsRescale(frames))
 	{
 		float turn = dt * X86_LOAD_F32(g_walkerTurnSpeed) * 0.017453294f;
