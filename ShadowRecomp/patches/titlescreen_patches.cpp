@@ -82,7 +82,7 @@ static bool ProcessUpdateAvailableMessage()
 
 // This function controls the title screen, it checks if it should reset the title screen or move to main menu depending on player action.
 X86_FUNC_IMPL(__imp__sub_292CF0);
-X86_FUNC(sub_292CF0)
+X86_OVERRIDE_FUNC(sub_292CF0)
 {
 	auto menu = ctx.ecx.u32;
 
@@ -112,7 +112,7 @@ X86_FUNC(sub_292CF0)
 // to prevent the game from trying to reset the title screen while we have the message open we block
 // the function until player close the message box
 X86_FUNC_IMPL(__imp__sub_17ED0);
-X86_FUNC(sub_17ED0)
+X86_OVERRIDE_FUNC(sub_17ED0)
 {
 	if (g_quitMessageOpen || !g_quitMessageResult || g_updateAvailableMessageOpen)
 	{
@@ -128,7 +128,7 @@ X86_FUNC(sub_17ED0)
 
 // Options logic
 X86_FUNC_IMPL(__imp__sub_28F720);
-X86_FUNC(sub_28F720)
+X86_OVERRIDE_FUNC(sub_28F720)
 {
 	
 	// for the custom reimplementation of the sound test menu in custom settings
@@ -156,7 +156,7 @@ X86_FUNC(sub_28F720)
 
 // Options rendering stubbed
 X86_FUNC_IMPL(__imp__sub_28F200);
-X86_FUNC(sub_28F200)
+X86_OVERRIDE_FUNC(sub_28F200)
 {
 	if (GameMenuCommon::g_LegacyOptions)
 	{
@@ -170,7 +170,7 @@ X86_FUNC(sub_28F200)
 
 // get next mode to force it to 0 when we quit options 
 X86_FUNC_IMPL(__imp__sub_28E770);
-X86_FUNC(sub_28E770)
+X86_OVERRIDE_FUNC(sub_28E770)
 {
 	GameMenuCommon::g_nextModeAddr = ctx.ecx.u32 + 0x20;
 

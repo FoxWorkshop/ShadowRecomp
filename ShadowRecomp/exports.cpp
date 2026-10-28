@@ -7,7 +7,7 @@
 uint32_t IsndSeInstance = 0;
 
 X86_FUNC_IMPL(__imp__sub_55A80);
-X86_FUNC(sub_55A80)
+X86_OVERRIDE_FUNC(sub_55A80)
 {
 
     __imp__sub_55A80(ctx, base);

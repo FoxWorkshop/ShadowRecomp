@@ -681,7 +681,7 @@ static void LoadColorsIni(const fs::path& iniPath, const std::string& modName)
 // Player effect spawn
 // Jump and trail aura use this function
 X86_FUNC_IMPL(__imp__sub_8D1B0);
-X86_FUNC(sub_8D1B0)
+X86_OVERRIDE_FUNC(sub_8D1B0)
 {
 	uint32_t player = X86_LOAD_U32(X86_LOAD_U32(ctx.ecx.u32 + 0x28));
 	uint32_t chara = player ? X86_LOAD_U32(player + 0x64) : UINT32_MAX;
@@ -695,7 +695,7 @@ X86_FUNC(sub_8D1B0)
 // EffectObject ctor
 // Memo: second param is the EFD: +0 = name, +0x38 = color A R G B.
 X86_FUNC_IMPL(__imp__sub_38F810);
-X86_FUNC(sub_38F810)
+X86_OVERRIDE_FUNC(sub_38F810)
 {
 	uint32_t this_ = ctx.ecx.u32;
 	uint32_t EFD = static_cast<uint32_t>(GetHostParameter(ctx, 2, CallConvention::Thiscall));
@@ -904,7 +904,7 @@ static std::vector<const ModArchiveWorker*> FindAppendedFiles(const std::string&
 
 // TOneFile::LoadOneFileAsync
 X86_FUNC_IMPL(__imp__sub_1F7F0);
-X86_FUNC(sub_1F7F0)
+X86_OVERRIDE_FUNC(sub_1F7F0)
 {
 	if (auto name = (const char*)GetHostParameter(ctx, 2, CallConvention::Thiscall, ParameterType::Pointer))
 	{
@@ -973,7 +973,7 @@ static std::shared_ptr<const std::vector<uint8_t>> MergeAppendedTxd(const std::s
 // async loads.)
 // later on a separate function we patch the file loading function to load the replacement file instead of the original one.
 X86_FUNC_IMPL(__imp__sub_1F360);
-X86_FUNC(sub_1F360)
+X86_OVERRIDE_FUNC(sub_1F360)
 {
 	uint32_t oneFileAddr = X86_LOAD_U32(ctx.esp.u32 + 4);
 	__imp__sub_1F360(ctx, base);
@@ -1034,7 +1034,7 @@ X86_FUNC(sub_1F360)
 // Now that we patched the asset table size, we can load the replacement file
 // instead of the original one.
 X86_FUNC_IMPL(__imp__sub_1F570);
-X86_FUNC(sub_1F570)
+X86_OVERRIDE_FUNC(sub_1F570)
 {
 	TOneFile* oneFile = (TOneFile*)GetHostParameter(ctx, 1, CallConvention::Thiscall, ParameterType::Pointer);
 	auto assetName = oneFile ? TOneFileCheckFileName(oneFile, GetHostParameter(ctx, 2, CallConvention::Thiscall)) : nullptr;

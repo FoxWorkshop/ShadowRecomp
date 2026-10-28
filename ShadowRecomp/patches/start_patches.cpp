@@ -41,7 +41,7 @@ int sub_2B0164_r(int a1)
 
 //infinite lives Cheat
 X86_FUNC_IMPL(__imp__sub_22D120);
-X86_FUNC(sub_22D120)
+X86_OVERRIDE_FUNC(sub_22D120)
 {
 	if (Config::InfiniteLives)
 	{
@@ -69,7 +69,7 @@ static constexpr uint32_t MenuMode_OpeningMovie = 8;
 // Force mode 3 on the boot intro to reach directly the title screen
 static bool s_quickBootDone = false;
 X86_FUNC_IMPL(__imp__sub_29EA60);
-X86_FUNC(sub_29EA60)
+X86_OVERRIDE_FUNC(sub_29EA60)
 {
 	const bool quickBoot = Config::QuickBoot || QuickBootConfig;
 	auto ptr = X86_LOAD_U32(ctx.ecx.u32 + 4);
@@ -240,7 +240,7 @@ static void PrepareStageSequenceBoot(const X86Context& ctx, uint8_t* base)
 // then assign the new event or stage id needed.
 static bool s_bootRedirectDone = false;
 X86_FUNC_IMPL(__imp__sub_5C5E0);
-X86_FUNC(sub_5C5E0)
+X86_OVERRIDE_FUNC(sub_5C5E0)
 {
 	const uint32_t gameMode = ctx.esp.u32 + 4;
 	const bool stageBoot = Ts_StageID != -1;
@@ -276,7 +276,7 @@ X86_FUNC(sub_5C5E0)
 // We fill it with our own playlist instead and then clear the
 // sequence mode so the stage sequence does not start the library again after using it.
 X86_FUNC_IMPL(__imp__sub_23BF90);
-X86_FUNC(sub_23BF90)
+X86_OVERRIDE_FUNC(sub_23BF90)
 {
 	if (!s_eventQueuePending)
 	{
@@ -298,7 +298,7 @@ X86_FUNC(sub_23BF90)
 // Since playback goes back to the main menu once the queue is empty, we can add the 
 // next batch right when the final element is removed.
 X86_FUNC_IMPL(__imp__sub_23C410);
-X86_FUNC(sub_23C410)
+X86_OVERRIDE_FUNC(sub_23C410)
 {
 	__imp__sub_23C410(ctx, base);
 
@@ -309,7 +309,7 @@ X86_FUNC(sub_23C410)
 // menu first screen
 // go back to title screen once events are done playing.
 X86_FUNC_IMPL(__imp__sub_28C180);
-X86_FUNC(sub_28C180)
+X86_OVERRIDE_FUNC(sub_28C180)
 {
 	__imp__sub_28C180(ctx, base);
 

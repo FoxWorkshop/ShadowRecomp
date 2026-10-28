@@ -570,7 +570,7 @@ int CacheGameFiles(int a1)
 
 // load save data
 X86_FUNC_IMPL(__imp__sub_2A4420);
-X86_FUNC(sub_2A4420)
+X86_OVERRIDE_FUNC(sub_2A4420)
 {
 	__imp__sub_2A4420(ctx, base);
 	if (AchievementManager::LoadBinary())
@@ -581,7 +581,7 @@ X86_FUNC(sub_2A4420)
 
 // XAPILIB::XCreateSaveGame
 X86_FUNC_IMPL(__imp__sub_2AEC9A);
-X86_FUNC(sub_2AEC9A)
+X86_OVERRIDE_FUNC(sub_2AEC9A)
 {
 	__imp__sub_2AEC9A(ctx, base);
 	if (AchievementManager::LoadBinary())

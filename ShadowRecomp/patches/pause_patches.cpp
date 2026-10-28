@@ -393,7 +393,7 @@ void DrawPauseText(X86Context* ctx)
 
 // TPauseManagerExec
 X86_FUNC_IMPL(__imp__sub_5AEE0);
-X86_FUNC(sub_5AEE0)
+X86_OVERRIDE_FUNC(sub_5AEE0)
 {
 	auto flagdisabled = X86_LOAD_U8(ctx.ecx.u32 + 0x3C);
 
@@ -464,7 +464,7 @@ void PauseBCheckMidAsmHook(X86Context& __restrict ctx, uint8_t* base)
 // Because we add a new option not intended, we don't want this to mess with the real cursor pose 
 // Thus we patch this function to trick the game as much as possible that cursor pos is fine
 X86_FUNC_IMPL(__imp__sub_5AAF0);
-X86_FUNC(sub_5AAF0)
+X86_OVERRIDE_FUNC(sub_5AAF0)
 {
 
 	const uint32_t cursorAddr = ctx.ecx.u32 + 0x38;
@@ -537,7 +537,7 @@ X86_FUNC(sub_5AAF0)
 // Story route "Y" press
 // adding in "B" press
 X86_FUNC_IMPL(__imp__sub_5A240);
-X86_FUNC(sub_5A240)
+X86_OVERRIDE_FUNC(sub_5A240)
 {
 	const bool isAnimDone = X86_LOAD_U8(ctx.ecx.u32 + 0x4D) != 0;
 	__imp__sub_5A240(ctx, base);
@@ -550,7 +550,7 @@ X86_FUNC(sub_5A240)
 // Unpause 'hold'
 // A/X/Start are checked normally, adding B
 X86_FUNC_IMPL(__imp__sub_2A7F30);
-X86_FUNC(sub_2A7F30)
+X86_OVERRIDE_FUNC(sub_2A7F30)
 {
 	const uint32_t port = X86_LOAD_U32(ctx.esp.u32 + 0x8);
 	__imp__sub_2A7F30(ctx, base);
@@ -563,7 +563,7 @@ X86_FUNC(sub_2A7F30)
 
 // Pause_DrawCurrentMissionText
 X86_FUNC_IMPL(__imp__sub_282F80);
-X86_FUNC(sub_282F80)
+X86_OVERRIDE_FUNC(sub_282F80)
 {
 	g_isDrawingSubtitle = true;
 	__imp__sub_282F80(ctx, base);
@@ -645,7 +645,7 @@ static bool ShouldPushMessageTaskText()
 
 // DrawMessage (used by both cutscene and pause menu)
 X86_FUNC_IMPL(__imp__sub_1E930);
-X86_FUNC(sub_1E930)
+X86_OVERRIDE_FUNC(sub_1E930)
 {
 	const uint32_t argY = ctx.esp.u32 + drawMessageArgY;
 

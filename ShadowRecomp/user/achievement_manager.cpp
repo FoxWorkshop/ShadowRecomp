@@ -368,7 +368,7 @@ void UpdateARankCountMidAsmHook(X86Context& __restrict ctx, uint8_t* base)
 // it starts at 5 in westopolis and increase following level internal order skipping bosses.
 // thus, digital circuit which is the second internal stage will be 6, glyphic canyon will be 7 etc.
 X86_FUNC_IMPL(__imp__sub_1B2C30);
-X86_FUNC(sub_1B2C30)
+X86_OVERRIDE_FUNC(sub_1B2C30)
 {
     __imp__sub_1B2C30(ctx, base);
 
@@ -438,7 +438,7 @@ void StageActionGoalActionMidAsmHook(X86Context& __restrict ctx, uint8_t* base)
 // Ending achievement check
 // the route table at 0x4EB160 contains the boss node of each ending (10 entries). 
 X86_FUNC_IMPL(__imp__sub_2378B0);
-X86_FUNC(sub_2378B0)
+X86_OVERRIDE_FUNC(sub_2378B0)
 {
     __imp__sub_2378B0(ctx, base);
 
@@ -506,7 +506,7 @@ bool IsAnyPlayerDriving()
 // Lethal Highway tank (BKTank::SetBKTank) Exec sub_1D0C40 calls this
 // with 0 when HP drops to 50 and with 1 once when HP hits 0
 X86_FUNC_IMPL(__imp__sub_1D0900);
-X86_FUNC(sub_1D0900)
+X86_OVERRIDE_FUNC(sub_1D0900)
 {
     const bool isDestroyed = X86_LOAD_U32(ctx.esp.u32 + 4) == 1;
     __imp__sub_1D0900(ctx, base);

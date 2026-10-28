@@ -6,7 +6,7 @@
 
 //HintRingExec aka the capsule with "?" 
 X86_FUNC_IMPL(__imp__sub_1A1E60);
-X86_FUNC(sub_1A1E60)
+X86_OVERRIDE_FUNC(sub_1A1E60)
 {
 	uint32_t this_ = ctx.ecx.u32;
 
@@ -101,7 +101,7 @@ static void ClearNewLtmSync(uint8_t* base, const std::vector<FadeFrame>& frames)
 
 // SetFadeAlpha
 X86_FUNC_IMPL(__imp__sub_17C130);
-X86_FUNC(sub_17C130)
+X86_OVERRIDE_FUNC(sub_17C130)
 {
 	const uint32_t gadget = ctx.ecx.u32;
 	std::vector<FadeFrame> frames;
@@ -130,7 +130,7 @@ X86_FUNC(sub_17C130)
 
 // Fade end
 X86_FUNC_IMPL(__imp__sub_17C1C0);
-X86_FUNC(sub_17C1C0)
+X86_OVERRIDE_FUNC(sub_17C1C0)
 {
 	const uint32_t gadget = ctx.ecx.u32;
 	std::vector<FadeFrame> frames;
@@ -150,7 +150,7 @@ X86_FUNC(sub_17C1C0)
 
 // Gadget atomic render
 X86_FUNC_IMPL(__imp__sub_17A5C0);
-X86_FUNC(sub_17A5C0)
+X86_OVERRIDE_FUNC(sub_17A5C0)
 {
 	const uint32_t atomic = X86_LOAD_U32(ctx.esp.u32 + 0x4);
 	const uint32_t clump = X86_LOAD_U32(atomic + 0x3C);
@@ -169,7 +169,7 @@ X86_FUNC(sub_17A5C0)
 
 // Shared AnimTask func (used by a lot of objects)
 X86_FUNC_IMPL(__imp__sub_17E290);
-X86_FUNC(sub_17E290)
+X86_OVERRIDE_FUNC(sub_17E290)
 {
 	// deltatime patch (used by a lot of objects for fade and anim transitions)
 	const float dt = X86_LOAD_F32(ctx.esp.u32 + 4);

@@ -10,7 +10,7 @@
 // sub_30ECB0(ecx=v*): distance squared. i.e. squared Euclidean length of v,
 // i.e. (|v|^2 = x^2 + y^2 + z^2).
 X86_FUNC_IMPL(__imp__sub_30ECB0);
-X86_FUNC(sub_30ECB0) {
+X86_OVERRIDE_FUNC(sub_30ECB0) {
   // memcpy is faster here than 3 reads for some reason
   // baffled clang does not optimize this away.
   float v[3];

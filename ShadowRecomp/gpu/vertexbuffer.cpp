@@ -54,7 +54,7 @@ X_STREAMINPUT* get_Xbox_SetStreamSource(uint8_t id)
 
 //CreateVertexBuffer (left over debugging)
 X86_FUNC_IMPL(__imp__sub_2E6750);
-X86_FUNC(sub_2E6750)
+X86_OVERRIDE_FUNC(sub_2E6750)
 {
 	int size = X86_LOAD_U32(ctx.esp.u32 + 4);
 	size = (size + 31) & 0xFFFFFFE0;
@@ -69,7 +69,7 @@ X86_FUNC(sub_2E6750)
 // As explained above, RW has its own dynamic pool for dynamc Vertex Buffer,
 // Those cannot be cached, so grab them here for upload later.
 X86_FUNC_IMPL(__imp__sub_2E67D0);
-X86_FUNC(sub_2E67D0)
+X86_OVERRIDE_FUNC(sub_2E67D0)
 {
 	__imp__sub_2E67D0(ctx, base);
 
@@ -86,7 +86,7 @@ bool IsDynamicVertexBuffer(GuestBuffer* buffer)
 
 //LockVertexBuffer(X_D3DResource* buffer, ...)
 X86_FUNC_IMPL(__imp__sub_3D5FE0);
-X86_FUNC(sub_3D5FE0)
+X86_OVERRIDE_FUNC(sub_3D5FE0)
 {
 	// The locked buffer's content may be overwritten, so drop only its
 	// remembered hashes. All other buffers keep theirs.
@@ -99,7 +99,7 @@ X86_FUNC(sub_3D5FE0)
 
 //SetStreamSource
 X86_FUNC_IMPL(__imp__sub_3D1E10);
-X86_FUNC(sub_3D1E10) {
+X86_OVERRIDE_FUNC(sub_3D1E10) {
 
 	auto StreamNumber = (uint32_t)GetHostParameter(ctx, 1);
 	auto buffer = (GuestBuffer*)GetHostParameter(ctx, 2, CallConvention::Stdcall, ParameterType::Pointer);

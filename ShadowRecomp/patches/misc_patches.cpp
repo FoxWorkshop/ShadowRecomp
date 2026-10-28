@@ -7,51 +7,51 @@
 
 
 // Patch out logs Artificial Chaos can spew (causes crashes)
-X86_FUNC(sub_37EBE6)
+X86_OVERRIDE_FUNC(sub_37EBE6)
 {
 	ctx.esp.u32 += 4;
 }
 
 //leftover debugprint functions be gone!
-X86_FUNC(sub_3DA150)
+X86_OVERRIDE_FUNC(sub_3DA150)
 {
 	ctx.esp.u32 += 4;
 }
 
-X86_FUNC(sub_41D78A)
+X86_OVERRIDE_FUNC(sub_41D78A)
 {
 	ctx.esp.u32 += 4;
 }
 
-X86_FUNC(sub_41A46B)
+X86_OVERRIDE_FUNC(sub_41A46B)
 {
 	ctx.esp.u32 += 4;
 }
 
-X86_FUNC(sub_14710)
+X86_OVERRIDE_FUNC(sub_14710)
 {
 	ctx.esp.u32 += 4;
 }
 
-X86_FUNC(sub_40634F)
+X86_OVERRIDE_FUNC(sub_40634F)
 {
 	ctx.esp.u32 += 4;
 }
 
 //this one is a hard lock, we will let it run
-X86_FUNC(sub_2B1A00)
+X86_OVERRIDE_FUNC(sub_2B1A00)
 {
 	LOGN_ERROR("Not initialized m_eDealloctor");
 	while (1)
 		;
 }
 
-X86_FUNC(sub_41C0D5)
+X86_OVERRIDE_FUNC(sub_41C0D5)
 {
 	ctx.esp.u32 += 4;
 }
 
-X86_FUNC(sub_41CD65)
+X86_OVERRIDE_FUNC(sub_41CD65)
 {
 	ctx.esp.u32 += 4;
 }
@@ -64,7 +64,7 @@ bool SkipPartnerIntroMidAsmHook(X86Context& __restrict ctx, uint8_t* base)
 // All Stages Unlocked cheat
 // GetStageId(row, column, onlyUnlocked)
 X86_FUNC_IMPL(__imp__sub_28D950);
-X86_FUNC(sub_28D950)
+X86_OVERRIDE_FUNC(sub_28D950)
 {
 	if (Config::AllStagesUnlocked)
 		X86_STORE_U8(ctx.esp.u32 + 0xC, 0);
@@ -74,7 +74,7 @@ X86_FUNC(sub_28D950)
 
 // GetStageRouteId(row, column, onlyUnlocked)
 X86_FUNC_IMPL(__imp__sub_28D9E0);
-X86_FUNC(sub_28D9E0)
+X86_OVERRIDE_FUNC(sub_28D9E0)
 {
 	if (Config::AllStagesUnlocked)
 		X86_STORE_U8(ctx.esp.u32 + 0xC, 0);
@@ -84,7 +84,7 @@ X86_FUNC(sub_28D9E0)
 
 // GetBossStageId(index, onlyUnlocked)
 X86_FUNC_IMPL(__imp__sub_28DA70);
-X86_FUNC(sub_28DA70)
+X86_OVERRIDE_FUNC(sub_28DA70)
 {
 	if (Config::AllStagesUnlocked)
 		X86_STORE_U8(ctx.esp.u32 + 0x8, 0);
@@ -94,7 +94,7 @@ X86_FUNC(sub_28DA70)
 
 // trick the game that we already visited each stage so the stage thumbnail show up on the menu
 X86_FUNC_IMPL(__imp__sub_2A0790);
-X86_FUNC(sub_2A0790)
+X86_OVERRIDE_FUNC(sub_2A0790)
 {
 	__imp__sub_2A0790(ctx, base);
 
@@ -129,7 +129,7 @@ bool EasierUnlockLastStoryMidAsmHook(X86Context& __restrict ctx, uint8_t* base)
 
 //can always skip cutscenes
 X86_FUNC_IMPL(__imp__sub_226B00);
-X86_FUNC(sub_226B00)
+X86_OVERRIDE_FUNC(sub_226B00)
 {
 	auto thisAddr = ctx.ecx.u32; //thiscall always store first parameter in ecx
 	__imp__sub_226B00(ctx, base);
@@ -138,7 +138,7 @@ X86_FUNC(sub_226B00)
 
 // same as above
 X86_FUNC_IMPL(__imp__sub_1715B0);
-X86_FUNC(sub_1715B0)
+X86_OVERRIDE_FUNC(sub_1715B0)
 {
 	auto thisAddr = ctx.ecx.u32;
 	__imp__sub_1715B0(ctx, base);
@@ -160,7 +160,7 @@ std::string texNameArray[] =
 //RwSetTextureName debugging left over, can be useful to track a texture pointer and find where it's used
 bool foundTex = false;
 X86_FUNC_IMPL(__imp__sub_2D82E0);
-X86_FUNC(sub_2D82E0)
+X86_OVERRIDE_FUNC(sub_2D82E0)
 {
 	char* str = (char*)GetHostParameter(ctx, 2, CallConvention::Cdecl, ParameterType::Pointer);
 	std::string s = str;
@@ -177,7 +177,7 @@ X86_FUNC(sub_2D82E0)
 
 static bool shouldSkipMessage = false;
 X86_FUNC_IMPL(__imp__sub_1E5A0);
-X86_FUNC(sub_1E5A0)
+X86_OVERRIDE_FUNC(sub_1E5A0)
 {
 	if (shouldSkipMessage)
 	{
@@ -197,7 +197,7 @@ void DisableMessageMidAsmHook(X86Context& __restrict ctx, uint8_t* base)
 // KageTask (draws the SDW_ALL)
 // Patch by forcing the render state to draw
 X86_FUNC_IMPL(__imp__sub_BF050);
-X86_FUNC(sub_BF050)
+X86_OVERRIDE_FUNC(sub_BF050)
 {
 	uint32_t ecx = ctx.ecx.u32;
 	uint32_t setRenderState = X86_LOAD_U32(0x57DE20);
@@ -302,7 +302,7 @@ static void ResetMessageBrushColor()
 
 // MessageTaskExec
 X86_FUNC_IMPL(__imp__sub_59430);
-X86_FUNC(sub_59430)
+X86_OVERRIDE_FUNC(sub_59430)
 {
 	ResetMessageBrushColor();
 	ToggleMessageTaskDraw(true);
@@ -315,7 +315,7 @@ X86_FUNC(sub_59430)
 // 0x44 = destroyed
 // 0x2E4 = hp (total HP @ 0x46B86C)
 X86_FUNC_IMPL(__imp__sub_1F89B0);
-X86_FUNC(sub_1F89B0)
+X86_OVERRIDE_FUNC(sub_1F89B0)
 {
 	auto elecCore = ctx.ecx.u32;
 	if (X86_LOAD_U32(elecCore + 0x44) == 1 && X86_LOAD_F32(elecCore + 0x2E4) >= X86_LOAD_F32(0x46B86C))
@@ -408,7 +408,7 @@ void KatanaBulletSweepMidAsmHook(X86Context& __restrict ctx, uint8_t* base)
 // After a level TXD loads, the game sets max anisotropy 4 on every tex with mip levels.
 // However, the anisot plugin was never attached on the Xbox version so nothing work and the game end binding a null texture. 
 // We can patch this by dropping the write and let the host handle the rest.
-X86_FUNC(sub_309F90)
+X86_OVERRIDE_FUNC(sub_309F90)
 {
 	ctx.eax.u32 = X86_LOAD_U32(ctx.esp.u32 + 4);
 	ctx.AddEsp(1);
@@ -418,7 +418,7 @@ X86_FUNC(sub_309F90)
 // therefore, if the task dies early, the destructor will use garbage data. 
 // Clear it after the ctor to be safe.
 X86_FUNC_IMPL(__imp__sub_C0DC0);
-X86_FUNC(sub_C0DC0)
+X86_OVERRIDE_FUNC(sub_C0DC0)
 {
 	const uint32_t task = ctx.ecx.u32;
 	__imp__sub_C0DC0(ctx, base);
@@ -428,7 +428,7 @@ X86_FUNC(sub_C0DC0)
 // Egg Dealer roulette UI white flash fix
 // This happens on GC too, rarely the intro cutscene picks sprite 6 (there are only 5)
 X86_FUNC_IMPL(__imp__sub_114650);
-X86_FUNC(sub_114650)
+X86_OVERRIDE_FUNC(sub_114650)
 {
 	const uint32_t angleAddr = ctx.esp.u32 + 0x8;
 	const float scale = X86_LOAD_F32(0x4F96D0);
@@ -504,7 +504,7 @@ void UnhideSynopsisSkipPrompt(uint32_t cast, const std::string& path)
 // expert mode @ sub_23C7F0
 // last story @ sub_23CE90
 X86_FUNC_IMPL(__imp__sub_173A20);
-X86_FUNC(sub_173A20)
+X86_OVERRIDE_FUNC(sub_173A20)
 {
 	X86_STORE_U32(ctx.esp.u32 + 0x8, 0);
 	__imp__sub_173A20(ctx, base);

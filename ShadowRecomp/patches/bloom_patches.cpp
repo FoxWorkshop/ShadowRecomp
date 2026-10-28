@@ -41,7 +41,7 @@ struct BloomData
 // We can patch this by keeping the quad full size and shift the UV window by the same amount
 
 X86_FUNC_IMPL(__imp__sub_3258A0);
-X86_FUNC(sub_3258A0)
+X86_OVERRIDE_FUNC(sub_3258A0)
 {
 	const uint32_t args = ctx.esp.u32 + 4;
 

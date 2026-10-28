@@ -21,7 +21,7 @@ static uint32_t* g_currentPaletteData;
 
 //rwD3D8RasterLockPalette
 X86_FUNC_IMPL(__imp__sub_2DF9F0);
-X86_FUNC(sub_2DF9F0)
+X86_OVERRIDE_FUNC(sub_2DF9F0)
 {
 	__imp__sub_2DF9F0(ctx, base);
 	if (ctx.eax.u32 == 1)
@@ -675,7 +675,7 @@ void CopyTextureToGPU(GuestTexture* tex)
 
 // rwD3D8NativeTextureRead
 X86_FUNC_IMPL(__imp__sub_2ED0D0);
-X86_FUNC(sub_2ED0D0)
+X86_OVERRIDE_FUNC(sub_2ED0D0)
 {
 	// call original function first
 	__imp__sub_2ED0D0(ctx, base);
@@ -705,7 +705,7 @@ X86_FUNC(sub_2ED0D0)
 GuestTexture* g_currentTextureRect = nullptr;
 // rwD3D8RasterUnlock
 X86_FUNC_IMPL(__imp__sub_2DF870);
-X86_FUNC(sub_2DF870)
+X86_OVERRIDE_FUNC(sub_2DF870)
 {
 	// Texture data aren't stored in the raster, instead they store the image in another raster using the extension offset to reach it
 	auto rasterAddr = X86_LOAD_U32(ctx.esp.u32 + 8); // get raster param addr 
@@ -717,7 +717,7 @@ X86_FUNC(sub_2DF870)
 
 // XGSwizzleRect - This is the final step where texture are ready for Xbox to use, we can upload safely here. (Used during FMV.)
 X86_FUNC_IMPL(__imp__sub_40B363);
-X86_FUNC(sub_40B363)
+X86_OVERRIDE_FUNC(sub_40B363)
 {
 	auto textureData = GetHostParameter(ctx, 4, CallConvention::Stdcall, ParameterType::Pointer);
 	auto bytesPerPixel = GetHostParameter(ctx, 8, CallConvention::Stdcall, ParameterType::Integer);
@@ -768,7 +768,7 @@ static GuestTexture* CreateTexture_(uint32_t width, uint32_t height, uint32_t de
 
 // CreateTexture
 X86_FUNC_IMPL(__imp__sub_2DFE20);
-X86_FUNC(sub_2DFE20)
+X86_OVERRIDE_FUNC(sub_2DFE20)
 {
 	RwRaster* info = (RwRaster*)g_memory.Translate(ctx.ecx.u32);
 	uint8_t level = X86_LOAD_U8(ctx.eax.u32 + 19);

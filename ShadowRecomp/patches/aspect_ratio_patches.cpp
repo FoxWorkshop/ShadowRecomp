@@ -216,7 +216,7 @@ static void RegisterCsdFile(uint8_t* base, void* thisPtr, const char* path);
 
 // CSD_LOADER
 X86_FUNC_IMPL(__imp__sub_2B47C0);
-X86_FUNC(sub_2B47C0)
+X86_OVERRIDE_FUNC(sub_2B47C0)
 {
 	std::lock_guard lock2(g_bufferMutex);
 
@@ -240,7 +240,7 @@ static std::unordered_map<uint32_t, std::string> g_asyncCsdPaths;
 
 // TBGRead ctor (this, request, file handle)
 X86_FUNC_IMPL(__imp__sub_1A6D0);
-X86_FUNC(sub_1A6D0)
+X86_OVERRIDE_FUNC(sub_1A6D0)
 {
 	auto request = X86_LOAD_U32(ctx.esp.u32 + 4);
 	auto pathAddr = request ? X86_LOAD_U32(request) : 0;
@@ -293,7 +293,7 @@ void OneFileCsdBufferMidAsmHook(X86Context& __restrict ctx, uint8_t* base)
 
 // CSD loader from memory
 X86_FUNC_IMPL(__imp__sub_2B4AC0);
-X86_FUNC(sub_2B4AC0)
+X86_OVERRIDE_FUNC(sub_2B4AC0)
 {
 	std::lock_guard lock2(g_bufferMutex);
 
@@ -370,7 +370,7 @@ void PatchDisableHudMidAsmHook(X86Context& __restrict ctx, uint8_t* base)
 
 // Chao::CSD::Scene::Render
 X86_FUNC_IMPL(__imp__sub_38B5E0);
-X86_FUNC(sub_38B5E0)
+X86_OVERRIDE_FUNC(sub_38B5E0)
 {
 	auto res = X86_LOAD_U32(0x54DE78);
 	if (res)
@@ -387,7 +387,7 @@ X86_FUNC(sub_38B5E0)
 
 //TCsdSystem::FreeMemory
 X86_FUNC_IMPL(__imp__sub_184E0);
-X86_FUNC(sub_184E0)
+X86_OVERRIDE_FUNC(sub_184E0)
 {
 	auto ptr = X86_LOAD_U32(ctx.esp.u32 + 4);
 
@@ -887,7 +887,7 @@ static void BeginHudNumber(uint32_t font, float x, float y, uint32_t text, uint3
 
 // DrawNumberHud (this, x, y, text, align)
 X86_FUNC_IMPL(__imp__sub_281550);
-X86_FUNC(sub_281550)
+X86_OVERRIDE_FUNC(sub_281550)
 {
 	BeginHudNumber(ctx.ecx.u32, X86_LOAD_F32(ctx.esp.u32 + 4), X86_LOAD_F32(ctx.esp.u32 + 8),
 		X86_LOAD_U32(ctx.esp.u32 + 0xC), X86_LOAD_U32(ctx.esp.u32 + 0x10));
@@ -976,7 +976,7 @@ void LockOnProjectionMidAsmHook(X86Context& __restrict ctx, uint8_t* base)
 static constexpr uint32_t LockOnStride = 28u;
 static constexpr uint32_t LockOnVertexCount = 4u;
 X86_FUNC_IMPL(__imp__sub_268FD0);
-X86_FUNC(sub_268FD0)
+X86_OVERRIDE_FUNC(sub_268FD0)
 {
 	uint32_t vertices = X86_LOAD_U32(ctx.esp.u32 + 4);
 	uint32_t centre = X86_LOAD_U32(ctx.esp.u32 + 8); //projected center the corners are offset from
@@ -1002,7 +1002,7 @@ X86_FUNC(sub_268FD0)
 // It's stretched at high res, so scale it back properly.
 static constexpr uint32_t FadeLogoVertices = 0x484;
 X86_FUNC_IMPL(__imp__sub_19730);
-X86_FUNC(sub_19730)
+X86_OVERRIDE_FUNC(sub_19730)
 {
 	void* vertices = g_memory.Translate(ctx.ecx.u32 + FadeLogoVertices);
 
@@ -1224,7 +1224,7 @@ void StretchPictureVertex(uint32_t atomicAddr, uint8_t* base)
 // callbacks used by RpClumpForAllAtomics
 // we can use them to stretch the vertex of the picture model
 X86_FUNC_IMPL(__imp__sub_29EB20);
-X86_FUNC(sub_29EB20)
+X86_OVERRIDE_FUNC(sub_29EB20)
 {
 	if (ctx.esp.u32 + 4)
 	{
@@ -1234,7 +1234,7 @@ X86_FUNC(sub_29EB20)
 }
 
 X86_FUNC_IMPL(__imp__sub_261A0);
-X86_FUNC(sub_261A0)
+X86_OVERRIDE_FUNC(sub_261A0)
 {
 	if (ctx.esp.u32 + 4)
 	{
@@ -1244,7 +1244,7 @@ X86_FUNC(sub_261A0)
 }
 
 X86_FUNC_IMPL(__imp__sub_25DF0);
-X86_FUNC(sub_25DF0)
+X86_OVERRIDE_FUNC(sub_25DF0)
 {
 	if (ctx.esp.u32 + 4)
 	{
@@ -1255,7 +1255,7 @@ X86_FUNC(sub_25DF0)
 
 // TOneFileAsyncRpClump::Read
 X86_FUNC_IMPL(__imp__sub_1FE00);
-X86_FUNC(sub_1FE00)
+X86_OVERRIDE_FUNC(sub_1FE00)
 {
 	auto mode = X86_LOAD_U32(ctx.ecx.u32 + 0x28);
 	if (mode == 4)
@@ -1733,7 +1733,7 @@ static void RecalculateRecipViewWindow(uint32_t camera)
 
 // RwCameraSetViewWindow
 X86_FUNC_IMPL(__imp__sub_2DD1C0);
-X86_FUNC(sub_2DD1C0)
+X86_OVERRIDE_FUNC(sub_2DD1C0)
 {
 	uint32_t camera = X86_LOAD_U32(ctx.esp.u32 + 4);
 
@@ -1748,7 +1748,7 @@ X86_FUNC(sub_2DD1C0)
 
 // CameraBuildPerspClipPlanes
 X86_FUNC_IMPL(__imp__sub_2DB9C0);
-X86_FUNC(sub_2DB9C0)
+X86_OVERRIDE_FUNC(sub_2DB9C0)
 {
 	uint32_t camera = ctx.eax.u32;
 	if (camera == 0)
@@ -1813,7 +1813,7 @@ void RainEffectScaleMidAsmHook(X86Context& __restrict ctx, uint8_t* base)
 }
 
 X86_FUNC_IMPL(__imp__sub_29A850);
-X86_FUNC(sub_29A850)
+X86_OVERRIDE_FUNC(sub_29A850)
 {
 	g_isInStageMode = true;
 	__imp__sub_29A850(ctx, base);
@@ -1823,7 +1823,7 @@ X86_FUNC(sub_29A850)
 // Synopsis draws the story lines with the DrawMessage func over the background.
 // The text gets stretched at higher resolution, so skip the Rt2d unstretch code to avoid that.
 X86_FUNC_IMPL(__imp__sub_29C830);
-X86_FUNC(sub_29C830)
+X86_OVERRIDE_FUNC(sub_29C830)
 {
 	g_isDrawingSynopsisText = true;
 	__imp__sub_29C830(ctx, base);
@@ -1832,7 +1832,7 @@ X86_FUNC(sub_29C830)
 
 // same as above but for library sequence list
 X86_FUNC_IMPL(__imp__sub_2924B0);
-X86_FUNC(sub_2924B0)
+X86_OVERRIDE_FUNC(sub_2924B0)
 {
 	g_isDrawingLibraryText = true;
 	__imp__sub_2924B0(ctx, base);
@@ -1841,7 +1841,7 @@ X86_FUNC(sub_2924B0)
 
 // StaffRollDrawTask draw
 X86_FUNC_IMPL(__imp__sub_29CB50);
-X86_FUNC(sub_29CB50)
+X86_OVERRIDE_FUNC(sub_29CB50)
 {
 	g_isDrawingStaffRoll = true;
 	__imp__sub_29CB50(ctx, base);
@@ -1849,7 +1849,7 @@ X86_FUNC(sub_29CB50)
 }
 
 // Note: IMPL already declared in CSD stuff for CPlatformRWDrawPrimitive2DMidAsmHook
-X86_FUNC(sub_2ECC80)
+X86_OVERRIDE_FUNC(sub_2ECC80)
 {
 	if (g_isDrawingStaffRoll)
 	{
@@ -1942,7 +1942,7 @@ static void UnstretchRt2dVertices(uint32_t verts, uint32_t count)
 
 // rt2dFontShowBitmap
 X86_FUNC_IMPL(__imp__sub_3065C0);
-X86_FUNC(sub_3065C0)
+X86_OVERRIDE_FUNC(sub_3065C0)
 {
 	const Rt2dFontUnstretch previous = g_rt2dFontUnstretch;
 
@@ -1954,7 +1954,7 @@ X86_FUNC(sub_3065C0)
 
 // rt2dFontShowOutline (draws its glyphs as Rt2d paths (sub_308230) instead of quads
 X86_FUNC_IMPL(__imp__sub_304E70);
-X86_FUNC(sub_304E70)
+X86_OVERRIDE_FUNC(sub_304E70)
 {
 	const Rt2dFontUnstretch previous = g_rt2dFontUnstretch;
 
@@ -1966,7 +1966,7 @@ X86_FUNC(sub_304E70)
 
 // RwIm3DTransform(verts, count, ltm, flags) which is basically SetTransform on the RenderWare Layer.
 X86_FUNC_IMPL(__imp__sub_2E1890);
-X86_FUNC(sub_2E1890)
+X86_OVERRIDE_FUNC(sub_2E1890)
 {
 	if (g_rt2dFontUnstretch.active)
 		UnstretchRt2dVertices(X86_LOAD_U32(ctx.esp.u32 + 4), X86_LOAD_U32(ctx.esp.u32 + 8));

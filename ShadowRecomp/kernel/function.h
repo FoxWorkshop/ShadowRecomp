@@ -599,21 +599,21 @@ X86_FUNC(StubWithCleanStack);
 
 // Macro for hooking functions
 #define GUEST_FUNCTION_HOOK(subroutine, function) \
-    X86_FUNC(subroutine) { HostToGuestFunction<function, CallConvention::Cdecl>(ctx, base); }
+    X86_OVERRIDE_FUNC(subroutine) { HostToGuestFunction<function, CallConvention::Cdecl>(ctx, base); }
 
 #define GUEST_FUNCTION_HOOK_STDCALL(subroutine, function) \
-    X86_FUNC(subroutine) { HostToGuestFunction<function, CallConvention::Stdcall>(ctx, base); }
+    X86_OVERRIDE_FUNC(subroutine) { HostToGuestFunction<function, CallConvention::Stdcall>(ctx, base); }
 
 //todo
 #define GUEST_FUNCTION_HOOK_FASTCALL(subroutine, function) \
-    X86_FUNC(subroutine) { HostToGuestFunction<function, CallConvention::Fastcall>(ctx, base); }
+    X86_OVERRIDE_FUNC(subroutine) { HostToGuestFunction<function, CallConvention::Fastcall>(ctx, base); }
 
 //todo
 #define GUEST_FUNCTION_HOOK_THISCALL(subroutine, function) \
-    X86_FUNC(subroutine) { HostToGuestFunction<function, CallConvention::Thiscall>(ctx, base); }
+    X86_OVERRIDE_FUNC(subroutine) { HostToGuestFunction<function, CallConvention::Thiscall>(ctx, base); }
 
 
 
 // Macro for creating function stubs
 #define GUEST_FUNCTION_STUB(subroutine) \
-    X86_FUNC(subroutine) { StubWithCleanStack(ctx, base); }
+    X86_OVERRIDE_FUNC(subroutine) { StubWithCleanStack(ctx, base); }

@@ -1099,12 +1099,6 @@ LONG NtWriteFile(
 	return X_STATUS_SUCCESS;
 }
 
-ULONG RtlLONGToDosError(LONG Status)
-{
-	LOG_UTILITY("!!! STUB !!!");
-	return X_STATUS_SUCCESS;
-}
-
 void NtYieldExecution() {
 	std::this_thread::yield();
 }
@@ -1416,7 +1410,7 @@ uint8_t* g_nv2aPtr = nullptr;
 // We need to do that because we have to simulate vblank call since these are needed for the game to progress normally
 // Thus, whenever the game will write a vblank signal in our array, we can check that and simulate the wait properly.
 X86_FUNC_IMPL(__imp__sub_3D7B81);
-X86_FUNC(sub_3D7B81)
+X86_OVERRIDE_FUNC(sub_3D7B81)
 {
 	__imp__sub_3D7B81(ctx, base);
 	X86_STORE_U32(ctx.ecx.u32, g_memory.MapVirtual(g_nv2aPtr)); //this will make the game write hardware value in our array directly.
@@ -1488,7 +1482,6 @@ GUEST_FUNCTION_HOOK_STDCALL(__imp__KeSetTimer, KeSetTimer);
 GUEST_FUNCTION_HOOK_STDCALL(__imp__KeCancelTimer, KeCancelTimer);
 
 
-GUEST_FUNCTION_HOOK_STDCALL(__imp__RtlLONGToDosError, RtlLONGToDosError); //not found???? 
 GUEST_FUNCTION_HOOK_STDCALL(__imp__RtlUnwind, RtlUnwind_);
 GUEST_FUNCTION_HOOK_STDCALL(__imp__XcHMAC, XcHMAC);
 GUEST_FUNCTION_HOOK_STDCALL(__imp__XeLoadSection, XeLoadSection);
@@ -1537,4 +1530,3 @@ GUEST_FUNCTION_HOOK(sub_2ADB04, XGetLanguage);
 
 //XAutoPowerDownResetTimer
 GUEST_FUNCTION_STUB(sub_2B17E8);
-

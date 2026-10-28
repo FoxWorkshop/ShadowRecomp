@@ -366,7 +366,7 @@ void SatelliteLaserLv2AmmoMidAsmHook(X86Context& __restrict ctx, uint8_t* base)
 
 // CannonAndroid Damage 8 -> 16
 X86_FUNC_IMPL(__imp__sub_2621A0);
-X86_FUNC(sub_2621A0)
+X86_OVERRIDE_FUNC(sub_2621A0)
 {
 	if (!Config::ReloadedMod)
 	{
@@ -879,7 +879,7 @@ bool MeleeRehitMidAsmHook(X86Context& __restrict ctx, uint8_t* base)
 
 // reloaded melee 'hold' mode
 X86_FUNC_IMPL(__imp__sub_897A0);
-X86_FUNC(sub_897A0)
+X86_OVERRIDE_FUNC(sub_897A0)
 {
 	const uint32_t player = X86_LOAD_U32(X86_LOAD_U32(ctx.ecx.u32 + 0x28));
 	__imp__sub_897A0(ctx, base);
@@ -935,7 +935,7 @@ static uint32_t FindMtpEntry(uint32_t mtp, const char* name)
 // Embedded MTP edits (I just swap props and mtns) to solve modders being annoyed at the desync
 // YOU'RE WELCOME DUEZA >:D
 X86_FUNC_IMPL(__imp__sub_377720);
-X86_FUNC(sub_377720)
+X86_OVERRIDE_FUNC(sub_377720)
 {
 	const uint32_t mtp = X86_LOAD_U32(ctx.esp.u32 + 0x4);
 	__imp__sub_377720(ctx, base);

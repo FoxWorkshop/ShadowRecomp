@@ -47,7 +47,7 @@ bool Window_OnSDLEvent(void*, SDL_Event* event);
 
 //main game loop
 X86_FUNC_IMPL(__imp__sub_57630);
-X86_FUNC(sub_57630)
+X86_OVERRIDE_FUNC(sub_57630)
 {
 	double targetFps = GetTargetFPS();
 	if (targetFps >= FPS_MIN && (targetFps < FPS_MAXSoft || targetFps < FPS_MAX && s_ExpandFPSLimit))
@@ -72,7 +72,7 @@ X86_FUNC(sub_57630)
 
 //init
 X86_FUNC_IMPL(__imp__sub_11AD0);
-X86_FUNC(sub_11AD0)
+X86_OVERRIDE_FUNC(sub_11AD0)
 {
 	App::s_isInit = true;
 	App::s_language = Config::Language;
@@ -85,7 +85,7 @@ X86_FUNC(sub_11AD0)
 
 //Set Voice Language
 X86_FUNC_IMPL(__imp__sub_55BE0);
-X86_FUNC(sub_55BE0)
+X86_OVERRIDE_FUNC(sub_55BE0)
 {
 	__imp__sub_55BE0(ctx, base);
 

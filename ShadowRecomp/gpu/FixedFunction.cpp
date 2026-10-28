@@ -859,7 +859,7 @@ ShaderVariantKey UpdateFixedFunctionVertexShaderState(size_t Handle, bool isPSFi
 
 //D3DDevice_LightEnable
 X86_FUNC_IMPL(__imp__sub_3D0B70);
-X86_FUNC(sub_3D0B70)
+X86_OVERRIDE_FUNC(sub_3D0B70)
 {
 	uint32_t Index = GetHostParameter(ctx, 1);
 	uint32_t bEnable = GetHostParameter(ctx, 2);
@@ -869,7 +869,7 @@ X86_FUNC(sub_3D0B70)
 
 //D3DDevice_SetLight
 X86_FUNC_IMPL(__imp__sub_3D08B0);
-X86_FUNC(sub_3D08B0)
+X86_OVERRIDE_FUNC(sub_3D08B0)
 {
 	uint32_t Index = GetHostParameter(ctx, 1);
 	X_D3DLIGHT8* pLight = (X_D3DLIGHT8*)GetHostParameter(ctx, 2, CallConvention::Stdcall, ParameterType::Pointer);

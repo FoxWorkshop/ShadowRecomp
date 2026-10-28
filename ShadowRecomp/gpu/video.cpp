@@ -4093,7 +4093,7 @@ static void ProcSetVertexShader(const RenderCommand& cmd)
 
 // SetPixelShader
 X86_FUNC_IMPL(__imp__sub_3DC590);
-X86_FUNC(sub_3DC590)
+X86_OVERRIDE_FUNC(sub_3DC590)
 {
 	auto Handle = X86_LOAD_U32(ctx.esp.u32 + 4);
 
@@ -4139,7 +4139,7 @@ X86_FUNC(sub_3DC590)
 
 //SetPixelShaderConstant
 X86_FUNC_IMPL(__imp__sub_3DC790);
-X86_FUNC(sub_3DC790)
+X86_OVERRIDE_FUNC(sub_3DC790)
 {
 	__imp__sub_3DC790(ctx, base);
 	if (UpdatePixelShaderConstant(psh_constants))
@@ -6501,7 +6501,7 @@ static void ReplaceDeviceSurface(uint32_t device, uint32_t offset, GuestSurface*
 //D3D8::CDevice_InitializeFrameBuffers 
 // (this function create backbuffer and stencil)
 X86_FUNC_IMPL(__imp__sub_3D5140);
-X86_FUNC(sub_3D5140)
+X86_OVERRIDE_FUNC(sub_3D5140)
 {
 	uint32_t device = ctx.ecx.u32;
 	__imp__sub_3D5140(ctx, base);
@@ -7026,7 +7026,7 @@ void D3DDevice_Clear(uint32_t count, _D3DRECT* pRects, uint32_t flags, uint32_t 
 
 //D3DDevice_SetTransform
 X86_FUNC_IMPL(__imp__sub_3CFCD0);
-X86_FUNC(sub_3CFCD0)
+X86_OVERRIDE_FUNC(sub_3CFCD0)
 {
 	X_D3DTRANSFORMSTATETYPE State = (X_D3DTRANSFORMSTATETYPE)X86_LOAD_U32(ctx.esp.u32 + 4);
 	auto matrixAddr = X86_LOAD_U32(ctx.esp.u32 + 8);
@@ -7064,7 +7064,7 @@ X86_FUNC(sub_3CFCD0)
 
 //SetShaderConstantMode
 X86_FUNC_IMPL(__imp__sub_3D2010);
-X86_FUNC(sub_3D2010)
+X86_OVERRIDE_FUNC(sub_3D2010)
 {
 	g_Xbox_VertexShaderConstantMode = X86_LOAD_U32(ctx.esp.u32 + 4);
 	__imp__sub_3D2010(ctx, base);
@@ -8826,7 +8826,7 @@ static void ProcSetPixelShaderConstants(const RenderCommand& cmd)
 
 //D3DResource_Release
 X86_FUNC_IMPL(__imp__sub_3D5F10);
-X86_FUNC(sub_3D5F10)
+X86_OVERRIDE_FUNC(sub_3D5F10)
 {
 	auto resource = X86_LOAD_U32(ctx.esp.u32 + 4);
 	if (resource)
@@ -8843,7 +8843,7 @@ X86_FUNC(sub_3D5F10)
 
 //Free Vertex Buffer
 X86_FUNC_IMPL(__imp__sub_2E6140);
-X86_FUNC(sub_2E6140)
+X86_OVERRIDE_FUNC(sub_2E6140)
 {
 	auto resource = X86_LOAD_U32(ctx.esp.u32 + 4);
 	if (resource)
@@ -8946,7 +8946,7 @@ void GetPixelContainerMeasures
 
 //CreateStandAloneSurface
 X86_FUNC_IMPL(__imp__sub_3DA0A0);
-X86_FUNC(sub_3DA0A0)
+X86_OVERRIDE_FUNC(sub_3DA0A0)
 {
 
 	uint32_t Width = X86_LOAD_U32(ctx.esp.u32 + 4);

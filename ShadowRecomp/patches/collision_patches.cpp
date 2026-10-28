@@ -408,7 +408,7 @@ static void FixColiFences(uint32_t world)
 // stage section COLI world load callback 
 // (first param is the new RpWorld)
 X86_FUNC_IMPL(__imp__sub_1B010);
-X86_FUNC(sub_1B010)
+X86_OVERRIDE_FUNC(sub_1B010)
 {
 	FixColiFences(X86_LOAD_U32(ctx.esp.u32 + 4));
 	__imp__sub_1B010(ctx, base);

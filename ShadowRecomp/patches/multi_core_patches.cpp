@@ -39,7 +39,7 @@ void InitMultiCoreMutexesPatches()
 
 // RwFrameUpdateObject
 X86_FUNC_IMPL(__imp__sub_2E1300);
-X86_FUNC(sub_2E1300)
+X86_OVERRIDE_FUNC(sub_2E1300)
 {
 	auto frame = X86_LOAD_U32(ctx.esp.u32 + 4);
 	bool valid = false;
@@ -62,7 +62,7 @@ X86_FUNC(sub_2E1300)
 
 //RwFrameSyncDirty
 X86_FUNC_IMPL(__imp__sub_2EC720);
-X86_FUNC(sub_2EC720)
+X86_OVERRIDE_FUNC(sub_2EC720)
 {
 	RtlEnterCriticalSection(ctx, &dirtyListLock);
 	__imp__sub_2EC720(ctx, base);
@@ -105,7 +105,7 @@ uint32_t GetCurrentDictionaryThread()
 
 // RwTexDictionarySetCurrent
 X86_FUNC_IMPL(__imp__sub_2D8440);
-X86_FUNC(sub_2D8440)
+X86_OVERRIDE_FUNC(sub_2D8440)
 {
 
 	std::lock_guard<std::mutex> lock(g_threadDictsMutex);
@@ -119,7 +119,7 @@ X86_FUNC(sub_2D8440)
 
 // RwTexDictionaryGetCurrent
 X86_FUNC_IMPL(__imp__sub_2D8460);
-X86_FUNC(sub_2D8460)
+X86_OVERRIDE_FUNC(sub_2D8460)
 {
 	__imp__sub_2D8460(ctx, base);
 	auto ogRes = ctx.eax.u32;
@@ -143,7 +143,7 @@ void GetCurrentDictionaryThreadMidAsmHook(X86Context& __restrict ctx, uint8_t* b
 
 // RwTexDictionaryDestroy
 X86_FUNC_IMPL(__imp__sub_2D8D80);
-X86_FUNC(sub_2D8D80)
+X86_OVERRIDE_FUNC(sub_2D8D80)
 {
 	std::lock_guard<std::mutex> lock(g_threadDictsMutex);
 	uint32_t textureModule = X86_LOAD_U32(0x55f634);
@@ -165,7 +165,7 @@ X86_FUNC(sub_2D8D80)
 
 // RwTextureRead
 X86_FUNC_IMPL(__imp__sub_2D8470);
-X86_FUNC(sub_2D8470)
+X86_OVERRIDE_FUNC(sub_2D8470)
 {
 	__imp__sub_2D8470(ctx, base);
 }
@@ -176,7 +176,7 @@ X86_FUNC(sub_2D8470)
 static std::atomic<int> lastThreadIDCSDNode{0};
 static std::atomic<int> countExtraSleepFailSafe{0};
 X86_FUNC_IMPL(__imp__sub_2B4440);
-X86_FUNC(sub_2B4440)
+X86_OVERRIDE_FUNC(sub_2B4440)
 {
 	// hacky fix to prevent the CSD node transformation function to be called by two threads at the same time, 
 	// which can cause some random nodes to be corrupted and crash the game when it tries to read them.
@@ -204,7 +204,7 @@ X86_FUNC(sub_2B4440)
 
 //CSDPopNode
 X86_FUNC_IMPL(__imp__sub_2B3ED0);
-X86_FUNC(sub_2B3ED0)
+X86_OVERRIDE_FUNC(sub_2B3ED0)
 {
 	RtlEnterCriticalSection(ctx, &csdNodeLock);
 	__imp__sub_2B3ED0(ctx, base);
@@ -218,7 +218,7 @@ X86_FUNC(sub_2B3ED0)
 // on top of the sleep added above, an extra failsafe is added here in case this wasn't enough
 // this will be used mostly for debugging purpose.
 X86_FUNC_IMPL(__imp__sub_2B39A0);
-X86_FUNC(sub_2B39A0)
+X86_OVERRIDE_FUNC(sub_2B39A0)
 {
 	uint32_t transfoNodeSource = X86_LOAD_U32(0x559e94);
 	uint32_t transfoNodeDest = X86_LOAD_U32(0x559e98);
@@ -247,7 +247,7 @@ X86_FUNC(sub_2B39A0)
 
 std::atomic<bool> aboutToDrawLoading{false};
 X86_FUNC_IMPL(__imp__sub_59BB0);
-X86_FUNC(sub_59BB0)
+X86_OVERRIDE_FUNC(sub_59BB0)
 {
 	aboutToDrawLoading = true;
 	loadingThreadID = GuestThread::GetCurrentThreadId();
@@ -262,7 +262,7 @@ X86_FUNC(sub_59BB0)
 // Fix: Ensure the destructor only clear the pointer when it is really the right thread.
 // Note: so far I only saw that happening with an experiemntal "boot to event" feature, but just in case...
 X86_FUNC_IMPL(__imp__sub_59AE0);
-X86_FUNC(sub_59AE0)
+X86_OVERRIDE_FUNC(sub_59AE0)
 {
 	const uint32_t thread = ctx.ecx.u32;
 	const uint32_t manager = X86_LOAD_U32(0x544F40);
@@ -276,7 +276,7 @@ X86_FUNC(sub_59AE0)
 
 // attempt to fix a rare FMV crash when skipping them (Multi-threads race too)
 X86_FUNC_IMPL(__imp__sub_34AB40);
-X86_FUNC(sub_34AB40)
+X86_OVERRIDE_FUNC(sub_34AB40)
 {
 	RtlEnterCriticalSection(ctx, &fmvPtrDataLock);
 
@@ -297,7 +297,7 @@ X86_FUNC(sub_34AB40)
 // part 2 
 // MWSFSVR_IsMwsstStatError
 X86_FUNC_IMPL(__imp__sub_34C140);
-X86_FUNC(sub_34C140)
+X86_OVERRIDE_FUNC(sub_34C140)
 {
 	RtlEnterCriticalSection(ctx, &fmvPtrDataLock);
 
@@ -320,7 +320,7 @@ X86_FUNC(sub_34C140)
 
 // CameraBeginUpdate
 X86_FUNC_IMPL(__imp__sub_2DCDE0);
-X86_FUNC(sub_2DCDE0)
+X86_OVERRIDE_FUNC(sub_2DCDE0)
 {
 	RtlEnterCriticalSection(ctx, &globalcurCamera);
 
@@ -336,7 +336,7 @@ X86_FUNC(sub_2DCDE0)
 
 // CameraEndUpdate
 X86_FUNC_IMPL(__imp__sub_2DCDB0);
-X86_FUNC(sub_2DCDB0)
+X86_OVERRIDE_FUNC(sub_2DCDB0)
 {
 	__imp__sub_2DCDB0(ctx, base);
 	RtlLeaveCriticalSection(&globalcurCamera);
@@ -344,7 +344,7 @@ X86_FUNC(sub_2DCDB0)
 
 // WorldCameraBeginUpdate
 X86_FUNC_IMPL(__imp__sub_2CBA40);
-X86_FUNC(sub_2CBA40)
+X86_OVERRIDE_FUNC(sub_2CBA40)
 {
 	RtlEnterCriticalSection(ctx, &globalCurWorld);
 	__imp__sub_2CBA40(ctx, base);
@@ -359,14 +359,14 @@ X86_FUNC(sub_2CBA40)
 
 // WorldCameraEndUpdate
 X86_FUNC_IMPL(__imp__sub_2CBA70);
-X86_FUNC(sub_2CBA70)
+X86_OVERRIDE_FUNC(sub_2CBA70)
 {
 	__imp__sub_2CBA70(ctx, base);
 	RtlLeaveCriticalSection(&globalCurWorld);
 }
 
 X86_FUNC_IMPL(__imp__sub_2D4A90);
-X86_FUNC(sub_2D4A90)
+X86_OVERRIDE_FUNC(sub_2D4A90)
 {
 	auto res = X86_LOAD_U32(0x57DE04);
 	if (!res)
@@ -382,7 +382,7 @@ X86_FUNC(sub_2D4A90)
 
 // left over in case that happens again
 X86_FUNC_IMPL(__imp__sub_2DD080);
-X86_FUNC(sub_2DD080)
+X86_OVERRIDE_FUNC(sub_2DD080)
 {
 	auto a1 = X86_LOAD_U32(ctx.esp.u32 + 4);
 	if (!a1 || a1 < 0x10000) //safety check
@@ -410,7 +410,7 @@ static std::mutex g_taskListMutex;
 
 // Task::Task
 X86_FUNC_IMPL(__imp__sub_21C70);
-X86_FUNC(sub_21C70)
+X86_OVERRIDE_FUNC(sub_21C70)
 {
 	std::lock_guard lock(g_taskListMutex);
 	__imp__sub_21C70(ctx, base);
@@ -418,7 +418,7 @@ X86_FUNC(sub_21C70)
 
 // Task::~Task
 X86_FUNC_IMPL(__imp__sub_21A30);
-X86_FUNC(sub_21A30)
+X86_OVERRIDE_FUNC(sub_21A30)
 {
 	std::lock_guard lock(g_taskListMutex);
 	__imp__sub_21A30(ctx, base);
@@ -441,7 +441,7 @@ static bool IsEggLastMechCameraAlive(uint32_t camera)
 
 // EggLastMechCamera ctor
 X86_FUNC_IMPL(__imp__sub_126AF0);
-X86_FUNC(sub_126AF0)
+X86_OVERRIDE_FUNC(sub_126AF0)
 {
 	__imp__sub_126AF0(ctx, base);
 	if (ctx.eax.u32 != 0)
@@ -453,7 +453,7 @@ X86_FUNC(sub_126AF0)
 
 // EggLastMechCamera dtor
 X86_FUNC_IMPL(__imp__sub_125F50);
-X86_FUNC(sub_125F50)
+X86_OVERRIDE_FUNC(sub_125F50)
 {
 	{
 		std::lock_guard lock(g_eggLastMechCameraMutex);
@@ -464,7 +464,7 @@ X86_FUNC(sub_125F50)
 
 // Camera update callback
 X86_FUNC_IMPL(__imp__sub_125DA0);
-X86_FUNC(sub_125DA0)
+X86_OVERRIDE_FUNC(sub_125DA0)
 {
 	if (!IsEggLastMechCameraAlive(ctx.ecx.u32))
 	{
@@ -476,7 +476,7 @@ X86_FUNC(sub_125DA0)
 
 // Camera switch callback
 X86_FUNC_IMPL(__imp__sub_1269D0);
-X86_FUNC(sub_1269D0)
+X86_OVERRIDE_FUNC(sub_1269D0)
 {
 	if (!IsEggLastMechCameraAlive(ctx.ecx.u32))
 	{

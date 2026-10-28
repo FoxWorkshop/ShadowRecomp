@@ -33,7 +33,7 @@ static uint64_t HostGetPerformanceCounter(bool acpi)
 // The game's microsecond timer.
 // The original divides the 733.333...MHz counter by 733.
 // So it's 0.045% faster than should be. Return real ones instead.
-X86_FUNC(sub_116B0)
+X86_OVERRIDE_FUNC(sub_116B0)
 {
 	uint64_t micros = Timer_GetScaledPerformanceCounter(1000000);
 	ctx.eax.u32 = uint32_t(micros);

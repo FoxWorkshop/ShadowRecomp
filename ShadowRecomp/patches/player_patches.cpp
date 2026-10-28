@@ -29,7 +29,7 @@ void TriggerGoalAction()
 
 //Awake Set Chaos Control / Blast mode
 X86_FUNC_IMPL(__imp__sub_8E690);
-X86_FUNC(sub_8E690)
+X86_OVERRIDE_FUNC(sub_8E690)
 {
 	isAwakeAboutToInvoke = true;
 	auto mode = X86_LOAD_U32(ctx.esp.u32 + 16);
@@ -39,7 +39,7 @@ X86_FUNC(sub_8E690)
 
 //Awake destructor
 X86_FUNC_IMPL(__imp__sub_8E9A0);
-X86_FUNC(sub_8E9A0)
+X86_OVERRIDE_FUNC(sub_8E9A0)
 {
 	__imp__sub_8E9A0(ctx, base);
 	App::s_chaosMode = ELedAura::LED_AURA_NEUTRAL;
@@ -47,7 +47,7 @@ X86_FUNC(sub_8E9A0)
 
 // Player ctor
 X86_FUNC_IMPL(__imp__sub_96AD0);
-X86_FUNC(sub_96AD0)
+X86_OVERRIDE_FUNC(sub_96AD0)
 {
 	auto playerAddr = ctx.ecx.u32;
 	__imp__sub_96AD0(ctx, base);
@@ -86,7 +86,7 @@ X86_FUNC(sub_96AD0)
 // Player dtor @ sub_97320 (not this func)
 // Player ptr ctor created passed to sub_96B50 (this func), use to mark destroyed players
 X86_FUNC_IMPL(__imp__sub_96B50);
-X86_FUNC(sub_96B50)
+X86_OVERRIDE_FUNC(sub_96B50)
 {
 	auto playerAddr = ctx.ecx.u32;
 	__imp__sub_96B50(ctx, base);
@@ -105,7 +105,7 @@ X86_FUNC(sub_96B50)
 //edit this if you want to set a specific start position for the player
 bool oncePos = false;
 X86_FUNC_IMPL(__imp__sub_90D10);
-X86_FUNC(sub_90D10)
+X86_OVERRIDE_FUNC(sub_90D10)
 {
 	auto a2Addr = X86_LOAD_U32(ctx.esp.u32 + 4);
 	auto mode = X86_LOAD_U16(a2Addr + 4);

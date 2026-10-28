@@ -62,12 +62,12 @@ fast_sse_status = true
 
 [fixes]
 # When you replace a function using:
-# - X86_FUNC
-# - GUEST_FUNCTION_HOOK.
+# - X86_OVERRIDE_FUNC
+# - GUEST_FUNCTION_HOOK
 # - GUEST_FUNCTION_STUB
 #
-# Update this. Failure to do so will result in build error.
-# You'll know when you see it.
+# Add its guest address here and regenerate, or compilation will fail.
+# Example: for sub_12345, add 0x12345.
 function_hooks = [
 	0x11430, 0x116B0, 0x11AD0, 0x12700, 0x14710, 0x17ED0, 0x184E0, 0x19730,
 	0x1A6D0, 0x1B010, 0x1E5A0, 0x1E930, 0x1F360, 0x1F570, 0x1F7F0, 0x1FE00,

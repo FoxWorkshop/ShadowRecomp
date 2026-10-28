@@ -67,7 +67,7 @@ static Quaternion GravityLoadQuat(uint32_t addr)
 // R = FromTo(up, player+0xE8) (aka sub_7FA10)
 // Computes R * FromTo(up, R^-1 * n)
 X86_FUNC_IMPL(__imp__sub_7FA10);
-X86_FUNC(sub_7FA10)
+X86_OVERRIDE_FUNC(sub_7FA10)
 {
 	const uint32_t player = g_gravityPlayer;
 
@@ -112,7 +112,7 @@ X86_FUNC(sub_7FA10)
 
 // Fix transitions
 X86_FUNC_IMPL(__imp__sub_7FB30);
-X86_FUNC(sub_7FB30)
+X86_OVERRIDE_FUNC(sub_7FB30)
 {
 	const uint32_t playerSlot = X86_LOAD_U32(ctx.esp.u32 + 4);
 	const uint32_t previous = g_gravityPlayer;
@@ -124,7 +124,7 @@ X86_FUNC(sub_7FB30)
 
 // Per frame gravity update
 X86_FUNC_IMPL(__imp__sub_908C0);
-X86_FUNC(sub_908C0)
+X86_OVERRIDE_FUNC(sub_908C0)
 {
 	const uint32_t executer = ctx.ecx.u32;
 	const uint32_t previous = g_gravityPlayer;

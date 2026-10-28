@@ -121,7 +121,7 @@ static bool IsEventTrack(const std::string& name)
 
 // TObjBGM::Play
 X86_FUNC_IMPL(__imp__sub_25CBB0);
-X86_FUNC(sub_25CBB0)
+X86_OVERRIDE_FUNC(sub_25CBB0)
 {
 	if (g_isStartingEventAudio)
 	{

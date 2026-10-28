@@ -125,7 +125,7 @@ static int32_t GetMessageTextID(uint8_t* base, int32_t index)
 
 // skip error message save
 X86_FUNC_IMPL(__imp__sub_2A6530);
-X86_FUNC(sub_2A6530)
+X86_OVERRIDE_FUNC(sub_2A6530)
 {
 	auto mode = X86_LOAD_U32(ctx.ecx.u32);
 
@@ -141,7 +141,7 @@ static bool g_shouldPreventPrompt = false;
 
 // player quit prompt
 X86_FUNC_IMPL(__imp__sub_5A7B0);
-X86_FUNC(sub_5A7B0)
+X86_OVERRIDE_FUNC(sub_5A7B0)
 {
 	g_shouldPreventPrompt = Config::ConfirmationPrompt.Value == false;
 	__imp__sub_5A7B0(ctx, base);
@@ -150,7 +150,7 @@ X86_FUNC(sub_5A7B0)
 
 // player restart prompt
 X86_FUNC_IMPL(__imp__sub_5A750);
-X86_FUNC(sub_5A750)
+X86_OVERRIDE_FUNC(sub_5A750)
 {
 	g_shouldPreventPrompt = Config::ConfirmationPrompt.Value == false;
 	__imp__sub_5A750(ctx, base);
@@ -159,7 +159,7 @@ X86_FUNC(sub_5A750)
 
 // load or create save file confirmation prompt
 X86_FUNC_IMPL(__imp__sub_2A6D00);
-X86_FUNC(sub_2A6D00)
+X86_OVERRIDE_FUNC(sub_2A6D00)
 {
 	g_shouldPreventPrompt = Config::ConfirmationPrompt.Value == false;
 	int mode = GetHostParameter(ctx, 2, CallConvention::Thiscall);
@@ -171,7 +171,7 @@ X86_FUNC(sub_2A6D00)
 
 // confirmation prompts logic
 X86_FUNC_IMPL(__imp__sub_2A5B60);
-X86_FUNC(sub_2A5B60)
+X86_OVERRIDE_FUNC(sub_2A5B60)
 {
 	if (g_shouldPreventPrompt)
 	{
@@ -230,7 +230,7 @@ bool DrawAdvertiseMessageMidAsmHook(X86Context& __restrict ctx, uint8_t* base)
 
 // draw message
 X86_FUNC_IMPL(__imp__sub_2A6020);
-X86_FUNC(sub_2A6020)
+X86_OVERRIDE_FUNC(sub_2A6020)
 {
 	X86Context ctxBackup = ctx;
 
@@ -259,7 +259,7 @@ void SetPauseDimAlpha(uint8_t alpha)
 
 // Patch the black_cover pause NCP bug
 X86_FUNC_IMPL(__imp__sub_2A57E0);
-X86_FUNC(sub_2A57E0)
+X86_OVERRIDE_FUNC(sub_2A57E0)
 {
 	static constexpr uint32_t dimAlphaAddr = 0x529C37; // 0xA0 (color of the dim)
 	auto dimAlpha = X86_LOAD_U8(dimAlphaAddr);
@@ -345,7 +345,7 @@ static void ShowCustomMessage(uint8_t* base, const CustomMessage& custom, uint32
 
 // hack: prevent the game to draw its own text replace with our own one instead
 X86_FUNC_IMPL(__imp__sub_2A5DD0);
-X86_FUNC(sub_2A5DD0)
+X86_OVERRIDE_FUNC(sub_2A5DD0)
 {
 	auto message = ctx.ecx.u32;
 

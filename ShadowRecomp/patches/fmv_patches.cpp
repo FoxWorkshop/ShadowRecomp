@@ -57,7 +57,7 @@ static void SetMovieTexCoords(uint32_t manager, float u0, float v0, float u1, fl
 
 // TMovieManager::Draw(x, y, scaleX, scaleY)
 X86_FUNC_IMPL(__imp__sub_24CF0);
-X86_FUNC(sub_24CF0)
+X86_OVERRIDE_FUNC(sub_24CF0)
 {
     const uint32_t args = ctx.esp.u32 + 4;
     const uint32_t manager = X86_LOAD_U32(MovieManagerPtrAddr);

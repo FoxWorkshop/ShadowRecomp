@@ -273,7 +273,7 @@ uint16_t SwapMotionId(uint8_t* base, uint32_t playWork, uint32_t field)
 // This function is used to start the queued motion of a slot. It copy the id and read the loop flag of a motion.
 // We give it the new custom motion values so its behavior stay correct.
 X86_FUNC_IMPL(__imp__sub_36FC90);
-X86_FUNC(sub_36FC90)
+X86_OVERRIDE_FUNC(sub_36FC90)
 {
 	uint32_t playWork = X86_LOAD_U32(ctx.esp.u32 + 4);
 	uint32_t slot = GetPlaySlot(base, playWork, X86_LOAD_U32(ctx.esp.u32 + 8));
@@ -291,7 +291,7 @@ X86_FUNC(sub_36FC90)
 // Keep two blended slots in step (walk and run): (playWork, index slot)
 // It reads the frame range of both queued motions, and ours can be shorter or longer than the original.
 X86_FUNC_IMPL(__imp__sub_36E3B0);
-X86_FUNC(sub_36E3B0)
+X86_OVERRIDE_FUNC(sub_36E3B0)
 {
 	uint32_t playWK = X86_LOAD_U32(ctx.esp.u32 + 4);
 	uint32_t slotIndex = X86_LOAD_U32(ctx.esp.u32 + 8);
@@ -341,14 +341,14 @@ void QueryPlayingMotionPatch(X86Context& ctx, uint8_t* base)
 // motion event queries
 // args: playWork, index, type, out, count
 X86_FUNC_IMPL(__imp__sub_376DC0);
-X86_FUNC(sub_376DC0)
+X86_OVERRIDE_FUNC(sub_376DC0)
 {
 	QueryPlayingMotionPatch<__imp__sub_376DC0>(ctx, base);
 }
 
 // same as above
 X86_FUNC_IMPL(__imp__sub_376FE0);
-X86_FUNC(sub_376FE0)
+X86_OVERRIDE_FUNC(sub_376FE0)
 {
 	QueryPlayingMotionPatch<__imp__sub_376FE0>(ctx, base);
 }
@@ -377,14 +377,14 @@ void PatchPlayerBlendMotionsID(X86Context& ctx, uint8_t* base)
 
 // Set the frame of both blended motions (param: this, ratio)
 X86_FUNC_IMPL(__imp__sub_93190);
-X86_FUNC(sub_93190)
+X86_OVERRIDE_FUNC(sub_93190)
 {
 	PatchPlayerBlendMotionsID<__imp__sub_93190>(ctx, base);
 }
 
 // Get the play speed of the blended motions
 X86_FUNC_IMPL(__imp__sub_934D0);
-X86_FUNC(sub_934D0)
+X86_OVERRIDE_FUNC(sub_934D0)
 {
 	PatchPlayerBlendMotionsID<__imp__sub_934D0>(ctx, base);
 }
@@ -396,7 +396,7 @@ X86_FUNC(sub_934D0)
 
 // BON load: (data, freeFn): returns the BON id
 X86_FUNC_IMPL(__imp__sub_366B60);
-X86_FUNC(sub_366B60)
+X86_OVERRIDE_FUNC(sub_366B60)
 {
 	__imp__sub_366B60(ctx, base);
 
@@ -429,7 +429,7 @@ static thread_local bool s_IsUsingShadowOGSkeleton = false;
 // If the body's archive has a BON of its own, we point the player to it instead,
 // and the motions for it are then found by name like for any other skeleton.
 X86_FUNC_IMPL(__imp__sub_9C420);
-X86_FUNC(sub_9C420)
+X86_OVERRIDE_FUNC(sub_9C420)
 {
 	uint32_t this_ = ctx.ecx.u32;
 	uint32_t bodyArchive = X86_LOAD_U32(this_ + 503 * 4);
@@ -451,7 +451,7 @@ X86_FUNC(sub_9C420)
 
 // Create play work from a BON id: (bonId, flags)
 X86_FUNC_IMPL(__imp__sub_369BB0);
-X86_FUNC(sub_369BB0)
+X86_OVERRIDE_FUNC(sub_369BB0)
 {
 	if (s_IsUsingShadowOGSkeleton)
 	{

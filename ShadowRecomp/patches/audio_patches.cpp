@@ -83,7 +83,7 @@ static int32_t IsndVolumeToCentibelsGC(int32_t volume)
 }
 
 // thiscall so ecx = slot, stack = listener
-X86_FUNC(sub_25FEC0)
+X86_OVERRIDE_FUNC(sub_25FEC0)
 {
 	const uint32_t slot = ctx.ecx.u32;
 	const uint32_t listener = X86_LOAD_U32(ctx.esp.u32 + 0x4);
@@ -129,7 +129,7 @@ X86_FUNC(sub_25FEC0)
 }
 
 // Slot volume
-X86_FUNC(sub_25FD60)
+X86_OVERRIDE_FUNC(sub_25FD60)
 {
 	const uint32_t slot = ctx.ecx.u32;
 	const int32_t volume = int32_t(X86_LOAD_U32(ctx.esp.u32 + 0x4));
@@ -200,7 +200,7 @@ void SEPanSkipGCBAMSMidAsmHook(X86Context& __restrict ctx, uint8_t* base) {}
 // Slot pan
 // OG function is a nullsub since DirectSound + HRTF handles panning normally
 static int8_t g_slotPan[SLOT_COUNT];
-X86_FUNC(sub_25B280)
+X86_OVERRIDE_FUNC(sub_25B280)
 {
 	const int8_t pan = int8_t(X86_LOAD_U8(ctx.esp.u32 + 0x4));
 	const int32_t handle = GetSlotHandle(ctx.esp.u32 + 0x8);
@@ -217,7 +217,7 @@ X86_FUNC(sub_25B280)
 
 // Slot play
 X86_FUNC_IMPL(__imp__sub_25F120);
-X86_FUNC(sub_25F120)
+X86_OVERRIDE_FUNC(sub_25F120)
 {
 	const int32_t handle = GetSlotHandle(ctx.esp.u32 + 0xC);
 	const uint32_t position = X86_LOAD_U32(ctx.esp.u32 + 0x14);
@@ -567,7 +567,7 @@ static void FixStageLoop(const SFXLoopFix& sfxData)
 
 // InitSoundBank(slot, stageID)
 X86_FUNC_IMPL(__imp__sub_25F420);
-X86_FUNC(sub_25F420)
+X86_OVERRIDE_FUNC(sub_25F420)
 {
 	const uint32_t slot = X86_LOAD_U32(ctx.esp.u32 + 0x4);
 	const int32_t stage = int32_t(X86_LOAD_U32(ctx.esp.u32 + 0x8));
@@ -730,7 +730,7 @@ bool GravityChangeTouchSFXMidAsmHook(X86Context& __restrict ctx, uint8_t* base)
 // Exec at sub_20DA10
 // Exec calls while the obj isn't acting on prior collision
 X86_FUNC_IMPL(__imp__sub_20D980);
-X86_FUNC(sub_20D980)
+X86_OVERRIDE_FUNC(sub_20D980)
 {
 	const uint32_t gravitySwitch = ctx.ecx.u32;
 	g_gravityChangeTouches.erase(gravitySwitch);
@@ -741,12 +741,11 @@ X86_FUNC(sub_20D980)
 // Exec at sub_20E2E0
 // Exec calls while the obj isn't acting on prior collision
 X86_FUNC_IMPL(__imp__sub_20E260);
-X86_FUNC(sub_20E260)
+X86_OVERRIDE_FUNC(sub_20E260)
 {
 	const uint32_t zone = ctx.ecx.u32;
 	g_gravityChangeTouches.erase(zone);
 	__imp__sub_20E260(ctx, base);
 }
 /** GravityChangeSwitch / GravityChangeZone SFX spam fix Patch END */
-
 

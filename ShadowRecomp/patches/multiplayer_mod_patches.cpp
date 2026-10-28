@@ -4,7 +4,7 @@
 
 
 X86_FUNC_IMPL(__imp__sub_12700);
-X86_FUNC(sub_12700)
+X86_OVERRIDE_FUNC(sub_12700)
 {
 	auto beforeCTX = ctx;
 	__imp__sub_12700(ctx, base);
@@ -32,7 +32,7 @@ uint32_t g_multiplayerPlayerCount = 4;
 // Chaos Powers Enabled for MP Fix (Xbox exclusive patch where its disabled)
 X86_FUNC_IMPL (__imp__sub_22D250);
 
-X86_FUNC (sub_22D250)
+X86_OVERRIDE_FUNC(sub_22D250)
 {
     __imp__sub_22D250(ctx, base);
     if (Config::ExtendedMultiplayer)
@@ -562,7 +562,7 @@ bool SetObjUnloadMultiplayerBranchMidAsmHook(X86Context& __restrict ctx, uint8_t
 
 // Object <-> Player distance check (inside SetObjLoad)
 X86_FUNC_IMPL(__imp__sub_2595A0);
-X86_FUNC(sub_2595A0)
+X86_OVERRIDE_FUNC(sub_2595A0)
 {
 	uint32_t objEntryAddr = X86_LOAD_U32(ctx.esp.u32 + 4);
 	uint32_t subObjAddr = X86_LOAD_U32(objEntryAddr);
@@ -599,7 +599,7 @@ X86_FUNC(sub_2595A0)
 
 // Object <-> Player distance check (inside SetObjUnload)
 X86_FUNC_IMPL(__imp__sub_181F80);
-X86_FUNC(sub_181F80)
+X86_OVERRIDE_FUNC(sub_181F80)
 {
 	uint32_t objPosAddr = X86_LOAD_U32(ctx.esp.u32 + 4);
 	float thresholdSq = X86_LOAD_F32(ctx.esp.u32 + 8);

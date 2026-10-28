@@ -86,7 +86,7 @@ void ExpertSelectMidAsmHook(X86Context& __restrict ctx, uint8_t* base)
 // 0x8 = HomingAttack
 // TODO: We will extend this further to enable state transitions like SpinDash->Slide etc in the future
 X86_FUNC_IMPL(__imp__sub_977D0);
-X86_FUNC(sub_977D0)
+X86_OVERRIDE_FUNC(sub_977D0)
 {
     // esp+8 = BehaviorId
     // ecx+4 = PlayerStruct targetted by Behavior
@@ -167,7 +167,7 @@ static void HandleChaosGaugeCheat(X86Context& ctx, uint8_t* base)
 
 // ShadowExecuter::Exec
 X86_FUNC_IMPL(__imp__sub_98670);
-X86_FUNC(sub_98670)
+X86_OVERRIDE_FUNC(sub_98670)
 {
     HandleChaosGaugeCheat(ctx, base);
     __imp__sub_98670(ctx, base);
@@ -176,7 +176,7 @@ X86_FUNC(sub_98670)
 // Infinite Ammo Cheat
 // If the game is removing an ammo, swap it to 0 so shot cost nothing
 X86_FUNC_IMPL(__imp__sub_9FC00);
-X86_FUNC(sub_9FC00)
+X86_OVERRIDE_FUNC(sub_9FC00)
 {
     if (Config::InfiniteAmmo && (int32_t)X86_LOAD_U32(ctx.esp.u32 + 4) < 0)
     {
@@ -215,7 +215,7 @@ static void ClearNodeCallbacks(uint8_t* base, uint32_t node, uint32_t depth)
 
 // CEnemyVacuumObject ctor
 X86_FUNC_IMPL(__imp__sub_CEED0);
-X86_FUNC(sub_CEED0)
+X86_OVERRIDE_FUNC(sub_CEED0)
 {
     uint32_t vacuumObject = ctx.ecx.u32;
     __imp__sub_CEED0(ctx, base);
@@ -231,4 +231,3 @@ X86_FUNC(sub_CEED0)
     if (hierarchy != 0)
         ClearNodeCallbacks(base, X86_LOAD_U32(hierarchy + 0xC), 0);
 }
-
