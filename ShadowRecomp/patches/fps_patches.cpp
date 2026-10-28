@@ -3385,21 +3385,24 @@ X86_FUNC(sub_23950)
 // at 240fps its 100ms + 4ms
 static void WeaponFireRate60FPS(uint8_t* base, uint32_t control, float prevCooldown, float dt)
 {
-	const float step = 1.0f / 60.0f;
+	const float frames = g_deltaTime * 60.0f;
 	const float cooldown = X86_LOAD_F32(control + 0x10);
-	if (dt >= step || cooldown <= 0.0f || cooldown <= prevCooldown)
+	if (!NeedsFpsRescale(frames) || !(dt > 0.0f) || cooldown <= 0.0f || cooldown <= prevCooldown)
 	{
 		return;
 	}
 
-	int frames = 0;
+	const float step = 1.0f / 60.0f * (dt / g_deltaTime);
+	int steps = 0;
 	float left = cooldown;
 	while (left > 0.0f)
 	{
 		left -= step;
-		frames++;
+		steps++;
 	}
-	X86_STORE_F32(control + 0x10, frames * step - dt * 0.5f);
+	const float wait = steps * step;
+	const float late = prevCooldown > 0.0f ? std::min(std::max(dt - prevCooldown, 0.0f), wait) : 0.0f;
+	X86_STORE_F32(control + 0x10, std::max(wait - late - 1.0e-6f, 0.0f));
 }
 
 // ControlCannon
