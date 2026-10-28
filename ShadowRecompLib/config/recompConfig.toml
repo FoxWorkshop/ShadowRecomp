@@ -1556,7 +1556,7 @@ address = 0x249510
 
 [[midasm_hook]]
 name = "WeaponDropSettleThresholdRestoreMidAsmHook"
-address = 0x249520
+address = 0x249516
 # End ScatteringWeapon fixes
 
 # Start Belt::Eff fixes (jump dash, tri jump, spindash, slide trails)
