@@ -2798,48 +2798,69 @@ X86_FUNC(sub_2CA020)
 /**	--UV Anim Baked Flipbook Patch END-- */
 
 /** --EnemyBase Rotation Patch START-- */
+static bool TurnEnemyYaw(uint8_t* base, uint32_t enemyModel, float target, float dt, float rate, float frames)
+{
+	const float minStep = X86_LOAD_F32(0x47E0A4) * X86_LOAD_F32(0x42A880); // pi * 1/180
+	const float half = X86_LOAD_F32(0x46C3B8); // 0.5
+
+	const float yaw = X86_LOAD_F32(enemyModel + 0x14);
+	const float delta = WrapAngle(target - yaw);
+	const float step = std::max(std::min(dt * rate, std::fabs(delta) * (1.0f - std::pow(1.0f - half, frames))), minStep * frames);
+	const float yawAfter = std::fabs(delta) > step ? WrapAngle(yaw + (delta >= 0.0f ? step : -step)) : target;
+	X86_STORE_F32(enemyModel + 0x14, yawAfter);
+
+	// Face target check (same constant)
+	return std::fabs(target - yawAfter) < minStep;
+}
+
 // EnemyBase Rotation To Target / Shared_RotateToPlayerCalc
 // Enemy Yaw = (enemy+0x30)->0x14
 // Target Yaw = (enemy+0x88)
 X86_FUNC_IMPL(__imp__sub_C23B0);
 X86_FUNC(sub_C23B0)
 {
+	const float frames = g_deltaTime * 60.0f;
 	const uint32_t enemy = ctx.ecx.u32;
 	const uint32_t enemyModel = X86_LOAD_U32(enemy + 0x30);
-
-	if (enemyModel == 0)
+	if (enemyModel == 0 || !NeedsFpsRescale(frames))
 	{
 		__imp__sub_C23B0(ctx, base);
 		return;
 	}
 
-	const float yawBefore = X86_LOAD_F32(enemyModel + 0x14);
-	const float target = X86_LOAD_F32(enemy + 0x88);
-	__imp__sub_C23B0(ctx, base);
+	// vtable at enemy+0x4 -> 0x2C for turn rate
+	const uint32_t disp = X86_LOAD_U32(enemy + 0x4);
+	const uint32_t getTurnRate = X86_LOAD_U32(X86_LOAD_U32(disp) + 0x2C);
+	X86Context call = ctx;
+	call.ecx.u32 = disp;
+	call.esp.u32 -= 4;
+	g_memory.FindFunction(getTurnRate)(call, base);
 
+	const float dt = X86_LOAD_F32(X86_LOAD_U32(enemyModel + 0x60));
+	const bool facing = TurnEnemyYaw(base, enemyModel, X86_LOAD_F32(enemy + 0x88), dt, (float)call.fpu.st0(), frames);
+	ctx.eax.u32 = (enemyModel & 0xFFFFFF00) | (facing ? 1 : 0);
+	ctx.esp.u32 += 4;
+}
+
+// AI aim / turn
+X86_FUNC_IMPL(__imp__sub_C3580);
+X86_FUNC(sub_C3580)
+{
 	const float frames = g_deltaTime * 60.0f;
-	if (!(frames > 0.0f) || std::fabs(frames - 1.0f) < 0.0001f)
+	if (!NeedsFpsRescale(frames))
 	{
+		__imp__sub_C3580(ctx, base);
 		return;
 	}
 
-	const float step = WrapAngle(X86_LOAD_F32(enemyModel + 0x14) - yawBefore);
-	if (step == 0.0f)
-	{
-		return;
-	}
-
-	const float remaining = WrapAngle(target - yawBefore);
-	float scaled = step * frames;
-	if (std::fabs(scaled) > std::fabs(remaining))
-	{
-		scaled = remaining;
-	}
-
-	const float yawAfter = WrapAngle(yawBefore + scaled);
-	X86_STORE_F32(enemyModel + 0x14, yawAfter);
-	// Face target check (same constant)
-	ctx.eax.u8_lo = std::fabs(WrapAngle(target - yawAfter)) < 0.017453294f ? 1 : 0;
+	const uint32_t turner = ctx.ecx.u32;
+	const uint32_t dir = X86_LOAD_U32(ctx.esp.u32 + 4);
+	const uint32_t enemyModel = X86_LOAD_U32(X86_LOAD_U32(turner) + 0x30);
+	const float dt = X86_LOAD_F32(X86_LOAD_U32(turner + 0x4) + 0x20);
+	const float target = std::atan2(-X86_LOAD_F32(dir), -X86_LOAD_F32(dir + 0x8));
+	const bool facing = TurnEnemyYaw(base, enemyModel, target, dt, X86_LOAD_F32(turner + 0x8), frames);
+	ctx.eax.u32 = (enemyModel & 0xFFFFFF00) | (facing ? 1 : 0);
+	ctx.esp.u32 += 8;
 }
 /** --EnemyBase Rotation Patch END-- */
 
