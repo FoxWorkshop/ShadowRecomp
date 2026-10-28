@@ -1955,3 +1955,35 @@ name = "CarMotionFrameMidAsmHook"
 address = 0x2444F2
 registers = ["r4", "r5"]
 # End TVehicleCar patches
+
+# Enemy aim bone snap patch (BkSoldier, GUNRobot, BkNinja)
+[[midasm_hook]]
+name = "EnemyAimLerpMidAsmHook"
+address = 0x13B166
+registers = ["r7"]
+
+[[midasm_hook]]
+name = "EnemyAimLerpMidAsmHook"
+address = 0x13B198
+registers = ["r7"]
+
+[[midasm_hook]]
+name = "EnemyAimLerpMidAsmHook"
+address = 0x139106
+registers = ["r7"]
+
+[[midasm_hook]]
+name = "EnemyAimLerpMidAsmHook"
+address = 0x139138
+registers = ["r7"]
+
+[[midasm_hook]]
+name = "EnemyAimLerpMidAsmHook"
+address = 0x14A090
+registers = ["r7"]
+
+[[midasm_hook]]
+name = "EnemyAimLerpMidAsmHook"
+address = 0x14A0C2
+registers = ["r7"]
+# End Enemy aim bone patches

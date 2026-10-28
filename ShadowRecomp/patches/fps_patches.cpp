@@ -2862,6 +2862,22 @@ X86_FUNC(sub_C3580)
 	ctx.eax.u32 = (enemyModel & 0xFFFFFF00) | (facing ? 1 : 0);
 	ctx.esp.u32 += 8;
 }
+
+// Aim bone snap fix
+// BkSoldier / BkNinja / GUNRobot
+// Just like the vac cheat BkNinja head has a call to this but it actually passes it to the arm.
+// More proof BkNinja was rushed as hell lol
+void EnemyAimLerpMidAsmHook(X86Register& esp)
+{
+	auto base = g_memory.base;
+	const float frames = g_deltaTime * 60.0f;
+	const uint32_t tAddr = esp.u32 + 0x8;
+	const float t = X86_LOAD_F32(tAddr);
+	if (NeedsFpsRescale(frames) && t > 0.0f && t < 1.0f)
+	{
+		X86_STORE_F32(tAddr, 1.0f - std::pow(1.0f - t, frames));
+	}
+}
 /** --EnemyBase Rotation Patch END-- */
 
 /** --BirdBase Vehicle Rotation Fix Patch START-- */
