@@ -1214,6 +1214,11 @@ name = "UpDownReelHangTurnMidAsmHook"
 address = 0x1BD6D2
 registers = ["r0"]
 
+[[midasm_hook]]
+name = "UpDownReelAngleMidAsmHook"
+address = 0x1BDF5D
+registers = ["r5"]
+
 # plant thing that launch you in Death Ruins
 
 [[midasm_hook]]
