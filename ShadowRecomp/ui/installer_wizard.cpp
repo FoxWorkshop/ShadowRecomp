@@ -20,6 +20,8 @@
 #include <res/images/common/Options2.png.h>
 #include <decompressor.h>
 #include <kernel/io/file_system.h>
+#include "options_menu.h"
+#include <res/credits.h>
 
 
 static std::unique_ptr<GuestTexture> g_upTexOptionsBG{};
@@ -100,7 +102,7 @@ static std::atomic<const char*> g_installerCurrentFileName{ "" };
 static std::atomic<bool> g_installerCompiling{ false };
 static Installer::Sources g_installerSources;
 static uint64_t g_installerAvailableSize = 0;
-
+static std::string g_creditsStr;
 static constexpr float INSTALL_EXTRACT_RATIO_END = 0.8f;
 
 static bool g_currentCursorAccepted = false;
@@ -525,42 +527,19 @@ static void DrawPrevButton(ImVec2& panelMin, ImVec2& panelMax, float scale)
 	}
 }
 
-// TODO: Maybe re-use this for the credits scroll on final page
-// Otherwise scrap it, its unused since we copied to Options
-static void DrawDescription(std::string s, float alpha = 1.0f)
-{
-	static std::string prevText;
-	static double scrollStartTime = 0.0;
-	constexpr double scrollDelay = 0.5; // seconds to wait before scrolling
-	double elapsed = ImGui::GetTime() - scrollStartTime;
 
-	std::replace(s.begin(), s.end(), '\n', ' ');
 
-	if (prevText != s)
+static void DrawBackground(ImGuiViewport* viewport, ImVec2 winPos, ImVec2 winSize, float scale, float offsetX, float offsetY)
 	{
-		prevText = s;
-		scrollStartTime = ImGui::GetTime() + scrollDelay;
-	}
-
 	auto drawList = ImGui::GetBackgroundDrawList();
 	auto& res = ImGui::GetIO().DisplaySize;
 
-	// First we calculate the position of the black bar of the menu BG
-	float barTexX = 74.0f;
-	float barTexY = 38.f;
-	float barTexH = 48.f;
-	float texHeight = 512.0f;
+	// Bevel at edges
+	ImVec2 min = { winPos.x + offsetX + 21.0f * scale, winPos.y + offsetY + 54.0f * scale };
+	ImVec2 max = { min.x + 598.0f * scale, min.y + 362.0f * scale };
 
-	// Then we map to screen space proportionally
-	float barScreenX = (barTexX / texHeight) * res.x;
-	float barScreenY = (barTexY / texHeight) * res.y;
-	float barScreenH = (barTexH / texHeight) * res.y;
-	ImVec2 barMin = { barScreenX + Scale(30), barScreenY };
-	ImVec2 barMax = { res.x, barScreenY + barScreenH };
-	drawList->PushClipRect(barMin, barMax);
-	float fontSize = Scale(18.0f) - 2.0f;
-	auto textSize = g_fntSeurat->CalcTextSizeA(fontSize, FLT_MAX, 0.0f, s.c_str());
-	float barWidth = res.x - barScreenX;
+	DrawShadowWindow(drawList, min, max, scale, g_openProgress);
+}
 
 	ImVec2 textPos = {
 		barScreenX + barWidth * 0.5f - textSize.x * 0.5f + Scale(15.f),  // centered within bar bounds
@@ -1377,4 +1356,10 @@ void InstallerWizard::Init()
 	g_fntSeurat = ImFontAtlasSnapshot::GetFont("FOT-SeuratPro-DB.otf");
 	g_upTexOptionsBG = LOAD_ZSTD_TEXTURE(g_options_bg);
 	g_upTexOptionsBG2 = LOAD_ZSTD_TEXTURE(g_options_bg2);
+
+	for (int i = 0; i < g_credits.size(); i++)
+	{
+		g_creditsStr += g_credits[i];
+		g_creditsStr += "  ";
+	}
 }

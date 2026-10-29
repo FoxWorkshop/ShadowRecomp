@@ -2192,7 +2192,7 @@ static float GetLoopSceneFrame()
 	return fmodf((float)((ImGui::GetTime() - g_loopSceneTime) * 60.0), LOOP_SCENE_FRAMES);
 }
 
-void DrawAnimatedFire(ImVec2 min, ImVec2 max, float fade = 1.0f)
+void DrawAnimatedFire(ImVec2 min, ImVec2 max, float fade)
 {
 	auto drawList = ImGui::GetBackgroundDrawList();
 	auto frame = GetLoopSceneFrame();
@@ -2224,7 +2224,7 @@ void DrawAnimatedFire(ImVec2 min, ImVec2 max, float fade = 1.0f)
 	ResetAdditive();
 }
 
-static void DrawLoopLines(ImVec2 min, ImVec2 max, float fade = 1.0f)
+void DrawLoopLines(ImVec2 min, ImVec2 max, float fade)
 {
 	auto drawList = ImGui::GetBackgroundDrawList();
 	auto frame = GetLoopSceneFrame();

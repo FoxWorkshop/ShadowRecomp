@@ -54,3 +54,7 @@ public:
 
     static void UpdateSoundTest();
 };
+
+void DrawAnimatedFire(ImVec2 min, ImVec2 max, float fade = 1.0f);
+void DrawLoopLines(ImVec2 min, ImVec2 max, float fade = 1.0f);
+void DrawDescription(std::string s);
