@@ -6,11 +6,9 @@
 #include <locale/locale.h>
 #include <gpu/video.h>
 #include <ui/imgui_utils.h>
-#include <decompressor.h>
 #include <gpu/imgui/imgui_snapshot.h>
 #include <user/config.h>
 #include <input/padstate.h>
-#include <ui/menu_common.h>
 #include <exports.h>
 #include <ui/achievement_menu.h>
 
@@ -86,7 +84,8 @@ static bool g_right{};
 static bool g_rightWasHeld{};
 static bool g_isAccepted{};
 static bool g_inputAllowed = false;
-
+static bool g_isBPressed{};
+static bool g_waitBRelease{};
 
 static bool g_isDrawingSubtitle = false;
 static bool g_isDrawingMessageTask = false;
@@ -183,6 +182,11 @@ static int8_t GetPauseItemRow(const uint8_t* items, uint8_t count, int8_t select
 static uint8_t GetPausePadIndex()
 {
 	return g_PlayerPauseMode == ModeRunningP2 ? 1 : 0;
+}
+
+static PJSPeripheral::ControllerSlot* GetPadSlot(uint32_t port)
+{
+	return reinterpret_cast<PJSPeripheral::ControllerSlot*>(MmGetHostAddress(0x535550 + 0x50 + port * 0x28));
 }
 
 void DrawPauseText()
@@ -451,6 +455,11 @@ X86_FUNC(sub_5AEE0)
 	s_isVisible = !flagdisabled && (mode == ModeRunningP1 || mode == ModeRunningP2);
 }
 
+void PauseBCheckMidAsmHook(X86Register& ebp)
+{
+	g_isBPressed = GetPadSlot(ebp.u32)->justPressed & PJSPeripheral::BTN_B;
+}
+
 // This function check input and set cursor for the pause menu
 // Because we add a new option not intended, we don't want this to mess with the real cursor pose 
 // Thus we patch this function to trick the game as much as possible that cursor pos is fine
@@ -489,6 +498,7 @@ X86_FUNC(sub_5AAF0)
 
 	auto ecx = ctx.ecx.u32;
 
+	g_isBPressed = false;
 	__imp__sub_5AAF0(ctx, base);
 
 	if (g_pauseCSD)
@@ -514,6 +524,40 @@ X86_FUNC(sub_5AAF0)
 				ctx.eax.u32 = (uint32_t)PauseAction_Restart + s_index;
 			}
 		}
+	}
+
+	// B resumes like start on continue
+	if (g_isBPressed && ctx.eax.u32 == PauseAction_None)
+	{
+		ctx.eax.u32 = PauseAction_Resume;
+		g_waitBRelease = true;
+	}
+}
+
+// Story route "Y" press
+// adding in "B" press
+X86_FUNC_IMPL(__imp__sub_5A240);
+X86_FUNC(sub_5A240)
+{
+	const bool isAnimDone = X86_LOAD_U8(ctx.ecx.u32 + 0x4D) != 0;
+	__imp__sub_5A240(ctx, base);
+	if (ctx.eax.u8_lo == 0 && isAnimDone && (GetPadSlot(X86_LOAD_U32(0x5356E4))->justPressed & PJSPeripheral::BTN_B))
+	{
+		ctx.eax.u8_lo = 1;
+	}
+}
+
+// Unpause 'hold'
+// A/X/Start are checked normally, adding B
+X86_FUNC_IMPL(__imp__sub_2A7F30);
+X86_FUNC(sub_2A7F30)
+{
+	const uint32_t port = X86_LOAD_U32(ctx.esp.u32 + 0x8);
+	__imp__sub_2A7F30(ctx, base);
+	if (g_waitBRelease && ctx.eax.u8_lo == 0)
+	{
+		g_waitBRelease = GetPadSlot(port)->buttons & PJSPeripheral::BTN_B;
+		ctx.eax.u8_lo = g_waitBRelease;
 	}
 }
 

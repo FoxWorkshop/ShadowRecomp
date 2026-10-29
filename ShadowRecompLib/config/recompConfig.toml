@@ -1987,3 +1987,9 @@ name = "EnemyAimLerpMidAsmHook"
 address = 0x14A0C2
 registers = ["r7"]
 # End Enemy aim bone patches
+
+# Allow B press before start action (Pause Menu)
+[[midasm_hook]]
+name = "PauseBCheckMidAsmHook"
+address = 0x5AD82
+registers = ["r6"]
