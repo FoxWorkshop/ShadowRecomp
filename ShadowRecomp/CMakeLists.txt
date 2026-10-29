@@ -257,12 +257,8 @@ set(SHADOW_RECOMP_CXX_SOURCES
 include("version.cmake")
 
 set(VERSION_TXT "${PROJECT_SOURCE_DIR}/res/version.txt")
-
-# Only show Git info and build type if not Release.
-set(SHOW_GIT_INFO_AND_BUILD_TYPE 0)
-if (NOT ${CMAKE_BUILD_TYPE} MATCHES "Release")
-    set(SHOW_GIT_INFO_AND_BUILD_TYPE 1)
-endif()
+# TODO re-gate for release on Nov 15
+set(SHOW_GIT_INFO_AND_BUILD_TYPE 1)
 
 GenerateVersionSources(
     OUTPUT_DIR ${PROJECT_SOURCE_DIR}
