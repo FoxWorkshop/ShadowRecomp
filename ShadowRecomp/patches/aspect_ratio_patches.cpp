@@ -1076,26 +1076,44 @@ struct QuadStretchCalibration
 	float calibrationY = 1.0f; // aspect independent
 };
 
-thread_local QuadStretchCalibration* g_currentQuadCallib = nullptr;
-
-const xxHashMap<QuadStretchCalibration> g_pictureDff =
+struct PictureDff
 {
-	{ HashStr("ARK!PICTURE!O!.DFF"), { 2.2f, 1.2f } }, // ev 6301 cosmic fall intro (quad lies in XZ, height is verts.z)
-	{ HashStr("ARK!PICTURE!LOCATOR.DFF"), { 2.2f, 1.2f } },
-	{ HashStr("FLASH!BACK!PIC01!O!.DFF"), { 1.6f, 1.1f } }, // ev 6201, 6202, 6203 (lava shelter intro)
-	{ HashStr("FLASH!BACK!PIC02!O!.DFF"), { 1.6f, 1.1f } },
-	{ HashStr("FLASH!BACK!PIC03!O!.DFF"), { 1.6f, 1.1f } },
-	{ HashStr("FLASH!BACK!PIC04!O!.DFF"), { 1.6f, 1.1f } },
-	{ HashStr("ADV2!FLASH!BACK!PIC01!O!.DFF"), { 1.3f, 1.1f } },
-	{ HashStr("ADV2!FLASH!BACK!PIC02!O!.DFF"), { 1.3f, 1.1f } },
-	{ HashStr("ADV2!FLASH!BACK!PIC03!O!.DFF"), { 1.3f, 1.1f } },
-	{ HashStr("ADV2!FLASH!BACK!PIC04!O!.DFF"), { 1.3f, 1.1f } },
-	{ HashStr("HEROS!FLASH!BACK!PICA!O!.DFF"), { 1.2f, 1.1f } }, // ev 3101 prison island intro
-	{ HashStr("HEROS!FLASH!BACK!PICB!O!.DFF"), { 1.2f, 1.1f } }, // ev 3101 prison island intro
-	{ HashStr("BD!SHIP!PIC01!O!.DFF"), { 1.5f, 1.1f } }, // ev 4202 sky troops intro
-	{ HashStr("EGG!SHIP!PIC01!O!.DFF"), { 1.5f, 1.1f } }, // ev 4202 sky troops intro
-	{ HashStr("EGG!SHIP!PIC02!O!.DFF"), { 1.5f, 1.1f } }, // ev 4202 sky troops intro
-	{ HashStr("SPACE!PIC!O!.DFF"), { 1.3f, 1.2f } }, // ev 8204 epilogue
+	const char* name;
+	uint64_t fileHash;
+	QuadStretchCalibration calibration;
+};
+
+thread_local const QuadStretchCalibration* g_currentQuadCallib = nullptr;
+
+static const PictureDff g_pictureDff[] =
+{
+	{ "ARK!PICTURE!O!.DFF", 0x8A9AA0AC9ADA2165ull, { 2.2f, 1.2f } }, // ev 6301 cosmic fall intro (quad lies in XZ, height is verts.z)
+	{ "ARK!PICTURE!LOCATOR.DFF", 0x8C3EC1BA538F07C2ull, { 2.2f, 1.2f } }, // ev 6301
+	{ "FLASH!BACK!PIC01!O!.DFF", 0xF8980C50AA4AFEE6ull, { 1.6f, 1.1f } }, // ev 6201 (lava shelter intro)
+	{ "FLASH!BACK!PIC01!O!.DFF", 0x41D1756A26AD0E6Cull, { 1.6f, 1.1f } }, // ev 6202
+	{ "FLASH!BACK!PIC01!O!.DFF", 0x59679B7EFC7F6BEBull, { 1.6f, 1.1f } }, // ev 6203
+	{ "FLASH!BACK!PIC01!O!.DFF", 0xA62A2381EB93B972ull, { 1.6f, 1.1f } }, // ev 4111
+	{ "FLASH!BACK!PIC01!O!.DFF", 0xB135381ACF0E7DE1ull, { 1.6f, 1.1f } }, // ev 6101, 6103
+	{ "FLASH!BACK!PIC01!O!.DFF", 0xA56875E819163AE5ull, { 1.6f, 1.1f } }, // ev 6104
+	{ "FLASH!BACK!PIC02!O!.DFF", 0xC8FD545ED49E7F5Bull, { 1.6f, 1.1f } }, // ev 6201
+	{ "FLASH!BACK!PIC02!O!.DFF", 0x9E8CC36B927DD50Bull, { 1.6f, 1.1f } }, // ev 6202
+	{ "FLASH!BACK!PIC02!O!.DFF", 0x3BE8029CA9923AF6ull, { 1.6f, 1.1f } }, // ev 6203
+	{ "FLASH!BACK!PIC03!O!.DFF", 0xB7C87812CC4E3F43ull, { 1.6f, 1.1f } }, // ev 6201
+	{ "FLASH!BACK!PIC03!O!.DFF", 0x0AA5C34F51028FB3ull, { 1.6f, 1.1f } }, // ev 6202
+	{ "FLASH!BACK!PIC03!O!.DFF", 0xC4936BC822FDCB50ull, { 1.6f, 1.1f } }, // ev 6203
+	{ "FLASH!BACK!PIC04!O!.DFF", 0x5CBBFEF84D845D91ull, { 1.6f, 1.1f } }, // ev 6201
+	{ "FLASH!BACK!PIC04!O!.DFF", 0x31BFE6FC220B1A15ull, { 1.6f, 1.1f } }, // ev 6202
+	{ "FLASH!BACK!PIC04!O!.DFF", 0xC11A58D21E2D84C2ull, { 1.6f, 1.1f } }, // ev 6203
+	{ "ADV2!FLASH!BACK!PIC01!O!.DFF", 0x5F3EEEEED08941D7ull, { 1.3f, 1.1f } }, // ev 5302
+	{ "ADV2!FLASH!BACK!PIC02!O!.DFF", 0x5ED6F088DF43A2EFull, { 1.3f, 1.1f } }, // ev 5302
+	{ "ADV2!FLASH!BACK!PIC03!O!.DFF", 0xB2F0E6B57EFE21ADull, { 1.3f, 1.1f } }, // ev 5302
+	{ "ADV2!FLASH!BACK!PIC04!O!.DFF", 0x04AEF24F2506F58Dull, { 1.3f, 1.1f } }, // ev 5302
+	{ "HEROS!FLASH!BACK!PICA!O!.DFF", 0xB75EE7F97968549Cull, { 1.2f, 1.1f } }, // ev 3101 prison island intro
+	{ "HEROS!FLASH!BACK!PICB!O!.DFF", 0x4020BD6E58EDBBA0ull, { 1.2f, 1.1f } }, // ev 3101 prison island intro
+	{ "BD!SHIP!PIC01!O!.DFF", 0x36AA13F84C89A7E8ull, { 1.5f, 1.1f } }, // ev 4202 sky troops intro
+	{ "EGG!SHIP!PIC01!O!.DFF", 0x80B5E4F74190CB01ull, { 1.5f, 1.1f } }, // ev 4202 sky troops intro
+	{ "EGG!SHIP!PIC02!O!.DFF", 0x1627CF293E62388Eull, { 1.5f, 1.1f } }, // ev 4202 sky troops intro
+	{ "SPACE!PIC!O!.DFF", 0x1F6FEF680246A77Dull, { 1.3f, 1.2f } }, // ev 8204 epilogue
 };
 
 
@@ -1113,27 +1131,44 @@ static float PictureStretchX(float calibrationX)
 
 void FindPictureBackgroundModel(X86Context* ctx, uint8_t* base)
 {
+	g_currentQuadCallib = nullptr;
 	auto pOneFileAsync = (TOneFileAsync*)g_memory.Translate(ctx->ecx.u32);
-	if (pOneFileAsync)
+	if (!pOneFileAsync)
 	{
-		auto pOneFile = pOneFileAsync->pOneFile.get();
-		if (pOneFile)
+		return;
+	}
+
+	auto pOneFile = pOneFileAsync->pOneFile.get();
+	if (!pOneFile)
+	{
+		return;
+	}
+
+	auto assetName = TOneFileCheckFileName(pOneFile, pOneFileAsync->fid);
+	auto data = pOneFileAsync->dest.get();
+	uint32_t size = pOneFileAsync->_mem.length;
+	if (!assetName || !data || size == 0)
+	{
+		return;
+	}
+
+	std::optional<XXH64_hash_t> fileHash;
+	for (const auto& pic : g_pictureDff)
+	{
+		if (strncmp(assetName, pic.name, 0x2C) != 0)
 		{
-			auto assetName = TOneFileCheckFileName(pOneFile, pOneFileAsync->fid); //pOneFile->fname;
-			std::string s = "";
+			continue;
+		}
 
-			if (assetName)
-				s = assetName;
+		if (!fileHash)
+		{
+			fileHash = XXH3_64bits(data, size);
+		}
 
-			auto it = g_pictureDff.find(HashStr(s.c_str()));
-			if (it != g_pictureDff.end())
-			{
-				g_currentQuadCallib = (QuadStretchCalibration*)&it->second;
-			}
-			else
-			{
-				g_currentQuadCallib = nullptr;
-			}
+		if (*fileHash == pic.fileHash)
+		{
+			g_currentQuadCallib = &pic.calibration;
+			return;
 		}
 	}
 }
