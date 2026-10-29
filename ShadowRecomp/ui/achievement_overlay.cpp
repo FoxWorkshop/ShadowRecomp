@@ -1,12 +1,10 @@
 #include "achievement_overlay.h"
-#include <kernel/memory.h>
+#include <audio/embedded_player.h>
 #include <locale/achievement_locale.h>
 #include <locale/locale.h>
 #include <ui/imgui_utils.h>
 #include <user/achievement_data.h>
 #include <user/config.h>
-#include <app.h>
-#include <exports.h>
 #include <user/achievement_manager.h>
 #include <gpu/imgui/imgui_snapshot.h>
 #include <res/images/common/overlay.png.h>
@@ -87,7 +85,7 @@ void AchievementOverlay::Draw()
         g_achievement = GetAchievement(Config::Language.Value, s_queue.front());
         s_queue.pop();
 
-        Game_PlaySound("decide");
+        EmbeddedPlayer::Play("decide");
     }
 
     if (!s_isVisible)

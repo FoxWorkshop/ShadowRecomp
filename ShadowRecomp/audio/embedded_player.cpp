@@ -91,17 +91,32 @@ static void PlayEmbeddedSound(EmbeddedSound s)
 
 static MIX_Audio* g_installerMusic;
 
-void EmbeddedPlayer::Init()
+static bool InitMixer()
 {
+    if (g_mixer)
+        return true;
+
     MIX_Init();
     SDL_AudioSpec spec{ SDL_AUDIO_F32, 2, XAUDIO_SAMPLES_HZ };
     g_mixer = MIX_CreateMixerDevice(SDL_AUDIO_DEVICE_DEFAULT_PLAYBACK, &spec);
-    g_musicTrack = MIX_CreateTrack(g_mixer);
+    if (!g_mixer)
+    {
+        MIX_Quit();
+        return false;
+    }
 
     for (auto& track : g_soundTracks)
     {
         track = MIX_CreateTrack(g_mixer);
     }
+
+    return true;
+}
+
+void EmbeddedPlayer::Init()
+{
+    InitMixer();
+    g_musicTrack = MIX_CreateTrack(g_mixer);
 
     g_installerMusic = MIX_LoadAudioNoCopy(g_mixer, g_installer_music, sizeof(g_installer_music), false);
     MIX_SetTrackAudio(g_musicTrack, g_installerMusic);
@@ -110,7 +125,10 @@ void EmbeddedPlayer::Init()
 
 void EmbeddedPlayer::Play(const char* name)
 {
-    assert(s_isActive && "Playback shouldn't be requested if the Embedded Player isn't active.");
+    if (!InitMixer())
+    {
+        return;
+    }
 
     auto it = g_embeddedSoundMap.find(name);
     if (it == g_embeddedSoundMap.end())
@@ -152,6 +170,12 @@ bool EmbeddedPlayer::IsPlayingMusic()
 
 void EmbeddedPlayer::Shutdown()
 {
+    if (!g_mixer)
+    {
+        s_isActive = false;
+        return;
+    }
+
     MIX_DestroyMixer(g_mixer);
     g_mixer = nullptr;
     g_musicTrack = nullptr;
