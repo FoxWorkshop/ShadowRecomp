@@ -75,19 +75,20 @@ void ExpertSelectMidAsmHook(X86Register& edx)
 }
 
 
+// Hold LT to force JumpDash standalone code (also enabled with Reloaded)
 // CreateBehavior (all player actions)
 //
 // Table of all PlayerBehavior @ 0x4EEE58
 // 0x6 = JumpDash
 // 0x8 = HomingAttack
 // TODO: We will extend this further to enable state transitions like SpinDash->Slide etc in the future
-// TODO: Probably move this to ReloadedPatches later, but for now keep it in
 X86_FUNC_IMPL(__imp__sub_977D0);
 X86_FUNC(sub_977D0)
 {
     // esp+8 = BehaviorId
     // ecx+4 = PlayerStruct targetted by Behavior
-    if (X86_LOAD_U32(ctx.esp.u32 + 8) == 8) // HomingAttack
+    const bool forceJumpDash = Config::HoldLTForceJumpDash || Config::ReloadedMod;
+    if (forceJumpDash && X86_LOAD_U32(ctx.esp.u32 + 8) == 8) // HomingAttack
     {
         uint32_t player = X86_LOAD_U32(ctx.ecx.u32 + 4);
         for (uint32_t i = 0; i < 4; i++) // Checking player structs 1-4 TODO: Maybe grab the extended multiplayer value later?
@@ -95,8 +96,7 @@ X86_FUNC(sub_977D0)
             if (g_playerStructAddrs[i] == player)
             {
                 // TODO: Account for this if we do Action remapping; Input remapping should be fine to auto handle this
-                if (PJSPeripheral::IsHeld(i, PJSPeripheral::BTN_LEFT_TRIG) ||
-                    PJSPeripheral::IsHeld(i, PJSPeripheral::BTN_WHITE))
+                if (PJSPeripheral::IsHeld(i, PJSPeripheral::BTN_LEFT_TRIG))
                 {
                     X86_STORE_U32(ctx.esp.u32 + 8, 6); // Change target Behavior to JumpDash
                 }
