@@ -124,6 +124,7 @@ CONFIG_DEFINE_HIDDEN("Codes", bool, InfiniteAmmo, false, false);
 CONFIG_DEFINE_HIDDEN("Codes", bool, FillChaosControlGaugeOnInput, false, false);
 CONFIG_DEFINE_HIDDEN("Codes", bool, FillChaosBlastGaugeOnInput, false, false);
 CONFIG_DEFINE_HIDDEN("Codes", bool, VacuumAnyEnemy, false, false);
+CONFIG_DEFINE_HIDDEN("Codes", bool, ReloadedMod, false, true);
 
 CONFIG_DEFINE("Update", bool, CheckForUpdates, false, false); // TODO: default to enabled before release
 CONFIG_DEFINE("Update", time_t, LastChecked, 0, false);

@@ -1674,13 +1674,13 @@ registers = ["r4"]
 [[midasm_hook]]
 name = "EggBreakerDigitizeEffectMidAsmHook"
 address = 0xFE69D
-jump_address = 0xFE6A3
+jump_address_on_true = 0xFE6A3
 
 # Phase 2 (half health)
 [[midasm_hook]]
 name = "EggBreakerDigitizeEffectMidAsmHook"
 address = 0xFF8FD
-jump_address = 0xFF903
+jump_address_on_true = 0xFF903
 # End EggBreaker0411 eff fix patch
 
 # Start SFX slot limit patch

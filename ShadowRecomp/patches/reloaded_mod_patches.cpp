@@ -1,30 +1,29 @@
 #include "global.h"
 #include <kernel/function.h>
 #include <input/padstate.h>
-
-// Uncomment the define below to enable
-//#define EnableReloaded
+#include <user/config.h>
 
 // Inlined Homing Attack Speed 1000f -> 2000f [Reloaded Phys]
 void HomingAttackSpeedMidAsmHook(X86Register& esp)
 {
 	auto base = g_memory.base;
 	esp.u32 -= 4;
-#ifdef EnableReloaded
-    X86_STORE_F32(esp.u32, 2000.0f);
-#else
-    X86_STORE_F32(esp.u32, 1000.0f);  // 0x447A0000, original
-#endif
+	X86_STORE_F32(esp.u32, Config::ReloadedMod ? 2000.0f : 1000.0f);
 }
 
 // Circuit Speed Control
 // Electric::Apply @ sub_6F9E0
-// Spline::Circuit read speed @ 0x4EC5E8 (unused, we skip this now)
+// Spline::Circuit read speed @ 0x4EC5E8
 void CircuitSpeedControlMidAsmHook(X86Register& ecx)
 {
 	auto ctx = GetX86Context();
 	auto base = g_memory.base;
-#ifdef EnableReloaded
+	if (!Config::ReloadedMod)
+	{
+		ctx->xmm[0].f32[0] = X86_LOAD_F32(0x4EC5E8);
+		return;
+	}
+
 	// ecx = Behavior::ElectricCircuit
 	// ecx+4 = player instance
 	uint32_t player = X86_LOAD_U32(ecx.u32 + 4);
@@ -47,24 +46,21 @@ void CircuitSpeedControlMidAsmHook(X86Register& ecx)
 		speed = 400.0f;
 	}
 	ctx->xmm[0].f32[0] = speed;
-#else
-	ctx->xmm[0].f32[0] = 800.0f;
-#endif
 }
 
 // GUNMech Walker Revamp
 bool WalkerDismountAnywhereMidAsmHook()
 {
-#ifdef EnableReloaded
-	return true;
-#else
-	return false;
-#endif
+	return Config::ReloadedMod;
 }
 
 void WalkerHoverMoveMidAsmHook(X86Register& esi)
 {
-#ifdef EnableReloaded
+	if (!Config::ReloadedMod)
+	{
+		return;
+	}
+
 	auto base = g_memory.base;
 	if ((X86_LOAD_U8(esi.u32 + 0x104) & 0x8) == 0)
 	{
@@ -94,16 +90,22 @@ void WalkerHoverMoveMidAsmHook(X86Register& esi)
 	X86_STORE_F32(esi.u32 + 0xF8, 0.0f);
 	X86_STORE_F32(esi.u32 + 0xFC, 0.0f);
 	X86_STORE_F32(esi.u32 + 0x100, 0.0f);
-#endif
 }
 
-// TODO: currently always applies
 // Restore EggBreaker0411 Digitize Effect
-void EggBreakerDigitizeEffectMidAsmHook() {}
+// true skips mov [edx+0x24A], al
+bool EggBreakerDigitizeEffectMidAsmHook()
+{
+	return Config::ReloadedMod;
+}
 
 void ReloadedValuePatches()
 {
-#ifdef EnableReloaded
+	if (!Config::ReloadedMod)
+	{
+		return;
+	}
+
 	auto base = g_memory.base;
 
 	// 2P Unique Android JumpBall Colors
@@ -264,5 +266,4 @@ void ReloadedValuePatches()
 	// Slide State Extension - Bad Transition Bugfix
 
 	// Disable Diablon Warp Player Function
-#endif
 }
