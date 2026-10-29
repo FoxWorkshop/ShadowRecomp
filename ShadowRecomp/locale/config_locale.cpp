@@ -836,6 +836,16 @@ CONFIG_DEFINE_ENUM_LOCALE(ECutsceneFramerate)
     }
 };
 
+CONFIG_DEFINE_LOCALE(ShowFPS)
+{
+    { ELanguage::English,  { "Show FPS", "Shows the framerate counter." } },
+    { ELanguage::Japanese, { "Show FPS", "Shows the framerate counter." } },
+    { ELanguage::German,   { "Show FPS", "Shows the framerate counter." } },
+    { ELanguage::French,   { "Show FPS", "Shows the framerate counter." } },
+    { ELanguage::Spanish,  { "Show FPS", "Shows the framerate counter." } },
+    { ELanguage::Italian,  { "Show FPS", "Shows the framerate counter." } }
+};
+
 CONFIG_DEFINE_LOCALE(Brightness)
 {
     { ELanguage::English, { "Brightness", "Adjust the brightness level." } },
