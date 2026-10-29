@@ -68,7 +68,8 @@ static bool g_livePreviewHudHidden{};
 static float g_optionPreviewFade{}; // 0 shows the background, 1 hides it
 static constexpr float g_options_preview_fade_frames = 24.0f;
 
-static ConfigDef<float>* g_sliderPreviewConfig{};
+static IConfigDef* g_previewConfig{};
+static std::string g_previewValueText{};
 static float g_sliderPreviewValue{};
 
 static constexpr ConfigDef<float>* const g_stickDeadzones[] = { &Config::StickDeadzone1P, &Config::StickDeadzone2P, &Config::StickDeadzone3P, &Config::StickDeadzone4P };
@@ -109,7 +110,21 @@ void AudioConfigValueChangedCallback(IConfigDef* config);
 static bool IsLivePreviewActive()
 {
 	return OptionsMenu::s_isPause && OptionsMenu::s_flowState == OptionsMenuFlowState::OptionSelected
-		&& (g_optionCurrent == &Config::Brightness || g_optionCurrent == &Config::BloomIntensity || g_optionCurrent == &Config::MaxHUDWidth);
+		&& (g_optionCurrent == &Config::Brightness || g_optionCurrent == &Config::BloomIntensity
+			|| g_optionCurrent == &Config::AspectRatio || g_optionCurrent == &Config::MaxHUDWidth);
+}
+
+static ConfigDef<float>* GetPreviewGaugeConfig(IConfigDef* config)
+{
+	if (config == &Config::Brightness)
+	{
+		return &Config::Brightness;
+	}
+	if (config == &Config::BloomIntensity)
+	{
+		return &Config::BloomIntensity;
+	}
+	return nullptr; // anything that should be values (non boss csd style sliders)
 }
 
 void ToggleHud(bool toggle);
@@ -136,18 +151,18 @@ static void UpdateLivePreviewFade()
 		g_optionPreviewFade = std::max(g_optionPreviewFade - step, 0.0f);
 
 
-	if (IsLivePreviewActive() && g_optionCurrent != &Config::MaxHUDWidth)
+	if (IsLivePreviewActive())
 	{
-		auto config = g_optionCurrent == &Config::Brightness ? &Config::Brightness : &Config::BloomIntensity;
+		auto gaugeConfig = GetPreviewGaugeConfig(g_optionCurrent);
 
-		if (g_sliderPreviewConfig != config)
-			g_sliderPreviewValue = config->Value;
+		if (gaugeConfig && g_previewConfig != g_optionCurrent)
+			g_sliderPreviewValue = gaugeConfig->Value;
 
-		g_sliderPreviewConfig = config;
+		g_previewConfig = g_optionCurrent;
 	}
 	else if (g_optionPreviewFade <= 0.0f)
 	{
-		g_sliderPreviewConfig = nullptr;
+		g_previewConfig = nullptr;
 	}
 }
 
@@ -157,10 +172,10 @@ static float GetOptionPreviewFade()
 	return t * t * (3.0f - 2.0f * t);
 }
 
-// Used when the whole options menu fades out while a slider is showed alone
+// Used when the whole options menu fades out while a preview is shown alone
 static float GetMenuAlpha()
 {
-	return g_sliderPreviewConfig ? 1.0f - GetOptionPreviewFade() : 1.0f;
+	return g_previewConfig ? 1.0f - GetOptionPreviewFade() : 1.0f;
 }
 
 static void EndPauseHudHide()
@@ -1081,6 +1096,11 @@ static void DrawOption
 	{
 		valueText = config->GetValueLocalised(Config::Language);
 		isValueCentred = true;
+	}
+
+	if ((void*)config == (void*)g_previewConfig)
+	{
+		g_previewValueText = valueText;
 	}
 
 	// Draw value
@@ -2568,7 +2588,7 @@ static void OpenButtonGuide()
 	ButtonGuide::SetLayout(BUTTON_GUIDE_LEFT, BUTTON_GUIDE_RIGHT, BUTTON_GUIDE_TOP);
 }
 
-// hide whole UI and show slider for specific options (like bloom and brightness)
+// hide whole UI and show the option alone (gauge for bloom and brightness)
 
 // slider preview layout (in 640x480 space)
 static constexpr float SLIDER_PREVIEW_CENTRE_Y = 344.0f;
@@ -2642,39 +2662,47 @@ static std::pair<ImVec2, ImVec2> DrawHpGauge(float centreX, float fillCentreY, f
 }
 
 
-static void DrawSliderPreview()
+static void DrawOptionPreview()
 {
 	auto alpha = GetOptionPreviewFade();
 
-	if (!g_sliderPreviewConfig || alpha <= 0.0f)
+	if (!g_previewConfig || alpha <= 0.0f)
 		return;
 
-	auto sliderConfig = g_sliderPreviewConfig;
+	auto gaugeConfig = GetPreviewGaugeConfig(g_previewConfig);
 	auto drawList = ImGui::GetBackgroundDrawList();
 	auto vtxStart = drawList->VtxBuffer.Size;
 	auto& res = ImGui::GetIO().DisplaySize;
 
-	// slide the gauge to the new value smoothly
-	auto blend = 1.0f - std::exp(-ImGui::GetIO().DeltaTime * 15.0f);
-	g_sliderPreviewValue = Lerp(g_sliderPreviewValue, sliderConfig->Value, blend);
-
 	float centerX = res.x / 2.0f;
 	float centerY = g_aspectRatioOffsetY + Scale(SLIDER_PREVIEW_CENTRE_Y);
 
-	std::string valueText = fmt::format("{}%", int(round(sliderConfig->Value * 100.0f)));
-
-	auto [fillMin, fillMax] = DrawHpGauge(centerX, centerY, g_sliderPreviewValue);
-
 	float valueFontSize = g_fntSeuratSize * 0.6f;
-	ImVec2 valueSize = g_fntSeurat->CalcTextSizeA(valueFontSize, FLT_MAX, 0.0f, valueText.c_str());
+	float halfWidth = Scale(SLIDER_PREVIEW_TEXT_WIDTH) * 0.5f;
+
+	if (gaugeConfig)
+	{
+		// slide the gauge to the new value smoothly
+		auto blend = 1.0f - std::exp(-ImGui::GetIO().DeltaTime * 15.0f);
+		g_sliderPreviewValue = Lerp(g_sliderPreviewValue, gaugeConfig->Value, blend);
+
+		auto [fillMin, fillMax] = DrawHpGauge(centerX, centerY, g_sliderPreviewValue);
+		halfWidth = (fillMax.x - fillMin.x) * 0.5f;
+	}
+	else
+	{
+		valueFontSize = g_fntSeuratSize - Scale(5.33f);
+	}
+
+	ImVec2 valueSize = g_fntSeurat->CalcTextSizeA(valueFontSize, FLT_MAX, 0.0f, g_previewValueText.c_str());
 	ImVec2 valuePos = { centerX - valueSize.x * 0.5f, centerY - valueSize.y * 0.5f };
 
-	// draw percentage
-	DrawTextWithOutline(g_fntSeurat, valueFontSize, valuePos, IM_COL32_WHITE, valueText.c_str(), 3.0f, IM_COL32(0, 0, 0, 255));
+	// draw value
+	DrawTextWithOutline(g_fntSeurat, valueFontSize, valuePos, IM_COL32_WHITE, g_previewValueText.c_str(), 3.0f, IM_COL32(0, 0, 0, 255));
 
-	float halfWidth = (fillMax.x - fillMin.x) * 0.5f + Scale(SLIDER_PREVIEW_ARROW_GAP);
+	halfWidth = std::max(halfWidth, valueSize.x * 0.5f) + Scale(SLIDER_PREVIEW_ARROW_GAP);
 
-	std::string titleText = sliderConfig->GetNameLocalised(Config::Language);
+	std::string titleText = g_previewConfig->GetNameLocalised(Config::Language);
 	ImVec2 titleSize = g_fntSeurat->CalcTextSizeA(g_fntSeuratSize, FLT_MAX, 0.0f, titleText.c_str());
 	ImVec2 titlePos = { centerX - titleSize.x * 0.5f, centerY - Scale(SLIDER_PREVIEW_TITLE_GAP) - titleSize.y * 0.5f };
 
@@ -3002,7 +3030,7 @@ void OptionsMenu::Draw()
 	ScaleVertexAlpha(drawList, vtxStart, menuAlpha);
 	ButtonGuide::s_alpha = menuAlpha;
 
-	DrawSliderPreview();
+	DrawOptionPreview();
 
 	g_up = false;
 	g_upWasHeld = upIsHeld;
@@ -3029,7 +3057,7 @@ void OptionsMenu::Open(bool isPause, uint32_t padIndex)
 	g_transitionTime = g_stateTime;
 	g_loopSceneTime = g_stateTime;
 	g_optionPreviewFade = 0.0f;
-	g_sliderPreviewConfig = nullptr;
+	g_previewConfig = nullptr;
 	ButtonGuide::s_alpha = 1.0f;
 	g_isControlsVisible = false;
 
