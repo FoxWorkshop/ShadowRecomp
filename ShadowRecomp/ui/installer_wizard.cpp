@@ -921,7 +921,7 @@ void InstallerWizard::Draw()
 				}
 				else
 				{
-					g_statusMessage = parseError;
+					g_statusMessage = Localise("Installer_Message_InvalidFileSelected");
 				}
 			}
 		}

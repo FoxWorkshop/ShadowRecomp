@@ -621,12 +621,12 @@ std::unordered_map<std::string_view, std::unordered_map<ELanguage, std::string>>
 	// Notes: message appears for any install failure
 	"Installer_Message_InvalidFileSelected",
 	{
-		{ ELanguage::English,  "The selected source is not a valid Shadow the Hedgehog Xbox ISO\nor extracted game folder. Please provide a valid one." },
-		{ ELanguage::Japanese, "The selected source is not a valid Shadow the Hedgehog Xbox ISO\nor extracted game folder. Please provide a valid one." },
-		{ ELanguage::German,   "The selected source is not a valid Shadow the Hedgehog Xbox ISO\nor extracted game folder. Please provide a valid one." },
-		{ ELanguage::French,   "The selected source is not a valid Shadow the Hedgehog Xbox ISO\nor extracted game folder. Please provide a valid one." },
-		{ ELanguage::Spanish,  "The selected source is not a valid Shadow the Hedgehog Xbox ISO\nor extracted game folder. Please provide a valid one." },
-		{ ELanguage::Italian,  "The selected source is not a valid Shadow the Hedgehog Xbox ISO\nor extracted game folder. Please provide a valid one." }
+		{ ELanguage::English,  "The selected source is not a valid Shadow the Hedgehog Xbox ISO\nor extracted game folder." },
+		{ ELanguage::Japanese, "The selected source is not a valid Shadow the Hedgehog Xbox ISO\nor extracted game folder." },
+		{ ELanguage::German,   "The selected source is not a valid Shadow the Hedgehog Xbox ISO\nor extracted game folder." },
+		{ ELanguage::French,   "The selected source is not a valid Shadow the Hedgehog Xbox ISO\nor extracted game folder." },
+		{ ELanguage::Spanish,  "The selected source is not a valid Shadow the Hedgehog Xbox ISO\nor extracted game folder." },
+		{ ELanguage::Italian,  "The selected source is not a valid Shadow the Hedgehog Xbox ISO\nor extracted game folder." }
 	}
 },
 {
