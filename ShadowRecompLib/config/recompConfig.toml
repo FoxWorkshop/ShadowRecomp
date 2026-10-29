@@ -1421,6 +1421,12 @@ name = "SkipBlinkToggleMidAsmHook"
 address = 0x1B139D
 jump_address_on_true = 0x1B13C8
 
+# EggLastMechFeverRing (Ring Fever) timeout blink
+[[midasm_hook]]
+name = "SkipBlinkToggleMidAsmHook"
+address = 0x113C78
+jump_address_on_true = 0x113C9D
+
 [[midasm_hook]]
 name = "JetEffectRestoreFourthFlameMidAsmHook"
 address = 0x8DCA0
