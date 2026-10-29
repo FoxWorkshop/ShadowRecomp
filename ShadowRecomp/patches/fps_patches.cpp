@@ -1664,92 +1664,87 @@ X86_FUNC(sub_245FB0)
 
 /**	--Library Cursor patch START-- */
 
- // There is an issue with the cursor of the library menu at higher fps.
- // When player held the stick, it scrolls down way too fast
- // One press make it goes 4-5 items further instead of 1 like it should.
- // This is due to a counter that use raw frames to progress.
+// There is an issue with the cursor of the library menu at higher fps.
+// When player held the stick, it scrolls down way too fast
+// One press make it goes 4-5 items further instead of 1 like it should.
+// This is due to a counter that use raw frames to progress.
  // We can patch this by forcing the counter to stick at 60 hz using delta time
  // and let a repeat pass only on the frame where a counter actually moved.
 
 
 constexpr uint32_t g_menuGroupMasks = 0x47B698; // 8 directions group masks
 
-// 60 Hz leftovers per pad and group, as well as the groups that ticked this frame.
-// Technically only player 1 can control menu, but maybe one day we will have a way to do more so...
-static float g_menuHoldCarry[4][8];
-static uint8_t g_menuHoldTicked[4];
 
-// The pad task, runs once a frame. Redo its counter bumps in 60 Hz steps.
-X86_FUNC_IMPL(__imp__sub_2A7700);
-X86_FUNC(sub_2A7700)
+struct MenuHoldPatches
 {
-	const uint32_t pad = ctx.ecx.u32;
-	uint16_t beforeState[4][8];
+	uint16_t lastRaw;
+	uint16_t ticks;
+	float carry;
+	bool ticked;
+};
 
-	if (pad == 0)
-	{
-		__imp__sub_2A7700(ctx, base);
-		return;
-	}
+static MenuHoldPatches g_menuHold[4][8];
+static bool g_menuHoldPatched;
 
-	for (uint32_t slot = 0; slot < 4; slot++)
-	{
-		for (uint32_t group = 0; group < 8; group++)
-			beforeState[slot][group] = X86_LOAD_U16(pad + 16 * slot + 2 * group);
-	}
 
-	__imp__sub_2A7700(ctx, base);
-
+static void MenuHoldUpdate(uint8_t* base, uint32_t pad)
+{
 	float frames = g_deltaTime * 60.0f;
 	if (frames <= 0.0f)
 		frames = 1.0f;
 
 	for (uint32_t slot = 0; slot < 4; slot++)
 	{
-		uint8_t ticked = 0;
-
 		for (uint32_t group = 0; group < 8; group++)
 		{
-			const uint32_t addr = pad + 16 * slot + 2 * group;
-			const uint16_t held = beforeState[slot][group];
-			const uint16_t pressed = X86_LOAD_U16(addr);
-			float &carry = g_menuHoldCarry[slot][group];
+			const uint16_t raw = X86_LOAD_U16(pad + 16 * slot + 2 * group);
+			MenuHoldPatches& menuHold = g_menuHold[slot][group];
 
-			if (pressed == 0)
+			if (raw == menuHold.lastRaw)
+				continue;
+
+			if (raw == 0)
 			{
-				carry = 0.0f; // give up if the game already reset the counter
+				menuHold = {};
 				continue;
 			}
 
-			if (pressed != (uint16_t)(held + 1))
-				continue; // pad missing this frame, the game left the counter alone
+			uint32_t rawSteps = raw - menuHold.lastRaw;
+			menuHold.ticked = false;
 
-			if (held == 0)
+			if (menuHold.lastRaw == 0 || raw < menuHold.lastRaw)
 			{
 				// first frame of the hold, keep the game's own 1
-				carry = 0.0f;
-				ticked |= 1 << group;
-				continue;
+				menuHold.ticks = 1;
+				menuHold.carry = 0.0f;
+				menuHold.ticked = raw == 1;
+				rawSteps = raw - 1;
 			}
 
-			carry += frames;
+			menuHold.lastRaw = raw;
 
-			// keeps 60 fps on exactly one step per frame
-			const int steps = (int)(carry + 0.0001f);
-			carry -= steps;
+			int steps = 0;
+			if (rawSteps > 1)
+			{
+				menuHold.carry += frames * (rawSteps - 1);
+				steps = (int)(menuHold.carry + 0.0001f);
+				menuHold.carry -= steps;
+			}
 
-			if (steps > 0)
-				ticked |= 1 << group;
+			if (rawSteps > 0)
+			{
+				// keeps 60 fps on exactly one step per frame
+				menuHold.carry += frames;
+				const int lastSteps = (int)(menuHold.carry + 0.0001f);
+				menuHold.carry -= lastSteps;
+				steps += lastSteps;
 
-			int value = held + steps;
+				if (lastSteps > 0)
+					menuHold.ticked = true;
+			}
 
-			if (value > 0x7000)
-				value = 0x7000; // never wrap
-
-			X86_STORE_U16(addr, (uint16_t)value);
+			menuHold.ticks = (uint16_t)std::min<int>(menuHold.ticks + steps, 0x7000); // never wrap
 		}
-
-		g_menuHoldTicked[slot] = ticked;
 	}
 }
 
@@ -1773,12 +1768,10 @@ static bool MenuKeyPressed(uint8_t* base, uint32_t pad, uint32_t slot, uint32_t 
 
 static bool MenuHoldTicked(uint8_t* base, uint32_t slot, uint32_t mask)
 {
-	const uint8_t ticked = g_menuHoldTicked[slot];
-
 	for (uint32_t group = 0; group < 8; group++)
 	{
 		// did one of the groups fired a tick on the 60 Hz clock
-		if ((ticked & (1 << group)) != 0 && (mask & X86_LOAD_U32(g_menuGroupMasks + group * 4)) != 0)
+		if (g_menuHold[slot][group].ticked && (mask & X86_LOAD_U32(g_menuGroupMasks + group * 4)) != 0)
 			return true;
 	}
 
@@ -1795,9 +1788,31 @@ X86_FUNC(sub_2A7560)
 	uint32_t slot = X86_LOAD_U32(ctx.esp.u32 + 4);
 	const uint32_t mask = X86_LOAD_U32(ctx.esp.u32 + 8);
 
+	if (pad == 0 || g_menuHoldPatched)
+	{
+		__imp__sub_2A7560(ctx, base);
+		return;
+	}
+
+	MenuHoldUpdate(base, pad);
+	g_menuHoldPatched = true; // hacky but whatever work
+
+	for (uint32_t p = 0; p < 4; p++)
+	{
+		for (uint32_t group = 0; group < 8; group++)
+			X86_STORE_U16(pad + 16 * p + 2 * group, g_menuHold[p][group].ticks);
+	}
+
 	__imp__sub_2A7560(ctx, base);
 
-	if (ctx.eax.u8_lo == 0 || pad == 0)
+	g_menuHoldPatched = false;
+	for (uint32_t p = 0; p < 4; p++)
+	{
+		for (uint32_t group = 0; group < 8; group++)
+			X86_STORE_U16(pad + 16 * p + 2 * group, g_menuHold[p][group].lastRaw);
+	}
+
+	if (ctx.eax.u8_lo == 0)
 		return;
 
 	// 6 and 7 means "the pad this menu owns"
