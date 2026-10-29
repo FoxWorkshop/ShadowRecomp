@@ -14,9 +14,9 @@ inline std::array<const char*, 16> g_credits =
 	"Windii",
     "Jesus_PK",
 	"Pixel",
-	"ultra0000"
+	"ultra0000",
 	"Emasplatter",
 	"macoscriptmusic",
 	"Amosohto"
-	
+
 };
