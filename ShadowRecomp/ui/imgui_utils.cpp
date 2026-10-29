@@ -1147,26 +1147,31 @@ void DrawShadowWindow(ImDrawList* drawList, ImVec2 min, ImVec2 max, float scale,
     min.x = centreX - halfWidth;
     max.x = centreX + halfWidth;
 
-    // Colours
-    ImU32 bevCol = IM_COL32(14, 14, 110, 255); // Bevel Edge
-    ImU32 shaCol = IM_COL32(0, 0, 0, 255); // 'Shadow' (top + left)
-    ImU32 ligCol = IM_COL32(41, 41, 182, 255); // 'Light' (bottom + right)
-    ImU32 winCol = IM_COL32(0, 0, 69, 255);  // Main Window (nice) (yes that is the real colour Shadow uses)
+    // Original colors from the blue box (see sub_2A57E0).
+    ImU32 bevCol = IM_COL32(16, 16, 128, 220); // Bevel Edge
+    ImU32 shaCol = IM_COL32(0, 0, 16, 220); // 'Shadow' (top + left)
+    ImU32 ligCol = IM_COL32(48, 48, 200, 220); // 'Light' (bottom + right)
+    ImU32 winCol = IM_COL32(0, 0, 80, 220);  // Main Window
 
     // clamp insets so the open anim doesn't invert the inner rects while thin
     ImVec2 shaMin = { min.x + 4.0f * scale, min.y + 4.0f * scale };
-    ImVec2 shaMax = { std::max(max.x - 5.0f * scale, shaMin.x), std::max(max.y - 5.0f * scale, shaMin.y) };
+    ImVec2 shaMax = { std::max(max.x - 4.0f * scale, shaMin.x), std::max(max.y - 4.0f * scale, shaMin.y) };
     ImVec2 winMin = { shaMin.x + scale, shaMin.y + scale };
     ImVec2 winMax = { std::max(shaMax.x - scale, winMin.x), std::max(shaMax.y - scale, winMin.y) };
 
     // Bevel at edges
-    drawList->AddRectFilled(min, max, bevCol);
+    drawList->AddRectFilled(min, { shaMin.x, max.y }, bevCol);
+    drawList->AddRectFilled({ shaMax.x, min.y }, max, bevCol);
+    drawList->AddRectFilled({ shaMin.x, min.y }, { shaMax.x, shaMin.y }, bevCol);
+    drawList->AddRectFilled({ shaMin.x, shaMax.y }, { shaMax.x, max.y }, bevCol);
 
-    // Black shadow (top + left)
-    drawList->AddRectFilled(shaMin, shaMax, shaCol);
+    // Dark line (top + left)
+    drawList->AddRectFilled(shaMin, { winMin.x, winMax.y }, shaCol);
+    drawList->AddRectFilled({ winMin.x, shaMin.y }, { winMax.x, winMin.y }, shaCol);
 
-    // Blue highlight (bottom + right)
-    drawList->AddTriangleFilled({ shaMin.x, shaMax.y }, { shaMax.x, shaMin.y }, shaMax, ligCol);
+    // Light line (bottom + right)
+    drawList->AddRectFilled({ shaMin.x, winMax.y }, { winMax.x, shaMax.y }, ligCol);
+    drawList->AddRectFilled({ winMax.x, shaMin.y }, { shaMax.x, winMax.y }, ligCol);
 
     // Main window background
     drawList->AddRectFilled(winMin, winMax, winCol);

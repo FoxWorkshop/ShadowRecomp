@@ -290,6 +290,9 @@ void DrawGameStyleMessageBox(ImVec2 center, ImVec2 size)
 	}
 
 
+	// the game make the whole screen darker behind the box (see 0x529C34)
+	dl->AddRectFilled({ 0.0f, 0.0f }, ImGui::GetIO().DisplaySize, IM_COL32(0, 0, 0, 160));
+
 	DrawShadowWindow(dl, min, max, Scale(1.0f), g_openProgress);
 
 	max.x += 1.f;
