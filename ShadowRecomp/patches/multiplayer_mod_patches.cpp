@@ -67,21 +67,16 @@ static uint32_t CountActiveAwakePlayers(uint8_t awakeBit)
 }
 
 // Awake Idle drain reduction (per player)
-void AwakeDrainReductionMidAsmHook(X86Register& ecx, X86Register& esi)
+// TODO: Needs to share the hook with AwakeIdleDrainMidAsmHook
+uint32_t GetAwakeDrainDivisor(uint32_t awake)
 {
     if (!Config::ExtendedMultiplayer) {
-        return;
+        return 1;
     }
-
     auto base = g_memory.base;
-
-    uint32_t mode = X86_LOAD_U32(esi.u32 + 0x40);   // 0 = Dark, 1 = Hero
+    uint32_t mode = X86_LOAD_U32(awake + 0x40);   // 0 = Dark, 1 = Hero
     uint8_t awakeBit = (mode == 1) ? 0x04 : 0x08;    // HeroShadow / DarkShadow
-
-    uint32_t count = CountActiveAwakePlayers(awakeBit);
-    if (count > 1) {
-        ecx.u32 = (int32_t)ecx.u32 / (int32_t)count;
-    }
+    return std::max(CountActiveAwakePlayers(awakeBit), 1u);
 }
 
 void AwakeDarkThresholdBypassMidAsmHook(X86Register& edx, X86Register& eax)

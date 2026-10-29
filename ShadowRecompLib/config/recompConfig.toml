@@ -1143,9 +1143,9 @@ name = "AddAllScoreToP1MidAsmHook"
 address = 0x22D630
 jump_address = 0x22D699
 
-# AwakeExec Idle Drain Fix
+# AwakeExec Idle Drain Fix (fps carry + mp split)
 [[midasm_hook]]
-name = "AwakeDrainReductionMidAsmHook"
+name = "AwakeIdleDrainMidAsmHook"
 address = 0x8EB8F
 registers = ["r2", "r4"]
 

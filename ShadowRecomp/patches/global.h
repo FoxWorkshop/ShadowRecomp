@@ -52,6 +52,7 @@ typedef RwMatrixTag RwMatrix;
 extern bool isAwakeAboutToInvoke;
 extern thread_local bool g_isStartingEventAudio;
 extern uint32_t g_multiplayerPlayerCount;
+uint32_t GetAwakeDrainDivisor(uint32_t awake);
 extern uint32_t g_playerStructAddrs[4];
 RwV3d* GetPlayerPos(uint32_t slot);
 

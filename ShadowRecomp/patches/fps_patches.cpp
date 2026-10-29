@@ -3533,3 +3533,19 @@ X86_FUNC(sub_268C40)
 	}
 }
 /** --Weapon fire rate Patch END-- */
+
+/** --Awake (Chaos Control/Blast) idle drain Patch START-- */
+static std::unordered_map<uint32_t, float> g_awakeDrainCarry; // per awake (multiplayer support)
+// Awake idle drain
+void AwakeIdleDrainMidAsmHook(X86Register& ecx, X86Register& esi)
+{
+	auto base = g_memory.base;
+	const uint32_t awake = esi.u32;
+	const float dt = X86_LOAD_F32(X86_LOAD_U32(X86_LOAD_U32(awake + 0x28) + 0x60));
+	float& carry = g_awakeDrainCarry[awake];
+	carry += dt * X86_LOAD_F32(0x449BD0) / (float)GetAwakeDrainDivisor(awake); // -1500.0f originally
+	const int32_t drain = (int32_t)carry;
+	carry -= drain;
+	ecx.u32 = (uint32_t)drain;
+}
+/** --Awake (Chaos Control/Blast) idle drain Patch END-- */
