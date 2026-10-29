@@ -1415,6 +1415,12 @@ name = "SoldierFlashParityEdxMidAsmHook"
 address = 0x129AD0
 registers = ["r3"]
 
+# ScatteringRing timeout blink
+[[midasm_hook]]
+name = "SkipBlinkToggleMidAsmHook"
+address = 0x1B139D
+jump_address_on_true = 0x1B13C8
+
 [[midasm_hook]]
 name = "JetEffectRestoreFourthFlameMidAsmHook"
 address = 0x8DCA0

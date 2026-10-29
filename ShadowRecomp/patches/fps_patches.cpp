@@ -786,6 +786,8 @@ struct EnemyBlinkPatch
 {
 	uint32_t lastFrame = 0;
 	float slices = 0.0f;
+	uint32_t phase = 0;
+	bool stepped = false;
 
 	uint32_t Update(uint32_t frame)
 	{
@@ -799,6 +801,11 @@ struct EnemyBlinkPatch
 
 			while (slices >= 4.0f) // lowkey arbitrary, but should be good enough me think
 				slices -= 4.0f;
+
+			// round to 4
+			const uint32_t newPhase = static_cast<uint32_t>(slices + 0.25f) & 3;
+			stepped = newPhase != phase;
+			phase = newPhase;
 		}
 
 		return static_cast<uint32_t>(slices + 0.25f);
@@ -872,6 +879,14 @@ void SoldierFlashParityMidAsmHook(X86Register& ecx)
 void SoldierFlashParityEdxMidAsmHook(X86Register& edx)
 {
 	edx.u32 = AllFramesBlinkOdd() ? 1 : 0;
+}
+
+// Other objects (we should probably rename EnemyBlinkPatch)
+bool SkipBlinkToggleMidAsmHook()
+{
+	static EnemyBlinkPatch toggleTimer;
+	toggleTimer.Update(g_frameCount);
+	return !toggleTimer.stepped;
 }
 
 /* --Enemy Damage Blink Patch END-- */
