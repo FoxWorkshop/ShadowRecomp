@@ -3042,11 +3042,14 @@ X86_FUNC(sub_3899C0)
 	const int32_t frame0 = (int32_t)X86_LOAD_U32(key0);
 	const int32_t frame1 = (int32_t)X86_LOAD_U32(key1);
 
-	if (frame1 - frame0 == 1 && X86_LOAD_F32(ctx.esp.u32 + 16) < (float)frame1)
+	// edge case for some CSD that end on partial frames
+	if (frame1 - frame0 == 1)
 	{
-		X86_STORE_F32(ctx.esp.u32 + 16, (float)frame0);
+		const uint32_t timeAddr = ctx.esp.u32 + 16;
+		const float endEpsilon = X86_LOAD_F32(0x42A18C); // 0.001
+		const bool isEnding = X86_LOAD_F32(timeAddr) >= (float)frame1 - endEpsilon;
+		X86_STORE_F32(timeAddr, isEnding ? (float)frame1 : (float)frame0);
 	}
-
 	__imp__sub_3899C0(ctx, base);
 }
 
