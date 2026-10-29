@@ -1630,19 +1630,19 @@ address = 0x2526D5
 registers = ["r7"]
 # End BirdBase rotation on stick release fix
 
-# Start Fire vacuum callback fix
+# Start Vacuum Fire patch
 # WeaponVacuumPod::Exec
-#[[midasm_hook]]
-#name = "FireVacuumCallbackMidAsmHook"
-#address = 0x26DBA0
-#registers = ["r6", "r5"]
+[[midasm_hook]]
+name = "FireVacuumCallbackMidAsmHook"
+address = 0x26DBA0
+registers = ["r6", "r5"]
 
 # VacuumEggItem::Exec
-#[[midasm_hook]]
-#name = "FireVacuumCallbackMidAsmHook"
-#address = 0x27370E
-#registers = ["r6", "r5"]
-# End Fire vacuum callback fix
+[[midasm_hook]]
+name = "FireVacuumCallbackMidAsmHook"
+address = 0x27370E
+registers = ["r6", "r5"]
+# End Vacuum Fire patch
 
 # Start Vacuum any enemy cheat
 # EnemyBase collision attribute, ecx = final attribute
