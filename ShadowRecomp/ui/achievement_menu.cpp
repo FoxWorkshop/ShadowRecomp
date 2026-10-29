@@ -392,7 +392,6 @@ static void DrawAchievement(int rowIndex, Achievement& achievement, bool isUnloc
 	if (!isUnlocked)
 		SetShaderModifier(IMGUI_SHADER_MODIFIER_NONE);
 
-	auto descFontSize = Scale(Config::Language == ELanguage::Japanese ? 18 : 17) - 4.f;
 	auto fontTitleSize = Scale(Config::Language == ELanguage::Japanese ? 18 : 17) - 2.f;
 
 	auto textX = imageMax.x + itemMarginX * 2;
@@ -412,9 +411,8 @@ static void DrawAchievement(int rowIndex, Achievement& achievement, bool isUnloc
 	unlockedDesc = newLocale.UnlockedDesc;
 
 
-	auto descText = isUnlocked ? unlockedDesc.c_str() : lockedDesc.c_str();
+	std::string descText = isUnlocked ? unlockedDesc : lockedDesc;
 	auto descTextOffsetY = Scale(32);
-	auto descSize = g_fntSeurat->CalcTextSizeA(descFontSize, FLT_MAX, 0, descText);
 
 	ImVec2 namePos = { textX, imageMin.y + Scale(3) };
 	ImVec2 descPos = { textX, namePos.y + descTextOffsetY };
@@ -426,47 +424,45 @@ static void DrawAchievement(int rowIndex, Achievement& achievement, bool isUnloc
 
 	ImVec2 marqueeMin = { textX, min.y };
 	ImVec2 marqueeMax = { max.x - timestampOffsetX, max.y };
-	constexpr auto marqueeDelay = 0.9;
-	auto shouldMarquee = isCurrent && marqueeMin.x + descSize.x >= marqueeMax.x;
+	constexpr auto marqueeDelay = 1.5;
+
+
+	if (isUnlocked)
+	{
+		auto timestamp = AchievementManager::GetTimestamp(achievement.ID);
+
+		if (timestamp)
+		{
+			char buffer[32];
+#ifdef _WIN32
+			tm time{};
+			tm* pTime = &time;
+			localtime_s(pTime, &timestamp);
+#else
+			tm* pTime = localtime(&timestamp);
+#endif
+
+			snprintf(buffer, sizeof(buffer), "%d/%d/%d %02d:%02d",
+				pTime->tm_year + 1900, pTime->tm_mon + 1, pTime->tm_mday, pTime->tm_hour, pTime->tm_min);
+
+			descText += " - " + (std::string)buffer;
+		}
+	}
+
+	float descFontSize = Scale(Config::Language == ELanguage::Japanese ? 18 : 17) - 6.f;
+	auto descSize = g_fntSeurat->CalcTextSizeA(descFontSize, FLT_MAX, 0, descText.c_str());
+	bool shouldMarquee = isCurrent && marqueeMin.x + descSize.x >= marqueeMax.x;
 
 	// Reduce clip rect size when marquee starts to make the
 	// scrolling text align more with text above or below it.
 	if (shouldMarquee && ImGui::GetTime() - (g_rowSelectionTime + marqueeDelay) > 0.0)
 	{
-		marqueeMin.x += Scale(2);
+		marqueeMin.x += Scale(1);
 		marqueeMax.x -= Scale(1);
 	}
 
-	DrawTextWithMarquee(g_fntSeurat, descFontSize, descPos, marqueeMin, marqueeMax, textColour, descText, g_rowSelectionTime, marqueeDelay, shouldMarquee ? Scale(200) : 0);
 
-	if (!isUnlocked)
-		return;
-
-	auto timestamp = AchievementManager::GetTimestamp(achievement.ID);
-
-	if (!timestamp)
-		return;
-
-	char buffer[32];
-
-#ifdef _WIN32
-	tm time{};
-	tm* pTime = &time;
-	localtime_s(pTime, &timestamp);
-#else
-	tm* pTime = localtime(&timestamp);
-#endif
-
-	snprintf(buffer, sizeof(buffer), "%d/%d/%d %02d:%02d",
-		pTime->tm_year + 1900, pTime->tm_mon + 1, pTime->tm_mday, pTime->tm_hour, pTime->tm_min);
-
-
-	auto timestampSize = g_fntSeurat->CalcTextSizeA(descFontSize - 2.f, FLT_MAX, 0, buffer);
-
-	ImVec2 datePos = { max.x - timestampSize.x - timestampOffsetX, namePos.y };
-
-	// Draw timestamp text.
-	drawList->AddText(g_fntSeurat, descFontSize - 2.f, datePos, IM_COL32_WHITE, buffer);
+	DrawTextWithMarquee(g_fntSeurat, descFontSize, descPos, marqueeMin, marqueeMax, textColour, descText.c_str(), g_rowSelectionTime, marqueeDelay, shouldMarquee ? Scale(200) : 0);
 }
 
 void AchievementMenu::Draw()
