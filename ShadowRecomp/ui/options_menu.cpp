@@ -363,11 +363,10 @@ void resetDescScroll()
 }
 
 
-void DrawDescription(std::string s)
+void DrawDescription(std::string s, const double scrollDelay)
 {
 	static std::string prevText;
 	static double scrollStartTime = 0.0;
-	constexpr double scrollDelay = 0.5; // seconds to wait before scrolling
 	double elapsed = ImGui::GetTime() - scrollStartTime;
 
 	std::replace(s.begin(), s.end(), '\n', ' ');
@@ -419,7 +418,7 @@ void DrawDescription(std::string s)
 	{
 		float gap = Scale(80.0f);
 		totalWidth = textSize.x + gap;
-		float scrollSpeed = Scale(70.0f);
+		float scrollSpeed = Scale(80.f);
 
 		// Anchor to left edge of the bar so scroll always starts at beginning of text
 		textPos.x = barMin.x + Scale(15.f);

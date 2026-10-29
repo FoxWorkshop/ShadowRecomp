@@ -518,6 +518,17 @@ std::unordered_map<std::string_view, std::unordered_map<ELanguage, std::string>>
 			{ ELanguage::Italian,  "Installing..." }
 		}
 	},
+	{
+		"Installer_Credits_Message",
+		{
+			{ ELanguage::English,  "Credits: " },
+			{ ELanguage::Japanese, "Credits: " },
+			{ ELanguage::German,   "Credits: " },
+			{ ELanguage::French,   "Crédits: " },
+			{ ELanguage::Spanish,  "Credits: " },
+			{ ELanguage::Italian,  "Credits: " }
+		}
+	},
 {
 	"Installer_Page_Compiling",
 	{

@@ -530,49 +530,6 @@ static void DrawPrevButton(ImVec2& panelMin, ImVec2& panelMax, float scale)
 
 
 static void DrawBackground(ImGuiViewport* viewport, ImVec2 winPos, ImVec2 winSize, float scale, float offsetX, float offsetY)
-	{
-	auto drawList = ImGui::GetBackgroundDrawList();
-	auto& res = ImGui::GetIO().DisplaySize;
-
-	// Bevel at edges
-	ImVec2 min = { winPos.x + offsetX + 21.0f * scale, winPos.y + offsetY + 54.0f * scale };
-	ImVec2 max = { min.x + 598.0f * scale, min.y + 362.0f * scale };
-
-	DrawShadowWindow(drawList, min, max, scale, g_openProgress);
-}
-
-	ImVec2 textPos = {
-		barScreenX + barWidth * 0.5f - textSize.x * 0.5f + Scale(15.f),  // centered within bar bounds
-		barScreenY + barScreenH * 0.6f - textSize.y * 0.5f
-	};
-
-	float offsetScroll = 0.0f;
-	float totalWidth = 0.0f;
-	bool isScrolling = textSize.x > barWidth - Scale(55.f);
-	if (isScrolling)
-	{
-		float gap = Scale(80.0f);
-		totalWidth = textSize.x + gap;
-		float scrollSpeed = Scale(70.0f);
-
-		// Anchor to left edge of the bar so scroll always starts at beginning of text
-		textPos.x = barMin.x + Scale(15.f);
-		offsetScroll = elapsed > 0.0 ? fmod(elapsed * scrollSpeed, totalWidth) : 0.0f;
-	}
-	textPos.x -= offsetScroll;
-	ImU32 descColor = IM_COL32(255, 255, 255, (int)(255 * alpha));
-	drawList->AddText(g_fntSeurat, fontSize, textPos, descColor, s.c_str());
-
-	if (isScrolling)
-	{
-		// Draw the looping copy trailing behind
-		ImVec2 loopPos = { textPos.x + totalWidth, textPos.y };
-		drawList->AddText(g_fntSeurat, fontSize, loopPos, descColor, s.c_str());
-	}
-	drawList->PopClipRect();
-}
-
-static void DrawBackground(ImGuiViewport* viewport, ImVec2 winPos, ImVec2 winSize, float scale, float offsetX, float offsetY)
 {
 	auto drawList = ImGui::GetBackgroundDrawList();
 
@@ -581,6 +538,44 @@ static void DrawBackground(ImGuiViewport* viewport, ImVec2 winPos, ImVec2 winSiz
 	ImVec2 max = { min.x + 598.0f * scale, min.y + 362.0f * scale };
 
 	DrawShadowWindow(drawList, min, max, scale, g_openProgress);
+}
+
+static void DrawShadowImage()
+{
+	auto& res = ImGui::GetIO().DisplaySize;
+	auto drawList = ImGui::GetBackgroundDrawList();
+
+	float borderPixels = 32.f; // Options BG has an extra black border at the bottom, we don't want that.
+	float uvMaxY = 1.0f - (borderPixels / 512.0f);
+
+	ImVec2 centre = { res.x / 2.0f, res.y / 2.0f };
+	ImVec2 Min = { centre.x - centre.x, centre.y - centre.y };
+	ImVec2 Max = { centre.x + centre.x, centre.y + centre.y  };
+
+	drawList->AddImage
+	(
+		g_upTexOptionsBG.get(),
+		Min,
+		Max,
+		{ 0, 0 },
+		{ 1, uvMaxY },
+		IM_COL32(255, 255, 255, (int)(255))
+	);
+
+
+	// draw fire and white lines under the menu box
+	drawList->PushClipRect(Min, Max, true);
+	DrawAnimatedFire(Min, Max, 1);
+	DrawLoopLines(Min, Max, 1);
+
+
+	if (g_currentPage == WizardPage::InstallSucceeded)
+	{
+		DrawDescription(g_creditsStr, 1);
+	}
+
+
+	drawList->PopClipRect();
 }
 
 static void DrawWizardParagraph(const char* text, float maxWidth, float lineMargin, const ImVec2& pos)
@@ -609,7 +604,8 @@ void InstallerWizard::Draw()
 	// Scale values based on window size
 	float scaleX = winSize.x > 1.0f ? (winSize.x / baseWidth) : 1.0f;
 	float scaleY = winSize.y > 1.0f ? (winSize.y / baseHeight) : 1.0f;
-	float scale = fminf(scaleX, scaleY);
+	float scale = fminf(scaleX, scaleY) * 0.8f;
+
 
 	// Center to screen based on Shadow res
 	float canvasW = baseWidth * scale;
@@ -659,7 +655,12 @@ void InstallerWizard::Draw()
 		return;
 	}
 
-	DrawBackground(viewport, winPos, winSize, scale, offsetX, offsetY);
+
+	DrawShadowImage();
+
+	if (g_openProgress > 0.0f)
+		DrawBackground(viewport, winPos, winSize, scale, offsetX, offsetY);
+	
 	if (g_openProgress < 1.0f)
 	{
 		return;
@@ -680,6 +681,11 @@ void InstallerWizard::Draw()
 	auto textMaxWidth = originMax.x - (descFontSize / 2.0f) - originMin.x;
 	auto textSize = MeasureCentredParagraph(g_fntSeurat, descFontSize, textMaxWidth, textMargin, wizardText.c_str());
 	ImVec2 textPosition = ImVec2(panelMin.x + (panelWidth - textSize.x) * 0.5f, originMin.y);
+	
+	if (g_currentPage != WizardPage::InstallSucceeded)
+	{
+		DrawDescription(titleText);
+	}
 
 	if (g_currentPage != WizardPage::Installing && g_currentPage != WizardPage::InstallFailed)
 	{
@@ -1357,9 +1363,13 @@ void InstallerWizard::Init()
 	g_upTexOptionsBG = LOAD_ZSTD_TEXTURE(g_options_bg);
 	g_upTexOptionsBG2 = LOAD_ZSTD_TEXTURE(g_options_bg2);
 
+	g_creditsStr = Localise("Installer_Credits_Message");
+
 	for (int i = 0; i < g_credits.size(); i++)
 	{
 		g_creditsStr += g_credits[i];
-		g_creditsStr += "  ";
+		if (i < g_credits.size() - 1)
+			g_creditsStr += ",  ";
+
 	}
 }
