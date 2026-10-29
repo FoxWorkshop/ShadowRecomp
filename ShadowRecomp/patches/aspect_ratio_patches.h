@@ -118,6 +118,8 @@ enum CsdFlags : uint64_t
     // Not limited by Max HUD Width
     CSD_IGNORE_MAX_WIDTH = MAKE_BITFLAG64(19),
 
+    // black_cover NCP bug
+    CSD_PAUSE_DIM = MAKE_BITFLAG64(20),
 
     CSD_CENTER_UNSTRETCH = CSD_UNSTRETCH | CSD_ALIGN_CENTRE,
 

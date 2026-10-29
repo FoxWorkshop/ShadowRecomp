@@ -251,6 +251,30 @@ X86_FUNC(sub_2A6020)
 }
 
 
+static uint8_t g_pauseDimAlpha = 0;
+
+void SetPauseDimAlpha(uint8_t alpha)
+{
+	g_pauseDimAlpha = alpha;
+}
+
+// Patch the black_cover pause NCP bug
+X86_FUNC_IMPL(__imp__sub_2A57E0);
+X86_FUNC(sub_2A57E0)
+{
+	static constexpr uint32_t dimAlphaAddr = 0x529C37; // 0xA0 (color of the dim)
+	auto dimAlpha = X86_LOAD_U8(dimAlphaAddr);
+	auto pauseAlpha = g_pauseDimAlpha / 255.0f;
+	auto target = dimAlpha / 255.0f;
+	g_pauseDimAlpha = 0;
+
+	// avoid double draw
+	auto alpha = pauseAlpha < target ? (target - pauseAlpha) / (1.0f - pauseAlpha) : 0.0f;
+	X86_STORE_U8(dimAlphaAddr, uint8_t(std::round(alpha * 255.0f)));
+	__imp__sub_2A57E0(ctx, base);
+	X86_STORE_U8(dimAlphaAddr, dimAlpha);
+}
+
 // matching sub_3065C0
 static float GetGuestGlyphCentreY(uint8_t* base, uint32_t message)
 {

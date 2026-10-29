@@ -10,6 +10,7 @@
 #include <app.h>
 #include <ui/options_menu.h>
 #include "pause_patches.h"
+#include "prompt_patches.h"
 #include "global.h"
 #include <mod/mod_loader.h>
 
@@ -667,6 +668,12 @@ void Draw(X86Context& ctx, uint8_t* base, X86Func* original, void* vertexData, u
 
 	if ((modifier.Flags & CSD_NARROW_ONLY) != 0 && g_aspectRatio >= WIDE_ASPECT_RATIO)
 		modifier.Flags = CSD_NONE;
+
+	// This is an OG Xbox bug workaround
+	if ((modifier.Flags & CSD_PAUSE_DIM) != 0)
+	{
+		SetPauseDimAlpha(((RwD3D8Vertex*)vertexData)->emissiveColor >> 24);
+	}
 
 	if ((modifier.Flags & CSD_SKIP) != 0 || ((modifier.Flags & CSD_HIDE_PAUSE) != 0 && OptionsMenu::s_isVisible))
 	{
@@ -1384,6 +1391,7 @@ const xxHashMap<CsdModifier> g_csdModifiers =
 
 	{ HashStr("csdFiles/pause/pause.xncp/Pause/Pause"), { CSD_CENTER_UNSTRETCH } },
 	{ HashStr("csdFiles/pause/pause.xncp/Pause/Mission"), { CSD_CENTER_UNSTRETCH } },
+	{ HashStr("csdFiles/pause/pause.xncp/Pause/Mission/black_cover"), { CSD_CENTER_UNSTRETCH | CSD_PAUSE_DIM } },
 	{ HashStr("csdFiles/pause/pause.xncp/Pause/Mission_Board"), { CSD_CENTER_UNSTRETCH } },
 	{ HashStr("csdFiles/pause/pause.xncp/Pause/MIconDark"), { CSD_CENTER_UNSTRETCH } },
 	{ HashStr("csdFiles/pause/pause.xncp/Pause/MIconHero"), { CSD_CENTER_UNSTRETCH } },
