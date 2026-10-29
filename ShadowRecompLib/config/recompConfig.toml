@@ -1433,6 +1433,20 @@ name = "SkipBlinkToggleMidAsmHook"
 address = 0x25403C
 jump_address_on_true = 0x25405E
 
+# Gadget hit blink (no timer variant)
+# Circus Park shooting gallery, TurnOver (throwable obj)
+[[midasm_hook]]
+name = "SkipBlinkToggleMidAsmHook"
+address = 0x17E40C
+jump_address_on_true = 0x17E523
+
+# Gadget hit blink (timed blink)
+# Cryptic Castle, turrets, various ds1
+[[midasm_hook]]
+name = "SkipBlinkToggleMidAsmHook"
+address = 0x17E4CF
+jump_address_on_true = 0x17E523
+
 [[midasm_hook]]
 name = "JetEffectRestoreFourthFlameMidAsmHook"
 address = 0x8DCA0
