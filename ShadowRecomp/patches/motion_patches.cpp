@@ -111,6 +111,37 @@ bool IsMotionValid(uint8_t* base, uint32_t mtn, uint32_t bon)
 	return tracksCount == expectedTracks;
 }
 
+
+// Memo: bone tag at bone +0
+bool SkeletonHasShadowBody(uint8_t* base, uint32_t bonAddr, uint32_t shBonAddr)
+{
+	uint16_t bonesCount = X86_LOAD_U16(bonAddr + 6);
+	uint16_t shBonesCount = X86_LOAD_U16(shBonAddr + 6);
+	uint32_t bodyTags = 0;
+	uint32_t count = 0;
+
+	for (uint16_t i = 0; i < shBonesCount; i++)
+	{
+		uint32_t tag = X86_LOAD_U32(shBonAddr + 0x2C + i * 0x70);
+
+		if (tag >= 100)
+			continue;
+
+		bodyTags++;
+
+		for (uint16_t j = 0; j < bonesCount; j++)
+		{
+			if (X86_LOAD_U32(bonAddr + 0x2C + j * 0x70) == tag)
+			{
+				count++;
+				break;
+			}
+		}
+	}
+
+	return count * 4 >= bodyTags * 3;
+}
+
 uint32_t FindMtnPackEntry(uint8_t* base, uint32_t pack, const char* mtnName, uint32_t bonId, uint32_t bon)
 {
 	uint16_t count = X86_LOAD_U16(pack + 2);
@@ -210,7 +241,9 @@ static uint16_t FindNewMotionID(uint8_t* base, uint32_t playWK, uint16_t motionI
 		uint32_t shId = GetBonIdByName(base, "sh");
 		uint32_t shBon = shId != 0 ? GetLoadedBon(base, shId) : 0;
 
-		if (shBon != 0 && snprintf(mtnNameBuffer, sizeof(mtnNameBuffer), "sh%s", name + modelLen) < (int)sizeof(mtnNameBuffer))
+		// The game also play motions on other skeletons on its own (like for the gun walker) 
+		// so ensure we are targeting Shadow body only.
+		if (shBon != 0 && SkeletonHasShadowBody(base, bon, shBon) && snprintf(mtnNameBuffer, sizeof(mtnNameBuffer), "sh%s", name + modelLen) < (int)sizeof(mtnNameBuffer))
 			mtnFromPack = FindMtnInPacks(base, sourcePack, mtnNameBuffer, shId, shBon);
 	}
 
