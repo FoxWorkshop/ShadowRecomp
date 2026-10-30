@@ -598,6 +598,35 @@ bool SelectModeCursorNoResetMidAsmHook()
 	return true;
 }
 
+// Life System Modifier
+bool LifeCounterFloorMidAsmHook(X86Register& eax)
+{
+	return static_cast<int32_t>(eax.u32) <= (Config::ReloadedMod ? 1 : 0);
+}
+
+void LifeRestartMidAsmHook(X86Register& esp)
+{
+	auto base = g_memory.base;
+	esp.u32 -= 4;
+	X86_STORE_U32(esp.u32, Config::ReloadedMod ? 0 : UINT32_MAX);
+}
+
+bool EggDealerLifeEasterEggMidAsmHook(X86Register& eax)
+{
+	if (eax.u32 != (Config::ReloadedMod ? 1u : 0u))
+	{
+		return false;
+	}
+	eax.u32 = 0; // enable easter egg
+	return true;
+}
+
+// Respawn at last activated checkpoint
+bool RespawnLastCheckpointMidAsmHook()
+{
+	return Config::ReloadedMod;
+}
+
 void ReloadedValuePatches()
 {
 	if (!Config::ReloadedMod)
@@ -613,15 +642,11 @@ void ReloadedValuePatches()
 
 	// Mission Focus
 
-	// Life System Modifier
-
 	// Music Update Ending Tracks and Lava Shelter Boss
 
 	// Expert Ending SFD Overrides
 
 	// Ghost Red Rings (STG_CMN REDIRECT)
-
-	// Respawn at last activated checkpoint
 
 	// Jump Ball Turn Speed 6.5 -> 25
 	X86_STORE_F32(0x448414, 25.0f);

@@ -1953,6 +1953,31 @@ jump_address_on_false = 0x237CB2
 name = "SelectModeCursorNoResetMidAsmHook"
 address = 0x297F65
 jump_address_on_true = 0x297F8B
+
+[[midasm_hook]]
+name = "LifeCounterFloorMidAsmHook"
+address = 0x173C4F
+registers = ["r0"]
+jump_address_on_true = 0x173C5C
+jump_address_on_false = 0x173C53
+
+[[midasm_hook]]
+name = "LifeRestartMidAsmHook"
+address = 0x173BD2
+registers = ["r7"]
+jump_address = 0x173BD4
+
+[[midasm_hook]]
+name = "EggDealerLifeEasterEggMidAsmHook"
+address = 0x10FCC0
+registers = ["r0"]
+jump_address_on_true = 0x10FCC4
+jump_address_on_false = 0x10FCC9
+
+[[midasm_hook]]
+name = "RespawnLastCheckpointMidAsmHook"
+address = 0x22D539
+jump_address_on_true = 0x22D53B
 ## End Reloaded patches
 
 [[midasm_hook]]
