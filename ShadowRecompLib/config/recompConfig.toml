@@ -1606,6 +1606,46 @@ jump_address = 0x7E85C
 name = "NoTriJumpExitMidAsmHook"
 address = 0x7EC01
 jump_address_on_true = 0x7EBAE
+
+# walk slow speed
+[[midasm_hook]]
+name = "WalkTurnSpeedMidAsmHook"
+address = 0x7285B
+registers = ["r7"]
+jump_address = 0x72860
+
+# walk mid-speed
+[[midasm_hook]]
+name = "WalkTurnSpeedMidAsmHook"
+address = 0x72911
+registers = ["r7"]
+jump_address = 0x72916
+
+# walk full speed
+[[midasm_hook]]
+name = "WalkTurnSpeedMidAsmHook"
+address = 0x72B0C
+registers = ["r7"]
+jump_address = 0x72B11
+
+# strafe slow speed
+[[midasm_hook]]
+name = "WalkTurnSpeedMidAsmHook"
+address = 0x7292B
+registers = ["r7"]
+jump_address = 0x72930
+
+# strafe full speed
+[[midasm_hook]]
+name = "WalkTurnSpeedMidAsmHook"
+address = 0x7325C
+registers = ["r7"]
+jump_address = 0x73261
+
+[[midasm_hook]]
+name = "NoSkiddingMidAsmHook"
+address = 0x72C04
+jump_address_on_true = 0x72C25
 ## End Reloaded patches
 
 [[midasm_hook]]

@@ -248,6 +248,20 @@ bool NoTriJumpExitMidAsmHook()
 	return true;
 }
 
+// Walk Turn Speed 15 -> 20
+void WalkTurnSpeedMidAsmHook(X86Register& esp)
+{
+	auto base = g_memory.base;
+	esp.u32 -= 4;
+	X86_STORE_F32(esp.u32, Config::ReloadedMod ? 20.0f : 15.0f);
+}
+
+// No Skidding
+bool NoSkiddingMidAsmHook()
+{
+	return Config::ReloadedMod;
+}
+
 void ReloadedValuePatches()
 {
 	if (!Config::ReloadedMod)
@@ -281,8 +295,6 @@ void ReloadedValuePatches()
 
 	// Respawn at last activated checkpoint
 
-	// No Skidding
-
 	// Jump Ball Turn Speed 6.5 -> 25
 	X86_STORE_F32(0x448414, 25.0f);
 
@@ -303,7 +315,8 @@ void ReloadedValuePatches()
 	// Triangle Jump Recover Time 0.125 -> 0.000001
 	X86_STORE_F32(0x448D1C, 0.000001f);
 
-	// Walk Turn Speed
+	// Walk Turn Speed 15 -> 20
+	X86_STORE_F32(0x448100, 20.0f);
 
 	// Heal Unit Explosion Hitbox Size
 
