@@ -2037,16 +2037,6 @@ registers = ["r4", "r7"]
 name = "SpinCarryMidAsmHook"
 address = 0x7BC36
 registers = ["r4", "r7"]
-
-[[midasm_hook]]
-name = "SlideCarryMidAsmHook"
-address = 0x7A87B
-registers = ["r4", "r7"]
-
-[[midasm_hook]]
-name = "SpinCarryMidAsmHook"
-address = 0x7BC36
-registers = ["r4", "r7"]
 # End Gravity Fix
 
 [[midasm_hook]]
