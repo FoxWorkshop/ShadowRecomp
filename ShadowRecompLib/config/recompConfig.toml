@@ -1978,6 +1978,11 @@ jump_address_on_false = 0x10FCC9
 name = "RespawnLastCheckpointMidAsmHook"
 address = 0x22D539
 jump_address_on_true = 0x22D53B
+
+[[midasm_hook]]
+name = "TimeBonusPenaltyMidAsmHook"
+address = 0x28664B
+jump_address_on_true = 0x286659
 ## End Reloaded patches
 
 [[midasm_hook]]

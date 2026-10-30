@@ -627,6 +627,12 @@ bool RespawnLastCheckpointMidAsmHook()
 	return Config::ReloadedMod;
 }
 
+// Time Bonus Penalty Always Active
+bool TimeBonusPenaltyMidAsmHook()
+{
+	return Config::ReloadedMod;
+}
+
 void ReloadedValuePatches()
 {
 	if (!Config::ReloadedMod)
@@ -698,8 +704,6 @@ void ReloadedValuePatches()
 
 	// EggBalloon Stat Adjustment 400 -> 1100
 	X86_STORE_F32(0x46A2C0, 1100.0f);
-
-	// Time Bonus Penalty Always Active
 
 	// Last Way & Devil Doom in Select Menu - CONSIDER EXTENDING / modifying visual with IMGUI?
 
