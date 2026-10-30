@@ -299,6 +299,22 @@ bool CarNoDriftMidAsmHook()
 	return Config::ReloadedMod;
 }
 
+// Super AirSaucer JumpStrength 100 -> 200
+void AirSaucerJumpMidAsmHook(X86Register& esp)
+{
+	auto base = g_memory.base;
+	esp.u32 -= 4;
+	X86_STORE_F32(esp.u32, Config::ReloadedMod ? 200.0f : 100.0f);
+}
+
+// AirSaucer Replace Second Jump with Stomp
+void AirSaucerStompMidAsmHook(X86Register& esp)
+{
+	auto base = g_memory.base;
+	esp.u32 -= 4;
+	X86_STORE_F32(esp.u32, Config::ReloadedMod ? -400.0f : 100.0f);
+}
+
 void ReloadedValuePatches()
 {
 	if (!Config::ReloadedMod)
@@ -372,8 +388,6 @@ void ReloadedValuePatches()
 	X86_STORE_F32(0x471AF4, 540.0f);
 	// AirSpeed 220 -> 440
 	X86_STORE_F32(0x471AE4, 440.0f);
-	// JumpStrength 100 -> 200 [needs PUSH patch - inlined]
-	// AirSaucer Replace Second Jump with Stomp
 	// == Super AirSaucer ==
 
 	// Global Lock-On Revamp

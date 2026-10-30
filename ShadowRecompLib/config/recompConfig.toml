@@ -1685,6 +1685,18 @@ jump_address_on_true = 0x24207A
 name = "CarNoDriftMidAsmHook"
 address = 0x243FD2
 jump_address_on_true = 0x244015
+
+[[midasm_hook]]
+name = "AirSaucerJumpMidAsmHook"
+address = 0x24D773
+registers = ["r7"]
+jump_address = 0x24D778
+
+[[midasm_hook]]
+name = "AirSaucerStompMidAsmHook"
+address = 0x24D7EA
+registers = ["r7"]
+jump_address = 0x24D7EF
 ## End Reloaded patches
 
 [[midasm_hook]]
