@@ -1646,6 +1646,45 @@ jump_address = 0x73261
 name = "NoSkiddingMidAsmHook"
 address = 0x72C04
 jump_address_on_true = 0x72C25
+
+[[midasm_hook]]
+name = "KeepMeleeOnVehicleMidAsmHook"
+address = 0x6E117
+jump_address_on_true = 0x6E127
+
+[[midasm_hook]]
+name = "CarGasReleaseMidAsmHook"
+address = 0x243CA2
+jump_address_on_true = 0x243CA6
+
+[[midasm_hook]]
+name = "CarBrakeButtonMidAsmHook"
+address = 0x243D1A
+registers = ["r0", "r3"]
+jump_address_on_true = 0x243D20
+jump_address_on_false = 0x243D47
+
+# dismount check
+[[midasm_hook]]
+name = "CarRevampMidAsmHook"
+address = 0x243E22
+jump_address_on_true = 0x243E24
+
+# in-air tapping
+[[midasm_hook]]
+name = "CarRevampMidAsmHook"
+address = 0x24203C
+jump_address_on_true = 0x24207A
+
+[[midasm_hook]]
+name = "CarRevampMidAsmHook"
+address = 0x242074
+jump_address_on_true = 0x24207A
+
+[[midasm_hook]]
+name = "CarNoDriftMidAsmHook"
+address = 0x243FD2
+jump_address_on_true = 0x244015
 ## End Reloaded patches
 
 [[midasm_hook]]

@@ -262,6 +262,43 @@ bool NoSkiddingMidAsmHook()
 	return Config::ReloadedMod;
 }
 
+// Keep Melee Weapons when Mounting Vehicles
+bool KeepMeleeOnVehicleMidAsmHook()
+{
+	return Config::ReloadedMod;
+}
+
+// CarType Vehicles Revamp
+bool CarGasReleaseMidAsmHook()
+{
+	if (!Config::ReloadedMod)
+	{
+		return false;
+	}
+
+	auto ctx = GetX86Context();
+	ctx->xmm[1].f32[0] = ctx->xmm[0].f32[0];
+	return true;
+}
+
+bool CarBrakeButtonMidAsmHook(X86Register& eax, X86Register& edx)
+{
+	auto base = g_memory.base;
+	const uint8_t held = X86_LOAD_U8(eax.u32 + edx.u32 * 8);
+	return (held & (Config::ReloadedMod ? PJSPeripheral::BTN_Y : PJSPeripheral::BTN_B)) != 0;
+}
+
+bool CarRevampMidAsmHook()
+{
+	return Config::ReloadedMod;
+}
+
+// TODO: I may want to rework this later to drift with LB and RB, but tabling that for now
+bool CarNoDriftMidAsmHook()
+{
+	return Config::ReloadedMod;
+}
+
 void ReloadedValuePatches()
 {
 	if (!Config::ReloadedMod)
@@ -328,8 +365,6 @@ void ReloadedValuePatches()
 
 	// Triple Spring Origin Shift
 
-	// Keep Melee Weapons when Mounting Vehicles
-
 	// == Super AirSaucer ==
 	// RotSpeed 250 -> 8000
 	X86_STORE_F32(0x471B10, 8000.0f);
@@ -352,8 +387,6 @@ void ReloadedValuePatches()
 	// Time Bonus Penalty Always Active
 
 	// Last Way & Devil Doom in Select Menu - CONSIDER EXTENDING / modifying visual with IMGUI?
-
-	// CarType Vehicles Revamp
 
 	// Enemy AppearType WARP Faster Spawn
 
@@ -396,8 +429,6 @@ void ReloadedValuePatches()
 	// Devil Doom is a Ranked Mission
 
 	// S Rank System - Overhaul?
-
-	// Disable CarType Vehicle Drifting
 
 	// SuperShadow Always Has Fully Charged Spears while ChaosPowers Active [2P COMPAT]
 
