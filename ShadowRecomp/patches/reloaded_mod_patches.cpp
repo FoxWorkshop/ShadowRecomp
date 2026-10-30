@@ -582,6 +582,22 @@ bool SRankSystemMemMidAsmHook(X86Register& ebp)
 	return CountsAsARank(X86_LOAD_U32(ebp.u32));
 }
 
+// Select Mode cursor no reset
+bool SelectModeCursorNoResetMidAsmHook()
+{
+	if (!Config::ReloadedMod)
+	{
+		return false;
+	}
+
+	auto base = g_memory.base;
+	if (X86_LOAD_U32(0x5285E4) == 0 && X86_LOAD_U32(0x5285E8) == 0)
+	{
+		X86_STORE_U32(0x5285E8, 2);
+	}
+	return true;
+}
+
 void ReloadedValuePatches()
 {
 	if (!Config::ReloadedMod)
@@ -732,8 +748,6 @@ void ReloadedValuePatches()
 	// SurvivalKnife 6 -> 18
 	X86_STORE_U32(0x523B70, 18);
 	// == Melee Ammo Adjustments ==
-
-	// Select Mode cursor no reset
 
 	// Light Dash Valid Ring Distance
 	// 80 -> 100
