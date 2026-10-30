@@ -1569,6 +1569,26 @@ jump_address_on_true = 0x7A9DD
 name = "SlideSteepSlopeMidAsmHook"
 address = 0x7ABE1
 jump_address_on_true = 0x7AC40
+
+[[midasm_hook]]
+name = "LightDashTransitionMidAsmHook"
+address = 0x8B02F
+registers = ["r0"]
+jump_address_on_true = 0x8B03C
+jump_address_on_false = 0x8B199
+
+[[midasm_hook]]
+name = "LightDashTransitionMidAsmHook"
+address = 0x77271
+registers = ["r0"]
+jump_address_on_true = 0x7727A
+jump_address_on_false = 0x772FE
+
+[[midasm_hook]]
+name = "LightDashExitStateMidAsmHook"
+address = 0x77DF8
+registers = ["r7"]
+jump_address = 0x77E00
 ## End Reloaded patches
 
 [[midasm_hook]]

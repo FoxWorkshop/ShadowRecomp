@@ -4,13 +4,17 @@
 #include <user/config.h>
 
 // Player::Behaviors @ 0x4EEE58
-// TODO: Expand more later
 enum PlayerBehaviorId : uint32_t
 {
+	BEHAVIOR_FALL = 0x2,
 	BEHAVIOR_JUMP_DASH = 0x6,
 	BEHAVIOR_HOMING_ATTACK = 0x8,
+	BEHAVIOR_HOMING_JUMP = 0x9,
 	BEHAVIOR_SPIN_DASH = 0x12,
+	BEHAVIOR_LAUNCH = 0x17,
 };
+
+static constexpr uint32_t g_currentStageId = 0x54DDD8;
 
 static uint32_t GetBehaviorId(uint32_t player)
 {
@@ -179,6 +183,42 @@ bool SlideSteepSlopeMidAsmHook()
 	return Config::ReloadedMod;
 }
 
+// LightDash Transition Expansion
+bool LightDashTransitionMidAsmHook(X86Register& eax)
+{
+	auto base = g_memory.base;
+	const uint32_t player = eax.u32;
+	if ((X86_LOAD_U32(player + 0xA0) & 0x8) != 0)
+	{
+		return true;
+	}
+
+	if (!Config::ReloadedMod)
+	{
+		return false;
+	}
+
+	const uint32_t behavior = GetBehaviorId(player);
+	return behavior == BEHAVIOR_JUMP_DASH || behavior == BEHAVIOR_HOMING_JUMP || behavior == BEHAVIOR_LAUNCH;
+}
+
+// LightDash Exit State Change to Launched for Westopolis
+void LightDashExitStateMidAsmHook(X86Register& esp)
+{
+	auto base = g_memory.base;
+	if (!Config::ReloadedMod || X86_LOAD_U32(g_currentStageId) != 100)
+	{
+		X86_STORE_U32(esp.u32 + 0x3C, BEHAVIOR_FALL);
+		return;
+	}
+
+	// InitializeArgsLaunch
+	// TODO: Research this more to see if we can disable the radial blur in args instead of in a separate patch
+	X86_STORE_U32(esp.u32 + 0x38, 0x448FAC);
+	X86_STORE_U32(esp.u32 + 0x3C, BEHAVIOR_LAUNCH);
+	X86_STORE_U32(esp.u32 + 0x40, 0x0); // skydive
+}
+
 void ReloadedValuePatches()
 {
 	if (!Config::ReloadedMod)
@@ -227,6 +267,8 @@ void ReloadedValuePatches()
 	// Jump Attack Friction
 
 	// Light Dash ValidRing Angle
+	// 45 -> 75
+	X86_STORE_F32(0x448708, 75.0f);
 
 	// Homing Attack Speed
 
@@ -268,8 +310,6 @@ void ReloadedValuePatches()
 
 	// AirSaucer Replace Second Jump with Stomp
 
-	// LightDash Transition Expansion [2P COMPAT]
-
 	// Global Lock-On Revamp
 
 	// EscapePlane Stat Adjustment
@@ -300,13 +340,11 @@ void ReloadedValuePatches()
 
 	// Select Mode cursor no reset
 
-	// LightDash Exit State Change to Launched for Westopolis
-
 	// Devil Doom Boss Has No Awake Music
 
 	// Light Dash Valid Ring Distance
 	// 80 -> 100
-	const uint32_t lightDashValidRingDistanceAddr = 0x4ECDFC; // NOTE: PROBABLY SHARED; TODO Instead should patch ctor read!!
+	const uint32_t lightDashValidRingDistanceAddr = 0x4ECDFC;
 	X86_STORE_F32(lightDashValidRingDistanceAddr, 100.0f);
 
 	// Slide Run Threshhold
