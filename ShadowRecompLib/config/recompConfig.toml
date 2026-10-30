@@ -1859,6 +1859,47 @@ jump_address_on_true = 0x237C18
 name = "ARankRecountMidAsmHook"
 address = 0x237CDA
 jump_address_on_true = 0x237CE0
+
+[[midasm_hook]]
+name = "DevilDoomAwakePlayMidAsmHook"
+address = 0x8E924
+registers = ["r2"]
+
+[[midasm_hook]]
+name = "DevilDoomAwakeStopMidAsmHook"
+address = 0x8EA5D
+registers = ["r2"]
+
+[[midasm_hook]]
+name = "DevilDoomAndLastWayRankedMidAsmHook"
+address = 0x2380E4
+jump_address_on_true = 0x2380F5
+
+[[midasm_hook]]
+name = "ExpertRingLossMidAsmHook"
+address = 0xA42BD
+registers = ["r4"]
+
+[[midasm_hook]]
+name = "ExpertRingRadiusMidAsmHook"
+address = 0x1B17EC
+registers = ["r7"]
+jump_address = 0x1B17F1
+
+[[midasm_hook]]
+name = "ExpertRingLifetimeMidAsmHook"
+address = 0x1B18CB
+jump_address = 0x1B18D3
+
+[[midasm_hook]]
+name = "ExpertRingBlinkMidAsmHook"
+address = 0x1B13AB
+jump_address = 0x1B13B3
+
+[[midasm_hook]]
+name = "DiablonNoWarpMidAsmHook"
+address = 0x1049B6
+jump_address_on_true = 0x1049BB
 ## End Reloaded patches
 
 [[midasm_hook]]

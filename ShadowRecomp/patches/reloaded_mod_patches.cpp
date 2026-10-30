@@ -452,6 +452,77 @@ bool ARankRecountMidAsmHook()
 	return Config::ReloadedMod;
 }
 
+// Devil Doom Boss Has No Awake Music
+void DevilDoomAwakePlayMidAsmHook(X86Register& ecx)
+{
+	auto base = g_memory.base;
+	if (Config::ReloadedMod && X86_LOAD_U32(g_currentStageId) == 710)
+	{
+		ecx.u32 = 7; // invalid (purposely skip)
+	}
+}
+
+void DevilDoomAwakeStopMidAsmHook(X86Register& ecx)
+{
+	auto base = g_memory.base;
+	if (Config::ReloadedMod && X86_LOAD_U32(g_currentStageId) == 710)
+	{
+		ecx.u32 = 0;
+	}
+}
+
+// Devil Doom and The Last Way are Ranked Missions
+bool DevilDoomAndLastWayRankedMidAsmHook()
+{
+	return Config::ReloadedMod;
+}
+
+// TODO: Probably make this an opt out code since some people hate it
+static bool IsExpertRingLoss()
+{
+	auto base = g_memory.base;
+	return Config::ReloadedMod && X86_LOAD_U8(0x54DE55) != 0;
+}
+
+// Expert Ring Loss
+void ExpertRingLossMidAsmHook(X86Register& esi)
+{
+	if (IsExpertRingLoss())
+	{
+		esi.u32 = 999;
+	}
+}
+
+// Expert ring radius 5 -> 0
+void ExpertRingRadiusMidAsmHook(X86Register& esp)
+{
+	auto base = g_memory.base;
+	esp.u32 -= 4;
+	X86_STORE_F32(esp.u32, IsExpertRingLoss() ? 0.0f : 5.0f);
+}
+
+// Expert ring lifetime 10 -> 0.8
+void ExpertRingLifetimeMidAsmHook()
+{
+	auto ctx = GetX86Context();
+	auto base = g_memory.base;
+	ctx->xmm[0].f32[0] = IsExpertRingLoss() ? 0.8f : X86_LOAD_F32(0x468058);
+}
+
+// Expert ring blink 1.5 -> 10
+void ExpertRingBlinkMidAsmHook()
+{
+	auto ctx = GetX86Context();
+	auto base = g_memory.base;
+	ctx->xmm[0].f32[0] = IsExpertRingLoss() ? 10.0f : X86_LOAD_F32(0x468054);
+}
+
+// Disable Diablon Warp Player Function
+bool DiablonNoWarpMidAsmHook()
+{
+	return Config::ReloadedMod;
+}
+
 void ReloadedValuePatches()
 {
 	if (!Config::ReloadedMod)
@@ -607,8 +678,6 @@ void ReloadedValuePatches()
 
 	// Select Mode cursor no reset
 
-	// Devil Doom Boss Has No Awake Music
-
 	// Light Dash Valid Ring Distance
 	// 80 -> 100
 	X86_STORE_F32(0x4ECDFC, 100.0f);
@@ -626,10 +695,6 @@ void ReloadedValuePatches()
 	// Red Slime Speed 340 -> 425
 	X86_STORE_F32(0x4EC3A8, 425.0f);
 
-	// Expert Ring Loss
-
-	// Devil Doom is a Ranked Mission
-
 	// S Rank System - Overhaul?
 
 	// SuperShadow Always Has Fully Charged Spears while ChaosPowers Active [2P COMPAT]
@@ -638,6 +703,4 @@ void ReloadedValuePatches()
 	X86_STORE_F32(0x525190, 6.0f);
 
 	// TODO: Tank Cannon, CannonAndroid, Satelite laser further tweaks (DarkShadow/Rawlins)
-
-	// Disable Diablon Warp Player Function
 }
