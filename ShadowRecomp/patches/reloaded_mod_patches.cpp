@@ -633,6 +633,16 @@ bool TimeBonusPenaltyMidAsmHook()
 	return Config::ReloadedMod;
 }
 
+// In Stage Missions Unlocked (always switchable)
+void InStageMissionsAlwaysUnlockedSwitchableMidAsmHook(X86Register& esi)
+{
+	if (Config::ReloadedMod)
+	{
+		auto base = g_memory.base;
+		X86_STORE_U8(esi.u32 + 0x14, 1);
+	}
+}
+
 void ReloadedValuePatches()
 {
 	if (!Config::ReloadedMod)
@@ -643,8 +653,6 @@ void ReloadedValuePatches()
 	auto base = g_memory.base;
 
 	// 2P Unique Android JumpBall Colors
-
-	// Missions Unlocked - Missions can always be switched, regardless if you've met the mission character or not.
 
 	// Mission Focus
 

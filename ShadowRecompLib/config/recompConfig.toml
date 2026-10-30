@@ -1983,6 +1983,11 @@ jump_address_on_true = 0x22D53B
 name = "TimeBonusPenaltyMidAsmHook"
 address = 0x28664B
 jump_address_on_true = 0x286659
+
+[[midasm_hook]]
+name = "InStageMissionsAlwaysUnlockedSwitchableMidAsmHook"
+address = 0x284D07
+registers = ["r4"]
 ## End Reloaded patches
 
 [[midasm_hook]]
