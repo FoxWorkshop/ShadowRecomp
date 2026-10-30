@@ -375,6 +375,68 @@ bool WeaponNoKnockbackMidAsmHook()
 	return Config::ReloadedMod;
 }
 
+// EscapePlane / EggBalloon Stat Adjustment
+bool ChaseObjNoInvulnerabilityMidAsmHook()
+{
+	return Config::ReloadedMod;
+}
+
+// EscapePlane phase 2 600 -> 1600
+void EscapePlanePhase2MidAsmHook()
+{
+	auto ctx = GetX86Context();
+	auto base = g_memory.base;
+	ctx->xmm[0].f32[0] = Config::ReloadedMod ? 1600.0f : X86_LOAD_F32(0x456B0C);
+}
+
+// EscapePlane phase 3 400 -> 1000
+void EscapePlanePhase3MidAsmHook()
+{
+	auto ctx = GetX86Context();
+	auto base = g_memory.base;
+	ctx->xmm[0].f32[0] = Config::ReloadedMod ? 1000.0f : X86_LOAD_F32(0x44BB18);
+}
+
+// EscapePlane phase 4 200 -> 300
+void EscapePlanePhase4MidAsmHook()
+{
+	auto ctx = GetX86Context();
+	auto base = g_memory.base;
+	ctx->xmm[0].f32[0] = Config::ReloadedMod ? 300.0f : X86_LOAD_F32(0x449B38);
+}
+
+// EggBalloon phase 2 300 -> 800
+void EggBalloonPhase2MidAsmHook()
+{
+	auto ctx = GetX86Context();
+	auto base = g_memory.base;
+	ctx->xmm[0].f32[0] = Config::ReloadedMod ? 800.0f : X86_LOAD_F32(0x454388);
+}
+
+// EggBalloon phase 3 200 -> 500
+void EggBalloonPhase3MidAsmHook()
+{
+	auto ctx = GetX86Context();
+	auto base = g_memory.base;
+	ctx->xmm[0].f32[0] = Config::ReloadedMod ? 500.0f : X86_LOAD_F32(0x449B38);
+}
+
+// EggBalloon phase 4 100 -> 200
+void EggBalloonPhase4MidAsmHook()
+{
+	auto ctx = GetX86Context();
+	auto base = g_memory.base;
+	ctx->xmm[0].f32[0] = Config::ReloadedMod ? 200.0f : X86_LOAD_F32(0x42BA7C);
+}
+
+// EggBalloon gauge 300 -> 800
+void EggBalloonGaugeMidAsmHook(X86Register& esp)
+{
+	auto base = g_memory.base;
+	esp.u32 -= 4;
+	X86_STORE_F32(esp.u32, Config::ReloadedMod ? 800.0f : 300.0f);
+}
+
 void ReloadedValuePatches()
 {
 	if (!Config::ReloadedMod)
@@ -450,9 +512,11 @@ void ReloadedValuePatches()
 
 	// Global Lock-On Revamp
 
-	// EscapePlane Stat Adjustment
+	// EscapePlane Stat Adjustment 800 -> 2200
+	X86_STORE_F32(0x46CED4, 2200.0f);
 
-	// EggBalloon Stat Adjustment
+	// EggBalloon Stat Adjustment 400 -> 1100
+	X86_STORE_F32(0x46A2C0, 1100.0f);
 
 	// Time Bonus Penalty Always Active
 

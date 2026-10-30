@@ -1766,6 +1766,84 @@ jump_address_on_true = 0xA0DA9
 name = "WeaponNoKnockbackMidAsmHook"
 address = 0xA1D69
 jump_address_on_true = 0xA1D6C
+
+# EscapePlane invuln
+[[midasm_hook]]
+name = "ChaseObjNoInvulnerabilityMidAsmHook"
+address = 0x214D03
+jump_address_on_true = 0x214D09
+
+# EggBalloon invuln
+[[midasm_hook]]
+name = "ChaseObjNoInvulnerabilityMidAsmHook"
+address = 0x1DE3A3
+jump_address_on_true = 0x1DE3A9
+
+[[midasm_hook]]
+name = "EscapePlanePhase4MidAsmHook"
+address = 0x2147F0
+jump_address = 0x2147F8
+
+[[midasm_hook]]
+name = "EscapePlanePhase3MidAsmHook"
+address = 0x21480D
+jump_address = 0x214815
+
+[[midasm_hook]]
+name = "EscapePlanePhase2MidAsmHook"
+address = 0x21482A
+jump_address = 0x214832
+
+[[midasm_hook]]
+name = "EscapePlanePhase2MidAsmHook"
+address = 0x2154EF
+jump_address = 0x2154F7
+
+[[midasm_hook]]
+name = "EscapePlanePhase3MidAsmHook"
+address = 0x215546
+jump_address = 0x21554E
+
+[[midasm_hook]]
+name = "EscapePlanePhase4MidAsmHook"
+address = 0x21559D
+jump_address = 0x2155A5
+
+[[midasm_hook]]
+name = "EggBalloonPhase4MidAsmHook"
+address = 0x1DD840
+jump_address = 0x1DD848
+
+[[midasm_hook]]
+name = "EggBalloonPhase3MidAsmHook"
+address = 0x1DD85C
+jump_address = 0x1DD864
+
+[[midasm_hook]]
+name = "EggBalloonPhase2MidAsmHook"
+address = 0x1DD875
+jump_address = 0x1DD87D
+
+[[midasm_hook]]
+name = "EggBalloonPhase2MidAsmHook"
+address = 0x1DF245
+jump_address = 0x1DF24D
+
+[[midasm_hook]]
+name = "EggBalloonPhase3MidAsmHook"
+address = 0x1DF299
+jump_address = 0x1DF2A1
+
+[[midasm_hook]]
+name = "EggBalloonPhase4MidAsmHook"
+address = 0x1DF330
+jump_address = 0x1DF338
+
+[[midasm_hook]]
+name = "EggBalloonGaugeMidAsmHook"
+address = 0x1DF035
+registers = ["r7"]
+jump_address = 0x1DF03A
 ## End Reloaded patches
 
 [[midasm_hook]]
