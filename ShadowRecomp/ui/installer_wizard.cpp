@@ -18,6 +18,7 @@
 #include <ui/fader.h>
 #include <res/images/common/TitleBg.png.h>
 #include <res/images/common/Options2.png.h>
+#include <res/images/installer/FoxLogo.png.h>
 #include <decompressor.h>
 #include <kernel/io/file_system.h>
 #include "options_menu.h"
@@ -26,6 +27,7 @@
 
 static std::unique_ptr<GuestTexture> g_upTexOptionsBG{};
 static std::unique_ptr<GuestTexture> g_upTexOptionsBG2{};
+static std::unique_ptr<GuestTexture> g_upTexFoxLogo{};
 
 enum class WizardPage
 {
@@ -103,6 +105,9 @@ static std::atomic<bool> g_installerCompiling{ false };
 static Installer::Sources g_installerSources;
 static uint64_t g_installerAvailableSize = 0;
 static std::string g_creditsStr;
+static double g_creditsScrollStart = -1.0;
+static double g_bgFadeStart = -1.0;
+static constexpr float BG_FADE_IN_DURATION = 1.0f;
 static constexpr float INSTALL_EXTRACT_RATIO_END = 0.8f;
 
 static bool g_currentCursorAccepted = false;
@@ -545,6 +550,12 @@ static void DrawShadowImage()
 	auto& res = ImGui::GetIO().DisplaySize;
 	auto drawList = ImGui::GetBackgroundDrawList();
 
+	// fade the background on the intro
+	if (g_bgFadeStart < 0.0)
+		g_bgFadeStart = ImGui::GetTime();
+
+	float fade = std::clamp(float(ImGui::GetTime() - g_bgFadeStart) / BG_FADE_IN_DURATION, 0.0f, 1.0f);
+
 	float borderPixels = 32.f; // Options BG has an extra black border at the bottom, we don't want that.
 	float uvMaxY = 1.0f - (borderPixels / 512.0f);
 
@@ -559,21 +570,48 @@ static void DrawShadowImage()
 		Max,
 		{ 0, 0 },
 		{ 1, uvMaxY },
-		IM_COL32(255, 255, 255, (int)(255))
+		IM_COL32(255, 255, 255, (int)(255 * fade))
 	);
 
 
 	// draw fire and white lines under the menu box
 	drawList->PushClipRect(Min, Max, true);
-	DrawAnimatedFire(Min, Max, 1);
-	DrawLoopLines(Min, Max, 1);
+	DrawAnimatedFire(Min, Max, fade);
+	DrawLoopLines(Min, Max, fade);
+
+	drawList->PopClipRect();
+}
 
 
-	if (g_currentPage == WizardPage::InstallSucceeded)
+static void DrawScrollingCredits(const ImVec2& min, const ImVec2& max, float scale)
+{
+	auto drawList = ImGui::GetBackgroundDrawList();
+	auto* font = g_fntSeurat;
+
+	if (g_creditsScrollStart < 0.0)
+		g_creditsScrollStart = ImGui::GetTime() + 1.0;
+
+	auto textSize = font->CalcTextSizeA(fileFontSize, FLT_MAX, 0, g_creditsStr.c_str());
+	float bandWidth = max.x - min.x;
+	float textY = min.y + ((max.y - min.y) - textSize.y) * 0.5f;
+
+	drawList->PushClipRect(min, max, true);
+
+	auto drawText = [&](float x) { DrawTextWithShadow(font, fileFontSize, ImVec2(x, textY), IM_COL32(255, 255, 255, 255), g_creditsStr.c_str(), 1.5, 1, IM_COL32(0, 0, 0, 127)); };
+
+	if (textSize.x <= bandWidth)
 	{
-		DrawDescription(g_creditsStr, 1);
+		drawText(min.x + (bandWidth - textSize.x) * 0.5f);
 	}
+	else
+	{
+		float totalWidth = textSize.x + 80.0f * scale;
+		double elapsed = ImGui::GetTime() - g_creditsScrollStart;
+		float offset = elapsed > 0.0 ? (float)fmod(elapsed * 50.0f * scale, totalWidth) : 0.0f;
 
+		drawText(min.x - offset);
+		drawText(min.x - offset + totalWidth);
+	}
 
 	drawList->PopClipRect();
 }
@@ -666,7 +704,7 @@ void InstallerWizard::Draw()
 		return;
 	}
 
-	auto titleText = "Shadow the Hedgehog Recompiled - Setup";
+	auto titleText = "Shadow the Hedgehog Recompiled - Installer";
 	auto titleSize = font->CalcTextSizeA(fontSize + 2.f, FLT_MAX, 0, titleText);
 	float titleX = centerX - titleSize.x * 0.5f;
 
@@ -682,10 +720,7 @@ void InstallerWizard::Draw()
 	auto textSize = MeasureCentredParagraph(g_fntSeurat, descFontSize, textMaxWidth, textMargin, wizardText.c_str());
 	ImVec2 textPosition = ImVec2(panelMin.x + (panelWidth - textSize.x) * 0.5f, originMin.y);
 	
-	if (g_currentPage != WizardPage::InstallSucceeded)
-	{
-		DrawDescription(titleText);
-	}
+	DrawDescription(titleText);
 
 	if (g_currentPage != WizardPage::Installing && g_currentPage != WizardPage::InstallFailed)
 	{
@@ -1072,7 +1107,22 @@ void InstallerWizard::Draw()
 
 		auto foxSize = font->CalcTextSizeA(descFontSize, FLT_MAX, 0, foxDev);
 		auto foxPositionY = textSize.y + textPosition.y + (25.0f * scale);
-		DrawTextWithShadow(font, descFontSize, ImVec2(centerX - foxSize.x * 0.5f, foxPositionY), IM_COL32(255, 255, 255, 255), foxDev, 1.5, 1, IM_COL32(0, 0, 0, 127));
+
+
+		float logoHeight = foxSize.y * 1.6f;
+		float logoWidth = logoHeight * (520.0f / 482.0f);
+		float logoGap = 8.0f * scale;
+		float foxGroupX = centerX - (logoWidth + logoGap + foxSize.x) * 0.5f;
+		float logoY = foxPositionY + (foxSize.y - logoHeight) * 0.5f;
+
+		drawList->AddImage(g_upTexFoxLogo.get(), ImVec2(foxGroupX, logoY), ImVec2(foxGroupX + logoWidth, logoY + logoHeight),
+						   ImVec2(71.0f / 640.0f, 17.0f / 512.0f), ImVec2(591.0f / 640.0f, 499.0f / 512.0f));
+
+		DrawTextWithShadow(font, descFontSize, ImVec2(foxGroupX + logoWidth + logoGap, foxPositionY), IM_COL32(255, 255, 255, 255), foxDev, 1.5, 1, IM_COL32(0, 0, 0, 127));
+
+		float creditsPadding = 40.0f * scale;
+		float creditsY = logoY + logoHeight + (10.0f * scale);
+		DrawScrollingCredits(ImVec2(panelMin.x + creditsPadding, creditsY), ImVec2(panelMax.x - creditsPadding, creditsY + fileFontSize * 1.5f), scale);
 
 		DrawQuitButton(panelMin, panelMax, scale);
 
@@ -1362,6 +1412,7 @@ void InstallerWizard::Init()
 	g_fntSeurat = ImFontAtlasSnapshot::GetFont("FOT-SeuratPro-DB.otf");
 	g_upTexOptionsBG = LOAD_ZSTD_TEXTURE(g_options_bg);
 	g_upTexOptionsBG2 = LOAD_ZSTD_TEXTURE(g_options_bg2);
+	g_upTexFoxLogo = LOAD_ZSTD_TEXTURE(g_foxLogo);
 
 	g_creditsStr = Localise("Installer_Credits_Message");
 
