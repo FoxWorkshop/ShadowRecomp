@@ -1141,7 +1141,7 @@ jump_address_on_false = 0x181F95
 [[midasm_hook]]
 name = "AddAllScoreToP1MidAsmHook"
 address = 0x22D630
-jump_address = 0x22D699
+registers = ["r2"]
 
 # AwakeExec Idle Drain Fix (fps carry + mp split)
 [[midasm_hook]]
@@ -1915,6 +1915,39 @@ jump_address_on_true = 0x265293
 name = "ChaosSpearChargedVoiceMidAsmHook"
 address = 0x26503A
 jump_address_on_true = 0x265061
+
+# dark
+[[midasm_hook]]
+name = "LastWayInclusiveScoringMidAsmHook"
+address = 0x22D66A
+registers = ["r4", "r2"]
+
+# hero
+[[midasm_hook]]
+name = "LastWayInclusiveScoringMidAsmHook"
+address = 0x22D67B
+registers = ["r4", "r2"]
+
+[[midasm_hook]]
+name = "SRankSystemMidAsmHook"
+address = 0x237C7B
+registers = ["r2"]
+jump_address_on_true = 0x237C7F
+jump_address_on_false = 0x237C85
+
+[[midasm_hook]]
+name = "SRankSystemMemMidAsmHook"
+address = 0x237C8F
+registers = ["r6"]
+jump_address_on_true = 0x237C95
+jump_address_on_false = 0x237C9B
+
+[[midasm_hook]]
+name = "SRankSystemMidAsmHook"
+address = 0x237CA8
+registers = ["r0"]
+jump_address_on_true = 0x237CAC
+jump_address_on_false = 0x237CB2
 ## End Reloaded patches
 
 [[midasm_hook]]

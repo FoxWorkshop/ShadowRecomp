@@ -555,6 +555,33 @@ bool ChaosSpearChargedVoiceMidAsmHook()
 	return IsChaosPowerActive();
 }
 
+// The Last Way Inclusive Scoring
+void LastWayInclusiveScoringMidAsmHook(X86Register& esi, X86Register& ecx)
+{
+	auto base = g_memory.base;
+	if (Config::ReloadedMod && X86_LOAD_U32(g_currentStageId) == 700)
+	{
+		X86_STORE_U32(esi.u32, X86_LOAD_U32(esi.u32) + ecx.u32);
+	}
+}
+
+static bool CountsAsARank(uint32_t rank)
+{
+	return static_cast<int32_t>(rank) <= (Config::ReloadedMod ? 1 : 0);
+}
+
+// S Rank System
+bool SRankSystemMidAsmHook(X86Register& rank)
+{
+	return CountsAsARank(rank.u32);
+}
+
+bool SRankSystemMemMidAsmHook(X86Register& ebp)
+{
+	auto base = g_memory.base;
+	return CountsAsARank(X86_LOAD_U32(ebp.u32));
+}
+
 void ReloadedValuePatches()
 {
 	if (!Config::ReloadedMod)
@@ -634,8 +661,6 @@ void ReloadedValuePatches()
 	// Time Bonus Penalty Always Active
 
 	// Last Way & Devil Doom in Select Menu - CONSIDER EXTENDING / modifying visual with IMGUI?
-
-	// The Last Way Inclusive Scoring
 
 	// == The Last Way idle lines ==
 	// 0x1B7 -> 0x1E6
@@ -726,8 +751,6 @@ void ReloadedValuePatches()
 
 	// Red Slime Speed 340 -> 425
 	X86_STORE_F32(0x4EC3A8, 425.0f);
-
-	// S Rank System - Overhaul?
 
 	// LaserRifle Damage Adjustment 3 -> 6
 	X86_STORE_F32(0x525190, 6.0f);
