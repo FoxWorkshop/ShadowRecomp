@@ -3,6 +3,27 @@
 #include <input/padstate.h>
 #include <user/config.h>
 
+// Player::Behaviors @ 0x4EEE58
+// TODO: Expand more later
+enum PlayerBehaviorId : uint32_t
+{
+	BEHAVIOR_JUMP_DASH = 0x6,
+	BEHAVIOR_HOMING_ATTACK = 0x8,
+	BEHAVIOR_SPIN_DASH = 0x12,
+};
+
+static uint32_t GetBehaviorId(uint32_t player)
+{
+	auto base = g_memory.base;
+	const uint32_t executer = X86_LOAD_U32(player + 0x22C);
+	if (executer == 0)
+	{
+		return UINT32_MAX;
+	}
+	const uint32_t behavior = X86_LOAD_U32(executer + 0x30);
+	return behavior != 0 ? X86_LOAD_U32(behavior + 0x10) : UINT32_MAX;
+}
+
 // Inlined Homing Attack Speed 1000f -> 2000f [Reloaded Phys]
 void HomingAttackSpeedMidAsmHook(X86Register& esp)
 {
@@ -99,6 +120,65 @@ bool EggBreakerDigitizeEffectMidAsmHook()
 	return Config::ReloadedMod;
 }
 
+// Disable Slide on B-press on ground and state extension
+bool SlideStateExtensionMidAsmHook(X86Register& eax)
+{
+	auto base = g_memory.base;
+	const uint32_t player = eax.u32;
+	if (!Config::ReloadedMod || X86_LOAD_U32(player + 0x238) == 0)
+	{
+		return (X86_LOAD_U32(player + 0xA0) & 0x10) != 0;
+	}
+
+	const uint32_t behavior = GetBehaviorId(player);
+	return behavior == BEHAVIOR_JUMP_DASH || behavior == BEHAVIOR_HOMING_ATTACK || behavior == BEHAVIOR_SPIN_DASH;
+}
+
+// Slide State Extension - Bad Transition Bugfix
+void SlideBadTransitionMidAsmHook(X86Register& ecx)
+{
+	if (Config::ReloadedMod && (ecx.u32 == 0xF8 || ecx.u32 == 0xF9))
+	{
+		ecx.u32 = 0xFA;
+	}
+}
+
+// Slide Steer 2 -> 4
+void SlideSteerMidAsmHook()
+{
+	auto ctx = GetX86Context();
+	auto base = g_memory.base;
+	ctx->xmm[0].f32[0] *= Config::ReloadedMod ? 4.0f : X86_LOAD_F32(0x429F74);
+}
+
+static bool IsSlideHeld(uint32_t sliding)
+{
+	auto base = g_memory.base;
+	const uint32_t player = X86_LOAD_U32(sliding + 0x4);
+	const uint32_t input = X86_LOAD_U32(player + 0x218);
+
+	// 0x18 = held actions @ 0x449CF8
+	// & 0x60 = X or B
+	return input != 0 && (X86_LOAD_U32(input + 0x18) & 0x60) != 0;
+}
+
+bool HoldableSlideMidAsmHook(X86Register& ebx)
+{
+	return Config::ReloadedMod && IsSlideHeld(ebx.u32);
+}
+
+bool HoldableSlideReleaseMidAsmHook(X86Register& ebx)
+{
+	return Config::ReloadedMod && !IsSlideHeld(ebx.u32);
+}
+
+// TODO: Might move this as an always on patch, haven't decided, arguably its a bug
+// Fix Sliding on Steep Slopes
+bool SlideSteepSlopeMidAsmHook()
+{
+	return Config::ReloadedMod;
+}
+
 void ReloadedValuePatches()
 {
 	if (!Config::ReloadedMod)
@@ -131,8 +211,6 @@ void ReloadedValuePatches()
 	// Ghost Red Rings (STG_CMN REDIRECT)
 
 	// Respawn at last activated checkpoint
-
-	// Disable Slide on B-press on ground and state extension
 
 	// No Tri-Jump Exit
 
@@ -231,9 +309,9 @@ void ReloadedValuePatches()
 	const uint32_t lightDashValidRingDistanceAddr = 0x4ECDFC; // NOTE: PROBABLY SHARED; TODO Instead should patch ctor read!!
 	X86_STORE_F32(lightDashValidRingDistanceAddr, 100.0f);
 
-	// Slide Steer
-
 	// Slide Run Threshhold
+	// 200 -> 75
+	X86_STORE_F32(0x4EC7FC, 75.0f);
 
 	// Spindash Startup Delay
 
@@ -241,29 +319,19 @@ void ReloadedValuePatches()
 
 	// Red Slime Speed
 
-	// Skippable Startup/Boot Logos
-
 	// Beating Last Story unlocks Expert
 
 	// Expert Ring Loss
-
-	// Holdable Slide
 
 	// Devil Doom is a Ranked Mission
 
 	// S Rank System - Overhaul?
 
-	// Fix Sliding on Steep Slopes
-
 	// Disable CarType Vehicle Drifting
-
-	// EggPierrot Stage Fix
 
 	// SuperShadow Always Has Fully Charged Spears while ChaosPowers Active [2P COMPAT]
 
 	// LaserRifle Damage Adjustment
-
-	// Slide State Extension - Bad Transition Bugfix
 
 	// Disable Diablon Warp Player Function
 }

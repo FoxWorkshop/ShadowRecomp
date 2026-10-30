@@ -1530,6 +1530,47 @@ jump_address_on_true = 0x255F9F
 jump_address_on_false = 0x255FB0
 # End GUN Mech Vehicle Revamp (Reloaded) patches
 
+## Start Reloaded patches
+[[midasm_hook]]
+name = "SlideStateExtensionMidAsmHook"
+address = 0x8B949
+registers = ["r0"]
+jump_address_on_true = 0x8B952
+jump_address_on_false = 0x8B971
+
+[[midasm_hook]]
+name = "SlideBadTransitionMidAsmHook"
+address = 0x73551
+registers = ["r2"]
+
+[[midasm_hook]]
+name = "SlideBadTransitionMidAsmHook"
+address = 0x7365E
+registers = ["r2"]
+
+[[midasm_hook]]
+name = "SlideSteerMidAsmHook"
+address = 0x7A843
+jump_address = 0x7A84B
+
+[[midasm_hook]]
+name = "HoldableSlideMidAsmHook"
+address = 0x7A9C3
+registers = ["r1"]
+jump_address_on_true = 0x7AA71
+
+[[midasm_hook]]
+name = "HoldableSlideReleaseMidAsmHook"
+address = 0x7A9C5
+registers = ["r1"]
+jump_address_on_true = 0x7A9DD
+
+[[midasm_hook]]
+name = "SlideSteepSlopeMidAsmHook"
+address = 0x7ABE1
+jump_address_on_true = 0x7AC40
+## End Reloaded patches
+
 [[midasm_hook]]
 name = "GunLiftAimMidAsmHook"
 address = 0x2245E5
