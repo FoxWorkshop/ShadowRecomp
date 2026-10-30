@@ -219,6 +219,35 @@ void LightDashExitStateMidAsmHook(X86Register& esp)
 	X86_STORE_U32(esp.u32 + 0x40, 0x0); // skydive
 }
 
+// WallRun Speed 500 -> 550
+void WallRunSpeedMidAsmHook(X86Register& esp)
+{
+	auto base = g_memory.base;
+	esp.u32 -= 4;
+	X86_STORE_F32(esp.u32, Config::ReloadedMod ? 550.0f : 500.0f);
+}
+
+// Triangle Jump Speed 450 -> 1000
+void TriangleJumpSpeedMidAsmHook(X86Register& esp)
+{
+	auto base = g_memory.base;
+	esp.u32 -= 4;
+	X86_STORE_F32(esp.u32, Config::ReloadedMod ? 1000.0f : 450.0f);
+}
+
+// No Tri-Jump Exit
+bool NoTriJumpExitMidAsmHook()
+{
+	if (!Config::ReloadedMod)
+	{
+		return false;
+	}
+
+	auto ctx = GetX86Context();
+	ctx->xmm[0].f32[0] = 0.0f;
+	return true;
+}
+
 void ReloadedValuePatches()
 {
 	if (!Config::ReloadedMod)
@@ -252,31 +281,29 @@ void ReloadedValuePatches()
 
 	// Respawn at last activated checkpoint
 
-	// No Tri-Jump Exit
-
 	// No Skidding
 
 	// GUNMech Physics Revamp
 
-	// Jump Ball Turn Speed
+	// Jump Ball Turn Speed 6.5 -> 25
+	X86_STORE_F32(0x448414, 25.0f);
 
 	// Chaos Blast Damage 12 -> 36
 	X86_STORE_F32(0x4EBE4C, 36.0f);
 
-	// Jump Attack Friction
+	// Jump Attack Friction 10 -> 4
+	X86_STORE_F32(0x4ED69C, 4.0f);
 
 	// Light Dash ValidRing Angle 45 -> 75
 	X86_STORE_F32(0x448708, 75.0f);
 
 	// Homing Attack Speed
 
-	// Homing Attack Turn Strength
+	// Homing Attack Turn Strength 8 -> 16
+	X86_STORE_F32(0x448268, 16.0f);
 
-	// Triangle Jump Recover Time
-
-	// Triangle Jump Speed
-
-	// WallRun Speed
+	// Triangle Jump Recover Time 0.125 -> 0.000001
+	X86_STORE_F32(0x448D1C, 0.000001f);
 
 	// Walk Turn Speed
 
@@ -345,9 +372,11 @@ void ReloadedValuePatches()
 	// 200 -> 75
 	X86_STORE_F32(0x4EC7FC, 75.0f);
 
-	// Spindash Startup Delay
+	// Spindash Startup Delay 0.25 -> 1
+	X86_STORE_F32(0x4ED19C, 1.0f);
 
-	// Strafe Walk Speed
+	// Strafe Walk Speed 30 -> 55
+	X86_STORE_F32(0x4EC800, 55.0f);
 
 	// Red Slime Speed
 

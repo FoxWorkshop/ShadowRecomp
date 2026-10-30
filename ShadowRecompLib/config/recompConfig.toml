@@ -1589,6 +1589,23 @@ name = "LightDashExitStateMidAsmHook"
 address = 0x77DF8
 registers = ["r7"]
 jump_address = 0x77E00
+
+[[midasm_hook]]
+name = "WallRunSpeedMidAsmHook"
+address = 0x7E330
+registers = ["r7"]
+jump_address = 0x7E335
+
+[[midasm_hook]]
+name = "TriangleJumpSpeedMidAsmHook"
+address = 0x7E857
+registers = ["r7"]
+jump_address = 0x7E85C
+
+[[midasm_hook]]
+name = "NoTriJumpExitMidAsmHook"
+address = 0x7EC01
+jump_address_on_true = 0x7EBAE
 ## End Reloaded patches
 
 [[midasm_hook]]
