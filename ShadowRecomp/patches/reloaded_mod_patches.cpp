@@ -523,6 +523,38 @@ bool DiablonNoWarpMidAsmHook()
 	return Config::ReloadedMod;
 }
 
+static bool IsChaosPowerActive()
+{
+	if (!Config::ReloadedMod)
+	{
+		return false;
+	}
+
+	auto base = g_memory.base;
+	const uint32_t gameState = X86_LOAD_U32(0x54963C);
+	return gameState != 0 && (X86_LOAD_U32(gameState + 0x714) == 1 || X86_LOAD_U32(gameState + 0x720) == 1);
+}
+
+// SuperShadow Always Has Fully Charged Spears while ChaosPowers Active
+void ChaosSpearChargeMidAsmHook(X86Register& esp)
+{
+	if (IsChaosPowerActive())
+	{
+		auto base = g_memory.base;
+		X86_STORE_F32(esp.u32 + 0x14, 1.0f);
+	}
+}
+
+bool ChaosSpearMaxChargeMidAsmHook()
+{
+	return IsChaosPowerActive();
+}
+
+bool ChaosSpearChargedVoiceMidAsmHook()
+{
+	return IsChaosPowerActive();
+}
+
 void ReloadedValuePatches()
 {
 	if (!Config::ReloadedMod)
@@ -696,8 +728,6 @@ void ReloadedValuePatches()
 	X86_STORE_F32(0x4EC3A8, 425.0f);
 
 	// S Rank System - Overhaul?
-
-	// SuperShadow Always Has Fully Charged Spears while ChaosPowers Active [2P COMPAT]
 
 	// LaserRifle Damage Adjustment 3 -> 6
 	X86_STORE_F32(0x525190, 6.0f);

@@ -1900,6 +1900,21 @@ jump_address = 0x1B13B3
 name = "DiablonNoWarpMidAsmHook"
 address = 0x1049B6
 jump_address_on_true = 0x1049BB
+
+[[midasm_hook]]
+name = "ChaosSpearChargeMidAsmHook"
+address = 0x2651D8
+registers = ["r7"]
+
+[[midasm_hook]]
+name = "ChaosSpearMaxChargeMidAsmHook"
+address = 0x26525A
+jump_address_on_true = 0x265293
+
+[[midasm_hook]]
+name = "ChaosSpearChargedVoiceMidAsmHook"
+address = 0x26503A
+jump_address_on_true = 0x265061
 ## End Reloaded patches
 
 [[midasm_hook]]
