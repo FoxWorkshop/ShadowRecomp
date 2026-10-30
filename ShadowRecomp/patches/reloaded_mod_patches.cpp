@@ -260,14 +260,12 @@ void ReloadedValuePatches()
 
 	// Jump Ball Turn Speed
 
-	// Chaos Blast Damage
-	const uint32_t chaosBlastDamageAddr = 0x4EBE4C;
-	X86_STORE_F32(chaosBlastDamageAddr, 36.0f);
+	// Chaos Blast Damage 12 -> 36
+	X86_STORE_F32(0x4EBE4C, 36.0f);
 
 	// Jump Attack Friction
 
-	// Light Dash ValidRing Angle
-	// 45 -> 75
+	// Light Dash ValidRing Angle 45 -> 75
 	X86_STORE_F32(0x448708, 75.0f);
 
 	// Homing Attack Speed
@@ -296,19 +294,16 @@ void ReloadedValuePatches()
 
 	// Keep Melee Weapons when Mounting Vehicles
 
-	// Super AirSaucer
-		//	RotSpeed 250 -> 8000
-	const uint32_t airSaucerRotSpeedAddr = 0x471B10;
-	X86_STORE_F32(airSaucerRotSpeedAddr, 8000.0f);
-		//	GroundSpeed 270 -> 540
-	const uint32_t airSaucerGroundSpeedAddr = 0x471AF4;
-	X86_STORE_F32(airSaucerGroundSpeedAddr, 540.0f);
-		//	AirSpeed 220 -> 440
-	const uint32_t airSaucerAirSpeedAddr = 0x471AE4;
-	X86_STORE_F32(airSaucerAirSpeedAddr, 440.0f);
-		//	JumpStrength 100 -> 200 [needs PUSH patch - inlined]
-
+	// == Super AirSaucer ==
+	// RotSpeed 250 -> 8000
+	X86_STORE_F32(0x471B10, 8000.0f);
+	// GroundSpeed 270 -> 540
+	X86_STORE_F32(0x471AF4, 540.0f);
+	// AirSpeed 220 -> 440
+	X86_STORE_F32(0x471AE4, 440.0f);
+	// JumpStrength 100 -> 200 [needs PUSH patch - inlined]
 	// AirSaucer Replace Second Jump with Stomp
+	// == Super AirSaucer ==
 
 	// Global Lock-On Revamp
 
@@ -344,8 +339,7 @@ void ReloadedValuePatches()
 
 	// Light Dash Valid Ring Distance
 	// 80 -> 100
-	const uint32_t lightDashValidRingDistanceAddr = 0x4ECDFC;
-	X86_STORE_F32(lightDashValidRingDistanceAddr, 100.0f);
+	X86_STORE_F32(0x4ECDFC, 100.0f);
 
 	// Slide Run Threshhold
 	// 200 -> 75
