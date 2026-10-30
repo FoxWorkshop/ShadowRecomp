@@ -504,7 +504,12 @@ void ReloadedValuePatches()
 	// Pulley Speed 0.18 -> 0.25
 	X86_STORE_F32(0x468A18, 0.25f);
 
-	// Idle Chatter Tweak
+	// == Idle Chatter Tweak ==
+	// Repeat 20 -> 15
+	X86_STORE_F32(0x449C80, 15.0f);
+	// Idle 10 -> 7.5
+	X86_STORE_F32(0x449C7C, 7.5f);
+	// == Idle Chatter Tweak ==
 
 	// == Super AirSaucer ==
 	// RotSpeed 250 -> 8000
