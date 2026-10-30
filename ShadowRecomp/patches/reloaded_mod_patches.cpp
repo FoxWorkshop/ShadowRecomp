@@ -437,6 +437,21 @@ void EggBalloonGaugeMidAsmHook(X86Register& esp)
 	X86_STORE_F32(esp.u32, Config::ReloadedMod ? 800.0f : 300.0f);
 }
 
+// Beating Last Story unlocks Expert
+void LastStoryUnlocksExpertMidAsmHook(X86Register& esi)
+{
+	if (Config::ReloadedMod)
+	{
+		auto base = g_memory.base;
+		X86_STORE_U8(esi.u32 + 0x16C9, 1);
+	}
+}
+
+bool ARankRecountMidAsmHook()
+{
+	return Config::ReloadedMod;
+}
+
 void ReloadedValuePatches()
 {
 	if (!Config::ReloadedMod)
@@ -448,8 +463,6 @@ void ReloadedValuePatches()
 
 	// 2P Unique Android JumpBall Colors
 
-	// Title always skippable
-
 	// Missions Unlocked - Missions can always be switched, regardless if you've met the mission character or not.
 
 	// Mission Focus
@@ -458,11 +471,7 @@ void ReloadedValuePatches()
 
 	// Music Update Ending Tracks and Lava Shelter Boss
 
-	// Expert Select
-
 	// Expert Ending SFD Overrides
-
-	// Select Mode Shortcut
 
 	// Ghost Red Rings (STG_CMN REDIRECT)
 
@@ -479,8 +488,6 @@ void ReloadedValuePatches()
 
 	// Light Dash ValidRing Angle 45 -> 75
 	X86_STORE_F32(0x448708, 75.0f);
-
-	// Homing Attack Speed
 
 	// Homing Attack Turn Strength 8 -> 16
 	X86_STORE_F32(0x448268, 16.0f);
@@ -613,8 +620,6 @@ void ReloadedValuePatches()
 
 	// Red Slime Speed 340 -> 425
 	X86_STORE_F32(0x4EC3A8, 425.0f);
-
-	// Beating Last Story unlocks Expert
 
 	// Expert Ring Loss
 

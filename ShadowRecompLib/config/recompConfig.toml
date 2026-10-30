@@ -1844,6 +1844,21 @@ name = "EggBalloonGaugeMidAsmHook"
 address = 0x1DF035
 registers = ["r7"]
 jump_address = 0x1DF03A
+
+[[midasm_hook]]
+name = "LastStoryUnlocksExpertMidAsmHook"
+address = 0x23D629
+registers = ["r4"]
+
+[[midasm_hook]]
+name = "ARankRecountMidAsmHook"
+address = 0x237C12
+jump_address_on_true = 0x237C18
+
+[[midasm_hook]]
+name = "ARankRecountMidAsmHook"
+address = 0x237CDA
+jump_address_on_true = 0x237CE0
 ## End Reloaded patches
 
 [[midasm_hook]]
