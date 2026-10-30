@@ -1988,6 +1988,37 @@ jump_address_on_true = 0x286659
 name = "InStageMissionsAlwaysUnlockedSwitchableMidAsmHook"
 address = 0x284D07
 registers = ["r4"]
+
+[[midasm_hook]]
+name = "MissionFocusDpadMidAsmHook"
+address = 0x8C733
+registers = ["r0"]
+
+[[midasm_hook]]
+name = "MissionFocusPauseMidAsmHook"
+address = 0x5AE76
+
+# restart
+[[midasm_hook]]
+name = "MissionFocusClearMidAsmHook"
+address = 0x22FBC6
+
+# stage start
+[[midasm_hook]]
+name = "MissionFocusClearMidAsmHook"
+address = 0x22FD94
+
+# continue
+[[midasm_hook]]
+name = "MissionFocusSkipMidAsmHook"
+address = 0x22FB32
+jump_address_on_true = 0x22FB86
+
+# partner join
+[[midasm_hook]]
+name = "MissionFocusSkipMidAsmHook"
+address = 0xA5A85
+jump_address_on_true = 0xA5BFF
 ## End Reloaded patches
 
 [[midasm_hook]]

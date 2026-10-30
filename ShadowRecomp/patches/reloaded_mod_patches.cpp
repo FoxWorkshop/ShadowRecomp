@@ -643,6 +643,44 @@ void InStageMissionsAlwaysUnlockedSwitchableMidAsmHook(X86Register& esi)
 	}
 }
 
+// Mission Focus
+static bool s_missionFocus = false;
+
+void MissionFocusDpadMidAsmHook(X86Register& eax)
+{
+	if (!Config::ReloadedMod)
+	{
+		return;
+	}
+
+	if (eax.u32 & 0x1000) // d-pad up
+	{
+		s_missionFocus = false;
+	}
+	else if (eax.u32 & 0xE00) // any other d-pad
+	{
+		s_missionFocus = true;
+	}
+}
+
+void MissionFocusPauseMidAsmHook()
+{
+	if (Config::ReloadedMod)
+	{
+		s_missionFocus = true;
+	}
+}
+
+void MissionFocusClearMidAsmHook()
+{
+	s_missionFocus = false;
+}
+
+bool MissionFocusSkipMidAsmHook()
+{
+	return Config::ReloadedMod && s_missionFocus;
+}
+
 void ReloadedValuePatches()
 {
 	if (!Config::ReloadedMod)
@@ -653,8 +691,6 @@ void ReloadedValuePatches()
 	auto base = g_memory.base;
 
 	// 2P Unique Android JumpBall Colors
-
-	// Mission Focus
 
 	// Music Update Ending Tracks and Lava Shelter Boss
 
