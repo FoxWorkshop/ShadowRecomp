@@ -363,7 +363,7 @@ std::unordered_map<std::string_view, std::unordered_map<ELanguage, std::string>>
 		{ ELanguage::English,  "restart" },
 		{ ELanguage::Japanese, "restart" },
 		{ ELanguage::German,   "neustart" },
-		{ ELanguage::French,   "redemarrer" },
+		{ ELanguage::French,   "redémarrer" },
 		{ ELanguage::Spanish,  "volver a empezar" },
 		{ ELanguage::Italian,  "ricomincia" }
 	}
@@ -400,23 +400,9 @@ std::unordered_map<std::string_view, std::unordered_map<ELanguage, std::string>>
 		{ ELanguage::English,  "achievements" },
 		{ ELanguage::Japanese, "実績" },
 		{ ELanguage::German,   "erfolge" },
-		{ ELanguage::French,   "succes" },
+		{ ELanguage::French,   "succès" },
 		{ ELanguage::Spanish,  "logros" },
 		{ ELanguage::Italian,  "obiettivi" }
-	}
-},
-{
-// TODO: This isn't even used? Check if its hardcoded or something
-	// Notes: used for the header in the achievements menu.
-	 // This font doesn't support accent so the typo in french is intended.
-	"Achievements_Name_Uppercase",
-	{
-		{ ELanguage::English,  "ACHIEVEMENTS" },
-		{ ELanguage::Japanese, "実績" },
-		{ ELanguage::German,   "ERFOLGE" },
-		{ ELanguage::French,   "SUCCES" },
-		{ ELanguage::Spanish,  "LOGROS" },
-		{ ELanguage::Italian,  "OBIETTIVI" }
 	}
 },
 {

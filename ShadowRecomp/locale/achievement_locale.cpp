@@ -290,17 +290,17 @@ std::unordered_map<int, std::unordered_map<ELanguage, AchievementLocale>> g_shrL
 			{
 				ELanguage::Japanese,
 				{
-					"新しい帝国の始まり",
-					"ニュートラル - ヒーローエンディングをクリアせよ！",
-					"ニュートラル - ヒーローエンディングをクリアした"
+					"A New Empire's Beginning",
+					"Complete the Neutral - Hero ending!",
+					"Completed the Neutral - Hero ending."
 				}
 			},
 			{
 				ELanguage::German,
 				{
-					"Ein neues Imperium beginnt",
-					"Schließe das Neutral - Hero Ende ab!",
-					"Das Neutral - Hero Ende abgeschlossen."
+					"A New Empire's Beginning",
+					"Complete the Neutral - Hero ending!",
+					"Completed the Neutral - Hero ending."
 				}
 			},
 			{
@@ -314,17 +314,17 @@ std::unordered_map<int, std::unordered_map<ELanguage, AchievementLocale>> g_shrL
 			{
 				ELanguage::Spanish,
 				{
-					"El comienzo de un nuevo imperio",
-					"¡Completa el final Neutral - Héroe!",
-					"Final Neutral - Héroe completado."
+					"A New Empire's Beginning",
+					"Complete the Neutral - Hero ending!",
+					"Completed the Neutral - Hero ending."
 				}
 			},
 			{
 				ELanguage::Italian,
 				{
-					"L'inizio di un nuovo impero",
-					"Completa la fine Neutrale - Eroe!",
-					"Fine Neutrale - Eroe completata."
+					"A New Empire's Beginning",
+					"Complete the Neutral - Hero ending!",
+					"Completed the Neutral - Hero ending."
 				}
 			},
 		}
