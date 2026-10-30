@@ -448,8 +448,6 @@ void ReloadedValuePatches()
 
 	// 2P Unique Android JumpBall Colors
 
-	// 3 Endings unlocks Last Story
-
 	// Title always skippable
 
 	// Missions Unlocked - Missions can always be switched, regardless if you've met the mission character or not.

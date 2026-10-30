@@ -116,6 +116,13 @@ bool EasierUnlockLastStoryMidAsmHook(X86Register& edi)
 			return true;
 		}
 	}
+	else if (Config::ReloadedMod)
+	{
+		if (edi.u32 >= 3)
+		{
+			return true;
+		}
+	}
 	return false;
 }
 
