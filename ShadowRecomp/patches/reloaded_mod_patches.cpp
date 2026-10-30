@@ -283,8 +283,6 @@ void ReloadedValuePatches()
 
 	// No Skidding
 
-	// GUNMech Physics Revamp
-
 	// Jump Ball Turn Speed 6.5 -> 25
 	X86_STORE_F32(0x448414, 25.0f);
 
@@ -310,8 +308,6 @@ void ReloadedValuePatches()
 	// Heal Unit Explosion Hitbox Size
 
 	// Instant HealUnit / BombUnit Server Respawn Time
-
-	// Coaster/Zipline Fix Bad Collision
 
 	// Pulley Speed
 
