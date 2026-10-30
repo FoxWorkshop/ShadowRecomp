@@ -1697,6 +1697,75 @@ name = "AirSaucerStompMidAsmHook"
 address = 0x24D7EA
 registers = ["r7"]
 jump_address = 0x24D7EF
+
+[[midasm_hook]]
+name = "HealUnitBlastRadiusMidAsmHook"
+address = 0x1A0434
+jump_address = 0x1A043C
+
+[[midasm_hook]]
+name = "TripleSpringOriginMidAsmHook"
+address = 0x1A885E
+
+[[midasm_hook]]
+name = "TripleSpringOriginMidAsmHook"
+address = 0x1A8BC7
+
+[[midasm_hook]]
+name = "TripleSpringOriginMidAsmHook"
+address = 0x1A8C1B
+
+# BkSoldier
+[[midasm_hook]]
+name = "EnemyWarpAppearTimeMidAsmHook"
+address = 0x13B54F
+jump_address = 0x13B557
+
+# EggPawn
+[[midasm_hook]]
+name = "EnemyWarpAppearTimeMidAsmHook"
+address = 0x140E62
+jump_address = 0x140E6A
+
+# GunRobot
+[[midasm_hook]]
+name = "EnemyWarpAppearTimeMidAsmHook"
+address = 0x14A1F7
+jump_address = 0x14A1FF
+
+[[midasm_hook]]
+name = "ElecCodeSpeedMidAsmHook"
+address = 0x203215
+registers = ["r7"]
+jump_address = 0x20321A
+
+[[midasm_hook]]
+name = "KatanaLv1AmmoMidAsmHook"
+address = 0x3CE69B
+jump_address = 0x3CE6A5
+
+[[midasm_hook]]
+name = "KatanaLv2AmmoMidAsmHook"
+address = 0x3CE72B
+jump_address = 0x3CE735
+
+[[midasm_hook]]
+name = "SolidCollisionTriggerMidAsmHook"
+address = 0x1B3D0E
+registers = ["r0"]
+jump_address = 0x1B3D13
+
+# Cannon
+[[midasm_hook]]
+name = "WeaponNoKnockbackMidAsmHook"
+address = 0xA0DA6
+jump_address_on_true = 0xA0DA9
+
+# Lock-on
+[[midasm_hook]]
+name = "WeaponNoKnockbackMidAsmHook"
+address = 0xA1D69
+jump_address_on_true = 0xA1D6C
 ## End Reloaded patches
 
 [[midasm_hook]]

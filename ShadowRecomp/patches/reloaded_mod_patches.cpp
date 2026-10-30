@@ -315,6 +315,66 @@ void AirSaucerStompMidAsmHook(X86Register& esp)
 	X86_STORE_F32(esp.u32, Config::ReloadedMod ? -400.0f : 100.0f);
 }
 
+// Heal Unit Explosion Hitbox Size 20 -> 45
+void HealUnitBlastRadiusMidAsmHook()
+{
+	auto ctx = GetX86Context();
+	auto base = g_memory.base;
+	ctx->xmm[0].f32[0] = Config::ReloadedMod ? 45.0f : X86_LOAD_F32(0x42B45C);
+}
+
+// Triple Spring Origin Shift 10 -> 5
+void TripleSpringOriginMidAsmHook()
+{
+	if (Config::ReloadedMod)
+	{
+		auto ctx = GetX86Context();
+		ctx->xmm[0].f32[0] = 5.0f;
+	}
+}
+
+// Enemy AppearType WARP Faster Spawn 1 -> 0.25
+void EnemyWarpAppearTimeMidAsmHook()
+{
+	auto ctx = GetX86Context();
+	auto base = g_memory.base;
+	ctx->xmm[0].f32[0] = Config::ReloadedMod ? 0.25f : X86_LOAD_F32(0x46B438);
+}
+
+// ElecCode Enemy Faster Movement Speed 50 -> 350
+void ElecCodeSpeedMidAsmHook(X86Register& esp)
+{
+	auto base = g_memory.base;
+	esp.u32 -= 4;
+	X86_STORE_F32(esp.u32, Config::ReloadedMod ? 350.0f : 50.0f);
+}
+
+// Katana LV1 Ammo 4 -> 18
+void KatanaLv1AmmoMidAsmHook()
+{
+	auto base = g_memory.base;
+	X86_STORE_U32(0x5594B0, Config::ReloadedMod ? 18 : 4);
+}
+
+// Katana LV2 Ammo 8 -> 32
+void KatanaLv2AmmoMidAsmHook()
+{
+	auto base = g_memory.base;
+	X86_STORE_U32(0x5594E0, Config::ReloadedMod ? 32 : 8);
+}
+
+// SolidCollision Triggers are GroundCollision
+void SolidCollisionTriggerMidAsmHook(X86Register& eax)
+{
+	eax.u32 = Config::ReloadedMod ? 0x101 : 0x102;
+}
+
+// Cannon & Lock On Weapons No Knockback
+bool WeaponNoKnockbackMidAsmHook()
+{
+	return Config::ReloadedMod;
+}
+
 void ReloadedValuePatches()
 {
 	if (!Config::ReloadedMod)
@@ -371,15 +431,13 @@ void ReloadedValuePatches()
 	// Walk Turn Speed 15 -> 20
 	X86_STORE_F32(0x448100, 20.0f);
 
-	// Heal Unit Explosion Hitbox Size
+	// Instant HealUnit / BombUnit Server Respawn Time 4 -> 0
+	X86_STORE_F32(0x46D784, 0.0f);
 
-	// Instant HealUnit / BombUnit Server Respawn Time
-
-	// Pulley Speed
+	// Pulley Speed 0.18 -> 0.25
+	X86_STORE_F32(0x468A18, 0.25f);
 
 	// Idle Chatter Tweak
-
-	// Triple Spring Origin Shift
 
 	// == Super AirSaucer ==
 	// RotSpeed 250 -> 8000
@@ -396,25 +454,82 @@ void ReloadedValuePatches()
 
 	// EggBalloon Stat Adjustment
 
-	// SolidCollision Triggers are GroundCollision
-
 	// Time Bonus Penalty Always Active
 
 	// Last Way & Devil Doom in Select Menu - CONSIDER EXTENDING / modifying visual with IMGUI?
 
-	// Enemy AppearType WARP Faster Spawn
-
 	// The Last Way Inclusive Scoring
 
-	// ElecCode Enemy Faster Movement Speed
-
-	// The Last Way idle lines
-
-	// Cannon & Lock On Weapons No Knockback
+	// == The Last Way idle lines ==
+	// 0x1B7 -> 0x1E6
+	X86_STORE_U32(0x44C55C, 0x1E6);
+	// 0x1B8 -> 0x1E6
+	X86_STORE_U32(0x44C560, 0x1E6);
+	// 0x1E6 -> 0x1E7
+	X86_STORE_U32(0x44C564, 0x1E7);
+	// 0x1E6 -> 0x1E8
+	X86_STORE_U32(0x44C568, 0x1E8);
+	// == The Last Way idle lines ==
 
 	// Melee Weapon Core Revamp [2P COMPAT]
 
-	// Melee Ammo Adjustments
+	// == Melee Ammo Adjustments ==
+	// BlackSword 6 -> 18
+	X86_STORE_U32(0x522BD4, 18);
+	// DarkHammer 6 -> 18
+	X86_STORE_U32(0x522D34, 18);
+
+	// Torch0300 4 -> 12
+	X86_STORE_U32(0x52421C, 12);
+
+	// Stick0100 4 -> 12
+	X86_STORE_U32(0x523FB4, 12);
+	// Stick0200 4 -> 12
+	X86_STORE_U32(0x523A2C, 12);
+	// Stick0201 4 -> 12
+	X86_STORE_U32(0x523A80, 12);
+	// Stick0202 4 -> 12
+	X86_STORE_U32(0x523984, 12);
+	// Stick0301 4 -> 12
+	X86_STORE_U32(0x523900, 12);
+	// Stick0302 4 -> 12
+	X86_STORE_U32(0x523888, 12);
+	// Stick0400 4 -> 12
+	X86_STORE_U32(0x523DB0, 12);
+	// Stick0401 4 -> 12
+	X86_STORE_U32(0x523EF4, 12);
+	// Stick0402 4 -> 12
+	X86_STORE_U32(0x523C3C, 12);
+	// Stick0403 4 -> 12
+	X86_STORE_U32(0x523CF0, 12);
+	// Stick0404 4 -> 12
+	X86_STORE_U32(0x523E7C, 12);
+	// Stick0501 4 -> 12
+	X86_STORE_U32(0x523BC4, 12);
+	// Stick0502 4 -> 12
+	X86_STORE_U32(0x523D20, 12);
+	// Stick0503 4 -> 12
+	X86_STORE_U32(0x523AD4, 12);
+	// Stick0504 4 -> 12
+	X86_STORE_U32(0x523D50, 12);
+	// Stick0600 4 -> 12
+	X86_STORE_U32(0x523C90, 12);
+	// Stick0601 4 -> 12
+	X86_STORE_U32(0x523E4C, 12);
+	// Stick0602 4 -> 12
+	X86_STORE_U32(0x523858, 12);
+	// Stick0603 4 -> 12
+	X86_STORE_U32(0x523CC0, 12);
+	// Stick0604 4 -> 12
+	X86_STORE_U32(0x5239D8, 12);
+	// Stick0700 (The Last Way) 4 -> 12
+	X86_STORE_U32(0x523930, 12);
+
+	// EggSpear 6 -> 18
+	X86_STORE_U32(0x523D80, 18);
+	// SurvivalKnife 6 -> 18
+	X86_STORE_U32(0x523B70, 18);
+	// == Melee Ammo Adjustments ==
 
 	// Select Mode cursor no reset
 
@@ -434,7 +549,8 @@ void ReloadedValuePatches()
 	// Strafe Walk Speed 30 -> 55
 	X86_STORE_F32(0x4EC800, 55.0f);
 
-	// Red Slime Speed
+	// Red Slime Speed 340 -> 425
+	X86_STORE_F32(0x4EC3A8, 425.0f);
 
 	// Beating Last Story unlocks Expert
 
@@ -446,7 +562,10 @@ void ReloadedValuePatches()
 
 	// SuperShadow Always Has Fully Charged Spears while ChaosPowers Active [2P COMPAT]
 
-	// LaserRifle Damage Adjustment
+	// LaserRifle Damage Adjustment 3 -> 6
+	X86_STORE_F32(0x525190, 6.0f);
+
+	// TODO: Tank Cannon, CannonAndroid, Satelite laser further tweaks (DarkShadow/Rawlins)
 
 	// Disable Diablon Warp Player Function
 }
