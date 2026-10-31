@@ -428,9 +428,28 @@ static bool ReadTXDFile(const fs::path& path, std::vector<uint8_t>& data)
 	return true;
 }
 
+
+static bool IsPathInModFolder(const fs::path& modDir, const fs::path& path)
+{
+	std::error_code curError;
+	fs::path root = fs::weakly_canonical(modDir, curError);
+
+	if (curError)
+		return false;
+
+	fs::path targetPath = fs::weakly_canonical(path, curError);
+
+	if (curError)
+		return false;
+
+	fs::path relRoot = targetPath.lexically_relative(root);
+
+	return !relRoot.empty() && *relRoot.begin() != "..";
+}
+
 // Append TXD works by adding "texture+=PathOfTheTxd" in the master ini file. Extra "," can be added to add multiple txds at once
 // alternatively, user can specify a folder path and the TXD will append all the extra TXDs present at once.
-static std::vector<fs::path> GetAppendTXDFiles(const fs::path& iniDir, const std::string& value)
+static std::vector<fs::path> GetAppendTXDFiles(const fs::path& modDir, const fs::path& iniDir, const std::string& value, const std::string& modName)
 {
 	std::vector<fs::path> files;
 	size_t start = 0;
@@ -448,13 +467,19 @@ static std::vector<fs::path> GetAppendTXDFiles(const fs::path& iniDir, const std
 		fs::path path = iniDir / text;
 		std::error_code ec;
 
+		// file replacement that point outside mod directory should be ignored for safety
+		if (!IsPathInModFolder(modDir, path)) 
+		{
+			continue;
+		}
+
 		if (fs::is_directory(path, ec)) // if user put a directory path, append all TXD files that exist in
 		{
 			std::vector<fs::path> folderFiles;
 
 			for (auto& entry : fs::directory_iterator(path, ec))
 			{
-				if (entry.is_regular_file() && ToLower(entry.path().extension().string()) == ".txd")
+				if (entry.is_regular_file() && ToLower(entry.path().extension().string()) == ".txd" && IsPathInModFolder(modDir, entry.path()))
 					folderFiles.push_back(entry.path());
 			}
 
@@ -478,7 +503,7 @@ static void AddIndividualFileReplacement(Mod* modinf, ModArchiveWorker rule)
 
 // Load master ini file that list all the individual files to replace
 // This works with a key/value pair, where the key is the asset name and the value is the path to the replacement file.
-static void LoadReplaceIni(const fs::path& iniPath, Mod* modinf, bool fromIncludeDir)
+static void LoadReplaceIni(const fs::path& modDir, const fs::path& iniPath, Mod* modinf, bool fromIncludeDir)
 {
 	if (!fs::exists(iniPath))
 		return;
@@ -524,7 +549,7 @@ static void LoadReplaceIni(const fs::path& iniPath, Mod* modinf, bool fromInclud
 
 				ModArchiveWorker rule = { archive, ToLower(asset), {}, isWildcard, fromIncludeDir, true };
 
-				for (auto& txdPath : GetAppendTXDFiles(iniDir, value))
+				for (auto& txdPath : GetAppendTXDFiles(modDir, iniDir, value, modinf->Name))
 				{
 					std::vector<uint8_t> data;
 					ParsedTxdData txd;
@@ -569,6 +594,12 @@ static void LoadReplaceIni(const fs::path& iniPath, Mod* modinf, bool fromInclud
 			if (value.empty() || !fs::is_regular_file(assetPath))
 			{
 				LOGF_ERROR("{}: [{}] {}: file does not exist: {}", modinf->Name, group, asset, assetPath.string());
+				continue;
+			}
+
+			// file replacement that point outside mod directory should be ignored for safety
+			if (!IsPathInModFolder(modDir, assetPath))
+			{
 				continue;
 			}
 
@@ -1176,6 +1207,11 @@ void ModLoader::Init()
 					if (incDirPath.empty())
 						continue;
 
+					if (!IsPathInModFolder(modDir, modDir / incDirPath))
+					{
+						continue;
+					}
+
 					LOGF_IMPL(Utility, "Mod Loader", "Mod {} use config folder {}", reinterpret_cast<const char*>(mod_nameA.c_str()), reinterpret_cast<const char*>(incDirPath.c_str()));
 					includeDirExist = true;
 
@@ -1206,12 +1242,12 @@ void ModLoader::Init()
 			// add toggle for mp
 		}
 
-		LoadReplaceIni(modDir / "replace.ini", &modinf, false);
+		LoadReplaceIni(modDir, modDir / "replace.ini", &modinf, false);
 
 		// for each codeless config folder, load its replace.ini if it exists
 		for (auto& includeDir : modinf.includeDirs)
 		{
-			LoadReplaceIni(includeDir.parent_path() / "replace.ini", &modinf, true); // next to the folder's "game" dir
+			LoadReplaceIni(modDir, includeDir.parent_path() / "replace.ini", &modinf, true); // next to the folder's "game" dir
 		}
 
 
