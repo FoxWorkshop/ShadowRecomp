@@ -1591,6 +1591,12 @@ registers = ["r7"]
 jump_address = 0x77E00
 
 [[midasm_hook]]
+name = "LightDashSkydiveBlurDisableMidAsmHook"
+address = 0x76F09
+registers = ["r7"]
+jump_address_on_true = 0x76F38
+
+[[midasm_hook]]
 name = "WallRunSpeedMidAsmHook"
 address = 0x7E330
 registers = ["r7"]

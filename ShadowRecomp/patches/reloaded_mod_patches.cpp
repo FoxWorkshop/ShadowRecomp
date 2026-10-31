@@ -15,6 +15,7 @@ enum PlayerBehaviorId : uint32_t
 };
 
 static constexpr uint32_t g_currentStageId = 0x54DDD8;
+static constexpr uint32_t LAUNCH_FLAG_NO_BLUR = 0x80000000; // disables CommonEffect 'BLUR' id 0x5C
 
 // TODO: move to utils later
 static uint32_t AllocGuestString(const char* str)
@@ -220,10 +221,17 @@ void LightDashExitStateMidAsmHook(X86Register& esp)
 	}
 
 	// InitializeArgsLaunch
-	// TODO: Research this more to see if we can disable the radial blur in args instead of in a separate patch
 	X86_STORE_U32(esp.u32 + 0x38, 0x448FAC);
 	X86_STORE_U32(esp.u32 + 0x3C, BEHAVIOR_LAUNCH);
-	X86_STORE_U32(esp.u32 + 0x40, 0x0); // skydive
+	X86_STORE_U32(esp.u32 + 0x40, LAUNCH_FLAG_NO_BLUR); // skydive
+}
+
+// No Radial Blur after LightDash (for the Westopolis skydive hack)
+bool LightDashSkydiveBlurDisableMidAsmHook(X86Register& esp)
+{
+	auto base = g_memory.base;
+	const uint32_t args = X86_LOAD_U32(esp.u32 + 0x1C);
+	return (X86_LOAD_U32(args + 0x8) & LAUNCH_FLAG_NO_BLUR) != 0;
 }
 
 // WallRun Speed 500 -> 550
@@ -1139,7 +1147,6 @@ void ReloadedValuePatches()
 
 	// TODO: Finalize and add any gecko / optional disables (some people like to restore the original health of escape plane, Keep Skid, etc)
 	// Global Lock-On Revamp - Maybe we scrap this one since its not a huge change and would be a pain to port
-	// Verify 2P-Reloaded compat (light dash transition indep fix)
 	// Play as BATTLE Characters in 1P Mode v2 (make this as code instead of built in since some people didn't like it)
 	// fix 'Using Android characters may possibly crash in Last Story's Devil Doom' from my old notes
 	// TODO: Tank Cannon, CannonAndroid, Satelite laser further tweaks (DarkShadow/Rawlins)
