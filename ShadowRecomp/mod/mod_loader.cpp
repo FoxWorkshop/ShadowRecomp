@@ -1227,61 +1227,33 @@ void ModLoader::Init()
 
 	// --- load codes if any ---
 
-	std::filesystem::path codePath = gPath / "mods/.modloader/Codes.json";
-	if (std::filesystem::exists(codePath) == false)
-	{
+	if (!json_profile.contains("EnabledCodes") || !json_profile["EnabledCodes"].is_array())
 		return;
-	}
 
-	json Enabledjson_codes = json_profile["EnabledCodes"];
-
-	std::vector<std::string> enabledCodes;
-
-	// first we store what codes are enabled
-	for (unsigned int i = 0; i < Enabledjson_codes.size(); i++)
-	{
-		std::string code_fname = Enabledjson_codes.at(i);
-		enabledCodes.push_back(code_fname);
-	}
-
-
-	// because enabled code don't store variable name, we have to compare with the full code list in a separate json file
-	// this should be changed as it's way too much steps for checking a code
-
-	std::ifstream ifCodes(codePath);
-	json json_codes;
-	json_codes = json::parse(ifCodes);
-	ifCodes.close();
-
-
-	bool valueFound = false;
+	// the json profile stores the config key of each code so we can compare it directly with hidden code defs
+	std::unordered_map<std::string_view, IConfigDef*> codeDefs;
 	for (auto& def : g_configDefinitions)
 	{
-		if (!def->IsHidden() || def->GetSection() != "Codes")
-			continue;
-
-		/* NOTE: this is inefficient, but it happens
-		   once on boot for a handful of codes at release
-		   and is temporary until we support real code mods. */
-
-		json json_codesList = json_codes["Codes"];
-
-
-		for (std::string curCode : enabledCodes)
-		{
-			for (unsigned int i = 0; i < json_codesList.size(); i++)
-			{
-				std::string codeInternalName = json_codesList.at(i)["InternalName"].get<std::string>();
-				std::string codeName = json_codesList.at(i)["Name"].get<std::string>();
-				if (codeInternalName == curCode && codeName == def->GetName())
-				{
-					LOGF_IMPL(Utility, "Mod Loader", "Loading code: \"{}\"", curCode);
-					*(bool*)def->GetValue() = true;
-					break;
-				}
-			}
-		}
+		if (def->IsHidden() && def->GetSection() == "Codes")
+			codeDefs.emplace(def->GetName(), def);
 	}
 
-	enabledCodes.clear();
+	for (auto& entry : json_profile["EnabledCodes"])
+	{
+		if (!entry.is_string())
+			continue;
+
+		std::string curCode = entry.get<std::string>();
+		auto it = codeDefs.find(curCode);
+
+
+		if (it == codeDefs.end())
+		{
+			LOGF_IMPL(Utility, "Mod Loader", "Unknown code: \"{}\"", curCode);
+			continue;
+		}
+
+		LOGF_IMPL(Utility, "Mod Loader", "Loading code: \"{}\"", curCode);
+		*(bool*)it->second->GetValue() = true;
+	}
 }
