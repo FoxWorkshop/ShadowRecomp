@@ -869,15 +869,12 @@ void ReloadedValuePatches()
 	X86_STORE_F32(0x471AE4, 440.0f);
 	// == Super AirSaucer ==
 
-	// Global Lock-On Revamp
-
 	// EscapePlane Stat Adjustment 800 -> 2200
 	X86_STORE_F32(0x46CED4, 2200.0f);
 
 	// EggBalloon Stat Adjustment 400 -> 1100
 	X86_STORE_F32(0x46A2C0, 1100.0f);
 
-	// Last Way & Devil Doom in Select Menu - CONSIDER EXTENDING / modifying visual with IMGUI?
 	// Last Way below Final Haunt -1 -> 0x1B
 	X86_STORE_U32(0x478EF0, 0x1B);
 	// Devil Doom right of Last Way -> 0x2C
@@ -893,8 +890,6 @@ void ReloadedValuePatches()
 	// 0x1E6 -> 0x1E8
 	X86_STORE_U32(0x44C568, 0x1E8);
 	// == The Last Way idle lines ==
-
-	// Melee Weapon Core Revamp [2P COMPAT]
 
 	// == Melee Ammo Adjustments ==
 	// BlackSword 6 -> 18
@@ -974,5 +969,11 @@ void ReloadedValuePatches()
 	// LaserRifle Damage Adjustment 3 -> 6
 	X86_STORE_F32(0x525190, 6.0f);
 
+	// TODO: Finalize and add any gecko / optional disables (some people like to restore the original health of escape plane, Keep Skid, etc)
+	// Global Lock-On Revamp - Maybe we scrap this one since its not a huge change and would be a pain to port
+	// Melee Weapon Core Revamp [2P COMPAT]
+	// Verify 2P-Reloaded compat (melee fix, light dash transition indep fix)
+	// Play as BATTLE Characters in 1P Mode v2 (make this as code instead of built in since some people didn't like it)
+	// fix 'Using Android characters may possibly crash in Last Story's Devil Doom' from my old notes
 	// TODO: Tank Cannon, CannonAndroid, Satelite laser further tweaks (DarkShadow/Rawlins)
 }
