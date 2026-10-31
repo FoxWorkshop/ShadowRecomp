@@ -29,6 +29,7 @@ enum EAchievementID
     Ach_AllKeys = 13,
     Ach_ExpertMode = 14,
     Ach_TankVehicle = 15,
+    Ach_CentralCityHeroTime = 16,
 };
 std::unordered_map<uint16_t, std::unique_ptr<GuestTexture>> g_achievementsTextureCache;
 
@@ -405,6 +406,10 @@ const uint32_t g_menuModeAddr = 0x5022A4;
 const uint32_t g_stageActionModeAddr = 0x5496C0;
 const uint32_t g_currentStageIDAddr = 0x54DDD8;
 
+// stage timer (use float)
+const uint32_t g_stageTimerSecAddr = 0x54DDC4;
+constexpr float g_centralCityHeroTimeLimit = 180.0f;
+
 
 //StageAction Goal action destructor
 void StageActionGoalActionMidAsmHook()
@@ -439,11 +444,21 @@ X86_FUNC(sub_2378B0)
 {
     __imp__sub_2378B0(ctx, base);
 
+    const uint32_t missionType = X86_LOAD_U32(0x54DDF4);
+
+
+    // central city hero in under 3 min
+    if (X86_LOAD_U32(g_currentStageIDAddr) == 400 && missionType == 2 //is hero mission
+        && X86_LOAD_F32(g_stageTimerSecAddr) < g_centralCityHeroTimeLimit)
+    {
+        AchievementManager::Unlock(Ach_CentralCityHeroTime);
+        AchievementManager::SaveBinary();
+    }
+
     if (X86_LOAD_U32(g_menuModeAddr) != 1)
         return;
 
     const uint32_t node = X86_LOAD_U32(0x54DDDC);
-    const uint32_t mission = X86_LOAD_U32(0x54DDF4);
 
     for (uint32_t ending = 0; ending < 10; ending++)
     {
@@ -454,10 +469,10 @@ X86_FUNC(sub_2378B0)
         // so we split them with the mission picked (0 dark, 2 hero).  
         if (node == 0x27)
         {
-            if (mission == 1) // nani
+            if (missionType == 1) // nani
                 return;
 
-            ending = mission == 0 ? 4 : 5;
+            ending = missionType == 0 ? 4 : 5;
         }
 
         AchievementManager::Unlock(ending + 1);

@@ -7,7 +7,7 @@
 #define SHR_SIGNATURE { 'S', 'H', 'R', ' ' }
 #define SHR_VERSION   1
 
-#define SHR_RECORDS   16
+#define SHR_RECORDS   17
 
 struct Achievement
 {

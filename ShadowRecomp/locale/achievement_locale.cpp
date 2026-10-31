@@ -819,9 +819,63 @@ std::unordered_map<int, std::unordered_map<ELanguage, AchievementLocale>> g_shrL
 			},
 		}
 	},
-	// I Am... All Of Me (Get all achievements)
+	// Central City hero mission in under 3 min
 	{
 		16,
+		{
+			{
+				ELanguage::English,
+				{
+					"3 minutes, shower included",
+					"Complete the hero mission of Central City in less than 3 minutes!",
+					"Completed the hero mission of Central City in less than 3 minutes."
+				}
+			},
+			{
+				ELanguage::Japanese,
+				{
+					"3 minutes, shower included",
+					"Complete the hero mission of Central City in less than 3 minutes!",
+					"Completed the hero mission of Central City in less than 3 minutes."
+				}
+			},
+			{
+				ELanguage::German,
+				{
+					"3 minutes, shower included",
+					"Complete the hero mission of Central City in less than 3 minutes!",
+					"Completed the hero mission of Central City in less than 3 minutes."
+				}
+			},
+			{
+				ELanguage::French,
+				{
+					"3 minutes, douche comprise",
+					"Terminez la mission héros de Central City en moins de 3 minutes !",
+					"Mission héros de Central City terminée en moins de 3 minutes."
+				}
+			},
+			{
+				ELanguage::Spanish,
+				{
+					"3 minutes, shower included",
+					"Complete the hero mission of Central City in less than 3 minutes!",
+					"Completed the hero mission of Central City in less than 3 minutes."
+				}
+			},
+			{
+				ELanguage::Italian,
+				{
+					"3 minutes, shower included",
+					"Complete the hero mission of Central City in less than 3 minutes!",
+					"Completed the hero mission of Central City in less than 3 minutes."
+				}
+			},
+		}
+	},
+	// I Am... All Of Me (Get all achievements)
+	{
+		17,
 		{
 			{
 				ELanguage::English,
