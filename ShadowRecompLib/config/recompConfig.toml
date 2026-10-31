@@ -2039,6 +2039,12 @@ name = "GhostRedRingsSaveSkipMidAsmHook"
 address = 0x1B2C49
 registers = ["r2"]
 jump_address_on_true = 0x1B2C95
+
+[[midasm_hook]]
+name = "SelectMenuExpansionMidAsmHook"
+address = 0x28D967
+registers = ["r4", "r5"]
+jump_address_on_true = 0x28D96C
 ## End Reloaded patches
 
 [[midasm_hook]]

@@ -796,6 +796,14 @@ bool GhostRedRingsSaveSkipMidAsmHook(X86Register& ecx)
 	return true;
 }
 
+// Last Way & Devil Doom in Select Menu
+// TODO: Probably make this a code too, nice to have for vanilla shadow too
+// TODO: Maybe later we can actually expand this with imgui or a csd edit
+bool SelectMenuExpansionMidAsmHook(X86Register& esi, X86Register& edi)
+{
+	return Config::ReloadedMod && esi.u32 == 5 && edi.u32 == 5;
+}
+
 void ReloadedValuePatches()
 {
 	if (!Config::ReloadedMod)
@@ -870,6 +878,10 @@ void ReloadedValuePatches()
 	X86_STORE_F32(0x46A2C0, 1100.0f);
 
 	// Last Way & Devil Doom in Select Menu - CONSIDER EXTENDING / modifying visual with IMGUI?
+	// Last Way below Final Haunt -1 -> 0x1B
+	X86_STORE_U32(0x478EF0, 0x1B);
+	// Devil Doom right of Last Way -> 0x2C
+	X86_STORE_U32(0x478F90, 0x2C);
 
 	// == The Last Way idle lines ==
 	// 0x1B7 -> 0x1E6
