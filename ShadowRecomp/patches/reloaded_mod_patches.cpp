@@ -806,6 +806,17 @@ void ReloadedValuePatches()
 	auto base = g_memory.base;
 
 	// 2P Unique Android JumpBall Colors
+	for (uint32_t i = 0; i < 5; i++)
+	{
+		const uint32_t androidBalls[] = {
+			2, // Tails (Yellow Android)
+			4, // Amy (Pink Gun Android)
+			1, // Sonic (Blue Gun Android)
+			6, // Omega (Orange Android)
+			7  // Vector (Green Cannon)
+		};
+		memcpy(base + 0x449D78 + (0xF + i) * 0x2C, base + 0x449D78 + androidBalls[i] * 0x2C, 0x14);
+	}
 
 	// Jump Ball Turn Speed 6.5 -> 25
 	X86_STORE_F32(0x448414, 25.0f);
