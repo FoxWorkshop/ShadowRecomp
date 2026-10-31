@@ -2029,6 +2029,16 @@ registers = ["r0"]
 name = "ExpertEndingMidAsmHook"
 address = 0x172CA4
 registers = ["r0"]
+
+[[midasm_hook]]
+name = "GhostRedRingsGDTRedirectMidAsmHook"
+address = 0x1B2C2F
+
+[[midasm_hook]]
+name = "GhostRedRingsSaveSkipMidAsmHook"
+address = 0x1B2C49
+registers = ["r2"]
+jump_address_on_true = 0x1B2C95
 ## End Reloaded patches
 
 [[midasm_hook]]

@@ -750,6 +750,52 @@ void ExpertEndingMidAsmHook(X86Register& eax)
 	}
 }
 
+// Ghost Red Rings (gdt -> gd2)
+void GhostRedRingsGDTRedirectMidAsmHook()
+{
+	if (!Config::ReloadedMod)
+	{
+		return;
+	}
+
+	auto base = g_memory.base;
+	bool allCollected = true;
+	for (uint32_t i = 0; i < 5; i++)
+	{
+		allCollected &= X86_LOAD_U32(0x54CD0C + i * 4) != UINT32_MAX;
+	}
+
+	// gd2 if all 5 keys already
+	X86_STORE_U8(0x464F6A, allCollected ? '2' : 't');
+	if (allCollected)
+	{
+		for (uint32_t i = 0; i < 5; i++)
+		{
+			X86_STORE_U32(0x54CD0C + i * 4, UINT32_MAX);
+		}
+	}
+}
+
+bool GhostRedRingsSaveSkipMidAsmHook(X86Register& ecx)
+{
+	if (!Config::ReloadedMod)
+	{
+		return false;
+	}
+
+	auto base = g_memory.base;
+	const uint32_t save = ecx.u32 + X86_LOAD_U32(0x54DDDC) * 0x60 + 0xF4;
+	for (uint32_t i = 0; i < 5; i++)
+	{
+		const uint32_t ring = X86_LOAD_U32(0x54CD0C + i * 4);
+		if (ring != UINT32_MAX)
+		{
+			X86_STORE_U32(save + i * 4, ring);
+		}
+	}
+	return true;
+}
+
 void ReloadedValuePatches()
 {
 	if (!Config::ReloadedMod)
@@ -760,8 +806,6 @@ void ReloadedValuePatches()
 	auto base = g_memory.base;
 
 	// 2P Unique Android JumpBall Colors
-
-	// Ghost Red Rings (STG_CMN REDIRECT)
 
 	// Jump Ball Turn Speed 6.5 -> 25
 	X86_STORE_F32(0x448414, 25.0f);
