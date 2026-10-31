@@ -2045,6 +2045,34 @@ name = "SelectMenuExpansionMidAsmHook"
 address = 0x28D967
 registers = ["r4", "r5"]
 jump_address_on_true = 0x28D96C
+
+[[midasm_hook]]
+name = "MeleeModeToggleMidAsmHook"
+address = 0x919E3
+registers = ["r3"]
+
+[[midasm_hook]]
+name = "MeleeHitCountMidAsmHook"
+address = 0x2708AB
+registers = ["r4"]
+jump_address_on_true = 0x2708AE
+
+[[midasm_hook]]
+name = "MeleeRehitMidAsmHook"
+address = 0x153CAB
+registers = ["r0", "r4", "r1"]
+jump_address_on_true = 0x153CB3
+
+[[midasm_hook]]
+name = "MeleeMotionColliMidAsmHook"
+address = 0x93CD6
+registers = ["r0", "r5"]
+jump_address_on_true = 0x93CF2
+
+[[midasm_hook]]
+name = "MeleeRapidMotionMidAsmHook"
+address = 0x99E70
+registers = ["r4", "r5"]
 ## End Reloaded patches
 
 [[midasm_hook]]

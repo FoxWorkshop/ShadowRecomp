@@ -804,6 +804,174 @@ bool SelectMenuExpansionMidAsmHook(X86Register& esi, X86Register& edi)
 	return Config::ReloadedMod && esi.u32 == 5 && edi.u32 == 5;
 }
 
+// Melee Weapon Core Revamp
+static bool s_reloadedMelee[4] = {}; // 4P support
+static std::unordered_map<uint32_t, float> s_meleeRehitTimes;
+
+static uint32_t GetReloadedMeleePad(uint32_t player)
+{
+	auto base = g_memory.base;
+	if (!Config::ReloadedMod || !player)
+	{
+		return 0;
+	}
+
+	const uint32_t input = X86_LOAD_U32(player + 0x218);
+	const uint32_t pad = input ? X86_LOAD_U32(input + 0x10) : 0;
+	const uint32_t slot = (pad - 0x541A68) / 0x2C;
+	if (pad < 0x541A68 || pad != 0x541A68 + slot * 0x2C || slot >= 4 || !s_reloadedMelee[slot])
+	{
+		return 0;
+	}
+	return pad;
+}
+
+static bool HasMeleeWeapon(uint32_t player)
+{
+	auto base = g_memory.base;
+	const uint32_t weapon = X86_LOAD_U32(player + 0x238);
+	if (!weapon)
+	{
+		return false;
+	}
+
+	// Type 5 is melee in pWeapon
+	const uint32_t getType = X86_LOAD_U32(X86_LOAD_U32(weapon) + 0x18);
+	return GuestToHostFunction<uint32_t, CallConvention::Thiscall>(getType, weapon) == 5;
+}
+
+// RB to toggle reloaded mode (per pad)
+void MeleeModeToggleMidAsmHook(X86Register& edx)
+{
+	auto base = g_memory.base;
+	const uint32_t slot = (edx.u32 - 0x541A68) / 0x2C;
+	if (Config::ReloadedMod && edx.u32 >= 0x541A68 && slot < 4 && (X86_LOAD_U32(edx.u32 + 0x8) & 0xFF) == PJSPeripheral::BTN_BLACK)
+	{
+		s_reloadedMelee[slot] = !s_reloadedMelee[slot];
+	}
+}
+
+// hit count locked to 1 per coli hit
+bool MeleeHitCountMidAsmHook(X86Register& esi)
+{
+	if (!Config::ReloadedMod)
+	{
+		return false;
+	}
+
+	auto base = g_memory.base;
+	X86_STORE_U32(esi.u32 + 0x40, 1);
+	return true;
+}
+
+// reloaded melee rehit every 0.1s
+static bool IsMeleeRehitWaiting(float time, float next)
+{
+	return time < next && next - time <= 0.1f;
+}
+
+// black knight mode (ignore per collision rules)
+bool MeleeRehitMidAsmHook(X86Register& eax, X86Register& attacker, X86Register& defender)
+{
+	if (!Config::ReloadedMod || eax.u8_lo == 0)
+	{
+		return false;
+	}
+
+	auto base = g_memory.base;
+	const float time = X86_LOAD_F32(0x54DDC4);
+	auto it = s_meleeRehitTimes.find(attacker.u32);
+	if (it != s_meleeRehitTimes.end() && IsMeleeRehitWaiting(time, it->second))
+	{
+		return false;
+	}
+
+	std::erase_if(s_meleeRehitTimes, [time](const auto& entry) { return !IsMeleeRehitWaiting(time, entry.second); });
+	s_meleeRehitTimes[attacker.u32] = time + 0.1f;
+	return true;
+}
+
+// reloaded melee 'hold' mode
+X86_FUNC_IMPL(__imp__sub_897A0);
+X86_FUNC(sub_897A0)
+{
+	const uint32_t player = X86_LOAD_U32(X86_LOAD_U32(ctx.ecx.u32 + 0x28));
+	__imp__sub_897A0(ctx, base);
+	if (ctx.eax.u8_lo == 0 && GetReloadedMeleePad(player) && HasMeleeWeapon(player))
+	{
+		ctx.eax.u8_lo = 1;
+	}
+}
+
+// reloaded melee ignore motion collision flag
+bool MeleeMotionColliMidAsmHook(X86Register& eax, X86Register& edi)
+{
+	auto base = g_memory.base;
+	return eax.u32 == 5 && GetReloadedMeleePad(X86_LOAD_U32(edi.u32 + 0x58));
+}
+
+// reloaded melee X + LT rapid attack
+void MeleeRapidMotionMidAsmHook(X86Register& esi, X86Register& edi)
+{
+	auto base = g_memory.base;
+	const uint32_t player = X86_LOAD_U32(esi.u32 + 0x58);
+	const uint32_t pad = GetReloadedMeleePad(player);
+	if (!pad || !HasMeleeWeapon(player) || (X86_LOAD_U32(pad) & 0xFFFF) != (PJSPeripheral::BTN_X | PJSPeripheral::BTN_LEFT_TRIG))
+	{
+		return;
+	}
+
+	if (edi.u32 == 4)
+	{
+		const float speed = X86_LOAD_F32(esi.u32 + 0x43C) * 2.0f;
+		X86_STORE_F32(esi.u32 + 0x43C, speed * speed);
+	}
+	X86_STORE_U32(esi.u32 + 0x420, 0x89);
+	X86_STORE_U32(esi.u32 + 0x424, UINT32_MAX);
+}
+
+static uint32_t FindMtpEntry(uint32_t mtp, const char* name)
+{
+	auto base = g_memory.base;
+	const uint32_t count = X86_LOAD_U16(mtp + 0x2);
+	const uint32_t tableField = X86_LOAD_U32(mtp + 0x10);
+	const uint32_t table = tableField < mtp ? mtp + tableField : tableField;
+	const uint32_t nameBase = X86_LOAD_U32(table) < mtp ? mtp : 0;
+	for (uint32_t i = 0; i < count; i++)
+	{
+		const uint32_t entry = table + i * 0xC;
+		if (strcmp((const char*)(base + nameBase + X86_LOAD_U32(entry)), name) == 0)
+		{
+			return entry;
+		}
+	}
+	return 0;
+}
+
+// Embedded MTP edits (I just swap props and mtns) to solve modders being annoyed at the desync
+// YOU'RE WELCOME DUEZA >:D
+X86_FUNC_IMPL(__imp__sub_377720);
+X86_FUNC(sub_377720)
+{
+	const uint32_t mtp = X86_LOAD_U32(ctx.esp.u32 + 0x4);
+	__imp__sub_377720(ctx, base);
+	if (!Config::ReloadedMod || !mtp)
+	{
+		return;
+	}
+
+	const uint32_t runAttack = FindMtpEntry(mtp, "sh_run_atc_eda");
+	const uint32_t attack = FindMtpEntry(mtp, "sh_atc_eda");
+	const uint32_t loop = FindMtpEntry(mtp, "sh_flot_side");
+
+	if (runAttack && attack && loop)
+	{
+		X86_STORE_U32(runAttack + 0x4, X86_LOAD_U32(attack + 0x4));
+		X86_STORE_U32(runAttack + 0x8, X86_LOAD_U32(loop + 0x8));
+	}
+}
+// End Melee Weapon Core Revamp
+
 void ReloadedValuePatches()
 {
 	if (!Config::ReloadedMod)
@@ -971,8 +1139,7 @@ void ReloadedValuePatches()
 
 	// TODO: Finalize and add any gecko / optional disables (some people like to restore the original health of escape plane, Keep Skid, etc)
 	// Global Lock-On Revamp - Maybe we scrap this one since its not a huge change and would be a pain to port
-	// Melee Weapon Core Revamp [2P COMPAT]
-	// Verify 2P-Reloaded compat (melee fix, light dash transition indep fix)
+	// Verify 2P-Reloaded compat (light dash transition indep fix)
 	// Play as BATTLE Characters in 1P Mode v2 (make this as code instead of built in since some people didn't like it)
 	// fix 'Using Android characters may possibly crash in Last Story's Devil Doom' from my old notes
 	// TODO: Tank Cannon, CannonAndroid, Satelite laser further tweaks (DarkShadow/Rawlins)
