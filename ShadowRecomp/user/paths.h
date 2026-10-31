@@ -1,6 +1,6 @@
 #pragma once
 
-//#include <mod/mod_loader.h>
+#include <mod/mod_loader.h>
 
 #define USER_DIRECTORY "ShadowRecomp"
 
@@ -21,18 +21,16 @@ const std::filesystem::path& GetUserPath();
 
 inline std::filesystem::path GetSavePath(bool checkForMods)
 {
-    /**if (checkForMods && !ModLoader::s_saveFilePath.empty())
+    if (checkForMods && !ModLoader::s_saveFilePath.empty())
         return ModLoader::s_saveFilePath.parent_path();
-    else*/
+    else
         return GetUserPath() / "save";
 }
 
-// Returned file name may not necessarily be
-// equal to SYS-DATA as mods can assign anything.
 inline std::filesystem::path GetSaveFilePath(bool checkForMods)
 {
-    /**if (checkForMods && !ModLoader::s_saveFilePath.empty())
+    if (checkForMods && !ModLoader::s_saveFilePath.empty())
         return ModLoader::s_saveFilePath;
-    else*/
+    else
         return GetSavePath(false) / "Save.dat";
 }

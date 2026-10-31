@@ -1189,6 +1189,13 @@ void ModLoader::Init()
 
 		}
 
+
+		if (modinf.MainSaveRedirect)
+		{
+			s_saveFilePath = modDir / "save" / "Save.dat";
+			LOGF_IMPL(Utility, "Mod Loader", "Mod {} redirects the save to {}", reinterpret_cast<const char*>(mod_nameA.c_str()), reinterpret_cast<const char*>(s_saveFilePath.parent_path().u8string().c_str()));
+		}
+
 		if (strcmp(reservedIDName[(uint8_t)ModReservedID::Reloaded], modinf.ID.c_str()) == 0)
 		{
 			// add toggle for reloaded

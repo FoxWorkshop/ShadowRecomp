@@ -83,6 +83,15 @@ static bool isHexSegment(const std::string_view& seg) {
 		});
 }
 
+
+static bool isSaveSegment(const std::string_view& seg) {
+	if (isHexSegment(seg))
+		return true;
+
+	return seg.size() == 4 && std::equal(seg.begin(), seg.end(), "save",
+		[](char a, char b) { return std::tolower(a) == b; });
+}
+
 struct DriveMapping
 {
 	std::string_view letter;
@@ -95,7 +104,7 @@ static const DriveMapping& GetDriveMapping(const std::string_view& letter)
 {
 	static const std::vector<DriveMapping> table = {
 		{ "d:", MainGameFolder, {}, nullptr },
-		{ "u:", GetUserPath(), GetSavePath(true), isHexSegment},
+		{ "u:", GetUserPath(), GetSavePath(true), isSaveSegment},
 	};
 
 	for (auto& m : table)
@@ -467,12 +476,11 @@ FindHandle* XFindFirstFile(const char* lpFileName, WIN32_FIND_DATAA* lpFindFileD
 		// Detect save data operations 'u:\*' and gate to 'save' folder
 		if (originalPath == "u:\\*")
 		{
-			const std::filesystem::path savePath = GetSavePath(false);
 			findHandle.searchResult.clear();
 			std::error_code ec;
-			if (std::filesystem::is_directory(savePath, ec))
+			if (std::filesystem::is_regular_file(GetSaveFilePath(true), ec))
 			{
-				findHandle.searchResult.emplace(savePath.filename().u8string(), std::make_pair(0, true));
+				findHandle.searchResult.emplace(u8"save", std::make_pair(0, true));
 			}
 			findHandle.iterator = findHandle.searchResult.begin();
 		}
@@ -549,16 +557,9 @@ int32_t CreateSaveFolder(const char* SourceString, int32_t a2)
 
 	if (!saveFileExists)
 	{
-		// Copy base save data to modded save as fallback.
 		std::error_code ec;
 		std::filesystem::create_directories(saveFilePath.parent_path(), ec);
-
-		if (!ec)
-		{
-			std::filesystem::copy_file(GetSaveFilePath(false), saveFilePath, ec);
-			saveFileExists = true;
-		}
-
+		saveFileExists = !ec;
 	}
 	return saveFileExists;
 }
