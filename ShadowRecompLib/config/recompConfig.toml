@@ -2019,6 +2019,16 @@ jump_address_on_true = 0x22FB86
 name = "MissionFocusSkipMidAsmHook"
 address = 0xA5A85
 jump_address_on_true = 0xA5BFF
+
+[[midasm_hook]]
+name = "MusicUpdateEndingTracksMidAsmHook"
+address = 0x25A8BD
+registers = ["r0"]
+
+[[midasm_hook]]
+name = "ExpertEndingMidAsmHook"
+address = 0x172CA4
+registers = ["r0"]
 ## End Reloaded patches
 
 [[midasm_hook]]

@@ -16,6 +16,13 @@ enum PlayerBehaviorId : uint32_t
 
 static constexpr uint32_t g_currentStageId = 0x54DDD8;
 
+// TODO: move to utils later
+static uint32_t AllocGuestString(const char* str)
+{
+	auto* copy = static_cast<char*>(g_userHeap.Alloc(strlen(str) + 1));
+	return g_memory.MapVirtual(strcpy(copy, str));
+}
+
 static uint32_t GetBehaviorId(uint32_t player)
 {
 	auto base = g_memory.base;
@@ -681,6 +688,68 @@ bool MissionFocusSkipMidAsmHook()
 	return Config::ReloadedMod && s_missionFocus;
 }
 
+// Music Update Ending Tracks and Lava Shelter Boss
+void MusicUpdateEndingTracksMidAsmHook(X86Register& eax)
+{
+	if (!Config::ReloadedMod)
+	{
+		return;
+	}
+
+	static const uint32_t vox07 = AllocGuestString("sng_vox07.adx");
+	static const uint32_t stg0613 = AllocGuestString("sng_stg0613.adx");
+
+	auto base = g_memory.base;
+	const int32_t stage = eax.i32;
+
+	// ending different songs
+	if (stage < 614)
+	{
+		X86_STORE_U32(0x5297A4, stage < 611 ? vox07 : stage == 611 ? 0x447114 : 0x4470D4); // vox02, vox06
+	}
+	else
+	{
+		X86_STORE_U32(0x5297A8, stage == 617 ? 0x4470E4 : vox07); // vox05
+	}
+
+	const bool eggDealerLavaShelter = stage == 614;
+	X86_STORE_U32(0x51DC9C, eggDealerLavaShelter ? stg0613 : 0x446F04);
+	X86_STORE_U32(0x51DCA4, eggDealerLavaShelter ? stg0613 : 0x446F04);
+	X86_STORE_U8(0x43485A, eggDealerLavaShelter ? '3' : '2'); // 0612
+}
+
+// Expert Ending SFD Overrides
+void ExpertEndingMidAsmHook(X86Register& eax)
+{
+	if (!Config::ReloadedMod)
+	{
+		return;
+	}
+
+	auto base = g_memory.base;
+	const bool expert = eax.u32 == 6;
+
+	// sng_EV_music3 -> sng_EV_music4
+	X86_STORE_U8(0x446DA0, expert ? '4' : '3');
+
+	// .sfd -> .flo { name, fileEntry }
+	static constexpr uint32_t movies[][2] =
+	{
+		{ 0x446C82, 0x4416F6 }, // E4101
+		{ 0x446C6A, 0x4416DE }, // E4201
+		{ 0x446C76, 0x4416EA }, // E4102
+		{ 0x446C52, 0x4416C6 }, // E8003
+		{ 0x446C46, 0x4416BA }, // E8201
+		{ 0x479973, 0x435867 }, // OP
+	};
+
+	for (const auto& [name, entry] : movies)
+	{
+		memcpy(base + name, expert ? "flo" : "sfd", 3);
+		memcpy(base + entry, expert ? "FLO" : "SFD", 3);
+	}
+}
+
 void ReloadedValuePatches()
 {
 	if (!Config::ReloadedMod)
@@ -691,10 +760,6 @@ void ReloadedValuePatches()
 	auto base = g_memory.base;
 
 	// 2P Unique Android JumpBall Colors
-
-	// Music Update Ending Tracks and Lava Shelter Boss
-
-	// Expert Ending SFD Overrides
 
 	// Ghost Red Rings (STG_CMN REDIRECT)
 
