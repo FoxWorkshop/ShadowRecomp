@@ -394,7 +394,7 @@ target_link_libraries(ShadowRecomp PRIVATE
 )
 
 
-target_compile_definitions(XShaderRecompLib PRIVATE SHADOW_RECOMP)
+target_compile_definitions(XShaderRecompLib PRIVATE SHADOW_RECOMP $<$<CONFIG:Release>:XSHADER_RECOMP_NOLOGGING>)
 
 target_include_directories(ShadowRecomp PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}
