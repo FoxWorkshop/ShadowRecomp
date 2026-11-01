@@ -4,32 +4,33 @@
 #include <xbox.h>
 #include <patches/global.h>
 
-//HintRingInit aka the capsule with "?" 
-X86_FUNC_IMPL(__imp__sub_1A2350);
-X86_FUNC(sub_1A2350)
-{
-	if (Config::Hints.Value == false)
-	{
-		ctx.AddEsp(1);
-	}
-	else
-	{
-		__imp__sub_1A2350(ctx, base);
-	}
-}
-
-//HintRingExec this handle the collision that trigger the display of the message
+//HintRingExec aka the capsule with "?" 
 X86_FUNC_IMPL(__imp__sub_1A1E60);
 X86_FUNC(sub_1A1E60)
 {
-	if (Config::Hints.Value == false)
-	{
-		ctx.AddEsp(2); 
-	}
-	else
+	uint32_t this_ = ctx.ecx.u32;
+
+	// mode 2 = the hint message is playing, let it finish to be safe.
+	if (Config::Hints.Value || X86_LOAD_U32(this_ + 0x64) == 2)
 	{
 		__imp__sub_1A1E60(ctx, base);
+		return;
 	}
+
+	uint32_t hintFlags = X86_LOAD_U32(this_ + 0x6C);
+	uint32_t gadget = X86_LOAD_U32(this_ + 0x38);
+
+	// the game has a flag to hide the hint so we can just re use that too
+	if ((hintFlags & 4) == 0 && gadget != 0)
+	{
+		X86Context call = ctx;
+		call.ecx.u32 = gadget;
+		call.SubEsp(1);
+		sub_17AC60(call, base);
+	}
+
+	X86_STORE_U32(this_ + 0x6C, (hintFlags | 4) & ~1u);
+	ctx.AddEsp(2);
 }
 
 // sub_17E290 (ObjectUpdateVisibility (gadgets)) calls sub_17C130 (SetFadeAlpha)
