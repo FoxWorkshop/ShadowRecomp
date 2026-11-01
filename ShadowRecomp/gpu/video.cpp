@@ -664,11 +664,11 @@ static void WaitForPresentDuringLoading()
 	while (g_inPresent.load())
 	{
 		if (spins == 0)
-			LOGF("Loading thread is in Present, waiting...");
+			LOG("Loading thread is in Present, waiting...");
 		std::this_thread::sleep_for(std::chrono::milliseconds(1));
 		if (++spins > 500)
 		{
-			LOGF_WARNING("Waited 500ms, proceeding anyway");
+			LOG_WARNING("Waited 500ms, proceeding anyway");
 			break;
 		}
 	}

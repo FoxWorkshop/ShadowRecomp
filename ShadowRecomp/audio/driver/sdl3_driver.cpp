@@ -1259,7 +1259,7 @@ SHTHR_SOUNDDEVICE_Impl::SHTHR_SOUNDDEVICE_Impl()
 	if (mDeviceStream)
 	{
 		SDL_ResumeAudioStreamDevice(mDeviceStream);
-		LOGFN_UTILITY("Initialized SDL3 Audio", "SDLAudio");
+		LOGN_UTILITY("Initialized SDL3 Audio");
 	}
 }
 

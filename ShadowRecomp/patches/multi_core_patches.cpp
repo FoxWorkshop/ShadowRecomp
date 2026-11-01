@@ -233,7 +233,7 @@ X86_FUNC(sub_2B39A0)
 			if (!pword1C)
 			{
 				ctx.eax.u32 = transfoNodeSource;
-				LOGFN_ERROR("pword1C is null, skipping CSD node transformation\n", "CSD");
+				LOGN_ERROR("pword1C is null, skipping CSD node transformation");
 				ctx.AddEsp(1);
 				return;
 			}
@@ -328,7 +328,7 @@ X86_FUNC(sub_2DCDE0)
 
 	if (!ctx.eax.u32) // end update won't be called if function failed
 	{
-		LOGFN("camera update failed, leaving early", "CameraUpdate");
+		LOGN("camera update failed, leaving early");
 		RtlLeaveCriticalSection(&globalcurCamera);
 	}
 
@@ -351,7 +351,7 @@ X86_FUNC(sub_2CBA40)
 
 	if (!ctx.eax.u32) // end update won't be called if function failed
 	{
-		LOGFN("camera world update failed, leaving early", "CameraUpdate");
+		LOGN("camera world update failed, leaving early");
 		RtlLeaveCriticalSection(&globalCurWorld);
 	}
 
@@ -387,7 +387,7 @@ X86_FUNC(sub_2DD080)
 	auto a1 = X86_LOAD_U32(ctx.esp.u32 + 4);
 	if (!a1 || a1 < 0x10000) //safety check
 	{
-		LOGFN_ERROR("RwCameraFrustumTestSphere it's over..\n", "GG");
+		LOGN_ERROR("RwCameraFrustumTestSphere it's over..");
 	}
 	__imp__sub_2DD080(ctx, base);
 }

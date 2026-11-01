@@ -179,7 +179,7 @@ static void BuildEventPlaylist(uint8_t* base)
 
 		if (it == storyEvents.end())
 		{
-			LOGFN_WARNING("Event {} is not a playable story event, skipping it.", eventId, eventId, eventId);
+			LOGFN_WARNING("Event {} is not a playable story event, skipping it.", eventId);
 			continue;
 		}
 
