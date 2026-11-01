@@ -378,6 +378,20 @@ void KatanaLv2AmmoMidAsmHook()
 	X86_STORE_U32(0x5594E0, Config::ReloadedMod ? 32 : 8);
 }
 
+// SatelliteLaser LV1 Ammo 6 -> 18
+void SatelliteLaserLv1AmmoMidAsmHook()
+{
+	auto base = g_memory.base;
+	X86_STORE_U32(0x559514, Config::ReloadedMod ? 18 : 6);
+}
+
+// SatelliteLaser LV2 Ammo 10 -> 30
+void SatelliteLaserLv2AmmoMidAsmHook()
+{
+	auto base = g_memory.base;
+	X86_STORE_U32(0x559544, Config::ReloadedMod ? 30 : 10);
+}
+
 // SolidCollision Triggers are GroundCollision
 void SolidCollisionTriggerMidAsmHook(X86Register& eax)
 {

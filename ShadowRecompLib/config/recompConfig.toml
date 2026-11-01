@@ -1756,6 +1756,16 @@ address = 0x3CE72B
 jump_address = 0x3CE735
 
 [[midasm_hook]]
+name = "SatelliteLaserLv1AmmoMidAsmHook"
+address = 0x3CE7DB
+jump_address = 0x3CE7E5
+
+[[midasm_hook]]
+name = "SatelliteLaserLv2AmmoMidAsmHook"
+address = 0x3CE86B
+jump_address = 0x3CE875
+
+[[midasm_hook]]
 name = "SolidCollisionTriggerMidAsmHook"
 address = 0x1B3D0E
 registers = ["r0"]
