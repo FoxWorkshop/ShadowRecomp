@@ -2,6 +2,7 @@
 #include <xxHashMap.h>
 #include <kernel/heap.h>
 #include <algorithm>
+#include <os/logger.h>
 
 /*Xbox uses a swizzle method for textures, this is a memory layout optimization used by GPUs, instead of storing pixels in
 row-major order (line by line), the Xbox stores them in a Morton order (Z-order curve)  for better texture cache locality
@@ -480,7 +481,7 @@ const FormatToARGBRow XBFormatComponentConverter(X_D3DFORMAT Format)
 			auto res = ComponentConverters[FormatInfos[Format].components];
 			if (res == nullptr)
 			{
-				printf("XBFormatComponentConverter - Missing function conversion for texture!\n");
+				LOGN_WARNING("XBFormatComponentConverter: Missing function conversion for texture!");
 			}
 			return  res;
 		}
@@ -578,7 +579,7 @@ bool ConvertD3DTextureToARGBBuffer(
 		{
 			// HACK: The compressed DXT conversion code currently writes more pixels than it should, which can cause a crash.
 			// This code will get hit when converting compressed texture mipmaps on hardware that somehow doesn't support DXT natively
-			printf("Converting DXT textures smaller than a block is not currently implemented. Ignoring conversion!\n");
+			LOGN_WARNING("Converting DXT textures smaller than a block is not currently implemented. Ignoring conversion!");
 			return true;
 		}
 

@@ -2,6 +2,7 @@
 #include "vertexdeclaration.h"
 #include "vertexshader.h"
 #include <kernel/function.h>
+#include <os/logger.h>
 
 // Xbox originally supports immediate drawing by sending some kind of command queue to the GPU directly, bypassing the need of 
 // calling DrawPrimitive functions, although, this system can also be used for non drawing operations.
@@ -30,11 +31,11 @@ DWORD GetStrideFromVertexDeclaration(HostVertexDeclaration* pVertexDeclaration)
 			Stride = pVertexDeclaration->VertexStreams[0].HostVertexStride;
 		}
 		else {
-			printf("Non-FVF Vertex Shaders with multiple streams not supported for PushBuffer emulation!\n");
+			LOGN_ERROR("Non-FVF Vertex Shaders with multiple streams not supported for PushBuffer emulation!");
 		}
 	}
 	else {
-		printf("Missing Vertex Declaration not supported for PushBuffer emulation!\n");
+		LOGN_ERROR("Missing Vertex Declaration not supported for PushBuffer emulation!");
 	}
 
 	return Stride;
@@ -119,7 +120,7 @@ void _XbSubmitNodeMidAsmHook(X86Register& eax)
 
 	if (vertexCount > 256) //if this condition ever pass, we should consisder increasing the size of SubmitNodeQuadVertex array
 	{
-		printf("WARNING Too many vertices for SubmitNodeQuad detected, capping to 256!!!\n");
+		LOGN_WARNING("Too many vertices for SubmitNodeQuad detected, capping to 256!!!");
 		vertexCount = 256;
 	}
 

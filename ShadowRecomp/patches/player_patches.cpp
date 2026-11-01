@@ -3,6 +3,7 @@
 #include <sdl_events.h>
 #include <input/input.h>
 #include "global.h"
+#include <os/logger.h>
 
 uint32_t g_playerStructAddrs[4] = {};
 bool isAwakeAboutToInvoke = false;
@@ -79,7 +80,7 @@ X86_FUNC(sub_96AD0)
 	}
 
 	g_playerStructAddrs[slot] = playerAddr;
-	printf("Player Slot %u Struct %x Ptr %llx\n", slot, playerAddr, (intptr_t)GetPlayerPos(slot));
+	LOGFN("Player Slot {} Struct {:x} Ptr {}", slot, playerAddr, (void*)GetPlayerPos(slot));
 }
 
 // Player dtor @ sub_97320 (not this func)
@@ -95,7 +96,7 @@ X86_FUNC(sub_96B50)
 		if (g_playerStructAddrs[i] == playerAddr)
 		{
 			g_playerStructAddrs[i] = 0;
-			printf("Player Slot %u Destroyed %x\n", i, playerAddr);
+			LOGFN("Player Slot {} Destroyed {:x}", i, playerAddr);
 			break;
 		}
 	}

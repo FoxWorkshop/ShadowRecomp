@@ -6,6 +6,7 @@
 #include <string>
 #include <app.h>
 #include <sdl_events.h>
+#include <os/logger.h>
 
 input::EInputDevice input::g_inputDevice;
 input::EInputDevice input::g_inputDeviceController;
@@ -429,11 +430,11 @@ static void SetControllerInputDevice(Controller* controller)
 
 		if (controllerType == input::EInputDeviceExplicit::Unknown)
 		{
-			printf("Detected controller: %s (Unknown Controller Type)\n", controllerName);
+			LOGFN("Detected controller: {} (Unknown Controller Type)", controllerName);
 		}
 		else
 		{
-			printf("Detected controller: %s\n", controllerName);
+			LOGFN("Detected controller: {}", controllerName);
 		}
 	}
 }
@@ -625,7 +626,7 @@ bool Input_OnSDLEvent(void*, SDL_Event* event)
 		if (event->key.scancode == SDL_SCANCODE_F6 && (event->key.mod & SDL_KMOD_SHIFT) && !event->key.repeat)
 		{
 			g_keyboardPort = (g_keyboardPort % 4) + 1;
-			printf("Keyboard now controlling PORT %d\n", g_keyboardPort);
+			LOGFN("Keyboard now controlling PORT {}", g_keyboardPort);
 		}
 		if (event->key.scancode == SDL_SCANCODE_F7 && !event->key.repeat)
 		{

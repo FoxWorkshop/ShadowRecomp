@@ -3,6 +3,7 @@
 #include "memory.h"
 #include "function.h"
 #include "x86_context.h"
+#include <os/logger.h>
 
 constexpr size_t XBE_END_ADDR = 0x006A1000ull;
 constexpr size_t HEAP_BEGIN = XBE_END_ADDR + 0x1000000; //Start heap way after XBE
@@ -21,17 +22,17 @@ void Heap::Init()
 		return;
 	}
 
-	printf("Initializing Heap...\n");
+	LOG_UTILITY("Initializing Heap...");
 	heap = o1heapInit(g_memory.Translate(HEAP_BEGIN), HEAP_END - HEAP_BEGIN);
 	physicalHeap = o1heapInit(g_memory.Translate(HEAP_END), PHYSICAL_HEAP_END - HEAP_END);
-	printf("Regular Heap: guest 0x%08zX - 0x%08zX\n", HEAP_BEGIN, HEAP_END);
-	printf("Physical Heap: guest 0x%08zX - 0x%08zX\n", HEAP_END, PHYSICAL_HEAP_END);
+	LOGFN("Regular Heap: guest 0x{:08X} - 0x{:08X}", HEAP_BEGIN, HEAP_END);
+	LOGFN("Physical Heap: guest 0x{:08X} - 0x{:08X}", HEAP_END, PHYSICAL_HEAP_END);
 
 	// The game gets this pointer from D3DK::CMiniport::MapRegisters and then
 	// addresses NV2A registers off it.
 	g_nv2aPtr = (uint8_t*)g_memory.Translate(NV2A_APERTURE_BASE);
-	printf("NV2A aperture: guest 0x%08X - 0x%08X\n", NV2A_APERTURE_BASE, NV2A_APERTURE_BASE + NV2A_APERTURE_SIZE);
-	printf("Heap and Physical Heap Initialized\n");
+	LOGFN("NV2A aperture: guest 0x{:08X} - 0x{:08X}", NV2A_APERTURE_BASE, NV2A_APERTURE_BASE + NV2A_APERTURE_SIZE);
+	LOG_UTILITY("Heap and Physical Heap Initialized");
 }
 
 void* Heap::Alloc(size_t size)

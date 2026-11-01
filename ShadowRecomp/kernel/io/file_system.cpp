@@ -518,8 +518,8 @@ FindHandle* XFindFirstFile(const char* lpFileName, WIN32_FIND_DATAA* lpFindFileD
 		}
 		else
 		{
-			printf("XFindFirstFile: File not found: %s (resolved to %s)\n",
-				lpFileName, resolvedPathStr.c_str());
+			LOGF_WARNING("File not found: {} (resolved to {})",
+				lpFileName, resolvedPathStr);
 			return GetInvalidKernelObject<FindHandle>();
 		}
 	}

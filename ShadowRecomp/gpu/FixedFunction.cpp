@@ -6,6 +6,7 @@
 #include <algorithm>
 #include <cmath>
 #include "FixedFunction.h"
+#include <os/logger.h>
 #include "ubershaders/fixed_function_vertex_shader_variants.h"
 #include <kernel/function.h>
 
@@ -574,7 +575,7 @@ int GetXboxVertexDataComponentCount(int32_t d3dvsdt)
 	case X_D3DVSDT_NORMPACKED3:
 		return 3;
 	case X_D3DVSDT_FLOAT2H:
-		printf("Attempting to use component count for X_D3DVSDT_FLOAT2H, which uses an odd (value, value, 0, value) layout\n");
+		LOGN_WARNING("Attempting to use component count for X_D3DVSDT_FLOAT2H, which uses an odd (value, value, 0, value) layout");
 		// This is a bit of an odd case. Will call it 4 since it writes a value to the 4th component...
 		return 4;
 	default:
@@ -649,7 +650,7 @@ ShaderVariantKey UpdateFixedFunctionVertexShaderState(size_t Handle, bool isPSFi
 	//   X_D3DVBF_4WEIGHTS4MATRICES = 6 : 4 matrices, 4 weights
 	//
 	if (VertexBlend > X_D3DVBF_4WEIGHTS4MATRICES)
-		printf("X_D3DRS_VERTEXBLEND out of range\n");
+		LOGN_WARNING("X_D3DRS_VERTEXBLEND out of range");
 
 	// Calculate the number of matrices, by adding the LSB to turn (0,1,3,5) and (0,2,4,6) into (0,2,4,6); Then divide by 2 to get (0,1,2,3), and add 1 to get 1, 2, 3 or 4 matrices :
 	auto NrBlendMatrices = ((VertexBlend + (VertexBlend & 1)) / 2) + 1;

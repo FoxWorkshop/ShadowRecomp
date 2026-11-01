@@ -310,7 +310,6 @@ bool IsLibrarySequenceUnlocked(int index)
     int bit = 1 << (index & 0x1F);
 
 	uint32_t address = ptr + 4 * ((unsigned int)index >> 5) + 0x16d0;
-	printf("address %08X\n", (uintptr_t)g_memory.Translate(address));
     int word = X86_LOAD_U32(address);
 
     // ecx = ebx = count (index)

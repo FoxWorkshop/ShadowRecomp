@@ -6,6 +6,7 @@
 #include "nv2a.h"
 #include "renderstate.h"
 #include <kernel/function.h>
+#include <os/logger.h>
 
 uint32_t g_Xbox_VertexShader_FunctionSlots_StartAddress = 0;
 
@@ -18,7 +19,7 @@ uint32_t* GetVertexShaderSlotPtr(const uint32_t SlotIndexAddress)
 		return &g_Xbox_VertexShader_FunctionSlots[SlotIndexAddress * X_VSH_INSTRUCTION_SIZE];
 	}
 	else {
-		printf("SlotIndexAddress out of range\n");
+		LOGN_ERROR("SlotIndexAddress out of range");
 		return nullptr;
 	}
 }
@@ -66,8 +67,7 @@ static X_D3DVertexShader* XboxVertexShaderFromFVF(size_t xboxFvf)
 	DWORD position = (xboxFvf & X_D3DFVF_POSITION_MASK);
 	if (xboxFvf == 0)
 	{
-		std::string pos = std::to_string(position);
-		printf("xboxFvF is null, position is equal %s\n", pos.c_str());
+		LOGFN_WARNING("xboxFvF is null, position is equal {}", position);
 	}
 
 	switch (position) {
@@ -342,7 +342,7 @@ namespace XboxVertexShaderDecoder
 			param.Address = C;
 			break;
 		default:
-			printf("parameter type unknown\n");
+			LOGN_WARNING("parameter type unknown");
 		}
 
 		int d = FLD_NEG - FLD_A_NEG;
@@ -484,14 +484,14 @@ void LoadVertexShader(DWORD Handle, DWORD Address)
 		D3DPUSH_DECODE(*pNV2ATokens++, dwMethod, dwSubChannel, nrDWORDS);
 		if (nrDWORDS == 0)
 		{
-			printf("Zero-length NV2A method detected!\n");
+			LOGN_WARNING("Zero-length NV2A method detected!");
 			break;
 		}
 
 		switch (dwMethod) {
 		case NV2A_VP_UPLOAD_INST(0): { // = 0x00000B00
 			if ((nrDWORDS & 3) != 0)
-				printf("NV2A_VP_UPLOAD_INST arguments should be a multiple of 4!\n");
+				LOGN_WARNING("NV2A_VP_UPLOAD_INST arguments should be a multiple of 4!");
 
 			unsigned nrSlots = nrDWORDS / X_VSH_INSTRUCTION_SIZE;
 			SetVertexShaderSlots(pNV2ATokens, Address, nrSlots);
@@ -500,13 +500,13 @@ void LoadVertexShader(DWORD Handle, DWORD Address)
 		}
 		case NV2A_VP_UPLOAD_CONST_ID: // = 0x00001EA4
 			if (nrDWORDS != 1)
-				printf("NV2A_VP_UPLOAD_CONST_ID should have one argument!\n");
+				LOGN_WARNING("NV2A_VP_UPLOAD_CONST_ID should have one argument!");
 
 			ConstantAddress = *pNV2ATokens;
 			break;
 		case NV2A_VP_UPLOAD_CONST(0): { // = 0x00000B80
 			if ((nrDWORDS & 3) != 0)
-				printf("NV2A_VP_UPLOAD_CONST arguments should be a multiple of 4!\n");
+				LOGN_WARNING("NV2A_VP_UPLOAD_CONST arguments should be a multiple of 4!");
 
 			unsigned nrConstants = nrDWORDS / X_VSH_INSTRUCTION_SIZE;
 			// TODO : FIXME : Implement and call SetVertexShaderConstants(pNV2ATokens, ConstantAddress, nrConstants);
@@ -515,7 +515,7 @@ void LoadVertexShader(DWORD Handle, DWORD Address)
 		}
 		default:
 			// TODO : Remove this break-out hack once NrTokens is reliable and instead have: DEFAULT_UNREACHABLE;
-			printf("Stopping at unexpected NV2A method\n");
+			LOGN_WARNING("Stopping at unexpected NV2A method");
 			pEnd = pNV2ATokens;
 			break;
 		}

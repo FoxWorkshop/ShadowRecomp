@@ -664,16 +664,16 @@ static void WaitForPresentDuringLoading()
 	while (g_inPresent.load())
 	{
 		if (spins == 0)
-			printf("[Draw] WaitForPresentDuringLoading: loading thread is in Present, waiting...\n");
+			LOGF("Loading thread is in Present, waiting...");
 		std::this_thread::sleep_for(std::chrono::milliseconds(1));
 		if (++spins > 500)
 		{
-			printf("[Draw] WaitForPresentDuringLoading: waited 500ms, proceeding anyway\n");
+			LOGF_WARNING("Waited 500ms, proceeding anyway");
 			break;
 		}
 	}
 	if (spins != 0) {
-		printf("[Draw] WaitForPresentDuringLoading: resumed after %dms\n", spins);
+		LOGF("Resumed after {}ms", spins);
 	}
 }
 
@@ -4990,20 +4990,20 @@ void VideoDebug_DumpPresentState()
 	if (GameWindow::s_pWindow != nullptr)
 		SDL_GetWindowSizeInPixels(GameWindow::s_pWindow, &winW, &winH);
 
-	printf("=== VideoDebug_DumpPresentState ===\n");
-	printf("  swap chain: g_swapChain=%p g_swapChainValid=%d presentWait_capable=%d g_backBufferIndex=%u\n",
+	LOGN("=== VideoDebug_DumpPresentState ===");
+	LOGFN("  swap chain: g_swapChain={} g_swapChainValid={} presentWait_capable={} g_backBufferIndex={}",
 		(void*)g_swapChain.get(), (int)g_swapChainValid, (int)g_capabilities.presentWait, g_backBufferIndex);
-	printf("  present pipeline: g_inPresent=%d presentExecuted=%d g_executedCommandList=%d\n",
+	LOGFN("  present pipeline: g_inPresent={} presentExecuted={} g_executedCommandList={}",
 		(int)g_inPresent.load(), (int)presentExecuted.load(), (int)g_executedCommandList.load());
-	printf("  frames: g_frame=%u g_nextFrame=%u\n", g_frame, g_nextFrame);
-	printf("  commandListStates per frame:");
+	LOGFN("  frames: g_frame={} g_nextFrame={}", g_frame, g_nextFrame);
+	std::string commandListStates;
 	for (size_t i = 0; i < NUM_FRAMES; ++i)
-		printf(" [%zu]=%d", i, (int)g_commandListStates[i]);
-	printf("\n");
-	printf("  renderQueue size_approx=%zu\n", g_renderQueue.size_approx());
-	printf("  loading: aboutToDrawLoading=%d loadingThreadID=%d currentThreadId=%u\n",
+		commandListStates += fmt::format(" [{}]={}", i, (int)g_commandListStates[i]);
+	LOGFN("  commandListStates per frame:{}", commandListStates);
+	LOGFN("  renderQueue size_approx={}", g_renderQueue.size_approx());
+	LOGFN("  loading: aboutToDrawLoading={} loadingThreadID={} currentThreadId={}",
 		(int)aboutToDrawLoading.load(), GetLoadingThreadID(), GuestThread::GetCurrentThreadId());
-	printf("  window: ptr=%p SDL flags=0x%X (HIDDEN=%d MINIMIZED=%d INPUT_FOCUS=%d MOUSE_FOCUS=%d MAXIMIZED=%d FULLSCREEN=%d)\n",
+	LOGFN("  window: ptr={} SDL flags=0x{:X} (HIDDEN={} MINIMIZED={} INPUT_FOCUS={} MOUSE_FOCUS={} MAXIMIZED={} FULLSCREEN={})",
 		(void*)GameWindow::s_pWindow, (unsigned)sdlFlags,
 		(int)!!(sdlFlags & SDL_WINDOW_HIDDEN),
 		(int)!!(sdlFlags & SDL_WINDOW_MINIMIZED),
@@ -5011,8 +5011,8 @@ void VideoDebug_DumpPresentState()
 		(int)!!(sdlFlags & SDL_WINDOW_MOUSE_FOCUS),
 		(int)!!(sdlFlags & SDL_WINDOW_MAXIMIZED),
 		(int)!!(sdlFlags & SDL_WINDOW_FULLSCREEN));
-	printf("  window size in pixels: %dx%d\n", winW, winH);
-	printf("===================================\n");
+	LOGFN("  window size in pixels: {}x{}", winW, winH);
+	LOGN("===================================");
 }
 
 void Video::BeginGameThreadProfiler() { g_updateDirectorProfiler.Begin(); }
@@ -5112,7 +5112,7 @@ void Video::Present()
 		static bool loggedOnce = false;
 		if (!loggedOnce)
 		{
-			printf("[Present] Loading thread frame limiter active (16ms pacing)\n");
+			LOGN("Present: Loading thread frame limiter active (16ms pacing)");
 			loggedOnce = true;
 		}
 
@@ -6232,7 +6232,7 @@ void UpdateHostTextureScaling(GuestTexture* tex, const bool isFixedFunc)
 			if (&pXboxBaseTexture->guestResource == &g_backBuffer->guestResource) //todo this likely cannot pass atm
 			{
 				// Account for MSAA
-				printf("todo\n");
+				LOGN_WARNING("TODO: MSAA backbuffer size for linear textures");
 				//GetBackBufferPixelDimensions(width, height);
 			}
 			else {
@@ -8914,7 +8914,7 @@ X86_FUNC(sub_3DA0A0)
 
 int D3D_GetAdapterModeCount(int a1)
 {
-	printf("STUB D3D_GetAdapterModeCount\n");
+	LOG_UTILITY("!!! STUB !!!");
 	return 4 * 1;
 }
 
@@ -9030,7 +9030,7 @@ static void ProcessRenderCommand(const RenderCommand& cmd)
 		if (!loggedDeferral)
 		{
 			loggedDeferral = true;
-			printf("[RenderThread] Deferring stale command. Command list is closed (type=%d)\n", (int)cmd.type);
+			LOGFN_WARNING("RenderThread: Deferring stale command. Command list is closed (type={})", (int)cmd.type);
 		}
 		g_deferredRenderCommands.push_back(cmd);
 		return;

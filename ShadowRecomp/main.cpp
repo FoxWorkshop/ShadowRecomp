@@ -70,7 +70,7 @@ uint32_t LoadXbeModule(const std::filesystem::path& path)
 
     if (module.empty())
     {
-        printf("Failed to load XBE file, please make sure game files are present.\n");
+        LOGN_ERROR("Failed to load XBE file, please make sure game files are present.");
         assert("Failed to load XBE file, please make sure game files are present." && false);
         return 0;
     }
@@ -269,7 +269,7 @@ int main(int argc, char* argv[])
             int decile = int(progress.ratio * 10.0f);
             if (decile != lastDecile)
             {
-                printf("Checking files: %d%%\n", decile * 10);
+                LOGFN("Checking files: {}%", decile * 10);
                 lastDecile = decile;
             }
         }, errorMessage);
@@ -365,6 +365,5 @@ int main(int argc, char* argv[])
     GuestThread::Start(params);
 
 
-    printf("function Main is returning 0\n");
     return 0;
 }

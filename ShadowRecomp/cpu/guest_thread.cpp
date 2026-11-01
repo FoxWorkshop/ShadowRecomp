@@ -6,6 +6,7 @@
 #include <kernel/function.h>
 #include "x86_context.h"
 #include <kernel/types.h>
+#include <os/logger.h>
 #include <cstring>
 #ifdef _WIN32
 #include <windows.h>
@@ -242,12 +243,11 @@ GuestThreadHandle::~GuestThreadHandle()
 {
 	auto id = GetThreadId(this->thread.get_id());
 	std::string s = GetThreadName(params.function);
-	printf("Destroy thread %08X with ID %u (%s)\n", params.function, id, s.c_str());
+	LOGFN("Destroy thread {:08X} with ID {} ({})", params.function, id, s);
 
 	if (suspended.load())
 	{
-		printf("[GuestThread] WARNING: Destroying suspended thread %08X (%s) - forcing resume\n",
-			params.function, s.c_str());
+		LOGFN_WARNING("GuestThread: Destroying suspended thread {:08X} ({}), forcing resume", params.function, s);
 		suspended.store(false, std::memory_order_release);
 		suspended.notify_all();
 	}
@@ -264,7 +264,7 @@ GuestThreadHandle::~GuestThreadHandle()
 
 uint32_t GuestThreadHandle::Wait(uint32_t timeout)
 {
-	printf("Wait: Thread %08X\n", params.function);
+	LOGFN("Wait: Thread {:08X}", params.function);
 	assert(timeout == INFINITE);
 
 	if (thread.joinable())
@@ -296,7 +296,7 @@ GuestThreadHandle* GuestThread::Start(const GuestThreadParams& params, uint32_t*
 			s = "Unknown Thread";
 
 
-		printf("Started thread %08X with ID %u (%s)\n", params.function, *threadId, s.c_str());
+		LOGFN("Started thread {:08X} with ID {} ({})", params.function, *threadId, s);
 	}
 
 

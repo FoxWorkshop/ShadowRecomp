@@ -3,6 +3,7 @@
 #include <user/config.h>
 #include <patches/global.h>
 #include "pause_patches.h"
+#include <os/logger.h>
 
 
 // Patch out logs Artificial Chaos can spew (causes crashes)
@@ -40,7 +41,7 @@ X86_FUNC(sub_40634F)
 //this one is a hard lock, we will let it run
 X86_FUNC(sub_2B1A00)
 {
-	printf("Not inititalized m_eDealloctor\n");
+	LOGN_ERROR("Not initialized m_eDealloctor");
 	while (1)
 		;
 }

@@ -3,6 +3,7 @@
 #include "FixedFunction.h"
 #include "nv2a.h"
 #include <kernel/function.h>
+#include <os/logger.h>
 
 //Since Xbox has a lot of arbitrary rules with RenderState, we can't just pass the state as they are for the host
 //Different methods exist to set a render state and some require conversion, this page will handle that
@@ -254,7 +255,7 @@ static void D3DDevice_SetRenderState_Simple(int32_t Method, int32_t Value)
 	}
 
 	if (GuestRenderStateIndex == -1) {
-		printf("RenderState_Simple could not be found in RenderState table Method %x, Value %x\n", Method, Value);
+		LOGFN_WARNING("RenderState_Simple could not be found in RenderState table Method {:x}, Value {:x}", Method, Value);
 		return;
 	}
 

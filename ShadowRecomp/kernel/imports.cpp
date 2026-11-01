@@ -262,7 +262,6 @@ int32_t NtAllocateVirtualMemory(IN OUT uint32_t* BaseAddress,
 void* AvSavedDataAddress;
 void AvSetSavedDataAddress(IN  uint32_t* Address)
 {
-	printf("AvSetSavedDataAddress %d\n", Address);
 	AvSavedDataAddress = Address;
 }
 
@@ -291,7 +290,7 @@ void* ExAllocatePoolWithTag
 )
 {
 	void* ptr = reinterpret_cast<PVOID>(g_memory.MapVirtual(g_userHeap.Alloc(NumberOfBytes > 0 ? NumberOfBytes : 1)));
-	printf("ExAllocatePoolWithTag ptr: %p\n", ptr);
+	LOGF_UTILITY("ptr: {}", ptr);
 	return ptr;
 }
 
@@ -300,7 +299,7 @@ uint32_t ExQueryPoolBlockSize
 	IN PVOID PoolBlock
 )
 {
-	printf("[STUB] ExQueryPoolBlockSize(%p) -> Dummy 4096\n", PoolBlock);
+	LOGF_UTILITY("!!! STUB !!! PoolBlock {}, returning dummy 4096", fmt::ptr(PoolBlock));
 	auto size = g_userHeap.Size(PoolBlock);
 	return size;
 }
@@ -366,13 +365,12 @@ LONG ExQueryNonVolatileSetting(
 	}
 
 	// Fallback: Log unknown indices and return "not found"
-	printf("ExQueryNonVolatileSetting: Unhandled index 0x%X\n", ValueIndex);
+	LOGF_WARNING("Unhandled index 0x{:X}", ValueIndex);
 	return X_STATUS_OBJECT_NAME_NOT_FOUND;
 }
 
 LONG FscSetCacheSize(ULONG NumberOfCachePages)
 {
-	printf("[STUB] FscSetCacheSize, Page: %u)\n", NumberOfCachePages);
 	return X_STATUS_SUCCESS;
 }
 
@@ -394,12 +392,12 @@ uint32_t HalGetInterruptVector(uint32_t BusInterruptLevel, std::uint8_t* Irql)
 //allows drivers or system components to register a callback function to be notified when the console is about to shut down.
 void HalRegisterShutdownNotification(int32_t* ShutdownRegistration, uint8_t Register)
 {
-	printf("[STUB] HalRegisterShutdownNotification(%p, %d)\n", ShutdownRegistration, Register);
+	LOGF_UTILITY("!!! STUB !!! ({}, {})", fmt::ptr(ShutdownRegistration), Register);
 }
 
 void HalReturnToFirmware(ULONG Action)
 {
-	printf("[STUB] HalReturnToFirmware(%d) - Would reboot\n", Action);
+	LOGF_UTILITY("!!! STUB !!! ({}) Would reboot", Action);
 }
 
 void HalReadWritePCISpace
@@ -412,9 +410,9 @@ void HalReadWritePCISpace
 	std::uint8_t WritePCISpace
 )
 {
-	printf("[STUB] %sPCISpace(Bus %d, Slot %d, Offset %X, Len %d)\n",
+	LOGF_UTILITY("!!! STUB !!! {}PCISpace(Bus {}, Slot {}, Buffer {}, Len {})",
 		WritePCISpace ? "Write" : "Read",
-		BusNumber, SlotNumber, Buffer, Length);
+		BusNumber, SlotNumber, fmt::ptr(Buffer), Length);
 
 	if (WritePCISpace)
 		return;
@@ -426,7 +424,7 @@ void HalReadWritePCISpace
 LONG IoCreateSymbolicLink(uint32_t* SymbolicLinkName_, uint32_t* DeviceName_)
 {
 
-	printf("[STUB] IoCreateSymbolicLink\n");
+	LOG_UTILITY("!!! STUB !!!");
 
 	return X_STATUS_SUCCESS;
 }
@@ -434,8 +432,8 @@ LONG IoCreateSymbolicLink(uint32_t* SymbolicLinkName_, uint32_t* DeviceName_)
 LONG IoDeleteSymbolicLink(uint32_t* SymbolicLinkName_)
 {
 	xbox::PSTRING SymbolicLinkName = (xbox::PSTRING)SymbolicLinkName_;
-	printf("[STUB] IoDeleteSymbolicLink(%.*S)\n",
-		SymbolicLinkName->Length / 2, SymbolicLinkName->Buffer);
+	LOGF_UTILITY("!!! STUB !!! ({})",
+		std::string_view(SymbolicLinkName->Buffer, SymbolicLinkName->Length));
 
 	return X_STATUS_SUCCESS;
 }
@@ -470,13 +468,13 @@ int32_t KeBugCheckEx(IN std::uint32_t BugCheckCode, IN uint32_t* BugCheckParamet
 
 void KeBugCheck(IN uint32_t BugCheckMode)
 {
-	printf("KeBugCheckEx");
+	LOGF_ERROR("BugCheckMode {}", BugCheckMode);
 	KeBugCheckEx(BugCheckMode, 0, 0, 0, 0);
 }
 
 std::uint8_t KeRaiseIrqlToDpcLevel()
 {
-	printf("[STUB] KeRaiseIrqlToDpcLevel()\n");
+	LOG_UTILITY("!!! STUB !!!");
 	return DISPATCH_LEVEL;
 }
 
@@ -528,7 +526,7 @@ void KeInitializeInterrupt(xbox::PKINTERRUPT Interrupt, uint32_t ServiceRoutine,
 void KeDisconnectInterrupt(uint32_t* Interrupt_)
 {
 	xbox::PKINTERRUPT Interrupt = (xbox::PKINTERRUPT)Interrupt;
-	printf("[STUB] KeDisconnectInterrupt(%p)\n", Interrupt);
+	LOGF_UTILITY("!!! STUB !!! ({})", fmt::ptr(Interrupt));
 }
 
 #define MAX_BUS_INTERRUPT_LEVEL 27
@@ -593,7 +591,7 @@ LONG KeDelayExecutionThread(uint8_t WaitMode, BOOLEAN Alertable, int64_t* Interv
 std::uint8_t KeCancelTimer(uint32_t* Timer_)
 {
 	xbox::PKTIMER Timer = (xbox::PKTIMER)Timer_;
-	printf("[STUB] KeCancelTimer(%p)\n", Timer);
+	LOGF_UTILITY("!!! STUB !!! ({})", fmt::ptr(Timer));
 	return TRUE;
 }
 
@@ -683,7 +681,7 @@ std::int32_t KeSetBasePriorityThread(GuestThreadHandle* hThread, LONG priority)
 
 	if (!SetThreadPriority(hThread == GetKernelObject(CURRENT_THREAD_HANDLE) ? GetCurrentThread() : hThread->thread.native_handle(), priority)) 
 	{
-		printf("Failed to set priority: %d\n", GetLastError());
+		LOGF_ERROR("Failed to set priority: {}", GetLastError());
 	}
 
 #endif
@@ -693,7 +691,7 @@ std::int32_t KeSetBasePriorityThread(GuestThreadHandle* hThread, LONG priority)
 
 std::uint8_t KeSetDisableBoostThread(uint32_t* Thread_, BOOLEAN Disable)
 {
-	printf("[STUB] KeSetDisableBoostThread()\n");
+	LOG_UTILITY("!!! STUB !!!");
 	return 0;
 }
 
@@ -726,7 +724,7 @@ BOOLEAN KeSynchronizeExecution(uint32_t* Interrupt_, uint32_t* SynchronizeRoutin
 {
 	xbox::PKSYNCHRONIZE_ROUTINE SynchronizeRoutine = (xbox::PKSYNCHRONIZE_ROUTINE)SynchronizeRoutine_;
 	xbox::PKINTERRUPT Interrupt = (xbox::PKINTERRUPT)Interrupt_;
-	printf("[STUB] KeSynchronizeExecution(Int %p, Routine %p, Ctx %p)\n", Interrupt, SynchronizeRoutine, SynchronizeContext);
+	LOGF_UTILITY("!!! STUB !!! (Int {}, Routine {}, Ctx 0x{:X})", fmt::ptr(Interrupt), fmt::ptr(SynchronizeRoutine), SynchronizeContext);
 	return SynchronizeRoutine(&SynchronizeContext);
 }
 
@@ -758,7 +756,6 @@ std::uint8_t KfRaiseIrql(std::uint8_t NewIrql)
 
 uint32_t* MmAllocateContiguousMemory(uint32_t NumberOfBytes)
 {
-	printf("[STUB] MmAllocateContiguousMemory(%zu bytes)\n", NumberOfBytes);
 	return reinterpret_cast<uint32_t*>(g_memory.MapVirtual(g_userHeap.AllocPhysical(NumberOfBytes, GPU_ALIGNMENT)));
 }
 
@@ -773,8 +770,6 @@ uint32_t* MmAllocateContiguousMemoryEx(uint32_t NumberOfBytes, uint32_t LowestAc
 
 PVOID MmClaimGpuInstanceMemory(SIZE_T NumberOfBytes, ULONG Protect
 ) {
-	printf("[STUB] MmClaimGpuInstanceMemory(%zu bytes, Prot 0x%X)\n",
-		NumberOfBytes, Protect);
 
 	return reinterpret_cast<PVOID>(g_memory.MapVirtual(g_userHeap.AllocPhysical(NumberOfBytes, GPU_ALIGNMENT)));
 }
@@ -787,14 +782,14 @@ void MmFreeContiguousMemory(uint32_t guestAddress)
 
 VOID MmFreeSystemMemory(uint32_t* BaseAddress, uint32_t NumberOfBytes)
 {
-	printf("[STUB] MmFreeSystemMemory(%p, %zu bytes)\n", BaseAddress, NumberOfBytes);
+	LOGF_UTILITY("!!! STUB !!! ({}, {} bytes)", fmt::ptr(BaseAddress), NumberOfBytes);
 
 	//g_userHeap.Free(g_memory.Translate((size_t)BaseAddress));
 }
 
 uint32_t MmAllocateSystemMemory(uint32_t NumberOfBytes, ULONG Protect)
 {
-	printf("MmAllocateSystemMemory(%zu bytes, Prot 0x%X)", NumberOfBytes, Protect);
+	LOGF_UTILITY("{} bytes, Prot 0x{:X}", NumberOfBytes, Protect);
 	return g_memory.MapVirtual(g_userHeap.Alloc(NumberOfBytes));
 }
 
@@ -808,7 +803,7 @@ LONG NtClose(uint32_t Handle)
 
 	if (Handle == 0)
 	{
-		printf("NtClose: No handle detected for this thread, aborting deleting handle.\n");
+		LOG_WARNING("No handle detected for this thread, aborting deleting handle.");
 		return X_STATUS_SUCCESS;
 	}
 
@@ -939,7 +934,7 @@ LONG NtQueryDirectoryFile(
 	IN  std::uint8_t RestartScan
 )
 {
-	printf("QUERY DIRECTION FILE STUB\n");
+	LOG_UTILITY("!!! STUB !!!");
 	return X_STATUS_SUCCESS;
 }
 
@@ -959,14 +954,6 @@ LONG NtQueryInformationFile(
 )
 {
 	LOG_UTILITY("!!! STUB !!!");
-	/**xbox::FILE_INFORMATION_CLASS FileInformationClass = (xbox::FILE_INFORMATION_CLASS)FileInformationClass_;
-	xbox::PIO_STATUS_BLOCK IoStatusBlock = (xbox::PIO_STATUS_BLOCK)IoStatusBlock_;
-
-	if (FileInformationClass == xbox::FileStandardInformation)
-	{
-		auto* info = reinterpret_cast<xbox::FILE_STANDARD_INFORMATION*>(FileInformation);
-		info->EndOfFile.QuadPart = 0x1000; // Dummy 4KB file
-	}*/
 
 	return 0;
 }
@@ -1030,7 +1017,7 @@ LONG NtQueryVirtualMemory(uint32_t* BaseAddress, uint32_t* Buffer)
 
 uint32_t MmGetPhysicalAddress(uint32_t BaseAddress)
 {
-	printf("MmGetPhysicalAddress: 0x%08X\n", BaseAddress);
+	LOGF_UTILITY("0x{:08X}", BaseAddress);
 	return BaseAddress;
 }
 
@@ -1044,7 +1031,7 @@ LONG MmLockUnlockPhysicalPage(uint32_t PhysicalAddress_, BOOLEAN Lock)
 {
 	xbox::physical_address_xt PhysicalAddress = PhysicalAddress_;
 	uint32_t addr = static_cast<uint32_t>(PhysicalAddress);
-	printf("MmLockUnlockPhysicalPage(0x%08X, %s)\n", addr, Lock ? "Lock" : "Unlock");
+	LOGF_UTILITY("(0x{:08X}, {})", addr, Lock ? "Lock" : "Unlock");
 	return X_STATUS_SUCCESS;
 }
 
@@ -1055,7 +1042,7 @@ VOID MmPersistContiguousMemory(uint32_t* BaseAddress, uint32_t NumberOfBytes, BO
 
 LONG MmQueryAddressProtect(uint32_t* BaseAddress, uint32_t* Protect)
 {
-	printf("MmQueryAddressProtect\n");
+	LOG_UTILITY("!!! STUB !!!");
 	*Protect = PAGE_READWRITE;
 	return X_STATUS_SUCCESS;
 }
@@ -1108,13 +1095,7 @@ LONG NtWriteFile(
 ) {
 
 	LOG_UTILITY("!!! STUB !!!");
-	/**xbox::PIO_APC_ROUTINE Apcroutine = (xbox::PIO_APC_ROUTINE)ApcRoutine_;
-	xbox::PIO_STATUS_BLOCK IoStatusBlock = (xbox::PIO_STATUS_BLOCK)IoStatusBlock_;
-	if (IoStatusBlock)
-	{
-		IoStatusBlock->Status = X_STATUS_SUCCESS;
-		IoStatusBlock->Information = Length; // Pretend all bytes were written
-	}*/
+
 
 	return X_STATUS_SUCCESS;
 }
@@ -1131,13 +1112,13 @@ void NtYieldExecution() {
 
 SIZE_T RtlCompareMemoryUlong(uint32_t* Buffer, uint32_t Length, ULONG Pattern)
 {
-	printf("RtlCompareMemoryUlong Pretend bytes match\n");
+	LOG_UTILITY("!!! STUB !!! Pretend bytes match");
 	return Length; // Pretend all bytes match
 }
 
 BOOLEAN RtlEqualString(PCSTR String1, PCSTR String2)
 {
-	printf("RtlEqualString\n");
+	LOG_UTILITY("!!! STUB !!!");
 	return strcmp(String1, String2) == 0;
 }
 
@@ -1376,7 +1357,6 @@ uint32_t XGetLanguage()
 
 void RtlRaiseException_(uint32_t* ExceptionRecord)
 {
-	printf("RtlRaiseException\n");
 	std::terminate();
 }
 
