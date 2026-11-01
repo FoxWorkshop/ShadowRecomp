@@ -7,7 +7,7 @@
 #include <algorithm>
 #include <cstring>
 
-#include "shader/fixed_function_vertex_shader/variants/generated/fixed_function_vertex_shader_variants.generated.h"
+#include "generated/fixed_function_vertex_shader/fixed_function_vertex_shader_variants.generated.h"
 
 namespace
 {

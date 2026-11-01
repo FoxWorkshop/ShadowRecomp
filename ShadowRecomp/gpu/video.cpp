@@ -58,8 +58,8 @@ const uint32_t g_cameraAddr = 0x540C40;
 #define DepthStencilFormat RenderFormat::D32_FLOAT
 
 #ifdef SHADOW_RECOMP_D3D12
-#include "ubershaders/shader/FixedFunctionVertexShader.hlsl.dxil.h"
-#include "ubershaders/shader/FixedFunctionPixelShader.hlsl.dxil.h"
+#include "FixedFunctionVertexShader.hlsl.dxil.h"
+#include "FixedFunctionPixelShader.hlsl.dxil.h"
 #include "shader/PassthroughVertexShader.hlsl.dxil.h"
 
 #include "shader/copy_vs.hlsl.dxil.h"
@@ -81,9 +81,9 @@ const uint32_t g_cameraAddr = 0x540C40;
 #include "shader/R2D_vs1.hlsl.dxil.h"
 #endif
 
-#include "ubershaders/shader/FixedFunctionVertexShader.hlsl.spirv.h"
+#include "FixedFunctionVertexShader.hlsl.spirv.h"
 #include "shader/PassthroughVertexShader.hlsl.spirv.h"
-#include "ubershaders/shader/FixedFunctionPixelShader.hlsl.spirv.h"
+#include "FixedFunctionPixelShader.hlsl.spirv.h"
 
 #include "shader/copy_vs.hlsl.spirv.h"
 #include "shader/copy_color_ps.hlsl.spirv.h"
@@ -2982,7 +2982,7 @@ static void SetSwapChainVsync()
 	{
 		GetVulkanSwapChain()->requiredPresentMode = VK_PRESENT_MODE_MAILBOX_KHR;
 	}
-}
+	}
 
 static void CheckSwapChain()
 {
@@ -3006,7 +3006,7 @@ static void CheckSwapChain()
 				}
 			}
 		}
-		g_swapChainValid = g_swapChain->resize();
+			g_swapChainValid = g_swapChain->resize();
 		g_needsResize = g_swapChainValid;
 	}
 

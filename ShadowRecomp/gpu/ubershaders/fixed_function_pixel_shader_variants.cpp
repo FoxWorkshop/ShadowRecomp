@@ -3,7 +3,7 @@
 #include "gpu/shared_constants.h"
 #include <rapidhash.h>
 #include <cassert>
-#include "shader/fixed_function_pixel_shader/variants/generated/fixed_function_pixel_shader_variants.generated.h"
+#include "generated/fixed_function_pixel_shader/fixed_function_pixel_shader_variants.generated.h"
 
 namespace
 {
