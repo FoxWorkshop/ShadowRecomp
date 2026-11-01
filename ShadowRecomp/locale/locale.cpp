@@ -296,15 +296,27 @@ std::unordered_map<std::string_view, std::unordered_map<ELanguage, std::string>>
 	}
 },
 {
-	// Notes: description for options that cannot be accessed anywhere but the title screen or world map (e.g. Language).
+	// Notes: description for options that cannot be accessed during gameplay (e.g. Language).
 	"Options_Desc_NotAvailable",
 	{
-		{ ELanguage::English,  "This option is not available at this location." },
-		{ ELanguage::Japanese, "この\u200Bオプションは\u200B[現在:げんざい]の\u200B[画面:がめん]では\u200B[変更:へんこう]\u200Bできません" },
-		{ ELanguage::German,   "Diese Option ist an dieser Stelle nicht verfügbar." },
-		{ ELanguage::French,   "Cette option n'est pas disponible pour l'instant." },
-		{ ELanguage::Spanish,  "Esta opción no está disponible en este momento." },
-		{ ELanguage::Italian,  "Questa opzione non può essere modificata in questo momento." }
+		{ ELanguage::English,  "This option is not available during gameplay." },
+		{ ELanguage::Japanese, "このオプションはゲームプレイ中は使用できません" },
+		{ ELanguage::German,   "Diese Einstellung kann während des Spiels nicht verändert werden." },
+		{ ELanguage::French,   "Cette option est indisponible en cours de jeu." },
+		{ ELanguage::Spanish,  "Esta opción no está disponible durante la partida." },
+		{ ELanguage::Italian,  "Questa opzione non è disponibile durante il gioco." }
+	}
+},
+{
+	// Notes: currently the description for Window Size when in fullscreen.
+	"Options_Desc_NotAvailableFullscreen",
+	{
+		{ ELanguage::English,  "This option is not available in fullscreen mode." },
+		{ ELanguage::Japanese, "このオプションはフルスクリーンモードでは変更できません" },
+		{ ELanguage::German,   "Diese Option ist im Vollbildmodus nicht verfügbar." },
+		{ ELanguage::French,   "Cette option n'est pas disponible en mode plein écran." },
+		{ ELanguage::Spanish,  "Esta opción no está disponible en modo pantalla completa." },
+		{ ELanguage::Italian,  "Questa opzione non è disponibile in modalità schermo pieno." }
 	}
 },
 {

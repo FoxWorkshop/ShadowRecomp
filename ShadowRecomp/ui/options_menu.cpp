@@ -231,9 +231,9 @@ float m_descScrollTimer{};
 float m_descScrollDirection{ 1.0f };
 
 static std::string optionDescription;
-static void UpdateOptionDescription(const IConfigDef* config)
+static void UpdateOptionDescription(const IConfigDef* config, const std::string description)
 {
-	optionDescription = config->GetDescription(Config::Language);
+	optionDescription = description;
 	if (OptionsMenu::s_flowState == OptionsMenuFlowState::OptionSelected)
 	{
 		const auto valueDescription = config->GetValueDescription(Config::Language);
@@ -612,6 +612,7 @@ static void DrawOption
 	min.x -= optionsOffsetX - Scale(10);
 	max.x -= Scale(10);
 
+	auto optionDescription = isAccessible || !inaccessibleReason ? config->GetDescription(Config::Language) : *inaccessibleReason;
 	auto offsetY = optionHeight * rowIndex + GetRowScrollOffset(optionHeight);
 	auto isCurrent = g_optionIndex == rowIndex;
 	auto isSelected = isCurrent && OptionsMenu::s_flowState == OptionsMenuFlowState::OptionSelected;
@@ -710,10 +711,11 @@ static void DrawOption
 			g_optionCanReset = false;
 		}
 
+
 		if (OptionsMenu::s_flowState == OptionsMenuFlowState::OptionCursor || OptionsMenu::s_flowState == OptionsMenuFlowState::OptionSelected)
 		{
-			UpdateOptionDescription(config);
-
+			
+			UpdateOptionDescription(config, optionDescription);
 
 			if constexpr (std::is_same_v<T, float>)
 			{
@@ -749,7 +751,7 @@ static void DrawOption
 					}
 
 					OptionsMenu::SetFlowState(OptionsMenuFlowState::OptionSelected);
-					UpdateOptionDescription(config);
+					UpdateOptionDescription(config, optionDescription);
 
 					isSelected = true;
 					s_oldValue = config->Value;
@@ -893,7 +895,7 @@ static void DrawOption
 
 					if (increment || decrement)
 					{
-						UpdateOptionDescription(config);
+						UpdateOptionDescription(config, optionDescription);
 
 						Game_PlaySound("cursor");
 
@@ -1200,6 +1202,10 @@ static void DrawActionOption
 	ImVec2 titlePos = { min.x, min.y + offsetY + Scale(8) };
 
 	auto TexColor = isHover ? HIGHLIGHT_COLOUR : IM_COL32(255, 255, 255, 255);
+	if (isAccessible == false)
+	{
+		TexColor = IM_COL32(127, 127, 127, 255);
+	}
 	DrawMenuText(fontOptionSize, titlePos, TexColor, name.c_str(), isHover);
 
 	if (!isCurrent)
@@ -1995,10 +2001,10 @@ static void DrawOptions(ImVec2 minClipRect, ImVec2 maxClipRect, ImVec2 min, ImVe
 			monitorReason = &Localise("Options_Desc_NotAvailableHardware");
 
 		auto monitorMax = GameWindow::CanSpanDisplays() ? displayCount : displayCount - 1;
-		DrawOption(rowCount++, &Config::Monitor, canChangeMonitor, min, max, devReason, 0, 0, std::max(monitorMax, 0), false);
+		DrawOption(rowCount++, &Config::Monitor, canChangeMonitor, min, max, monitorReason, 0, 0, std::max(monitorMax, 0), false);
 		DrawOption(rowCount++, &Config::Fullscreen, true, min, max, devReason);
 		DrawOption(rowCount++, &Config::AspectRatio, true, min, max, devReason);
-		DrawOption(rowCount++, &Config::WindowSize, canChangeResolution, min, max, devReason, 0, 0, (int)GameWindow::GetDisplayModes().size() - 1, false);
+		DrawOption(rowCount++, &Config::WindowSize, canChangeResolution, min, max, &Localise("Options_Desc_NotAvailableFullscreen"), 0, 0, (int)GameWindow::GetDisplayModes().size() - 1, false);
 		DrawOption(rowCount++, &Config::ResolutionScale, true, min, max, nullptr, 0.25f, 1.0f, 2.0f);
 		DrawOption(rowCount++, &Config::FMVAspectRatio, true, min, max, nullptr);
 		DrawOption(rowCount++, &Config::MaxHUDWidth, true, min, max, nullptr);
