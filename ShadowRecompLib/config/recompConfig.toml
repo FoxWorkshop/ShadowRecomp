@@ -2089,6 +2089,16 @@ jump_address_on_true = 0x93CF2
 name = "MeleeRapidMotionMidAsmHook"
 address = 0x99E70
 registers = ["r4", "r5"]
+
+[[midasm_hook]]
+name = "LockOnShotIntervalMidAsmHook"
+address = 0x268D91
+registers = ["r4"]
+
+[[midasm_hook]]
+name = "LockOnShotIntervalMidAsmHook"
+address = 0x268E12
+registers = ["r4"]
 ## End Reloaded patches
 
 [[midasm_hook]]

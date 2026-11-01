@@ -409,6 +409,18 @@ X86_FUNC(sub_2621A0)
 	X86_STORE_F32(0x5247B4, damage);
 }
 
+// Global Lock-On Revamp
+void LockOnShotIntervalMidAsmHook(X86Register& esi)
+{
+	if (!Config::ReloadedMod)
+	{
+		return;
+	}
+
+	auto base = g_memory.base;
+	X86_STORE_F32(esi.u32 + 0x54, std::max(X86_LOAD_F32(esi.u32 + 0x54) - 0.175f, 0.0f));
+}
+
 // SolidCollision Triggers are GroundCollision
 void SolidCollisionTriggerMidAsmHook(X86Register& eax)
 {
@@ -1181,8 +1193,10 @@ void ReloadedValuePatches()
 	// TankCannon Damage 16 -> 36
 	X86_STORE_F32(0x5247C0, 36.0f);
 
+	// Global Lock-On 0.1 -> 0.125
+	X86_STORE_F32(0x474C00, 0.125f);
+
 	// TODO: Finalize and add any gecko / optional disables (some people like to restore the original health of escape plane, Keep Skid, etc)
-	// Global Lock-On Revamp - Maybe we scrap this one since its not a huge change and would be a pain to port
 	// Play as BATTLE Characters in 1P Mode v2 (make this as code instead of built in since some people didn't like it)
 	// fix 'Using Android characters may possibly crash in Last Story's Devil Doom' from my old notes
 }
