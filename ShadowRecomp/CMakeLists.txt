@@ -452,7 +452,7 @@ xsr_add_fixed_function_shaders(
     DXC ${DIRECTX_DXC_TOOL}
     DXIL ${SHADOW_RECOMP_D3D12}
     DXIL_MACRO SHADOW_RECOMP_D3D12
-    OUTPUT_DIR "${CMAKE_CURRENT_BINARY_DIR}/fixed_function"
+    OUTPUT_DIR "${CMAKE_CURRENT_SOURCE_DIR}/gpu/ubershaders/generated"
     PIXEL_GENERATED_DIR "${CMAKE_CURRENT_SOURCE_DIR}/gpu/ubershaders/generated/fixed_function_pixel_shader"
     VERTEX_GENERATED_DIR "${CMAKE_CURRENT_SOURCE_DIR}/gpu/ubershaders/generated/fixed_function_vertex_shader")
 
