@@ -68,10 +68,10 @@ bool os::process::StartProcess(const std::filesystem::path& path, const std::vec
 
 void os::process::CheckConsole()
 {
-    g_consoleVisible = true;
+    g_consoleVisible = false;
 }
 
 void os::process::ShowConsole()
 {
-    // stub
+    g_consoleVisible = true;
 }
