@@ -52,9 +52,10 @@
 #define CONFIG_DEFINE_ENUM_LOCALE(type) \
     CONFIG_ENUM_LOCALE(type) g_##type##_locale =
 
+// TODO: Retranslate, I dropped "and logos" in EN
 CONFIG_DEFINE_LOCALE(Language)
 {
-    { ELanguage::English, { "Language", "Change the language used for text and logos." } },
+    { ELanguage::English, { "Language", "Change the language used for text." } },
     { ELanguage::Japanese, { "[言語:げんご]", "ゲーム[内:ない]の\u200B[表示言語:ひょうじげんご]を\u200B[変更:へんこう]できます" } },
     { ELanguage::German,   { "Sprache", "Ändere die Sprache für Text und Logos." } },
     { ELanguage::French,   { "Langue", "Modifie la langue utilisée pour le texte et logos." } },
@@ -126,7 +127,7 @@ CONFIG_DEFINE_ENUM_LOCALE(EVoiceLanguage)
 
 CONFIG_DEFINE_LOCALE(Hints)
 {
-    { ELanguage::English, { "Hints", "Show hints during gameplay." } },
+    { ELanguage::English,  { "Hints", "Show hints during gameplay." } },
     { ELanguage::Japanese, { "ヒントリング", "ゲーム[内:ない]に\u200Bヒントリングを\u200B[表示:ひょうじ]するか\u200B[選択:せんたく]できます" } },
     { ELanguage::German,   { "Hinweise", "Zeige Hinweise während des Spiels." } },
     { ELanguage::French,   { "Indices", "Affiche les indices pendant le jeu." } },
@@ -136,27 +137,27 @@ CONFIG_DEFINE_LOCALE(Hints)
 
 CONFIG_DEFINE_LOCALE(AchievementNotifications)
 {
-    { ELanguage::English, { "Achievement Notifications", "Show notifications for unlocking achievements.\n\nAchievements will still be rewarded with notifications disabled." } },
-    { ELanguage::Japanese, { "[実績通知:じっせきつうち]", "[実績通知:じっせきつうち]の\u200B[有無:うむ]を\u200B[選択:せんたく]できます\n\nオフにしても\u200B[実績:じっせき]は\u200B[付与:ふよ]されます" } },
-    { ELanguage::German,   { "Erfolgsbenachrichtigungen", "Zeige Benachrichtigungen für das Freischalten von Erfolgen.\n\nErfolge werden weiterhin freigeschaltet, auch wenn die Benachrichtigungen ausgeschaltet sind." } },
-    { ELanguage::French,   { "Notification des succès", "Affiche les notifications pour le déverrouillage des succès.\n\nLes succès seront toujours obtenus même si les notifications sont désactivées." } },
-    { ELanguage::Spanish,  { "Notificaciones de logros", "Muestra notificaciones al desbloquear logros.\n\nLos logros se seguirán obteniendo aunque las notificaciones estén desactivadas." } },
-    { ELanguage::Italian,  { "Notifiche obiettivi", "Mostra delle notifiche quando sblocchi degli obiettivi.\n\nGli obiettivi verranno comunque assegnati anche con le notifiche disattivate." } }
+    { ELanguage::English,  { "Achievement Notifications", "Show notifications for unlocking achievements. Achievements will still be rewarded with notifications disabled." } },
+    { ELanguage::Japanese, { "[実績通知:じっせきつうち]", "[実績通知:じっせきつうち]の\u200B[有無:うむ]を\u200B[選択:せんたく]できます オフにしても\u200B[実績:じっせき]は\u200B[付与:ふよ]されます" } },
+    { ELanguage::German,   { "Erfolgsbenachrichtigungen", "Zeige Benachrichtigungen für das Freischalten von Erfolgen. Erfolge werden weiterhin freigeschaltet, auch wenn die Benachrichtigungen ausgeschaltet sind." } },
+    { ELanguage::French,   { "Notification des succès", "Affiche les notifications pour le déverrouillage des succès. Les succès seront toujours obtenus même si les notifications sont désactivées." } },
+    { ELanguage::Spanish,  { "Notificaciones de logros", "Muestra notificaciones al desbloquear logros. Los logros se seguirán obteniendo aunque las notificaciones estén desactivadas." } },
+    { ELanguage::Italian,  { "Notifiche obiettivi", "Mostra delle notifiche quando sblocchi degli obiettivi. Gli obiettivi verranno comunque assegnati anche con le notifiche disattivate." } }
 };
 
 CONFIG_DEFINE_LOCALE(ConfirmationPrompt)
 {
-    { ELanguage::English,  { "Confirmation Prompts", "Shows confirmation prompts when loading a save file, exiting to the menu, restarting, and in other similar situations.\n\nDisabling this option replicates the behavior of the GameCube version." } },
-    { ELanguage::Japanese, { "Confirmation Prompts", "Shows confirmation prompts when loading a save file, exiting to the menu, restarting, and in other similar situations.\n\nDisabling this option replicates the behavior of the GameCube version." } },
-    { ELanguage::German,   { "Confirmation Prompts", "Shows confirmation prompts when loading a save file, exiting to the menu, restarting, and in other similar situations.\n\nDisabling this option replicates the behavior of the GameCube version." } },
-    { ELanguage::French,   { "Confirmation Prompts", "Affiche les messages de confirmation lors du chargement d'une sauvegarde, du retour au menu, du redémarrage et dans d'autres situations similaires.\n\nDésactiver cette option reproduit le comportement de la version GameCube." } },
-    { ELanguage::Spanish,  { "Confirmation Prompts", "Shows confirmation prompts when loading a save file, exiting to the menu, restarting, and in other similar situations.\n\nDisabling this option replicates the behavior of the GameCube version." } },
-    { ELanguage::Italian,  { "Confirmation Prompts", "Shows confirmation prompts when loading a save file, exiting to the menu, restarting, and in other similar situations.\n\nDisabling this option replicates the behavior of the GameCube version." } },
+    { ELanguage::English,  { "Confirmation Prompts", "Shows confirmation prompts when loading a save file, exiting to the menu, restarting, and in other similar situations. Disabling this option replicates the behavior of the GameCube version." } },
+    { ELanguage::Japanese, { "Confirmation Prompts", "Shows confirmation prompts when loading a save file, exiting to the menu, restarting, and in other similar situations. Disabling this option replicates the behavior of the GameCube version." } },
+    { ELanguage::German,   { "Confirmation Prompts", "Shows confirmation prompts when loading a save file, exiting to the menu, restarting, and in other similar situations. Disabling this option replicates the behavior of the GameCube version." } },
+    { ELanguage::French,   { "Confirmation Prompts", "Affiche les messages de confirmation lors du chargement d'une sauvegarde, du retour au menu, du redémarrage et dans d'autres situations similaires. Désactiver cette option reproduit le comportement de la version GameCube." } },
+    { ELanguage::Spanish,  { "Confirmation Prompts", "Shows confirmation prompts when loading a save file, exiting to the menu, restarting, and in other similar situations. Disabling this option replicates the behavior of the GameCube version." } },
+    { ELanguage::Italian,  { "Confirmation Prompts", "Shows confirmation prompts when loading a save file, exiting to the menu, restarting, and in other similar situations. Disabling this option replicates the behavior of the GameCube version." } },
 };
 
 CONFIG_DEFINE_LOCALE(ControllerIcons)
 {
-    { ELanguage::English, { "Controller Icons", "Change the icons to match your controller." } },
+    { ELanguage::English,  { "Controller Icons", "Change the icons to match your controller." } },
     { ELanguage::Japanese, { "コントローラーアイコン", "ゲーム[内:ない]の\u200Bコントローラーアイコン\u200Bを[変更:へんこう]できます" } },
     { ELanguage::German,   { "Controllersymbole", "Ändere die Controllersymbole, um sie auf dein Modell anzupassen." } },
     { ELanguage::French,   { "Icône des boutons", "Modifie les icônes pour les faire correspondre à votre manette." } },
@@ -354,7 +355,7 @@ CONFIG_DEFINE_LOCALE(Vibration4P)
 
 CONFIG_DEFINE_LOCALE(AllowBackgroundInput)
 {
-    { ELanguage::English,  { "Allow Background Input", "Allow controller input whilst the game window is unfocused." } },
+    { ELanguage::English,  { "Allow Background Input", "Allow controller input while the game window is unfocused." } },
     { ELanguage::Japanese, { "バックグラウンド[入力:にゅうりょく]", "フォーカスされていない\u200Bゲームに\u200B[入力:にゅうりょく]できるか\u200B[選択:せんたく]できます" } },
     { ELanguage::German,   { "Erlaube Hintergrundeingaben", "Erlaube Eingaben deines Controllers auch wenn das Spielfenster nicht fokussiert ist." } },
     { ELanguage::French,   { "Manette en arrière plan", "Permet d'utiliser la manette dans le jeu lorsque qu'il n'est pas au premier plan." } },
@@ -404,7 +405,7 @@ CONFIG_DEFINE_LOCALE(MasterVolume)
 
 CONFIG_DEFINE_LOCALE(MusicVolume)
 {
-    { ELanguage::English,  { "Music Volume", "Adjust the volume for the music." } },
+    { ELanguage::English,  { "Music Volume", "Adjust the volume for music." } },
     { ELanguage::Japanese, { "BGMボリューム", "BGMボリュームの\u200B[大:おお]きさを\u200B[調整:ちょうせい]できます" } },
     { ELanguage::German,   { "Musiklautstärke", "Passe die Lautstärke der Musik an." } },
     { ELanguage::French,   { "Volume de la musique", "Réglage du volume de la musique." } },
@@ -424,7 +425,7 @@ CONFIG_DEFINE_LOCALE(EffectsVolume)
 
 CONFIG_DEFINE_LOCALE(VoicesVolume)
 {
-    { ELanguage::English,  { "Voices Volume", "Adjust the volume for the voices." } },
+    { ELanguage::English,  { "Voices Volume", "Adjust the volume for voices." } },
     { ELanguage::Japanese, { "ボイスボリューム", "ボイスボリュームの\u200B[大:おお]きさを\u200B[調整:ちょうせい]できます" } },
     { ELanguage::German,   { "Stimmenlautstärke", "Passe die Lautstärke der Stimmen an." } },
     { ELanguage::French,   { "Volume des voix", "Réglage du volume des voix." } },
@@ -463,29 +464,43 @@ CONFIG_DEFINE_LOCALE(MuteOnFocusLost)
     { ELanguage::Italian,  { "Audio muto con finestra inattiva", "Disattiva l'audio del gioco quando la finestra non è attiva." } }
 };
 
+// TODO: I changed this completely; Sora to review before shipping to translators
 CONFIG_DEFINE_LOCALE(IdleChaosPowersMusic)
 {
-    { ELanguage::English,  { "Chaos Powers Jingle", "The jingle that plays while Hero or Dark gauge is full." } },
-    { ELanguage::Japanese, { "Chaos Powers Jingle", "The jingle that plays while Hero or Dark gauge is full." } },
-    { ELanguage::German,   { "Chaos Powers Jingle", "The jingle that plays while Hero or Dark gauge is full." } },
-    { ELanguage::French,   { "Chaos Powers Jingle", "The jingle that plays while Hero or Dark gauge is full." } },
-    { ELanguage::Spanish,  { "Chaos Powers Jingle", "The jingle that plays while Hero or Dark gauge is full." } },
-    { ELanguage::Italian,  { "Chaos Powers Jingle", "The jingle that plays while Hero or Dark gauge is full." } }
+    { ELanguage::English,  { "Chaos Power Music", "Play the theme when either chaos gauge is full. 'OFF' will continue to play the stage music instead." } },
+    { ELanguage::Japanese, { "Chaos Power Music", "Play the theme when either chaos gauge is full. 'OFF' will continue to play the stage music instead." } },
+    { ELanguage::German,   { "Chaos Power Music", "Play the theme when either chaos gauge is full. 'OFF' will continue to play the stage music instead." } },
+    { ELanguage::French,   { "Chaos Power Music", "Play the theme when either chaos gauge is full. 'OFF' will continue to play the stage music instead." } },
+    { ELanguage::Spanish,  { "Chaos Power Music", "Play the theme when either chaos gauge is full. 'OFF' will continue to play the stage music instead." } },
+    { ELanguage::Italian,  { "Chaos Power Music", "Play the theme when either chaos gauge is full. 'OFF' will continue to play the stage music instead." } }
 };
 
+// TODO: This was changed slightly, retranslate FR
 CONFIG_DEFINE_LOCALE(ChaosPowerLEDSync)
 {
-    { ELanguage::English,  { "Chaos Power LED Sync", "Sync the controller's LED color with the active Chaos Power." } },
-    { ELanguage::Japanese, { "Chaos Power LED Sync", "Sync the controller's LED color with the active Chaos Power." } },
-    { ELanguage::German,   { "Chaos Power LED Sync", "Sync the controller's LED color with the active Chaos Power." } },
+    { ELanguage::English,  { "Chaos Power LED Sync", "Sync controller LED color with the active Chaos Power." } },
+    { ELanguage::Japanese, { "Chaos Power LED Sync", "Sync controller LED color with the active Chaos Power." } },
+    { ELanguage::German,   { "Chaos Power LED Sync", "Sync controller LED color with the active Chaos Power." } },
     { ELanguage::French,   { "Chaos Power LED Sync", "Synchronise la couleur des LED de la manette avec le Chaos Power actif." } },
-    { ELanguage::Spanish,  { "Chaos Power LED Sync", "Sync the controller's LED color with the active Chaos Power." } },
-    { ELanguage::Italian,  { "Chaos Power LED Sync", "Sync the controller's LED color with the active Chaos Power." } }
+    { ELanguage::Spanish,  { "Chaos Power LED Sync", "Sync controller LED color with the active Chaos Power." } },
+    { ELanguage::Italian,  { "Chaos Power LED Sync", "Sync controller LED color with the active Chaos Power." } }
 };
 
+// TODO: Not yet used, but will add this before release so adding it here before translators start
+CONFIG_DEFINE_LOCALE(ControllerLEDBrightness)
+{
+    { ELanguage::English,  { "Controller LED Brightness", "LED brightness for compatible controllers." } },
+    { ELanguage::Japanese, { "Controller LED Brightness", "LED brightness for compatible controllers." } },
+    { ELanguage::German,   { "Controller LED Brightness", "LED brightness for compatible controllers." } },
+    { ELanguage::French,   { "Controller LED Brightness", "LED brightness for compatible controllers." } },
+    { ELanguage::Spanish,  { "Controller LED Brightness", "LED brightness for compatible controllers." } },
+    { ELanguage::Italian,  { "Controller LED Brightness", "LED brightness for compatible controllers." } }
+};
+
+// Note: English was updated to match OG game, retranslate this
 CONFIG_DEFINE_LOCALE(VoiceLanguage)
 {
-    { ELanguage::English, { "Voice Language", "Change the language used for character voices." } },
+    { ELanguage::English, { "Voice Language", "Change the spoken language." } },
     { ELanguage::Japanese, { "[音声言語:おんせいげんご]", "ゲーム[内:ない]の\u200B[音声言語:おんせいげんご]を\u200B[変更:へんこう]できます" } },
     { ELanguage::German,   { "Stimmeinstellung", "Ändere die Sprache, die für Charakterstimmen benutzt wird." } },
     { ELanguage::French,   { "Langue des voix", "Modifie la langue utilisée pour la voix des personnages." } },
@@ -505,12 +520,12 @@ CONFIG_DEFINE_LOCALE(Subtitles)
 
 CONFIG_DEFINE_LOCALE(GraphicsAPI)
 {
-    { ELanguage::English,  { "Rendering Backend", "Change the graphics API used for rendering." } },
-    { ELanguage::Japanese, { "Rendering Backend", "Change the graphics API used for rendering." } },
-    { ELanguage::German,   { "Rendering Backend", "Change the graphics API used for rendering." } },
-    { ELanguage::French,   { "Rendering Backend", "Change the graphics API used for rendering." } },
-    { ELanguage::Spanish,  { "Rendering Backend", "Change the graphics API used for rendering." } },
-    { ELanguage::Italian,  { "Rendering Backend", "Change the graphics API used for rendering." } }
+    { ELanguage::English,  { "Rendering Backend", "Set graphics API used for rendering. Only change this if you experience visual issues." } },
+    { ELanguage::Japanese, { "Rendering Backend", "Set graphics API used for rendering. Only change this if you experience visual issues." } },
+    { ELanguage::German,   { "Rendering Backend", "Set graphics API used for rendering. Only change this if you experience visual issues." } },
+    { ELanguage::French,   { "Rendering Backend", "Set graphics API used for rendering. Only change this if you experience visual issues." } },
+    { ELanguage::Spanish,  { "Rendering Backend", "Set graphics API used for rendering. Only change this if you experience visual issues." } },
+    { ELanguage::Italian,  { "Rendering Backend", "Set graphics API used for rendering. Only change this if you experience visual issues." } }
 };
 
 CONFIG_DEFINE_ENUM_LOCALE(EGraphicsAPI)
@@ -679,12 +694,12 @@ CONFIG_DEFINE_ENUM_LOCALE(EAspectRatio)
 
 CONFIG_DEFINE_LOCALE(FMVAspectRatio)
 {
-    { ELanguage::English,  { "FMV Aspect Ratio", "Change how full motion videos fit the display." } },
-    { ELanguage::Japanese, { "FMV Aspect Ratio", "Change how full motion videos fit the display." } },
-    { ELanguage::German,   { "FMV Aspect Ratio", "Change how full motion videos fit the display." } },
-    { ELanguage::French,   { "FMV Aspect Ratio", "Change how full motion videos fit the display." } },
-    { ELanguage::Spanish,  { "FMV Aspect Ratio", "Change how full motion videos fit the display." } },
-    { ELanguage::Italian,  { "FMV Aspect Ratio", "Change how full motion videos fit the display." } }
+    { ELanguage::English,  { "FMV Aspect Ratio", "Change how full motion videos (pre-rendered cutscenes) fit the display." } },
+    { ELanguage::Japanese, { "FMV Aspect Ratio", "Change how full motion videos (pre-rendered cutscenes) fit the display." } },
+    { ELanguage::German,   { "FMV Aspect Ratio", "Change how full motion videos (pre-rendered cutscenes) fit the display." } },
+    { ELanguage::French,   { "FMV Aspect Ratio", "Change how full motion videos (pre-rendered cutscenes) fit the display." } },
+    { ELanguage::Spanish,  { "FMV Aspect Ratio", "Change how full motion videos (pre-rendered cutscenes) fit the display." } },
+    { ELanguage::Italian,  { "FMV Aspect Ratio", "Change how full motion videos (pre-rendered cutscenes) fit the display." } }
 };
 
 // Japanese Notes: This localization should include furigana in its description.
@@ -693,66 +708,66 @@ CONFIG_DEFINE_ENUM_LOCALE(EFMVAspectRatio)
     {
         ELanguage::English,
         {
-            { EFMVAspectRatio::Stretched, { "STRETCHED", "Stretched: the video is stretched to fill the display, as the original game does." } },
-            { EFMVAspectRatio::Fit,       { "FIT", "Fit: the video keeps its original shape and black bars fill the rest of the display." } },
-            { EFMVAspectRatio::Fill,      { "FILL", "Fill: the video keeps its original shape and is cropped to fill the display." } }
+            { EFMVAspectRatio::Stretched, { "STRETCHED", "The video is stretched to fill the display." } },
+            { EFMVAspectRatio::Fit,       { "FIT", "The video keeps its original aspect ratio with black borders." } },
+            { EFMVAspectRatio::Fill,      { "FILL", "The video is cropped and zoomed in with its original aspect ratio." } },
         }
     },
     {
         ELanguage::Japanese,
         {
-            { EFMVAspectRatio::Stretched, { "STRETCHED", "Stretched: the video is stretched to fill the display, as the original game does." } },
-            { EFMVAspectRatio::Fit,       { "FIT", "Fit: the video keeps its original shape and black bars fill the rest of the display." } },
-            { EFMVAspectRatio::Fill,      { "FILL", "Fill: the video keeps its original shape and is cropped to fill the display." } }
+            { EFMVAspectRatio::Stretched, { "STRETCHED", "The video is stretched to fill the display." } },
+            { EFMVAspectRatio::Fit,       { "FIT", "The video keeps its original aspect ratio with black borders." } },
+            { EFMVAspectRatio::Fill,      { "FILL", "The video is cropped and zoomed in with its original aspect ratio." } },
         }
     },
     {
         ELanguage::German,
         {
-            { EFMVAspectRatio::Stretched, { "STRETCHED", "Stretched: the video is stretched to fill the display, as the original game does." } },
-            { EFMVAspectRatio::Fit,       { "FIT", "Fit: the video keeps its original shape and black bars fill the rest of the display." } },
-            { EFMVAspectRatio::Fill,      { "FILL", "Fill: the video keeps its original shape and is cropped to fill the display." } }
+            { EFMVAspectRatio::Stretched, { "STRETCHED", "The video is stretched to fill the display." } },
+            { EFMVAspectRatio::Fit,       { "FIT", "The video keeps its original aspect ratio with black borders." } },
+            { EFMVAspectRatio::Fill,      { "FILL", "The video is cropped and zoomed in with its original aspect ratio." } },
         }
     },
     {
         ELanguage::French,
         {
-            { EFMVAspectRatio::Stretched, { "STRETCHED", "Stretched: the video is stretched to fill the display, as the original game does." } },
-            { EFMVAspectRatio::Fit,       { "FIT", "Fit: the video keeps its original shape and black bars fill the rest of the display." } },
-            { EFMVAspectRatio::Fill,      { "FILL", "Fill: the video keeps its original shape and is cropped to fill the display." } }
+            { EFMVAspectRatio::Stretched, { "STRETCHED", "The video is stretched to fill the display." } },
+            { EFMVAspectRatio::Fit,       { "FIT", "The video keeps its original aspect ratio with black borders." } },
+            { EFMVAspectRatio::Fill,      { "FILL", "The video is cropped and zoomed in with its original aspect ratio." } },
         }
     },
     {
         ELanguage::Spanish,
         {
-            { EFMVAspectRatio::Stretched, { "STRETCHED", "Stretched: the video is stretched to fill the display, as the original game does." } },
-            { EFMVAspectRatio::Fit,       { "FIT", "Fit: the video keeps its original shape and black bars fill the rest of the display." } },
-            { EFMVAspectRatio::Fill,      { "FILL", "Fill: the video keeps its original shape and is cropped to fill the display." } }
+            { EFMVAspectRatio::Stretched, { "STRETCHED", "The video is stretched to fill the display." } },
+            { EFMVAspectRatio::Fit,       { "FIT", "The video keeps its original aspect ratio with black borders." } },
+            { EFMVAspectRatio::Fill,      { "FILL", "The video is cropped and zoomed in with its original aspect ratio." } },
         }
     },
     {
         ELanguage::Italian,
         {
-            { EFMVAspectRatio::Stretched, { "STRETCHED", "Stretched: the video is stretched to fill the display, as the original game does." } },
-            { EFMVAspectRatio::Fit,       { "FIT", "Fit: the video keeps its original shape and black bars fill the rest of the display." } },
-            { EFMVAspectRatio::Fill,      { "FILL", "Fill: the video keeps its original shape and is cropped to fill the display." } }
+            { EFMVAspectRatio::Stretched, { "STRETCHED", "The video is stretched to fill the display." } },
+            { EFMVAspectRatio::Fit,       { "FIT", "The video keeps its original aspect ratio with black borders." } },
+            { EFMVAspectRatio::Fill,      { "FILL", "The video is cropped and zoomed in with its original aspect ratio." } },
         }
     }
 };
 
 CONFIG_DEFINE_LOCALE(ResolutionScale)
 {
-    { ELanguage::English, { "Resolution Scale", "Adjust the internal resolution of the game.\n\n" } },
-    { ELanguage::Japanese, { "[解像度:かいぞうど]スケール", "ゲームの\u200B[内部解像度:ないぶかいぞうど]を\u200B[調整:ちょうせい]できます\n\n" } },
-    { ELanguage::German,   { "Rendering-Auflösung", "Passe die Auflösung der internen Darstellung an.\n\n" } },
-    { ELanguage::French,   { "Échelle de rendu", "Modifie la résolution interne du jeu.\n\n" } },
-    { ELanguage::Spanish,  { "Escala de resolución", "Ajusta la resolución interna del juego.\n\n" } },
-    { ELanguage::Italian, { "Scala risoluzione", "Regola la risoluzione interna del gioco.\n\n" } }
+    { ELanguage::English,  { "Resolution Scale", "Adjust the internal resolution of the game." } },
+    { ELanguage::Japanese, { "[解像度:かいぞうど]スケール", "ゲームの\u200B[内部解像度:ないぶかいぞうど]を\u200B[調整:ちょうせい]できます" } },
+    { ELanguage::German,   { "Rendering-Auflösung", "Passe die Auflösung der internen Darstellung an." } },
+    { ELanguage::French,   { "Échelle de rendu", "Modifie la résolution interne du jeu." } },
+    { ELanguage::Spanish,  { "Escala de resolución", "Ajusta la resolución interna del juego." } },
+    { ELanguage::Italian,  { "Scala risoluzione", "Regola la risoluzione interna del gioco." } }
 };
 
 CONFIG_DEFINE_LOCALE(Fullscreen)
 {
-    { ELanguage::English, { "Fullscreen", "Toggle between borderless fullscreen or windowed mode." } },
+    { ELanguage::English,  { "Fullscreen", "Toggle between borderless fullscreen or windowed mode." } },
     { ELanguage::Japanese, { "フルスクリーン", "ボーダーレス\u200Bフルスクリーンか\u200Bウィンドウモードを\u200B[選択:せんたく]できます" } },
     { ELanguage::German,   { "Vollbild", "Wechsle zwischen dem randlosen Vollbildmodus und dem Fenstermodus." } },
     { ELanguage::French,   { "Plein écran", "Alterne entre le mode plein écran sans bordures et le mode fenêtré." } },
@@ -762,7 +777,7 @@ CONFIG_DEFINE_LOCALE(Fullscreen)
 
 CONFIG_DEFINE_LOCALE(VSync)
 {
-    { ELanguage::English, { "V-Sync", "Synchronize the game to the refresh rate of the display to prevent screen tearing." } },
+    { ELanguage::English,  { "V-Sync", "Synchronize the game to the refresh rate of the display to prevent screen tearing." } },
     { ELanguage::Japanese, { "[垂直同期:すいちょくどうき]", "[垂直同期:すいちょくどうき]の\u200B[設定:せってい]を\u200B[変更:へんこう]できます" } },
     { ELanguage::German,   { "V-Sync", "Synchronisiere das Spiel mit der Bildwiederholrate deines Bildschirms um Bildverzerrungen zu vermeiden." } },
     { ELanguage::French,   { "V-Sync", "Synchronise le jeu avec la fréquence de rafraîchissement de l'écran pour éviter le screen tearing." } },
@@ -772,12 +787,12 @@ CONFIG_DEFINE_LOCALE(VSync)
 
 CONFIG_DEFINE_LOCALE(FPS)
 {
-    { ELanguage::English, { "FPS", "Set the max frame rate the game can run at.\n\nWARNING: this may introduce glitches at frame rates higher than 60 FPS." } },
-    { ELanguage::Japanese, { "フレームレート[上限:じょうげん]", "ゲームの\u200B[最大:さいだい]フレームレートを\u200B[設定:せってい]できます\n\n[警告:けいこく]: 60 FPSを\u200B[超:こ]えるフレームレートで\u200B[不具合:ふぐあい]が\u200B[発生:はっせい]する\u200B[可能性:かのうせい]が\u200Bあります" } },
-    { ELanguage::German,   { "FPS", "Setze die maximale Anzahl der Bilder pro Sekunde, die das Spiel darstellen kann.\n\nWARNUNG: Das Spiel kann bei höheren FPS als 60 ungewolltes Verhalten aufweisen." } },
-    { ELanguage::French,   { "IPS", "Détermine la fréquence d'images maximale du jeu.\n\nATTENTION : cela peut entraîner des problèmes à des taux de rafraîchissement supérieurs à 60 IPS." } },
-    { ELanguage::Spanish,  { "FPS", "Establece la tasa de fotogramas máxima a la que puede correr el juego.\n\nADVERTENCIA: esto puede introducir fallos en tasas mayores a 60 FPS." } },
-    { ELanguage::Italian,  { "FPS", "Imposta il frame rate massimo del gioco.\n\nATTENZIONE: questa opzione può causare dei glitch a frame rate più alti di 60 FPS." } }
+    { ELanguage::English,  { "FPS", "Set the max frame rate the game can run at. WARNING: this may introduce glitches at frame rates higher than 60 FPS." } },
+    { ELanguage::Japanese, { "フレームレート[上限:じょうげん]", "ゲームの\u200B[最大:さいだい]フレームレートを\u200B[設定:せってい]できます [警告:けいこく]: 60 FPSを\u200B[超:こ]えるフレームレートで\u200B[不具合:ふぐあい]が\u200B[発生:はっせい]する\u200B[可能性:かのうせい]が\u200Bあります" } },
+    { ELanguage::German,   { "FPS", "Setze die maximale Anzahl der Bilder pro Sekunde, die das Spiel darstellen kann. WARNUNG: Das Spiel kann bei höheren FPS als 60 ungewolltes Verhalten aufweisen." } },
+    { ELanguage::French,   { "IPS", "Détermine la fréquence d'images maximale du jeu. ATTENTION : cela peut entraîner des problèmes à des taux de rafraîchissement supérieurs à 60 IPS." } },
+    { ELanguage::Spanish,  { "FPS", "Establece la tasa de fotogramas máxima a la que puede correr el juego. ADVERTENCIA: esto puede introducir fallos en tasas mayores a 60 FPS." } },
+    { ELanguage::Italian,  { "FPS", "Imposta il frame rate massimo del gioco. ATTENZIONE: questa opzione può causare dei glitch a frame rate più alti di 60 FPS." } }
 };
 
 CONFIG_DEFINE_LOCALE(CutsceneFramerate)
@@ -922,14 +937,15 @@ CONFIG_DEFINE_LOCALE(BloomIntensity)
     { ELanguage::Italian,  { "Intensità del bloom", "Regola l'intensità dell'effetto bloom." } }
 };
 
+// TODO: Retranslate this one, I changed it
 CONFIG_DEFINE_LOCALE(EnablePartnerIntro)
 {
-    { ELanguage::English, { "Partner Intro", "Show partner's introduction when they are first met." } },
-    { ELanguage::Japanese, { "Partner Intro", "Show partner's introduction when they are first met." } },
-    { ELanguage::German,   { "Partner Intro", "Show partner's introduction when they are first met." } },
+    { ELanguage::English,  { "Partner Intro", "Show intro when meeting new partners." } },
+    { ELanguage::Japanese, { "Partner Intro", "Show intro when meeting new partners." } },
+    { ELanguage::German,   { "Partner Intro", "Show intro when meeting new partners." } },
     { ELanguage::French,   { "Intro du Partenaire", "Afficher l'introduction du partenaire lorsqu'il est rencontré pour la première fois." } },
-    { ELanguage::Spanish,  { "Partner Intro", "Show partner's introduction when they are first met." } },
-    { ELanguage::Italian,  { "Partner Intro", "Show partner's introduction when they are first met." } }
+    { ELanguage::Spanish,  { "Partner Intro", "Show intro when meeting new partners." } },
+    { ELanguage::Italian,  { "Partner Intro", "Show intro when meeting new partners." } }
 };
 
 CONFIG_DEFINE_LOCALE(MaxHUDWidth)

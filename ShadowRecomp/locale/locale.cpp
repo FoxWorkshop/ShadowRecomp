@@ -932,34 +932,6 @@ std::unordered_map<std::string_view, std::unordered_map<ELanguage, std::string>>
 	}
 },
 {
-	// TODO: Unused?
-	// Notes: message appears when ACH-DATA is corrupted (mismatching file size, bad signature, incorrect version or invalid checksum) upon pressing start at the title screen.
-	// To make this occur, open the file in any editor and just remove a large chunk of data.
-	"Title_Message_AchievementDataCorrupt",
-	{
-		{ ELanguage::English,  "The achievement data appears to be\ncorrupted and cannot be loaded.\n\nProceeding from this point will\nclear your achievement data." },
-		{ ELanguage::Japanese, "[実績:じっせき]データが[破損:はそん]しているため\n[読:よ]み[込:こ]むことができません\n\nこの[先:さき]に[進:すす]むと[実績:じっせき]データが\n[消去:しょうきょ]されます" },
-		{ ELanguage::German,   "Die Erfolgsdaten sind möglicherweise\nfehlerhaft und können nicht\ngeladen werden.\n\nDurch das Fortfahren werden\ndeine bisherigen Erfolgsdaten gelöscht." },
-		{ ELanguage::French,   "Les données des succès semblent être\nendommagées et ne peuvent être\nchargées.\n\nSi vous continuez, vos données\nseront écrasées." },
-		{ ELanguage::Spanish,  "Los datos de logros parecen estar\ncorruptos y no pueden cargarse.\n\nContinuar a partir de este punto\neliminará los datos de logros." },
-		{ ELanguage::Italian,  "I file degli obiettivi sembrano danneggiati\ne non possono essere caricati.\n\nSe prosegui da questo punto\ni tuoi obiettivi verranno cancellati." }
-	}
-},
-{
-	// TODO: Unused?
-	// Notes: message appears when ACH-DATA cannot be loaded upon pressing start at the title screen.
-	// To make this occur, lock the ACH-DATA file using an external program so that it cannot be accessed by the game.
-	"Title_Message_AchievementDataIOError",
-	{
-		{ ELanguage::English,  "The achievement data could not be loaded.\nYour achievements will not be saved." },
-		{ ELanguage::Japanese, "[実績:じっせき]データを[読:よ]み[込:こ]めませんでした\n[実績:じっせき]は[保存:ほぞん]されません。" },
-		{ ELanguage::German,   "Die Erfolgsdaten konnten nicht geladen werden.\nDeine Erfolge werden nicht gespeichert." },
-		{ ELanguage::French,   "Les données des succès ne\npeuvent être chargées.\nVos succès ne seront pas\nsauvegardés." },
-		{ ELanguage::Spanish,  "Los datos de logros no pueden cargarse.\nTus logros no serán guardados." },
-		{ ELanguage::Italian,  "I file degli obiettivi non possono essere caricati.\nI tuoi obiettivi non verranno salvati." }
-	}
-},
-{
 	"Title_Message_UpdateAvailable",
 	{
 		{ ELanguage::English,  "An update is available!\n\nWould you like to visit the\nreleases page to download it?" },
