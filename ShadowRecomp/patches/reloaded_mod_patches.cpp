@@ -392,6 +392,23 @@ void SatelliteLaserLv2AmmoMidAsmHook()
 	X86_STORE_U32(0x559544, Config::ReloadedMod ? 30 : 10);
 }
 
+// CannonAndroid Damage 8 -> 16
+X86_FUNC_IMPL(__imp__sub_2621A0);
+X86_FUNC(sub_2621A0)
+{
+	if (!Config::ReloadedMod)
+	{
+		__imp__sub_2621A0(ctx, base);
+		return;
+	}
+
+	// Bazooka (type 1 cannon bullets), loading incase other mods change it
+	const float damage = X86_LOAD_F32(0x5247B4);
+	X86_STORE_F32(0x5247B4, damage * 2.0f);
+	__imp__sub_2621A0(ctx, base);
+	X86_STORE_F32(0x5247B4, damage);
+}
+
 // SolidCollision Triggers are GroundCollision
 void SolidCollisionTriggerMidAsmHook(X86Register& eax)
 {
@@ -1159,9 +1176,13 @@ void ReloadedValuePatches()
 	// LaserRifle Damage Adjustment 3 -> 6
 	X86_STORE_F32(0x525190, 6.0f);
 
+	// TankCannon Ammo 4 -> 8
+	X86_STORE_U32(0x524198, 8);
+	// TankCannon Damage 16 -> 36
+	X86_STORE_F32(0x5247C0, 36.0f);
+
 	// TODO: Finalize and add any gecko / optional disables (some people like to restore the original health of escape plane, Keep Skid, etc)
 	// Global Lock-On Revamp - Maybe we scrap this one since its not a huge change and would be a pain to port
 	// Play as BATTLE Characters in 1P Mode v2 (make this as code instead of built in since some people didn't like it)
 	// fix 'Using Android characters may possibly crash in Last Story's Devil Doom' from my old notes
-	// TODO: Tank Cannon, CannonAndroid, Satelite laser further tweaks (DarkShadow/Rawlins)
 }
