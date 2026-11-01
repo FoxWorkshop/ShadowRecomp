@@ -21,7 +21,7 @@
       "name": "ShadowRecomp",
       "buildsystem": "simple",
       "build-commands": [
-        "cmake --preset linux-release -DSHADOW_RECOMP_FLATPAK=ON -DCMAKE_CXX_COMPILER_LAUNCHER=ccache -DCMAKE_C_COMPILER_LAUNCHER=ccache",
+        "cmake --preset linux-release -DSHADOW_RECOMP_FLATPAK=ON -DSHADOW_RECOMP_XBOXRECOMP2=binary -DCMAKE_CXX_COMPILER_LAUNCHER=ccache -DCMAKE_C_COMPILER_LAUNCHER=ccache",
         "cmake --build out/build/linux-release --target ShadowRecomp",
         "mkdir -p /app/bin",
         "cp out/build/linux-release/ShadowRecomp/ShadowRecomp /app/bin/ShadowRecomp",

@@ -6,6 +6,8 @@ on:
         required: true
       ASSET_REPO_TOKEN:
         required: true
+      XBOXRECOMP2_TOKEN:
+        required: true
 
 jobs:
   build-linux:
@@ -25,8 +27,17 @@ jobs:
       - name: Checkout Repository
         uses: actions/checkout@v7
         with:
-          submodules: recursive
           token: ${{ secrets.ASSET_REPO_TOKEN }}
+
+      # HACK: Fine-grained token can't access cross-org repos.
+      # REMOVE when XboxRecomp2 & assets repo go public.
+      - name: Checkout Submodules
+        env:
+          TOKEN: ${{ secrets.ASSET_REPO_TOKEN }}
+        run: >-
+          git -c "url.https://x-access-token:${TOKEN}@github.com/.insteadOf=https://github.com/"
+          -c submodule.tools/XboxRecomp2.update=none
+          submodule update --init --recursive
 
       - name: Fetch vcpkg baseline
         run: git -C thirdparty/vcpkg fetch --depth=1 origin $(jq -r '."builtin-baseline"' vcpkg.json)
@@ -67,8 +78,11 @@ jobs:
       - name: Prepare Project
         run: cp ./private/* ./ShadowRecompLib/private
 
+      # HACK: GH_TOKEN for private XboxRecomp2. REMOVE when public.
       - name: Configure Project
-        run: cmake . --preset ${{ env.CMAKE_PRESET }} -DCMAKE_CXX_COMPILER_LAUNCHER=ccache -DCMAKE_C_COMPILER_LAUNCHER=ccache
+        env:
+          GH_TOKEN: ${{ secrets.XBOXRECOMP2_TOKEN }}
+        run: cmake . --preset ${{ env.CMAKE_PRESET }} -DCMAKE_CXX_COMPILER_LAUNCHER=ccache -DCMAKE_C_COMPILER_LAUNCHER=ccache -DSHADOW_RECOMP_XBOXRECOMP2=binary
 
       - name: Build Project
         run: cmake --build ./out/build/${{ env.CMAKE_PRESET }} --target ShadowRecomp

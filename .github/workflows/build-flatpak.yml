@@ -6,6 +6,8 @@ on:
         required: true
       ASSET_REPO_TOKEN:
         required: true
+      XBOXRECOMP2_TOKEN:
+        required: true
 
 jobs:
   build-flatpak:
@@ -18,8 +20,17 @@ jobs:
       - name: Checkout Repository
         uses: actions/checkout@v7
         with:
-          submodules: recursive
           token: ${{ secrets.ASSET_REPO_TOKEN }}
+
+      # HACK: Fine-grained token can't access cross-org repos.
+      # REMOVE when XboxRecomp2 & assets repo go public.
+      - name: Checkout Submodules
+        env:
+          TOKEN: ${{ secrets.ASSET_REPO_TOKEN }}
+        run: >-
+          git -c "url.https://x-access-token:${TOKEN}@github.com/.insteadOf=https://github.com/"
+          -c submodule.tools/XboxRecomp2.update=none
+          submodule update --init --recursive
 
       - name: Fetch vcpkg baseline
         run: git -C thirdparty/vcpkg fetch --depth=1 origin $(jq -r '."builtin-baseline"' vcpkg.json)
@@ -44,6 +55,12 @@ jobs:
 
       - name: Prepare Project
         run: cp ./private/* ./ShadowRecompLib/private
+
+      # HACK: Flatpak can't log in to GitHub. REMOVE when XboxRecomp2 goes public.
+      - name: Download XboxRecomp2
+        env:
+          GH_TOKEN: ${{ secrets.XBOXRECOMP2_TOKEN }}
+        run: cmake -DVERSION=0.1.0 -DDESTINATION=out/xr2-bin -P ShadowRecompLib/cmake/recompile/select/download.cmake
 
       - name: Prepare Flatpak
         run: |
