@@ -53,6 +53,7 @@ X86_FUNC(sub_22D120)
 }
 
 static constexpr uint32_t g_MenuModeRequest = 0x54BA10;
+static constexpr uint32_t g_MovieManager = 0x541808;
 static constexpr uint32_t g_StageSequenceManager = 0x54DDFC;
 static constexpr uint32_t g_StageSequenceMode = 0x5022A4;
 static constexpr uint32_t g_StageSequenceStageID = 0x54C910;
@@ -90,6 +91,14 @@ X86_FUNC(sub_29EA60)
 
 		if (menuMode && X86_LOAD_U32(menuMode) == MenuMode_OpeningMovie)
 			X86_STORE_U32(menuMode, MenuMode_TitleScreen);
+	}
+
+	// Set task kill to solve OG bug where the FMV flag persists
+	auto menuMode = X86_LOAD_U32(g_MenuModeRequest);
+	auto movie = X86_LOAD_U32(g_MovieManager);
+	if (movie && menuMode && X86_LOAD_U32(menuMode) == MenuMode_TitleScreen)
+	{
+		X86_STORE_U8(movie + 0xC, X86_LOAD_U8(movie + 0xC) | 0x1);
 	}
 }
 
