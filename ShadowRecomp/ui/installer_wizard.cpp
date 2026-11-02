@@ -765,20 +765,30 @@ void InstallerWizard::Draw()
 							panelMin.x + (74.0f * scale),
 							panelMin.y + (141.0f * scale)
 						  );
+		float fieldBaseHeight = 32.0f;
 		ImVec2 inputMax = ImVec2(
 							inputMin.x + (350.0f * scale),
-							inputMin.y + (32.0f * scale)
+							inputMin.y + (fieldBaseHeight * scale)
 						  );
-
-		DrawScaledRect(drawList, winPos, scale, offsetX, offsetY, 100.0f, 200.0f, 350.0f, 32.0f, IM_COL32(0, 0, 40, 255));
 
 		float pathClipWidth = (inputMax.x - (8.0f * scale)) - (inputMin.x + (8.0f * scale));
 
-		const std::string displayPathStorage = g_sourcePath.empty() ? Localise("Installer_Page_NoFileSelected") : std::string(g_sourcePath);
+		const bool isNoFileSelected = g_sourcePath.empty();
+		const std::string displayPathStorage = isNoFileSelected ? Localise("Installer_Page_NoFileSelected") : std::string(g_sourcePath);
 		const char* displayPath = displayPathStorage.c_str();
 
-		auto displayTextSize = font->CalcTextSizeA(fileFontSize, FLT_MAX, 0.0f, displayPath);
-		bool pathOverflows = displayTextSize.x > pathClipWidth;
+		// expand the field if the text is too big (different languages moment)
+		auto displayTextSize = font->CalcTextSizeA(fileFontSize, FLT_MAX, isNoFileSelected ? pathClipWidth : 0.0f, displayPath);
+		if (isNoFileSelected)
+		{
+			float fieldNeededHeight = (displayTextSize.y / scale) + 12.0f;
+			fieldBaseHeight = std::max(fieldBaseHeight, fieldNeededHeight);
+			inputMax.y = inputMin.y + (fieldBaseHeight * scale);
+		}
+
+		DrawScaledRect(drawList, winPos, scale, offsetX, offsetY, 100.0f, 200.0f, 350.0f, fieldBaseHeight, IM_COL32(0, 0, 40, 255));
+
+		bool pathOverflows = !isNoFileSelected && displayTextSize.x > pathClipWidth;
 		std::string overflowRender;
 		const char* pathToShow = displayPath;
 
