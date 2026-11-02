@@ -104,6 +104,10 @@ static std::atomic<const char*> g_installerCurrentFileName{ "" };
 static std::atomic<bool> g_installerCompiling{ false };
 static Installer::Sources g_installerSources;
 static uint64_t g_installerAvailableSize = 0;
+static std::unique_ptr<std::thread> g_parseThread;
+static std::atomic<bool> g_parseFinished{ false };
+static bool g_parseSucceeded = false;
+static Installer::Sources g_parsedSources;
 static std::string g_creditsStr;
 static double g_creditsScrollStart = -1.0;
 static double g_bgFadeStart = -1.0;
@@ -141,6 +145,31 @@ static void Quit()
 
 	EmbeddedPlayer::FadeOutMusic();
 	Fader::FadeOut(1, []() { InstallerWizard::s_isVisible = false; });
+}
+
+static bool IsParsingSources()
+{
+	return g_parseThread != nullptr;
+}
+
+static void JoinParseThread()
+{
+	if (g_parseThread && g_parseThread->joinable())
+	{
+		g_parseThread->join();
+	}
+	g_parseThread.reset();
+}
+
+static void StartParseSources()
+{
+	g_parseFinished.store(false);
+	g_parseThread = std::make_unique<std::thread>([sourcePath = g_sourcePath]()
+	{
+		std::string parseError;
+		g_parseSucceeded = Installer::ParseSources(sourcePath, g_parsedSources, parseError);
+		g_parseFinished.store(true);
+	});
 }
 
 static std::string& GetWizardText(WizardPage page)
@@ -473,7 +502,7 @@ static void DrawQuitButton(ImVec2& panelMin, ImVec2& panelMax, float scale)
 	}
 }
 
-static void DrawPrevButton(ImVec2& panelMin, ImVec2& panelMax, float scale)
+static void DrawPrevButton(ImVec2& panelMin, ImVec2& panelMax, float scale, bool enabled = true)
 {
 	auto& io = ImGui::GetIO();
 	auto drawList = ImGui::GetBackgroundDrawList();
@@ -489,7 +518,7 @@ static void DrawPrevButton(ImVec2& panelMin, ImVec2& panelMax, float scale)
 	float prevBtnY = panelMax.y - prevBtnHeight - (35.0f * scale);
 
 	bool prevHovered = false;
-	if (io.MousePos.x >= prevBtnX && io.MousePos.x <= prevBtnX + prevBtnWidth &&
+	if (enabled && io.MousePos.x >= prevBtnX && io.MousePos.x <= prevBtnX + prevBtnWidth &&
 		io.MousePos.y >= prevBtnY && io.MousePos.y <= prevBtnY + prevBtnHeight)
 	{
 		prevHovered = true;
@@ -519,7 +548,7 @@ static void DrawPrevButton(ImVec2& panelMin, ImVec2& panelMax, float scale)
 			font,
 			smallFontSize,
 			ImVec2(prevBtnX + (prevBtnWidth - prevSize.x) * 0.5f, prevBtnY + (prevBtnHeight - prevSize.y) * 0.5f),
-			IM_COL32(255, 255, 255, 127),
+			IM_COL32(255, 255, 255, enabled ? 127 : 50),
 			prevText,
 			1.5,
 			1,
@@ -761,6 +790,24 @@ void InstallerWizard::Draw()
 	break;
 	case WizardPage::SelectGame:
 	{
+		if (IsParsingSources() && g_parseFinished.load())
+		{
+			JoinParseThread();
+
+			if (g_parseSucceeded)
+			{
+				g_installerSources = std::move(g_parsedSources);
+				g_statusMessage.clear();
+				g_currentPage = WizardPage::CheckSpace;
+			}
+			else
+			{
+				g_statusMessage = Localise("Installer_Message_InvalidFileSelected");
+			}
+		}
+
+		const bool isParsing = IsParsingSources();
+
 		ImVec2 inputMin = ImVec2(
 							panelMin.x + (74.0f * scale),
 							panelMin.y + (141.0f * scale)
@@ -847,7 +894,7 @@ void InstallerWizard::Draw()
 		float btnY = inputMin.y + ((inputMax.y - inputMin.y) - btnHeight) * 0.5f;
 
 		bool btnHovered = false;
-		if (io.MousePos.x >= btnX && io.MousePos.x <= btnX + btnWidth &&
+		if (!isParsing && io.MousePos.x >= btnX && io.MousePos.x <= btnX + btnWidth &&
 			io.MousePos.y >= btnY && io.MousePos.y <= btnY + btnHeight)
 		{
 			btnHovered = true;
@@ -877,7 +924,7 @@ void InstallerWizard::Draw()
 				font,
 				browseFontSize,
 				ImVec2(btnX + (btnWidth - browsetextSize.x) * 0.5f, btnY + (btnHeight - browsetextSize.y) * 0.5f),
-				IM_COL32(255, 255, 255, 127),
+				IM_COL32(255, 255, 255, isParsing ? 50 : 127),
 				browseText,
 				1.5,
 				1,
@@ -916,7 +963,7 @@ void InstallerWizard::Draw()
 
 			bool nextHovered = false;
 
-			if (io.MousePos.x >= nextBtnX && io.MousePos.x <= nextBtnX + nextBtnWidth &&
+			if (!isParsing && io.MousePos.x >= nextBtnX && io.MousePos.x <= nextBtnX + nextBtnWidth &&
 				io.MousePos.y >= nextBtnY && io.MousePos.y <= nextBtnY + nextBtnHeight)
 			{
 				nextHovered = true;
@@ -944,7 +991,7 @@ void InstallerWizard::Draw()
 					font,
 					smallFontSize,
 					ImVec2(nextBtnX + (nextBtnWidth - nextSize.x) * 0.5f, nextBtnY + (nextBtnHeight - nextSize.y) * 0.5f),
-								   IM_COL32(255, 255, 255, 127),
+								   IM_COL32(255, 255, 255, isParsing ? 50 : 127),
 								   nextText,
 					   1.5,
 					   1,
@@ -969,21 +1016,13 @@ void InstallerWizard::Draw()
 				{
 					g_installerAvailableSize = spaceInfo.available;
 				}
-		
-				std::string parseError;
-				if (Installer::ParseSources(g_sourcePath, g_installerSources, parseError))
-				{
-					g_statusMessage.clear();
-					g_currentPage = WizardPage::CheckSpace;
-				}
-				else
-				{
-					g_statusMessage = Localise("Installer_Message_InvalidFileSelected");
-				}
+
+				g_statusMessage.clear();
+				StartParseSources();
 			}
 		}
 
-		DrawPrevButton(panelMin, panelMax, scale);
+		DrawPrevButton(panelMin, panelMax, scale, !isParsing);
 	}
 	break;
 	case WizardPage::CheckSpace:
@@ -1300,6 +1339,8 @@ void InstallerWizard::Draw()
 
 void InstallerWizard::Shutdown()
 {
+	JoinParseThread();
+
 	if (g_installerThread && g_installerThread->joinable())
 		g_installerThread->join();
 	g_installerThread.reset();
@@ -1317,7 +1358,7 @@ void InstallerWizard::Shutdown()
 // is taken as the extracted game.
 static void OnSourceDropped(const char* file)
 {
-	if (g_currentPage != WizardPage::SelectGame || g_isQuitting)
+	if (g_currentPage != WizardPage::SelectGame || g_isQuitting || IsParsingSources())
 		return;
 
 	std::error_code ec;
