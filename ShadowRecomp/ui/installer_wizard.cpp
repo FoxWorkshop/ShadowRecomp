@@ -957,10 +957,14 @@ void InstallerWizard::Draw()
 				Game_PlaySound("decide");
 
 				std::error_code spaceErrorCode;
-				std::filesystem::path spacePath = g_sourcePath;
-	
+				std::filesystem::path spacePath = g_installPath;
+				while (spacePath.has_parent_path() && spacePath != spacePath.parent_path() && !std::filesystem::exists(spacePath, spaceErrorCode))
+				{
+					spacePath = spacePath.parent_path();
+				}
+
 				g_installerAvailableSize = 0;
-				std::filesystem::space_info spaceInfo = std::filesystem::space(spacePath.parent_path(), spaceErrorCode);
+				std::filesystem::space_info spaceInfo = std::filesystem::space(spacePath, spaceErrorCode);
 				if (!spaceErrorCode)
 				{
 					g_installerAvailableSize = spaceInfo.available;
