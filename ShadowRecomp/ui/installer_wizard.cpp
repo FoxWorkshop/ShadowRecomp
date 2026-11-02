@@ -108,6 +108,8 @@ static std::string g_creditsStr;
 static double g_creditsScrollStart = -1.0;
 static double g_bgFadeStart = -1.0;
 static constexpr float BG_FADE_IN_DURATION = 1.0f;
+static double g_bgFadeOutStart = -1.0;
+static constexpr float BG_FADE_OUT_DURATION = 1.0f;
 static constexpr float INSTALL_EXTRACT_RATIO_END = 0.8f;
 
 static bool g_currentCursorAccepted = false;
@@ -556,6 +558,15 @@ static void DrawShadowImage()
 
 	float fade = std::clamp(float(ImGui::GetTime() - g_bgFadeStart) / BG_FADE_IN_DURATION, 0.0f, 1.0f);
 
+
+	if (g_isClosing)
+	{
+		if (g_bgFadeOutStart < 0.0)
+			g_bgFadeOutStart = ImGui::GetTime();
+
+		fade *= 1.0f - std::clamp(float(ImGui::GetTime() - g_bgFadeOutStart) / BG_FADE_OUT_DURATION, 0.0f, 1.0f);
+	}
+
 	float borderPixels = 32.f; // Options BG has an extra black border at the bottom, we don't want that.
 	float uvMaxY = 1.0f - (borderPixels / 512.0f);
 
@@ -684,17 +695,20 @@ void InstallerWizard::Draw()
 
 	// recreate the message box opening and closing anim
 	g_openProgress = StepOpenProgress(g_openProgress, g_isClosing);
+
+	DrawShadowImage();
+
 	if (g_isClosing && g_openProgress <= 0.0f)
 	{
-		if (!g_isQuitting && !EmbeddedPlayer::IsPlayingSound() && !EmbeddedPlayer::IsPlayingMusic())
+		bool bgFadedOut = g_bgFadeOutStart >= 0.0 && ImGui::GetTime() - g_bgFadeOutStart >= BG_FADE_OUT_DURATION;
+
+		if (!g_isQuitting && bgFadedOut && !EmbeddedPlayer::IsPlayingSound() && !EmbeddedPlayer::IsPlayingMusic())
 		{
 			s_isVisible = false;
 		}
 		return;
 	}
 
-
-	DrawShadowImage();
 
 	if (g_openProgress > 0.0f)
 		DrawBackground(viewport, winPos, winSize, scale, offsetX, offsetY);
@@ -1313,6 +1327,7 @@ bool InstallerWizard::Run(std::filesystem::path installPath)
 	g_isQuitting = false;
 	g_isClosing = false;
 	g_openProgress = 0.0f;
+	g_bgFadeOutStart = -1.0;
 	g_currentPage = WizardPage::SelectLanguage;
 
 	EmbeddedPlayer::Init();
