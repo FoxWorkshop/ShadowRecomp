@@ -2982,11 +2982,80 @@ static void SetSwapChainVsync()
 	{
 		GetVulkanSwapChain()->requiredPresentMode = VK_PRESENT_MODE_MAILBOX_KHR;
 	}
+}
+
+static const char* Vulkan_GetCurPresentModeName(VkPresentModeKHR mode)
+{
+	switch (mode)
+	{
+	case VK_PRESENT_MODE_IMMEDIATE_KHR:
+		return "immediate_khr";
+	case VK_PRESENT_MODE_MAILBOX_KHR:
+		return "mailbox_khr";
+	case VK_PRESENT_MODE_FIFO_KHR:
+		return "fifo_khr";
+	case VK_PRESENT_MODE_FIFO_RELAXED_KHR:
+		return "fifo_relaxed_khr";
+	default:
+		return "unknown";
 	}
+}
+
+// PLume rebuild the swap chain by using a previous instance (oldSwapChain)
+// Vulkan then remove the old one even when the creation fail, meaning a bad rebuild will make it use
+// a dead swap chain even if it retries after, this can happen during a vsync toggle.
+// Fix: Destroy the old instance so Plume always build from scratch.
+
+static bool Vulkan_RebuildSwapChain(const char* failReason)
+{
+	static uint32_t failedTries = 0;
+	auto* curSwapChain = GetVulkanSwapChain();
+	auto* cmdQueue = curSwapChain->commandQueue->queue;
+
+	uint32_t windowWidth, windowHeight;
+	curSwapChain->getWindowSize(windowWidth, windowHeight);
+	const bool isWindowMinimized = windowWidth == 0 || windowHeight == 0;
+
+	// The Presents calls are not covered by our fences, so empty the queue before the old 
+	// images go away.
+	VkResult vkqueueState;
+	{
+		std::scoped_lock lock(*cmdQueue->mutex);
+		vkqueueState = vkQueueWaitIdle(cmdQueue->vk);
+	}
+
+	curSwapChain->releaseImageViews();
+	curSwapChain->releaseSwapChain();
+
+	const bool swapchainRebuilt = curSwapChain->resize();
+
+	if (!swapchainRebuilt)
+	{
+		curSwapChain->vk = VK_NULL_HANDLE;
+
+		if (!isWindowMinimized)
+		{
+			failedTries++;
+		}
+
+		return false;
+	}
+
+	if (failedTries != 0)
+	{
+		LOGF_WARNING("Swap chain rebuilt after {} failed tries: {}x{} {}, {} images", failedTries,
+			curSwapChain->width, curSwapChain->height, Vulkan_GetCurPresentModeName(curSwapChain->createdPresentMode),
+			curSwapChain->getTextureCount());
+		failedTries = 0;
+	}
+
+	return true;
+}
 
 static void CheckSwapChain()
 {
 	SetSwapChainVsync();
+	const bool isSwapChainInvalid = !g_swapChainValid;
 	g_swapChainValid &= !g_swapChain->needsResize();
 
 	if (!g_swapChainValid)
@@ -3006,7 +3075,12 @@ static void CheckSwapChain()
 				}
 			}
 		}
+		
+		if (g_vulkan)
+			g_swapChainValid = Vulkan_RebuildSwapChain(isSwapChainInvalid ? "Swap Chain was invalid" : "size or present mode changed");
+		else
 			g_swapChainValid = g_swapChain->resize();
+
 		g_needsResize = g_swapChainValid;
 	}
 
@@ -5090,7 +5164,7 @@ void Video::Present()
 	g_presentWaitProfiler.Begin();
 
 	// wait on fifo only
-	if (g_vulkan && g_capabilities.presentWait && Config::VSync && GetVulkanSwapChain()->createdPresentMode == VK_PRESENT_MODE_FIFO_KHR)
+	if (g_vulkan && g_swapChainValid && g_capabilities.presentWait && Config::VSync && GetVulkanSwapChain()->createdPresentMode == VK_PRESENT_MODE_FIFO_KHR)
 	{
 		g_swapChain->wait();
 	}
