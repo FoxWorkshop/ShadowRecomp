@@ -369,7 +369,6 @@ std::unordered_map<std::string_view, std::unordered_map<ELanguage, std::string>>
 },
 {
 	// Notes: text in pause menu during gameplay
-	// Font doesn't support accent so the typo in french is intended
 	"Pause_Menu_Restart",
 	{
 		{ ELanguage::English,  "restart" },
@@ -406,7 +405,6 @@ std::unordered_map<std::string_view, std::unordered_map<ELanguage, std::string>>
 },
 {
 	// Notes: used for the button guide at the pause menu.
-	// This font doesn't support accent so the typo in french is intended.
 	"Achievements_Name",
 	{
 		{ ELanguage::English,  "achievements" },
@@ -666,7 +664,7 @@ std::unordered_map<std::string_view, std::unordered_map<ELanguage, std::string>>
 },
 {
 	// Notes: message appears when creating a save file at the title screen.
-	// Note, the game exclusively use "Game Data" when referring to save file, please re use this for consistency.
+	// Note, the game exclusively use "Game Data" when referring to save file.
 	"Title_Message_CreateSave",
 	{
 		{ ELanguage::English,  "There is no Game Data on your PC.\nSHADOW THE HEDGEHOG™\nsupports an autosave feature.\nDo you want to create Game Data?" },
@@ -679,7 +677,7 @@ std::unordered_map<std::string_view, std::unordered_map<ELanguage, std::string>>
 },
 {
 	// Notes: message appears when creating a save file at the title screen.
-	// Note, the game exclusively use "Game Data" when referring to save file, please re use this for consistency.
+	// Note, the game exclusively use "Game Data" when referring to save file.
 	"Title_Message_CreateSaveFailed",
 	{
 		{ ELanguage::English,  "Start the game without creating\nGame Data.\nProgress of the game will not be saved." },
@@ -761,7 +759,7 @@ std::unordered_map<std::string_view, std::unordered_map<ELanguage, std::string>>
 },
 {
 	// Notes: message appears when creating a save file at the title screen.
-	// Note, the game exclusively use "Game Data" when referring to save file, please re use this for consistency.
+	// Note, the game exclusively use "Game Data" when referring to save file.
 	"Title_Message_LoadSave",
 	{
 		{ ELanguage::English,  "Do you want to load Game Data?" },
@@ -774,7 +772,7 @@ std::unordered_map<std::string_view, std::unordered_map<ELanguage, std::string>>
 },
 {
 	// Notes: message appears when creating a save file at the title screen.
-	// Note, the game exclusively use "Game Data" when referring to save file, please re use this for consistency.
+	// Note, the game exclusively use "Game Data" when referring to save file.
 	"Title_Message_ContinueWithoutSave",
 	{
 		// there is a space added before the question mark to match the original game text, even in english.

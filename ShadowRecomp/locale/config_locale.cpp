@@ -501,11 +501,11 @@ CONFIG_DEFINE_LOCALE(ControllerLEDBrightness)
 CONFIG_DEFINE_LOCALE(VoiceLanguage)
 {
     { ELanguage::English, { "Voice Language", "Change the spoken language." } },
-    { ELanguage::Japanese, { "[音声言語:おんせいげんご]", "ゲーム[内:ない]の\u200B[音声言語:おんせいげんご]を\u200B[変更:へんこう]できます" } },
-    { ELanguage::German,   { "Stimmeinstellung", "Ändere die Sprache, die für Charakterstimmen benutzt wird." } },
-    { ELanguage::French,   { "Langue des voix", "Modifie la langue utilisée pour la voix des personnages." } },
-    { ELanguage::Spanish,  { "Idioma de voz", "Cambia el idioma utilizado para las voces de los personajes." } },
-    { ELanguage::Italian, { "Lingua delle voci", "Modifica la lingua utilizzata per le voci dei personaggi." } }
+    { ELanguage::Japanese, { "Voice Language", "Change the spoken language." } },
+    { ELanguage::German,  { "Voice Language", "Change the spoken language." } },
+    { ELanguage::French,   { "Voice Language", "Change the spoken language." } },
+    { ELanguage::Spanish,  { "Voice Language", "Change the spoken language." } },
+    { ELanguage::Italian, { "Voice Language", "Change the spoken language." } },
 };
 
 CONFIG_DEFINE_LOCALE(Subtitles)

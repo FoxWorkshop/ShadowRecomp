@@ -219,9 +219,7 @@ std::unordered_map<int, std::unordered_map<ELanguage, AchievementLocale>> g_shrL
 			},
 		}
 	},
-
-
-	// Over the Original (Complete the Neutral - Hero Ending (Lava Shelter))
+	// Over the Original (Complete the Neutral - Dark Ending (Lava Shelter))
 	{
 		5,
 		{
@@ -549,6 +547,7 @@ std::unordered_map<int, std::unordered_map<ELanguage, AchievementLocale>> g_shrL
 
 
 	// Never turn back (Complete the last story)
+	// note: the achievement title is a reference to the song "Never Turn Back", best to not translate it to keep the reference.
 	{
 		11,
 		{
@@ -766,6 +765,8 @@ std::unordered_map<int, std::unordered_map<ELanguage, AchievementLocale>> g_shrL
 		}
 	},
 	// I'm the coolest (Destroy the Lethal Highway tank while driving a vehicle)
+		// note: the achievement title is a reference to a Shadow quote in Sonic Adventure 2 after getting hit
+		// you are free to not translate it to keep the reference.
 	{
 		15,
 		{
@@ -874,6 +875,7 @@ std::unordered_map<int, std::unordered_map<ELanguage, AchievementLocale>> g_shrL
 		}
 	},
 	// I Am... All Of Me (Get all achievements)
+	// note: the achievement title is a reference to the song "I Am... All of Me", best to not translate it for the reference.
 	{
 		17,
 		{
