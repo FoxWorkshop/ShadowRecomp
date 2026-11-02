@@ -8,7 +8,7 @@ std::unordered_map<std::string_view, std::unordered_map<ELanguage, std::string>>
 		"Options_Category_System",
 		{
 			{ ELanguage::English,  "SYSTEM" },
-			{ ELanguage::Japanese, "SYSTEM" },
+			{ ELanguage::Japanese, "システム" },
 			{ ELanguage::German,   "SYSTEM" },
 			{ ELanguage::French,   "SYSTÈME" },
 			{ ELanguage::Spanish,  "SISTEMA" },
@@ -19,7 +19,7 @@ std::unordered_map<std::string_view, std::unordered_map<ELanguage, std::string>>
 		"Options_Desc_Category_System",
 		{
 			{ ELanguage::English,  "Adjust system settings." },
-			{ ELanguage::Japanese, "システムの設定を変更します" },
+			{ ELanguage::Japanese, "システムの設定を変更します。" },
 			{ ELanguage::German,   "Verändere System-Einstellungen." },
 			{ ELanguage::French,   "Modifier les paramètres système." },
 			{ ELanguage::Spanish,  "Ajustar la configuración del sistema." },
@@ -30,7 +30,7 @@ std::unordered_map<std::string_view, std::unordered_map<ELanguage, std::string>>
 		"Options_Category_Input",
 		{
 			{ ELanguage::English,  "INPUT" },
-			{ ELanguage::Japanese, "INPUT" },
+			{ ELanguage::Japanese, "入力" },
 			{ ELanguage::German,   "EINGABE" },
 			{ ELanguage::French,   "COMMANDES" },
 			{ ELanguage::Spanish,  "CONTROLES" },
@@ -41,7 +41,7 @@ std::unordered_map<std::string_view, std::unordered_map<ELanguage, std::string>>
 		"Options_Desc_Category_Input",
 		{
 			{ ELanguage::English,  "Adjust input settings." },
-			{ ELanguage::Japanese, "入力の設定を変更します" },
+			{ ELanguage::Japanese, "入力の設定を変更します。" },
 			{ ELanguage::German,   "Verändere Eingabe-Einstellungen." },
 			{ ELanguage::French,   "Modifier les paramètres d'entrée." },
 			{ ELanguage::Spanish,  "Ajustar la configuración de entrada." },
@@ -52,7 +52,7 @@ std::unordered_map<std::string_view, std::unordered_map<ELanguage, std::string>>
 		"Options_Category_Audio",
 		{
 			{ ELanguage::English,  "AUDIO" },
-			{ ELanguage::Japanese, "AUDIO" },
+			{ ELanguage::Japanese, "オーディオ" },
 			{ ELanguage::German,   "AUDIO" },
 			{ ELanguage::French,   "SON" },
 			{ ELanguage::Spanish,  "AUDIO" },
@@ -63,7 +63,7 @@ std::unordered_map<std::string_view, std::unordered_map<ELanguage, std::string>>
 		"Options_Desc_Category_Audio",
 		{
 			{ ELanguage::English,  "Adjust audio settings." },
-			{ ELanguage::Japanese, "オーディオの設定を変更します" },
+			{ ELanguage::Japanese, "オーディオの設定を変更します。" },
 			{ ELanguage::German,   "Verändere Audio-Einstellungen." },
 			{ ELanguage::French,   "Modifier les paramètres audio." },
 			{ ELanguage::Spanish,  "Ajustar la configuración de audio." },
@@ -74,7 +74,7 @@ std::unordered_map<std::string_view, std::unordered_map<ELanguage, std::string>>
 		"Options_Category_Video",
 		{
 			{ ELanguage::English,  "VIDEO" },
-			{ ELanguage::Japanese, "VIDEO" },
+			{ ELanguage::Japanese, "ビデオ" },
 			{ ELanguage::German,   "VIDEO" },
 			{ ELanguage::French,   "AFFICHAGE" },
 			{ ELanguage::Spanish,  "VÍDEO" },
@@ -85,7 +85,7 @@ std::unordered_map<std::string_view, std::unordered_map<ELanguage, std::string>>
 		"Options_Desc_Category_Video",
 		{
 			{ ELanguage::English,  "Adjust video settings." },
-			{ ELanguage::Japanese, "ビデオの設定を変更します" },
+			{ ELanguage::Japanese, "ビデオの設定を変更します。" },
 			{ ELanguage::German,   "Verändere Video-Einstellungen." },
 			{ ELanguage::French,   "Modifier les paramètres vidéo." },
 			{ ELanguage::Spanish,  "Ajustar la configuración de vídeo." },
@@ -97,7 +97,7 @@ std::unordered_map<std::string_view, std::unordered_map<ELanguage, std::string>>
 		"Options_Value_Max",
 		{
 			{ ELanguage::English,  "MAX" },
-			{ ELanguage::Japanese, "MAX" },
+			{ ELanguage::Japanese, "最大" },
 			{ ELanguage::German,   "MAX" },
 			{ ELanguage::French,   "MAX" },
 			{ ELanguage::Spanish,  "MÁX" },
@@ -108,7 +108,7 @@ std::unordered_map<std::string_view, std::unordered_map<ELanguage, std::string>>
 		"Options_Value_Custom",
 		{
 			{ ELanguage::English,  "CUSTOM" },
-			{ ELanguage::Japanese, "CUSTOM" },
+			{ ELanguage::Japanese, "カスタム" },
 			{ ELanguage::German,   "BENUTZERDEFINIERT" },
 			{ ELanguage::French,   "CUSTOM" },
 			{ ELanguage::Spanish,  "CUSTOM" },
@@ -119,7 +119,7 @@ std::unordered_map<std::string_view, std::unordered_map<ELanguage, std::string>>
 		"Options_Value_AllScreens",
 		{
 			{ ELanguage::English,  "ALL SCREENS" },
-			{ ELanguage::Japanese, "ALL SCREENS" },
+			{ ELanguage::Japanese, "すべての画面" },
 			{ ELanguage::German,   "ALLE BILDSCHIRME" },
 			{ ELanguage::French,   "TOUS LES ÉCRANS" },
 			{ ELanguage::Spanish,  "ALL SCREENS" },
@@ -132,7 +132,7 @@ std::unordered_map<std::string_view, std::unordered_map<ELanguage, std::string>>
 	   "Options_Desc_OSNotSupported",
 	   {
 		   { ELanguage::English,  "This option is not supported by your operating system." },
-		   { ELanguage::Japanese, "この\u200Bオプションは\u200B[現在:げんざい]の\u200BOSで\u200B[変更:へんこう]\u200Bできません" },
+		   { ELanguage::Japanese, "このオプションは、お使いのOSではサポートされていません。" },
 		   { ELanguage::German,   "Diese Option wird von deinem Betriebssystem nicht unterstützt." },
 		   { ELanguage::French,   "Cette option n'est pas prise en charge par votre système d'exploitation." },
 		   { ELanguage::Spanish,  "Esta opción no está soportada por tu sistema operativo." },
@@ -143,7 +143,7 @@ std::unordered_map<std::string_view, std::unordered_map<ELanguage, std::string>>
 	"Options_Name_CustomizeInput",
 	{
 		{ ELanguage::English,  "Customize Input" },
-		{ ELanguage::Japanese, "Customize Input" },
+		{ ELanguage::Japanese, "入力設定" },
 		{ ELanguage::German,   "Steuerung anpassen" },
 		{ ELanguage::French,   "Customize Input" },
 		{ ELanguage::Spanish,  "Customize Input" },
@@ -154,7 +154,7 @@ std::unordered_map<std::string_view, std::unordered_map<ELanguage, std::string>>
 	"Options_Desc_CustomizeInput",
 	{
 		{ ELanguage::English,  "Customize controls for each player." },
-		{ ELanguage::Japanese, "Customize controls for each player." },
+		{ ELanguage::Japanese, "プレイヤーごとに操作をカスタマイズします。" },
 		{ ELanguage::German,   "Anpassung der Steuerung für Individuelle Spieler." },
 		{ ELanguage::French,   "Customize controls for each player." },
 		{ ELanguage::Spanish,  "Customize controls for each player." },
@@ -165,7 +165,7 @@ std::unordered_map<std::string_view, std::unordered_map<ELanguage, std::string>>
 	"Options_Category_Keyboard",
 	{
 		{ ELanguage::English,  "KEYBOARD" },
-		{ ELanguage::Japanese, "KEYBOARD" },
+		{ ELanguage::Japanese, "キーボード" },
 		{ ELanguage::German,   "TASTATUR" },
 		{ ELanguage::French,   "KEYBOARD" },
 		{ ELanguage::Spanish,  "KEYBOARD" },
@@ -176,7 +176,7 @@ std::unordered_map<std::string_view, std::unordered_map<ELanguage, std::string>>
 	"Options_Desc_Category_Keyboard",
 	{
 		{ ELanguage::English,  "Customize keyboard controls." },
-		{ ELanguage::Japanese, "Customize keyboard controls." },
+		{ ELanguage::Japanese, "キーボード操作をカスタマイズします。" },
 		{ ELanguage::German,   "Tastatursteuerung anpassen." },
 		{ ELanguage::French,   "Customize keyboard controls." },
 		{ ELanguage::Spanish,  "Customize keyboard controls." },
@@ -188,7 +188,7 @@ std::unordered_map<std::string_view, std::unordered_map<ELanguage, std::string>>
 	"Options_Category_Gamepad",
 	{
 		{ ELanguage::English,  "{}P GAMEPAD" },
-		{ ELanguage::Japanese, "{}P GAMEPAD" },
+		{ ELanguage::Japanese, "{}P ゲームパッド" },
 		{ ELanguage::German,   "{}SP GAMEPAD" },
 		{ ELanguage::French,   "{}P GAMEPAD" },
 		{ ELanguage::Spanish,  "{}P GAMEPAD" },
@@ -199,7 +199,7 @@ std::unordered_map<std::string_view, std::unordered_map<ELanguage, std::string>>
 	"Options_Desc_Category_Gamepad",
 	{
 		{ ELanguage::English,  "Customize {}P gamepad buttons." },
-		{ ELanguage::Japanese, "Customize {}P gamepad buttons." },
+		{ ELanguage::Japanese, "{}Pのゲームパッドのボタンをカスタマイズします。" },
 		{ ELanguage::German,   "{}SP Controller steuerung anpassen." },
 		{ ELanguage::French,   "Customize {}P gamepad buttons." },
 		{ ELanguage::Spanish,  "Customize {}P gamepad buttons." },
@@ -210,7 +210,7 @@ std::unordered_map<std::string_view, std::unordered_map<ELanguage, std::string>>
 	"Options_Desc_BindKey",
 	{
 		{ ELanguage::English,  "Change key assignment." },
-		{ ELanguage::Japanese, "Change key assignment." },
+		{ ELanguage::Japanese, "キーの割り当てを変更します。" },
 		{ ELanguage::German,   "Tastenbelegung ändern." },
 		{ ELanguage::French,   "Change key assignment." },
 		{ ELanguage::Spanish,  "Change key assignment." },
@@ -221,7 +221,7 @@ std::unordered_map<std::string_view, std::unordered_map<ELanguage, std::string>>
 	"Options_Desc_BindButton",
 	{
 		{ ELanguage::English,  "Change assigned button." },
-		{ ELanguage::Japanese, "Change assigned button." },
+		{ ELanguage::Japanese, "割り当てるボタンを変更します。" },
 		{ ELanguage::German,   "Knopfbelegung ändern." },
 		{ ELanguage::French,   "Change assigned button." },
 		{ ELanguage::Spanish,  "Change assigned button." },
@@ -232,7 +232,7 @@ std::unordered_map<std::string_view, std::unordered_map<ELanguage, std::string>>
 	"Options_Desc_BindKeyListening",
 	{
 		{ ELanguage::English,  "Press key to assign. Press Escape or wait to cancel." },
-		{ ELanguage::Japanese, "Press key to assign. Press Escape or wait to cancel." },
+		{ ELanguage::Japanese, "割り当てるキーを押してください。キャンセルするにはEscapeキーを押すか、そのままお待ちください。" },
 		{ ELanguage::German,   "Taste drücken zum Zuweisen. Drücke Escape oder warte um zurückzukehren." },
 		{ ELanguage::French,   "Press key to assign. Press Escape or wait to cancel." },
 		{ ELanguage::Spanish,  "Press key to assign. Press Escape or wait to cancel." },
@@ -243,7 +243,7 @@ std::unordered_map<std::string_view, std::unordered_map<ELanguage, std::string>>
 	"Options_Desc_BindButtonListening",
 	{
 		{ ELanguage::English,  "Press button to assign. Press Escape or wait to cancel." },
-		{ ELanguage::Japanese, "Press button to assign. Press Escape or wait to cancel." },
+		{ ELanguage::Japanese, "割り当てるボタンを押してください。キャンセルするにはEscapeキーを押すか、そのままお待ちください。" },
 		{ ELanguage::German,   "Knopf drücken zum Zuweisen. Drücke Escape oder warte um zurückzukehren." },
 		{ ELanguage::French,   "Press button to assign. Press Escape or wait to cancel." },
 		{ ELanguage::Spanish,  "Press button to assign. Press Escape or wait to cancel." },
@@ -254,7 +254,7 @@ std::unordered_map<std::string_view, std::unordered_map<ELanguage, std::string>>
 	"Options_Name_SoundTest",
 	{
 		{ ELanguage::English,  "Sound Test" },
-		{ ELanguage::Japanese, "Sound Test" },
+		{ ELanguage::Japanese, "サウンドテスト" },
 		{ ELanguage::German,   "Sound Test" },
 		{ ELanguage::French,   "Test Audio" },
 		{ ELanguage::Spanish,  "Sound Test" },
@@ -265,7 +265,7 @@ std::unordered_map<std::string_view, std::unordered_map<ELanguage, std::string>>
 	"Options_Desc_SoundTest",
 	{
 		{ ELanguage::English,  "Listen to the in-game music." },
-		{ ELanguage::Japanese, "Listen to the in-game music." },
+		{ ELanguage::Japanese, "ゲーム中に登場したサウンドを確認します。" },
 		{ ELanguage::German,   "Höre die Musik des Spiels an." },
 		{ ELanguage::French,   "Écoutez la musique du jeu." },
 		{ ELanguage::Spanish,  "Escuchar la música del juego." },
@@ -276,7 +276,7 @@ std::unordered_map<std::string_view, std::unordered_map<ELanguage, std::string>>
 	"Options_Desc_SoundTest_Track",
 	{
 		{ ELanguage::English,  "Select a track to play it." },
-		{ ELanguage::Japanese, "Select a track to play it" },
+		{ ELanguage::Japanese, "再生するサウンドを選択してください。" },
 		{ ELanguage::German,   "Höre dir die Musik aus dem Spiel an." },
 		{ ELanguage::French,   "Sélectionnez une musique pour la jouer." },
 		{ ELanguage::Spanish,  "Select a track to play it." },
@@ -300,7 +300,7 @@ std::unordered_map<std::string_view, std::unordered_map<ELanguage, std::string>>
 	"Options_Desc_NotAvailable",
 	{
 		{ ELanguage::English,  "This option is not available during gameplay." },
-		{ ELanguage::Japanese, "このオプションはゲームプレイ中は使用できません" },
+		{ ELanguage::Japanese, "このオプションはゲームプレイ中は使用できません。" },
 		{ ELanguage::German,   "Diese Einstellung kann während des Spiels nicht verändert werden." },
 		{ ELanguage::French,   "Cette option est indisponible en cours de jeu." },
 		{ ELanguage::Spanish,  "Esta opción no está disponible durante la partida." },
@@ -312,7 +312,7 @@ std::unordered_map<std::string_view, std::unordered_map<ELanguage, std::string>>
 	"Options_Desc_NotAvailableFullscreen",
 	{
 		{ ELanguage::English,  "This option is not available in fullscreen mode." },
-		{ ELanguage::Japanese, "このオプションはフルスクリーンモードでは変更できません" },
+		{ ELanguage::Japanese, "このオプションはフルスクリーンモードでは変更できません。" },
 		{ ELanguage::German,   "Diese Option ist im Vollbildmodus nicht verfügbar." },
 		{ ELanguage::French,   "Cette option n'est pas disponible en mode plein écran." },
 		{ ELanguage::Spanish,  "Esta opción no está disponible en modo pantalla completa." },
@@ -324,7 +324,7 @@ std::unordered_map<std::string_view, std::unordered_map<ELanguage, std::string>>
 	"Options_Desc_NotAvailableWindowed",
 	{
 		{ ELanguage::English,  "This option is not available in windowed mode." },
-		{ ELanguage::Japanese, "この\u200Bオプションは\u200Bウィンドウモードでは\u200B[変更:へんこう]\u200Bできません" },
+		{ ELanguage::Japanese, "このオプションはウィンドウモードでは変更できません。" },
 		{ ELanguage::German,   "Diese Option ist im Fenstermodus nicht verfügbar." },
 		{ ELanguage::French,   "Cette option n'est pas disponible en mode fenêtré." },
 		{ ELanguage::Spanish,  "Esta opción no está disponible en modo ventana." },
@@ -336,7 +336,7 @@ std::unordered_map<std::string_view, std::unordered_map<ELanguage, std::string>>
 	"Options_Desc_NotAvailableHardware",
 	{
 		{ ELanguage::English,  "This option is not available with your current hardware configuration." },
-		{ ELanguage::Japanese, "この\u200Bオプションは\u200B[現在:げんざい]の\u200Bハードウェア[構成:こうせい]で\u200B[変更:へんこう]\u200Bできません" },
+		{ ELanguage::Japanese, "このオプションは現在のハードウェア構成で変更できません。" },
 		{ ELanguage::German,   "Diese Option ist mit ihrer Hardwarekonfiguration nicht verfügbar." },
 		{ ELanguage::French,   "Cette option n'est pas disponible avec votre configuration matérielle actuelle." },
 		{ ELanguage::Spanish,  "Esta opción no está disponible con tu configuración actual de hardware." },
@@ -348,7 +348,7 @@ std::unordered_map<std::string_view, std::unordered_map<ELanguage, std::string>>
 	"Options_Message_Restart",
 	{
 		{ ELanguage::English,  "The game will now restart." },
-		{ ELanguage::Japanese, "ゲームが[再起動:さいきどう]されます" },
+		{ ELanguage::Japanese, "ゲームが再起動されます。" },
 		{ ELanguage::German,   "Das Spiel wird jetzt neu starten." },
 		{ ELanguage::French,   "Le jeu va maintenant redémarrer." },
 		{ ELanguage::Spanish,  "El juego se va a reiniciar." },
@@ -360,7 +360,7 @@ std::unordered_map<std::string_view, std::unordered_map<ELanguage, std::string>>
 	"Pause_Menu_Continue",
 	{
 		{ ELanguage::English,  "resume" },
-		{ ELanguage::Japanese, "resume" },
+		{ ELanguage::Japanese, "つづける" },
 		{ ELanguage::German,   "weiter" },
 		{ ELanguage::French,   "reprendre" },
 		{ ELanguage::Spanish,  "continuar" },
@@ -372,7 +372,7 @@ std::unordered_map<std::string_view, std::unordered_map<ELanguage, std::string>>
 	"Pause_Menu_Restart",
 	{
 		{ ELanguage::English,  "restart" },
-		{ ELanguage::Japanese, "restart" },
+		{ ELanguage::Japanese, "はじめから" },
 		{ ELanguage::German,   "neustart" },
 		{ ELanguage::French,   "redémarrer" },
 		{ ELanguage::Spanish,  "volver a empezar" },
@@ -419,7 +419,7 @@ std::unordered_map<std::string_view, std::unordered_map<ELanguage, std::string>>
 	"Achievements_Unlock",
 	{
 		{ ELanguage::English,  "Achievement Unlocked!" },
-		{ ELanguage::Japanese, "実績のロックが解除されました" },
+		{ ELanguage::Japanese, "実績を解除しました！" },
 		{ ELanguage::German,   "Erfolg Freigeschaltet!" },
 		{ ELanguage::French,   "Succès déverrouillé !" },
 		{ ELanguage::Spanish,  "¡Logro desbloqueado!" },
@@ -430,7 +430,7 @@ std::unordered_map<std::string_view, std::unordered_map<ELanguage, std::string>>
 	"Installer_Header_Browse",
 	{
 		{ ELanguage::English,  "Browse..." },
-		{ ELanguage::Japanese, "ブラウズ" },
+		{ ELanguage::Japanese, "ブラウズ..." },
 		{ ELanguage::German,   "Durchsuchen..." },
 		{ ELanguage::French,   "Parcourir..." },
 		{ ELanguage::Spanish,  "Explorar..." },
@@ -441,7 +441,7 @@ std::unordered_map<std::string_view, std::unordered_map<ELanguage, std::string>>
 	"Installer_Page_SelectLanguage",
 	{
 		{ ELanguage::English,  "Please select a language." },
-		{ ELanguage::Japanese, "[言語:げんご]を[選択:せんたく]してください" },
+		{ ELanguage::Japanese, "言語を選択してください。" },
 		{ ELanguage::German,   "Bitte eine Sprache auswählen." },
 		{ ELanguage::French,   "Choisissez une langue." },
 		{ ELanguage::Spanish,  "Selecciona un idioma." },
@@ -452,7 +452,7 @@ std::unordered_map<std::string_view, std::unordered_map<ELanguage, std::string>>
 	"Installer_Page_Introduction",
 	{
 		{ ELanguage::English,  "Welcome to Shadow Recompiled!\n\nYou'll need an Xbox copy of\nShadow the Hedgehog in order to\nproceed with the installation." },
-		{ ELanguage::Japanese, "Welcome to Shadow Recompiled!\n\nYou'll need an Xbox copy of\nShadow the Hedgehog in order to\nproceed with the installation." },
+		{ ELanguage::Japanese, "Shadow Recompiledへようこそ！\n\nインストールを続行するには、\n『シャドウ・ザ・ヘッジホッグ』のXbox版が必要です。" },
 		{ ELanguage::German,   "Wilkommen zu Shadow Recompiled!\n\nDu wirst eine Xbox Kopie von\nShadow the Hedgehog benötigen um\nmit der Installation fortzufahren."},
 		{ ELanguage::French,   "Welcome to Shadow Recompiled!\n\nYou'll need an Xbox copy of\nShadow the Hedgehog in order to\nproceed with the installation." },
 		{ ELanguage::Spanish,  "Welcome to Shadow Recompiled!\n\nYou'll need an Xbox copy of\nShadow the Hedgehog in order to\nproceed with the installation." },
@@ -463,7 +463,7 @@ std::unordered_map<std::string_view, std::unordered_map<ELanguage, std::string>>
 	"Installer_Page_SelectGame",
 	{
 		{ ELanguage::English,  "Add the source for the game." },
-		{ ELanguage::Japanese, "Add the source for the game." },
+		{ ELanguage::Japanese, "ゲームの元データを追加してください。" },
 		{ ELanguage::German,   "Füge den Pfad für das Spiel hinzu." },
 		{ ELanguage::French,   "Add the source for the game." },
 		{ ELanguage::Spanish,  "Add the source for the game." },
@@ -474,7 +474,7 @@ std::unordered_map<std::string_view, std::unordered_map<ELanguage, std::string>>
 	"Installer_Page_NoFileSelected",
 	{
 		{ ELanguage::English,  "Drag & Drop or Select an ISO or default.xbe" },
-		{ ELanguage::Japanese, "Drag & Drop or Select an ISO or default.xbe" },
+		{ ELanguage::Japanese, "ISOまたはdefault.xbeを\nドラッグ＆ドロップするか、選択してください。" },
 		{ ELanguage::German,   "Drag & Drop oder wähle eine ISO oder default.xbe aus." },
 		{ ELanguage::French,   "Drag & Drop or Select an ISO or default.xbe" },
 		{ ELanguage::Spanish,  "Drag & Drop or Select an ISO or default.xbe" },
@@ -486,7 +486,7 @@ std::unordered_map<std::string_view, std::unordered_map<ELanguage, std::string>>
 		"Installer_Page_CheckSpace",
 		{
 			{ ELanguage::English,  "The content will be installed to the program's folder.\n\n" },
-			{ ELanguage::Japanese, "コンテンツはプログラムのフォルダに\nインストールされます\n" },
+			{ ELanguage::Japanese, "コンテンツはプログラムのフォルダに\nインストールされます。\n" },
 			{ ELanguage::German,   "Der Inhalt wird in dem Ordner des Programms installiert.\n" },
 			{ ELanguage::French,   "Le contenu sera installé dans le même dossier que le programme.\n" },
 			{ ELanguage::Spanish,  "El contenido será instalado a la carpeta del programa.\n\n" },
@@ -498,7 +498,7 @@ std::unordered_map<std::string_view, std::unordered_map<ELanguage, std::string>>
 		"Installer_Step_RequiredSpace",
 		{
 			{ ELanguage::English,  "Required space: %.2f GiB" },
-			{ ELanguage::Japanese, "[必要:ひつよう]な[容量:ようりょう]: %.2f GiB" },
+			{ ELanguage::Japanese, "必要な容量: %.2f GiB" },
 			{ ELanguage::German,   "Benötigter Speicherplatz:\n%.2f GiB" },
 			{ ELanguage::French,   "Espace nécessaire :\n%.2f Gio" },
 			{ ELanguage::Spanish,  "Espacio necesario: %.2f GiB" },
@@ -510,7 +510,7 @@ std::unordered_map<std::string_view, std::unordered_map<ELanguage, std::string>>
 		"Installer_Step_AvailableSpace",
 		{
 			{ ELanguage::English,  "Available space: %.2f GiB" },
-			{ ELanguage::Japanese, "[使用:しよう][可能:かのう]な[容量:ようりょう]: %.2f GiB" },
+			{ ELanguage::Japanese, "使用可能な容量: %.2f GiB" },
 			{ ELanguage::German,   "Verfügbarer Speicherplatz:\n%.2f GiB" },
 			{ ELanguage::French,   "Espace disponible :\n%.2f Gio" },
 			{ ELanguage::Spanish,  "Espacio disponible: %.2f GiB" },
@@ -521,7 +521,7 @@ std::unordered_map<std::string_view, std::unordered_map<ELanguage, std::string>>
 		"Installer_Page_Installing",
 		{
 			{ ELanguage::English,  "Installing..." },
-			{ ELanguage::Japanese, "Installing..." },
+			{ ELanguage::Japanese, "インストール中..." },
 			{ ELanguage::German,   "Installiert..." },
 			{ ELanguage::French,   "Installing..." },
 			{ ELanguage::Spanish,  "Installing..." },
@@ -532,7 +532,7 @@ std::unordered_map<std::string_view, std::unordered_map<ELanguage, std::string>>
 		"Installer_Credits_Message",
 		{
 			{ ELanguage::English,  "Credits: " },
-			{ ELanguage::Japanese, "Credits: " },
+			{ ELanguage::Japanese, "クレジット： " },
 			{ ELanguage::German,   "Credits: " },
 			{ ELanguage::French,   "Crédits: " },
 			{ ELanguage::Spanish,  "Credits: " },
@@ -543,7 +543,7 @@ std::unordered_map<std::string_view, std::unordered_map<ELanguage, std::string>>
 	"Installer_Page_Compiling",
 	{
 		{ ELanguage::English,  "Compiling shaders..." },
-		{ ELanguage::Japanese, "Compiling shaders..." },
+		{ ELanguage::Japanese, "シェーダーをコンパイル中..." },
 		{ ELanguage::German,   "Shaders kompilieren..." },
 		{ ELanguage::French,   "Compiling shaders..." },
 		{ ELanguage::Spanish,  "Compiling shaders..." },
@@ -554,7 +554,7 @@ std::unordered_map<std::string_view, std::unordered_map<ELanguage, std::string>>
 	"Installer_Page_InstallSucceeded",
 	{
 		{ ELanguage::English,  "Installation complete!\nThis project is brought to you by:" },
-		{ ELanguage::Japanese, "インストール[完了:かんりょう]！\nプロジェクト[制作:せいさく]：" },
+		{ ELanguage::Japanese, "インストール完了！\nプロジェクト制作：" },
 		{ ELanguage::German,   "Installation abgeschlossen!\nDieses Projekt wird präsentiert von:" },
 		{ ELanguage::French,   "Installation terminée !\nCe projet vous est présenté\npar :" },
 		{ ELanguage::Spanish,  "¡Instalación completada!\nEste proyecto ha sido posible gracias a:" },
@@ -565,7 +565,7 @@ std::unordered_map<std::string_view, std::unordered_map<ELanguage, std::string>>
 	"Installer_Page_InstallFailed",
 	{
 		{ ELanguage::English,  "Installation failed.\n\nAn unknown error occurred." },
-		{ ELanguage::Japanese, "Installation failed.\n\nAn unknown error occurred." },
+		{ ELanguage::Japanese, "インストールに失敗しました。不明なエラーが発生しました。" },
 		{ ELanguage::German,   "Installation fehlgeschlagen.\n\nEin unbekannter Fehler ist aufgetreten." },
 		{ ELanguage::French,   "L'installation a échoué.\n\nUne erreur inconnue est survenue." },
 		{ ELanguage::Spanish,  "La instalación falló.\n\nOcurrió un error desconocido." },
@@ -609,7 +609,7 @@ std::unordered_map<std::string_view, std::unordered_map<ELanguage, std::string>>
 	"Installer_Button_Back",
 	{
 		{ ELanguage::English,  "Back" },
-		{ ELanguage::Japanese, "もどる" },
+		{ ELanguage::Japanese, "戻る" },
 		{ ELanguage::German,   "Zurück" },
 		{ ELanguage::French,   "Retour" },
 		{ ELanguage::Spanish,  "Atrás" },
@@ -643,7 +643,7 @@ std::unordered_map<std::string_view, std::unordered_map<ELanguage, std::string>>
 	"Installer_Message_InvalidFileSelected",
 	{
 		{ ELanguage::English,  "The selected source is not a valid Shadow the Hedgehog Xbox ISO\nor extracted game folder." },
-		{ ELanguage::Japanese, "The selected source is not a valid Shadow the Hedgehog Xbox ISO\nor extracted game folder." },
+		{ ELanguage::Japanese, "選択した元データは、\n『シャドウ・ザ・ヘッジホッグ』のXbox版ISOとしても、\n展開済みのゲームフォルダーとしても認識できません。" },
 		{ ELanguage::German,   "Die ausgewählte Quelle ist keine gültige Shadow the Hedgehog Xbox ISO-Datei\noder kein extrahierter Spielordner." },
 		{ ELanguage::French,   "The selected source is not a valid Shadow the Hedgehog Xbox ISO\nor extracted game folder." },
 		{ ELanguage::Spanish,  "The selected source is not a valid Shadow the Hedgehog Xbox ISO\nor extracted game folder." },
@@ -655,7 +655,7 @@ std::unordered_map<std::string_view, std::unordered_map<ELanguage, std::string>>
 	"Title_Message_Quit",
 	{
 		{ ELanguage::English,  "Are you sure you want to quit the game?" },
-		{ ELanguage::Japanese, "[終了:しゅうりょう]してもよろしいですか？" },
+		{ ELanguage::Japanese, "終了してもよろしいですか？" },
 		{ ELanguage::German,   "Spiel verlassen?" },
 		{ ELanguage::French,   "Êtes-vous sûr de vouloir quitter le jeu ?" },
 		{ ELanguage::Spanish,  "¿Estás seguro de que quieres\nsalir?" },
@@ -668,7 +668,7 @@ std::unordered_map<std::string_view, std::unordered_map<ELanguage, std::string>>
 	"Title_Message_CreateSave",
 	{
 		{ ELanguage::English,  "There is no Game Data on your PC.\nSHADOW THE HEDGEHOG™\nsupports an autosave feature.\nDo you want to create Game Data?" },
-		{ ELanguage::Japanese, "There is no Game Data on your PC.\nSHADOW THE HEDGEHOG™\nsupports an autosave feature.\nDo you want to create Game Data?" },
+		{ ELanguage::Japanese, "シャドウ・ザ・ヘッジホッグの\nゲームデータが存在しません。\nシャドウ・ザ・ヘッジホッグは\nオートセーブを使用しています。\nゲームデータの作成を行います。\nよろしいですか？" },
 		{ ELanguage::German,   "Auf Ihrem PC befinden sich keine Spieldaten.\nSHADOW THE HEDGEHOG™\nunterstützt eine automatische\nSpeicherfunktion. Möchten Sie Spieldaten erstellen?" },
 		{ ELanguage::French,   "Pas de données de jeu sur ce PC.\nSHADOW THE HEDGEHOG™\ndispose d'un système de sauvegarde automatique.\nCréer des données de jeu sur\nce PC?" },
 		{ ELanguage::Spanish,  "There is no Game Data on your PC.\nSHADOW THE HEDGEHOG™\nsupports an autosave feature.\nDo you want to create Game Data?" },
@@ -681,7 +681,7 @@ std::unordered_map<std::string_view, std::unordered_map<ELanguage, std::string>>
 	"Title_Message_CreateSaveFailed",
 	{
 		{ ELanguage::English,  "Start the game without creating\nGame Data.\nProgress of the game will not be saved." },
-		{ ELanguage::Japanese, "Start the game without creating\nGame Data.\nProgress of the game will not be saved." },
+		{ ELanguage::Japanese, "ゲームデータを作成せずに開始します。\nこの場合、セーブはできません。" },
 		{ ELanguage::German,   "Spiel starten, ohne Spieldaten zu\nerstellen. Der Spielstand wird\nnicht gespeichert." },
 		{ ELanguage::French,   "Démarrer le jeu sans créer de données du jeu.\nLa progression du jeu ne sera\npas sauvegardée." },
 		{ ELanguage::Spanish,  "Start the game without creating\nGame Data.\nProgress of the game will not be saved." },
@@ -693,7 +693,7 @@ std::unordered_map<std::string_view, std::unordered_map<ELanguage, std::string>>
 	"Title_Message_SaveDamaged",
 	{
 		{ ELanguage::English,  "The Game Data is damaged\nand cannot be used.\nPress A button to continue." },
-		{ ELanguage::Japanese, "The Game Data is damaged\nand cannot be used.\nPress A button to continue." },
+		{ ELanguage::Japanese, "ゲームデータを読み込めません。\nゲームデータが破損しています。\nAボタンを押してください。" },
 		{ ELanguage::German,   "Spieldaten sind beschädigt und\nkönnen nicht verwendet werden.\nDrücken Sie bitte die A-Taste\num fortzufahren.." },
 		{ ELanguage::French,   "Les données de jeu sont endommagées.\nAppuyer sur A pour continuer." },
 		{ ELanguage::Spanish,  "The Game Data is damaged\nand cannot be used.\nPress A button to continue." },
@@ -705,7 +705,7 @@ std::unordered_map<std::string_view, std::unordered_map<ELanguage, std::string>>
 	"Title_Message_SaveDamagedNoA",
 	{
 		{ ELanguage::English,  "The Game Data is damaged\nand cannot be used." },
-		{ ELanguage::Japanese, "The Game Data is damaged\nand cannot be used." },
+		{ ELanguage::Japanese, "ゲームデータを読み込めません。\nゲームデータが破損しています。" },
 		{ ELanguage::German,   "Spieldaten sind beschädigt und\nkönnen nicht verwendet werden." },
 		{ ELanguage::French,   "Les données de jeu sont endommagées." },
 		{ ELanguage::Spanish,  "Los datos de juego están dañados." },
@@ -717,7 +717,7 @@ std::unordered_map<std::string_view, std::unordered_map<ELanguage, std::string>>
 	"Title_Message_SaveFailed",
 	{
 		{ ELanguage::English,  "Save failed." },
-		{ ELanguage::Japanese, "Save failed." },
+		{ ELanguage::Japanese, "セーブに失敗しました。" },
 		{ ELanguage::German,   "Speichern gescheitert." },
 		{ ELanguage::French,   "Echec de la sauvegarde." },
 		{ ELanguage::Spanish,  "Error al guardar." },
@@ -728,7 +728,7 @@ std::unordered_map<std::string_view, std::unordered_map<ELanguage, std::string>>
 	"Title_Message_OverwriteSave",
 	{
 		{ ELanguage::English,  "Do you wish to overwrite the Game Data?\nCaution! This will overwrite any\nprevious Game Data present." },
-		{ ELanguage::Japanese, "Do you wish to overwrite the Game Data?\nCaution! This will overwrite any\nprevious Game Data present." },
+		{ ELanguage::Japanese, "ゲームデータに上書きします。\n上書きした場合、今までのゲームデータの\n内容は消えてしまいます。よろしいですか？\n以降はこのゲームデータに\nオートセーブを行います。" },
 		{ ELanguage::German,   "Vorige Spieldaten sind auf dem Gerät\nschon vorhanden.\nspeichern wird sie überschrieben.\nSind Sie sicher das Sie Speichern\nmöchten?" },
 		{ ELanguage::French,   "Voulez-vous écraser les données de jeu ?\nAttention, cela écrasera toutes les données de jeu précédentes." },
 		{ ELanguage::Spanish,  "Do you wish to overwrite the Game Data?\nCaution! This will overwrite any\nprevious Game Data present." },
@@ -739,7 +739,7 @@ std::unordered_map<std::string_view, std::unordered_map<ELanguage, std::string>>
 	"Legacy_Options_Message_OverwriteSave",
 	{
 		{ ELanguage::English,  "Do you want to load Game Data?\nCaution! This will overwrite any\nprevious Game Data present." },
-		{ ELanguage::Japanese, "Do you want to load Game Data?\nCaution! This will overwrite any\nprevious Game Data present." },
+		{ ELanguage::Japanese, "ゲームデータをロードします。これまでの\nプレイ内容は上書きされるため失われて\nしまいます。よろしいですか？" },
 		{ ELanguage::German,   "Spieldaten Laden?\nAchtung! Bereits vorhandene Spieldaten\nwerden überschrieben." },
 		{ ELanguage::French,   "Voulez-vous charger les données de jeu ?\nAttention, cela écrasera toutes les données de jeu précédentes." },
 		{ ELanguage::Spanish,  "Do you want to load Game Data?\nCaution! This will overwrite any\nprevious Game Data present." },
@@ -750,7 +750,7 @@ std::unordered_map<std::string_view, std::unordered_map<ELanguage, std::string>>
 	"Legacy_Options_Message_LoadSaveOK",
 	{
 		{ ELanguage::English,  "Load successful." },
-		{ ELanguage::Japanese, "Load successful." },
+		{ ELanguage::Japanese, "ゲームデータのロードが完了しました。" },
 		{ ELanguage::German,   "Laden erfolgreicht." },
 		{ ELanguage::French,   "Chargement réussi." },
 		{ ELanguage::Spanish,  "Load successful." },
@@ -763,7 +763,7 @@ std::unordered_map<std::string_view, std::unordered_map<ELanguage, std::string>>
 	"Title_Message_LoadSave",
 	{
 		{ ELanguage::English,  "Do you want to load Game Data?" },
-		{ ELanguage::Japanese, "Do you want to load Game Data?" },
+		{ ELanguage::Japanese, "ゲームデータをロードします。\nよろしいですか？" },
 		{ ELanguage::German,   "Spieldaten Laden?" },
 		{ ELanguage::French,   "Souhaitez-vous charger les\n données de jeu?" },
 		{ ELanguage::Spanish,  "Do you want to load Game Data?" },
@@ -777,7 +777,7 @@ std::unordered_map<std::string_view, std::unordered_map<ELanguage, std::string>>
 	{
 		// there is a space added before the question mark to match the original game text, even in english.
 		{ ELanguage::English,  "Continue without saving ?" },
-		{ ELanguage::Japanese, "Continue without saving ?" },
+		{ ELanguage::Japanese, "ゲームデータをセーブせずに、\nこのままゲームを続けますか？\n（ゲームの途中経過などは保存されません。）" },
 		{ ELanguage::German,   "Ohne Speichern fortfahren ?" },
 		{ ELanguage::French,   "Continuez sans sauvegarder ?" },
 		{ ELanguage::Spanish,  "Continue without saving ?" },
@@ -789,7 +789,7 @@ std::unordered_map<std::string_view, std::unordered_map<ELanguage, std::string>>
 	"Pause_Message_Restart",
 	{
 		{ ELanguage::English,  "Are you sure you want to restart the\nstage? Your progress in the current\nstage will be lost if you restart." },
-		{ ELanguage::Japanese, "Are you sure you want to restart the\nstage? Your progress in the current\nstage will be lost if you restart." },
+		{ ELanguage::Japanese, "このステージのスタート地点から、\nゲームをやり直します。\n現在プレイしているステージの\n内容は失われます。\nよろしいですか？" },
 		{ ELanguage::German,   "Sind Sie sicher das Sie die Ebene  \nneu beginnen wollen? Der Spielfortschritt\ndieser Ebene wird dabei gelöscht." },
 		{ ELanguage::French,   "Recommencer l'étape ?\nVotre progression sur cette étape\nsera perdue si vous recommencez." },
 		{ ELanguage::Spanish,  "¿Quieres volver a empezar esta etapa?\nTodo el progreso en esta etapa se\nperderá si vuelves a empezar." },
@@ -801,7 +801,7 @@ std::unordered_map<std::string_view, std::unordered_map<ELanguage, std::string>>
 	"Pause_Message_Quit",
 	{
 		{ ELanguage::English,  "Are you sure you want to quit the game?\nYour progress in the current stage\nwill be lost if you quit." },
-		{ ELanguage::Japanese, "Are you sure you want to quit the game?\nYour progress in the current stage\nwill be lost if you quit." },
+		{ ELanguage::Japanese, "ゲームを途中で終了します。\n現在プレイしているステージの\n進行状況はセーブされません。\nよろしいですか？" },
 		{ ELanguage::German,   "Sind Sie sicher das Sie das Spiel\nabbrechen wollen? \nSie verlieren dabei Ihren Fortschritt\nin dieser Ebene." },
 		{ ELanguage::French,   "Quitter la partie ?\nVotre progression sur cette étape\nsera perdue si vous quittez." },
 		{ ELanguage::Spanish,  "¿Quieres abandonar la partida?\nTodo el progreso en esta etapa se\nperderá si abandonas." },
@@ -812,7 +812,7 @@ std::unordered_map<std::string_view, std::unordered_map<ELanguage, std::string>>
 	"Unlock_Message_LastStory",
 	{
 		{ ELanguage::English,  "LAST STORY unlocked!" },
-		{ ELanguage::Japanese, "LAST STORY unlocked!" },
+		{ ELanguage::Japanese, "LAST STORY が追加されました！" },
 		{ ELanguage::German,   "LETZTE STORY freigeschaltet!" },
 		{ ELanguage::French,   "DERNIERE HISTOIRE déverrouillée !" },
 		{ ELanguage::Spanish,  "¡HISTORIA FINAL desbloqueada!" },
@@ -824,7 +824,7 @@ std::unordered_map<std::string_view, std::unordered_map<ELanguage, std::string>>
 	"Unlock_Message_ExpertMode",
 	{
 		{ ELanguage::English,  "EXPERT MODE unlocked!" },
-		{ ELanguage::Japanese, "EXPERT MODE unlocked!" },
+		{ ELanguage::Japanese, "ハードモードが遊べるようになりました！" },
 		{ ELanguage::German,   "EXPERTEN-MODUS freigeschaltet!" },
 		{ ELanguage::French,   "MODE EXPERT déverrouillé !" },
 		{ ELanguage::Spanish,  "¡MODO EXPERTO desbloqueado!" },
@@ -835,7 +835,7 @@ std::unordered_map<std::string_view, std::unordered_map<ELanguage, std::string>>
 	"Unlock_Message_SamuraiBladeLv1",
 	{
 		{ ELanguage::English,  "You unlocked \"Samurai Blade\"." },
-		{ ELanguage::Japanese, "You unlocked \"Samurai Blade\"." },
+		{ ELanguage::Japanese, "武器「サムライブレード」が\n使えるようになりました！" },
 		{ ELanguage::German,   "Du hast \"Samurai Blade\" freigeschaltet." },
 		{ ELanguage::French,   "Vous avez déverrouillé \"Samurai Blade\"." },
 		{ ELanguage::Spanish,  "Has desbloqueado \"Samurai Blade\"." },
@@ -846,7 +846,7 @@ std::unordered_map<std::string_view, std::unordered_map<ELanguage, std::string>>
 	"Unlock_Message_SamuraiBladeLv2",
 	{
 		{ ELanguage::English,  "\"Samurai Blade\" is now Level 2." },
-		{ ELanguage::Japanese, "\"Samurai Blade\" is now Level 2." },
+		{ ELanguage::Japanese, "武器「サムライブレード」が\nレベル２になりました！" },
 		{ ELanguage::German,   "\"Samurai Blade\" hat Level 2 erreicht." },
 		{ ELanguage::French,   "Vous avez atteint le niveau 2 de \"Samurai Blade\"." },
 		{ ELanguage::Spanish,  "\"Samurai Blade\" Nivel 2." },
@@ -857,7 +857,7 @@ std::unordered_map<std::string_view, std::unordered_map<ELanguage, std::string>>
 	"Unlock_Message_SatelliteLaserLv1",
 	{
 		{ ELanguage::English,  "You unlocked \"Satellite Laser\"." },
-		{ ELanguage::Japanese, "You unlocked \"Satellite Laser\"." },
+		{ ELanguage::Japanese, "武器「軌道衛星レーザー」が\n使えるようになりました！" },
 		{ ELanguage::German,   "Du hast \"Satellite Laser\" freigeschaltet." },
 		{ ELanguage::French,   "Vous avez déverrouillé \"Satellite Laser\"." },
 		{ ELanguage::Spanish,  "Has desbloqueado \"Satellite Laser\"." },
@@ -868,7 +868,7 @@ std::unordered_map<std::string_view, std::unordered_map<ELanguage, std::string>>
 	"Unlock_Message_SatelliteLaserLv2",
 	{
 		{ ELanguage::English,  "\"Satellite Laser\" is now Level 2." },
-		{ ELanguage::Japanese, "\"Satellite Laser\" is now Level 2." },
+		{ ELanguage::Japanese, "武器「軌道衛星レーザー」が\nレベル２になりました！" },
 		{ ELanguage::German,   "\"Satellite Laser\" hat Level 2 erreicht." },
 		{ ELanguage::French,   "Vous avez atteint le niveau 2 de \"Satellite Laser\"." },
 		{ ELanguage::Spanish,  "\"Satellite Laser\" Nivel 2." },
@@ -879,7 +879,7 @@ std::unordered_map<std::string_view, std::unordered_map<ELanguage, std::string>>
 	"Unlock_Message_VacuumEggLv1",
 	{
 		{ ELanguage::English,  "You unlocked \"Vacuum Egg\"." },
-		{ ELanguage::Japanese, "You unlocked \"Vacuum Egg\"." },
+		{ ELanguage::Japanese, "武器「バキュームエッグ」が\n使えるようになりました！" },
 		{ ELanguage::German,   "Du hast \"Vacuum Egg\" freigeschaltet." },
 		{ ELanguage::French,   "Vous avez déverrouillé \"Vacuum Egg\"." },
 		{ ELanguage::Spanish,  "Has desbloqueado \"Vacuum Egg\"." },
@@ -890,7 +890,7 @@ std::unordered_map<std::string_view, std::unordered_map<ELanguage, std::string>>
 	"Unlock_Message_VacuumEggLv2",
 	{
 		{ ELanguage::English,  "\"Vacuum Egg\" is now Level 2." },
-		{ ELanguage::Japanese, "\"Vacuum Egg\" is now Level 2." },
+		{ ELanguage::Japanese, "武器「バキュームエッグ」が\nレベル２になりました！" },
 		{ ELanguage::German,   "\"Vacuum Egg\" hat Level 2 erreicht." },
 		{ ELanguage::French,   "Vous avez atteint le niveau 2 de \"Vacuum Egg\"." },
 		{ ELanguage::Spanish,  "\"Vacuum Egg\" Nivel 2." },
@@ -901,7 +901,7 @@ std::unordered_map<std::string_view, std::unordered_map<ELanguage, std::string>>
 	"Unlock_Message_OmochaoGunLv1",
 	{
 		{ ELanguage::English,  "You unlocked \"Omochao Gun\"." },
-		{ ELanguage::Japanese, "You unlocked \"Omochao Gun\"." },
+		{ ELanguage::Japanese, "武器「オモチャオガン」が\n使えるようになりました！" },
 		{ ELanguage::German,   "Du hast \"Omochao Gun\" freigeschaltet." },
 		{ ELanguage::French,   "Vous avez déverrouillé \"Omochao Gun\"." },
 		{ ELanguage::Spanish,  "Has desbloqueado \"Omochao Gun\"." },
@@ -912,7 +912,7 @@ std::unordered_map<std::string_view, std::unordered_map<ELanguage, std::string>>
 	"Unlock_Message_OmochaoGunLv2",
 	{
 		{ ELanguage::English,  "\"Omochao Gun\" is now Level 2." },
-		{ ELanguage::Japanese, "\"Omochao Gun\" is now Level 2." },
+		{ ELanguage::Japanese, "武器「オモチャオガン」が\nレベル２になりました！" },
 		{ ELanguage::German,   "\"Omochao Gun\" hat Level 2 erreicht." },
 		{ ELanguage::French,   "Vous avez atteint le niveau 2 de \"Omochao Gun\"." },
 		{ ELanguage::Spanish,  "\"Omochao Gun\" Nivel 2." },
@@ -923,7 +923,7 @@ std::unordered_map<std::string_view, std::unordered_map<ELanguage, std::string>>
 	"Unlock_Message_HealCannonLv1",
 	{
 		{ ELanguage::English,  "You unlocked \"Heal Cannon\"." },
-		{ ELanguage::Japanese, "You unlocked \"Heal Cannon\"." },
+		{ ELanguage::Japanese, "武器「ヒールキャノン」が\n使えるようになりました！" },
 		{ ELanguage::German,   "Du hast \"Heal Cannon\" freigeschaltet." },
 		{ ELanguage::French,   "Vous avez déverrouillé \"Heal Cannon\"." },
 		{ ELanguage::Spanish,  "Has desbloqueado \"Heal Cannon\"." },
@@ -934,7 +934,7 @@ std::unordered_map<std::string_view, std::unordered_map<ELanguage, std::string>>
 	"Unlock_Message_HealCannonLv2",
 	{
 		{ ELanguage::English,  "\"Heal Cannon\" is now Level 2." },
-		{ ELanguage::Japanese, "\"Heal Cannon\" is now Level 2." },
+		{ ELanguage::Japanese, "武器「ヒールキャノン」が\nレベル２になりました！" },
 		{ ELanguage::German,   "\"Heal Cannon\" hat Level 2 erreicht." },
 		{ ELanguage::French,   "Vous avez atteint le niveau 2 de \"Heal Cannon\"." },
 		{ ELanguage::Spanish,  "\"Heal Cannon\" Nivel 2." },
@@ -945,7 +945,7 @@ std::unordered_map<std::string_view, std::unordered_map<ELanguage, std::string>>
 	"Unlock_Message_ShadowRifle",
 	{
 		{ ELanguage::English,  "You unlocked \"Shadow Rifle\"." },
-		{ ELanguage::Japanese, "You unlocked \"Shadow Rifle\"." },
+		{ ELanguage::Japanese, "武器「シャドウライフル」が\n使えるようになりました！" },
 		{ ELanguage::German,   "Du hast \"Shadow Rifle\" freigeschaltet." },
 		{ ELanguage::French,   "Vous avez déverrouillé \"Shadow Rifle\"." },
 		{ ELanguage::Spanish,  "Has desbloqueado \"Shadow Rifle\"." },
@@ -956,7 +956,7 @@ std::unordered_map<std::string_view, std::unordered_map<ELanguage, std::string>>
 	"Title_Message_UpdateAvailable",
 	{
 		{ ELanguage::English,  "An update is available!\n\nWould you like to visit the\nreleases page to download it?" },
-		{ ELanguage::Japanese, "アップデートが[利用:りよう][可能:かのう]です\n\nリリースページにアクセスして\nダウンロードしますか？" },
+		{ ELanguage::Japanese, "アップデートが利用可能です！\n\nリリースページにアクセスしてダウンロードしますか？" },
 		{ ELanguage::German,   "Ein Update ist verfügbar!\n\nMöchten Sie die Release-Seite\nbesuchen um es herunterzuladen?" },
 		{ ELanguage::French,   "Une mise à jour est disponible !\n\nVoulez-vous visiter la page\ndes mises à jour pour la\ntélécharger ?" },
 		{ ELanguage::Spanish,  "¡Hay una actualización disponible!\n\n¿Quieres ir a la página\npara descargarla?" },
@@ -967,7 +967,7 @@ std::unordered_map<std::string_view, std::unordered_map<ELanguage, std::string>>
 	"Video_BackendError",
 	{
 		{ ELanguage::English,  "Unable to create a D3D12 (Windows) or Vulkan backend.\n\nPlease make sure that:\n\n- Your system meets the minimum requirements.\n- Your GPU drivers are up to date.\n- Your operating system is on the latest version available." },
-		{ ELanguage::Japanese, "D3D12 (Windows)または\nVulkanバックエンドを作成できません\n\n次の点を確認してください：\n\n※システムが最小要件を満たしている\n※GPUドライバーが最新である\n※オペレーティングシステムが最新バージョンである" },
+		{ ELanguage::Japanese, "D3D12（Windows）またはVulkanのバックエンドを作成できません。\n\n以下をご確認ください：\n\n※お使いのシステムが最小要件を満たしていること。\n※GPUドライバーが最新であること。\n※OSが利用可能な最新バージョンに更新されていること。" },
 		{ ELanguage::German,   "Es ist nicht möglich, ein D3D12 (Windows) oder Vulkan-Backend zu erstellen.\n\nBitte stelle sicher, dass:\n\n- Dein System die Mindestanforderungen erfüllt.\n- Deine GPU-Treiber auf dem neuesten Stand sind.\n- Dein Betriebssystem auf der neuesten verfügbaren Version ist." },
 		{ ELanguage::French,   "Impossible de créer un backend D3D12 (Windows) ou Vulkan.\n\nVeuillez vous assurer que :\n\n- Votre système répond aux critères minimums requis.\n- Les pilotes de votre processeur graphique sont à jour.\n- Votre système d'exploitation est à jour." },
 		{ ELanguage::Spanish,  "No se puede crear un entorno de D3D12 (Windows) o de Vulkan.\n\nPor favor, asegúrate de que:\n\n- Tu equipo cumple con los requisitos mínimos.\n- Los drivers de tu tarjeta gráfica están actualizados.\n- Tu sistema operativo está actualizado a la última versión.\n" },
@@ -978,7 +978,7 @@ std::unordered_map<std::string_view, std::unordered_map<ELanguage, std::string>>
 	"System_MemoryAllocationFailed",
 	{
 		{ ELanguage::English,  "Failed to allocate game memory.\n\nPlease make sure that:\n\n- You meet the minimum system requirements (8 GB).\n- Your page file is configured with at least 4-8 GB of virtual memory." },
-		{ ELanguage::Japanese, "ゲームメモリの割り当てに失敗しました\n\n次の点を確認してください：\n\n※最小システム要件（8 GB）を満たしていること。\n※ページファイルに少なくとも4～8 GBの仮想メモリが設定されていること" },
+		{ ELanguage::Japanese, "ゲーム用メモリを割り当てられませんでした。\n\n以下をご確認ください：\n\n※システムが最小要件（8 GB）を満たしていること。\n※ページファイルに少なくとも4～8 GBの仮想メモリが設定されていること。" },
 		{ ELanguage::German,   "Fehler beim Zuweisen des Spielspeichers.\n\nBitte stelle sicher, dass:\n\n- Die Mindestanforderungen für das System erfüllt sind (8 GB).\n- Die Auslagerungsdatei mit mindestens 4-8 GB virtuellem Speicher konfiguriert ist." },
 		{ ELanguage::French,   "Échec d'allocation de la mémoire du jeu.\n\nVeuillez vous assurer que :\n\n- Vous disposez de la configuration minimale requise (8 Go).\n- Votre fichier d’échange est configuré avec au moins 4 à 8 Go de mémoire virtuelle." },
 		{ ELanguage::Spanish,  "Fallo al asignar memoria del juego.\n\nPor favor, asegúrate de que:\n\n- Cumples los requisitos mínimos del sistema (8 GB).\n- Tu archivo de páginación está configurado con al menos 4 u 8 GB de memoria virtual." },
@@ -989,7 +989,7 @@ std::unordered_map<std::string_view, std::unordered_map<ELanguage, std::string>>
 	"IntegrityCheck_Success",
 	{
 		{ ELanguage::English,  "Installation check has finished.\n\nAll files seem to be correct.\n\nThe game will now close. Remove the launch argument to play the game." },
-		{ ELanguage::Japanese, "インストールチェックが終了しました\n\nすべてのファイルは正しいようです\n\nゲームは終了します、ゲームをプレイするには起動引数を削除してください" },
+		{ ELanguage::Japanese, "インストールの確認が完了しました。\n\nすべてのファイルに問題はないようです。\n\nゲームを終了します。ゲームをプレイするには、起動引数を削除してください。" },
 		{ ELanguage::German,   "Die Installation wurde überprüft.\n\nAlle Dateien scheinen korrekt zu sein.\n\nDas Spiel wird nun geschlossen. Entferne die Startoption, um das Spiel zu spielen." },
 		{ ELanguage::French,   "La vérification de l'installation est terminée.\n\nTous les fichiers semblent corrects.\n\nL'application va maintenant se fermer. Retirez l'argument de lancement pour pouvoir lancer le jeu." },
 		{ ELanguage::Spanish,  "La verificación de la instalación ha terminado.\n\nTodos los archivos parecen correctos.\n\nEl juego se cerrará ahora. Elimina el argumento de lanzamiento para jugar al juego." },
@@ -1000,7 +1000,7 @@ std::unordered_map<std::string_view, std::unordered_map<ELanguage, std::string>>
 	"IntegrityCheck_Failed",
 	{
 		{ ELanguage::English,  "Installation check has failed.\n\nError: %s\n\nThe game will now close. Try reinstalling the game by using the --install launch argument." },
-		{ ELanguage::Japanese, "インストールチェックに失敗しました\n\nエラー：%s\n\nゲームは終了します、--install 起動引数を使用してゲームを再インストールしてください" },
+		{ ELanguage::Japanese, "インストールの確認に失敗しました。\n\nエラー：%s\n\nゲームを終了します。起動引数 --install を使用して、ゲームを再インストールしてみてください。" },
 		{ ELanguage::German,   "Die Installationsprüfung ist fehlgeschlagen.\n\nFehler: %s\n\nDas Spiel wird nun geschlossen. Versuche das Spiel durch Verwendung der Startoption --install neu zu installieren." },
 		{ ELanguage::French,   "La vérification de l'installation a échoué.\n\nErreur : %s\n\nL'application va maintenant se fermer. Essayez de réinstaller le jeu en utilisant l'argument de lancement --install." },
 		{ ELanguage::Spanish,  "La verificación de la instalación ha fallado.\n\nError: %s\n\nEl juego se cerrará ahora. Intenta reinstalar el juego utilizando el argumento de lanzamiento --install." },

@@ -18,9 +18,9 @@ std::unordered_map<int, std::unordered_map<ELanguage, AchievementLocale>> g_shrL
 			{
 				ELanguage::Japanese,
 				{
-					"Heart Awoken from Darkness",
-					"Complete the Pure Dark - Dark Ending!",
-					"Completed the Pure Dark - Dark Ending."
+					"暗黒によって目覚めた心",
+					"ピュア・ダーク・ダークエンディングをクリアしよう！",
+					"ピュア・ダーク・ダークエンディングをクリアした。"
 				}
 			},
 			{
@@ -72,9 +72,9 @@ std::unordered_map<int, std::unordered_map<ELanguage, AchievementLocale>> g_shrL
 			{
 				ELanguage::Japanese,
 			  {
-					"Prologue to World Conquest",
-					"Complete the Pure Dark - Hero Ending!",
-					"Completed the Pure Dark - Hero Ending."
+					"世界制覇への序章",
+					"ピュア・ダーク・ヒーローエンディングをクリアしよう！",
+					"ピュア・ダーク・ヒーローエンディングをクリアした。"
 				}
 			},
 			{
@@ -119,16 +119,16 @@ std::unordered_map<int, std::unordered_map<ELanguage, AchievementLocale>> g_shrL
 				ELanguage::English,
 				{
 					"March to a Darker World",
-					"Complete the Dark - Dark Ending.",
+					"Complete the Dark - Dark Ending!",
 					"Completed the Dark - Dark Ending."
 				}
 			},
 			{
 				ELanguage::Japanese,
 				{
-					"March to a Darker World",
-					"Complete the Dark - Dark Ending.",
-					"Completed the Dark - Dark Ending."
+					"暗黒世界への行進",
+					"ダーク・ダークエンディングをクリアしよう！",
+					"ダーク・ダークエンディングをクリアした。"
 				}
 			},
 			{
@@ -143,7 +143,7 @@ std::unordered_map<int, std::unordered_map<ELanguage, AchievementLocale>> g_shrL
 				ELanguage::French,
 				{
 					"Marche vers un Monde plus Sombre",
-					"Completez la fin Dark - Dark.",
+					"Completez la fin Dark - Dark!",
 					"Fin Dark - Dark complétée."
 				}
 			},
@@ -159,7 +159,7 @@ std::unordered_map<int, std::unordered_map<ELanguage, AchievementLocale>> g_shrL
 				ELanguage::Italian,
 				{
 					"March to a Darker World",
-					"Complete the Dark - Dark Ending.",
+					"Complete the Dark - Dark Ending!",
 					"Completed the Dark - Dark Ending."
 				}
 			},
@@ -180,9 +180,9 @@ std::unordered_map<int, std::unordered_map<ELanguage, AchievementLocale>> g_shrL
 			{
 				ELanguage::Japanese,
 				{
-					"Last Remaining Purpose",
-					"Complete the Dark - Hero ending!",
-					"Completed the Dark - Hero ending."
+					"最後に残った意思",
+					"ダーク・ヒーローエンディングをクリアしよう！",
+					"ダーク・ヒーローエンディングをクリアした。"
 				}
 			},
 			{
@@ -234,9 +234,9 @@ std::unordered_map<int, std::unordered_map<ELanguage, AchievementLocale>> g_shrL
 			{
 				ELanguage::Japanese,
 				{
-					"Over the Original",
-					"Complete the Neutral - Dark ending!",
-					"Completed the Neutral - Dark ending."
+					"オーバー・ザ・オリジナル",
+					"ニュートラル・ダークエンディングをクリアしよう！",
+					"ニュートラル・ダークエンディングをクリアした。"
 				}
 			},
 			{
@@ -288,9 +288,9 @@ std::unordered_map<int, std::unordered_map<ELanguage, AchievementLocale>> g_shrL
 			{
 				ELanguage::Japanese,
 				{
-					"A New Empire's Beginning",
-					"Complete the Neutral - Hero ending!",
-					"Completed the Neutral - Hero ending."
+					"新帝国の幕開け",
+					"ニュートラル・ヒーローエンディングをクリアしよう！",
+					"ニュートラル・ヒーローエンディングをクリアした。"
 				}
 			},
 			{
@@ -342,9 +342,9 @@ std::unordered_map<int, std::unordered_map<ELanguage, AchievementLocale>> g_shrL
 			{
 				ELanguage::Japanese,
 				{
-					"Reborn Along with Sorrow",
-					"Complete the Hero - Dark ending!",
-					"Completed the Hero - Dark ending."
+					"よみがえった悲哀と共に",
+					"ヒーロー・ダークエンディングをクリアしよう！",
+					"ヒーロー・ダークエンディングをクリアした。"
 				}
 			},
 			{
@@ -396,9 +396,9 @@ std::unordered_map<int, std::unordered_map<ELanguage, AchievementLocale>> g_shrL
 			{
 				ELanguage::Japanese,
 				{
-					"Requiem for a Fallen Angel",
-					"Complete the Hero - Hero ending!",
-					"Completed the Hero - Hero ending."
+					"堕天使へのレクイエム",
+					"ヒーロー・ヒーローエンディングをクリアしよう！",
+					"ヒーロー・ヒーローエンディングをクリアした。"
 				}
 			},
 			{
@@ -451,9 +451,9 @@ std::unordered_map<int, std::unordered_map<ELanguage, AchievementLocale>> g_shrL
 			{
 				ELanguage::Japanese,
 				{
-					"Pretense in the Mirror",
-					"Complete the Pure Hero - Dark ending!",
-					"Completed the Pure Hero - Dark ending."
+					"鏡に映る虚像",
+					"ピュア・ヒーロー・ダークエンディングをクリアしよう！",
+					"ピュア・ヒーロー・ダークエンディングをクリアした。"
 				}
 			},
 			{
@@ -468,7 +468,7 @@ std::unordered_map<int, std::unordered_map<ELanguage, AchievementLocale>> g_shrL
 				ELanguage::French,
 				{
 					"Prétention dans le miroir",
-					"Complétez la fin Pure Hero - Dark!",
+					"Complétez la fin Pure Hero - Dark !",
 					"Fin Pure Hero - Dark complétée."
 				}
 			},
@@ -505,9 +505,9 @@ std::unordered_map<int, std::unordered_map<ELanguage, AchievementLocale>> g_shrL
 			{
 				ELanguage::Japanese,
 				{
-					"The One Who Maria Entrusted",
-					"Complete the Pure Hero - Hero ending!",
-					"Completed the Pure Hero - Hero ending."
+					"マリアの託したもの",
+					"ピュア・ヒーロー・ヒーローエンディングをクリアしよう！",
+					"ピュア・ヒーロー・ヒーローエンディングをクリアした。"
 				}
 			},
 			{
@@ -562,9 +562,9 @@ std::unordered_map<int, std::unordered_map<ELanguage, AchievementLocale>> g_shrL
 			{
 				ELanguage::Japanese,
 				{
-					"Never Turn Back",
-					"Complete the last story!",
-					"Completed the last story."
+					"NEVER TURN BACK",
+					"LAST STORYをクリアしよう！",
+					"LAST STORYをクリアした。"
 				}
 			},
 			{
@@ -617,9 +617,9 @@ std::unordered_map<int, std::unordered_map<ELanguage, AchievementLocale>> g_shrL
 			{
 				ELanguage::Japanese,
 				{
-					"Beyond Good and Evil",
-					"Get all 71 A Ranks!",
-					"Got all 71 A Ranks."
+					"善悪の彼岸",
+					"すべてのステージをAランクでクリアしよう！",
+					"すべてのステージをAランクでクリアした。"
 				}
 			},
 			{
@@ -671,9 +671,9 @@ std::unordered_map<int, std::unordered_map<ELanguage, AchievementLocale>> g_shrL
 			{
 				ELanguage::Japanese,
 				{
-					"Master of Keys",
-					"Collect all 115 Keys!",
-					"Collected all 115 Keys."
+					"カギの達人",
+					"カギを115個すべて集めよう！",
+					"カギを115個すべて集めた。"
 				}
 			},
 			{
@@ -725,9 +725,9 @@ std::unordered_map<int, std::unordered_map<ELanguage, AchievementLocale>> g_shrL
 			{
 				ELanguage::Japanese,
 				{
-					"A Use for a Saved Life",
-					"Complete Expert Mode!",
-					"Completed Expert Mode."
+					"救われた命の使い道",
+					"ハードモードをクリアしよう！",
+					"ハードモードをクリアした。"
 				}
 			},
 			{
@@ -764,16 +764,14 @@ std::unordered_map<int, std::unordered_map<ELanguage, AchievementLocale>> g_shrL
 			},
 		}
 	},
-	// I'm the coolest (Destroy the Lethal Highway tank while driving a vehicle)
-		// note: the achievement title is a reference to a Shadow quote in Sonic Adventure 2 after getting hit
-		// you are free to not translate it to keep the reference.
+	// Hm. Perfect... (Destroy the Lethal Highway tank while driving a vehicle)
 	{
 		15,
 		{
 			{
 				ELanguage::English,
 				{
-					"I'm the Coolest",
+					"Hm. Perfect...",
 					"Destroy the Black Arms tank in Lethal Highway while driving a vehicle!",
 					"Destroyed the Black Arms tank in Lethal Highway while driving a vehicle."
 				}
@@ -781,9 +779,9 @@ std::unordered_map<int, std::unordered_map<ELanguage, AchievementLocale>> g_shrL
 			{
 				ELanguage::Japanese,
 				{
-					"I'm the Coolest",
-					"Destroy the Black Arms tank in Lethal Highway while driving a vehicle!",
-					"Destroyed the Black Arms tank in Lethal Highway while driving a vehicle."
+					"フッ、完璧だ...",
+					"乗り物を運転しながら、LETHAL HIGHWAYでブラックアームズのタンクを破壊しよう！",
+					"乗り物を運転しながら、LETHAL HIGHWAYでブラックアームズのタンクを破壊した。"
 				}
 			},
 			{
@@ -797,7 +795,7 @@ std::unordered_map<int, std::unordered_map<ELanguage, AchievementLocale>> g_shrL
 			{
 				ELanguage::French,
 				{
-					"I'm the Coolest",
+					"Hum. Parfait...",
 					"Détruisez le tank des Black Arms dans Lethal Highway en conduisant un véhicule !",
 					"Tank des Black Arms détruit dans Lethal Highway en conduisant un véhicule."
 				}
@@ -813,7 +811,7 @@ std::unordered_map<int, std::unordered_map<ELanguage, AchievementLocale>> g_shrL
 			{
 				ELanguage::Italian,
 				{
-					"I'm the Coolest",
+					"Hm. Perfetto...",
 					"Destroy the Black Arms tank in Lethal Highway while driving a vehicle!",
 					"Destroyed the Black Arms tank in Lethal Highway while driving a vehicle."
 				}
@@ -835,9 +833,9 @@ std::unordered_map<int, std::unordered_map<ELanguage, AchievementLocale>> g_shrL
 			{
 				ELanguage::Japanese,
 				{
-					"3 minutes, shower included",
-					"Complete the hero mission of Central City in less than 3 minutes!",
-					"Completed the hero mission of Central City in less than 3 minutes."
+					"シャワー込みで3分",
+					"CENTRAL CITYのヒーローミッションを3分未満でクリアしよう！",
+					"CENTRAL CITYのヒーローミッションを3分未満でクリアした。"
 				}
 			},
 			{
@@ -883,16 +881,16 @@ std::unordered_map<int, std::unordered_map<ELanguage, AchievementLocale>> g_shrL
 				ELanguage::English,
 				{
 					"I Am... All of Me",
-					"Unlock all the achievements.",
+					"Unlock all the achievements!",
 					"Unlocked all the achievements."
 				}
 			},
 			{
 				ELanguage::Japanese,
 				{
-					"I Am... All of Me",
-					"Unlock all the achievements.",
-					"Unlocked all the achievements."
+					"I AM... ALL OF ME",
+					"実績をすべて解除しよう！",
+					"実績をすべて解除した。"
 				}
 			},
 			{
@@ -907,7 +905,7 @@ std::unordered_map<int, std::unordered_map<ELanguage, AchievementLocale>> g_shrL
 				ELanguage::French,
 				{
 					"I Am... All of Me",
-					"Débloquez tous les succès.",
+					"Débloquez tous les succès !",
 					"Obtenu tous les succès."
 				}
 			},
@@ -915,7 +913,7 @@ std::unordered_map<int, std::unordered_map<ELanguage, AchievementLocale>> g_shrL
 				ELanguage::Spanish,
 				{
 					"I Am... All of Me",
-					"Unlock all the achievements.",
+					"Unlock all the achievements!",
 					"Unlocked all the achievements."
 				}
 			},
@@ -923,7 +921,7 @@ std::unordered_map<int, std::unordered_map<ELanguage, AchievementLocale>> g_shrL
 				ELanguage::Italian,
 				{
 					"I Am... All of Me",
-					"Unlock all the achievements.",
+					"Unlock all the achievements!",
 					"Unlocked all the achievements."
 				}
 			},
