@@ -144,7 +144,7 @@ void AchievementMenu::Open(uint32_t padIndex)
 
 	Button buttons =
 	{
-		Button("Common_Back", 115.0f, EButtonIcon::Y, EButtonAlignment::Left, &g_isControlsVisible),
+		Button("Common_Quit", 115.0f, EButtonIcon::Y, EButtonAlignment::Left, &g_isControlsVisible),
 	};
 
 	ButtonGuide::Open(buttons);
