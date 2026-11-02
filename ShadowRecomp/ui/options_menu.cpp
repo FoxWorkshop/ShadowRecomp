@@ -193,7 +193,7 @@ static double g_cursorArrowsTime{};
 static double g_flowStateTime{};
 static double g_lastIncrementTime{};
 static double g_lastTappedTime{};
-static double g_scrollArrowsTime{};
+static ScrollArrows g_scrollArrows{};
 static double g_containerAnimTime = 0.0;
 static double g_containerClosedAnimTime = 0.0;
 static double g_transitionTime{};
@@ -1349,7 +1349,7 @@ static void OpenSoundTest()
 	g_optionIndex = 0;
 	g_optionCount = (int)g_soundTestTracks.size();
 	g_cursorArrowsTime = ImGui::GetTime();
-	g_scrollArrowsTime = g_cursorArrowsTime;
+	g_scrollArrows = {};
 }
 
 static void CloseSoundTest()
@@ -1366,7 +1366,7 @@ static void CloseSoundTest()
 	g_isSoundTest = false;
 	g_optionIndex = g_soundTestReturnIndex;
 	g_cursorArrowsTime = ImGui::GetTime();
-	g_scrollArrowsTime = g_cursorArrowsTime;
+	g_scrollArrows = {};
 }
 
 void OptionsMenu::UpdateSoundTest()
@@ -2045,7 +2045,7 @@ static void DrawOptions(ImVec2 minClipRect, ImVec2 maxClipRect, ImVec2 min, ImVe
 
 	drawList->PopClipRect();
 
-	if (g_optionCount > MAX_VISIBLE_ROWS && OptionsMenu::s_flowState == OptionsMenuFlowState::OptionCursor)
+	if (g_optionCount > MAX_VISIBLE_ROWS)
 	{
 		// keep the arrows inside the list, next to the right edge of the menu box
 		auto scrollArrowsOffsetX = Scale(40);
@@ -2054,7 +2054,7 @@ static void DrawOptions(ImVec2 minClipRect, ImVec2 maxClipRect, ImVec2 min, ImVe
 		ImVec2 scrollArrowsMin = { GetMenuBoxLeft() + GetMenuBoxWidth() - scrollArrowsOffsetX, minClipRect.y + scrollArrowsOffsetTop };
 		ImVec2 scrollArrowsMax = { scrollArrowsMin.x + scrollArrowsOffsetX, maxClipRect.y - scrollArrowsOffsetBottom };
 
-		DrawScrollArrows(scrollArrowsMin, scrollArrowsMax, Scale(15), g_scrollArrowsTime, g_optionScrollTop > 0, g_optionScrollTop < rowCount - MAX_VISIBLE_ROWS);
+		DrawScrollArrows(scrollArrowsMin, scrollArrowsMax, Scale(15), g_scrollArrows, g_optionScrollTop > 0, g_optionScrollTop < rowCount - MAX_VISIBLE_ROWS);
 	}
 
 }
@@ -2071,6 +2071,7 @@ static void ResetOptionSelection()
 	g_optionIndex = 0;
 	g_optionCurrent = nullptr;
 	g_optionCanReset = false;
+	g_scrollArrows = {};
 }
 
 static void ResetSelection()
@@ -2084,7 +2085,7 @@ static void ResetSelection()
 }
 
 
-static void MoveCursor(int& cursorIndex, double& cursorTime, int min = 0, int max = INT_MAX, std::function<void()> onCursorMoved = nullptr)
+static void MoveCursor(int& cursorIndex, double& cursorTime, int min = 0, int max = INT_MAX, std::function<void(bool isDown)> onCursorMoved = nullptr)
 {
 	auto time = ImGui::GetTime();
 
@@ -2136,7 +2137,7 @@ static void MoveCursor(int& cursorIndex, double& cursorTime, int min = 0, int ma
 		cursorTime = time;
 
 		if (onCursorMoved)
-			onCursorMoved();
+			onCursorMoved(scrollDown);
 	}
 }
 
@@ -2890,7 +2891,7 @@ void OptionsMenu::Draw()
 	{
 		if (g_isRemapMenu)
 		{
-			MoveCursor(g_remapSectionIndex, g_flowStateTime, 0, GetRemapSectionCount(), []()
+			MoveCursor(g_remapSectionIndex, g_flowStateTime, 0, GetRemapSectionCount(), [](bool)
 				{
 					ResetOptionSelection();
 
@@ -2905,7 +2906,6 @@ void OptionsMenu::Draw()
 				SetFlowState(OptionsMenuFlowState::OptionCursor);
 
 				g_cursorArrowsTime = ImGui::GetTime();
-				g_scrollArrowsTime = g_cursorArrowsTime;
 			}
 
 			if (CheckAndDiscard(g_isDeclined))
@@ -2918,7 +2918,7 @@ void OptionsMenu::Draw()
 				SetFlowState(OptionsMenuFlowState::OptionCursor);
 
 				g_cursorArrowsTime = ImGui::GetTime();
-				g_scrollArrowsTime = g_cursorArrowsTime;
+				g_scrollArrows = {};
 			}
 
 			break;
@@ -2934,7 +2934,7 @@ void OptionsMenu::Draw()
 		/**if (s_isPause)
 			categoryCount -= 1;*/
 
-		MoveCursor(g_categoryIndex, g_flowStateTime, 0, categoryCount, []()
+		MoveCursor(g_categoryIndex, g_flowStateTime, 0, categoryCount, [](bool)
 			{
 				ResetOptionSelection();
 
@@ -2950,7 +2950,6 @@ void OptionsMenu::Draw()
 			SetFlowState(OptionsMenuFlowState::OptionCursor);
 
 			g_cursorArrowsTime = ImGui::GetTime();
-			g_scrollArrowsTime = g_cursorArrowsTime;
 		}
 
 		if (CheckAndDiscard(g_isDeclined) || CheckAndDiscard(g_isLeaving) || OptionsMenu::s_GoToLegacyMenu == true)
@@ -2980,10 +2979,18 @@ void OptionsMenu::Draw()
 
 	case OptionsMenuFlowState::OptionCursor:
 	{
-		MoveCursor(g_optionIndex, g_flowStateTime, 0, g_optionCount, []()
+		MoveCursor(g_optionIndex, g_flowStateTime, 0, g_optionCount, [](bool isDown)
 			{
 				g_cursorArrowsTime = ImGui::GetTime();
-				g_scrollArrowsTime = g_cursorArrowsTime;
+
+				if (isDown)
+				{
+					g_scrollArrows.BottomMotionTime = g_cursorArrowsTime;
+				}
+				else
+				{
+					g_scrollArrows.TopMotionTime = g_cursorArrowsTime;
+				}
 			});
 
 		if (g_isSoundTest && CheckAndDiscard(g_isDeclined))

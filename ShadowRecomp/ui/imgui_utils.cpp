@@ -1001,47 +1001,46 @@ void AddImageFlipped(ImTextureID texture, const ImVec2& min, const ImVec2& max, 
     drawList->AddImageQuad(texture, p0, p1, p2, p3, uv0, uv1, uv2, uv3, col);
 }
 
-void DrawScrollArrows(ImVec2 min, ImVec2 max, float scale, double& time, bool top, bool bottom)
+void DrawScrollArrows(ImVec2 min, ImVec2 max, float scale, ScrollArrows& arrows, bool top, bool bottom)
 {
     auto drawList = ImGui::GetBackgroundDrawList();
 
-    auto scrollArrowUVs = PIXELS_TO_UV_COORDS(48, 48, 0, 24, 24, 24);
+    auto step = ImGui::GetIO().DeltaTime * 60.0f / 8.0f;
+    auto topMotion = ComputeLinearMotion(arrows.TopMotionTime, 0, 15);
+    auto bottomMotion = ComputeLinearMotion(arrows.BottomMotionTime, 0, 15);
 
-    auto scrollArrowAlphaMotionInTime = ComputeLinearMotion(time, 0, 3, false);
-    auto scrollArrowAlphaMotionPauseTime = ComputeLinearMotion(time, 3, 11, false);
-    auto scrollArrowAlphaMotionOutTime = ComputeLinearMotion(time, 11, 4, true);
-    auto scrollArrowAlphaMotionLoopTime = ComputeLinearMotion(time, 15, 50, false);
-    auto scrollArrowAlphaMotion = 255;
-
-    if (scrollArrowAlphaMotionPauseTime >= 1.0)
-    {
-        // Fade out arrows.
-        scrollArrowAlphaMotion = 255 * scrollArrowAlphaMotionOutTime;
-
-        // Reset loop.
-        if (scrollArrowAlphaMotionLoopTime >= 1.0)
-            time = ImGui::GetTime();
-    }
-    else
-    {
-        // Fade in arrows.
-        scrollArrowAlphaMotion = 255 * scrollArrowAlphaMotionInTime;
-    }
-
-    auto scrollArrowColourMotion = IM_COL32(255, 255, 255, scrollArrowAlphaMotion);
-
-    ImVec2 scrollArrowTopMin = min;
-    ImVec2 scrollArrowTopMax = { scrollArrowTopMin.x + scale, scrollArrowTopMin.y + scale };
-    ImVec2 scrollArrowBottomMin = { scrollArrowTopMin.x, max.y - scale };
-    ImVec2 scrollArrowBottomMax = { scrollArrowTopMax.x, scrollArrowBottomMin.y + scale };
-
+    // Fade out arrows.
     if (top)
-        drawList->AddImage(g_upTexArrow.get(), scrollArrowTopMin, scrollArrowTopMax, GET_UV_COORDS(scrollArrowUVs), scrollArrowColourMotion);
-
-    scrollArrowUVs = PIXELS_TO_UV_COORDS(48, 48, 24, 24, 24, 24);
+    {
+        arrows.TopAlpha = std::min(arrows.TopAlpha + step, 1.0f);
+    }
+    else if (topMotion >= 1.0)
+    {
+        arrows.TopAlpha = std::max(arrows.TopAlpha - step, 0.0f);
+    }
 
     if (bottom)
-        drawList->AddImage(g_upTexArrow.get(), scrollArrowBottomMin, scrollArrowBottomMax, GET_UV_COORDS(scrollArrowUVs), scrollArrowColourMotion);
+    {
+        arrows.BottomAlpha = std::min(arrows.BottomAlpha + step, 1.0f);
+    }
+    else if (bottomMotion >= 1.0)
+    {
+        arrows.BottomAlpha = std::max(arrows.BottomAlpha - step, 0.0f);
+    }
+
+    auto topOffsetY = Lerp(0.0f, Scale(9), sin(topMotion * M_PI));
+    auto bottomOffsetY = Lerp(0.0f, Scale(9), sin(bottomMotion * M_PI));
+
+    ImVec2 scrollArrowTopMin = { min.x, min.y - topOffsetY };
+    ImVec2 scrollArrowTopMax = { scrollArrowTopMin.x + scale, scrollArrowTopMin.y + scale };
+    ImVec2 scrollArrowBottomMin = { min.x, max.y - scale + bottomOffsetY };
+    ImVec2 scrollArrowBottomMax = { scrollArrowBottomMin.x + scale, scrollArrowBottomMin.y + scale };
+
+    auto scrollArrowUVs = PIXELS_TO_UV_COORDS(48, 48, 0, 24, 24, 24);
+    drawList->AddImage(g_upTexArrow.get(), scrollArrowTopMin, scrollArrowTopMax, GET_UV_COORDS(scrollArrowUVs), IM_COL32(255, 255, 255, 255 * arrows.TopAlpha));
+
+    scrollArrowUVs = PIXELS_TO_UV_COORDS(48, 48, 24, 24, 24, 24);
+    drawList->AddImage(g_upTexArrow.get(), scrollArrowBottomMin, scrollArrowBottomMax, GET_UV_COORDS(scrollArrowUVs), IM_COL32(255, 255, 255, 255 * arrows.BottomAlpha));
 }
 
 void DrawArrowCursor(ImVec2 pos, double time, bool isIntroAnim, bool isBlinkingAnim, bool isReversed)

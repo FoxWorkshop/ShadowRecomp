@@ -109,7 +109,16 @@ PauseZoom ComputePauseZoom(double time, bool isClosing);
 float GetInterpolatedFrameValue(std::span<const LoopKey> keys, float frame, bool isLooping = true);
 float ComputeTitleBlink(double time, bool isClosing);
 void SetVerticalGradient(const ImVec2& min, const ImVec2& max, ImU32 top, ImU32 bottom);
-void DrawScrollArrows(ImVec2 min, ImVec2 max, float scale, double& time, bool top = true, bool bottom = true);
+
+struct ScrollArrows
+{
+    double TopMotionTime{};
+    double BottomMotionTime{};
+    float TopAlpha{};
+    float BottomAlpha{};
+};
+
+void DrawScrollArrows(ImVec2 min, ImVec2 max, float scale, ScrollArrows& arrows, bool top, bool bottom);
 double ComputeLoopMotion(double time, double offset, double total);
 void DrawArrowCursor(ImVec2 pos, double time, bool isIntroAnim, bool isBlinkingAnim, bool isReversed);
 GuestTexture* GetTexArrow();

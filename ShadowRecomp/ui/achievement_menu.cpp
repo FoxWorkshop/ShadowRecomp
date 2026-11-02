@@ -22,7 +22,7 @@
 static double g_time{};
 static double g_transitionTime{};
 static double g_rowSelectionTime{};
-static double g_scrollArrowsTime{};
+static ScrollArrows g_scrollArrows{};
 static double g_lastIncrementTime{};
 static double g_lastTappedTime{};
 
@@ -106,7 +106,15 @@ static void MoveCursor(int& cursorIndex, int min = 0, int max = INT_MAX)
 		Game_PlaySound("cursor");
 
 		g_rowSelectionTime = time;
-		g_scrollArrowsTime = g_rowSelectionTime;
+
+		if (scrollDown)
+		{
+			g_scrollArrows.BottomMotionTime = time;
+		}
+		else
+		{
+			g_scrollArrows.TopMotionTime = time;
+		}
 	}
 }
 
@@ -141,6 +149,7 @@ void AchievementMenu::Open(uint32_t padIndex)
 	g_transitionTime = g_time;
 	g_hasSwitched = false;
 	g_selectedIndex = 0;
+	g_scrollArrows = {};
 
 	Button buttons =
 	{
@@ -529,7 +538,7 @@ void AchievementMenu::Draw()
 			ImVec2 scrollArrowsMin = { max.x + scrollArrowsOffsetX, min.y + scrollArrowsOffsetTop };
 			ImVec2 scrollArrowsMax = { scrollArrowsMin.x + scrollArrowsOffsetX, max.y - scrollArrowsOffsetBottom };
 
-			DrawScrollArrows(scrollArrowsMin, scrollArrowsMax, Scale(15), g_scrollArrowsTime, g_selectedIndex > MAX_VISIBLE_ROWS / 2, g_selectedIndex < g_rowCount - MAX_VISIBLE_ROWS / 2);
+			DrawScrollArrows(scrollArrowsMin, scrollArrowsMax, Scale(15), g_scrollArrows, g_selectedIndex > MAX_VISIBLE_ROWS / 2, g_selectedIndex < g_rowCount - MAX_VISIBLE_ROWS / 2);
 
 			auto upIsHeld = false;
 			auto downIsHeld = false;
