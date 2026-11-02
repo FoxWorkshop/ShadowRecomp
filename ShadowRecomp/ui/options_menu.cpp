@@ -2014,7 +2014,6 @@ static void DrawOptions(ImVec2 minClipRect, ImVec2 maxClipRect, ImVec2 min, ImVe
 		DrawOption(rowCount++, &Config::ShowFPS, true, min, max, nullptr);
 		DrawOption(rowCount++, &Config::Brightness, true, min, max, nullptr);
 		DrawOption(rowCount++, &Config::BloomIntensity, true, min, max, nullptr);
-		DrawOption(rowCount++, &Config::TextureFiltering, true, min, max, nullptr);
 
 #ifdef SHADOW_RECOMP_D3D12
 		DrawOption(rowCount++, &Config::GraphicsAPI, !OptionsMenu::s_isPause, min, max, cmnReason);

@@ -122,12 +122,6 @@ enum class ETripleBuffering : uint32_t
     Off
 };
 
-enum class ETextureFiltering : uint32_t
-{
-    Auto,
-    Linear
-};
-
 enum class EFMVAspectRatio : uint32_t
 {
     Stretched,

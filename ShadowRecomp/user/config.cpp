@@ -341,12 +341,6 @@ CONFIG_DEFINE_ENUM_TEMPLATE(ETripleBuffering)
     { "Off",  ETripleBuffering::Off }
 };
 
-CONFIG_DEFINE_ENUM_TEMPLATE(ETextureFiltering)
-{
-    { "Auto", ETextureFiltering::Auto },
-    { "Linear",  ETextureFiltering::Linear }
-};
-
 CONFIG_DEFINE_ENUM_TEMPLATE(EFMVAspectRatio)
 {
     { "Stretched", EFMVAspectRatio::Stretched },

@@ -56,11 +56,11 @@
 CONFIG_DEFINE_LOCALE(Language)
 {
     { ELanguage::English, { "Language", "Change the language used for text." } },
-    { ELanguage::Japanese, { "[言語:げんご]", "ゲーム[内:ない]の\u200B[表示言語:ひょうじげんご]を\u200B[変更:へんこう]できます" } },
-    { ELanguage::German,   { "Sprache", "Ändere die Sprache für Text und Logos." } },
-    { ELanguage::French,   { "Langue", "Modifie la langue utilisée pour le texte et logos." } },
-    { ELanguage::Spanish,  { "Idioma", "Cambia el idioma utilizado para el texto y los logos." } },
-    { ELanguage::Italian,  { "Lingua", "Cambia la lingua utilizzata per i testi e i logo." } }
+    { ELanguage::Japanese, { "Language", "Change the language used for text." } },
+    { ELanguage::German,  { "Language", "Change the language used for text." } },
+    { ELanguage::French,   { "Langue", "Modifie la langue utilisée pour le texte." } },
+    { ELanguage::Spanish,  { "Language", "Change the language used for text." } },
+    { ELanguage::Italian,  { "Language", "Change the language used for text." } },
 };
 
 // Notes: do not localise this.
@@ -869,62 +869,6 @@ CONFIG_DEFINE_LOCALE(Brightness)
     { ELanguage::French,   { "Luminosité", "Adjust the brightness level." } },
     { ELanguage::Spanish,  { "Brillo", "Adjust the brightness level." } },
     { ELanguage::Italian,  { "Luminosità", "Adjust the brightness level." } }
-};
-
-CONFIG_DEFINE_LOCALE(TextureFiltering)
-{
-    { ELanguage::English, { "Texture Filtering", "Change the quality of the filtering used for textures." } },
-    { ELanguage::Japanese, { "GIテクスチャフィルタリング", "GIテクスチャに\u200B[使用:しよう]する\u200Bフィルタリングの\u200B[品質:ひんしつ]を\u200B[変更:へんこう]できます" } },
-    { ELanguage::German,   { "GI Texturfilterung", "Ändere die Qualität der Filterung für Global-Illumination-Texturen." } },
-    { ELanguage::French,   { "Filtre des textures", "Modifie la qualité du filtre utilisé pour les textures." } },
-    { ELanguage::Spanish,  { "Filtrado de texturas de GI", "Cambia la calidad del filtrado utilizado en las texturas de iluminación global." } },
-    { ELanguage::Italian,  { "Filtraggio delle texture GI", "Regola la qualità del sistema di filtraggio utilizzato per le texture dell'illuminazione." } }
-};
-
-CONFIG_DEFINE_ENUM_LOCALE(ETextureFiltering)
-{
-    {
-        ELanguage::English,
-        {
-            { ETextureFiltering::Auto, { "AUTO", "" } },
-            { ETextureFiltering::Linear,  { "LINEAR", "" } }
-        }
-    },
-    {
-        ELanguage::Japanese,
-        {
-            { ETextureFiltering::Auto, { "AUTO", "" } },
-            { ETextureFiltering::Linear,  { "LINEAR", "" } }
-        }
-    },
-    {
-        ELanguage::German,
-        {
-            { ETextureFiltering::Auto, { "AUTO", "" } },
-            { ETextureFiltering::Linear,  { "LINEAR", "" } }
-        }
-    },
-    {
-        ELanguage::French,
-        {
-            { ETextureFiltering::Auto, { "AUTO", "" } },
-            { ETextureFiltering::Linear,  { "LINÉAIRE", "" } }
-        }
-    },
-    {
-        ELanguage::Spanish,
-        {
-            { ETextureFiltering::Auto, { "AUTO", "" } },
-            { ETextureFiltering::Linear,  { "LINEAR", "" } }
-        }
-    },
-    {
-        ELanguage::Italian,
-        {
-            { ETextureFiltering::Auto, { "AUTO", "" } },
-            { ETextureFiltering::Linear,  { "LINEAR", "" } }
-        }
-    }
 };
 
 CONFIG_DEFINE_LOCALE(BloomIntensity)

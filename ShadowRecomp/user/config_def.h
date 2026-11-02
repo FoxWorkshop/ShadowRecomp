@@ -107,7 +107,6 @@ CONFIG_DEFINE_LOCALISED("Video", int32_t, FPS, 60, false);
 CONFIG_DEFINE_ENUM_LOCALISED("Video", ECutsceneFramerate, CutsceneFramerate, ECutsceneFramerate::Original, false);
 CONFIG_DEFINE_LOCALISED("Video", float, Brightness, 0.5f, false);
 CONFIG_DEFINE_LOCALISED("Video", float, BloomIntensity, 0.7f, false);
-CONFIG_DEFINE_ENUM_LOCALISED("Video", ETextureFiltering, TextureFiltering, ETextureFiltering::Auto, false);
 CONFIG_DEFINE("Video", uint32_t, AnisotropicFiltering, 16, false);
 CONFIG_DEFINE_ENUM_LOCALISED("Video", EGraphicsAPI, GraphicsAPI, EGraphicsAPI::Auto, true);
 CONFIG_DEFINE_LOCALISED("Video", bool, ShowFPS, false, false);

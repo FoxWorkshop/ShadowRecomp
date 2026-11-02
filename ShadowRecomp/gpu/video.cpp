@@ -7622,6 +7622,7 @@ static RenderFilter ConvertTextureFilter(uint32_t value)
 	case X_D3DTEXF_NONE:
 		return RenderFilter::NEAREST;
 	case X_D3DTEXF_LINEAR:
+	case X_D3DTEXF_ANISOTROPIC:
 		return RenderFilter::LINEAR;
 	default:
 		assert(false && "Unknown texture filter");
@@ -8729,24 +8730,19 @@ static void ProcSetTextureStageState(const RenderCommand& cmd)
 	const auto addressU = ConvertTextureAddressMode(cmd.SetTextureStageState.D3DTSS_ADDRESSU);
 	const auto addressV = ConvertTextureAddressMode(cmd.SetTextureStageState.D3DTSS_ADDRESSV);
 	const auto addressW = ConvertTextureAddressMode(cmd.SetTextureStageState.D3DTSS_ADDRESSW);
-	auto magFilter = ConvertTextureFilter(cmd.SetTextureStageState.D3DTSS_MAGFILTER);
-	auto minFilter = ConvertTextureFilter(cmd.SetTextureStageState.D3DTSS_MINFILTER);
-	auto mipFilter = ConvertTextureFilter(cmd.SetTextureStageState.D3DTSS_MIPFILTER);
+	const uint32_t rawMinFilter = cmd.SetTextureStageState.D3DTSS_MINFILTER;
+	const uint32_t rawMipFilter = cmd.SetTextureStageState.D3DTSS_MIPFILTER;
+	const auto magFilter = ConvertTextureFilter(cmd.SetTextureStageState.D3DTSS_MAGFILTER);
+	const auto minFilter = ConvertTextureFilter(rawMinFilter);
+	const auto mipFilter = ConvertTextureFilter(rawMipFilter);
 	auto borderColor = ConvertBorderColor(cmd.SetTextureStageState.D3DTSS_BORDERCOLOR);
 
-	if (Config::TextureFiltering == ETextureFiltering::Linear)
-	{
-		mipFilter = RenderFilter::LINEAR;
-		magFilter = RenderFilter::LINEAR;
-		minFilter = RenderFilter::LINEAR;
-	}
+	// mip filter set to "none" on Xbox means only the base level is sampled
+	const float maxLOD = rawMipFilter != X_D3DTEXF_NONE ? FLT_MAX : 0.0f;
+	const bool isLinear = rawMinFilter == X_D3DTEXF_LINEAR || rawMinFilter == X_D3DTEXF_ANISOTROPIC;
 
-	bool anisotropyEnabled = Config::AnisotropicFiltering > 0 && mipFilter == RenderFilter::LINEAR;
-	if (anisotropyEnabled)
-	{
-		magFilter = RenderFilter::LINEAR;
-		minFilter = RenderFilter::LINEAR;
-	}
+	// the game has no mipmaps, but anisotropy still help so...
+	const bool anisotropyEnabled = Config::AnisotropicFiltering > 1 && isLinear;
 
 	auto& samplerDesc = g_samplerDescs[args.index];
 
@@ -8760,6 +8756,7 @@ static void ProcSetTextureStageState(const RenderCommand& cmd)
 	SetDirtyValue(dirtySampler, samplerDesc.mipmapMode, RenderMipmapMode(mipFilter));
 	SetDirtyValue(dirtySampler, samplerDesc.maxAnisotropy, anisotropyEnabled ? Config::AnisotropicFiltering : 16u);
 	SetDirtyValue(dirtySampler, samplerDesc.anisotropyEnabled, anisotropyEnabled);
+	SetDirtyValue(dirtySampler, samplerDesc.maxLOD, maxLOD);
 	SetDirtyValue(dirtySampler, samplerDesc.borderColor, borderColor);
 
 	if (dirtySampler)
