@@ -2047,14 +2047,13 @@ static void DrawOptions(ImVec2 minClipRect, ImVec2 maxClipRect, ImVec2 min, ImVe
 
 	if (g_optionCount > MAX_VISIBLE_ROWS)
 	{
-		// keep the arrows inside the list, next to the right edge of the menu box
-		auto scrollArrowsOffsetX = Scale(40);
-		auto scrollArrowsOffsetTop = Scale(21);
-		auto scrollArrowsOffsetBottom = Scale(6);
-		ImVec2 scrollArrowsMin = { GetMenuBoxLeft() + GetMenuBoxWidth() - scrollArrowsOffsetX, minClipRect.y + scrollArrowsOffsetTop };
-		ImVec2 scrollArrowsMax = { scrollArrowsMin.x + scrollArrowsOffsetX, maxClipRect.y - scrollArrowsOffsetBottom };
+		auto scrollArrowSize = Scale(15);
+		auto scrollArrowCentreX = GetMenuBoxLeft() + GetMenuBoxWidth() - Scale(12);
+		auto scrollArrowCentreY = Scale(17);
+		ImVec2 scrollArrowsMin = { scrollArrowCentreX - scrollArrowSize / 2, minClipRect.y + scrollArrowCentreY - scrollArrowSize / 2 };
+		ImVec2 scrollArrowsMax = { scrollArrowsMin.x + scrollArrowSize, maxClipRect.y - Scale(OPTION_ROW_HEIGHT) + scrollArrowCentreY + scrollArrowSize / 2 };
 
-		DrawScrollArrows(scrollArrowsMin, scrollArrowsMax, Scale(15), g_scrollArrows, g_optionScrollTop > 0, g_optionScrollTop < rowCount - MAX_VISIBLE_ROWS);
+		DrawScrollArrows(scrollArrowsMin, scrollArrowsMax, scrollArrowSize, g_scrollArrows, g_optionScrollTop > 0, g_optionScrollTop < rowCount - MAX_VISIBLE_ROWS);
 	}
 
 }
