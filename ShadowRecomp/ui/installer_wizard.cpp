@@ -820,11 +820,20 @@ void InstallerWizard::Draw()
 
 		const std::string browseTextStorage = Localise("Installer_Header_Browse");
 		const char* browseText = browseTextStorage.c_str();
-		auto browseSize = font->CalcTextSizeA(smallFontSize, FLT_MAX, 0, browseText);
+		float browseFontSize = smallFontSize;
+		auto browsetextSize = font->CalcTextSizeA(browseFontSize, FLT_MAX, 0, browseText);
 
-		float btnWidth = 80.0f * scale;
-		float btnHeight = 20.0f * scale;
+		// Ensure "browse" button doesn't overflow since some language have way longer text.
 		float btnX = inputMax.x + (15.0f * scale);
+		float btnMaxWidth = (panelMax.x - (20.0f * scale)) - btnX;
+		if (browsetextSize.x > btnMaxWidth)
+		{
+			browseFontSize = std::floor(browseFontSize * (btnMaxWidth / browsetextSize.x));
+			browsetextSize = font->CalcTextSizeA(browseFontSize, FLT_MAX, 0, browseText);
+		}
+
+		float btnWidth = std::max(80.0f * scale, browsetextSize.x);
+		float btnHeight = 20.0f * scale;
 		float btnY = inputMin.y + ((inputMax.y - inputMin.y) - btnHeight) * 0.5f;
 
 		bool btnHovered = false;
@@ -846,8 +855,8 @@ void InstallerWizard::Draw()
 		{
 			drawList->AddText(
 				font,
-				smallFontSize,
-				ImVec2(btnX + (btnWidth - browseSize.x) * 0.5f, btnY + (btnHeight - browseSize.y) * 0.5f),
+				browseFontSize,
+				ImVec2(btnX + (btnWidth - browsetextSize.x) * 0.5f, btnY + (btnHeight - browsetextSize.y) * 0.5f),
 				IM_COL32(255, 255, 0, 255),
 				browseText
 			);
@@ -856,8 +865,8 @@ void InstallerWizard::Draw()
 		{
 			DrawTextWithShadow(
 				font,
-				smallFontSize,
-				ImVec2(btnX + (btnWidth - browseSize.x) * 0.5f, btnY + (btnHeight - browseSize.y) * 0.5f),
+				browseFontSize,
+				ImVec2(btnX + (btnWidth - browsetextSize.x) * 0.5f, btnY + (btnHeight - browsetextSize.y) * 0.5f),
 				IM_COL32(255, 255, 255, 127),
 				browseText,
 				1.5,
