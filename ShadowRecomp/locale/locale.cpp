@@ -30,7 +30,7 @@ std::unordered_map<std::string_view, std::unordered_map<ELanguage, std::string>>
 		"Options_Category_Input",
 		{
 			{ ELanguage::English,  "INPUT" },
-			{ ELanguage::Japanese, "入力" },
+			{ ELanguage::Japanese, "操作" },
 			{ ELanguage::German,   "EINGABE" },
 			{ ELanguage::French,   "COMMANDES" },
 			{ ELanguage::Spanish,  "CONTROLES" },
@@ -41,7 +41,7 @@ std::unordered_map<std::string_view, std::unordered_map<ELanguage, std::string>>
 		"Options_Desc_Category_Input",
 		{
 			{ ELanguage::English,  "Adjust input settings." },
-			{ ELanguage::Japanese, "入力の設定を変更します。" },
+			{ ELanguage::Japanese, "操作の設定を変更します。" },
 			{ ELanguage::German,   "Verändere Eingabe-Einstellungen." },
 			{ ELanguage::French,   "Modifier les paramètres d'entrée." },
 			{ ELanguage::Spanish,  "Ajustar la configuración de entrada." },
@@ -143,7 +143,7 @@ std::unordered_map<std::string_view, std::unordered_map<ELanguage, std::string>>
 	"Options_Name_CustomizeInput",
 	{
 		{ ELanguage::English,  "Customize Input" },
-		{ ELanguage::Japanese, "入力設定" },
+		{ ELanguage::Japanese, "操作設定" },
 		{ ELanguage::German,   "Steuerung anpassen" },
 		{ ELanguage::French,   "Customize Input" },
 		{ ELanguage::Spanish,  "Customize Input" },

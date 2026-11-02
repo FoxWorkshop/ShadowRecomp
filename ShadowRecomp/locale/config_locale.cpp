@@ -180,7 +180,7 @@ CONFIG_DEFINE_ENUM_LOCALE(EControllerIcons)
     {
         ELanguage::Japanese,
         {
-            { EControllerIcons::Auto,        { "自動", "現在の入力デバイスに応じて、ゲームが使用するアイコンを決定します。" } },
+            { EControllerIcons::Auto,        { "自動", "現在の操作デバイスに応じて、ゲームが使用するアイコンを決定します。" } },
             { EControllerIcons::Xbox,        { "XBOX", "" } },
             { EControllerIcons::PlayStation2, { "PLAYSTATION2", "" } },
             { EControllerIcons::Gamecube, { "GAMECUBE", "" } }
@@ -356,7 +356,7 @@ CONFIG_DEFINE_LOCALE(Vibration4P)
 CONFIG_DEFINE_LOCALE(AllowBackgroundInput)
 {
     { ELanguage::English,  { "Allow Background Input", "Allow controller input while the game window is unfocused." } },
-    { ELanguage::Japanese, { "バックグラウンド入力", "ウィンドウが非アクティブの時も、コントローラー入力を受け付けます。" } },
+    { ELanguage::Japanese, { "バックグラウンド操作", "ウィンドウが非アクティブの時も、コントローラー入力を受け付けます。" } },
     { ELanguage::German,   { "Erlaube Hintergrundeingaben", "Erlaube Eingaben deines Controllers auch wenn das Spielfenster nicht fokussiert ist." } },
     { ELanguage::French,   { "Manette en arrière plan", "Permet d'utiliser la manette dans le jeu lorsque qu'il n'est pas au premier plan." } },
     { ELanguage::Spanish,  { "Control en segundo plano", "Permite controlar el juego con un mando mientras la ventana esté en segundo plano." } },
