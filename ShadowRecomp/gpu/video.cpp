@@ -44,6 +44,7 @@
 #include <ui/installer_wizard.h>
 #include <xxHashMap.h>
 #include <rapidhash.h>
+#include <shared_mutex>
 #include <patches/multi_core_patches.h>
 #include <user/achievement_manager.h>
 
@@ -652,30 +653,12 @@ void PlumeSetTextureWrapper(uint32_t descriptorIndex, const RenderTexture* textu
 
 static std::atomic<bool> g_readyForCommands;
 static std::atomic<bool> g_commandListOpen{ false };
-static std::atomic<bool> g_inPresent{ false };
 extern std::atomic<bool> aboutToDrawLoading;
 
-static void WaitForPresentDuringLoading()
-{
-	if (!aboutToDrawLoading || GuestThread::GetCurrentThreadId() == GetLoadingThreadID())
-		return;
-
-	int spins = 0;
-	while (g_inPresent.load())
-	{
-		if (spins == 0)
-			LOG("Loading thread is in Present, waiting...");
-		std::this_thread::sleep_for(std::chrono::milliseconds(1));
-		if (++spins > 500)
-		{
-			LOG_WARNING("Waited 500ms, proceeding anyway");
-			break;
-		}
-	}
-	if (spins != 0) {
-		LOGF("Resumed after {}ms", spins);
-	}
-}
+// The main game loop and the loading thread both draw and present, this can happen at the same
+// time and the game has no lock for it (OG Xbox monocore moment).
+// To prevent a crash, we can use a shared mutex to lock the present and draw threads.
+static std::shared_mutex g_presentMutex;
 
 void Guard_Rendering()
 {
@@ -5066,8 +5049,8 @@ void VideoDebug_DumpPresentState()
 	LOGN("=== VideoDebug_DumpPresentState ===");
 	LOGFN("  swap chain: g_swapChain={} g_swapChainValid={} presentWait_capable={} g_backBufferIndex={}",
 		(void*)g_swapChain.get(), (int)g_swapChainValid, (int)g_capabilities.presentWait, g_backBufferIndex);
-	LOGFN("  present pipeline: g_inPresent={} presentExecuted={} g_executedCommandList={}",
-		(int)g_inPresent.load(), (int)presentExecuted.load(), (int)g_executedCommandList.load());
+	LOGFN("  present pipeline: presentExecuted={} g_executedCommandList={}",
+		(int)presentExecuted.load(), (int)g_executedCommandList.load());
 	LOGFN("  frames: g_frame={} g_nextFrame={}", g_frame, g_nextFrame);
 	std::string commandListStates;
 	for (size_t i = 0; i < NUM_FRAMES; ++i)
@@ -5096,13 +5079,26 @@ void Video::EndGameThreadProfiler()
 	g_gtStateFlushAccum.SnapshotAndReset();
 }
 
+// When the game calls Present, it checks if it should present immediately or wait for the next frame. 
+// The main loop always asks for 1, but the loading screen asks for immediate mode. 
+// This can create issues with the game thread and the host's render thread being out of sync, so we track the state here
+// and do a hacky method to fix that.
+static thread_local bool isPresentIntervalOne = true;
+//rwD3D8RasterShowRaster (used to Present)
+X86_FUNC_IMPL(__imp__sub_2DDC00);
+X86_OVERRIDE_FUNC(sub_2DDC00)
+{
+	isPresentIntervalOne = (X86_LOAD_U8(ctx.esp.u32 + 0xC) & 1) != 0;
+	__imp__sub_2DDC00(ctx, base);
+	isPresentIntervalOne = true;
+}
+
 void Video::Present(X86Context* ctx)
 {
-	bool expected = false;
-	if (!g_inPresent.compare_exchange_strong(expected, true))
-		return;
-
 	g_presentProfiler.Begin();
+
+	std::unique_lock presentLock(g_presentMutex);
+
 	// Get actual frame delivery rate seen by the OS.
 	{
 		static std::chrono::steady_clock::time_point s_prevPresentTime;
@@ -5178,20 +5174,15 @@ void Video::Present(X86Context* ctx)
 	g_readyForCommands.wait(false);
 	g_beginCmdListWaitProfiler.End();
 
-	g_inPresent = false;
 
-	if (aboutToDrawLoading && GuestThread::GetCurrentThreadId() == GetLoadingThreadID())
+	presentLock.unlock();
+
+	if (isPresentIntervalOne == false)
 	{
-		static bool loggedOnce = false;
-		if (!loggedOnce)
-		{
-			LOGN("Present: Loading thread frame limiter active (16ms pacing)");
-			loggedOnce = true;
-		}
-
-		static FramePacer loadingFramePacer;
-		loadingFramePacer.SetFpsLimit(60.0);
-		loadingFramePacer.EndFrame(FramePacer::WaitMode::SleepOnly);
+		// As explained above, we can instantly swap since this is the loading screen. 
+		thread_local FramePacer immediateFramePacer;
+		immediateFramePacer.SetFpsLimit(60.0);
+		immediateFramePacer.EndFrame(FramePacer::WaitMode::SleepOnly);
 	}
 
 	g_presentProfiler.End();
@@ -8395,9 +8386,9 @@ bool reUsedVertex = false;
 void DrawPrimitive(X_D3DPRIMITIVETYPE PrimitiveType, uint32_t StartVertex, uint32_t VertexCount)
 {
 	RtScopeTimer _gtScope(g_gtDrawRecordingAccum);
-	WaitForPresentDuringLoading();
 
 	Guard_Rendering();
+	std::shared_lock presentLock(g_presentMutex);
 
 	LocalRenderCommandQueue queue;
 
@@ -8486,10 +8477,10 @@ static void ProcDrawPrimitive(const RenderCommand& cmd)
 void DrawIndexedPrimitive(X_D3DPRIMITIVETYPE PrimitiveType, uint32_t VertexCount, int16_t* pIndexData)
 {
 	RtScopeTimer _gtScope(g_gtDrawRecordingAccum);
-	WaitForPresentDuringLoading();
 	LocalRenderCommandQueue queue;
 
 	Guard_Rendering();
+	std::shared_lock presentLock(g_presentMutex);
 
 	//shadow = 2192 vertex = stride 24 (32 with conversion)
 	//object (shadow eyes) = 91 vertex =  stride 24 (32 with conversion)
@@ -8633,7 +8624,6 @@ extern bool drawCompositeRT;
 void DrawPrimitiveUP(X_D3DPRIMITIVETYPE PrimitiveType, uint32_t VertexCount, void* pVertexStreamZeroData, uint32_t VertexStreamZeroStride)
 {
 	RtScopeTimer _gtScope(g_gtDrawRecordingAccum);
-	WaitForPresentDuringLoading();
 
 	DrawCallCaller callerDebugger = Others;
 
@@ -8643,6 +8633,7 @@ void DrawPrimitiveUP(X_D3DPRIMITIVETYPE PrimitiveType, uint32_t VertexCount, voi
 		callerDebugger = LoadingLogo;
 
 	Guard_Rendering();
+	std::shared_lock presentLock(g_presentMutex);
 
 	LocalRenderCommandQueue queue;
 	FlushRenderStateForMainThread(queue);
