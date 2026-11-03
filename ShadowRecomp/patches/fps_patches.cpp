@@ -3548,3 +3548,35 @@ void AwakeIdleDrainMidAsmHook(X86Context& __restrict ctx, uint8_t* base)
 	ctx.ecx.u32 = (uint32_t)drain;
 }
 /** --Awake (Chaos Control/Blast) idle drain Patch END-- */
+
+/** --Ground Run Speed Patch START-- */
+// Thanks Jacko for catching this bug
+// Fixes the stick slow movement issue at high FPS (it was subtle)
+// Shadow could get stuck in Walk as a result
+//
+// Player::Behavior::Ground
+// Run state @ sub_72AC0
+// Exec @ sub_733F0
+// Originally applied per frame
+void GroundSpeedDecayMidAsmHook(X86Context& __restrict ctx, uint8_t* base)
+{
+	const uint32_t ground = ctx.edi.u32;
+	const float frames = X86_LOAD_F32(ctx.esp.u32 + 0x74) * 60.0f;
+	const float speed = X86_LOAD_F32(ground + 0x2C) * std::pow(X86_LOAD_F32(0x4480FC), frames);
+	const float walk = X86_LOAD_F32(ground + 0x24);
+	X86_STORE_F32(ground + 0x2C, std::max(speed, walk));
+}
+
+void GroundWeaponKickbackMidAsmHook(X86Context& __restrict ctx, uint8_t* base)
+{
+	const uint32_t factorAddr = ctx.esp.u32 + 0x8;
+	const float factor = X86_LOAD_F32(factorAddr);
+	if (factor <= 0.0f || factor >= 1.0f)
+	{
+		return;
+	}
+
+	const float frames = X86_LOAD_F32(ctx.esp.u32 + 0x34) * 60.0f;
+	X86_STORE_F32(factorAddr, std::pow(factor, frames));
+}
+/**	--Ground Run Speed Patch END-- */

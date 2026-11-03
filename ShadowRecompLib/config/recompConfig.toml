@@ -2028,3 +2028,14 @@ address = 0x14A0C2
 [[midasm_hook]]
 name = "PauseBCheckMidAsmHook"
 address = 0x5AD82
+
+# Start player speed fix
+[[midasm_hook]]
+name = "GroundSpeedDecayMidAsmHook"
+address = 0x72C56
+jump_address = 0x72C78
+
+[[midasm_hook]]
+name = "GroundWeaponKickbackMidAsmHook"
+address = 0x734BD
+# End player speed fix
