@@ -6591,8 +6591,11 @@ static void ProcSetRenderTarget(const RenderCommand& cmd)
 		AddBarrier(args.renderTarget, RenderTextureLayout::COLOR_WRITE);
 		FlushBarriers();
 
-		SetFramebuffer(args.renderTarget, nullptr, true);
-		g_commandLists[g_frame]->clearColor(0, RenderColor(0.0f, 0.0f, 0.0f, 0.0f));
+		if (args.renderTarget->texture != nullptr)
+		{
+			SetFramebuffer(args.renderTarget, nullptr, true);
+			g_commandLists[g_frame]->clearColor(0, RenderColor(0.0f, 0.0f, 0.0f, 0.0f));
+		}
 	}
 
 
@@ -9081,7 +9084,7 @@ PipelineCacheSDLEventListener g_pipelineCacheSDLEventListener;
 
 static void ProcessRenderCommand(const RenderCommand& cmd)
 {
-	if (cmd.type != RenderCommandType::DestructResource && cmd.type != RenderCommandType::AddPipeline && !g_commandListOpen)
+	if (cmd.type != RenderCommandType::AddPipeline && !g_commandListOpen)
 	{
 		static bool loggedDeferral = false;
 		if (!loggedDeferral)
