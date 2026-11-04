@@ -3579,6 +3579,102 @@ void GroundWeaponKickbackMidAsmHook(X86Context& __restrict ctx, uint8_t* base)
 	const float frames = X86_LOAD_F32(ctx.esp.u32 + 0x34) * 60.0f;
 	X86_STORE_F32(factorAddr, std::pow(factor, frames));
 }
+
+struct GroundSampleClock
+{
+	float time;
+	bool isSample;
+};
+static std::unordered_map<uint32_t, GroundSampleClock> g_groundSampleClock;
+void GroundSampleClockMidAsmHook(X86Context& __restrict ctx, uint8_t* base)
+{
+	GroundSampleClock& clock = g_groundSampleClock[ctx.edi.u32];
+	const float dt = X86_LOAD_F32(ctx.esp.u32 + 0x70);
+	// 80FPS or lower samples every frame like the original (decay starts mattering around 80FPS)
+	if (dt >= 0.75f / 60.0f)
+	{
+		clock.time = 0.0f;
+		clock.isSample = true;
+		return;
+	}
+	clock.time += dt;
+	clock.isSample = clock.time >= 1.0f / 60.0f - 0.0001f;
+	if (clock.isSample)
+	{
+		clock.time = std::fmod(std::max(clock.time - 1.0f / 60.0f, 0.0f), 1.0f / 60.0f);
+	}
+}
+
+// Run walk reset
+// More tolerant jump reverse flip (most noticable on lethal highway)
+bool GroundWalkResetMidAsmHook(X86Context& __restrict ctx, uint8_t* base)
+{
+	const auto clock = g_groundSampleClock.find(ctx.edi.u32);
+	return clock != g_groundSampleClock.end() && !clock->second.isSample;
+}
+
+// Speed boost panel fix
+struct GroundStepRecord
+{
+	double time;
+	float dt;
+	float force[3];
+	bool grounded;
+};
+
+static std::unordered_map<uint32_t, GroundStepRecord> g_groundStep;
+
+// Physics step
+X86_FUNC_IMPL(__imp__sub_7EED0);
+X86_OVERRIDE_FUNC(sub_7EED0)
+{
+	const uint32_t pos = X86_LOAD_U32(ctx.esp.u32 + 0x4);
+	const uint32_t force = X86_LOAD_U32(ctx.esp.u32 + 0xC);
+	const uint32_t flags = X86_LOAD_U32(X86_LOAD_U32(ctx.esp.u32 + 0x14));
+
+	GroundStepRecord& step = g_groundStep[pos];
+	step.time = App::s_time;
+	step.dt = X86_LOAD_F32(ctx.esp.u32 + 0x18);
+	step.grounded = (flags & 0x284) == 0x4;
+	for (int i = 0; i < 3; i++)
+	{
+		step.force[i] = X86_LOAD_F32(force + i * 4);
+	}
+	__imp__sub_7EED0(ctx, base);
+}
+
+// Behavior::Ground 'start' speed fix (2000 units sometimes boosted above 120)
+bool GroundStartSpeedMidAsmHook(X86Context& __restrict ctx, uint8_t* base)
+{
+	const uint32_t ground = ctx.esi.u32;
+	const uint32_t player = X86_LOAD_U32(ground + 0x4);
+	const auto found = g_groundStep.find(player + 0x4);
+	if (found == g_groundStep.end())
+	{
+		return false;
+	}
+	const GroundStepRecord& step = found->second;
+	if (!step.grounded || step.dt <= 0.0f || step.dt >= 1.0f / 60.0f || App::s_time - step.time > App::s_deltaTime * 1.5)
+	{
+		return false;
+	}
+
+	const float drag = X86_LOAD_F32(0x4ED6A0);
+	const float decay = std::exp(-drag * (1.0f / 60.0f - step.dt));
+	float vel = 0.0f;
+	for (int i = 0; i < 3; i++)
+	{
+		const float settle = step.force[i] / drag;
+		const float v = settle + (X86_LOAD_F32(player + 0x1C + i * 4) - settle) * decay;
+		vel += v * v;
+	}
+	vel = std::sqrt(vel);
+
+	const float walk = X86_LOAD_F32(ground + 0x24);
+	const float max = X86_LOAD_F32(ground + 0x28);
+	X86_STORE_F32(ground + 0x2C, vel < 30.0f ? walk : walk + (max - walk) * std::min(vel / 750.0f, 1.0f));
+	return true;
+}
 /**	--Ground Run Speed Patch END-- */
 
 /** --Strafe Jump Animation Patch START-- */

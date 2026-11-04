@@ -425,6 +425,7 @@ function_hooks = [
 	0x75390,
 	0x75B70,
 	0x7ED90,
+	0x7EED0,
 ]
 
 functions = [
@@ -2344,4 +2345,18 @@ jump_address = 0x72C78
 [[midasm_hook]]
 name = "GroundWeaponKickbackMidAsmHook"
 address = 0x734BD
+
+[[midasm_hook]]
+name = "GroundSampleClockMidAsmHook"
+address = 0x72AFD
+
+[[midasm_hook]]
+name = "GroundWalkResetMidAsmHook"
+address = 0x72D1E
+jump_address_on_true = 0x72D20
+
+[[midasm_hook]]
+name = "GroundStartSpeedMidAsmHook"
+address = 0x72789
+jump_address_on_true = 0x72790
 # End player speed fix

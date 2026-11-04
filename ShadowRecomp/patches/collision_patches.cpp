@@ -212,9 +212,8 @@ static constexpr double g_snapStreakTime = 1.5 / 60.0;
 struct SnapFallbackState
 {
 	double streakStart = 0.0;
-	double missStart = 0.0;
+	double missTime = 0.0;
 	bool missing = false;
-	bool covered = false;
 };
 
 static std::unordered_map<uint32_t, SnapFallbackState> g_snapFallback;
@@ -241,18 +240,22 @@ bool CollisionToleranceSnapFallbackMidAsmHook(X86Context& __restrict ctx, uint8_
 		return false;
 	}
 
+	// reset after a long enough hit streak
 	if (!state.missing)
 	{
 		state.missing = true;
-		state.missStart = App::s_time;
-		state.covered = App::s_time - state.streakStart >= g_snapStreakTime;
+		if (App::s_time - state.streakStart >= g_snapStreakTime)
+		{
+			state.missTime = 0.0;
+		}
 	}
 
 	// first frame is always covered (mainly for below 60fps)
-	if (!state.covered || App::s_time - state.missStart >= g_snapFallbackTime)
+	if (state.missTime >= g_snapFallbackTime)
 	{
 		return false;
 	}
+	state.missTime += App::s_deltaTime;
 
 	// 0x856B1 (write ignoring state for coli and player)
 	X86_STORE_F32(ctx.esp.u32 + 0x68, X86_LOAD_F32(ctx.esp.u32 + 0x18));
