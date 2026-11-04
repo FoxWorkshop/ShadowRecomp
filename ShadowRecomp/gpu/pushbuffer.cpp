@@ -8,7 +8,7 @@
 // calling DrawPrimitive functions, although, this system can also be used for non drawing operations.
 // For rendering, it is usually done by calling D3DDevice_BeginPush call, a D3DDevice_SetVertexData* call per vertex and one 
 // D3DDevice_EndPush API call. Similar to the other Xbox D3D APIs, these APIs "push" commands and data towards the Xbox GPU 
-// (called NV2A) to perform drawing. More Info: https://github.com/Cxbx-Reloaded/Cxbx-Reloaded/wiki/Xbox-D3D-drawing-via-NV2A-Kelvin
+// (called NV2A) to perform drawing. More Info: https://github.com/Cxbx-Reloaded/Cxbx-Reloaded-legacy/wiki/Xbox-D3D-drawing-via-NV2A-Kelvin
 
 // In the case of ShadowRecomp, rather than trying to emulate the entire push system command of Xbox, we're going to take shortcuts 
 // and manually patch the few functions that need it.

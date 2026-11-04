@@ -8,6 +8,7 @@
 #include <kernel/function.h>
 #include <os/logger.h>
 
+extern std::unique_ptr<uint8_t[]> g_shaderCache;
 uint32_t g_Xbox_VertexShader_FunctionSlots_StartAddress = 0;
 
 // Variable set by [D3DDevice_LoadVertexShader() / [D3DDevice_LoadVertexShaderProgram() (both through CopyVertexShaderFunctionSlots):
@@ -433,7 +434,7 @@ const uint8_t* CreateRecompiledShader(size_t handle, size_t* outSize)
 	assert(pTokens);
 	// Create a vertex shader from the tokens
 	DWORD shaderSize;
-	const bool isvulkan = is_vulkan();
+	const bool isvulkan = Video::is_vulkan();
 	bool exportHLSLFile = false;
 
 #ifdef _DEBUG
@@ -522,6 +523,171 @@ void LoadVertexShader(DWORD Handle, DWORD Address)
 
 		pNV2ATokens += nrDWORDS;
 	}
+}
+
+RenderShader* GetOrLinkShader(GuestShader* guestShader, uint32_t specConstants)
+{
+	const char* shaderType = guestShader->type == ResourceType::PixelShader ? "PS" : "VS";
+
+	if (Video::is_vulkan() ||
+		guestShader->shaderCacheEntry == nullptr ||
+		guestShader->shaderCacheEntry->specConstantsMask == 0)
+	{
+		std::lock_guard lock(guestShader->mutex);
+
+		if (guestShader->shader == nullptr)
+		{
+			assert(guestShader->shaderCacheEntry != nullptr);
+
+			auto lazyStart = std::chrono::steady_clock::now();
+
+			if (Video::is_vulkan())
+			{
+				auto compressedSpirvData = g_shaderCache.get() + guestShader->shaderCacheEntry->spirvOffset;
+
+				std::vector<uint8_t> decoded(smolv::GetDecodedBufferSize(compressedSpirvData, guestShader->shaderCacheEntry->spirvSize));
+				bool result = smolv::Decode(compressedSpirvData, guestShader->shaderCacheEntry->spirvSize, decoded.data(), decoded.size());
+				assert(result);
+
+				guestShader->shader = Video::GetRenderDevice()->createShader(decoded.data(), decoded.size(), "main", RenderShaderFormat::SPIRV);
+			}
+			else
+			{
+				guestShader->shader = Video::GetRenderDevice()->createShader(g_shaderCache.get() + guestShader->shaderCacheEntry->dxilOffset,
+					guestShader->shaderCacheEntry->dxilSize, "main", RenderShaderFormat::DXIL);
+			}
+
+			auto lazyElapsed = std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - lazyStart).count();
+			LOGFN("GetOrLinkShader: {} LAZY creation hash={:016X} spirvSize={} dxilSize={} -> {:.2f} ms (shader was NOT pre-compiled!)",
+				shaderType, guestShader->shaderCacheEntry->hash, guestShader->shaderCacheEntry->spirvSize, guestShader->shaderCacheEntry->dxilSize, lazyElapsed);
+		}
+
+		return guestShader->shader.get();
+	}
+
+	specConstants &= guestShader->shaderCacheEntry->specConstantsMask;
+
+	RenderShader* shader;
+	{
+		std::lock_guard lock(guestShader->mutex);
+		shader = guestShader->linkedShaders[specConstants].get();
+	}
+
+#ifdef SHADOW_RECOMP_D3D12
+	if (shader == nullptr)
+	{
+		static Mutex g_compiledSpecConstantLibraryBlobMutex;
+		static ankerl::unordered_dense::map<uint32_t, ComPtr<IDxcBlob>> g_compiledSpecConstantLibraryBlobs;
+
+		thread_local ComPtr<IDxcCompiler3> s_dxcCompiler;
+		thread_local ComPtr<IDxcLinker> s_dxcLinker;
+		thread_local ComPtr<IDxcUtils> s_dxcUtils;
+
+		wchar_t specConstantsLibName[0x100];
+		swprintf_s(specConstantsLibName, L"SpecConstants_%d", specConstants);
+
+		ComPtr<IDxcBlob> specConstantLibraryBlob;
+		{
+			std::lock_guard lock(g_compiledSpecConstantLibraryBlobMutex);
+			specConstantLibraryBlob = g_compiledSpecConstantLibraryBlobs[specConstants];
+		}
+
+		if (specConstantLibraryBlob == nullptr)
+		{
+			if (s_dxcCompiler == nullptr)
+			{
+				HRESULT hr = DxcCreateInstance(CLSID_DxcCompiler, IID_PPV_ARGS(s_dxcCompiler.GetAddressOf()));
+				assert(SUCCEEDED(hr) && s_dxcCompiler != nullptr);
+			}
+
+			char libraryHlsl[0x100];
+			sprintf_s(libraryHlsl, "export uint g_SpecConstants() { return %d; }", specConstants);
+
+			DxcBuffer buffer{};
+			buffer.Ptr = libraryHlsl;
+			buffer.Size = strlen(libraryHlsl);
+
+			const wchar_t* args[1];
+			args[0] = L"-T lib_6_3";
+
+			ComPtr<IDxcResult> result;
+			HRESULT hr = s_dxcCompiler->Compile(&buffer, args, std::size(args), nullptr, IID_PPV_ARGS(result.GetAddressOf()));
+			assert(SUCCEEDED(hr) && result != nullptr);
+
+			hr = result->GetResult(specConstantLibraryBlob.GetAddressOf());
+			assert(SUCCEEDED(hr) && specConstantLibraryBlob != nullptr);
+
+			std::lock_guard lock(g_compiledSpecConstantLibraryBlobMutex);
+			g_compiledSpecConstantLibraryBlobs.emplace(specConstants, specConstantLibraryBlob);
+		}
+
+		if (s_dxcLinker == nullptr)
+		{
+			HRESULT hr = DxcCreateInstance(CLSID_DxcLinker, IID_PPV_ARGS(s_dxcLinker.GetAddressOf()));
+			assert(SUCCEEDED(hr) && s_dxcLinker != nullptr);
+		}
+
+		s_dxcLinker->RegisterLibrary(specConstantsLibName, specConstantLibraryBlob.Get());
+
+		wchar_t shaderLibName[0x100];
+		swprintf_s(shaderLibName, L"Shader_%d", guestShader->shaderCacheEntry->dxilOffset);
+
+		ComPtr<IDxcBlobEncoding> shaderLibraryBlob;
+		{
+			std::lock_guard lock(guestShader->mutex);
+			shaderLibraryBlob = guestShader->libraryBlob;
+		}
+
+		if (shaderLibraryBlob == nullptr)
+		{
+			if (s_dxcUtils == nullptr)
+			{
+				HRESULT hr = DxcCreateInstance(CLSID_DxcUtils, IID_PPV_ARGS(s_dxcUtils.GetAddressOf()));
+				assert(SUCCEEDED(hr) && s_dxcUtils != nullptr);
+			}
+
+			HRESULT hr = s_dxcUtils->CreateBlobFromPinned(
+				g_shaderCache.get() + guestShader->shaderCacheEntry->dxilOffset,
+				guestShader->shaderCacheEntry->dxilSize,
+				DXC_CP_ACP,
+				shaderLibraryBlob.GetAddressOf());
+
+			assert(SUCCEEDED(hr) && shaderLibraryBlob != nullptr);
+
+			std::lock_guard lock(guestShader->mutex);
+			guestShader->libraryBlob = shaderLibraryBlob;
+		}
+
+		s_dxcLinker->RegisterLibrary(shaderLibName, shaderLibraryBlob.Get());
+
+		const wchar_t* libraryNames[] = { specConstantsLibName, shaderLibName };
+
+		ComPtr<IDxcOperationResult> result;
+		HRESULT hr = s_dxcLinker->Link(L"main", guestShader->type == ResourceType::VertexShader ? L"vs_6_0" : L"ps_6_0",
+			libraryNames, std::size(libraryNames), nullptr, 0, result.GetAddressOf());
+
+		assert(SUCCEEDED(hr) && result != nullptr);
+
+		ComPtr<IDxcBlob> blob;
+		hr = result->GetResult(blob.GetAddressOf());
+		assert(SUCCEEDED(hr) && blob != nullptr);
+
+		{
+			std::lock_guard lock(guestShader->mutex);
+
+			auto& linkedShader = guestShader->linkedShaders[specConstants];
+			if (linkedShader == nullptr)
+			{
+				linkedShader = Video::GetRenderDevice()->createShader(blob->GetBufferPointer(), blob->GetBufferSize(), "main", RenderShaderFormat::DXIL);
+				guestShader->shaderBlobs.push_back(std::move(blob));
+			}
+
+			shader = linkedShader.get();
+		}
+	}
+#endif
+
+	return shader;
 }
 
 GUEST_FUNCTION_HOOK_STDCALL(sub_3D1F70, SelectVertexShader);

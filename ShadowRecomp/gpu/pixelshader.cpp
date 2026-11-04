@@ -171,7 +171,7 @@ bool UpdatePixelShaderConstant(uint32_t(*psh_constants)[4])
 const uint8_t* CreateRecompiledPixelShader(X_D3DPIXELSHADERDEF* PSDef, void* psGuestInf, size_t* outSize)
 {
 	pixelShader_GuestInfo* psGuestInfo = static_cast<pixelShader_GuestInfo*>(psGuestInf);
-	const bool isvulkan = is_vulkan();
+	const bool isvulkan = Video::is_vulkan();
 	bool exportHLSLFile = false;
 
 #ifdef _DEBUG

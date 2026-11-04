@@ -213,8 +213,6 @@ const RenderStateInfo& GetDxbxRenderStateInfo(int32_t State)
 }
 
 
-
-
 void BuildRenderStateMappingTable()
 {
 	g_RenderStateOffsets.fill(-1);
@@ -292,7 +290,6 @@ uint32_t GetGuestRenderState(uint32_t State)
 {
 	if (GuestRenderStateExists(State) == false)
 	{
-		//printf("Attempt to read wrong Renderstate %d\n", State);
 		return 0;
 	}
 

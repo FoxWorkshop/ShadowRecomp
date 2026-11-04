@@ -57,6 +57,8 @@ struct Video
 	static inline uint32_t s_viewportWidth;
 	static inline uint32_t s_viewportHeight;
 
+	static RenderDevice* GetRenderDevice();
+	static bool is_vulkan();
 	static bool CreateHostDevice(const char* sdlVideoDriver, bool graphicsApiRetry);
 	static void PrecompileShadersAndPipelines();
 	static void PrecompileShadersAndPipelinesForInstall(const std::function<void(float)>& progress);
@@ -1110,7 +1112,7 @@ constexpr int PSH_XBOX_CONSTANT_MAX = 30;
 void DrawPrimitiveUP(X_D3DPRIMITIVETYPE PrimitiveType, uint32_t VertexCount, void* pVertexStreamZeroData, uint32_t VertexStreamZeroStride);
 void DrawIndexedPrimitive(X_D3DPRIMITIVETYPE PrimitiveType, uint32_t VertexCount, int16_t* pIndexData);
 void UpdateVertexShader(uint32_t Handle);
-bool is_vulkan();
+
 
 extern std::unique_ptr<GuestTexture> LoadCustomTexture(const uint8_t* data, size_t dataSize, RenderComponentMapping componentMapping = RenderComponentMapping());
 

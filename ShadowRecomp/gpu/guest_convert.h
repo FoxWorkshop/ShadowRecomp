@@ -13,3 +13,6 @@ plume::RenderBlend ConvertAlphaBlendMode(uint32_t blendMode);
 plume::RenderBlendOperation ConvertBlendOp(uint32_t blendOp);
 plume::RenderComparisonFunction ConvertD3DCMP(uint32_t value);
 plume::RenderStencilOp ConvertStencilOp(uint32_t stencilOp);
+plume::RenderFormat ConvertDXGIFormat(ddspp::DXGIFormat format);
+plume::RenderTextureDimension ConvertTextureDimension(ddspp::TextureType type);
+plume::RenderTextureViewDimension ConvertTextureViewDimension(ddspp::TextureType type);

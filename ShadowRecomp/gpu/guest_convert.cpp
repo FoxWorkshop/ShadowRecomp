@@ -268,3 +268,196 @@ RenderStencilOp ConvertStencilOp(uint32_t stencilOp)
 		return RenderStencilOp::KEEP;
 	}
 }
+
+RenderFormat ConvertDXGIFormat(ddspp::DXGIFormat format)
+{
+	switch (format)
+	{
+	case ddspp::R32G32B32A32_TYPELESS:
+		return RenderFormat::R32G32B32A32_TYPELESS;
+	case ddspp::R32G32B32A32_FLOAT:
+		return RenderFormat::R32G32B32A32_FLOAT;
+	case ddspp::R32G32B32A32_UINT:
+		return RenderFormat::R32G32B32A32_UINT;
+	case ddspp::R32G32B32A32_SINT:
+		return RenderFormat::R32G32B32A32_SINT;
+	case ddspp::R32G32B32_TYPELESS:
+		return RenderFormat::R32G32B32_TYPELESS;
+	case ddspp::R32G32B32_FLOAT:
+		return RenderFormat::R32G32B32_FLOAT;
+	case ddspp::R32G32B32_UINT:
+		return RenderFormat::R32G32B32_UINT;
+	case ddspp::R32G32B32_SINT:
+		return RenderFormat::R32G32B32_SINT;
+	case ddspp::R16G16B16A16_TYPELESS:
+		return RenderFormat::R16G16B16A16_TYPELESS;
+	case ddspp::R16G16B16A16_FLOAT:
+		return RenderFormat::R16G16B16A16_FLOAT;
+	case ddspp::R16G16B16A16_UNORM:
+		return RenderFormat::R16G16B16A16_UNORM;
+	case ddspp::R16G16B16A16_UINT:
+		return RenderFormat::R16G16B16A16_UINT;
+	case ddspp::R16G16B16A16_SNORM:
+		return RenderFormat::R16G16B16A16_SNORM;
+	case ddspp::R16G16B16A16_SINT:
+		return RenderFormat::R16G16B16A16_SINT;
+	case ddspp::R32G32_TYPELESS:
+		return RenderFormat::R32G32_TYPELESS;
+	case ddspp::R32G32_FLOAT:
+		return RenderFormat::R32G32_FLOAT;
+	case ddspp::R32G32_UINT:
+		return RenderFormat::R32G32_UINT;
+	case ddspp::R32G32_SINT:
+		return RenderFormat::R32G32_SINT;
+	case ddspp::R8G8B8A8_TYPELESS:
+		return RenderFormat::R8G8B8A8_TYPELESS;
+	case ddspp::R8G8B8A8_UNORM:
+		return RenderFormat::R8G8B8A8_UNORM;
+	case ddspp::R8G8B8A8_UINT:
+		return RenderFormat::R8G8B8A8_UINT;
+	case ddspp::R8G8B8A8_SNORM:
+		return RenderFormat::R8G8B8A8_SNORM;
+	case ddspp::R8G8B8A8_SINT:
+		return RenderFormat::R8G8B8A8_SINT;
+	case ddspp::B8G8R8A8_UNORM:
+		return RenderFormat::B8G8R8A8_UNORM;
+	case ddspp::B8G8R8X8_UNORM:
+		return RenderFormat::B8G8R8A8_UNORM;
+	case ddspp::R16G16_TYPELESS:
+		return RenderFormat::R16G16_TYPELESS;
+	case ddspp::R16G16_FLOAT:
+		return RenderFormat::R16G16_FLOAT;
+	case ddspp::R16G16_UNORM:
+		return RenderFormat::R16G16_UNORM;
+	case ddspp::R16G16_UINT:
+		return RenderFormat::R16G16_UINT;
+	case ddspp::R16G16_SNORM:
+		return RenderFormat::R16G16_SNORM;
+	case ddspp::R16G16_SINT:
+		return RenderFormat::R16G16_SINT;
+	case ddspp::R32_TYPELESS:
+		return RenderFormat::R32_TYPELESS;
+	case ddspp::D32_FLOAT:
+		return RenderFormat::D32_FLOAT;
+	case ddspp::R32_FLOAT:
+		return RenderFormat::R32_FLOAT;
+	case ddspp::R32_UINT:
+		return RenderFormat::R32_UINT;
+	case ddspp::R32_SINT:
+		return RenderFormat::R32_SINT;
+	case ddspp::R8G8_TYPELESS:
+		return RenderFormat::R8G8_TYPELESS;
+	case ddspp::R8G8_UNORM:
+		return RenderFormat::R8G8_UNORM;
+	case ddspp::R8G8_UINT:
+		return RenderFormat::R8G8_UINT;
+	case ddspp::R8G8_SNORM:
+		return RenderFormat::R8G8_SNORM;
+	case ddspp::R8G8_SINT:
+		return RenderFormat::R8G8_SINT;
+	case ddspp::R16_TYPELESS:
+		return RenderFormat::R16_TYPELESS;
+	case ddspp::R16_FLOAT:
+		return RenderFormat::R16_FLOAT;
+	case ddspp::D16_UNORM:
+		return RenderFormat::D16_UNORM;
+	case ddspp::R16_UNORM:
+		return RenderFormat::R16_UNORM;
+	case ddspp::R16_UINT:
+		return RenderFormat::R16_UINT;
+	case ddspp::R16_SNORM:
+		return RenderFormat::R16_SNORM;
+	case ddspp::R16_SINT:
+		return RenderFormat::R16_SINT;
+	case ddspp::R8_TYPELESS:
+		return RenderFormat::R8_TYPELESS;
+	case ddspp::R8_UNORM:
+		return RenderFormat::R8_UNORM;
+	case ddspp::R8_UINT:
+		return RenderFormat::R8_UINT;
+	case ddspp::R8_SNORM:
+		return RenderFormat::R8_SNORM;
+	case ddspp::R8_SINT:
+		return RenderFormat::R8_SINT;
+	case ddspp::BC1_TYPELESS:
+		return RenderFormat::BC1_TYPELESS;
+	case ddspp::BC1_UNORM:
+		return RenderFormat::BC1_UNORM;
+	case ddspp::BC1_UNORM_SRGB:
+		return RenderFormat::BC1_UNORM_SRGB;
+	case ddspp::BC2_TYPELESS:
+		return RenderFormat::BC2_TYPELESS;
+	case ddspp::BC2_UNORM:
+		return RenderFormat::BC2_UNORM;
+	case ddspp::BC2_UNORM_SRGB:
+		return RenderFormat::BC2_UNORM_SRGB;
+	case ddspp::BC3_TYPELESS:
+		return RenderFormat::BC3_TYPELESS;
+	case ddspp::BC3_UNORM:
+		return RenderFormat::BC3_UNORM;
+	case ddspp::BC3_UNORM_SRGB:
+		return RenderFormat::BC3_UNORM_SRGB;
+	case ddspp::BC4_TYPELESS:
+		return RenderFormat::BC4_TYPELESS;
+	case ddspp::BC4_UNORM:
+		return RenderFormat::BC4_UNORM;
+	case ddspp::BC4_SNORM:
+		return RenderFormat::BC4_SNORM;
+	case ddspp::BC5_TYPELESS:
+		return RenderFormat::BC5_TYPELESS;
+	case ddspp::BC5_UNORM:
+		return RenderFormat::BC5_UNORM;
+	case ddspp::BC5_SNORM:
+		return RenderFormat::BC5_SNORM;
+	case ddspp::BC6H_TYPELESS:
+		return RenderFormat::BC6H_TYPELESS;
+	case ddspp::BC6H_UF16:
+		return RenderFormat::BC6H_UF16;
+	case ddspp::BC6H_SF16:
+		return RenderFormat::BC6H_SF16;
+	case ddspp::BC7_TYPELESS:
+		return RenderFormat::BC7_TYPELESS;
+	case ddspp::BC7_UNORM:
+		return RenderFormat::BC7_UNORM;
+	case ddspp::BC7_UNORM_SRGB:
+		return RenderFormat::BC7_UNORM_SRGB;
+	default:
+		assert(false && "Unsupported format from DDS.");
+		return RenderFormat::UNKNOWN;
+	}
+}
+
+RenderTextureDimension ConvertTextureDimension(ddspp::TextureType type)
+{
+	switch (type)
+	{
+	case ddspp::Texture1D:
+		return RenderTextureDimension::TEXTURE_1D;
+	case ddspp::Texture2D:
+	case ddspp::Cubemap:
+		return RenderTextureDimension::TEXTURE_2D;
+	case ddspp::Texture3D:
+		return RenderTextureDimension::TEXTURE_3D;
+	default:
+		assert(false && "Unknown texture type from DDS.");
+		return RenderTextureDimension::UNKNOWN;
+	}
+}
+
+RenderTextureViewDimension ConvertTextureViewDimension(ddspp::TextureType type)
+{
+	switch (type)
+	{
+	case ddspp::Texture1D:
+		return RenderTextureViewDimension::TEXTURE_1D;
+	case ddspp::Texture2D:
+		return RenderTextureViewDimension::TEXTURE_2D;
+	case ddspp::Texture3D:
+		return RenderTextureViewDimension::TEXTURE_3D;
+	case ddspp::Cubemap:
+		return RenderTextureViewDimension::TEXTURE_CUBE;
+	default:
+		assert(false && "Unknown texture type from DDS.");
+		return RenderTextureViewDimension::UNKNOWN;
+	}
+}

@@ -14,7 +14,7 @@
 #include "pushbuffer.h"
 #include "swizzle.h"
 #include "FixedFunction.h"
-#include "renderstate.h"
+
 #include "shared_constants.h"
 #include "staged_uploads.h"
 #include "ubershaders/fixed_function_pixel_shader_variants.h"
@@ -47,6 +47,7 @@
 #include <shared_mutex>
 #include <patches/multi_core_patches.h>
 #include <user/achievement_manager.h>
+#include "pipeline.h"
 
 const uint32_t GuestDevicePtrAddr = 0x3E0A18;
 const uint32_t GuestDeviceMemAddr = 0x3E0A20;
@@ -110,6 +111,8 @@ const uint32_t g_cameraAddr = 0x540C40;
 #include <ui/achievement_overlay.h>
 #include "vertexbuffer.h"
 #include "guest_convert.h"
+#include "render_commands.h"
+#include <gpu/resources.h>
 
 namespace plume
 {
@@ -120,49 +123,6 @@ namespace plume
 }
 
 
-#pragma pack(push, 1)
-struct PipelineState
-{
-	GuestShader* vertexShader = nullptr;
-	GuestShader* pixelShader = nullptr;
-	//bool isFixedFunctionVS = false;
-	bool isFixedFunctionPS = false;
-	ShaderVariantKey vertexShaderVariant = GenericShaderVariant;
-	ShaderVariantKey pixelShaderVariant = GenericShaderVariant;
-	VertexShaderMode vertexShaderType;
-	GuestVertexDeclaration* vertexDeclaration = nullptr;
-	bool zEnable = false;
-	bool zWriteEnable = true;
-	bool stencilEnable = false;
-	RenderBlend srcBlend = RenderBlend::ONE;
-	RenderBlend destBlend = RenderBlend::ZERO;
-	RenderCullMode cullMode = RenderCullMode::NONE;
-	RenderComparisonFunction zFunc = RenderComparisonFunction::LESS;
-	RenderComparisonFunction stencilFunc = RenderComparisonFunction::ALWAYS;
-	RenderStencilOp stencilFail = RenderStencilOp::KEEP;
-	RenderStencilOp stencilZFail = RenderStencilOp::KEEP;
-	RenderStencilOp stencilPass = RenderStencilOp::KEEP;
-	uint32_t stencilMask = 0xFFFFFFFF;
-	uint32_t stencilWriteMask = 0xFFFFFFFF;
-	uint32_t stencilRef = 0;
-	RenderComparisonFunction stencilFuncCCW = RenderComparisonFunction::ALWAYS;
-	bool alphaBlendEnable = false;
-	RenderBlendOperation blendOp = RenderBlendOperation::ADD;
-	float slopeScaledDepthBias = 0.0f;
-	int32_t depthBias = 0;
-	RenderBlend srcBlendAlpha = RenderBlend::ONE;
-	RenderBlend destBlendAlpha = RenderBlend::ZERO;
-	RenderBlendOperation blendOpAlpha = RenderBlendOperation::ADD;
-	uint32_t colorWriteEnable = uint32_t(RenderColorWriteEnable::ALL);
-	RenderPrimitiveTopology primitiveTopology = RenderPrimitiveTopology::TRIANGLE_LIST;
-	uint8_t vertexStrides[16]{};
-	RenderFormat renderTargetFormat{};
-	RenderFormat depthStencilFormat{};
-	RenderSampleCounts sampleCount = RenderSampleCount::COUNT_1;
-	bool enableAlphaToCoverage = false;
-	uint32_t specConstants = 0;
-};
-#pragma pack(pop)
 
 static_assert(sizeof(uint32_t) == 4, "expect 4-byte uint");
 static_assert(TexSlotMax == SharedTextureSlotCount);
@@ -201,6 +161,7 @@ GuestSurface* GetRenderTarget()
 {
 	return g_renderTarget;
 }
+
 
 uint32_t g_VertexShader_Handle = 0;
 VertexShaderMode g_Xbox_VertexShaderMode = VertexShaderMode::FixedFunction;
@@ -242,7 +203,6 @@ static TextureCombinerState g_sharedSamplerDescs[TexSlotMax];
 static GuestTexture* g_texturesPSDef[4];
 static bool g_scissorTestEnable = false;
 static RenderRect g_scissorRect;
-
 
 static RenderVertexBufferView g_vertexBufferViews[16];
 static RenderInputSlot g_inputSlots[16];
@@ -430,9 +390,13 @@ static bool g_hardwareDepthResolve = true;
 
 static std::unique_ptr<RenderInterface> g_interface;
 static std::unique_ptr<RenderDevice> g_device;
-
-
 static RenderDeviceCapabilities g_capabilities;
+
+
+RenderDevice* Video::GetRenderDevice()
+{
+	return g_device.get();
+}
 
 static constexpr size_t NUM_FRAMES = 2;
 static constexpr size_t NUM_QUERIES = 2;
@@ -450,7 +414,6 @@ static Mutex g_copyMutex;
 static std::unique_ptr<RenderCommandQueue> g_copyQueue;
 static std::unique_ptr<RenderCommandList> g_copyCommandList;
 static std::unique_ptr<RenderCommandFence> g_copyCommandFence;
-
 
 static std::unique_ptr<RenderSwapChain> g_swapChain;
 static bool g_swapChainValid;
@@ -622,7 +585,7 @@ bool isCapabilityTriangleFan()
 	return g_capabilities.triangleFan;
 }
 
-bool is_vulkan()
+bool Video::is_vulkan()
 {
 	return g_vulkan;
 }
@@ -644,7 +607,6 @@ void PlumeSetTextureWrapper(uint32_t descriptorIndex, const RenderTexture* textu
 
 static std::atomic<bool> g_readyForCommands;
 static std::atomic<bool> g_commandListOpen{ false };
-extern std::atomic<bool> aboutToDrawLoading;
 
 // The main game loop and the loading thread both draw and present, this can happen at the same
 // time and the game has no lock for it (OG Xbox monocore moment).
@@ -753,7 +715,7 @@ static void DiscardStagedBarrier(GuestBaseTexture* texture)
 		g_barrierMap.erase(texture->textureHolder.get());
 }
 
-static std::unique_ptr<uint8_t[]> g_shaderCache;
+std::unique_ptr<uint8_t[]> g_shaderCache;
 std::unique_ptr<uint8_t[]> g_buttonBcDiff_GC;
 std::unique_ptr<uint8_t[]> g_buttonBcDiff_PS2;
 
@@ -870,7 +832,7 @@ void FreeTextureDescriptor(const uint32_t descriptorIndex)
 	g_textureDescriptorAllocator.free(descriptorIndex);
 }
 
-static std::unique_ptr<RenderPipelineLayout> g_pipelineLayout;
+std::unique_ptr<RenderPipelineLayout> g_pipelineLayout;
 static xxHashMap<std::unique_ptr<RenderPipeline>> g_pipelines;
 
 static ShaderCacheEntry* FindShaderCacheEntry(XXH64_hash_t hash);
@@ -878,56 +840,6 @@ static std::unique_ptr<RenderPipeline> CreateGraphicsPipeline(const PipelineStat
 static void EnqueueAddPipeline(XXH64_hash_t hash, std::unique_ptr<RenderPipeline> pipeline);
 static void SanitizePipelineState(PipelineState& pipelineState);
 
-static constexpr uint32_t PIPELINE_CACHE_MAGIC = 0x31435053;
-static constexpr uint32_t PIPELINE_CACHE_VERSION = 1;
-static constexpr size_t MAX_VERTEX_ELEMENTS = 32;
-
-#pragma pack(push, 1)
-struct PipelineCacheEntry
-{
-	uint64_t pipelineHash;
-	uint64_t vertexShaderHash;
-	uint64_t pixelShaderHash;
-	uint64_t vertexDeclHash;
-	uint32_t vertexElementCount;
-	VertexShaderMode vertexShaderMode;
-	D3DVERTEXELEMENT9 vertexElements[MAX_VERTEX_ELEMENTS];
-	bool isFixedFunctionPS;
-	bool zEnable;
-	bool zWriteEnable;
-	bool stencilEnable;
-	RenderBlend srcBlend;
-	RenderBlend destBlend;
-	RenderCullMode cullMode;
-	RenderComparisonFunction zFunc;
-	RenderComparisonFunction stencilFunc;
-	RenderStencilOp stencilFail;
-	RenderStencilOp stencilZFail;
-	RenderStencilOp stencilPass;
-	uint32_t stencilMask;
-	uint32_t stencilWriteMask;
-	uint32_t stencilRef;
-	RenderComparisonFunction stencilFuncCCW;
-	bool alphaBlendEnable;
-	RenderBlendOperation blendOp;
-	float slopeScaledDepthBias;
-	int32_t depthBias;
-	RenderBlend srcBlendAlpha;
-	RenderBlend destBlendAlpha;
-	RenderBlendOperation blendOpAlpha;
-	uint32_t colorWriteEnable;
-	RenderPrimitiveTopology primitiveTopology;
-	uint8_t vertexStrides[16];
-	RenderFormat renderTargetFormat;
-	RenderFormat depthStencilFormat;
-	RenderSampleCounts sampleCount;
-	bool enableAlphaToCoverage;
-	uint32_t specConstants;
-};
-#pragma pack(pop)
-
-static_assert(sizeof(PipelineCacheEntry) == 414,
-	"PipelineCacheEntry layout changed - bump PIPELINE_CACHE_VERSION and regenerate pipeline_cache.h");
 
 // Checks incase plume changes something
 static_assert(uint32_t(VertexShaderMode::ShaderProgram) == 2);
@@ -939,33 +851,7 @@ static_assert(uint32_t(RenderBlendOperation::MAX) == 5);
 static_assert(uint32_t(RenderPrimitiveTopology::TRIANGLE_FAN) == 6);
 static_assert(uint32_t(RenderFormat::MAX) == 75);
 
-template <typename T>
-static bool IsEnumInRange(T value, T last)
-{
-	return uint32_t(value) <= uint32_t(last);
-}
 
-static bool IsPipelineCacheEntryInRange(const PipelineCacheEntry& entry)
-{
-	return entry.vertexElementCount <= MAX_VERTEX_ELEMENTS &&
-		IsEnumInRange(entry.vertexShaderMode, VertexShaderMode::ShaderProgram) &&
-		IsEnumInRange(entry.srcBlend, RenderBlend::INV_SRC1_ALPHA) &&
-		IsEnumInRange(entry.destBlend, RenderBlend::INV_SRC1_ALPHA) &&
-		IsEnumInRange(entry.srcBlendAlpha, RenderBlend::INV_SRC1_ALPHA) &&
-		IsEnumInRange(entry.destBlendAlpha, RenderBlend::INV_SRC1_ALPHA) &&
-		IsEnumInRange(entry.cullMode, RenderCullMode::BACK) &&
-		IsEnumInRange(entry.zFunc, RenderComparisonFunction::ALWAYS) &&
-		IsEnumInRange(entry.stencilFunc, RenderComparisonFunction::ALWAYS) &&
-		IsEnumInRange(entry.stencilFuncCCW, RenderComparisonFunction::ALWAYS) &&
-		IsEnumInRange(entry.stencilFail, RenderStencilOp::DECREMENT_AND_WRAP) &&
-		IsEnumInRange(entry.stencilZFail, RenderStencilOp::DECREMENT_AND_WRAP) &&
-		IsEnumInRange(entry.stencilPass, RenderStencilOp::DECREMENT_AND_WRAP) &&
-		IsEnumInRange(entry.blendOp, RenderBlendOperation::MAX) &&
-		IsEnumInRange(entry.blendOpAlpha, RenderBlendOperation::MAX) &&
-		IsEnumInRange(entry.primitiveTopology, RenderPrimitiveTopology::TRIANGLE_FAN) &&
-		IsEnumInRange(entry.renderTargetFormat, RenderFormat::MAX) &&
-		IsEnumInRange(entry.depthStencilFormat, RenderFormat::MAX);
-}
 
 static Mutex g_pipelineCacheMutex;
 static std::atomic<bool> g_pipelineCacheShutdownDone{ false };
@@ -980,97 +866,6 @@ static XXH64_hash_t ComputePipelineEntryHash(const PipelineCacheEntry& entry)
 	return XXH3_64bits(reinterpret_cast<const uint8_t*>(&entry) + skip, sizeof(PipelineCacheEntry) - skip);
 }
 
-static bool BuildPipelineCacheEntry(const PipelineState& pipelineState, PipelineCacheEntry& outEntry)
-{
-	outEntry = {};
-	outEntry.vertexShaderMode = pipelineState.vertexShaderType;
-	outEntry.isFixedFunctionPS = pipelineState.isFixedFunctionPS;
-
-	if (pipelineState.vertexShaderType == VertexShaderMode::FixedFunction ||
-		pipelineState.vertexShaderType == VertexShaderMode::Passthrough)
-	{
-		outEntry.vertexShaderHash = pipelineState.vertexShaderType == VertexShaderMode::FixedFunction
-			? pipelineState.vertexShaderVariant
-			: 0;
-	}
-	else if (pipelineState.vertexShader != nullptr)
-	{
-		if (pipelineState.vertexShader->shaderCacheEntry != nullptr)
-			outEntry.vertexShaderHash = pipelineState.vertexShader->shaderCacheEntry->hash;
-		else if (pipelineState.vertexShader->runtimeHash != 0)
-			outEntry.vertexShaderHash = pipelineState.vertexShader->runtimeHash;
-		else
-			return false;
-	}
-	else
-		return false;
-
-	if (pipelineState.isFixedFunctionPS)
-	{
-		outEntry.pixelShaderHash = pipelineState.pixelShaderVariant;
-	}
-	else if (pipelineState.pixelShader != nullptr)
-	{
-		if (pipelineState.pixelShader->shaderCacheEntry != nullptr)
-			outEntry.pixelShaderHash = pipelineState.pixelShader->shaderCacheEntry->hash;
-		else if (pipelineState.pixelShader->runtimeHash != 0)
-			outEntry.pixelShaderHash = pipelineState.pixelShader->runtimeHash;
-		else
-			return false;
-	}
-	else if (pipelineState.pixelShader == nullptr)
-	{
-		outEntry.pixelShaderHash = 0;
-	}
-	else
-		return false;
-
-	if (pipelineState.vertexDeclaration != nullptr)
-	{
-		outEntry.vertexDeclHash = pipelineState.vertexDeclaration->hash;
-		outEntry.vertexElementCount = pipelineState.vertexDeclaration->vertexElementCount;
-		if (outEntry.vertexElementCount > MAX_VERTEX_ELEMENTS)
-			return false;
-
-		memcpy(outEntry.vertexElements, pipelineState.vertexDeclaration->vertexElements.get(),
-			outEntry.vertexElementCount * sizeof(D3DVERTEXELEMENT9));
-	}
-	else
-		return false;
-
-	outEntry.zEnable = pipelineState.zEnable;
-	outEntry.zWriteEnable = pipelineState.zWriteEnable;
-	outEntry.stencilEnable = pipelineState.stencilEnable;
-	outEntry.srcBlend = pipelineState.srcBlend;
-	outEntry.destBlend = pipelineState.destBlend;
-	outEntry.cullMode = pipelineState.cullMode;
-	outEntry.zFunc = pipelineState.zFunc;
-	outEntry.stencilFunc = pipelineState.stencilFunc;
-	outEntry.stencilFail = pipelineState.stencilFail;
-	outEntry.stencilZFail = pipelineState.stencilZFail;
-	outEntry.stencilPass = pipelineState.stencilPass;
-	outEntry.stencilMask = pipelineState.stencilMask;
-	outEntry.stencilWriteMask = pipelineState.stencilWriteMask;
-	outEntry.stencilRef = pipelineState.stencilRef;
-	outEntry.stencilFuncCCW = pipelineState.stencilFuncCCW;
-	outEntry.alphaBlendEnable = pipelineState.alphaBlendEnable;
-	outEntry.blendOp = pipelineState.blendOp;
-	outEntry.slopeScaledDepthBias = pipelineState.slopeScaledDepthBias;
-	outEntry.depthBias = pipelineState.depthBias;
-	outEntry.srcBlendAlpha = pipelineState.srcBlendAlpha;
-	outEntry.destBlendAlpha = pipelineState.destBlendAlpha;
-	outEntry.blendOpAlpha = pipelineState.blendOpAlpha;
-	outEntry.colorWriteEnable = pipelineState.colorWriteEnable;
-	outEntry.primitiveTopology = pipelineState.primitiveTopology;
-	memcpy(outEntry.vertexStrides, pipelineState.vertexStrides, sizeof(outEntry.vertexStrides));
-	outEntry.renderTargetFormat = pipelineState.renderTargetFormat;
-	outEntry.depthStencilFormat = pipelineState.depthStencilFormat;
-	outEntry.sampleCount = pipelineState.sampleCount;
-	outEntry.enableAlphaToCoverage = pipelineState.enableAlphaToCoverage;
-	outEntry.specConstants = pipelineState.specConstants;
-
-	return true;
-}
 
 static XXH64_hash_t ComputePipelineStateHash(const PipelineState& pipelineState)
 {
@@ -1089,47 +884,6 @@ static std::filesystem::path GetCachePath()
 static std::filesystem::path GetPipelineCachePath()
 {
 	return GetCachePath() / "pipeline_cache.bin";
-}
-
-static bool IsReadableMemory(const void* ptr, size_t size)
-{
-#ifdef _WIN32
-	MEMORY_BASIC_INFORMATION mbi;
-	if (VirtualQuery(ptr, &mbi, sizeof(mbi)) == 0)
-		return false;
-	if (mbi.State != MEM_COMMIT)
-		return false;
-	if (mbi.Protect & (PAGE_NOACCESS | PAGE_GUARD))
-		return false;
-	return (uintptr_t)ptr >= (uintptr_t)mbi.BaseAddress &&
-		(uintptr_t)ptr + size <= (uintptr_t)mbi.BaseAddress + mbi.RegionSize;
-#else
-	return ptr != nullptr;
-#endif
-}
-
-static bool SafeGetShaderHash(const GuestShader* shader, uint64_t& outHash, const char* label, uint64_t pipelineHash)
-{
-	if (shader == nullptr)
-	{
-		outHash = 0;
-		return true;
-	}
-
-	if (!IsReadableMemory(shader, sizeof(GuestShader)))
-	{
-		LOGFN("PipelineCache: Skipping pipeline {:016X} - {} unreadable memory (ptr={})", pipelineHash, label, (void*)shader);
-		return false;
-	}
-
-	if (shader->shaderCacheEntry == nullptr)
-	{
-		LOGFN("PipelineCache: Skipping pipeline {:016X} - {} has no shaderCacheEntry (ptr={})", pipelineHash, label, (void*)shader);
-		return false;
-	}
-
-	outHash = shader->shaderCacheEntry->hash;
-	return true;
 }
 
 static void RecordPipelineState(const PipelineState& pipelineState)
@@ -1882,250 +1636,7 @@ static void DestructTempResources()
 	g_tempBuffers[g_frame].clear();
 }
 
-enum class RenderCommandType
-{
-	SetRenderState,
-	DestructResource,
-	UnlockTextureRect,
-	UnlockBuffer16,
-	UnlockBuffer32,
-	DrawImGui,
-	ExecuteCommandList,
-	BeginCommandList,
-	StretchRect,
-	SetRenderTarget,
-	SetDepthStencilSurface,
-	Clear,
-	SetViewport,
-	SetTexture,
-	//SetScissorRect,
-	SetTextureStageState,
-	SetBooleans,
-	SetVertexShaderConstants,
-	SetVertexShaderVariant,
-	SetPixelShaderConstants,
-	AddPipeline,
-	DrawPrimitive,
-	DrawIndexedPrimitive,
-	DrawPrimitiveUP,
-	SetVertexDeclaration,
-	SetVertexShader,
-	SetStreamSource,
-	SetStreamSourceUP, // for dynamic variation from RenderWare
-	SetIndices,
-	SetPixelShader,
-	StagedCopy,
 
-};
-
-struct RenderCommand
-{
-	RenderCommandType type;
-
-	union
-	{
-		struct
-		{
-			GuestRenderState type;
-			uint32_t value;
-		} setRenderState;
-
-		struct
-		{
-			GuestResource* resource;
-		} destructResource;
-
-		struct
-		{
-			GuestTexture* texture;
-		} unlockTextureRect;
-
-		struct
-		{
-			GuestBuffer* indexBuffer;
-		} unlockBuffer;
-
-		struct
-		{
-			GuestBuffer* dst;
-			const RenderBuffer* srcBuffer;
-			uint64_t srcOffset;
-			uint32_t size;
-		} stagedCopy;
-
-		struct
-		{
-			GuestBuffer* indexBuffer;
-		} setIndices;
-
-		struct
-		{
-			GuestSurface* renderTarget;
-		} setRenderTarget;
-
-		struct
-		{
-			GuestSurface* depthStencil;
-		} setDepthStencilSurface;
-
-
-		struct
-		{
-			uint32_t flags;
-			float color[4];
-			float z;
-			uint32_t stencil;
-			bool isFixed;
-		} clear;
-
-
-		struct
-		{
-			float x;
-			float y;
-			float width;
-			float height;
-			float minDepth;
-			float maxDepth;
-			bool isFixed;
-		} setViewport;
-
-		struct
-		{
-			uint32_t index;
-			GuestTexture* texture;
-			bool isFixed;
-		} setTexture;
-
-		struct
-		{
-			uint32_t primitiveType;
-			uint32_t startVertex;
-			uint32_t primitiveCount;
-			bool isFixed;
-		} drawPrimitive;
-
-		struct
-		{
-			uint32_t primitiveType;
-			int32_t baseVertexIndex;
-			uint32_t startIndex;
-			uint32_t primCount;
-			int16_t* pIndexData;
-			GuestBuffer* indexBuffer;
-			bool isFixed;
-		} drawIndexedPrimitive;
-
-		struct
-		{
-			uint32_t primitiveType;
-			uint32_t primitiveCount;
-			uint8_t* vertexStreamZeroData;
-			uint32_t vertexStreamZeroSize;
-			uint32_t vertexStreamZeroStride;
-			bool isFixed;
-			uint32_t ID;
-			DrawCallCaller caller;
-			uint32_t threadID;
-		} drawPrimitiveUP;
-
-
-		struct
-		{
-			GuestVertexDeclaration* vertexDeclaration;
-		} setVertexDeclaration;
-
-		struct
-		{
-			GuestShader* shader;
-			uint32_t handle;
-			VertexShaderMode type;
-		} setVertexShader;
-
-		struct
-		{
-			uint32_t StreamNumber;
-			GuestBuffer* vertexBuffer;
-			uint32_t stride;
-		} setStreamSource;
-
-		struct
-		{
-			uint32_t StreamNumber;
-			uint8_t* vertexData;
-			uint32_t size;
-			uint32_t stride;
-		} setStreamSourceUP;
-
-
-		struct
-		{
-			GuestShader* shader;
-			bool isFixed;
-		} setPixelShader;
-
-		struct
-		{
-			XXH64_hash_t hash;
-			RenderPipeline* pipeline;
-		} addPipeline;
-
-		struct
-		{
-			X_D3DTRANSFORMSTATETYPE state;
-			D3DMATRIX matrix;
-		} setTransform;
-
-		struct
-		{
-			uint32_t D3DTSS_ADDRESSU;
-			uint32_t D3DTSS_ADDRESSV;
-			uint32_t D3DTSS_ADDRESSW;
-			uint32_t D3DTSS_MAGFILTER;
-			uint32_t D3DTSS_MINFILTER;
-			uint32_t D3DTSS_MIPFILTER;
-			uint32_t D3DTSS_BORDERCOLOR;
-			//shared for pixel shaders
-			uint32_t D3DTSS_COLOROP;
-			uint32_t D3DTSS_COLORARG0;
-			uint32_t D3DTSS_COLORARG1;
-			uint32_t D3DTSS_COLORARG2;
-			uint32_t D3DTSS_ALPHAOP;
-			uint32_t D3DTSS_ALPHAARG0;
-			uint32_t D3DTSS_ALPHAARG1;
-			uint32_t D3DTSS_ALPHAARG2;
-			uint32_t D3DTSS_RESULTARG;
-			uint32_t D3DTSS_BUMPENVMAT00;
-			uint32_t D3DTSS_BUMPENVMAT01;
-			uint32_t D3DTSS_BUMPENVMAT11;
-			uint32_t D3DTSS_BUMPENVMAT10;
-			uint32_t D3DTSS_BUMPENVLSCALE;
-			uint32_t D3DTSS_BUMPENVLOFFSET;
-			uint32_t D3DTSS_TEXCOORDINDEX;
-			uint32_t index;
-		} SetTextureStageState;
-
-		struct
-		{
-			uint8_t* memory;
-			uint32_t index;
-			uint32_t size;
-			bool isFixedFunc;
-		} setVertexShaderConstants;
-
-		struct
-		{
-			ShaderVariantKey key;
-		} setVertexShaderVariant;
-
-		struct
-		{
-			uint8_t* memory;
-			uint32_t index;
-			uint32_t size;
-		} setPixelShaderConstants;
-	};
-};
 
 
 #define SPEC_CONSTANT_ALPHA_TEST        (1 << 2)
@@ -2155,10 +1666,9 @@ static void SetAlphaTestMode(bool enable)
 	MarkSharedPixelConstantsDirty(selectorDirty, true);
 }
 
-static moodycamel::BlockingConcurrentQueue<RenderCommand> g_renderQueue;
+moodycamel::BlockingConcurrentQueue<RenderCommand> g_renderQueue;
 
 
-//template<GuestRenderState TType>
 //specify the "config" of the rendering, essentially prepare the GPU to how it should render. (alpha, blending, culling etc.)
 void SetRenderState(X_D3DRENDERSTATETYPE state, uint32_t value)
 {
@@ -2493,9 +2003,9 @@ static std::unique_ptr<RenderShader> g_copyShader;
 static std::unique_ptr<RenderShader> g_copyColorShader;
 static std::unique_ptr<RenderPipeline> g_copyDepthPipeline;
 
-static std::unique_ptr<RenderShader> FixedFuncVS = nullptr;
-static std::unique_ptr<RenderShader> PassthroughVS = nullptr; //this is for vertex shader that don't have a program, similar to fixed, but vertex are already transformed.
-static std::unique_ptr<RenderShader> FixedFuncPS = nullptr;
+std::unique_ptr<RenderShader> FixedFuncVS = nullptr;
+std::unique_ptr<RenderShader> PassthroughVS = nullptr; //this is for vertex shader that don't have a program, similar to fixed, but vertex are already transformed.
+std::unique_ptr<RenderShader> FixedFuncPS = nullptr;
 
 #ifdef SHADOW_RECOMP_D3D12
 
@@ -4848,8 +4358,8 @@ void VideoDebug_DumpPresentState()
 		commandListStates += fmt::format(" [{}]={}", i, (int)g_commandListStates[i]);
 	LOGFN("  commandListStates per frame:{}", commandListStates);
 	LOGFN("  renderQueue size_approx={}", g_renderQueue.size_approx());
-	LOGFN("  loading: aboutToDrawLoading={} loadingThreadID={} currentThreadId={}",
-		(int)aboutToDrawLoading.load(), GetLoadingThreadID(), GuestThread::GetCurrentThreadId());
+	LOGFN("  loadingThreadID={} currentThreadId={}",
+		GetLoadingThreadID(), GuestThread::GetCurrentThreadId());
 	LOGFN("  window: ptr={} SDL flags=0x{:X} (HIDDEN={} MINIMIZED={} INPUT_FOCUS={} MOUSE_FOCUS={} MAXIMIZED={} FULLSCREEN={})",
 		(void*)GameWindow::s_pWindow, (unsigned)sdlFlags,
 		(int)!!(sdlFlags & SDL_WINDOW_HIDDEN),
@@ -5643,26 +5153,11 @@ int32_t Direct3D_CreateDevice_r(X86Context& ctx, int32_t Adapter, int32_t Device
 	return 0; //success
 }
 
-
-void AddDestructResource(GuestResource* ressource)
-{
-	RenderCommand cmd;
-	cmd.type = RenderCommandType::DestructResource;
-	cmd.destructResource.resource = ressource;
-	g_renderQueue.enqueue(cmd);
-}
-
-static void DestructResource(GuestResource* resource)
-{
-	AddDestructResource(resource);
-}
-
 static void ProcDestructResource(const RenderCommand& cmd)
 {
 	const auto& args = cmd.destructResource;
 	g_tempResources[g_frame].push_back(args.resource);
 }
-
 
 bool DestructResourceMidAsmHook(X86Context& __restrict ctx, uint8_t* base)
 {
@@ -6652,170 +6147,7 @@ static void ProcSetTexture(const RenderCommand& cmd)
 	g_textures[args.index] = args.texture;
 }
 
-static RenderShader* GetOrLinkShader(GuestShader* guestShader, uint32_t specConstants)
-{
-	const char* shaderType = guestShader->type == ResourceType::PixelShader ? "PS" : "VS";
 
-	if (g_vulkan ||
-		guestShader->shaderCacheEntry == nullptr ||
-		guestShader->shaderCacheEntry->specConstantsMask == 0)
-	{
-		std::lock_guard lock(guestShader->mutex);
-
-		if (guestShader->shader == nullptr)
-		{
-			assert(guestShader->shaderCacheEntry != nullptr);
-
-			auto lazyStart = std::chrono::steady_clock::now();
-
-			if (g_vulkan)
-			{
-				auto compressedSpirvData = g_shaderCache.get() + guestShader->shaderCacheEntry->spirvOffset;
-
-				std::vector<uint8_t> decoded(smolv::GetDecodedBufferSize(compressedSpirvData, guestShader->shaderCacheEntry->spirvSize));
-				bool result = smolv::Decode(compressedSpirvData, guestShader->shaderCacheEntry->spirvSize, decoded.data(), decoded.size());
-				assert(result);
-
-				guestShader->shader = g_device->createShader(decoded.data(), decoded.size(), "main", RenderShaderFormat::SPIRV);
-			}
-			else
-			{
-				guestShader->shader = g_device->createShader(g_shaderCache.get() + guestShader->shaderCacheEntry->dxilOffset,
-					guestShader->shaderCacheEntry->dxilSize, "main", RenderShaderFormat::DXIL);
-			}
-
-			auto lazyElapsed = std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - lazyStart).count();
-			LOGFN("GetOrLinkShader: {} LAZY creation hash={:016X} spirvSize={} dxilSize={} -> {:.2f} ms (shader was NOT pre-compiled!)",
-				shaderType, guestShader->shaderCacheEntry->hash, guestShader->shaderCacheEntry->spirvSize, guestShader->shaderCacheEntry->dxilSize, lazyElapsed);
-		}
-
-		return guestShader->shader.get();
-	}
-
-	specConstants &= guestShader->shaderCacheEntry->specConstantsMask;
-
-	RenderShader* shader;
-	{
-		std::lock_guard lock(guestShader->mutex);
-		shader = guestShader->linkedShaders[specConstants].get();
-	}
-
-#ifdef SHADOW_RECOMP_D3D12
-	if (shader == nullptr)
-	{
-		static Mutex g_compiledSpecConstantLibraryBlobMutex;
-		static ankerl::unordered_dense::map<uint32_t, ComPtr<IDxcBlob>> g_compiledSpecConstantLibraryBlobs;
-
-		thread_local ComPtr<IDxcCompiler3> s_dxcCompiler;
-		thread_local ComPtr<IDxcLinker> s_dxcLinker;
-		thread_local ComPtr<IDxcUtils> s_dxcUtils;
-
-		wchar_t specConstantsLibName[0x100];
-		swprintf_s(specConstantsLibName, L"SpecConstants_%d", specConstants);
-
-		ComPtr<IDxcBlob> specConstantLibraryBlob;
-		{
-			std::lock_guard lock(g_compiledSpecConstantLibraryBlobMutex);
-			specConstantLibraryBlob = g_compiledSpecConstantLibraryBlobs[specConstants];
-		}
-
-		if (specConstantLibraryBlob == nullptr)
-		{
-			if (s_dxcCompiler == nullptr)
-			{
-				HRESULT hr = DxcCreateInstance(CLSID_DxcCompiler, IID_PPV_ARGS(s_dxcCompiler.GetAddressOf()));
-				assert(SUCCEEDED(hr) && s_dxcCompiler != nullptr);
-			}
-
-			char libraryHlsl[0x100];
-			sprintf_s(libraryHlsl, "export uint g_SpecConstants() { return %d; }", specConstants);
-
-			DxcBuffer buffer{};
-			buffer.Ptr = libraryHlsl;
-			buffer.Size = strlen(libraryHlsl);
-
-			const wchar_t* args[1];
-			args[0] = L"-T lib_6_3";
-
-			ComPtr<IDxcResult> result;
-			HRESULT hr = s_dxcCompiler->Compile(&buffer, args, std::size(args), nullptr, IID_PPV_ARGS(result.GetAddressOf()));
-			assert(SUCCEEDED(hr) && result != nullptr);
-
-			hr = result->GetResult(specConstantLibraryBlob.GetAddressOf());
-			assert(SUCCEEDED(hr) && specConstantLibraryBlob != nullptr);
-
-			std::lock_guard lock(g_compiledSpecConstantLibraryBlobMutex);
-			g_compiledSpecConstantLibraryBlobs.emplace(specConstants, specConstantLibraryBlob);
-		}
-
-		if (s_dxcLinker == nullptr)
-		{
-			HRESULT hr = DxcCreateInstance(CLSID_DxcLinker, IID_PPV_ARGS(s_dxcLinker.GetAddressOf()));
-			assert(SUCCEEDED(hr) && s_dxcLinker != nullptr);
-		}
-
-		s_dxcLinker->RegisterLibrary(specConstantsLibName, specConstantLibraryBlob.Get());
-
-		wchar_t shaderLibName[0x100];
-		swprintf_s(shaderLibName, L"Shader_%d", guestShader->shaderCacheEntry->dxilOffset);
-
-		ComPtr<IDxcBlobEncoding> shaderLibraryBlob;
-		{
-			std::lock_guard lock(guestShader->mutex);
-			shaderLibraryBlob = guestShader->libraryBlob;
-		}
-
-		if (shaderLibraryBlob == nullptr)
-		{
-			if (s_dxcUtils == nullptr)
-			{
-				HRESULT hr = DxcCreateInstance(CLSID_DxcUtils, IID_PPV_ARGS(s_dxcUtils.GetAddressOf()));
-				assert(SUCCEEDED(hr) && s_dxcUtils != nullptr);
-			}
-
-			HRESULT hr = s_dxcUtils->CreateBlobFromPinned(
-				g_shaderCache.get() + guestShader->shaderCacheEntry->dxilOffset,
-				guestShader->shaderCacheEntry->dxilSize,
-				DXC_CP_ACP,
-				shaderLibraryBlob.GetAddressOf());
-
-			assert(SUCCEEDED(hr) && shaderLibraryBlob != nullptr);
-
-			std::lock_guard lock(guestShader->mutex);
-			guestShader->libraryBlob = shaderLibraryBlob;
-		}
-
-		s_dxcLinker->RegisterLibrary(shaderLibName, shaderLibraryBlob.Get());
-
-		const wchar_t* libraryNames[] = { specConstantsLibName, shaderLibName };
-
-		ComPtr<IDxcOperationResult> result;
-		HRESULT hr = s_dxcLinker->Link(L"main", guestShader->type == ResourceType::VertexShader ? L"vs_6_0" : L"ps_6_0",
-			libraryNames, std::size(libraryNames), nullptr, 0, result.GetAddressOf());
-
-		assert(SUCCEEDED(hr) && result != nullptr);
-
-		ComPtr<IDxcBlob> blob;
-		hr = result->GetResult(blob.GetAddressOf());
-		assert(SUCCEEDED(hr) && blob != nullptr);
-
-		{
-			std::lock_guard lock(guestShader->mutex);
-
-			auto& linkedShader = guestShader->linkedShaders[specConstants];
-			if (linkedShader == nullptr)
-			{
-				linkedShader = g_device->createShader(blob->GetBufferPointer(), blob->GetBufferSize(), "main", RenderShaderFormat::DXIL);
-				guestShader->shaderBlobs.push_back(std::move(blob));
-			}
-
-			shader = linkedShader.get();
-		}
-	}
-#endif
-
-	return shader;
-}
 
 static void SanitizePipelineState(PipelineState& pipelineState)
 {
@@ -6889,107 +6221,6 @@ static void SanitizePipelineState(PipelineState& pipelineState)
 	pipelineState.specConstants &= specConstantsMask;
 }
 
-static std::unique_ptr<RenderPipeline> CreateGraphicsPipeline(const PipelineState& pipelineState)
-{
-	RenderGraphicsPipelineDesc desc;
-	desc.pipelineLayout = g_pipelineLayout.get();
-
-	if (pipelineState.vertexShaderType == VertexShaderMode::Passthrough)
-	{
-		desc.vertexShader = PassthroughVS.get();
-	}
-	else if (pipelineState.vertexShaderType == VertexShaderMode::FixedFunction)
-	{
-		desc.vertexShader = FixedFunctionVertexShaderVariants::Resolve(pipelineState.vertexShaderVariant);
-		if (desc.vertexShader == nullptr)
-			desc.vertexShader = FixedFuncVS.get();
-	}
-	else
-	{
-		desc.vertexShader = GetOrLinkShader(pipelineState.vertexShader, pipelineState.specConstants);
-	}
-
-
-	if (pipelineState.isFixedFunctionPS)
-	{
-		desc.pixelShader = FixedFunctionPixelShaderVariants::Resolve(pipelineState.pixelShaderVariant);
-		if (desc.pixelShader == nullptr)
-			desc.pixelShader = FixedFuncPS.get();
-	}
-	else
-	{
-		desc.pixelShader = GetOrLinkShader(pipelineState.pixelShader, pipelineState.specConstants);
-	}
-	desc.depthFunction = pipelineState.zFunc;
-	desc.depthEnabled = pipelineState.zEnable; //Xbox likes to enable ZEnable without a depth stencil
-	desc.depthWriteEnabled = pipelineState.zWriteEnable;
-	desc.depthBias = pipelineState.depthBias;
-	desc.stencilEnabled = pipelineState.stencilEnable;
-	desc.stencilReadMask = pipelineState.stencilMask;
-	desc.stencilWriteMask = pipelineState.stencilWriteMask;
-	desc.stencilReference = pipelineState.stencilRef;
-	desc.stencilFrontFace.compareFunction = pipelineState.stencilFunc;
-	desc.stencilFrontFace.failOp = pipelineState.stencilFail;
-	desc.stencilFrontFace.depthFailOp = pipelineState.stencilZFail;
-	desc.stencilFrontFace.passOp = pipelineState.stencilPass;
-	desc.stencilBackFace = desc.stencilFrontFace;
-	desc.slopeScaledDepthBias = pipelineState.slopeScaledDepthBias;
-	desc.dynamicDepthBiasEnabled = g_capabilities.dynamicDepthBias;
-	desc.depthClipEnabled = true;
-	desc.primitiveTopology = pipelineState.primitiveTopology;
-
-	desc.cullMode = pipelineState.cullMode;
-	desc.renderTargetFormat[0] = pipelineState.renderTargetFormat;
-	desc.renderTargetBlend[0].blendEnabled = pipelineState.alphaBlendEnable;
-	desc.renderTargetBlend[0].srcBlend = pipelineState.srcBlend;
-	desc.renderTargetBlend[0].dstBlend = pipelineState.destBlend;
-	desc.renderTargetBlend[0].blendOp = pipelineState.blendOp;
-	desc.renderTargetBlend[0].srcBlendAlpha = pipelineState.srcBlendAlpha;
-	desc.renderTargetBlend[0].dstBlendAlpha = pipelineState.destBlendAlpha;
-	desc.renderTargetBlend[0].blendOpAlpha = pipelineState.blendOpAlpha;
-	desc.renderTargetBlend[0].renderTargetWriteMask = pipelineState.colorWriteEnable;
-	desc.renderTargetCount = pipelineState.renderTargetFormat != RenderFormat::UNKNOWN ? 1 : 0;
-	desc.depthTargetFormat = pipelineState.depthStencilFormat;
-	desc.multisampling.sampleCount = pipelineState.sampleCount;
-	desc.alphaToCoverageEnabled = pipelineState.enableAlphaToCoverage;
-	desc.inputElements = pipelineState.vertexDeclaration->inputElements.get();
-	desc.inputElementsCount = pipelineState.vertexDeclaration->inputElementCount;
-
-
-	RenderSpecConstant specConstant{};
-	specConstant.value = pipelineState.specConstants;
-
-	if (pipelineState.specConstants != 0)
-	{
-		desc.specConstants = &specConstant;
-		desc.specConstantsCount = 1;
-	}
-
-	RenderInputSlot inputSlots[16]{};
-	uint32_t inputSlotIndices[16]{};
-	uint32_t inputSlotCount = 0;
-
-	for (size_t i = 0; i < pipelineState.vertexDeclaration->inputElementCount; i++)
-	{
-		auto& inputElement = pipelineState.vertexDeclaration->inputElements[i];
-		auto& inputSlotIndex = inputSlotIndices[inputElement.slotIndex];
-
-		if (inputSlotIndex == NULL)
-			inputSlotIndex = ++inputSlotCount;
-
-		auto& inputSlot = inputSlots[inputSlotIndex - 1];
-		inputSlot.index = inputElement.slotIndex;
-		inputSlot.stride = pipelineState.vertexStrides[inputElement.slotIndex];
-		inputSlot.classification = RenderInputSlotClassification::PER_VERTEX_DATA;
-	}
-
-	desc.inputSlots = inputSlots;
-	desc.inputSlotsCount = inputSlotCount;
-
-	auto pipeline = g_device->createGraphicsPipeline(desc);
-
-	return pipeline;
-}
 
 static void EnqueueAddPipeline(XXH64_hash_t hash, std::unique_ptr<RenderPipeline> pipeline)
 {
@@ -7984,8 +7215,6 @@ void DrawPrimitiveUP(X_D3DPRIMITIVETYPE PrimitiveType, uint32_t VertexCount, voi
 
 	if (drawCompositeRT)
 		callerDebugger = CompositeRT;
-	else if (aboutToDrawLoading)
-		callerDebugger = LoadingLogo;
 
 	Guard_Rendering();
 	std::shared_lock presentLock(g_presentMutex);
@@ -8532,19 +7761,16 @@ GUEST_FUNCTION_HOOK_STDCALL(sub_3D2280, SetVertexShader);
 GUEST_FUNCTION_HOOK_FASTCALL(sub_3D1CE0, D3DDevice_SetVertexShaderConstant1Fast);
 GUEST_FUNCTION_HOOK_FASTCALL(sub_3D1D30, D3DDevice_SetVertexShaderConstantNotInlineFast);
 
-GUEST_FUNCTION_HOOK_STDCALL(sub_3D0680, D3DDevice_SetViewport);
-GUEST_FUNCTION_HOOK_STDCALL(sub_3D6BF0, D3DDevice_Clear);
-
-GUEST_FUNCTION_HOOK_STDCALL(sub_3D5DB0, DestructResource);
 
 //Resource
-
 GUEST_FUNCTION_HOOK_STDCALL(sub_3DA010, CreateSurfaceOfTexture);
 GUEST_FUNCTION_HOOK_STDCALL(sub_3D0CD0, SetTexture);
 GUEST_FUNCTION_HOOK_STDCALL(sub_3D0040, D3DDevice_SetRenderTarget);
 
 
 //Rendering
+GUEST_FUNCTION_HOOK_STDCALL(sub_3D0680, D3DDevice_SetViewport);
+GUEST_FUNCTION_HOOK_STDCALL(sub_3D6BF0, D3DDevice_Clear);
 GUEST_FUNCTION_HOOK_STDCALL(sub_3DC1F0, DrawIndexedPrimitive);
 GUEST_FUNCTION_HOOK_STDCALL(sub_3DC150, DrawPrimitive);
 GUEST_FUNCTION_HOOK_STDCALL(sub_3DBFE0, DrawPrimitiveUP);

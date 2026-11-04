@@ -595,7 +595,7 @@ static void RecomputeFixedFunctionTransforms()
 	// Note DX12 expects matrix to be column major for HLSL so we convert them with Transpose
 	// however this breaks Vulkan when multiplication with matrix and vector are involved,
 	// so make sure to not transpose if vulkan is used.
-	const bool vulkan = is_vulkan();
+	const bool vulkan = Video::is_vulkan();
 
 	const auto upload = [vulkan](const D3DMATRIX& m) { return vulkan ? m : MatrixTranspose(m); };
 
