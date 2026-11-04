@@ -6,19 +6,26 @@
 
 
 // achievements icons
-#include <res/images/common/pure_hero.png.h>
-#include <res/images/common/pure_dark.png.h>
-#include <res/images/common/neutral_hero.png.h>
-#include <res/images/common/PlaceHolder.png.h>
-#include <res/images/common/overlay.png.h>
-#include <res/images/common/pure_hero_dark.png.h>
-#include <res/images/common/hero_hero.png.h>
-#include <res/images/common/hero_dark.png.h>
-#include <res/images/common/dark_dark.png.h>
-#include <res/images/common/dark_hero.png.h>
-#include <res/images/common/A_Rank.png.h>
-#include <res/images/common/key.png.h>
-#include <res/images/common/LastStoryComplete.png.h>
+#include <res/images/achievements/pure_hero.png.h>
+#include <res/images/achievements/pure_dark.png.h>
+#include <res/images/achievements/neutral_hero.png.h>
+#include <res/images/achievements/neutral_dark.png.h>
+
+#include <res/images/achievements/pure_dark_hero.png.h>
+#include <res/images/achievements/pure_hero_dark.png.h>
+#include <res/images/achievements/hero_hero.png.h>
+#include <res/images/achievements/hero_dark.png.h>
+#include <res/images/achievements/dark_dark.png.h>
+#include <res/images/achievements/dark_hero.png.h>
+#include <res/images/achievements/A_Rank.png.h>
+#include <res/images/achievements/key.png.h>
+#include <res/images/achievements/LastStoryComplete.png.h>
+#include <res/images/achievements/bomb.png.h>
+#include <res/images/achievements/tank.png.h>
+#include <res/images/achievements/shthR.png.h>   
+#include <res/images/achievements/expert.png.h> 
+#include <res/images/achievements/PlaceHolder.png.h>
+#include <res/images/achievements/overlay.png.h>
 #include <decompressor.h>
 #include <patches/global.h>
 
@@ -233,10 +240,14 @@ std::unique_ptr<GuestTexture> LoadAchivementTexture(uint16_t id)
     {
     case 1:
         return LOAD_ZSTD_TEXTURE(g_puredark);
+    case 2:
+        return LOAD_ZSTD_TEXTURE(g_puredarkhero);
     case 3:
         return LOAD_ZSTD_TEXTURE(g_darkdark);
     case 4:
         return LOAD_ZSTD_TEXTURE(g_darkhero);
+    case 5:
+        return LOAD_ZSTD_TEXTURE(g_neutraldark);
     case 6:
         return LOAD_ZSTD_TEXTURE(g_neutralhero);
     case 7:
@@ -247,12 +258,20 @@ std::unique_ptr<GuestTexture> LoadAchivementTexture(uint16_t id)
         return LOAD_ZSTD_TEXTURE(g_pureherodark);
     case 10:
         return LOAD_ZSTD_TEXTURE(g_purehero);
-    case 11:
+    case Ach_LastStory:
         return LOAD_ZSTD_TEXTURE(g_laststorycomplete);
-    case 12:
+    case Ach_AllARanks:
         return LOAD_ZSTD_TEXTURE(g_arank);
-    case 13:
+    case Ach_AllKeys:
         return LOAD_ZSTD_TEXTURE(g_key);
+    case Ach_ExpertMode:
+        return LOAD_ZSTD_TEXTURE(g_expert);
+    case Ach_TankVehicle:
+        return LOAD_ZSTD_TEXTURE(g_tank);
+    case Ach_CentralCityHeroTime:
+        return LOAD_ZSTD_TEXTURE(g_bomb);
+    case 17:
+		return LOAD_ZSTD_TEXTURE(g_shthR);
     }
 
     return LOAD_ZSTD_TEXTURE(g_placeholder);
