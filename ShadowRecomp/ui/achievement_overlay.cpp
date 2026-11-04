@@ -7,7 +7,7 @@
 #include <user/config.h>
 #include <user/achievement_manager.h>
 #include <gpu/imgui/imgui_snapshot.h>
-#include <res/images/common/overlay.png.h>
+#include <res/images/achievements/overlay.png.h>
 #include <decompressor.h>
 
 constexpr double OVERLAY_DURATION = 5.0;
