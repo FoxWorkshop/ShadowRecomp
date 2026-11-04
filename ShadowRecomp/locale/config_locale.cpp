@@ -60,7 +60,7 @@ CONFIG_DEFINE_LOCALE(Language)
     { ELanguage::German,  { "Sprache", "Ändere die verwendete Sprache für text." } },
     { ELanguage::French,   { "Langue", "Modifie la langue utilisée pour le texte." } },
     { ELanguage::Spanish,  { "Idioma", "Cambia el idioma de los textos." } },
-    { ELanguage::Italian,  { "Language", "Change the language used for text." } },
+    { ELanguage::Italian,  { "Language", "Cambia la lingua usata per il testo" } },
 };
 
 // Notes: do not localise this.
@@ -152,7 +152,7 @@ CONFIG_DEFINE_LOCALE(ConfirmationPrompt)
     { ELanguage::German,   { "Bestätigungsaufforderungen", "Zeigt Bestätigungsabfragen beim Laden eines Spielstands, beim Verlassen des Menüs, beim Neustart und in ähnlichen Situationen an. Durch Deaktivieren dieser Option wird das Verhalten der GameCube-Version Repliziert." } },
     { ELanguage::French,   { "Confirmation Prompts", "Affiche les messages de confirmation lors du chargement d'une sauvegarde, du retour au menu, du redémarrage et dans d'autres situations similaires. Désactiver cette option reproduit le comportement de la version GameCube." } },
     { ELanguage::Spanish,  { "Mensajes de confirmación", "Muestra una confirmación al cargar un archivo de guardado, salir al menú principal, reiniciar el nivel y otras situaciones similares. Desactivar esta opción replica el funcionamiento de la version de GameCube." } },
-    { ELanguage::Italian,  { "Confirmation Prompts", "Shows confirmation prompts when loading a save file, exiting to the menu, restarting, and in other similar situations. Disabling this option replicates the behavior of the GameCube version." } },
+    { ELanguage::Italian,  { "Prompt di Conferma", "Mostra un Prompt di Conferma mentre carichi un salvataggio, ritornando al menu, riavviando il gioco, e altre simili situazioni. Disabilitare questa opzione replica il comportamento della versione GameCube." } },
 };
 
 CONFIG_DEFINE_LOCALE(ControllerIcons)
@@ -370,7 +370,7 @@ CONFIG_DEFINE_LOCALE(StickDeadzone1P)
     { ELanguage::German,   { "Stick Totzone", "Analoge Totzone anpassen." } },
     { ELanguage::French,   { "Stick Deadzone", "Adjust analog deadzone." } },
     { ELanguage::Spanish,  { "Zona muerta del joystick", "Ajusta la zona muerta del joystick." } },
-    { ELanguage::Italian,  { "Stick Deadzone", "Adjust analog deadzone." } }
+    { ELanguage::Italian,  { "Zona morta dello Stick", "Regola la zona morta dello stick analogico." } }
 };
 
 // shared by all players
@@ -385,7 +385,7 @@ CONFIG_DEFINE_LOCALE(StickSensitivity1P)
     { ELanguage::German,   { "Stick empfindlichkeit", "Analoge Empfindlichkeit anpassen." } },
     { ELanguage::French,   { "Stick Sensitivity", "Adjust analog sensitivity." } },
     { ELanguage::Spanish,  { "Sensibilidad del joystick", "Ajusta la sensibilidad del joystick." } },
-    { ELanguage::Italian,  { "Stick Sensitivity", "Adjust analog sensitivity." } }
+    { ELanguage::Italian,  { "Sensibilità dello Stick", "Regola la sensibilità dello stick analogico." } }
 };
 
 // shared by all players
@@ -440,7 +440,7 @@ CONFIG_DEFINE_LOCALE(CutsceneVolume)
     { ELanguage::German,   { "Zwischensequenz-lautstärke", "Passe die Lautstärke der Zwischensequenzen an." } },
     { ELanguage::French,   { "Cutscene Volume", "Adjust the volume for cutscenes." } },
     { ELanguage::Spanish,  { "Volumen de las cinemáticas", "Ajusta el volumen de las cinemáticas." } },
-    { ELanguage::Italian,  { "Cutscene Volume", "Adjust the volume for cutscenes." } }
+    { ELanguage::Italian,  { "Volume dei filmati", "Regola il volume per i filmati" } }
 };
 
 // Japanese Notes: This localization should include furigana.
@@ -472,7 +472,7 @@ CONFIG_DEFINE_LOCALE(IdleChaosPowersMusic)
     { ELanguage::German,   { "Chaos Power Musik", "Spiele die Musik ab, wenn eine der Chaosanzeigen voll ist. Bei der Einstellung „AUS“ wird stattdessen die Levelmusik weiter abgespielt." } },
     { ELanguage::French,   { "Chaos Power Music", "Play the theme when either chaos gauge is full. 'OFF' will continue to play the stage music instead." } },
     { ELanguage::Spanish,  { "Música de los Chaos Power", "Reproduce el tema cuando cualquier indicador chaos está lleno. Si seleccionas 'NO', la música del nivel continuará sonando." } },
-    { ELanguage::Italian,  { "Chaos Power Music", "Play the theme when either chaos gauge is full. 'OFF' will continue to play the stage music instead." } }
+    { ELanguage::Italian,  { "Musica Chaos Power", "La musica parte quando entrambi i Chaos gauge sono pieni. 'OFF' farà continuare invece la musica del quadro." } }
 };
 
 // TODO: This was changed slightly, retranslate FR
@@ -483,7 +483,7 @@ CONFIG_DEFINE_LOCALE(ChaosPowerLEDSync)
     { ELanguage::German,   { "Chaos Power LED Sync", "Synchronisiere die LED-Farbe des Controllers mit der aktiven Chaos Power." } },
     { ELanguage::French,   { "Chaos Power LED Sync", "Synchronise la couleur des LED de la manette avec le Chaos Power actif." } },
     { ELanguage::Spanish,  { "Sincronización LED de los Chaos Power", "Sincroniza el LED del mando con el color del Chaos Power activo." } },
-    { ELanguage::Italian,  { "Chaos Power LED Sync", "Sync controller LED color with the active Chaos Power." } }
+    { ELanguage::Italian,  { "Sincronizzazione LED Chaos Power", "Sincronizza il colore del LED quando Chaos Power è attivo." } }
 };
 
 // TODO: Not yet used, but will add this before release so adding it here before translators start
@@ -494,7 +494,7 @@ CONFIG_DEFINE_LOCALE(ControllerLEDBrightness)
     { ELanguage::German,   { "Controller LED Brightness", "LED-Helligkeit für kompatible Controller." } },
     { ELanguage::French,   { "Controller LED Brightness", "LED brightness for compatible controllers." } },
     { ELanguage::Spanish,  { "Brillo LED del mando", "Brillo del LED para mandos compatibles." } },
-    { ELanguage::Italian,  { "Controller LED Brightness", "LED brightness for compatible controllers." } }
+    { ELanguage::Italian,  { "Luminosità LED Controller", "Luminosità del LED per i controller compatibili." } }
 };
 
 // Note: English was updated to match OG game, retranslate this
@@ -505,7 +505,7 @@ CONFIG_DEFINE_LOCALE(VoiceLanguage)
     { ELanguage::German,  { "Sprachausgabe ", "Ändere die gesprochene Sprache." } },
     { ELanguage::French,   { "Voice Language", "Change the spoken language." } },
     { ELanguage::Spanish,  { "Idioma de las voces", "Cambia el idioma de las voces del juego." } },
-    { ELanguage::Italian, { "Voice Language", "Change the spoken language." } },
+    { ELanguage::Italian, { "Linguaggio voci", "Cambia la lingua parlata." } },
 };
 
 CONFIG_DEFINE_LOCALE(Subtitles)
@@ -525,7 +525,7 @@ CONFIG_DEFINE_LOCALE(GraphicsAPI)
     { ELanguage::German,   { "Rendering-Backend", "Legt die für das Rendering verwendete Grafik-API fest. Ändere diese Einstellung nur, wenn visuelle Probleme auftreten." } },
     { ELanguage::French,   { "Rendering Backend", "Set graphics API used for rendering. Only change this if you experience visual issues." } },
     { ELanguage::Spanish,  { "Motor de gráficos", "Selecciona el motor de gráficos. Solamente cambia esto si tienes problemas visuales en el juego." } },
-    { ELanguage::Italian,  { "Rendering Backend", "Set graphics API used for rendering. Only change this if you experience visual issues." } }
+    { ELanguage::Italian,  { "Rendering Backend", "Imposta L'API Grafico usato per il rendering. Cambia questa opzione solamente se stai sperimentando problemi visivi." } }
 };
 
 CONFIG_DEFINE_ENUM_LOCALE(EGraphicsAPI)
@@ -583,11 +583,11 @@ CONFIG_DEFINE_ENUM_LOCALE(EGraphicsAPI)
     {
         ELanguage::Italian,
         {
-            { EGraphicsAPI::Auto, { "AUTO", "Render using recommended backend." } },
+            { EGraphicsAPI::Auto, { "AUTO", "Usa il backend raccomandato per il rendering." } },
 #ifdef SHADOW_RECOMP_D3D12
-            { EGraphicsAPI::D3D12, { "D3D12", "Render using Direct3D 12." } },
+            { EGraphicsAPI::D3D12, { "D3D12", "Usa Direct3D 12 per il rendering." } },
 #endif
-            { EGraphicsAPI::Vulkan, { "VULKAN", "Render using Vulkan." } }
+            { EGraphicsAPI::Vulkan, { "VULKAN", "Usa Vulkan per il rendering." } }
         }
     }
 };
@@ -682,12 +682,12 @@ CONFIG_DEFINE_ENUM_LOCALE(EAspectRatio)
     {
         ELanguage::Italian,
         {
-            { EAspectRatio::Auto, { "AUTO", "TODO" } },
-            { EAspectRatio::Original, { "4:3 (Originale)", "TODO" } },
-            { EAspectRatio::Wide16x9, { "16:9", "TODO" } },
-            { EAspectRatio::Wide16x10, { "16:10", "TODO" } },
-            { EAspectRatio::Narrow5x4, { "5:4", "TODO" } },
-            { EAspectRatio::Wide21x9, { "21:9", "TODO" } }
+            { EAspectRatio::Auto, { "AUTO", "Sistema in modo dinamico il rapporto d'aspetto in base alla grandezza della finestra." } },
+            { EAspectRatio::Original, { "4:3 (Originale)", "Il rapporto d'aspetto del gioco originale." } },
+            { EAspectRatio::Wide16x9, { "16:9", "Forza il rapporto d'aspetto 16:9." } },
+            { EAspectRatio::Wide16x10, { "16:10", "Forza il rapporto d'aspetto 16:10." } },
+            { EAspectRatio::Narrow5x4, { "5:4", "Forza il rapporto d'aspetto 5:4." } },
+            { EAspectRatio::Wide21x9, { "21:9", "Forza il rapporto d'aspetto 21:9." } }
         }
     }
 };
@@ -699,7 +699,7 @@ CONFIG_DEFINE_LOCALE(FMVAspectRatio)
     { ELanguage::German,   { "FMV-Seitenverhältnis", "Ändere wie vorgerenderte Zwischensequenzen an das Display angepasst werden." } },
     { ELanguage::French,   { "FMV Aspect Ratio", "Change how full motion videos (pre-rendered cutscenes) fit the display." } },
     { ELanguage::Spanish,  { "Relación de aspecto de los vídeos pre-renderizados", "Selecciona la relación de aspecto de los vídeos pre-renderizados." } },
-    { ELanguage::Italian,  { "FMV Aspect Ratio", "Change how full motion videos (pre-rendered cutscenes) fit the display." } }
+    { ELanguage::Italian,  { "Rapporto d'aspetto FMV", "Cambia come i full motion videos (Filmati pre-registrati) si adatti al display." } }
 };
 
 // Japanese Notes: This localization should include furigana in its description.
@@ -748,9 +748,9 @@ CONFIG_DEFINE_ENUM_LOCALE(EFMVAspectRatio)
     {
         ELanguage::Italian,
         {
-            { EFMVAspectRatio::Stretched, { "STRETCHED", "The video is stretched to fill the display." } },
-            { EFMVAspectRatio::Fit,       { "FIT", "The video keeps its original aspect ratio with black borders." } },
-            { EFMVAspectRatio::Fill,      { "FILL", "The video is cropped and zoomed in with its original aspect ratio." } },
+            { EFMVAspectRatio::Stretched, { "ALLUNGATO", "Il video viene allungato per riempire il display." } },
+            { EFMVAspectRatio::Fit,       { "ADATTA", "Il video mantiene il rapporto d'aspetto originale con bordi neri." } },
+            { EFMVAspectRatio::Fill,      { "RIEMPI", "Il video viene tagliato e ingrandito con il suo rapporto d'aspetto originale." } },
         }
     }
 };
@@ -802,7 +802,7 @@ CONFIG_DEFINE_LOCALE(CutsceneFramerate)
     { ELanguage::German,   { "Zwischensequenz-Framerate", "Lege fest die Bildrate der Zwischensequenzen." } },
     { ELanguage::French,   { "Cutscene Framerate", "Set the frame rate of in-game cutscenes." } },
     { ELanguage::Spanish,  { "FPS en cinemáticas", "Selecciona el límite de fotogramas por segundo en las cinemáticas (no se aplica en los vídeos pre-renderizados)." } },
-    { ELanguage::Italian,  { "Cutscene Framerate", "Set the frame rate of in-game cutscenes." } }
+    { ELanguage::Italian,  { "Framerate filmati", "Imposta il frame rate per i filmati in-game." } }
 };
 
 CONFIG_DEFINE_ENUM_LOCALE(ECutsceneFramerate)
@@ -845,8 +845,8 @@ CONFIG_DEFINE_ENUM_LOCALE(ECutsceneFramerate)
     {
         ELanguage::Italian,
         {
-            { ECutsceneFramerate::Original, { "ORIGINAL", "In-game cutscenes run at 30 FPS." } },
-            { ECutsceneFramerate::Unlocked, { "UNLOCKED", "In-game cutscenes run at target framerate." } }
+            { ECutsceneFramerate::Original, { "ORIGINALE", "In-game cutscenes run at 30 FPS." } },
+            { ECutsceneFramerate::Unlocked, { "SBLOCCATO", "Filmati In-game gireranno al framerate impostato." } }
         }
     }
 };
@@ -858,7 +858,7 @@ CONFIG_DEFINE_LOCALE(ShowFPS)
     { ELanguage::German,   { "Zeige FPS", "Zeigt den Framerate-Counter an." } },
     { ELanguage::French,   { "Show FPS", "Shows the framerate counter." } },
     { ELanguage::Spanish,  { "Mostrar FPS", "Muestra el contador de FPS." } },
-    { ELanguage::Italian,  { "Show FPS", "Shows the framerate counter." } }
+    { ELanguage::Italian,  { "Mostra FPS", "Mostra il contatore framerate." } }
 };
 
 CONFIG_DEFINE_LOCALE(Brightness)
@@ -868,7 +868,7 @@ CONFIG_DEFINE_LOCALE(Brightness)
     { ELanguage::German,   { "Helligkeit", "Passe die Helligkeit an." } },
     { ELanguage::French,   { "Luminosité", "Adjust the brightness level." } },
     { ELanguage::Spanish,  { "Brillo", "Ajusta el nivel de brillo." } },
-    { ELanguage::Italian,  { "Luminosità", "Adjust the brightness level." } }
+    { ELanguage::Italian,  { "Luminosità", "Regola il livello di luminosità." } }
 };
 
 CONFIG_DEFINE_LOCALE(BloomIntensity)
@@ -889,7 +889,7 @@ CONFIG_DEFINE_LOCALE(EnablePartnerIntro)
     { ELanguage::German,   { "Partner Intro", "Zeige Intro, wenn Sie einen neuen Partner kennenlernen." } },
     { ELanguage::French,   { "Intro du Partenaire", "Afficher l'introduction du partenaire lorsqu'il est rencontré pour la première fois." } },
     { ELanguage::Spanish,  { "Introducción del compañero", "Muestra la introducción al encontrarse con un compañero nuevo." } },
-    { ELanguage::Italian,  { "Partner Intro", "Show intro when meeting new partners." } }
+    { ELanguage::Italian,  { "Introduzione Partner", "Mostra un intro quando incontri nuovi partners." } }
 };
 
 CONFIG_DEFINE_LOCALE(MaxHUDWidth)
@@ -899,5 +899,5 @@ CONFIG_DEFINE_LOCALE(MaxHUDWidth)
     { ELanguage::German,   { "HUD Breite", "Beschränken Sie das HUD auf ein ausgewähltes Seitenverhältnis. Hauptsächlich für Ultrawide-Monitore." } },
     { ELanguage::French,   { "HUD Width", "Constrain HUD to a chosen aspect ratio. Primarily for ultrawide monitors." } },
     { ELanguage::Spanish,  { "Ancho de la interfaz", "Limita la interfaz a la relación de aspecto seleccionada. Esta opción es principalmente para monitores ultra anchos." } },
-    { ELanguage::Italian,  { "HUD Width", "Constrain HUD to a chosen aspect ratio. Primarily for ultrawide monitors." } }
+    { ELanguage::Italian,  { "Regolazione HUD", "Forza L'HUD al rapporto d'aspetto impostato. Usato primariamente per monitor ultrawide." } }
 };

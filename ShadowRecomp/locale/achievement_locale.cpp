@@ -50,9 +50,9 @@ std::unordered_map<int, std::unordered_map<ELanguage, AchievementLocale>> g_shrL
 			{
 				ELanguage::Italian,
 				{
-					"Heart Awoken from Darkness",
-					"Complete the Pure Dark - Dark Ending!",
-					"Completed the Pure Dark - Dark Ending."
+					"Un cuore risvegliato dall'oscurità",
+					"Completa il finale: Pure Dark - Dark",
+					"Hai completato il finale: Pure Dark - Dark."
 				}
 			},
 		}
@@ -104,9 +104,9 @@ std::unordered_map<int, std::unordered_map<ELanguage, AchievementLocale>> g_shrL
 			{
 				ELanguage::Italian,
 				{
-					"Prologue to World Conquest",
-					"Complete the Pure Dark - Hero Ending!",
-					"Completed the Pure Dark - Hero Ending."
+					"Prologo per la conquista del mondo",
+					"Completa il finale: Pure Dark - Hero",
+					"Hai completato il finale: Pure Dark - Hero"
 				}
 			},
 		}
@@ -158,9 +158,9 @@ std::unordered_map<int, std::unordered_map<ELanguage, AchievementLocale>> g_shrL
 			{
 				ELanguage::Italian,
 				{
-					"March to a Darker World",
-					"Complete the Dark - Dark Ending!",
-					"Completed the Dark - Dark Ending."
+					"La marcia per un mondo più oscuro",
+					"Completa il finale: Dark - Dark",
+					"Hai completato il finale: Dark - Dark"
 				}
 			},
 		}
@@ -212,9 +212,9 @@ std::unordered_map<int, std::unordered_map<ELanguage, AchievementLocale>> g_shrL
 			{
 				ELanguage::Italian,
 				{
-					"Last Remaining Purpose",
-					"Complete the Dark - Hero ending!",
-					"Completed the Dark - Hero ending."
+					"Il mio ultimo obiettivo",
+					"Completa il finale: Dark - Hero",
+					"Hai Completato il finale: Dark - Hero"
 				}
 			},
 		}
@@ -266,9 +266,9 @@ std::unordered_map<int, std::unordered_map<ELanguage, AchievementLocale>> g_shrL
 			{
 				ELanguage::Italian,
 				{
-					"Over the Original",
-					"Complete the Neutral - Dark ending!",
-					"Completed the Neutral - Dark ending."
+					"Meglio dell'originale",
+					"Completa il finale: Neutrale - Dark",
+					"Hai completato il finale: Neutrale - Dark"
 				}
 			},
 		}
@@ -320,9 +320,9 @@ std::unordered_map<int, std::unordered_map<ELanguage, AchievementLocale>> g_shrL
 			{
 				ELanguage::Italian,
 				{
-					"A New Empire's Beginning",
-					"Complete the Neutral - Hero ending!",
-					"Completed the Neutral - Hero ending."
+					"L'Inizio di un nuovo impero",
+					"Completa il finale: Neutrale - Hero",
+					"Hai completato il finale: Neutrale - Hero ending"
 				}
 			},
 		}
@@ -374,9 +374,9 @@ std::unordered_map<int, std::unordered_map<ELanguage, AchievementLocale>> g_shrL
 			{
 				ELanguage::Italian,
 				{
-					"Reborn Along with Sorrow",
-					"Complete the Hero - Dark ending!",
-					"Completed the Hero - Dark ending."
+					"Rinato con un rimpianto",
+					"Completa il finale: Hero - Dark",
+					"Hai completato il finale: Hero - Dark"
 				}
 			},
 		}
@@ -428,9 +428,9 @@ std::unordered_map<int, std::unordered_map<ELanguage, AchievementLocale>> g_shrL
 			{
 				ELanguage::Italian,
 				{
-					"Requiem for a Fallen Angel",
-					"Complete the Hero - Hero ending!",
-					"Completed the Hero - Hero ending."
+					"Un Requiem per l'angelo caduto",
+					"Completa il finale Hero - Hero",
+					"Hai completato il finale: Hero - Hero"
 				}
 			},
 		}
@@ -483,9 +483,9 @@ std::unordered_map<int, std::unordered_map<ELanguage, AchievementLocale>> g_shrL
 			{
 				ELanguage::Italian,
 				{
-					"Pretense in the Mirror",
-					"Complete the Pure Hero - Dark ending!",
-					"Completed the Pure Hero - Dark ending."
+					"Il riflesso di un falso",
+					"Completa il finale: Pure Hero - Dark",
+					"Hai completato il finale: Pure Hero - Dark"
 				}
 			},
 		}
@@ -537,9 +537,9 @@ std::unordered_map<int, std::unordered_map<ELanguage, AchievementLocale>> g_shrL
 			{
 				ELanguage::Italian,
 				{
-					"The One Who Maria Entrusted",
-					"Complete the Pure Hero - Hero ending!",
-					"Completed the Pure Hero - Hero ending."
+					"Colui che ha la fiducia di Maria",
+					"Completa il finale: Pure Hero - Hero",
+					"Hai completato il finale: Pure Hero - Hero ending."
 				}
 			},
 		}
@@ -595,8 +595,8 @@ std::unordered_map<int, std::unordered_map<ELanguage, AchievementLocale>> g_shrL
 				ELanguage::Italian,
 				{
 					"Never Turn Back",
-					"Complete the last story!",
-					"Completed the last story."
+					"Completa l'ultima storia!",
+					"Hai completato l'ultima storia"
 				}
 			},
 		}
@@ -649,9 +649,9 @@ std::unordered_map<int, std::unordered_map<ELanguage, AchievementLocale>> g_shrL
 			{
 				ELanguage::Italian,
 				{
-					"Beyond Good and Evil",
-					"Get all 71 A Ranks!",
-					"Got all 71 A Ranks."
+					"Oltre il Bene e il Male",
+					"Ottieni tutti i 71 Classe A",
+					"Hai Ottenuto tutti i 71 Classe A."
 				}
 			},
 		}
@@ -703,9 +703,9 @@ std::unordered_map<int, std::unordered_map<ELanguage, AchievementLocale>> g_shrL
 			{
 				ELanguage::Italian,
 				{
-					"Master of Keys",
-					"Collect all 115 Keys!",
-					"Collected all 115 Keys."
+					"Il Maestro di chiavi",
+					"Colleziona tutte le 115 Chiavi",
+					"Hai Collezionato tutte le 115 Chiavi"
 				}
 			},
 		}
@@ -757,9 +757,9 @@ std::unordered_map<int, std::unordered_map<ELanguage, AchievementLocale>> g_shrL
 			{
 				ELanguage::Italian,
 				{
-					"A Use for a Saved Life",
-					"Complete Expert Mode!",
-					"Completed Expert Mode."
+					"Un buon uso di una vita salvata",
+					"Completa la modalità Esperta!",
+					"Hai Completato la modalità Esperta."
 				}
 			},
 		}
@@ -812,8 +812,8 @@ std::unordered_map<int, std::unordered_map<ELanguage, AchievementLocale>> g_shrL
 				ELanguage::Italian,
 				{
 					"Hm. Perfetto...",
-					"Destroy the Black Arms tank in Lethal Highway while driving a vehicle!",
-					"Destroyed the Black Arms tank in Lethal Highway while driving a vehicle."
+					"Distruggi il veicolo degli Black Arms in Lethal Highway mentre guidi un veicolo",
+					"Hai Distrutto il veicolo degli Black Arms in Lethal Highway guidando un veicolo"
 				}
 			},
 		}
@@ -865,9 +865,9 @@ std::unordered_map<int, std::unordered_map<ELanguage, AchievementLocale>> g_shrL
 			{
 				ELanguage::Italian,
 				{
-					"3 minutes, shower included",
-					"Complete the hero mission of Central City in less than 3 minutes!",
-					"Completed the hero mission of Central City in less than 3 minutes."
+					"3 Minuti, doccia inclusa!",
+					"Completa la missione Hero di Central City in meno di 3 minuti!",
+					"Hai Completato la missione Hero di Central City in meno di 3 minuti"
 				}
 			},
 		}
@@ -921,8 +921,8 @@ std::unordered_map<int, std::unordered_map<ELanguage, AchievementLocale>> g_shrL
 				ELanguage::Italian,
 				{
 					"I Am... All of Me",
-					"Unlock all the achievements!",
-					"Unlocked all the achievements."
+					"Sblocca tutti gli achievement",
+					"Hai sbloccato tutti gli achievements."
 				}
 			},
 		}

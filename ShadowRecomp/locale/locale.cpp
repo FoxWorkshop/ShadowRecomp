@@ -147,7 +147,7 @@ std::unordered_map<std::string_view, std::unordered_map<ELanguage, std::string>>
 		{ ELanguage::German,   "Steuerung anpassen" },
 		{ ELanguage::French,   "Customize Input" },
 		{ ELanguage::Spanish,  "Personaliza los controles" },
-		{ ELanguage::Italian,  "Customize Input" }
+		{ ELanguage::Italian,  "Personalizzazione Input" }
 	}
 },
 {
@@ -158,7 +158,7 @@ std::unordered_map<std::string_view, std::unordered_map<ELanguage, std::string>>
 		{ ELanguage::German,   "Anpassung der Steuerung für Individuelle Spieler." },
 		{ ELanguage::French,   "Customize controls for each player." },
 		{ ELanguage::Spanish,  "Personaliza los controles para cada jugador." },
-		{ ELanguage::Italian,  "Customize controls for each player." }
+		{ ELanguage::Italian,  "Personalizza i controlli per ciascun giocatore." }
 	}
 },
 {
@@ -169,7 +169,7 @@ std::unordered_map<std::string_view, std::unordered_map<ELanguage, std::string>>
 		{ ELanguage::German,   "TASTATUR" },
 		{ ELanguage::French,   "KEYBOARD" },
 		{ ELanguage::Spanish,  "TECLADO" },
-		{ ELanguage::Italian,  "KEYBOARD" }
+		{ ELanguage::Italian,  "TASTIERA" }
 	}
 },
 {
@@ -180,7 +180,7 @@ std::unordered_map<std::string_view, std::unordered_map<ELanguage, std::string>>
 		{ ELanguage::German,   "Tastatursteuerung anpassen." },
 		{ ELanguage::French,   "Customize keyboard controls." },
 		{ ELanguage::Spanish,  "Personaliza los controles del teclado." },
-		{ ELanguage::Italian,  "Customize keyboard controls." }
+		{ ELanguage::Italian,  "Personalizza i controlli per Tastiera." }
 	}
 },
 {
@@ -203,7 +203,7 @@ std::unordered_map<std::string_view, std::unordered_map<ELanguage, std::string>>
 		{ ELanguage::German,   "{}SP Controller steuerung anpassen." },
 		{ ELanguage::French,   "Customize {}P gamepad buttons." },
 		{ ELanguage::Spanish,  "Personaliza los botones del mando del J{}." },
-		{ ELanguage::Italian,  "Customize {}P gamepad buttons." }
+		{ ELanguage::Italian,  "Personalizza i tasti del controller {}P." }
 	}
 },
 {
@@ -214,7 +214,7 @@ std::unordered_map<std::string_view, std::unordered_map<ELanguage, std::string>>
 		{ ELanguage::German,   "Tastenbelegung ändern." },
 		{ ELanguage::French,   "Change key assignment." },
 		{ ELanguage::Spanish,  "Cambia la asignación de teclas." },
-		{ ELanguage::Italian,  "Change key assignment." }
+		{ ELanguage::Italian,  "Cambia il tasto assegnato." }
 	}
 },
 {
@@ -225,7 +225,7 @@ std::unordered_map<std::string_view, std::unordered_map<ELanguage, std::string>>
 		{ ELanguage::German,   "Knopfbelegung ändern." },
 		{ ELanguage::French,   "Change assigned button." },
 		{ ELanguage::Spanish,  "Cambia el botón asignado." },
-		{ ELanguage::Italian,  "Change assigned button." }
+		{ ELanguage::Italian,  "Cambia il pulsante assegnato." }
 	}
 },
 {
@@ -236,7 +236,7 @@ std::unordered_map<std::string_view, std::unordered_map<ELanguage, std::string>>
 		{ ELanguage::German,   "Taste drücken zum Zuweisen. Drücke Escape oder warte um zurückzukehren." },
 		{ ELanguage::French,   "Press key to assign. Press Escape or wait to cancel." },
 		{ ELanguage::Spanish,  "Pulsa una tecla para asignar. Pulsa Escape o espera para cancelar." },
-		{ ELanguage::Italian,  "Press key to assign. Press Escape or wait to cancel." }
+		{ ELanguage::Italian,  "Premi un tasto per assegnare. Premi Escape o aspetta per annullare." }
 	}
 },
 {
@@ -247,7 +247,7 @@ std::unordered_map<std::string_view, std::unordered_map<ELanguage, std::string>>
 		{ ELanguage::German,   "Knopf drücken zum Zuweisen. Drücke Escape oder warte um zurückzukehren." },
 		{ ELanguage::French,   "Press button to assign. Press Escape or wait to cancel." },
 		{ ELanguage::Spanish,  "Pulsa un botón para asignar. Pulsa Escape o espera para cancelar." },
-		{ ELanguage::Italian,  "Press button to assign. Press Escape or wait to cancel." }
+		{ ELanguage::Italian,  "Premi un pulsante per assegnare. Premi Escape o aspetta per annullare." }
 	}
 },
 {
@@ -258,7 +258,7 @@ std::unordered_map<std::string_view, std::unordered_map<ELanguage, std::string>>
 		{ ELanguage::German,   "Sound Test" },
 		{ ELanguage::French,   "Test Audio" },
 		{ ELanguage::Spanish,  "Prueba de sonido" },
-		{ ELanguage::Italian,  "Sound Test" }
+		{ ELanguage::Italian,  "Test Audio" }
 	}
 },
 {
@@ -280,7 +280,7 @@ std::unordered_map<std::string_view, std::unordered_map<ELanguage, std::string>>
 		{ ELanguage::German,   "Höre dir die Musik aus dem Spiel an." },
 		{ ELanguage::French,   "Sélectionnez une musique pour la jouer." },
 		{ ELanguage::Spanish,  "Selecciona una canción para escuchar." },
-		{ ELanguage::Italian,  "Select a track to play it." },
+		{ ELanguage::Italian,  "Seleziona una traccia per ascoltare." },
 	}
 },
 {
@@ -456,7 +456,7 @@ std::unordered_map<std::string_view, std::unordered_map<ELanguage, std::string>>
 		{ ELanguage::German,   "Wilkommen zu Shadow Recompiled!\n\nDu wirst eine Xbox Kopie von\nShadow the Hedgehog benötigen um\nmit der Installation fortzufahren."},
 		{ ELanguage::French,   "Welcome to Shadow Recompiled!\n\nYou'll need an Xbox copy of\nShadow the Hedgehog in order to\nproceed with the installation." },
 		{ ELanguage::Spanish,  "¡Te damos la bienvenida a Shadow Recompiled!\n\nNecesitarás una copia de la versión de XBOX de\nShadow the Hedgehog para\nproceder con la instalación." },
-		{ ELanguage::Italian,  "Welcome to Shadow Recompiled!\n\nYou'll need an Xbox copy of\nShadow the Hedgehog in order to\nproceed with the installation." }
+		{ ELanguage::Italian,  "Benvenuti a Shadow Recompiled!\n\nTi servirà una copia XBOX di\nShadow the Hedgehog per poter\nProcedere con l'installazione" }
 	}
 },
 {
@@ -467,7 +467,7 @@ std::unordered_map<std::string_view, std::unordered_map<ELanguage, std::string>>
 		{ ELanguage::German,   "Füge den Pfad für das Spiel hinzu." },
 		{ ELanguage::French,   "Add the source for the game." },
 		{ ELanguage::Spanish,  "Añade el archivo de origen del juego." },
-		{ ELanguage::Italian,  "Add the source for the game." }
+		{ ELanguage::Italian,  "Aggiungi una fonte per il gioco." }
 	}
 },
 {
@@ -478,7 +478,7 @@ std::unordered_map<std::string_view, std::unordered_map<ELanguage, std::string>>
 		{ ELanguage::German,   "Drag & Drop oder wähle eine ISO oder default.xbe aus." },
 		{ ELanguage::French,   "Drag & Drop or Select an ISO or default.xbe" },
 		{ ELanguage::Spanish,  "Arrasta o selecciona el archivo .ISO o default.xbe" },
-		{ ELanguage::Italian,  "Drag & Drop or Select an ISO or default.xbe" }
+		{ ELanguage::Italian,  "Trascina e rilascia o seleziona una ISO o default.xbe" }
 	}
 },
 {
@@ -525,7 +525,7 @@ std::unordered_map<std::string_view, std::unordered_map<ELanguage, std::string>>
 			{ ELanguage::German,   "Installiert..." },
 			{ ELanguage::French,   "Installing..." },
 			{ ELanguage::Spanish,  "Instalando..." },
-			{ ELanguage::Italian,  "Installing..." }
+			{ ELanguage::Italian,  "Installazione..." }
 		}
 	},
 	{
@@ -536,7 +536,7 @@ std::unordered_map<std::string_view, std::unordered_map<ELanguage, std::string>>
 			{ ELanguage::German,   "Credits: " },
 			{ ELanguage::French,   "Crédits: " },
 			{ ELanguage::Spanish,  "Créditos: " },
-			{ ELanguage::Italian,  "Credits: " }
+			{ ELanguage::Italian,  "Crediti: " }
 		}
 	},
 {
@@ -547,7 +547,7 @@ std::unordered_map<std::string_view, std::unordered_map<ELanguage, std::string>>
 		{ ELanguage::German,   "Shaders kompilieren..." },
 		{ ELanguage::French,   "Compiling shaders..." },
 		{ ELanguage::Spanish,  "Compilando sombreadores..." },
-		{ ELanguage::Italian,  "Compiling shaders..." }
+		{ ELanguage::Italian,  "Compilazione shaders..." }
 	}
 },
 {
@@ -635,7 +635,7 @@ std::unordered_map<std::string_view, std::unordered_map<ELanguage, std::string>>
 		{ ELanguage::German,   "Spiel starten" },
 		{ ELanguage::French,   "Jouer" },
 		{ ELanguage::Spanish,  "Jugar" },
-		{ ELanguage::Italian,  "Giocare" }
+		{ ELanguage::Italian,  "Gioca" }
 	}
 },
 {
@@ -647,7 +647,7 @@ std::unordered_map<std::string_view, std::unordered_map<ELanguage, std::string>>
 		{ ELanguage::German,   "Die ausgewählte Quelle ist keine gültige Shadow the Hedgehog Xbox ISO-Datei\noder kein extrahierter Spielordner." },
 		{ ELanguage::French,   "The selected source is not a valid Shadow the Hedgehog Xbox ISO\nor extracted game folder." },
 		{ ELanguage::Spanish,  "El archivo de origen seleccionado no es un archivo .ISO válido o una carpeta de juego\nde Shadow the Hedgehog." },
-		{ ELanguage::Italian,  "The selected source is not a valid Shadow the Hedgehog Xbox ISO\nor extracted game folder." }
+		{ ELanguage::Italian,  "La fonte selezionata non è una XBOX ISO valida di Shadow the Hedgehog Xbox ISO\no una cartella di gioco estratta." }
 	}
 },
 {
@@ -672,7 +672,7 @@ std::unordered_map<std::string_view, std::unordered_map<ELanguage, std::string>>
 		{ ELanguage::German,   "Auf Ihrem PC befinden sich keine Spieldaten.\nSHADOW THE HEDGEHOG™\nunterstützt eine automatische\nSpeicherfunktion. Möchten Sie Spieldaten erstellen?" },
 		{ ELanguage::French,   "Pas de données de jeu sur ce PC.\nSHADOW THE HEDGEHOG™\ndispose d'un système de sauvegarde automatique.\nCréer des données de jeu sur\nce PC?" },
 		{ ELanguage::Spanish,  "No se han encontrado datos de juego en tu PC.\nSHADOW THE HEDGEHOG™\nutiliza una función de autoguardado.\n¿Quieres crear datos de juego?" },
-		{ ELanguage::Italian,  "There is no Game Data on your PC.\nSHADOW THE HEDGEHOG™\nsupports an autosave feature.\nDo you want to create Game Data?" }
+		{ ELanguage::Italian,  "Non è stato trovato un salvataggio.\nSHADOW THE HEDGEHOG™\nsupporta una funzione di autosalvataggio.\nVuoi creare un nuovo salvataggio?" }
 	}
 },
 {
@@ -685,7 +685,7 @@ std::unordered_map<std::string_view, std::unordered_map<ELanguage, std::string>>
 		{ ELanguage::German,   "Spiel starten, ohne Spieldaten zu\nerstellen. Der Spielstand wird\nnicht gespeichert." },
 		{ ELanguage::French,   "Démarrer le jeu sans créer de données du jeu.\nLa progression du jeu ne sera\npas sauvegardée." },
 		{ ELanguage::Spanish,  "Comienza el juego sin crear\ndatos de juego.\nEl progreso durante la partida no será guardado." },
-		{ ELanguage::Italian,  "Start the game without creating\nGame Data.\nProgress of the game will not be saved." }
+		{ ELanguage::Italian,  "Incomincia senza creare un\nSalvataggio.\nI progressi di gioco non saranno salvati." }
 	}
 },
 // Notes: on load if the save file is corrupted
@@ -697,7 +697,7 @@ std::unordered_map<std::string_view, std::unordered_map<ELanguage, std::string>>
 		{ ELanguage::German,   "Spieldaten sind beschädigt und\nkönnen nicht verwendet werden.\nDrücken Sie bitte die A-Taste\num fortzufahren.." },
 		{ ELanguage::French,   "Les données de jeu sont endommagées.\nAppuyer sur A pour continuer." },
 		{ ELanguage::Spanish,  "Los datos de juego están dañados\ny no se pueden utilizar.\nPulsa el botón A para continuar." },
-		{ ELanguage::Italian,  "The Game Data is damaged\nand cannot be used.\nPress A button to continue." },
+		{ ELanguage::Italian,  "Il Salvataggio è danneggiato\ne non può essere usato.\nPremi A per continuare." },
 	}
 },
 // Notes: same as above but without "Press A"
@@ -709,7 +709,7 @@ std::unordered_map<std::string_view, std::unordered_map<ELanguage, std::string>>
 		{ ELanguage::German,   "Spieldaten sind beschädigt und\nkönnen nicht verwendet werden." },
 		{ ELanguage::French,   "Les données de jeu sont endommagées." },
 		{ ELanguage::Spanish,  "Los datos de juego están dañados." },
-		{ ELanguage::Italian,  "I dati di gioco sono danneggiati." },
+		{ ELanguage::Italian,  "Il salvataggio è danneggiato \ne e non può essere usato." },
 	}
 },
 // Notes: If the game fails to save, rw lock or otherwise
@@ -732,7 +732,7 @@ std::unordered_map<std::string_view, std::unordered_map<ELanguage, std::string>>
 		{ ELanguage::German,   "Vorige Spieldaten sind auf dem Gerät\nschon vorhanden.\nspeichern wird sie überschrieben.\nSind Sie sicher das Sie Speichern\nmöchten?" },
 		{ ELanguage::French,   "Voulez-vous écraser les données de jeu ?\nAttention, cela écrasera toutes les données de jeu précédentes." },
 		{ ELanguage::Spanish,  "¿Quieres sobrescribir los datos de juego?\n¡Cuidado! Esto sobrescribirá\nlos datos de juego existentes." },
-		{ ELanguage::Italian,  "Do you wish to overwrite the Game Data?\nCaution! This will overwrite any\nprevious Game Data present." },
+		{ ELanguage::Italian,  "Desideri sovrascrivere il salvataggio?\nAttenzione! Questo sovrascrivera il\nsalvataggio di gioco presente" },
 	}
 },
 {
@@ -743,7 +743,7 @@ std::unordered_map<std::string_view, std::unordered_map<ELanguage, std::string>>
 		{ ELanguage::German,   "Spieldaten Laden?\nAchtung! Bereits vorhandene Spieldaten\nwerden überschrieben." },
 		{ ELanguage::French,   "Voulez-vous charger les données de jeu ?\nAttention, cela écrasera toutes les données de jeu précédentes." },
 		{ ELanguage::Spanish,  "¿Quieres cargar los datos de juego?\n¡Cuidado! Esto sobrescribirá\nlos datos de juego existentes." },
-		{ ELanguage::Italian,  "Do you want to load Game Data?\nCaution! This will overwrite any\nprevious Game Data present." },
+		{ ELanguage::Italian,  "Vuoi caricare il salvataggio?\nAttenzione! Questo sovrascriverà\nil progresso di gioco presente." },
 	}
 },
 {
@@ -754,7 +754,7 @@ std::unordered_map<std::string_view, std::unordered_map<ELanguage, std::string>>
 		{ ELanguage::German,   "Laden erfolgreicht." },
 		{ ELanguage::French,   "Chargement réussi." },
 		{ ELanguage::Spanish,  "Se ha cargado correctamente." },
-		{ ELanguage::Italian,  "Load successful." },
+		{ ELanguage::Italian,  "Caricamento completato." },
 	}
 },
 {
@@ -767,7 +767,7 @@ std::unordered_map<std::string_view, std::unordered_map<ELanguage, std::string>>
 		{ ELanguage::German,   "Spieldaten Laden?" },
 		{ ELanguage::French,   "Souhaitez-vous charger les\n données de jeu?" },
 		{ ELanguage::Spanish,  "¿Quieres cargar los datos de juego?" },
-		{ ELanguage::Italian,  "Do you want to load Game Data?" },
+		{ ELanguage::Italian,  "Vuoi caricare i dati di gioco?" },
 	}
 },
 {
@@ -781,7 +781,7 @@ std::unordered_map<std::string_view, std::unordered_map<ELanguage, std::string>>
 		{ ELanguage::German,   "Ohne Speichern fortfahren ?" },
 		{ ELanguage::French,   "Continuez sans sauvegarder ?" },
 		{ ELanguage::Spanish,  "¿ Quieres continuar sin guardar ?" },
-		{ ELanguage::Italian,  "Continue without saving ?" },
+		{ ELanguage::Italian,  "Continuare senza salvare ?" },
 	}
 },
 {
