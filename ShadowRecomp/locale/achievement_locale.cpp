@@ -244,7 +244,7 @@ std::unordered_map<int, std::unordered_map<ELanguage, AchievementLocale>> g_shrL
 				{
 					"Triumph über das Original",
 					"Schließe die Normal - Dark Story ab!",
-					"Die Normal - Dark ist abgeschlossen."
+					"Die Normal - Dark Story ist abgeschlossen."
 				}
 			},
 			{
@@ -735,7 +735,7 @@ std::unordered_map<int, std::unordered_map<ELanguage, AchievementLocale>> g_shrL
 				{
 					"Das gerettete Leben",
 					"Schließe den Experten-Modus ab!",
-					"Den Experten-Modus ist abgeschlossen."
+					"Der Experten-Modus ist abgeschlossen."
 				}
 			},
 			{
@@ -787,7 +787,7 @@ std::unordered_map<int, std::unordered_map<ELanguage, AchievementLocale>> g_shrL
 			{
 				ELanguage::German,
 				{
-					"Ich bin der Coolste",
+					"Hm. Perfekt.",
 					"Zerstöre den Black-Arms-Panzer in Lethal Highway, während du ein Fahrzeug fährst!",
 					"Du zerstörtest den Black-Arms-Panzer in Lethal Highway, während du ein Fahrzeug fuhrst."
 				}
