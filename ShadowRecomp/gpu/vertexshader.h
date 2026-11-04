@@ -1,6 +1,6 @@
 
 #include <plume_render_interface.h>
-
+#include <shader/shader_cache.h>
 
 enum VSH_SWIZZLE {
 	SWIZZLE_X = 0,
@@ -55,3 +55,4 @@ extern VertexShaderMode g_Xbox_VertexShaderMode;
 extern uint32_t g_VertexShader_Handle;
 const uint8_t* CreateRecompiledShader(size_t handle, size_t* outSize);
 plume::RenderShader* GetOrLinkShader(struct GuestShader* guestShader, uint32_t specConstants);
+ShaderCacheEntry* FindShaderCacheEntry(XXH64_hash_t hash);

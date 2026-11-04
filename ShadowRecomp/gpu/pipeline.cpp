@@ -3,6 +3,14 @@
 #include "ubershaders/fixed_function_vertex_shader_variants.h"
 #include "ubershaders/fixed_function_pixel_shader_variants.h"
 #include "vertexshader.h"
+#include <os/logger.h>
+#include "vertexdeclaration.h"
+#include "render_commands.h"
+
+
+static Mutex g_pendingCacheMutex;
+static ankerl::unordered_dense::map<uint64_t, std::vector<PipelineCacheEntry>> g_pendingVS;
+static ankerl::unordered_dense::map<uint64_t, std::vector<PipelineCacheEntry>> g_pendingPS;
 
 extern std::unique_ptr<RenderPipelineLayout> g_pipelineLayout;
 extern std::unique_ptr<RenderShader> FixedFuncVS;
@@ -129,6 +137,287 @@ bool BuildPipelineCacheEntry(const PipelineState& pipelineState, PipelineCacheEn
 	outEntry.specConstants = pipelineState.specConstants;
 
 	return true;
+}
+
+
+void SanitizePipelineState(PipelineState& pipelineState)
+{
+	if (pipelineState.vertexShaderType == VertexShaderMode::FixedFunction ||
+		pipelineState.vertexShaderType == VertexShaderMode::Passthrough)
+		pipelineState.vertexShader = nullptr;
+	if (pipelineState.vertexShaderType != VertexShaderMode::FixedFunction)
+		pipelineState.vertexShaderVariant = GenericShaderVariant;
+
+	if (pipelineState.isFixedFunctionPS)
+		pipelineState.pixelShader = nullptr;
+	else
+		pipelineState.pixelShaderVariant = GenericShaderVariant;
+
+	if (!pipelineState.zEnable && !pipelineState.stencilEnable)
+	{
+		pipelineState.depthStencilFormat = RenderFormat::UNKNOWN;
+	}
+
+	if (!pipelineState.zEnable)
+	{
+		pipelineState.zWriteEnable = false;
+		pipelineState.zFunc = RenderComparisonFunction::LESS;
+		pipelineState.slopeScaledDepthBias = 0.0f;
+		pipelineState.depthBias = 0;
+		pipelineState.depthStencilFormat = RenderFormat::UNKNOWN;
+	}
+
+	if (!pipelineState.stencilEnable)
+	{
+		pipelineState.stencilFail = RenderStencilOp::KEEP;
+		pipelineState.stencilZFail = RenderStencilOp::KEEP;
+		pipelineState.stencilPass = RenderStencilOp::KEEP;
+		pipelineState.stencilMask = 0xFFFFFFFF;
+		pipelineState.stencilWriteMask = 0xFFFFFFFF;
+		pipelineState.stencilRef = 0;
+	}
+
+	if (pipelineState.slopeScaledDepthBias == 0.0f)
+		pipelineState.slopeScaledDepthBias = 0.0f; // Remove sign.
+
+	if (!pipelineState.colorWriteEnable)
+	{
+		pipelineState.alphaBlendEnable = false;
+		pipelineState.renderTargetFormat = RenderFormat::UNKNOWN;
+	}
+
+	if (!pipelineState.alphaBlendEnable)
+	{
+		pipelineState.srcBlend = RenderBlend::ONE;
+		pipelineState.destBlend = RenderBlend::ZERO;
+		pipelineState.blendOp = RenderBlendOperation::ADD;
+		pipelineState.srcBlendAlpha = RenderBlend::ONE;
+		pipelineState.destBlendAlpha = RenderBlend::ZERO;
+		pipelineState.blendOpAlpha = RenderBlendOperation::ADD;
+	}
+
+	for (size_t i = 0; i < 16; i++)
+	{
+		if (!pipelineState.vertexDeclaration->vertexStreams[i])
+			pipelineState.vertexStrides[i] = 0;
+	}
+
+	uint32_t specConstantsMask = 0;
+	/**if (pipelineState.vertexShader->shaderCacheEntry != nullptr)
+		specConstantsMask |= pipelineState.vertexShader->shaderCacheEntry->specConstantsMask;*/
+
+	if (pipelineState.pixelShader != nullptr && pipelineState.pixelShader->shaderCacheEntry != nullptr)
+		specConstantsMask |= pipelineState.pixelShader->shaderCacheEntry->specConstantsMask;
+
+	pipelineState.specConstants &= specConstantsMask;
+}
+
+
+void EnqueueDeferredPipeline(const PipelineCacheEntry& entry)
+{
+	if (entry.vertexShaderMode != VertexShaderMode::FixedFunction &&
+		entry.vertexShaderMode != VertexShaderMode::Passthrough &&
+		entry.vertexShaderHash != 0 && FindShaderCacheEntry(entry.vertexShaderHash) == nullptr)
+	{
+		std::lock_guard lock(g_pendingCacheMutex);
+		g_pendingVS[entry.vertexShaderHash].push_back(entry);
+		return;
+	}
+
+	if (entry.pixelShaderHash != 0 && !entry.isFixedFunctionPS && FindShaderCacheEntry(entry.pixelShaderHash) == nullptr)
+	{
+		std::lock_guard lock(g_pendingCacheMutex);
+		g_pendingPS[entry.pixelShaderHash].push_back(entry);
+		return;
+	}
+}
+
+XXH64_hash_t ComputePipelineEntryHash(const PipelineCacheEntry& entry)
+{
+	constexpr size_t skip = sizeof(uint64_t); // skip pipelineHash
+	return XXH3_64bits(reinterpret_cast<const uint8_t*>(&entry) + skip, sizeof(PipelineCacheEntry) - skip);
+}
+
+
+XXH64_hash_t ComputePipelineStateHash(const PipelineState& pipelineState)
+{
+	PipelineCacheEntry entry;
+	if (BuildPipelineCacheEntry(pipelineState, entry))
+		return ComputePipelineEntryHash(entry);
+
+	return XXH3_64bits(&pipelineState, sizeof(pipelineState));
+}
+
+
+// Maps cache entry hashes to variant keys, falling back to the generic
+// shader for hashes missing from the generated catalogs.
+void ApplyCacheEntryVariants(const PipelineCacheEntry& entry, PipelineState& pipelineState)
+{
+	pipelineState.vertexShaderVariant = entry.vertexShaderMode == VertexShaderMode::FixedFunction &&
+		FixedFunctionVertexShaderVariants::Contains(entry.vertexShaderHash)
+		? entry.vertexShaderHash
+		: GenericShaderVariant;
+	pipelineState.pixelShaderVariant = entry.isFixedFunctionPS && FixedFunctionPixelShaderVariants::Contains(entry.pixelShaderHash)
+		? entry.pixelShaderHash
+		: GenericShaderVariant;
+}
+
+
+static void EnqueueAddPipeline(XXH64_hash_t hash, std::unique_ptr<RenderPipeline> pipeline)
+{
+	RenderCommand cmd;
+	cmd.type = RenderCommandType::AddPipeline;
+	cmd.addPipeline.hash = hash;
+	cmd.addPipeline.pipeline = pipeline.release();
+	g_renderQueue.enqueue(cmd);
+}
+
+void CompilePendingPipelinesForShader(uint64_t runtimeHash, GuestShader* shader, bool isVertexShader)
+{
+	std::vector<PipelineCacheEntry> pending;
+	{
+		std::lock_guard lock(g_pendingCacheMutex);
+		auto& map = isVertexShader ? g_pendingVS : g_pendingPS;
+		auto it = map.find(runtimeHash);
+		if (it != map.end())
+		{
+			pending = std::move(it->second);
+			map.erase(it);
+		}
+	}
+
+	if (pending.empty())
+	{
+		return;
+	}
+
+	LOGFN("PipelineCache: Compiling {} deferred pipelines for {} runtime hash={:016X}",
+		pending.size(), isVertexShader ? "VS" : "PS", runtimeHash);
+
+	uint32_t redeferred = 0;
+	ankerl::unordered_dense::set<XXH64_hash_t> queued;
+	for (auto& entry : pending)
+	{
+		GuestShader* vertexShader = nullptr;
+		GuestShader* pixelShader = nullptr;
+
+		if (entry.vertexShaderMode == VertexShaderMode::FixedFunction ||
+			entry.vertexShaderMode == VertexShaderMode::Passthrough)
+		{
+			vertexShader = nullptr;
+		}
+		else if (isVertexShader && entry.vertexShaderHash == runtimeHash)
+		{
+			vertexShader = shader;
+		}
+		else if (entry.vertexShaderHash != 0)
+		{
+			auto findVS = FindShaderCacheEntry(entry.vertexShaderHash);
+			if (findVS != nullptr && findVS->guestShader != nullptr)
+			{
+				vertexShader = findVS->guestShader;
+			}
+			else
+			{
+				std::lock_guard lock(g_pendingCacheMutex);
+				g_pendingVS[entry.vertexShaderHash].push_back(entry);
+				redeferred++;
+				continue;
+			}
+		}
+		else
+		{
+			continue;
+		}
+
+		if (entry.isFixedFunctionPS)
+		{
+			pixelShader = nullptr;
+		}
+		else if (!isVertexShader && entry.pixelShaderHash == runtimeHash)
+		{
+			pixelShader = shader;
+		}
+		else if (entry.pixelShaderHash != 0)
+		{
+			auto findPS = FindShaderCacheEntry(entry.pixelShaderHash);
+			if (findPS != nullptr && findPS->guestShader != nullptr)
+			{
+				pixelShader = findPS->guestShader;
+			}
+			else
+			{
+				std::lock_guard lock(g_pendingCacheMutex);
+				g_pendingPS[entry.pixelShaderHash].push_back(entry);
+				redeferred++;
+				continue;
+			}
+		}
+
+		GuestVertexDeclaration* vertexDecl = FindVertexDeclarationByHash(entry.vertexDeclHash);
+		if (vertexDecl == nullptr)
+		{
+			if (entry.vertexElementCount > 0 && entry.vertexElementCount <= MAX_VERTEX_ELEMENTS)
+			{
+				vertexDecl = CreateVertexDeclarationWithoutAddRef(entry.vertexElements, entry.vertexShaderMode);
+			}
+			if (vertexDecl == nullptr)
+			{
+				continue;
+			}
+		}
+
+		PipelineState pipelineState;
+		pipelineState.vertexShader = vertexShader;
+		pipelineState.pixelShader = pixelShader;
+		pipelineState.vertexDeclaration = vertexDecl;
+		pipelineState.isFixedFunctionPS = entry.isFixedFunctionPS;
+		ApplyCacheEntryVariants(entry, pipelineState);
+		pipelineState.vertexShaderType = entry.vertexShaderMode;
+		pipelineState.zEnable = entry.zEnable;
+		pipelineState.zWriteEnable = entry.zWriteEnable;
+		pipelineState.stencilEnable = entry.stencilEnable;
+		pipelineState.srcBlend = entry.srcBlend;
+		pipelineState.destBlend = entry.destBlend;
+		pipelineState.cullMode = entry.cullMode;
+		pipelineState.zFunc = entry.zFunc;
+		pipelineState.stencilFunc = entry.stencilFunc;
+		pipelineState.stencilFail = entry.stencilFail;
+		pipelineState.stencilZFail = entry.stencilZFail;
+		pipelineState.stencilPass = entry.stencilPass;
+		pipelineState.stencilMask = entry.stencilMask;
+		pipelineState.stencilWriteMask = entry.stencilWriteMask;
+		pipelineState.stencilRef = entry.stencilRef;
+		pipelineState.stencilFuncCCW = entry.stencilFuncCCW;
+		pipelineState.alphaBlendEnable = entry.alphaBlendEnable;
+		pipelineState.blendOp = entry.blendOp;
+		pipelineState.slopeScaledDepthBias = entry.slopeScaledDepthBias;
+		pipelineState.depthBias = entry.depthBias;
+		pipelineState.srcBlendAlpha = entry.srcBlendAlpha;
+		pipelineState.destBlendAlpha = entry.destBlendAlpha;
+		pipelineState.blendOpAlpha = entry.blendOpAlpha;
+		pipelineState.colorWriteEnable = entry.colorWriteEnable;
+		pipelineState.primitiveTopology = entry.primitiveTopology;
+		memcpy(pipelineState.vertexStrides, entry.vertexStrides, sizeof(pipelineState.vertexStrides));
+		pipelineState.renderTargetFormat = entry.renderTargetFormat;
+		pipelineState.depthStencilFormat = entry.depthStencilFormat;
+		pipelineState.sampleCount = entry.sampleCount;
+		pipelineState.enableAlphaToCoverage = entry.enableAlphaToCoverage;
+		pipelineState.specConstants = entry.specConstants;
+
+		SanitizePipelineState(pipelineState);
+
+		XXH64_hash_t hash = ComputePipelineStateHash(pipelineState);
+		if (queued.insert(hash).second)
+		{
+			EnqueueAddPipeline(hash, CreateGraphicsPipeline(pipelineState));
+		}
+	}
+
+	if (redeferred != 0)
+	{
+		LOGFN("PipelineCache: Re-deferred {} pending pipelines (paired shader not yet created)", redeferred);
+	}
 }
 
 

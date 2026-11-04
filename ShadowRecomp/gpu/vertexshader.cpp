@@ -7,8 +7,12 @@
 #include "renderstate.h"
 #include <kernel/function.h>
 #include <os/logger.h>
+#include "pixelshader.h"
+#include "pipeline.h"
+
 
 extern std::unique_ptr<uint8_t[]> g_shaderCache;
+extern GuestTexture* g_texturesPSDef[4];
 uint32_t g_Xbox_VertexShader_FunctionSlots_StartAddress = 0;
 
 // Variable set by [D3DDevice_LoadVertexShader() / [D3DDevice_LoadVertexShaderProgram() (both through CopyVertexShaderFunctionSlots):
@@ -689,6 +693,20 @@ RenderShader* GetOrLinkShader(GuestShader* guestShader, uint32_t specConstants)
 
 	return shader;
 }
+
+
+ShaderCacheEntry* FindShaderCacheEntry(XXH64_hash_t hash)
+{
+	auto end = g_shaderCacheEntries + g_shaderCacheEntryCount;
+	auto findResult = std::lower_bound(g_shaderCacheEntries, end, hash, [](ShaderCacheEntry& lhs, XXH64_hash_t rhs)
+		{
+			return lhs.hash < rhs;
+		});
+
+	return findResult != end && findResult->hash == hash ? findResult : nullptr;
+}
+
+
 
 GUEST_FUNCTION_HOOK_STDCALL(sub_3D1F70, SelectVertexShader);
 GUEST_FUNCTION_HOOK_STDCALL(sub_3D1F00, LoadVertexShaderProgram);

@@ -101,3 +101,10 @@ static_assert(sizeof(PipelineCacheEntry) == 414,
 bool IsPipelineCacheEntryInRange(const PipelineCacheEntry& entry);
 bool BuildPipelineCacheEntry(const PipelineState& pipelineState, PipelineCacheEntry& outEntry);
 std::unique_ptr<RenderPipeline> CreateGraphicsPipeline(const PipelineState& pipelineState);
+void SanitizePipelineState(PipelineState& pipelineState);
+
+XXH64_hash_t ComputePipelineEntryHash(const PipelineCacheEntry& entry);
+XXH64_hash_t ComputePipelineStateHash(const PipelineState& pipelineState);
+void CompilePendingPipelinesForShader(uint64_t runtimeHash, GuestShader* shader, bool isVertexShader);
+void ApplyCacheEntryVariants(const PipelineCacheEntry& entry, PipelineState& pipelineState);
+void EnqueueDeferredPipeline(const PipelineCacheEntry& entry);
