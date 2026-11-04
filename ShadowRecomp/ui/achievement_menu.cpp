@@ -17,7 +17,7 @@
 #include <input/padstate.h>
 #include <user/achievement_manager.h>
 #include "button_guide.h"
-#include <res/images/achievements/Achievements_pause.png.h>
+#include <res/images/achievements/achievements_pause.png.h>
 
 static double g_time{};
 static double g_transitionTime{};
