@@ -3580,3 +3580,40 @@ void GroundWeaponKickbackMidAsmHook(X86Context& __restrict ctx, uint8_t* base)
 	X86_STORE_F32(factorAddr, std::pow(factor, frames));
 }
 /**	--Ground Run Speed Patch END-- */
+
+/** --Strafe Jump Animation Patch START-- */
+static std::unordered_map<uint32_t, float> g_jumpState;
+
+// Jump Init
+X86_FUNC_IMPL(__imp__sub_75390);
+X86_OVERRIDE_FUNC(sub_75390)
+{
+	const uint32_t jump = ctx.ecx.u32;
+	__imp__sub_75390(ctx, base);
+	g_jumpState.erase(jump);
+}
+
+// Jump Exec
+X86_FUNC_IMPL(__imp__sub_75B70);
+X86_OVERRIDE_FUNC(sub_75B70)
+{
+	const uint32_t jump = ctx.ecx.u32;
+	const float dt = X86_LOAD_F32(ctx.esp.u32 + 0x4);
+
+	// hold the flip animation to match 60FPS
+	if (X86_LOAD_U32(jump + 0x1C) == 4)
+	{
+		float& held = g_jumpState[jump];
+		held += dt;
+		if (held < 1.0f / 60.0f - 0.0001f)
+		{
+			X86_STORE_U32(jump + 0x1C, 3);
+		}
+		else
+		{
+			g_jumpState.erase(jump);
+		}
+	}
+	__imp__sub_75B70(ctx, base);
+}
+/** --Strafe Jump Animation Patch END-- */
