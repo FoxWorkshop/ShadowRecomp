@@ -110,6 +110,7 @@ set(SHADOW_RECOMP_GPU_CXX_SOURCES
     "gpu/video.cpp"
     "gpu/vertexbuffer.cpp"
     "gpu/textures.cpp"
+    "gpu/guest_convert.cpp"
     "gpu/ubershaders/fixed_function_pixel_shader_variants.cpp"
     "gpu/ubershaders/fixed_function_vertex_shader_variants.cpp"
     "gpu/frame_pacing/frame_pacer.cpp"
@@ -472,17 +473,10 @@ compile_vertex_shader(PassthroughVertexShader)
 compile_vertex_shader(copy_vs)
 compile_pixel_shader(copy_color_ps)
 compile_pixel_shader(copy_depth_ps)
-compile_pixel_shader(csd_filter_ps)
 
 compile_pixel_shader(gamma_correction_ps)
 compile_pixel_shader(imgui_ps)
 compile_vertex_shader(imgui_vs)
-compile_pixel_shader(resolve_msaa_color_2x)
-compile_pixel_shader(resolve_msaa_color_4x)
-compile_pixel_shader(resolve_msaa_color_8x)
-compile_pixel_shader(resolve_msaa_depth_2x)
-compile_pixel_shader(resolve_msaa_depth_4x)
-compile_pixel_shader(resolve_msaa_depth_8x)
 
 
 compile_vertex_shader(R2D_vs0)

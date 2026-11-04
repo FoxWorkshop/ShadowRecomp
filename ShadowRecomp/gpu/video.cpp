@@ -70,13 +70,6 @@ const uint32_t g_cameraAddr = 0x540C40;
 
 #include "shader/imgui_ps.hlsl.dxil.h"
 #include "shader/imgui_vs.hlsl.dxil.h"
-#include "shader/csd_filter_ps.hlsl.dxil.h"
-#include "shader/resolve_msaa_color_2x.hlsl.dxil.h"
-#include "shader/resolve_msaa_color_4x.hlsl.dxil.h"
-#include "shader/resolve_msaa_color_8x.hlsl.dxil.h"
-#include "shader/resolve_msaa_depth_2x.hlsl.dxil.h"
-#include "shader/resolve_msaa_depth_4x.hlsl.dxil.h"
-#include "shader/resolve_msaa_depth_8x.hlsl.dxil.h"
 
 #include "shader/R2D_vs0.hlsl.dxil.h"
 #include "shader/R2D_vs1.hlsl.dxil.h"
@@ -90,16 +83,9 @@ const uint32_t g_cameraAddr = 0x540C40;
 #include "shader/copy_color_ps.hlsl.spirv.h"
 #include "shader/copy_depth_ps.hlsl.spirv.h"
 #include "shader/gamma_correction_ps.hlsl.spirv.h"
-#include "shader/csd_filter_ps.hlsl.spirv.h"
 
 #include "shader/imgui_ps.hlsl.spirv.h"
 #include "shader/imgui_vs.hlsl.spirv.h"
-#include "shader/resolve_msaa_color_2x.hlsl.spirv.h"
-#include "shader/resolve_msaa_color_4x.hlsl.spirv.h"
-#include "shader/resolve_msaa_color_8x.hlsl.spirv.h"
-#include "shader/resolve_msaa_depth_2x.hlsl.spirv.h"
-#include "shader/resolve_msaa_depth_4x.hlsl.spirv.h"
-#include "shader/resolve_msaa_depth_8x.hlsl.spirv.h"
 
 #include "shader/R2D_vs0.hlsl.spirv.h"
 #include "shader/R2D_vs1.hlsl.spirv.h"
@@ -123,6 +109,7 @@ const uint32_t g_cameraAddr = 0x540C40;
 #include <ui/achievement_menu.h>
 #include <ui/achievement_overlay.h>
 #include "vertexbuffer.h"
+#include "guest_convert.h"
 
 namespace plume
 {
@@ -622,13 +609,17 @@ static std::vector<std::unique_ptr<RenderBuffer>> g_tempBuffers[NUM_FRAMES];
 // RTs that are already zeroed this frame (see ProcSetRenderTarget)
 static ankerl::unordered_dense::set<const RenderTexture*> g_clearedRenderTargetsThisFrame;
 
-
 float GetRenderTargetHeight()
 {
 	if (g_next_RenderTarget != nullptr && g_next_RenderTarget->height)
 		return g_next_RenderTarget->height;
 
 	return 0.0f;
+}
+
+bool isCapabilityTriangleFan()
+{
+	return g_capabilities.triangleFan;
 }
 
 bool is_vulkan()
@@ -1891,10 +1882,6 @@ static void DestructTempResources()
 	g_tempBuffers[g_frame].clear();
 }
 
-static ankerl::unordered_dense::set<GuestSurface*> g_pendingSurfaceCopies;
-static ankerl::unordered_dense::set<GuestSurface*> g_pendingMsaaResolves;
-
-
 enum class RenderCommandType
 {
 	SetRenderState,
@@ -1908,7 +1895,6 @@ enum class RenderCommandType
 	StretchRect,
 	SetRenderTarget,
 	SetDepthStencilSurface,
-	ExecutePendingCopyRectsCommands,
 	Clear,
 	SetViewport,
 	SetTexture,
@@ -2141,150 +2127,7 @@ struct RenderCommand
 	};
 };
 
-static RenderBlend ConvertBlendMode(uint32_t blendMode)
-{
-	switch (blendMode)
-	{
-	case D3DBLEND_ZERO:
-		return RenderBlend::ZERO;
-	case D3DBLEND_ONE:
-		return RenderBlend::ONE;
-	case D3DBLEND_SRCCOLOR:
-		return RenderBlend::SRC_COLOR;
-	case D3DBLEND_INVSRCCOLOR:
-		return RenderBlend::INV_SRC_COLOR;
-	case D3DBLEND_SRCALPHA:
-		return RenderBlend::SRC_ALPHA;
-	case D3DBLEND_INVSRCALPHA:
-		return RenderBlend::INV_SRC_ALPHA;
-	case D3DBLEND_DESTCOLOR:
-		return RenderBlend::DEST_COLOR;
-	case D3DBLEND_INVDESTCOLOR:
-		return RenderBlend::INV_DEST_COLOR;
-	case D3DBLEND_DESTALPHA:
-		return RenderBlend::DEST_ALPHA;
-	case D3DBLEND_INVDESTALPHA:
-		return RenderBlend::INV_DEST_ALPHA;
-	default:
-		assert(false && "Invalid blend mode");
-		return RenderBlend::ZERO;
-	}
-}
 
-static RenderBlend ConvertAlphaBlendMode(uint32_t blendMode)
-{
-	switch (blendMode)
-	{
-	case D3DBLEND_ZERO:
-		return RenderBlend::ZERO;
-	case D3DBLEND_ONE:
-		return RenderBlend::ONE;
-	case D3DBLEND_SRCALPHA:
-	case D3DBLEND_SRCCOLOR:
-		return RenderBlend::SRC_ALPHA;
-	case D3DBLEND_INVSRCALPHA:
-	case D3DBLEND_INVSRCCOLOR:
-		return RenderBlend::INV_SRC_ALPHA;
-	case D3DBLEND_DESTALPHA:
-	case D3DBLEND_DESTCOLOR:
-		return RenderBlend::DEST_ALPHA;
-	case D3DBLEND_INVDESTALPHA:
-	case D3DBLEND_INVDESTCOLOR:
-		return RenderBlend::INV_DEST_ALPHA;
-	default:
-		assert(false && "Invalid blend mode");
-		return RenderBlend::ZERO;
-	}
-}
-
-static RenderBlendOperation ConvertBlendOp(uint32_t blendOp)
-{
-	switch (blendOp)
-	{
-	case D3DBLENDOP_ADD:
-		return RenderBlendOperation::ADD;
-	case D3DBLENDOP_SUBTRACT:
-		return RenderBlendOperation::SUBTRACT;
-	case D3DBLENDOP_REVSUBTRACT:
-		return RenderBlendOperation::REV_SUBTRACT;
-	case D3DBLENDOP_MIN:
-		return RenderBlendOperation::MIN;
-	case D3DBLENDOP_MAX:
-		return RenderBlendOperation::MAX;
-	default:
-		assert(false && "Unknown blend operation");
-		return RenderBlendOperation::ADD;
-	}
-}
-
-static RenderComparisonFunction ConvertD3DCMP(uint32_t value)
-{
-	RenderComparisonFunction comparisonFunc;
-
-	switch (value)
-	{
-	case D3DCMP_NEVER:
-		comparisonFunc = RenderComparisonFunction::NEVER;
-		break;
-	case D3DCMP_LESS:
-		comparisonFunc = RenderComparisonFunction::LESS;
-		break;
-	case D3DCMP_EQUAL:
-		comparisonFunc = RenderComparisonFunction::EQUAL;
-		break;
-	case D3DCMP_LESSEQUAL:
-		comparisonFunc = RenderComparisonFunction::LESS_EQUAL;
-		break;
-	case D3DCMP_GREATER:
-		comparisonFunc = RenderComparisonFunction::GREATER;
-		break;
-	case D3DCMP_NOTEQUAL:
-		comparisonFunc = RenderComparisonFunction::NOT_EQUAL;
-		break;
-	case D3DCMP_GREATEREQUAL:
-		comparisonFunc = RenderComparisonFunction::GREATER_EQUAL;
-		break;
-	case D3DCMP_ALWAYS:
-		comparisonFunc = RenderComparisonFunction::ALWAYS;
-		break;
-	default:
-		assert(false && "Unknown comparison function");
-		comparisonFunc = RenderComparisonFunction::NEVER;
-		break;
-	}
-
-	return comparisonFunc;
-}
-
-
-static RenderStencilOp ConvertStencilOp(uint32_t stencilOp)
-{
-	switch (stencilOp)
-	{
-	case D3DSTENCILOP_KEEP:
-		return RenderStencilOp::KEEP;
-	case D3DSTENCILOP_ZERO:
-		return RenderStencilOp::ZERO;
-	case D3DSTENCILOP_REPLACE:
-		return RenderStencilOp::REPLACE;
-	case D3DSTENCILOP_INCRSAT:
-		return RenderStencilOp::INCREMENT_AND_CLAMP;
-	case D3DSTENCILOP_DECRSAT:
-		return RenderStencilOp::DECREMENT_AND_CLAMP;
-	case D3DSTENCILOP_INVERT:
-		return RenderStencilOp::INVERT;
-	case D3DSTENCILOP_INCR:
-		return RenderStencilOp::INCREMENT_AND_WRAP;
-	case D3DSTENCILOP_DECR:
-		return RenderStencilOp::DECREMENT_AND_WRAP;
-	default:
-		assert(false && "Unknown stencil op");
-		return RenderStencilOp::KEEP;
-	}
-}
-
-
-//todo implement AlphaToCoverage once MSAA is a thing, until then it's worthless.
 #define SPEC_CONSTANT_ALPHA_TEST        (1 << 2)
 #define SPEC_CONSTANT_ALPHA_TO_COVERAGE (1 << 3)
 // Records a change to shared pixel shader constants.
@@ -2300,26 +2143,16 @@ static void MarkSharedPixelConstantsDirty(bool changed, bool affectsSelector)
 static void SetAlphaTestMode(bool enable)
 {
 	uint32_t specConstants = 0;
-	bool enableAlphaToCoverage = false;
 
 	if (enable)
 	{
-		enableAlphaToCoverage = false; // Config::TransparencyAntiAliasing&& g_renderTarget != nullptr && g_renderTarget->sampleCount != RenderSampleCount::COUNT_1;
-
-		/**if (enableAlphaToCoverage)
-			specConstants = SPEC_CONSTANT_ALPHA_TO_COVERAGE;
-		else*/
-
 		specConstants = SPEC_CONSTANT_ALPHA_TEST;
 	}
 
 	specConstants |= (g_pipelineState.specConstants & ~(SPEC_CONSTANT_ALPHA_TEST | SPEC_CONSTANT_ALPHA_TO_COVERAGE));
-
 	bool selectorDirty = false;
 	SetDirtyValue(selectorDirty, g_sharedConstants.alphaTestEnable, uint32_t(enable != 0));
 	MarkSharedPixelConstantsDirty(selectorDirty, true);
-	//SetDirtyValue(g_dirtyStates.pipelineState, g_pipelineState.enableAlphaToCoverage, enableAlphaToCoverage);
-	//SetDirtyValue(g_dirtyStates.pipelineState, g_pipelineState.specConstants, specConstants);
 }
 
 static moodycamel::BlockingConcurrentQueue<RenderCommand> g_renderQueue;
@@ -2654,45 +2487,15 @@ static void ProcSetRenderState(const RenderCommand& cmd)
 		break;
 	}
 	}
-
-	/**case D3DRS_SCISSORTESTENABLE:
-	{
-		SetDirtyValue(g_dirtyStates.scissorRect, g_scissorTestEnable, value != 0);
-		break;
-	}
-	case X_D3DRS_SLOPESCALEDEPTHBIAS:
-	{
-		if (g_capabilities.dynamicDepthBias)
-			SetDirtyValue(g_dirtyStates.depthBias, g_slopeScaledDepthBias, *reinterpret_cast<float*>(&value));
-		else
-			SetDirtyValue(g_dirtyStates.pipelineState, g_pipelineState.slopeScaledDepthBias, *reinterpret_cast<float*>(&value));
-
-		break;
-	}
-
-	}*/
-
-	//g_renderState[cmd.setRenderState.type] = value;
 }
 
 static std::unique_ptr<RenderShader> g_copyShader;
-
 static std::unique_ptr<RenderShader> g_copyColorShader;
-static ankerl::unordered_dense::map<RenderFormat, std::unique_ptr<RenderPipeline>> g_copyColorPipelines;
 static std::unique_ptr<RenderPipeline> g_copyDepthPipeline;
-
-static std::unique_ptr<RenderShader> g_resolveMsaaColorShaders[3];
-static ankerl::unordered_dense::map<RenderFormat, std::array<std::unique_ptr<RenderPipeline>, 3>> g_resolveMsaaColorPipelines;
-static std::unique_ptr<RenderPipeline> g_resolveMsaaDepthPipelines[3];
-
-static std::unique_ptr<RenderPipeline> g_renderTest;
 
 static std::unique_ptr<RenderShader> FixedFuncVS = nullptr;
 static std::unique_ptr<RenderShader> PassthroughVS = nullptr; //this is for vertex shader that don't have a program, similar to fixed, but vertex are already transformed.
 static std::unique_ptr<RenderShader> FixedFuncPS = nullptr;
-
-static std::unique_ptr<GuestShader> g_csdFilterShader;
-static GuestShader* g_csdShader;
 
 #ifdef SHADOW_RECOMP_D3D12
 
@@ -2758,7 +2561,6 @@ static void ExecuteInitCommandList(const T& function)
 }
 
 
-
 struct ImGuiPushConstants
 {
 	ImVec2 boundsMin{};
@@ -2778,7 +2580,6 @@ struct ImGuiPushConstants
 };
 
 extern ImFontBuilderIO g_fontBuilderIO;
-
 
 static void CreateImGuiBackend()
 {
@@ -3059,7 +2860,7 @@ static void CheckSwapChain()
 				}
 			}
 		}
-		
+
 		if (g_vulkan)
 			g_swapChainValid = Vulkan_RebuildSwapChain(isSwapChainInvalid ? "Swap Chain was invalid" : "size or present mode changed");
 		else
@@ -3433,17 +3234,6 @@ bool Video::CreateHostDevice(const char* sdlVideoDriver, bool graphicsApiRetry)
 	const RenderSampleCounts colourSampleCount = g_device->getSampleCountsSupported(RenderFormat::R16G16B16A16_FLOAT);
 	const RenderSampleCounts depthSampleCount = g_device->getSampleCountsSupported(DepthStencilFormat);
 	const RenderSampleCounts commonSampleCount = colourSampleCount & depthSampleCount;
-
-	// Disable specific MSAA levels if they are not supported.
-	/**if ((commonSampleCount & RenderSampleCount::COUNT_2) == 0)
-		Config::AntiAliasing.InaccessibleValues.emplace(EAntiAliasing::MSAA2x);
-	if ((commonSampleCount & RenderSampleCount::COUNT_4) == 0)
-		Config::AntiAliasing.InaccessibleValues.emplace(EAntiAliasing::MSAA4x);
-	if ((commonSampleCount & RenderSampleCount::COUNT_8) == 0)
-		Config::AntiAliasing.InaccessibleValues.emplace(EAntiAliasing::MSAA8x);
-
-	// Set Anti-Aliasing to nearest supported level.
-	Config::AntiAliasing.SnapToNearestAccessibleValue(false);*/
 
 	g_queue = g_device->createCommandQueue(RenderCommandListType::DIRECT);
 
@@ -5111,13 +4901,10 @@ void Video::Present(X86Context* ctx)
 		s_prevPresentTime = now;
 	}
 
-	RenderCommand cmd;
-	cmd.type = RenderCommandType::ExecutePendingCopyRectsCommands;
-	g_renderQueue.enqueue(cmd);
-
 	DrawImGui(ctx);
 
 	g_readyForCommands = false;
+	RenderCommand cmd;
 	cmd.type = RenderCommandType::ExecuteCommandList;
 	g_renderQueue.enqueue(cmd);
 
@@ -5393,42 +5180,7 @@ void Video::ComputeViewportDimensions()
 	AspectRatioPatches::ComputeOffsets();
 }
 
-static RenderFormat ConvertFormat(X_D3DFORMAT format)
-{
-	switch (format)
-	{
 
-	case X_D3DFMT_L8:
-		return RenderFormat::R8_UNORM;
-	case X_D3DFMT_A1R5G5B5:
-	case X_D3DFMT_A4R4G4B4:
-	case X_D3DFMT_R5G6B5:
-		return RenderFormat::R16_UNORM;
-	case X_D3DFMT_INDEX16:
-		return RenderFormat::R16_UINT;
-	case X_D3DFMT_A8R8G8B8:
-	case X_D3DFMT_X8R8G8B8:
-	case X_D3DFMT_LIN_X8R8G8B8:
-	case X_D3DFMT_P8: 	 //Palette get converted by the CPU to ARGB in ConvertD3DTextureToARGBBuffer
-		return RenderFormat::B8G8R8A8_UNORM;
-
-		// Those are not used by the game afaik, but this will help modding
-	case X_D3DFMT_DXT1:
-		return RenderFormat::BC1_UNORM;
-	case X_D3DFMT_DXT3:
-		return RenderFormat::BC2_UNORM;
-	case X_D3DFMT_DXT5:
-		return RenderFormat::BC3_UNORM;
-
-	case X_D3DFMT_LIN_D24S8: //Linear 24-bit depth + 8-bit stencil
-
-		return RenderFormat::D32_FLOAT;
-	default:
-
-		assert(false && "Unknown format");
-		return RenderFormat::R8_UNORM;
-	}
-}
 
 
 //todo check if this is all correct
@@ -5530,28 +5282,21 @@ static RenderHeapType GetBufferHeapType()
 
 GuestBuffer* CreateVertexBuffer(uint32_t length)
 {
-	auto base = g_memory.base;
-
-
-	//if (ctx->eax.u32 != 0)
+	auto buffer = g_userHeap.AllocPhysical<GuestBuffer>(ResourceType::VertexBuffer);
+	if (buffer)
 	{
-		//auto guestBufferData = (X_D3DResource*)g_memory.Translate(ctx->eax.u32);
-
-		auto buffer = g_userHeap.AllocPhysical<GuestBuffer>(ResourceType::VertexBuffer);
 		buffer->buffer = g_device->createBuffer(RenderBufferDesc::VertexBuffer(length, GetBufferHeapType(), RenderBufferFlag::INDEX));
 		buffer->dataSize = length;
 		buffer->guestResource.Common = 1;
 
-		//memcpy(&buffer->guestResource, guestBufferData, sizeof(X_D3DResource));
+
 #ifdef _DEBUG 
 		buffer->buffer->setName(fmt::format("Vertex Buffer {:X}", g_memory.MapVirtual(buffer)));
 		buffer->isVertexBuffer = true;
 #endif
-		//ctx->eax.u32 = g_memory.MapVirtual(buffer);
-		return buffer;
 	}
 
-	return 0;
+	return buffer;
 }
 
 static GuestBuffer* CreateIndexBuffer(uint32_t IndexCount, X_D3DFORMAT format)
@@ -5559,13 +5304,16 @@ static GuestBuffer* CreateIndexBuffer(uint32_t IndexCount, X_D3DFORMAT format)
 	uint32_t length = IndexCount * sizeof(int16_t);
 
 	auto buffer = g_userHeap.AllocPhysical<GuestBuffer>(ResourceType::IndexBuffer);
-	buffer->buffer = g_device->createBuffer(RenderBufferDesc::IndexBuffer(length, GetBufferHeapType()));
-	buffer->dataSize = length;
-	buffer->format = ConvertFormat(format);
-	buffer->guestFormat = format;
+	if (buffer)
+	{
+		buffer->buffer = g_device->createBuffer(RenderBufferDesc::IndexBuffer(length, GetBufferHeapType()));
+		buffer->dataSize = length;
+		buffer->format = ConvertFormat(format);
+		buffer->guestFormat = format;
 #ifdef _DEBUG 
-	buffer->buffer->setName(fmt::format("Index Buffer {:X}", g_memory.MapVirtual(buffer)));
+		buffer->buffer->setName(fmt::format("Index Buffer {:X}", g_memory.MapVirtual(buffer)));
 #endif
+	}
 	return buffer;
 }
 
@@ -5664,13 +5412,11 @@ static GuestSurface* GetSurfaceLevel(GuestTexture* texture, int32_t level, X_D3D
 
 X86_FUNC_IMPL(__imp__sub_3DA010);
 //CreateSurfaceLevel = "view" or "interface" to access ONE specific level/slice of a texture resource.
-//todo figure out this
 GuestSurface* CreateSurfaceOfTexture(X86Context& ctx, X_D3DFORMAT Format, uint32_t size, GuestBaseTexture* pParent, int32_t pvData)
 {
 	auto base = g_memory.base;
 	__imp__sub_3DA010(ctx, base);
 	ctx.esp.u32 -= 20;
-
 
 	auto gSurface = (X_D3DSurface*)g_memory.Translate(ctx.eax.u32);
 	auto newSurface = GetSurfaceLevel((GuestTexture*)pParent, 0, Format);
@@ -5678,7 +5424,6 @@ GuestSurface* CreateSurfaceOfTexture(X86Context& ctx, X_D3DFORMAT Format, uint32
 	ctx.eax.u32 = g_memory.MapVirtual(newSurface);
 	g_userHeap.Free(gSurface);
 	return newSurface;
-	//return CreateSurface(pParent->width, pParent->height, (X_D3DFORMAT)pParent->format, true);
 }
 
 //CreateDepthStencilSurface
@@ -5897,7 +5642,6 @@ int32_t Direct3D_CreateDevice_r(X86Context& ctx, int32_t Adapter, int32_t Device
 
 	return 0; //success
 }
-static int desCount = 0;
 
 
 void AddDestructResource(GuestResource* ressource)
@@ -5911,12 +5655,10 @@ void AddDestructResource(GuestResource* ressource)
 static void DestructResource(GuestResource* resource)
 {
 	AddDestructResource(resource);
-	desCount++;
 }
 
 static void ProcDestructResource(const RenderCommand& cmd)
 {
-	desCount = desCount;
 	const auto& args = cmd.destructResource;
 	g_tempResources[g_frame].push_back(args.resource);
 }
@@ -6111,7 +5853,7 @@ static void CopyDynamicTextureToGPU(GuestTexture* tex)
 
 
 	auto copyTextureRegion = [&](Slice& slice, uint32_t subresourceIndex)
-		{		
+		{
 			uint32_t uploadRowPitchInTexels = slice.dstRowPitch /
 				RenderFormatSize(tex->format) * RenderFormatBlockWidth(tex->format);
 
@@ -6186,12 +5928,7 @@ static void ProcSetViewport(const RenderCommand& cmd)
 	SetDirtyValue<float>(g_dirtyStates.viewport, VP->maxDepth, args.maxDepth);
 	SetDirtyValue<bool>(g_dirtyStates.viewport, VPR->isFixed, args.isFixed);
 
-
 	uint32_t specConstants = g_pipelineState.specConstants;
-	/**if (args.minDepth > args.maxDepth)
-		specConstants |= SPEC_CONSTANT_REVERSE_Z;
-	else
-		specConstants &= ~SPEC_CONSTANT_REVERSE_Z;*/
 
 	SetDirtyValue(g_dirtyStates.pipelineState, g_pipelineState.specConstants, specConstants);
 
@@ -6286,21 +6023,9 @@ void UpdateHostTextureScaling(GuestTexture* tex, const bool isFixedFunc)
 		X_D3DFORMAT XboxFormat = GetXboxPixelContainerFormat(pXboxBaseTexture->guestResource.Format);
 		if (FormatIsLinear(XboxFormat))
 		{
-			// Test-case : This is often hit by the help screen in XDK samples.
-			// Set scaling factor for this texture, which will be applied to
-			// all texture-coordinates in the current vertex shader.
-			// Note : Linear textures are two-dimensional at most (right?)
 			float width, height;
-			if (&pXboxBaseTexture->guestResource == &g_backBuffer->guestResource) //todo this likely cannot pass atm
-			{
-				// Account for MSAA
-				LOGN_WARNING("TODO: MSAA backbuffer size for linear textures");
-				//GetBackBufferPixelDimensions(width, height);
-			}
-			else {
-				width = (float)pXboxBaseTexture->width;
-				height = (float)pXboxBaseTexture->height;
-			}
+			width = (float)pXboxBaseTexture->width;
+			height = (float)pXboxBaseTexture->height;
 
 			*texCoordScale = {
 				width,
@@ -6529,13 +6254,13 @@ void D3DDevice_SetRenderTarget(X86Context& ctx, GuestSurface* surface, GuestSurf
 	GuestSurface* newDepthStencil = pNewZStencil;
 
 	__imp__sub_3D0040(ctx, base);
-	ctx.SubEsp(3); 
+	ctx.SubEsp(3);
 
 	// The game calls this function with no depth buffer for render target composites.
 	// The previous code here was making g_ZScale fallback to 1.0 in that case. After that, the shader was doing the math
 	// z * 16777215 / 1 which made any value above 0 went way paste 1, resulting to no geometry visible in-game.
 	// Rather than hardcode a cap on the shader like before, we can fall back to the old code only if g_ZScale is 0 or less.
-	
+
 	g_ZScale = X86_LOAD_F32(device + GuestDeviceZScaleOffset);
 	if (g_ZScale <= 0.0f)
 		g_ZScale = GetZScaleForPixelContainer(pNewZStencil != nullptr ? (X_D3DPixelContainer*)&pNewZStencil->guestResource : nullptr);
@@ -6597,13 +6322,6 @@ static void ProcSetRenderTarget(const RenderCommand& cmd)
 			g_commandLists[g_frame]->clearColor(0, RenderColor(0.0f, 0.0f, 0.0f, 0.0f));
 		}
 	}
-
-
-	// TODO: We can probably scrap this if dropping MSAA
-	// Original line: When alpha to coverage is enabled, update the alpha test mode as it's dependent on sample count.
-	// We disabled this for Shadow - specConstants never has SPEC_CONSTANT_ALPHA_TEST set (line 1372 is commented out),
-	// so this always calls SetAlphaTestMode(false), silently disabling alpha test mid-frame. This broke Elevator transparency at certain camera angles
-	// SetAlphaTestMode((g_pipelineState.specConstants & (SPEC_CONSTANT_ALPHA_TEST | SPEC_CONSTANT_ALPHA_TO_COVERAGE)) != 0);
 }
 
 static void ProcSetDepthStencilSurface(const RenderCommand& cmd)
@@ -6631,242 +6349,6 @@ void D3DDevice_SetViewport(X86Context& ctx, GuestViewport* viewport)
 	SetViewport(viewport, g_next_RenderTarget);
 }
 
-static bool PopulateBarriersForCopyRect(GuestSurface* renderTarget, GuestSurface* depthStencil)
-{
-	bool addedAny = false;
-
-	for (const auto surface : { renderTarget, depthStencil })
-	{
-		if (surface != nullptr && !surface->destinationTextures.empty())
-		{
-
-			const bool multiSampling = surface->sampleCount != RenderSampleCount::COUNT_1;
-
-			RenderTextureLayout srcLayout;
-			RenderTextureLayout dstLayout;
-			bool shaderResolve = true;
-
-			if (multiSampling && g_hardwareResolve)
-			{
-
-
-				// Hardware depth resolve is only supported on D3D12 when programmable sample positions are available.
-				bool hardwareDepthResolveAvailable = g_hardwareDepthResolve && !g_vulkan && g_capabilities.sampleLocations;
-
-				if (surface->format != DepthStencilFormat || hardwareDepthResolveAvailable)
-				{
-					srcLayout = RenderTextureLayout::RESOLVE_SOURCE;
-					dstLayout = RenderTextureLayout::RESOLVE_DEST;
-					shaderResolve = false;
-				}
-			}
-
-			if (shaderResolve)
-			{
-				srcLayout = RenderTextureLayout::SHADER_READ;
-				dstLayout = (surface->format == DepthStencilFormat ? RenderTextureLayout::DEPTH_WRITE : RenderTextureLayout::COLOR_WRITE);
-			}
-
-			AddBarrier(surface, srcLayout);
-
-			for (const auto texture : surface->destinationTextures)
-				AddBarrier(texture, dstLayout);
-
-			addedAny = true;
-		}
-	}
-
-	return addedAny;
-}
-
-static void ExecutePendingCopyRectsCommands(GuestSurface* renderTarget, GuestSurface* depthStencil)
-{
-	auto& commandList = g_commandLists[g_frame];
-
-	for (const auto surface : { renderTarget, depthStencil })
-	{
-		if (surface != nullptr && !surface->destinationTextures.empty())
-		{
-			const bool multiSampling = surface->sampleCount != RenderSampleCount::COUNT_1;
-
-			for (const auto texture : surface->destinationTextures)
-			{
-				bool shaderResolve = true;
-
-				if (multiSampling && g_hardwareResolve)
-				{
-					bool hardwareDepthResolveAvailable = g_hardwareDepthResolve && !g_vulkan && g_capabilities.sampleLocations;
-
-					if (surface->format != DepthStencilFormat || hardwareDepthResolveAvailable)
-					{
-						if (surface->format == DepthStencilFormat)
-							commandList->resolveTextureRegion(texture->texture, 0, 0, surface->texture, nullptr, RenderResolveMode::MIN);
-						else
-							commandList->resolveTexture(texture->texture, surface->texture);
-
-						shaderResolve = false;
-					}
-				}
-
-				if (shaderResolve)
-				{
-					RenderPipeline* pipeline = nullptr;
-
-					if (multiSampling)
-					{
-						uint32_t pipelineIndex = 0;
-
-						switch (surface->sampleCount)
-						{
-						case RenderSampleCount::COUNT_2:
-							pipelineIndex = 0;
-							break;
-						case RenderSampleCount::COUNT_4:
-							pipelineIndex = 1;
-							break;
-						case RenderSampleCount::COUNT_8:
-							pipelineIndex = 2;
-							break;
-						default:
-							assert(false && "Unsupported MSAA sample count");
-							break;
-						}
-
-						//TODO CHECK IF THIS IS NEEDED
-
-						if (texture->format == DepthStencilFormat)
-						{
-							pipeline = g_resolveMsaaDepthPipelines[pipelineIndex].get();
-						}
-						else
-						{
-							auto& resolveMsaaColorPipeline = g_resolveMsaaColorPipelines[surface->format][pipelineIndex];
-							if (resolveMsaaColorPipeline == nullptr)
-							{
-								RenderGraphicsPipelineDesc desc;
-								desc.pipelineLayout = g_pipelineLayout.get();
-								desc.vertexShader = g_copyShader.get();
-								desc.pixelShader = g_resolveMsaaColorShaders[pipelineIndex].get();
-								desc.renderTargetFormat[0] = texture->format;
-								desc.renderTargetBlend[0] = RenderBlendDesc::Copy();
-								desc.renderTargetCount = 1;
-								resolveMsaaColorPipeline = g_device->createGraphicsPipeline(desc);
-							}
-
-							pipeline = resolveMsaaColorPipeline.get();
-						}
-					}
-					else
-					{
-						if (texture->format == DepthStencilFormat)
-						{
-							pipeline = g_copyDepthPipeline.get();
-						}
-						else
-						{
-							auto& copyColorPipeline = g_copyColorPipelines[surface->format];
-							if (copyColorPipeline == nullptr)
-							{
-								RenderGraphicsPipelineDesc desc;
-								desc.pipelineLayout = g_pipelineLayout.get();
-								desc.vertexShader = g_copyShader.get();
-								desc.pixelShader = g_copyColorShader.get();
-								desc.renderTargetFormat[0] = texture->format;
-								desc.renderTargetBlend[0] = RenderBlendDesc::Copy();
-								desc.renderTargetCount = 1;
-								copyColorPipeline = g_device->createGraphicsPipeline(desc);
-							}
-
-							pipeline = copyColorPipeline.get();
-						}
-					}
-
-					if (texture->framebuffer == nullptr)
-					{
-						if (texture->format == DepthStencilFormat)
-						{
-							RenderFramebufferDesc desc;
-							desc.depthAttachment = texture->texture;
-							texture->framebuffer = g_device->createFramebuffer(desc);
-						}
-						else
-						{
-							RenderFramebufferDesc desc;
-							desc.colorAttachments = const_cast<const RenderTexture**>(&texture->texture);
-							desc.colorAttachmentsCount = 1;
-							texture->framebuffer = g_device->createFramebuffer(desc);
-						}
-					}
-
-					if (g_framebuffer != texture->framebuffer.get())
-					{
-						commandList->setFramebuffer(texture->framebuffer.get());
-						g_framebuffer = texture->framebuffer.get();
-					}
-
-					commandList->setPipeline(pipeline);
-					commandList->setViewports(RenderViewport(0.0f, 0.0f, float(texture->width), float(texture->height), 0.0f, 1.0f));
-					commandList->setScissors(RenderRect(0, 0, texture->width, texture->height));
-					commandList->setGraphicsPushConstants(0, &surface->descriptorIndex, 0, sizeof(uint32_t));
-					commandList->drawInstanced(6, 1, 0, 0);
-
-					g_dirtyStates.renderTargetAndDepthStencil = true;
-					g_dirtyStates.viewport = true;
-					g_dirtyStates.pipelineState = true;
-					g_dirtyStates.scissorRect = true;
-
-					if (g_vulkan)
-					{
-						g_dirtyStates.vertexShaderConstants = true; // The push constant call invalidates vertex shader constants.
-						g_dirtyStates.depthBias = true; // Static depth bias in copy pipeline invalidates dynamic depth bias.
-					}
-				}
-
-				texture->sourceSurface = nullptr;
-
-				// Check if any texture slots had this texture assigned, and make it point back at the original texture.
-				for (uint32_t i = 0; i < std::size(g_textures); i++)
-				{
-					if (g_textures[i] == texture)
-						SetTextureInRenderThread(i, texture);
-				}
-			}
-
-			surface->destinationTextures.clear();
-		}
-	}
-}
-
-static void ProcExecutePendingCopyRectsCommands(const RenderCommand& cmd)
-{
-	bool foundAny = false;
-
-	for (const auto surface : g_pendingSurfaceCopies)
-	{
-		//todo check if this is correct, are Depth stencil textures in this game guaranteed to be transient?
-		if (surface->format != DepthStencilFormat)
-			foundAny |= PopulateBarriersForCopyRect(surface, nullptr);
-	}
-
-	if (foundAny)
-	{
-		FlushBarriers();
-
-		for (const auto surface : g_pendingSurfaceCopies)
-		{
-			if (surface->format != DepthStencilFormat)
-				ExecutePendingCopyRectsCommands(surface, nullptr);
-
-			for (const auto texture : surface->destinationTextures)
-				texture->sourceSurface = nullptr;
-
-			surface->destinationTextures.clear();
-		}
-	}
-
-	g_pendingSurfaceCopies.clear();
-	g_pendingMsaaResolves.clear();
-}
 
 static void SetFramebuffer(GuestSurface* renderTarget, GuestSurface* depthStencil, bool settingForClear)
 {
@@ -6947,12 +6429,6 @@ static void SetFramebuffer(GuestSurface* renderTarget, GuestSurface* depthStenci
 static void ProcClear(const RenderCommand& cmd)
 {
 	const auto& args = cmd.clear;
-
-	if (PopulateBarriersForCopyRect(g_renderTarget, g_depthStencil))
-	{
-		FlushBarriers();
-		ExecutePendingCopyRectsCommands(g_renderTarget, g_depthStencil);
-	}
 
 	AddBarrier(g_renderTarget, RenderTextureLayout::COLOR_WRITE);
 	AddBarrier(g_depthStencil, RenderTextureLayout::DEPTH_WRITE);
@@ -7164,18 +6640,9 @@ static void ProcSetTexture(const RenderCommand& cmd)
 	{
 		if (args.texture->sourceSurface != nullptr)
 		{
-			// MSAA surfaces need to be resolved and cannot be used directly.
-			if (args.texture->sourceSurface->sampleCount != RenderSampleCount::COUNT_1)
-			{
-				g_pendingMsaaResolves.emplace(args.texture->sourceSurface);
-			}
-			else
-			{
-				//UpdateHostTextureScaling(args.texture, g_pipelineState.vertexShaderType == VertexShaderMode::FixedFunction);
-				SetSurface(args.index, args.texture->sourceSurface);
-
-				shouldSetTexture = false;
-			}
+			//UpdateHostTextureScaling(args.texture, g_pipelineState.vertexShaderType == VertexShaderMode::FixedFunction);
+			SetSurface(args.index, args.texture->sourceSurface);
+			shouldSetTexture = false;
 		}
 	}
 
@@ -7584,64 +7051,6 @@ static RenderPipeline* CreateGraphicsPipelineInRenderThread(PipelineState pipeli
 	return pipeline.get();
 }
 
-static RenderTextureAddressMode ConvertTextureAddressMode(size_t value)
-{
-	switch (value)
-	{
-	case 0: //DX8 can set to 0, it's safe to default to wrap.
-	case D3DTADDRESS_WRAP:
-		return RenderTextureAddressMode::WRAP;
-	case D3DTADDRESS_MIRROR:
-		return RenderTextureAddressMode::MIRROR;
-	case D3DTADDRESS_CLAMP:
-		return RenderTextureAddressMode::CLAMP;
-	case D3DTADDRESS_BORDER:
-		return RenderTextureAddressMode::BORDER;
-	default:
-		assert(false && "Unknown texture address mode");
-		return RenderTextureAddressMode::UNKNOWN;
-	}
-}
-
-static RenderFilter ConvertTextureFilter(uint32_t value)
-{
-	switch (value)
-	{
-	case X_D3DTEXF_POINT:
-	case X_D3DTEXF_NONE:
-		return RenderFilter::NEAREST;
-	case X_D3DTEXF_LINEAR:
-	case X_D3DTEXF_ANISOTROPIC:
-		return RenderFilter::LINEAR;
-	default:
-		assert(false && "Unknown texture filter");
-		return RenderFilter::UNKNOWN;
-	}
-}
-
-static RenderBorderColor ConvertBorderColor(uint32_t value)
-{
-	//Extract ARGB
-	uint8_t a = (value >> 24) & 0xFF;
-	uint8_t r = (value >> 16) & 0xFF;
-	uint8_t g = (value >> 8) & 0xFF;
-	uint8_t b = value & 0xFF;
-
-	if (a == 0x00) // Fully transparent
-		return RenderBorderColor::TRANSPARENT_BLACK;
-
-	if (r == 0 && g == 0 && b == 0)
-		return RenderBorderColor::OPAQUE_BLACK;
-
-	if (r == 255 && g == 255 && b == 255)
-		return RenderBorderColor::OPAQUE_WHITE;
-
-
-	assert(false && "Unknown border color");
-	return RenderBorderColor::UNKNOWN;
-}
-
-
 struct TextureStageDirtyState
 {
 	bool any;
@@ -7855,29 +7264,6 @@ static void FlushRenderStateForRenderThread()
 	auto renderTarget = g_pipelineState.colorWriteEnable ? g_renderTarget : nullptr;
 	auto depthStencil = g_pipelineState.zEnable || g_pipelineState.stencilEnable ? g_depthStencil : nullptr;
 
-	bool foundAny = PopulateBarriersForCopyRect(renderTarget, depthStencil);
-
-	for (const auto surface : g_pendingMsaaResolves)
-	{
-		bool isDepthStencil = (surface->format == DepthStencilFormat);
-		foundAny |= PopulateBarriersForCopyRect(isDepthStencil ? nullptr : surface, isDepthStencil ? surface : nullptr);
-	}
-
-	if (foundAny)
-	{
-		FlushBarriers();
-		ExecutePendingCopyRectsCommands(renderTarget, depthStencil);
-
-		for (const auto surface : g_pendingMsaaResolves)
-		{
-			bool isDepthStencil = (surface->format == DepthStencilFormat);
-			ExecutePendingCopyRectsCommands(isDepthStencil ? nullptr : surface, isDepthStencil ? surface : nullptr);
-		}
-	}
-
-	if (!g_pendingMsaaResolves.empty())
-		g_pendingMsaaResolves.clear();
-
 	if (g_pipelineState.isFixedFunctionPS && g_fixedFunctionPixelShaderStateDirty)
 	{
 		auto state = FixedFunctionPixelShaderVariants::Capture(g_sharedConstants);
@@ -7970,42 +7356,10 @@ static void FlushRenderStateForRenderThread()
 	g_dirtyStates = DirtyStates(false);
 }
 
-
-static RenderPrimitiveTopology ConvertPrimitiveType(uint32_t primitiveType)
-{
-	switch (primitiveType)
-	{
-	case X_D3DPT_POINTLIST:
-		return RenderPrimitiveTopology::POINT_LIST;
-	case X_D3DPT_LINELIST:
-		return RenderPrimitiveTopology::LINE_LIST;
-	case X_D3DPT_LINESTRIP:
-		return RenderPrimitiveTopology::LINE_STRIP;
-	case X_D3DPT_TRIANGLELIST:
-	case X_D3DPT_QUADLIST:
-		return RenderPrimitiveTopology::TRIANGLE_LIST;
-	case X_D3DPT_TRIANGLESTRIP:
-		return RenderPrimitiveTopology::TRIANGLE_STRIP;
-	case X_D3DPT_TRIANGLEFAN:
-		return g_capabilities.triangleFan ? RenderPrimitiveTopology::TRIANGLE_FAN : RenderPrimitiveTopology::TRIANGLE_LIST;
-		//todo check if this is correct:
-	case X_D3DPT_QUADSTRIP:
-		return RenderPrimitiveTopology::TRIANGLE_STRIP;
-	case X_D3DPT_POLYGON:
-		return g_capabilities.triangleFan ?
-			RenderPrimitiveTopology::TRIANGLE_FAN :
-			RenderPrimitiveTopology::TRIANGLE_LIST;
-	default:
-		assert(false && "Unknown primitive type");
-		return RenderPrimitiveTopology::UNKNOWN;
-	}
-}
-
 static void SetPrimitiveType(uint32_t primitiveType)
 {
 	SetDirtyValue(g_dirtyStates.pipelineState, g_pipelineState.primitiveTopology, ConvertPrimitiveType(primitiveType));
 }
-
 
 static void UnlockIndexBuffer(GuestBuffer* buffer);
 static void* LockIndexBuffer(GuestBuffer* buffer, uint32_t flags);
@@ -8049,7 +7403,6 @@ void* LockVertexBuffer(GuestBuffer* buffer, uint32_t flags2)
 {
 	return LockBuffer(buffer, flags2);
 }
-
 
 
 // Sends the CPU copy of a guest buffer to the GPU.
@@ -8216,11 +7569,9 @@ static void UnlockIndexBuffer(GuestBuffer* buffer)
 }
 
 //D3D12 requires vertex buffer strides to be aligned to 4 bytes unlike Xbox, so we need to fix that when needed
-uint32_t AlignStride(uint32_t stride, uint32_t alignment = 4) {
+static uint32_t AlignStride(uint32_t stride, uint32_t alignment = 4) {
 	return (stride + alignment - 1) & ~(alignment - 1);
 }
-
-
 static inline FLOAT PackedIntToFloat(const int32_t value, const FLOAT PosFactor, const FLOAT NegFactor)
 {
 	if (value >= 0) {
@@ -8904,41 +8255,6 @@ void D3DDevice_SetVertexShaderConstantNotInlineFast(int32_t Register, DWORD* pCo
 }
 
 
-
-void GetPixelContainerMeasures
-(
-	X_D3DPixelContainer* pPixelContainer,
-	DWORD dwMipMapLevel,
-	UINT* pWidth,
-	UINT* pHeight,
-	UINT* pDepth,
-	UINT* pRowPitch,
-	// Slice pitch (does not include mipmaps!)
-	UINT* pSlicePitch
-)
-{
-	DWORD Size = pPixelContainer->Size;
-	X_D3DFORMAT X_Format = GetXboxPixelContainerFormat(pPixelContainer->Format);
-
-	if (Size != 0)
-	{
-		*pRowPitch = (((Size & X_D3DSIZE_PITCH_MASK) >> X_D3DSIZE_PITCH_SHIFT) + 1) * X_D3DTEXTURE_PITCH_ALIGNMENT;
-	}
-	else
-	{
-		DWORD dwBPP = XBFormatBitsPerPixel(X_Format);
-
-		*pRowPitch = (*pWidth) * dwBPP / 8;
-	}
-
-	*pSlicePitch = (*pRowPitch) * (*pHeight);
-
-	if (XBFormatIsCompressed(X_Format))
-		*pRowPitch *= 4;
-}
-
-
-
 //CreateStandAloneSurface
 X86_FUNC_IMPL(__imp__sub_3DA0A0);
 X86_OVERRIDE_FUNC(sub_3DA0A0)
@@ -9106,7 +8422,6 @@ static void ProcessRenderCommand(const RenderCommand& cmd)
 	case RenderCommandType::DrawImGui: { g_stateChangeCount.fetch_add(1, std::memory_order_relaxed); RtScopeTimer _s(g_rtOtherCmdsAccum); ProcDrawImGui(cmd); } break;
 	case RenderCommandType::SetRenderTarget: { g_stateChangeCount.fetch_add(1, std::memory_order_relaxed); RtScopeTimer _s(g_rtOtherCmdsAccum); ProcSetRenderTarget(cmd); } break;
 	case RenderCommandType::SetDepthStencilSurface: { g_stateChangeCount.fetch_add(1, std::memory_order_relaxed); RtScopeTimer _s(g_rtOtherCmdsAccum); ProcSetDepthStencilSurface(cmd); } break;
-	case RenderCommandType::ExecutePendingCopyRectsCommands: { g_stateChangeCount.fetch_add(1, std::memory_order_relaxed); RtScopeTimer _s(g_rtOtherCmdsAccum); ProcExecutePendingCopyRectsCommands(cmd); } break;
 	case RenderCommandType::Clear: { g_stateChangeCount.fetch_add(1, std::memory_order_relaxed); RtScopeTimer _s(g_rtOtherCmdsAccum); ProcClear(cmd); } break;
 	case RenderCommandType::SetViewport: { g_stateChangeCount.fetch_add(1, std::memory_order_relaxed); RtScopeTimer _s(g_rtOtherCmdsAccum); ProcSetViewport(cmd); } break;
 	case RenderCommandType::SetTexture: { g_stateChangeCount.fetch_add(1, std::memory_order_relaxed); RtScopeTimer _s(g_rtOtherCmdsAccum); ProcSetTexture(cmd); } break;
@@ -9239,10 +8554,6 @@ GUEST_FUNCTION_HOOK_STDCALL(sub_3DD560, D3DDevice_Swap); //Present
 
 // adx and fmv decoding requires vblank signal
 GUEST_FUNCTION_HOOK(sub_3CFE70, CRI_BlockUntilVerticalBlank);
-
-//texture stuff
-//GUEST_FUNCTION_HOOK_STDCALL(sub_3D2E90, D3DDevice_SetTextureStageStateNotInline);
-//GUEST_FUNCTION_HOOK_STDCALL(sub_3CFCD0, D3DDevice_SetTransform);
 
 //			==== STUB  ====
 GUEST_FUNCTION_HOOK(sub_3D3240, D3D_CommonSetDebugRegisters);
