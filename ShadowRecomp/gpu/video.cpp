@@ -834,8 +834,6 @@ std::unique_ptr<RenderPipelineLayout> g_pipelineLayout;
 static xxHashMap<std::unique_ptr<RenderPipeline>> g_pipelines;
 
 
-static std::unique_ptr<RenderPipeline> CreateGraphicsPipeline(const PipelineState& pipelineState);
-static void SanitizePipelineState(PipelineState& pipelineState);
 
 
 // Checks incase plume changes something
@@ -853,7 +851,6 @@ static_assert(uint32_t(RenderFormat::MAX) == 75);
 static Mutex g_pipelineCacheMutex;
 static std::atomic<bool> g_pipelineCacheShutdownDone{ false };
 static ankerl::unordered_dense::map<uint64_t, PipelineCacheEntry> g_pipelineCacheEntries;
-static void EnqueueDeferredPipeline(const PipelineCacheEntry& entry);
 static bool TryCompileFromCacheEntry(const PipelineCacheEntry& entry);
 
 
