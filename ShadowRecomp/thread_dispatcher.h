@@ -1,7 +1,5 @@
 
-// This class is used to wrap config option callback that require SDL3 update
-// This is needed because those callback originally don't run in the main thread of our program
-
+// runs work posted from any thread on the main thread (input requests and config callbacks)
 class MainThreadDispatcher
 {
 public:
@@ -13,26 +11,26 @@ public:
         return instance;
     }
 
-    // Called from any thread — queues work to run on the main thread
     void Post(Task task)
     {
         std::lock_guard lock(m_mutex);
         m_queue.push_back(std::move(task));
     }
 
-
     void Flush()
     {
-        std::vector<Task> tasks;
         {
             std::lock_guard lock(m_mutex);
-            std::swap(tasks, m_queue);
+            std::swap(m_running, m_queue);
         }
-        for (auto& task : tasks)
+        for (auto& task : m_running)
             task();
+
+        m_running.clear();
     }
 
 private:
     std::mutex m_mutex;
     std::vector<Task> m_queue;
+    std::vector<Task> m_running;
 };

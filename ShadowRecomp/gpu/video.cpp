@@ -2812,6 +2812,7 @@ static void CreateImGuiBackend()
 
 
 	ImGui_ImplSDL3_InitForOther(GameWindow::s_pWindow);
+	ImGui_ImplSDL3_SetGamepadMode(ImGui_ImplSDL3_GamepadMode_Manual, nullptr, 0);
 
 
 #ifdef ENABLE_IM_FONT_ATLAS_SNAPSHOT 

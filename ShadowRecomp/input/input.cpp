@@ -84,15 +84,38 @@ bool IsInputDeviceController()
 		input::g_inputDevice != input::EInputDevice::Mouse;
 }
 
+struct PadSnapshot
+{
+	bool connected{};
+	input::EInputDevice device{};
+	input::PadButtonValues buttons{};
+	int16_t leftX{};
+	int16_t leftY{};
+	int16_t rightX{};
+	int16_t rightY{};
+};
+
+struct PadFrame
+{
+	std::array<PadSnapshot, 4> pads;
+	bool hasActiveController{};
+};
+
+static std::mutex s_padFrameMutex;
+static PadFrame s_padFrame;
+
+static PadFrame GetPadFrame()
+{
+	std::lock_guard lock(s_padFrameMutex);
+	return s_padFrame;
+}
+
 class Controller
 {
 public:
 	SDL_Gamepad* controller{};
 	SDL_Joystick* joystick{};
 	SDL_JoystickID id{};
-	_XINPUT_GAMEPAD_OG state{};
-
-	int index{};
 
 	Controller() = default;
 
@@ -135,7 +158,9 @@ public:
 		auto result = SDL_GetGamepadName(controller);
 
 		if (!result)
+		{
 			return "Unknown Device";
+		}
 
 		return result;
 	}
@@ -172,100 +197,6 @@ public:
 		}
 	}
 
-	void PollAxis(uint32_t playerIndex)
-	{
-		if (!CanPoll())
-			return;
-
-		auto& pad = state;
-
-		pad.sThumbLX = SDL_GetGamepadAxis(controller, SDL_GAMEPAD_AXIS_LEFTX);
-		pad.sThumbLY = (int16_t)std::clamp(-(int32_t)SDL_GetGamepadAxis(controller, SDL_GAMEPAD_AXIS_LEFTY),
-			(int32_t)-32768, (int32_t)INT16_MAX); //clamp here, fix the int16 overflow with negative angle, this fix "press up" not working
-
-
-		pad.sThumbRX = SDL_GetGamepadAxis(controller, SDL_GAMEPAD_AXIS_RIGHTX);
-		pad.sThumbRY = (int16_t)std::clamp(-(int32_t)SDL_GetGamepadAxis(controller, SDL_GAMEPAD_AXIS_RIGHTY),
-			(int32_t)-32768, (int32_t)INT16_MAX);
-
-		auto horizontalCamera = ECameraRotationMode::Normal;
-		switch (playerIndex)
-		{
-		case 1:  horizontalCamera = Config::HorizontalCamera2P; break;
-		case 2:  horizontalCamera = Config::HorizontalCamera3P; break;
-		case 3:  horizontalCamera = Config::HorizontalCamera4P; break;
-		default: horizontalCamera = Config::HorizontalCamera1P; break;
-		}
-
-		if (horizontalCamera == ECameraRotationMode::Reverse)
-			pad.sThumbRX = (int16_t)std::clamp(-(int32_t)pad.sThumbRX, (int32_t)-32768, (int32_t)INT16_MAX);
-
-		float deadzone;
-		float sensitivity;
-		switch (playerIndex)
-		{
-		case 1:  deadzone = Config::StickDeadzone2P; sensitivity = Config::StickSensitivity2P; break;
-		case 2:  deadzone = Config::StickDeadzone3P; sensitivity = Config::StickSensitivity3P; break;
-		case 3:  deadzone = Config::StickDeadzone4P; sensitivity = Config::StickSensitivity4P; break;
-		default: deadzone = Config::StickDeadzone1P; sensitivity = Config::StickSensitivity1P; break;
-		}
-
-		ApplyStickResponse(pad.sThumbLX, pad.sThumbLY, deadzone, sensitivity);
-		ApplyStickResponse(pad.sThumbRX, pad.sThumbRY, deadzone, sensitivity);
-	}
-
-	void Poll(uint32_t playerIndex)
-	{
-		if (!CanPoll())
-			return;
-
-		auto& pad = state;
-		auto& bindings = input::GetPadBindings(playerIndex);
-
-		auto getValue = [&](EXboxButton button) { return GetButtonValue(bindings[(size_t)button]->Value); };
-		auto isPressed = [&](EXboxButton button) { return getValue(button) > DIGITAL_BUTTON_THRESHOLD; };
-		auto getDigitalValue = [&](EXboxButton button) -> uint8_t { return isPressed(button) ? 0xFF : 0; };
-
-		pad.wButtons = 0;
-
-		static constexpr std::pair<EXboxButton, uint16_t> digitalButtons[] =
-		{
-			{ EXboxButton::DPadUp, XINPUT_GAMEPAD_DPAD_UP },
-			{ EXboxButton::DPadDown, XINPUT_GAMEPAD_DPAD_DOWN },
-			{ EXboxButton::DPadLeft, XINPUT_GAMEPAD_DPAD_LEFT },
-			{ EXboxButton::DPadRight, XINPUT_GAMEPAD_DPAD_RIGHT },
-			{ EXboxButton::Start, XINPUT_GAMEPAD_START },
-			{ EXboxButton::Back, XINPUT_GAMEPAD_BACK },
-			{ EXboxButton::LeftThumb, XINPUT_GAMEPAD_LEFT_THUMB },
-			{ EXboxButton::RightThumb, XINPUT_GAMEPAD_RIGHT_THUMB }
-		};
-
-		for (auto& [button, mask] : digitalButtons)
-		{
-			if (isPressed(button))
-			{
-				pad.wButtons |= mask;
-			}
-		}
-
-		// touchpad is back if unbound
-		auto isTouchpadBound = std::any_of(bindings.begin(), bindings.end(), [](auto* binding) { return binding->Value == EPadButton::Touchpad; });
-
-		if (!isTouchpadBound && GetButtonValue(EPadButton::Touchpad))
-		{
-			pad.wButtons |= XINPUT_GAMEPAD_BACK;
-		}
-
-		pad.bAnalogButtons[Buttons_A] = getDigitalValue(EXboxButton::A);
-		pad.bAnalogButtons[Buttons_B] = getDigitalValue(EXboxButton::B);
-		pad.bAnalogButtons[Buttons_X] = getDigitalValue(EXboxButton::X);
-		pad.bAnalogButtons[Buttons_Y] = getDigitalValue(EXboxButton::Y);
-		pad.bAnalogButtons[Buttons_White] = getDigitalValue(EXboxButton::White);
-		pad.bAnalogButtons[Buttons_Black] = getDigitalValue(EXboxButton::Black);
-		pad.bAnalogButtons[Buttons_LT] = getValue(EXboxButton::LeftTrigger);
-		pad.bAnalogButtons[Buttons_RT] = getValue(EXboxButton::RightTrigger);
-	}
-
 	void SetVibration(const XboxVibrationPacket& vibration)
 	{
 		if (!CanPoll())
@@ -279,6 +210,90 @@ public:
 		SDL_SetGamepadLED(controller, r, g, b);
 	}
 };
+
+static void MapPadAxis(const PadSnapshot& snapshot, uint32_t playerIndex, XINPUT_GAMEPAD_OG& pad)
+{
+	pad.sThumbLX = snapshot.leftX;
+	pad.sThumbLY = (int16_t)std::clamp(-(int32_t)snapshot.leftY,
+		(int32_t)-32768, (int32_t)INT16_MAX); //clamp here, fix the int16 overflow with negative angle, this fix "press up" not working
+
+	pad.sThumbRX = snapshot.rightX;
+	pad.sThumbRY = (int16_t)std::clamp(-(int32_t)snapshot.rightY,
+		(int32_t)-32768, (int32_t)INT16_MAX);
+
+	auto horizontalCamera = ECameraRotationMode::Normal;
+	switch (playerIndex)
+	{
+	case 1:  horizontalCamera = Config::HorizontalCamera2P; break;
+	case 2:  horizontalCamera = Config::HorizontalCamera3P; break;
+	case 3:  horizontalCamera = Config::HorizontalCamera4P; break;
+	default: horizontalCamera = Config::HorizontalCamera1P; break;
+	}
+
+	if (horizontalCamera == ECameraRotationMode::Reverse)
+		pad.sThumbRX = (int16_t)std::clamp(-(int32_t)pad.sThumbRX, (int32_t)-32768, (int32_t)INT16_MAX);
+
+	float deadzone;
+	float sensitivity;
+	switch (playerIndex)
+	{
+	case 1:  deadzone = Config::StickDeadzone2P; sensitivity = Config::StickSensitivity2P; break;
+	case 2:  deadzone = Config::StickDeadzone3P; sensitivity = Config::StickSensitivity3P; break;
+	case 3:  deadzone = Config::StickDeadzone4P; sensitivity = Config::StickSensitivity4P; break;
+	default: deadzone = Config::StickDeadzone1P; sensitivity = Config::StickSensitivity1P; break;
+	}
+
+	ApplyStickResponse(pad.sThumbLX, pad.sThumbLY, deadzone, sensitivity);
+	ApplyStickResponse(pad.sThumbRX, pad.sThumbRY, deadzone, sensitivity);
+}
+
+static void MapPadButtons(const PadSnapshot& snapshot, uint32_t playerIndex, XINPUT_GAMEPAD_OG& pad)
+{
+	auto& bindings = input::GetPadBindings(playerIndex);
+
+	auto getValue = [&](EXboxButton button) { return snapshot.buttons[(size_t)bindings[(size_t)button]->Value]; };
+	auto isPressed = [&](EXboxButton button) { return getValue(button) > DIGITAL_BUTTON_THRESHOLD; };
+	auto getDigitalValue = [&](EXboxButton button) -> uint8_t { return isPressed(button) ? 0xFF : 0; };
+
+	pad.wButtons = 0;
+
+	static constexpr std::pair<EXboxButton, uint16_t> digitalButtons[] =
+	{
+		{ EXboxButton::DPadUp, XINPUT_GAMEPAD_DPAD_UP },
+		{ EXboxButton::DPadDown, XINPUT_GAMEPAD_DPAD_DOWN },
+		{ EXboxButton::DPadLeft, XINPUT_GAMEPAD_DPAD_LEFT },
+		{ EXboxButton::DPadRight, XINPUT_GAMEPAD_DPAD_RIGHT },
+		{ EXboxButton::Start, XINPUT_GAMEPAD_START },
+		{ EXboxButton::Back, XINPUT_GAMEPAD_BACK },
+		{ EXboxButton::LeftThumb, XINPUT_GAMEPAD_LEFT_THUMB },
+		{ EXboxButton::RightThumb, XINPUT_GAMEPAD_RIGHT_THUMB }
+	};
+
+	for (auto& [button, mask] : digitalButtons)
+	{
+		if (isPressed(button))
+		{
+			pad.wButtons |= mask;
+		}
+	}
+
+	// touchpad is back if unbound
+	auto isTouchpadBound = std::any_of(bindings.begin(), bindings.end(), [](auto* binding) { return binding->Value == EPadButton::Touchpad; });
+
+	if (!isTouchpadBound && snapshot.buttons[(size_t)EPadButton::Touchpad])
+	{
+		pad.wButtons |= XINPUT_GAMEPAD_BACK;
+	}
+
+	pad.bAnalogButtons[Buttons_A] = getDigitalValue(EXboxButton::A);
+	pad.bAnalogButtons[Buttons_B] = getDigitalValue(EXboxButton::B);
+	pad.bAnalogButtons[Buttons_X] = getDigitalValue(EXboxButton::X);
+	pad.bAnalogButtons[Buttons_Y] = getDigitalValue(EXboxButton::Y);
+	pad.bAnalogButtons[Buttons_White] = getDigitalValue(EXboxButton::White);
+	pad.bAnalogButtons[Buttons_Black] = getDigitalValue(EXboxButton::Black);
+	pad.bAnalogButtons[Buttons_LT] = getValue(EXboxButton::LeftTrigger);
+	pad.bAnalogButtons[Buttons_RT] = getValue(EXboxButton::RightTrigger);
+}
 
 std::array<Controller, 4> g_controllers;
 Controller* g_activeController;
@@ -466,15 +481,7 @@ static void SetControllerChaosModeLED(Controller& controller, ELedAura mode)
 	}
 }
 
-// ds4 / ds5 led color aura fixes
-// uses mutex to avoid deadlock
-// when touching goal ring, the async / event thread start to be used which can easily deadlock with SDLs stuff
-static std::mutex s_deferredMutex;
-static bool s_devicesDirty = true;
-static bool s_stopVibration = false;
-static bool s_hideCursorForController = false;
-static SDL_JoystickID s_pendingActiveController = 0;
-static std::atomic<bool> s_auraDirty = true;
+static bool s_auraDirty = true;
 
 static void SyncControllers()
 {
@@ -521,6 +528,8 @@ static void SyncControllers()
 	s_auraDirty = true;
 }
 
+// ds4 / ds5 led color aura fixes
+// when touching goal ring, the async / event thread start to be used which can easily deadlock with SDLs stuff
 static void ApplyChaosAura()
 {
 	if (!Config::ChaosPowerLEDSync.Value)
@@ -530,7 +539,7 @@ static void ApplyChaosAura()
 
 	static ELedAura s_appliedAura = LED_AURA_NEUTRAL;
 	const auto aura = App::s_chaosMode.load(std::memory_order_relaxed);
-	const bool forced = s_auraDirty.exchange(false);
+	const bool forced = std::exchange(s_auraDirty, false);
 	if (!forced && aura == s_appliedAura)
 	{
 		return;
@@ -543,6 +552,39 @@ static void ApplyChaosAura()
 	}
 }
 
+static void PublishPadFrame()
+{
+	PadFrame frame{};
+	frame.hasActiveController = g_activeController != nullptr;
+
+	for (size_t i = 0; i < g_controllers.size(); i++)
+	{
+		auto& controller = g_controllers[i];
+
+		if (!controller.CanPoll())
+		{
+			continue;
+		}
+
+		auto& snapshot = frame.pads[i];
+		snapshot.connected = true;
+		snapshot.device = controller.GetInputDevice();
+
+		for (size_t button = 0; button < snapshot.buttons.size(); button++)
+		{
+			snapshot.buttons[button] = controller.GetButtonValue((EPadButton)button);
+		}
+
+		snapshot.leftX = SDL_GetGamepadAxis(controller.controller, SDL_GAMEPAD_AXIS_LEFTX);
+		snapshot.leftY = SDL_GetGamepadAxis(controller.controller, SDL_GAMEPAD_AXIS_LEFTY);
+		snapshot.rightX = SDL_GetGamepadAxis(controller.controller, SDL_GAMEPAD_AXIS_RIGHTX);
+		snapshot.rightY = SDL_GetGamepadAxis(controller.controller, SDL_GAMEPAD_AXIS_RIGHTY);
+	}
+
+	std::lock_guard lock(s_padFrameMutex);
+	s_padFrame = frame;
+}
+
 void input::SetChaosAura(ELedAura mode)
 {
 	if ((int)mode < LED_AURA_NEUTRAL || (int)mode > LED_AURA_VILLAIN)
@@ -553,38 +595,9 @@ void input::SetChaosAura(ELedAura mode)
 
 void input::Update()
 {
-	bool devicesDirty, stopVibration, hideCursor;
-	SDL_JoystickID pendingActive;
-
-	{
-		std::lock_guard<std::mutex> lock(s_deferredMutex);
-
-		devicesDirty = std::exchange(s_devicesDirty, false);
-		stopVibration = std::exchange(s_stopVibration, false);
-		hideCursor = std::exchange(s_hideCursorForController, false);
-		pendingActive = std::exchange(s_pendingActiveController, (SDL_JoystickID)0);
-	}
-
-
-	if (devicesDirty)
-		SyncControllers();
-
-	if (stopVibration)
-	{
-		for (auto& controller : g_controllers)
-			controller.SetVibration({ 0, 0 });
-	}
-
-	if (hideCursor && !GameWindow::s_isFullscreenCursorVisible)
-		SDL_HideCursor();
-
-	if (pendingActive != 0)
-	{
-		if (auto* controller = FindController(pendingActive))
-			SetControllerInputDevice(controller);
-	}
-
+	MainThreadDispatcher::Get().Flush();
 	ApplyChaosAura();
+	PublishPadFrame();
 }
 
 bool Input_OnSDLEvent(void*, SDL_Event* event)
@@ -595,8 +608,7 @@ bool Input_OnSDLEvent(void*, SDL_Event* event)
 	case SDL_EVENT_GAMEPAD_REMOVED:
 	{
 		// opening or closing a pad could deadlock in specific situation so best to play safe
-		std::lock_guard lock(s_deferredMutex);
-		s_devicesDirty = true;
+		MainThreadDispatcher::Get().Post(SyncControllers);
 
 		break;
 	}
@@ -614,9 +626,18 @@ bool Input_OnSDLEvent(void*, SDL_Event* event)
 			if (event->type == SDL_EVENT_GAMEPAD_AXIS_MOTION && abs(event->gaxis.value) <= 8000)
 				break;
 
-			std::lock_guard lock(s_deferredMutex);
-			s_hideCursorForController = true;
-			s_pendingActiveController = controller->id;
+			MainThreadDispatcher::Get().Post([id = controller->id]()
+			{
+				if (!GameWindow::s_isFullscreenCursorVisible)
+				{
+					SDL_HideCursor();
+				}
+
+				if (auto* controller = FindController(id))
+				{
+					SetControllerInputDevice(controller);
+				}
+			});
 		}
 
 		break;
@@ -653,8 +674,13 @@ bool Input_OnSDLEvent(void*, SDL_Event* event)
 	case SDL_EVENT_WINDOW_FOCUS_LOST:
 	{
 		// Stop vibrating controllers on focus lost.
-		std::lock_guard lock(s_deferredMutex);
-		s_stopVibration = true;
+		MainThreadDispatcher::Get().Post([]()
+		{
+			for (auto& controller : g_controllers)
+			{
+				controller.SetVibration({ 0, 0 });
+			}
+		});
 
 		break;
 	}
@@ -681,40 +707,39 @@ void input::Init()
 	SDL_AddEventWatch(Input_OnSDLEvent, nullptr);
 	SDL_Init(SDL_INIT_JOYSTICK | SDL_INIT_GAMEPAD);
 
-	input::Update(); // just to ensure controller is available frame 1
+	// just to ensure controller is available frame 1
+	SyncControllers();
+	input::Update();
 }
 
 input::EInputDevice input::GetPadDevice(uint32_t playerIndex)
 {
-	if (playerIndex >= g_controllers.size() || !g_controllers[playerIndex].controller)
-	{
-		return EInputDevice::Unknown;
-	}
-	return g_controllers[playerIndex].GetInputDevice();
+	const auto frame = GetPadFrame();
+	return playerIndex < frame.pads.size() ? frame.pads[playerIndex].device : EInputDevice::Unknown;
 }
 
 void input::GetRawPadButtons(uint32_t playerIndex, PadButtonValues& values)
 {
-	values.fill(0);
-	auto readPad = [&](const Controller& controller)
-	{
-		for (size_t i = 0; i < values.size(); i++)
-		{
-			values[i] = std::max(values[i], controller.GetButtonValue((EPadButton)i));
-		}
-	};
+	const auto frame = GetPadFrame();
 
-	if (playerIndex < g_controllers.size() && g_controllers[playerIndex].controller)
+	if (playerIndex < frame.pads.size() && frame.pads[playerIndex].connected)
 	{
-		readPad(g_controllers[playerIndex]);
+		values = frame.pads[playerIndex].buttons;
 		return;
 	}
 
-	for (auto& controller : g_controllers)
+	values.fill(0);
+
+	for (auto& snapshot : frame.pads)
 	{
-		if (controller.controller)
+		if (!snapshot.connected)
 		{
-			readPad(controller);
+			continue;
+		}
+
+		for (size_t button = 0; button < values.size(); button++)
+		{
+			values[button] = std::max(values[button], snapshot.buttons[button]);
 		}
 	}
 }
@@ -730,11 +755,13 @@ uint32_t input::GetState(uint32_t dwUserIndex, XINPUT_STATE* pState)
 
 	pState->dwPacketNumber = packet++;
 
+	const auto frame = GetPadFrame();
+	const auto snapshot = dwUserIndex >= 1 && dwUserIndex <= frame.pads.size() ? frame.pads[dwUserIndex - 1] : PadSnapshot{};
 	bool hasController = false;
 	bool isConnected = dwUserIndex == 1
 		|| dwUserIndex == g_keyboardPort
-		|| (dwUserIndex >= 1 && dwUserIndex <= 4 && g_controllers[dwUserIndex - 1].controller)
-		|| g_activeController != nullptr;
+		|| snapshot.connected
+		|| frame.hasActiveController;
 
 	if (IsInputAllowed())
 	{
@@ -746,11 +773,10 @@ uint32_t input::GetState(uint32_t dwUserIndex, XINPUT_STATE* pState)
 		}
 		// TODO: END Remove before release
 
-		if (dwUserIndex >= 1 && dwUserIndex <= 4 && g_controllers[dwUserIndex - 1].controller)
+		if (snapshot.connected)
 		{
-			g_controllers[dwUserIndex - 1].Poll(dwUserIndex - 1);
-			g_controllers[dwUserIndex - 1].PollAxis(dwUserIndex - 1);
-			pState->Gamepad = g_controllers[dwUserIndex - 1].state;
+			MapPadButtons(snapshot, dwUserIndex - 1, pState->Gamepad);
+			MapPadAxis(snapshot, dwUserIndex - 1, pState->Gamepad);
 			hasController = true;
 		}
 
@@ -801,13 +827,22 @@ uint32_t input::SetState(uint32_t dwUserIndex, XboxVibrationPacket* outPacket)
 	if (!vibrationEnabled)
 		return ERROR_SUCCESS;
 
-	if (!g_activeController)
-		return ERROR_DEVICE_NOT_CONNECTED;
+	const auto frame = GetPadFrame();
 
-	auto* packet = reinterpret_cast<XboxVibrationPacket*>(outPacket);
-	if (g_controllers[dwUserIndex - 1].controller)
+	if (!frame.hasActiveController)
 	{
-		g_controllers[dwUserIndex - 1].SetVibration(*outPacket);
+		return ERROR_DEVICE_NOT_CONNECTED;
+	}
+
+	if (dwUserIndex >= 1 && dwUserIndex <= frame.pads.size())
+	{
+		MainThreadDispatcher::Get().Post([index = dwUserIndex - 1, left = outPacket->wLeftMotorSpeed, right = outPacket->wRightMotorSpeed]()
+		{
+			XboxVibrationPacket vibration{};
+			vibration.wLeftMotorSpeed = left;
+			vibration.wRightMotorSpeed = right;
+			g_controllers[index].SetVibration(vibration);
+		});
 	}
 
 	return ERROR_SUCCESS;
@@ -818,15 +853,19 @@ HANDLE XInputOpen(int* a1, int a2)
 {
 	auto base = g_memory.base;
 
+	MainThreadDispatcher::Get().Post([]()
+	{
+		for (auto& controller : g_controllers)
+		{
+			if (controller.controller)
+			{
+				SetControllerInputDevice(&controller);
+			}
+		}
+	});
+
 	for (int i = 0; i < 4; i++)
 	{
-		if (g_controllers[i].controller)
-		{
-			SetControllerInputDevice(&g_controllers[i]);
-		}
-
-		g_controllers[i].index = i + 1;
-
 		X86_STORE_U32(0x559984 + (4 * i), i + 1);
 	}
 
