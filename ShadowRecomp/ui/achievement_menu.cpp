@@ -7,8 +7,8 @@
 #include <patches/aspect_ratio_patches.h>
 #include <ui/imgui_utils.h>
 #include <res/images/common/arrow.png.h>
-#include <res/images/common/achievementBG.png.h>
-#include <res/images/common/achievementBtn.png.h>
+#include <res/images/achievements/achievementBG.png.h>
+#include <res/images/achievements/achievementBtn.png.h>
 #include <decompressor.h>
 #include <user/config.h>
 #include <app.h>
@@ -17,7 +17,7 @@
 #include <input/padstate.h>
 #include <user/achievement_manager.h>
 #include "button_guide.h"
-#include <res/images/common/Achievements_pause.png.h>
+#include <res/images/achievements/Achievements_pause.png.h>
 
 static double g_time{};
 static double g_transitionTime{};
