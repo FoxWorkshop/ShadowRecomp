@@ -16,6 +16,7 @@
 #include <gpu/imgui/imgui_snapshot.h>
 #include <ui/imgui_utils.h>
 #include <ui/fader.h>
+#include <res/images/installer/installer_bg.png.h>
 #include <res/images/common/TitleBg.png.h>
 #include <res/images/common/Options2.png.h>
 #include <res/images/installer/FoxLogo.png.h>
@@ -25,7 +26,7 @@
 #include <res/credits.h>
 
 
-static std::unique_ptr<GuestTexture> g_upTexOptionsBG{};
+static std::unique_ptr<GuestTexture> g_upTexInstallBG{};
 static std::unique_ptr<GuestTexture> g_upTexOptionsBG2{};
 static std::unique_ptr<GuestTexture> g_upTexFoxLogo{};
 
@@ -605,7 +606,7 @@ static void DrawShadowImage()
 
 	drawList->AddImage
 	(
-		g_upTexOptionsBG.get(),
+		g_upTexInstallBG.get(),
 		Min,
 		Max,
 		{ 0, 0 },
@@ -682,7 +683,7 @@ void InstallerWizard::Draw(X86Context* ctx)
 	// Scale values based on window size
 	float scaleX = winSize.x > 1.0f ? (winSize.x / baseWidth) : 1.0f;
 	float scaleY = winSize.y > 1.0f ? (winSize.y / baseHeight) : 1.0f;
-	float scale = fminf(scaleX, scaleY) * 0.8f;
+	float scale = fminf(scaleX, scaleY);
 
 
 	// Center to screen based on Shadow res
@@ -747,9 +748,6 @@ void InstallerWizard::Draw(X86Context* ctx)
 		return;
 	}
 
-	auto titleText = "Shadow the Hedgehog Recompiled - Installer";
-	auto titleSize = font->CalcTextSizeA(fontSize + 2.f, FLT_MAX, 0, titleText);
-	float titleX = centerX - titleSize.x * 0.5f;
 
 	std::string wizardText = GetWizardText(g_currentPage);
 	char descriptionText[512];
@@ -762,8 +760,6 @@ void InstallerWizard::Draw(X86Context* ctx)
 	auto textMaxWidth = originMax.x - (descFontSize / 2.0f) - originMin.x;
 	auto textSize = MeasureCentredParagraph(g_fntSeurat, descFontSize, textMaxWidth, textMargin, wizardText.c_str());
 	ImVec2 textPosition = ImVec2(panelMin.x + (panelWidth - textSize.x) * 0.5f, originMin.y);
-	
-	DrawDescription(titleText);
 
 	if (g_currentPage != WizardPage::Installing && g_currentPage != WizardPage::InstallFailed)
 	{
@@ -1489,7 +1485,7 @@ bool InstallerWizard::Run(std::filesystem::path installPath)
 void InstallerWizard::Init()
 {
 	g_fntSeurat = ImFontAtlasSnapshot::GetFont("FOT-SeuratPro-DB.otf");
-	g_upTexOptionsBG = LOAD_ZSTD_TEXTURE(g_options_bg);
+	g_upTexInstallBG = LOAD_ZSTD_TEXTURE(g_installer_bg);
 	g_upTexOptionsBG2 = LOAD_ZSTD_TEXTURE(g_options_bg2);
 	g_upTexFoxLogo = LOAD_ZSTD_TEXTURE(g_foxLogo);
 
