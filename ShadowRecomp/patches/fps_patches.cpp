@@ -3617,3 +3617,22 @@ X86_OVERRIDE_FUNC(sub_75B70)
 	__imp__sub_75B70(ctx, base);
 }
 /** --Strafe Jump Animation Patch END-- */
+
+// Fix global turn rate (player and partner behaviors)
+X86_FUNC_IMPL(__imp__sub_7ED90);
+X86_OVERRIDE_FUNC(sub_7ED90)
+{
+	const uint32_t player = X86_LOAD_U32(X86_LOAD_U32(ctx.esp.u32 + 0x4));
+	const uint32_t dt = player != NULL ? X86_LOAD_U32(player + 0x60) : NULL;
+	const uint32_t stepAddr = ctx.esp.u32 + 0xC;
+	const float step = X86_LOAD_F32(stepAddr);
+	if (dt != NULL && step > 0.0f && step < 1.0f)
+	{
+		const float frames = X86_LOAD_F32(dt) * 60.0f;
+		if (frames > 0.0f)
+		{
+			X86_STORE_F32(stepAddr, step >= frames ? 1.0f : 1.0f - std::pow(1.0f - step / frames, frames));
+		}
+	}
+	__imp__sub_7ED90(ctx, base);
+}
