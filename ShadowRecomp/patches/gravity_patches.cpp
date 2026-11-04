@@ -19,24 +19,14 @@ struct Quaternion
 	float x, y, z, w;
 };
 
-static bool GravityValidPtr(uint32_t addr)
-{
-	return addr >= 0x10000 && addr < 0x8000000;
-}
-
 // Helper to check if we should apply the fix
 static bool GravityCorrectionNeeded(uint32_t player)
 {
 	auto base = g_memory.base;
 
-	if (!GravityValidPtr(player))
-	{
-		return false;
-	}
-
 	// Partner Structs can use this, so guard against them
-	if (player != g_playerStructAddrs[0] && player != g_playerStructAddrs[1] &&
-		player != g_playerStructAddrs[2] && player != g_playerStructAddrs[3])
+	if (player == 0 || (player != g_playerStructAddrs[0] && player != g_playerStructAddrs[1] &&
+		player != g_playerStructAddrs[2] && player != g_playerStructAddrs[3]))
 	{
 		return false;
 	}
@@ -117,7 +107,7 @@ X86_OVERRIDE_FUNC(sub_7FB30)
 	const uint32_t playerSlot = X86_LOAD_U32(ctx.esp.u32 + 4);
 	const uint32_t previous = g_gravityPlayer;
 
-	g_gravityPlayer = GravityValidPtr(playerSlot) ? X86_LOAD_U32(playerSlot) : 0;
+	g_gravityPlayer = X86_LOAD_U32(playerSlot);
 	__imp__sub_7FB30(ctx, base);
 	g_gravityPlayer = previous;
 }
@@ -129,7 +119,7 @@ X86_OVERRIDE_FUNC(sub_908C0)
 	const uint32_t executer = ctx.ecx.u32;
 	const uint32_t previous = g_gravityPlayer;
 
-	g_gravityPlayer = GravityValidPtr(executer) ? X86_LOAD_U32(executer + 0x28) : 0;
+	g_gravityPlayer = X86_LOAD_U32(executer + 0x28);
 	__imp__sub_908C0(ctx, base);
 	g_gravityPlayer = previous;
 }
@@ -137,12 +127,6 @@ X86_OVERRIDE_FUNC(sub_908C0)
 X86_FUNC_IMPL(__imp__sub_30F010);
 static void GravityCarryVelocityBaseRelative(X86Context& ctx, uint8_t* base, uint32_t slot, uint32_t yawSlotOffset)
 {
-
-	if (!GravityValidPtr(slot))
-	{
-		return;
-	}
-
 	const uint32_t player = X86_LOAD_U32(slot);
 	if (!GravityCorrectionNeeded(player))
 	{
