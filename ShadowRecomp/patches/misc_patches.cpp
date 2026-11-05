@@ -509,3 +509,27 @@ X86_OVERRIDE_FUNC(sub_173A20)
 	X86_STORE_U32(ctx.esp.u32 + 0x8, 0);
 	__imp__sub_173A20(ctx, base);
 }
+
+// Fix No Control Lock not applying the center alignment with splines for BkBirds
+// It reduces the chance of softlocking yourself in Cryptic Castle
+// I didn't tweak the pull rate to not mess with CC Dark strat of bumping into the torch
+X86_FUNC_IMPL(__imp__sub_252EA0);
+X86_OVERRIDE_FUNC(sub_252EA0)
+{
+	const uint32_t bird = ctx.ecx.u32;
+	__imp__sub_252EA0(ctx, base);
+	const uint32_t flags = X86_LOAD_U32(bird + 0x9C);
+	if (X86_LOAD_U32(bird + 0xFC) != 0x2 || (flags & 0x404) != 0x404) // checking for locked
+	{
+		return;
+	}
+
+	// re-use the same normal movement pull 'stop' bounds
+	const float offsetX = X86_LOAD_F32(bird + 0xBC);
+	const float offsetY = X86_LOAD_F32(bird + 0xC0);
+	const float alignDistance = X86_LOAD_F32(X86_LOAD_U32(bird + 0xF4) + 0x34);
+	if (offsetX * offsetX + offsetY * offsetY > alignDistance * alignDistance)
+	{
+		X86_STORE_U32(bird + 0x9C, flags | 0x20);
+	}
+}
