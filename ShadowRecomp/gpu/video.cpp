@@ -415,6 +415,35 @@ static bool g_swapChainValid;
 
 static constexpr RenderFormat BACKBUFFER_FORMAT = RenderFormat::B8G8R8A8_UNORM;
 
+// Sewer sez: Settings the FF pixel shader reads on every pixel (Vulkan only).
+//            We push these directly, rather than having GPU do mem read for faster
+//            perf in the pixel shader. Hella ugly, I hate it, but it works.
+//
+//			  We should try this in D3D12 too; unify the memory structure,
+// 			  having two different layouts is rather ass. (<= not the cool subtitles)
+//
+// See XShaderRecomp commit d3e1d431 for why.
+// Must match the end of PushConstants in common_fixed_ps.hlsli.
+struct PixelPushConstants
+{
+	uint32_t texture3DIndex;
+	uint32_t textureCubeIndex;
+	uint32_t texture2DIndices[4];
+	uint32_t samplerIndices[4];
+	float texCoordMin[2][2]; // Stages 0 and 1.
+	float texCoordMax[2][2];
+	uint32_t fogStart;
+	uint32_t fogEnd;
+	float fogColor[3];
+	uint32_t alphaTestEnable;
+	uint32_t alphaFunc;
+	float alphaRef;
+};
+
+static constexpr uint32_t PIXEL_PUSH_CONSTANTS_OFFSET = 3 * sizeof(uint64_t);
+static constexpr uint32_t PUSH_CONSTANTS_SIZE = PIXEL_PUSH_CONSTANTS_OFFSET + sizeof(PixelPushConstants);
+static_assert(PUSH_CONSTANTS_SIZE == 128, "Every Vulkan device supports at least 128 bytes of push constants");
+
 static std::unique_ptr<RenderCommandSemaphore> g_acquireSemaphores[NUM_FRAMES];
 static std::unique_ptr<RenderCommandSemaphore> g_renderSemaphores[NUM_FRAMES];
 static uint32_t g_backBufferIndex;
@@ -2680,7 +2709,7 @@ bool Video::CreateHostDevice(const char* sdlVideoDriver, bool graphicsApiRetry)
 
 	if (g_vulkan)
 	{
-		pipelineLayoutBuilder.addPushConstant(0, 4, 24, RenderShaderStageFlag::VERTEX | RenderShaderStageFlag::PIXEL);
+		pipelineLayoutBuilder.addPushConstant(0, 4, PUSH_CONSTANTS_SIZE, RenderShaderStageFlag::VERTEX | RenderShaderStageFlag::PIXEL);
 	}
 	else
 	{
@@ -4275,6 +4304,33 @@ void Video::PrecompileShadersAndPipelinesForInstall(const std::function<void(flo
 {
 	PrecompileShaders(progress);
 	PrecompileStaticPipelines(progress);
+}
+
+static PixelPushConstants BuildPixelPushConstants(const SharedConstants& constants)
+{
+	PixelPushConstants result;
+
+	// Textures and samplers
+	result.texture3DIndex = constants.texture3DIndices[0];
+	result.textureCubeIndex = constants.textureCubeIndices[0];
+	memcpy(result.texture2DIndices, constants.texture2DIndices, sizeof(result.texture2DIndices));
+	memcpy(result.samplerIndices, constants.samplerIndices, sizeof(result.samplerIndices));
+
+	// Texture coordinate clamp
+	memcpy(result.texCoordMin, constants.texCoordMin, sizeof(result.texCoordMin));
+	memcpy(result.texCoordMax, constants.texCoordMax, sizeof(result.texCoordMax));
+
+	// Fog
+	result.fogStart = constants.FogStart;
+	result.fogEnd = constants.FogEnd;
+	memcpy(result.fogColor, constants.FogColor, sizeof(result.fogColor));
+
+	// Alpha test
+	result.alphaTestEnable = constants.alphaTestEnable;
+	result.alphaFunc = constants.alphaFunc;
+	result.alphaRef = constants.alphaRef;
+
+	return result;
 }
 
 static void SetRootDescriptor(const UploadAllocation& allocation, size_t index)
@@ -6220,6 +6276,12 @@ static void FlushRenderStateForRenderThread()
 	{
 		auto sharedConstants = g_uploadAllocators[g_frame].allocate(&g_sharedConstants, sizeof(g_sharedConstants), 0x100);
 		SetRootDescriptor(sharedConstants, 2);
+
+		if (g_vulkan)
+		{
+			const PixelPushConstants pushConstants = BuildPixelPushConstants(g_sharedConstants);
+			commandList->setGraphicsPushConstants(0, &pushConstants, PIXEL_PUSH_CONSTANTS_OFFSET, sizeof(pushConstants));
+		}
 	}
 
 	if (g_dirtyStates.vertexStreamFirst <= g_dirtyStates.vertexStreamLast)
