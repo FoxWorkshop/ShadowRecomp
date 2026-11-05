@@ -596,6 +596,17 @@ static std::vector<std::unique_ptr<RenderBuffer>> g_tempBuffers[NUM_FRAMES];
 // RTs that are already zeroed this frame (see ProcSetRenderTarget)
 static ankerl::unordered_dense::set<const RenderTexture*> g_clearedRenderTargetsThisFrame;
 
+// Sewer note: Edgy the hedgy draws over the whole screen in all tested cases:
+// - Event Mode
+// - Stage without geo
+// - Credits
+//
+// This may not apply to other games, and we may need clears.
+// So if you're copying this to another game, consider changing this.
+#ifndef CLEAR_BACKBUFFER
+#define CLEAR_BACKBUFFER 0
+#endif
+
 float GetRenderTargetHeight()
 {
 	if (g_next_RenderTarget != nullptr && g_next_RenderTarget->height)
@@ -5598,6 +5609,7 @@ static void ProcSetRenderTarget(const RenderCommand& cmd)
 	// The game never really clear this surface itself, it relies on background covering the viewport
 	// which is often incorrect (like when a stage load.)
 	if (args.renderTarget != nullptr && args.renderTarget->texture != nullptr &&
+		(CLEAR_BACKBUFFER || args.renderTarget != g_backBuffer) &&
 		g_clearedRenderTargetsThisFrame.insert(args.renderTarget->texture).second)
 	{
 		AddBarrier(args.renderTarget, RenderTextureLayout::COLOR_WRITE);
