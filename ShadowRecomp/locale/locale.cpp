@@ -43,7 +43,7 @@ std::unordered_map<std::string_view, std::unordered_map<ELanguage, std::string>>
 			{ ELanguage::English,  "Adjust input settings." },
 			{ ELanguage::Japanese, "操作の設定を変更します。" },
 			{ ELanguage::German,   "Verändere Eingabe-Einstellungen." },
-			{ ELanguage::French,   "Modifier les paramètres d'entrée." },
+			{ ELanguage::French,   "Modifier les paramètres des commandes." },
 			{ ELanguage::Spanish,  "Ajusta la configuración de entrada." },
 			{ ELanguage::Italian,  "Modifica le impostazioni input." }
 		}
@@ -54,7 +54,7 @@ std::unordered_map<std::string_view, std::unordered_map<ELanguage, std::string>>
 			{ ELanguage::English,  "AUDIO" },
 			{ ELanguage::Japanese, "オーディオ" },
 			{ ELanguage::German,   "AUDIO" },
-			{ ELanguage::French,   "SON" },
+			{ ELanguage::French,   "AUDIO" },
 			{ ELanguage::Spanish,  "AUDIO" },
 			{ ELanguage::Italian,  "AUDIO" }
 		}
@@ -76,7 +76,7 @@ std::unordered_map<std::string_view, std::unordered_map<ELanguage, std::string>>
 			{ ELanguage::English,  "VIDEO" },
 			{ ELanguage::Japanese, "ビデオ" },
 			{ ELanguage::German,   "VIDEO" },
-			{ ELanguage::French,   "AFFICHAGE" },
+			{ ELanguage::French,   "VIDÉO" },
 			{ ELanguage::Spanish,  "VÍDEO" },
 			{ ELanguage::Italian,  "VIDEO" }
 		}
@@ -145,7 +145,7 @@ std::unordered_map<std::string_view, std::unordered_map<ELanguage, std::string>>
 		{ ELanguage::English,  "Customize Input" },
 		{ ELanguage::Japanese, "操作設定" },
 		{ ELanguage::German,   "Steuerung anpassen" },
-		{ ELanguage::French,   "Customize Input" },
+		{ ELanguage::French,   "Personnaliser les contrôles" },
 		{ ELanguage::Spanish,  "Personaliza los controles" },
 		{ ELanguage::Italian,  "Personalizzazione Input" }
 	}
@@ -156,7 +156,7 @@ std::unordered_map<std::string_view, std::unordered_map<ELanguage, std::string>>
 		{ ELanguage::English,  "Customize controls for each player." },
 		{ ELanguage::Japanese, "プレイヤーごとに操作をカスタマイズします。" },
 		{ ELanguage::German,   "Anpassung der Steuerung für Individuelle Spieler." },
-		{ ELanguage::French,   "Customize controls for each player." },
+		{ ELanguage::French,   "Personnalisez les commandes pour chaque joueur." },
 		{ ELanguage::Spanish,  "Personaliza los controles para cada jugador." },
 		{ ELanguage::Italian,  "Personalizza i controlli per ciascun giocatore." }
 	}
@@ -167,7 +167,7 @@ std::unordered_map<std::string_view, std::unordered_map<ELanguage, std::string>>
 		{ ELanguage::English,  "KEYBOARD" },
 		{ ELanguage::Japanese, "キーボード" },
 		{ ELanguage::German,   "TASTATUR" },
-		{ ELanguage::French,   "KEYBOARD" },
+		{ ELanguage::French,   "CLAVIER" },
 		{ ELanguage::Spanish,  "TECLADO" },
 		{ ELanguage::Italian,  "TASTIERA" }
 	}
@@ -178,7 +178,7 @@ std::unordered_map<std::string_view, std::unordered_map<ELanguage, std::string>>
 		{ ELanguage::English,  "Customize keyboard controls." },
 		{ ELanguage::Japanese, "キーボード操作をカスタマイズします。" },
 		{ ELanguage::German,   "Tastatursteuerung anpassen." },
-		{ ELanguage::French,   "Customize keyboard controls." },
+		{ ELanguage::French,   "Personnaliser les contrôles du clavier." },
 		{ ELanguage::Spanish,  "Personaliza los controles del teclado." },
 		{ ELanguage::Italian,  "Personalizza i controlli per Tastiera." }
 	}
@@ -190,7 +190,7 @@ std::unordered_map<std::string_view, std::unordered_map<ELanguage, std::string>>
 		{ ELanguage::English,  "{}P GAMEPAD" },
 		{ ELanguage::Japanese, "{}P ゲームパッド" },
 		{ ELanguage::German,   "{}SP GAMEPAD" },
-		{ ELanguage::French,   "{}P GAMEPAD" },
+		{ ELanguage::French,   "J{} MANETTE" },
 		{ ELanguage::Spanish,  "J{} MANDO" },
 		{ ELanguage::Italian,  "{}P GAMEPAD" }
 	}
@@ -201,7 +201,7 @@ std::unordered_map<std::string_view, std::unordered_map<ELanguage, std::string>>
 		{ ELanguage::English,  "Customize {}P gamepad buttons." },
 		{ ELanguage::Japanese, "{}Pのゲームパッドのボタンをカスタマイズします。" },
 		{ ELanguage::German,   "{}SP Controller steuerung anpassen." },
-		{ ELanguage::French,   "Customize {}P gamepad buttons." },
+		{ ELanguage::French,   "Personnaliser les boutons de la manette de J{}." },
 		{ ELanguage::Spanish,  "Personaliza los botones del mando del J{}." },
 		{ ELanguage::Italian,  "Personalizza i tasti del controller {}P." }
 	}
@@ -212,7 +212,7 @@ std::unordered_map<std::string_view, std::unordered_map<ELanguage, std::string>>
 		{ ELanguage::English,  "Change key assignment." },
 		{ ELanguage::Japanese, "キーの割り当てを変更します。" },
 		{ ELanguage::German,   "Tastenbelegung ändern." },
-		{ ELanguage::French,   "Change key assignment." },
+		{ ELanguage::French,   "Modifie l'assignation des touches." },
 		{ ELanguage::Spanish,  "Cambia la asignación de teclas." },
 		{ ELanguage::Italian,  "Cambia il tasto assegnato." }
 	}
@@ -223,7 +223,7 @@ std::unordered_map<std::string_view, std::unordered_map<ELanguage, std::string>>
 		{ ELanguage::English,  "Change assigned button." },
 		{ ELanguage::Japanese, "割り当てるボタンを変更します。" },
 		{ ELanguage::German,   "Knopfbelegung ändern." },
-		{ ELanguage::French,   "Change assigned button." },
+		{ ELanguage::French,   "Modifie l'assignation des boutons." },
 		{ ELanguage::Spanish,  "Cambia el botón asignado." },
 		{ ELanguage::Italian,  "Cambia il pulsante assegnato." }
 	}
@@ -234,7 +234,7 @@ std::unordered_map<std::string_view, std::unordered_map<ELanguage, std::string>>
 		{ ELanguage::English,  "Press key to assign. Press Escape or wait to cancel." },
 		{ ELanguage::Japanese, "割り当てるキーを押してください。キャンセルするにはEscapeキーを押すか、そのままお待ちください。" },
 		{ ELanguage::German,   "Taste drücken zum Zuweisen. Drücke Escape oder warte um zurückzukehren." },
-		{ ELanguage::French,   "Press key to assign. Press Escape or wait to cancel." },
+		{ ELanguage::French,   "Appuyez sur une touche pour l'assigner. Appuyez sur Escape ou attendez pour annuler." },
 		{ ELanguage::Spanish,  "Pulsa una tecla para asignar. Pulsa Escape o espera para cancelar." },
 		{ ELanguage::Italian,  "Premi un tasto per assegnare. Premi Escape o aspetta per annullare." }
 	}
@@ -245,7 +245,7 @@ std::unordered_map<std::string_view, std::unordered_map<ELanguage, std::string>>
 		{ ELanguage::English,  "Press button to assign. Press Escape or wait to cancel." },
 		{ ELanguage::Japanese, "割り当てるボタンを押してください。キャンセルするにはEscapeキーを押すか、そのままお待ちください。" },
 		{ ELanguage::German,   "Knopf drücken zum Zuweisen. Drücke Escape oder warte um zurückzukehren." },
-		{ ELanguage::French,   "Press button to assign. Press Escape or wait to cancel." },
+		{ ELanguage::French,   "Appuyez sur un bouton pour l'assigner. Appuyez sur Escape ou attendez pour annuler." },
 		{ ELanguage::Spanish,  "Pulsa un botón para asignar. Pulsa Escape o espera para cancelar." },
 		{ ELanguage::Italian,  "Premi un pulsante per assegnare. Premi Escape o aspetta per annullare." }
 	}
@@ -302,7 +302,7 @@ std::unordered_map<std::string_view, std::unordered_map<ELanguage, std::string>>
 		{ ELanguage::English,  "This option is not available during gameplay." },
 		{ ELanguage::Japanese, "このオプションはゲームプレイ中は使用できません。" },
 		{ ELanguage::German,   "Diese Einstellung kann während des Spiels nicht verändert werden." },
-		{ ELanguage::French,   "Cette option est indisponible en cours de jeu." },
+		{ ELanguage::French,   "Cette option n'est pas disponible en cours de jeu." },
 		{ ELanguage::Spanish,  "Esta opción no está disponible durante el juego." },
 		{ ELanguage::Italian,  "Questa opzione non è disponibile durante il gioco." }
 	}
@@ -454,7 +454,7 @@ std::unordered_map<std::string_view, std::unordered_map<ELanguage, std::string>>
 		{ ELanguage::English,  "Welcome to Shadow Recompiled!\n\nYou'll need an Xbox copy of\nShadow the Hedgehog in order to\nproceed with the installation." },
 		{ ELanguage::Japanese, "Shadow Recompiledへようこそ！\n\nインストールを続行するには、\n『シャドウ・ザ・ヘッジホッグ』のXbox版が必要です。" },
 		{ ELanguage::German,   "Wilkommen zu Shadow Recompiled!\n\nDu wirst eine Xbox Kopie von\nShadow the Hedgehog benötigen um\nmit der Installation fortzufahren."},
-		{ ELanguage::French,   "Welcome to Shadow Recompiled!\n\nYou'll need an Xbox copy of\nShadow the Hedgehog in order to\nproceed with the installation." },
+		{ ELanguage::French,   "Bienvenue sur Shadow Recompiled!\n\nVous aurez besoin d'une copie Xbox\nde Shadow the Hedgehog pour\npouvoir continuer l'installation." },
 		{ ELanguage::Spanish,  "¡Te damos la bienvenida a Shadow Recompiled!\n\nNecesitarás una copia de la versión de XBOX de\nShadow the Hedgehog para\nproceder con la instalación." },
 		{ ELanguage::Italian,  "Benvenuti a Shadow Recompiled!\n\nTi servirà una copia XBOX di\nShadow the Hedgehog per poter\nProcedere con l'installazione" }
 	}
@@ -465,7 +465,7 @@ std::unordered_map<std::string_view, std::unordered_map<ELanguage, std::string>>
 		{ ELanguage::English,  "Add the source for the game." },
 		{ ELanguage::Japanese, "ゲームの元データを追加してください。" },
 		{ ELanguage::German,   "Füge den Pfad für das Spiel hinzu." },
-		{ ELanguage::French,   "Add the source for the game." },
+		{ ELanguage::French,   "Ajouter les fichiers du jeu." },
 		{ ELanguage::Spanish,  "Añade el archivo de origen del juego." },
 		{ ELanguage::Italian,  "Aggiungi una fonte per il gioco." }
 	}
@@ -476,7 +476,7 @@ std::unordered_map<std::string_view, std::unordered_map<ELanguage, std::string>>
 		{ ELanguage::English,  "Drag & Drop or Select an ISO or default.xbe" },
 		{ ELanguage::Japanese, "ISOまたはdefault.xbeを\nドラッグ＆ドロップするか、選択してください。" },
 		{ ELanguage::German,   "Drag & Drop oder wähle eine ISO oder default.xbe aus." },
-		{ ELanguage::French,   "Drag & Drop or Select an ISO or default.xbe" },
+		{ ELanguage::French,   "Faites glisser ou sélectionnez le fichier .ISO ou default.xbe" },
 		{ ELanguage::Spanish,  "Arrasta o selecciona el archivo .ISO o default.xbe" },
 		{ ELanguage::Italian,  "Trascina e rilascia o seleziona una ISO o default.xbe" }
 	}
@@ -523,7 +523,7 @@ std::unordered_map<std::string_view, std::unordered_map<ELanguage, std::string>>
 			{ ELanguage::English,  "Installing..." },
 			{ ELanguage::Japanese, "インストール中..." },
 			{ ELanguage::German,   "Installiert..." },
-			{ ELanguage::French,   "Installing..." },
+			{ ELanguage::French,   "Installation..." },
 			{ ELanguage::Spanish,  "Instalando..." },
 			{ ELanguage::Italian,  "Installazione..." }
 		}
@@ -545,7 +545,7 @@ std::unordered_map<std::string_view, std::unordered_map<ELanguage, std::string>>
 		{ ELanguage::English,  "Compiling shaders..." },
 		{ ELanguage::Japanese, "シェーダーをコンパイル中..." },
 		{ ELanguage::German,   "Shaders kompilieren..." },
-		{ ELanguage::French,   "Compiling shaders..." },
+		{ ELanguage::French,   "Compilation des shaders..." },
 		{ ELanguage::Spanish,  "Compilando sombreadores..." },
 		{ ELanguage::Italian,  "Compilazione shaders..." }
 	}
@@ -645,7 +645,7 @@ std::unordered_map<std::string_view, std::unordered_map<ELanguage, std::string>>
 		{ ELanguage::English,  "The selected source is not a valid Shadow the Hedgehog Xbox ISO\nor extracted game folder." },
 		{ ELanguage::Japanese, "選択した元データは、\n『シャドウ・ザ・ヘッジホッグ』のXbox版ISOとしても、\n展開済みのゲームフォルダーとしても認識できません。" },
 		{ ELanguage::German,   "Die ausgewählte Quelle ist keine gültige Shadow the Hedgehog Xbox ISO-Datei\noder kein extrahierter Spielordner." },
-		{ ELanguage::French,   "The selected source is not a valid Shadow the Hedgehog Xbox ISO\nor extracted game folder." },
+		{ ELanguage::French,   "La fichier sélectionnée n'est pas un .ISO valide\nou un dossier du jeu Shadow the Hedgehog." },
 		{ ELanguage::Spanish,  "El archivo de origen seleccionado no es un archivo .ISO válido o una carpeta de juego\nde Shadow the Hedgehog." },
 		{ ELanguage::Italian,  "La fonte selezionata non è una XBOX ISO valida di Shadow the Hedgehog Xbox ISO\no una cartella di gioco estratta." }
 	}

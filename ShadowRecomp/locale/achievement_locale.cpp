@@ -34,7 +34,7 @@ std::unordered_map<int, std::unordered_map<ELanguage, AchievementLocale>> g_shrL
 			{
 				ELanguage::French,
 				{
-					"Cœur Éveillé des Ténèbres",
+					"Un Cœur noir",
 					"Complétez la fin Pure Dark - Dark !",
 					"Fin Pure Dark - Dark complétée."
 				}
@@ -88,9 +88,9 @@ std::unordered_map<int, std::unordered_map<ELanguage, AchievementLocale>> g_shrL
 			{
 				ELanguage::French,
 			{
-					"Prologue à la Conquête du Monde",
+					"A la Conquête du Monde",
 					"Termine le mode Pure Dark - Fin Héro !",
-					"Pure Dark - Hero Ending complétée."
+					"Fin Pure Dark - Hero complétée."
 				}
 			},
 			{
@@ -142,9 +142,9 @@ std::unordered_map<int, std::unordered_map<ELanguage, AchievementLocale>> g_shrL
 			{
 				ELanguage::French,
 				{
-					"Marche vers un Monde plus Sombre",
-					"Completez la fin Dark - Dark!",
-					"Fin Dark - Dark complétée."
+					"Le chemin des ténèbres",
+					"Completez la fin Semi-Dark - Dark!",
+					"Fin Semi-Dark - Dark complétée."
 				}
 			},
 			{
@@ -196,9 +196,9 @@ std::unordered_map<int, std::unordered_map<ELanguage, AchievementLocale>> g_shrL
 			{
 				ELanguage::French,
 				{
-					"Dernier But Restant",
-					"Complétez la fin Dark - Hero!",
-					"Fin Dark - Hero complétée."
+					"Dernier Objectif",
+					"Complétez la fin Semi-Dark - Hero!",
+					"Fin Semi-Dark - Hero complétée."
 				}
 			},
 			{
@@ -250,7 +250,7 @@ std::unordered_map<int, std::unordered_map<ELanguage, AchievementLocale>> g_shrL
 			{
 				ELanguage::French,
 				{
-					"À Travers l'Original",
+					"Triomphe de l'Original",
 					"Complétez la fin Neutral - Dark !",
 					"Fin Neutral - Dark complétée."
 				}
@@ -304,7 +304,7 @@ std::unordered_map<int, std::unordered_map<ELanguage, AchievementLocale>> g_shrL
 			{
 				ELanguage::French,
 				{
-					"La Naissance d'un nouvel Empire",
+					"Un Nouvel Empire",
 					"Complétez la fin Neutral - Hero !",
 					"Fin Neutral - Hero complétée."
 				}
@@ -358,9 +358,9 @@ std::unordered_map<int, std::unordered_map<ELanguage, AchievementLocale>> g_shrL
 			{
 				ELanguage::French,
 				{
-					"Renaître avec Chagrin",
-					"Complétez la fin Hero - Dark !"
-					"Fin Hero - Dark complétée."
+					"Une Vie de Chagrin",
+					"Complétez la fin Semi-Hero - Dark !"
+					"Fin Semi-Hero - Dark complétée."
 				}
 			},
 			{
@@ -413,8 +413,8 @@ std::unordered_map<int, std::unordered_map<ELanguage, AchievementLocale>> g_shrL
 				ELanguage::French,
 				{
 					"Requiem pour un Ange Déchu",
-					"Complétez la fin Hero - Hero !",
-					"Fin Hero - Hero complétée."
+					"Complétez la fin Semi-Hero - Hero !",
+					"Fin Semi-Hero - Hero complétée."
 				}
 			},
 			{
@@ -467,7 +467,7 @@ std::unordered_map<int, std::unordered_map<ELanguage, AchievementLocale>> g_shrL
 			{
 				ELanguage::French,
 				{
-					"Prétention dans le miroir",
+					"Tromperie",
 					"Complétez la fin Pure Hero - Dark !",
 					"Fin Pure Hero - Dark complétée."
 				}
@@ -521,7 +521,7 @@ std::unordered_map<int, std::unordered_map<ELanguage, AchievementLocale>> g_shrL
 			{
 				ELanguage::French,
 				{
-					"Celui en qui Maria Croyez",
+					"Le protecteur de Maria",
 					"Complétez la fin Pure Hero - Hero !",
 					"Fin Pure Hero - Hero complétée."
 				}
@@ -633,9 +633,9 @@ std::unordered_map<int, std::unordered_map<ELanguage, AchievementLocale>> g_shrL
 			{
 				ELanguage::French,
 				{
-					"Beyond Good and Evil",
-					"Obtenez tous les 71 A Ranks !",
-					"Tous les 71 A Ranks obtenus."
+					"Au-delà du Bien et du Mal",
+					"Obtenez tous les 71 Ranks A !",
+					"Tous les 71 Ranks A obtenus."
 				}
 			},
 			{
