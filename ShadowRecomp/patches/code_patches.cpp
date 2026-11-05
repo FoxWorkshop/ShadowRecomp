@@ -274,3 +274,13 @@ X86_OVERRIDE_FUNC(sub_CCC90)
         CreateEnemyColliders(ctx, base, status);
     }
 }
+
+void PlayAsBattleCharactersMidAsmHook(X86Context& __restrict ctx, uint8_t* base)
+{
+    const int32_t character = X86_LOAD_U32(0x54DE6C); // P1 battle character
+    const bool enabled = Config::PlayAsBattleCharacters || Config::ReloadedMod;
+    if (enabled && X86_LOAD_U32(0x54DDD8) != 710 && character > 0xE && character <= 0x13)
+    {
+        X86_STORE_U32(ctx.esp.u32, character);
+    }
+}

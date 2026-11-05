@@ -3,6 +3,9 @@
 #include <input/padstate.h>
 #include <user/config.h>
 
+
+// TODO: Finalize and add any gecko / optional disables (some people like to restore the original health of escape plane, Keep Skid, etc)
+
 // Player::Behaviors @ 0x4EEE58
 enum PlayerBehaviorId : uint32_t
 {
@@ -1128,8 +1131,4 @@ void ReloadedValuePatches()
 
 	// Global Lock-On 0.1 -> 0.125
 	X86_STORE_F32(0x474C00, 0.125f);
-
-	// TODO: Finalize and add any gecko / optional disables (some people like to restore the original health of escape plane, Keep Skid, etc)
-	// Play as BATTLE Characters in 1P Mode v2 (make this as code instead of built in since some people didn't like it)
-	// fix 'Using Android characters may possibly crash in Last Story's Devil Doom' from my old notes
 }

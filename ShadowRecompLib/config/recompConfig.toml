@@ -2380,3 +2380,8 @@ jump_address = 0x720E8
 name = "GrindRailJumpVelocityMidAsmHook"
 address = 0x71E4F
 jump_address = 0x71E68
+
+# TStageInitalizeTask (1P branch)
+[[midasm_hook]]
+name = "PlayAsBattleCharactersMidAsmHook"
+address = 0x16F84A

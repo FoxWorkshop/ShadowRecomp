@@ -127,6 +127,7 @@ CONFIG_DEFINE_HIDDEN("Codes", bool, XboxEarlyTargetBehavior, false, false);
 CONFIG_DEFINE_HIDDEN("Codes", bool, HoldLTForceJumpDash, false, false);
 CONFIG_DEFINE_HIDDEN("Codes", bool, ReloadedMod, false, true);
 CONFIG_DEFINE_HIDDEN("Codes", bool, ExtendedMultiplayer, false, false);
+CONFIG_DEFINE_HIDDEN("Codes", bool, PlayAsBattleCharacters, false, false);
 
 CONFIG_DEFINE("Update", bool, CheckForUpdates, false, false); // TODO: default to enabled before release
 CONFIG_DEFINE("Update", time_t, LastChecked, 0, false);
