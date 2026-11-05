@@ -3705,8 +3705,6 @@ static void DrawProfiler()
 			ImGui::Separator();
 
 			ImGui::Checkbox("Show FPS", &Config::ShowFPS.Value);
-			ImGui::SameLine();
-			ImGui::Checkbox("Extended Multiplayer", &Config::ExtendedMultiplayer.Value);
 		}
 
 		if (g_userHeap.heap != nullptr && g_userHeap.physicalHeap != nullptr)
