@@ -2361,3 +2361,13 @@ name = "GroundStartSpeedMidAsmHook"
 address = 0x72789
 jump_address_on_true = 0x72790
 # End player speed fix
+
+[[midasm_hook]]
+name = "GrindRailExitVelocityMidAsmHook"
+address = 0x720AE
+jump_address = 0x720E8
+
+[[midasm_hook]]
+name = "GrindRailJumpVelocityMidAsmHook"
+address = 0x71E4F
+jump_address = 0x71E68

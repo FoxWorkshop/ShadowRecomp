@@ -533,3 +533,36 @@ X86_OVERRIDE_FUNC(sub_252EA0)
 		X86_STORE_U32(bird + 0x9C, flags | 0x20);
 	}
 }
+
+// Fix the grind rail exit 'fling' bug introduced sometime after beta 4
+void GrindRailExitVelocityMidAsmHook(X86Context& __restrict ctx, uint8_t* base)
+{
+	const uint32_t grind = ctx.esi.u32;
+	const uint32_t player = X86_LOAD_U32(grind + 0x4);
+	const float speed = X86_LOAD_F32(grind + 0x64);
+	const float dt = X86_LOAD_F32(ctx.esp.u32 + 0x58);
+	float dirX = X86_LOAD_F32(player + 0x4) - X86_LOAD_F32(player + 0xD0);
+	float dirY = X86_LOAD_F32(player + 0x8) - X86_LOAD_F32(player + 0xD4);
+	float dirZ = X86_LOAD_F32(player + 0xC) - X86_LOAD_F32(player + 0xD8);
+	const float length = std::sqrt(dirX * dirX + dirY * dirY + dirZ * dirZ);
+
+	// rail snap
+	if (length < 0.0001f || length > speed * std::abs(dt) * 2.0f)
+	{
+		dirX = X86_LOAD_F32(grind + 0x34);
+		dirY = X86_LOAD_F32(grind + 0x38);
+		dirZ = X86_LOAD_F32(grind + 0x3C);
+	}
+	else // travel
+	{
+		dirX /= length;
+		dirY /= length;
+		dirZ /= length;
+	}
+	X86_STORE_F32(player + 0x1C, dirX * speed);
+	X86_STORE_F32(player + 0x20, dirY * speed);
+	X86_STORE_F32(player + 0x24, dirZ * speed);
+}
+
+// Stub the double apply (exit already handles jump) leading to awkward fling
+void GrindRailJumpVelocityMidAsmHook(X86Context& __restrict ctx, uint8_t* base) {}
