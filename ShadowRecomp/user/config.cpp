@@ -825,6 +825,11 @@ void Config::CreateCallbacks()
 
     Config::Language.Callback = [](ConfigDef<ELanguage>* def)
         {
+            // we only want to change the language on startup
+            // Updating this while running can corrupt the game
+            if (App::s_isInit) 
+                return;
+
             int32_t value = (int32_t)def->Value;
             if (value < 0 || value > 6)
                 value = (int32_t)ELanguage::English;
@@ -832,7 +837,6 @@ void Config::CreateCallbacks()
             MainThreadDispatcher::Get().Post([value]()
                 {
                     auto base = g_memory.base;
-
                     X86_STORE_U32(0x54DD88, value);
                     X86_STORE_U32(0x541504, value);
                 });
