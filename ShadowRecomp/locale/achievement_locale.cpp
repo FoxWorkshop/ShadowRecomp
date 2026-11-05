@@ -119,8 +119,8 @@ std::unordered_map<int, std::unordered_map<ELanguage, AchievementLocale>> g_shrL
 				ELanguage::English,
 				{
 					"March to a Darker World",
-					"Complete the Dark - Dark Ending!",
-					"Completed the Dark - Dark Ending."
+					"Complete the Semi-Dark - Dark Ending!",
+					"Completed the Semi-Dark - Dark Ending."
 				}
 			},
 			{
@@ -173,8 +173,8 @@ std::unordered_map<int, std::unordered_map<ELanguage, AchievementLocale>> g_shrL
 				ELanguage::English,
 				{
 					"Last Remaining Purpose",
-					"Complete the Dark - Hero ending!",
-					"Completed the Dark - Hero ending."
+					"Complete the Semi-Dark - Hero ending!",
+					"Completed the Semi-Dark - Hero ending."
 				}
 			},
 			{
@@ -335,8 +335,8 @@ std::unordered_map<int, std::unordered_map<ELanguage, AchievementLocale>> g_shrL
 				ELanguage::English,
 				{
 					"Reborn Along with Sorrow",
-					"Complete the Hero - Dark ending!",
-					"Completed the Hero - Dark ending."
+					"Complete the Semi-Hero - Dark ending!",
+					"Completed the Semi-Hero - Dark ending."
 				}
 			},
 			{
@@ -389,8 +389,8 @@ std::unordered_map<int, std::unordered_map<ELanguage, AchievementLocale>> g_shrL
 				ELanguage::English,
 				{
 					"Requiem for a Fallen Angel",
-					"Complete the Hero - Hero ending!",
-					"Completed the Hero - Hero ending."
+					"Complete the Semi-Hero - Hero ending!",
+					"Completed the Semi-Hero - Hero ending."
 				}
 			},
 			{
