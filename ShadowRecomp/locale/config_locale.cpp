@@ -832,7 +832,7 @@ CONFIG_DEFINE_ENUM_LOCALE(ECutsceneFramerate)
         ELanguage::French,
         {
             { ECutsceneFramerate::Original, { "ORIGINAL", "Les cinématiques en jeu tournent à 30 IPS." } },
-            { ECutsceneFramerate::Unlocked, { "DESBLOQUÉ", "Les cinématiques en jeu tournent à la limite du nombre d'images." } }
+            { ECutsceneFramerate::Unlocked, { "DÉVERROUILLÉ", "Les cinématiques en jeu tournent à la limite du nombre d'images." } }
         }
     },
     {

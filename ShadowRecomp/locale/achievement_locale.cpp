@@ -89,7 +89,7 @@ std::unordered_map<int, std::unordered_map<ELanguage, AchievementLocale>> g_shrL
 				ELanguage::French,
 			{
 					"A la Conquête du Monde",
-					"Termine le mode Pure Dark - Fin Héro !",
+					"Complétez la fin Pure Dark - Fin Héro !",
 					"Fin Pure Dark - Hero complétée."
 				}
 			},
@@ -359,7 +359,7 @@ std::unordered_map<int, std::unordered_map<ELanguage, AchievementLocale>> g_shrL
 				ELanguage::French,
 				{
 					"Une Vie de Chagrin",
-					"Complétez la fin Semi-Hero - Dark !"
+					"Complétez la fin Semi-Hero - Dark !",
 					"Fin Semi-Hero - Dark complétée."
 				}
 			},
