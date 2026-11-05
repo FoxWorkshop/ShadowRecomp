@@ -124,6 +124,7 @@ CONFIG_DEFINE_HIDDEN("Codes", bool, FillChaosControlGaugeOnInput, false, false);
 CONFIG_DEFINE_HIDDEN("Codes", bool, FillChaosBlastGaugeOnInput, false, false);
 CONFIG_DEFINE_HIDDEN("Codes", bool, VacuumAnyEnemy, false, false);
 CONFIG_DEFINE_HIDDEN("Codes", bool, VacuumGivePointsOnFireSuck, false, false);
+CONFIG_DEFINE_HIDDEN("Codes", bool, XboxEarlyTargetBehavior, false, false);
 CONFIG_DEFINE_HIDDEN("Codes", bool, HoldLTForceJumpDash, false, false);
 CONFIG_DEFINE_HIDDEN("Codes", bool, ReloadedMod, false, true);
 

@@ -19,7 +19,6 @@ void FireVacuumCallbackMidAsmHook(X86Context& __restrict ctx, uint8_t* base)
         return;
     }
 
-
     // ebp = GadgetCharInfo (object being sucked)
     // ebp+0x50 = GadgetID, 0x1A = Fire
     // ebp+0x64 = CharCommandUnit, handler instance is 0x8 inside CharCommandUnit
@@ -76,7 +75,6 @@ void ExpertSelectMidAsmHook(X86Context& __restrict ctx, uint8_t* base)
         X86_STORE_U8(ctx.edx.u32 + 0x59, 1);
     }
 }
-
 
 // Hold LT to force JumpDash standalone code (also enabled with Reloaded)
 // CreateBehavior (all player actions)
@@ -230,4 +228,49 @@ X86_OVERRIDE_FUNC(sub_CEED0)
     uint32_t hierarchy = X86_LOAD_U32(X86_LOAD_U32(model) + 8);
     if (hierarchy != 0)
         ClearNodeCallbacks(base, X86_LOAD_U32(hierarchy + 0xC), 0);
+}
+
+// XboxEarlyTargetBehavior = true to restore Oct 16 build behavior (target BkWorms out of bounds, BkNinja in warping state)
+// Matches the GC enemy hidden state handle. After digging more into it this seems like an accidental change in Oct 16 builds.
+bool EnemyColliderXboxGCStateMidAsmHook(X86Context& __restrict ctx, uint8_t* base)
+{
+    return !Config::XboxEarlyTargetBehavior;
+}
+
+// copies sub_CDC20's skipped block from the missing init for enemy AI state
+X86_FUNC_IMPL(__imp__sub_CE6C0);
+X86_FUNC_IMPL(__imp__sub_12350);
+static void CreateEnemyColliders(const X86Context& ctx, uint8_t* base, uint32_t status)
+{
+    const uint32_t enemy = X86_LOAD_U32(status + X86_LOAD_U32(X86_LOAD_U32(status + 0x4) + 0x4) + 0x4);
+    const uint32_t param = X86_LOAD_U32(enemy + 0x4);
+    const uint32_t colliInfo = GuestToHostFunction<uint32_t, CallConvention::Thiscall>(ctx, X86_LOAD_U32(X86_LOAD_U32(param) + 0x6C), param);
+    X86Context call = ctx;
+    call.esp.u32 -= 8;
+    const uint32_t colliders = call.esp.u32;
+    X86_PUSH(call, base, colliInfo);
+    X86_PUSH(call, base, enemy);
+    X86_PUSH(call, base, colliders);
+    call.esp.u32 -= 4;
+    __imp__sub_CE6C0(call, base);
+
+    const uint32_t oldCount = X86_LOAD_U32(status + 0x68);
+    X86_STORE_U32(status + 0x64, X86_LOAD_U32(colliders));
+    X86_STORE_U32(status + 0x68, X86_LOAD_U32(colliders + 0x4));
+    if (oldCount != 0)
+    {
+        GuestToHostFunction<void, CallConvention::Thiscall>(ctx, __imp__sub_12350, oldCount);
+    }
+}
+
+// EnemyStatusCommon slot 0 (Oct 12 and earlier build set the colliders on init)
+X86_FUNC_IMPL(__imp__sub_CCC90);
+X86_OVERRIDE_FUNC(sub_CCC90)
+{
+    const uint32_t status = ctx.ecx.u32;
+    __imp__sub_CCC90(ctx, base);
+    if (!Config::XboxEarlyTargetBehavior)
+    {
+        CreateEnemyColliders(ctx, base, status);
+    }
 }

@@ -136,6 +136,7 @@ function_hooks = [
 	0xC0DC0,
 	0xC23B0,
 	0xC3580,
+	0xCCC90,
 	0xCEED0,
 	0x114650,
 	0x115A50,
@@ -2023,6 +2024,14 @@ name = "VacuumAnyEnemySkipResistMidAsmHook"
 address = 0x12739F
 jump_address_on_true = 0x1273B3
 # End Vacuum any enemy cheat
+
+# Start hidden enemies untargetable (XboxEarlyTargetBehavior code skips)
+# EnemyStatusCommon slot 1, colliders already built in slot 0
+[[midasm_hook]]
+name = "EnemyColliderXboxGCStateMidAsmHook"
+address = 0xCDC4D
+jump_address_on_true = 0xCDCAD
+# End hidden enemies untargetable
 
 [[midasm_hook]]
 name = "KatanaBulletSweepMidAsmHook"
