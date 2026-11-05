@@ -235,11 +235,6 @@ static void DrawButton(X86Context* ctx, ImVec2 min, ImVec2 max, const char* butt
 	}
 
 	auto drawList = ImGui::GetBackgroundDrawList();
-	float alpha = 255;
-	if (!buttonEnabled)
-	{
-		alpha *= 0.5f;
-	}
 	auto& io = ImGui::GetIO();
 	bool btnHovered = false;
 
@@ -255,6 +250,12 @@ static void DrawButton(X86Context* ctx, ImVec2 min, ImVec2 max, const char* butt
 	else
 	{
 		playedLangSound[i] = false;
+	}
+
+	float alpha = 255;
+	if (!buttonEnabled && !btnHovered)
+	{
+		alpha *= 0.5f;
 	}
 
 	if (btnHovered && io.MouseClicked[0] && !buttonEnabled)
