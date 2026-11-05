@@ -2257,25 +2257,39 @@ void BeltTrailFadeMidAsmHook(X86Context& __restrict ctx, uint8_t* base)
 
 /** --Eff::LocusMultiVtx Patch START-- */
 
-std::unordered_map<uint32_t, float> g_locusCarry; // map per Locus effect to support multiplayer
-static bool EffectLocusMultiVtxStep(uint32_t locus)
+// Step once per frame per locus so splits only draw
+struct LocusStep
 {
+	int32_t frame;
+	float carry;
+};
+std::unordered_map<uint32_t, LocusStep> g_locusSteps; // map per Locus effect to support multiplayer
+static bool EffectLocusMultiVtxStep(uint32_t locus, bool force = false)
+{
+	if (g_locusSteps.size() > 64)
+	{
+		g_locusSteps.clear(); // stale entries of dead effects, safe to reset
+	}
+
+	const int32_t frame = g_frameCount;
+	auto [it, first] = g_locusSteps.try_emplace(locus, LocusStep{ frame, 0.0f });
+	LocusStep& step = it->second;
+	if (!first && step.frame == frame)
+	{
+		return false; // already stepped by an earlier view this frame
+	}
+	step.frame = frame;
+
 	const float frames = g_deltaTime * 60.0f;
-	if (!(frames > 0.0f) || std::fabs(frames - 1.0f) < 0.0001f)
+	if (force || !(frames > 0.0f) || std::fabs(frames - 1.0f) < 0.0001f)
 	{
 		return true;
 	}
 
-	if (g_locusCarry.size() > 64)
+	step.carry += frames;
+	if (step.carry >= 1.0f)
 	{
-		g_locusCarry.clear(); // stale entries of dead effects, safe to reset
-	}
-
-	float& carry = g_locusCarry[locus];
-	carry += frames;
-	if (carry >= 1.0f)
-	{
-		carry -= (float)(int)carry;
+		step.carry -= (float)(int)step.carry;
 		return true;
 	}
 	return false;
@@ -2288,7 +2302,7 @@ bool MeleeEffectLocusMultiVtxTrailPushMidAsmHook(X86Context& __restrict ctx, uin
 {
 	// first sample always push, not perfect depending on current MTN the player is doing,
 	// but makes the effect start much more consistently
-	return X86_LOAD_U32(ctx.esi.u32 + 0x20) == 0 || EffectLocusMultiVtxStep(ctx.esi.u32);
+	return EffectLocusMultiVtxStep(ctx.esi.u32, X86_LOAD_U32(ctx.esi.u32 + 0x20) == 0);
 }
 
 // Locus fade @ sub_260B40
