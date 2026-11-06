@@ -127,7 +127,6 @@ std::unordered_map<std::string_view, std::unordered_map<ELanguage, std::string>>
 	},
    {
 	   // Notes: description for Music Attenuation when the user is not running a supported OS.
-	   // Japanese Notes: This localization should include furigana.
 	   "Options_Desc_OSNotSupported",
 	   {
 		   { ELanguage::English,  "This option is not supported by your operating system." },
@@ -877,7 +876,6 @@ std::unordered_map<std::string_view, std::unordered_map<ELanguage, std::string>>
 	}
 },
 {
-		// Japanese Notes: This localization should include furigana.
 		"Installer_Page_CheckSpace",
 		{
 			{ ELanguage::English,  "The content will be installed to the program's folder.\n\n" },
@@ -889,7 +887,6 @@ std::unordered_map<std::string_view, std::unordered_map<ELanguage, std::string>>
 		}
 },
 {
-		// Japanese Notes: This localization should include furigana.
 		"Installer_Step_RequiredSpace",
 		{
 			{ ELanguage::English,  "Required space: %.2f GiB" },
@@ -901,7 +898,6 @@ std::unordered_map<std::string_view, std::unordered_map<ELanguage, std::string>>
 		}
 },
 {
-		// Japanese Notes: This localization should include furigana.
 		"Installer_Step_AvailableSpace",
 		{
 			{ ELanguage::English,  "Available space: %.2f GiB" },

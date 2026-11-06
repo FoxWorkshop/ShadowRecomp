@@ -37,12 +37,6 @@
           { ELanguage::Japanese, "Example" }
       }
 
-    - Japanese localization should use furigana for message windows, options items,
-    options descriptions and installer text.
-
-      Furigana should be included in the text as such:
-      "[私:わたし]はジョージです。"
-
     !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 */
 
@@ -52,7 +46,7 @@
 #define CONFIG_DEFINE_ENUM_LOCALE(type) \
     CONFIG_ENUM_LOCALE(type) g_##type##_locale =
 
-// TODO: Retranslate, I dropped "and logos" in EN
+
 CONFIG_DEFINE_LOCALE(Language)
 {
     { ELanguage::English, { "Language", "Change the language used for text." } },
@@ -165,7 +159,7 @@ CONFIG_DEFINE_LOCALE(ControllerIcons)
     { ELanguage::Italian,  { "Icone dei tasti", "Modifica le icone per farle corrispondere con il tuo controller." } }
 };
 
-// Japanese Notes: This localization should include furigana in its description.
+
 CONFIG_DEFINE_ENUM_LOCALE(EControllerIcons)
 {
     {
@@ -443,7 +437,7 @@ CONFIG_DEFINE_LOCALE(CutsceneVolume)
     { ELanguage::Italian,  { "Volume dei filmati", "Regola il volume per i filmati" } }
 };
 
-// Japanese Notes: This localization should include furigana.
+
 CONFIG_DEFINE_LOCALE(MusicAttenuation)
 {
     { ELanguage::English,  { "Music Attenuation", "Fade out the game's music when external media is playing." } },
@@ -702,7 +696,7 @@ CONFIG_DEFINE_LOCALE(FMVAspectRatio)
     { ELanguage::Italian,  { "Rapporto d'aspetto FMV", "Cambia come i full motion videos (Filmati pre-registrati) si adatti al display." } }
 };
 
-// Japanese Notes: This localization should include furigana in its description.
+
 CONFIG_DEFINE_ENUM_LOCALE(EFMVAspectRatio)
 {
     {
