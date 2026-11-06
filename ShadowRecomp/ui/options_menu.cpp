@@ -448,6 +448,40 @@ void DrawDescription(std::string s, const double scrollDelay)
 	drawList->PopClipRect();
 }
 
+struct ScrollTextWorker
+{
+	int Row = -1;
+	std::string Text{};
+	int LastFrame = -2;
+	double StartTime{};
+};
+
+static float GetTextScrollOffset(int row, const std::string& text, float loopWidth, float speed, double pauseTime)
+{
+	static ScrollTextWorker textWK{};
+	auto frame = ImGui::GetFrameCount();
+	auto time = ImGui::GetTime();
+
+	if (textWK.Row != row || textWK.Text != text || textWK.LastFrame < frame - 1)
+	{
+		textWK.Row = row;
+		textWK.Text = text;
+		textWK.StartTime = time;
+	}
+
+	textWK.LastFrame = frame;
+
+	if (loopWidth <= 0.0f || speed <= 0.0f)
+		return 0.0f;
+
+	// wait once when the cursor arrive, then loop scrolling.
+	double elapsed = time - textWK.StartTime - pauseTime;
+
+	if (elapsed <= 0.0)
+		return 0.0f;
+
+	return (float)std::fmod(elapsed * speed, (double)loopWidth);
+}
 
 //Returns truncated string with ellipsis if it exceeds maxWidth
 static std::string TruncateTextWithEllipsis(ImFont* font, float fontSize, const std::string& text, float maxWidth)
@@ -654,36 +688,14 @@ static void DrawOption
 
 	if (titleOverflows && isHover)
 	{
-		static double s_titleMarqueeStartTime = 0.0;
-		static int s_titleMarqueeRow = -1;
-
-		if (s_titleMarqueeRow != rowIndex)
-		{
-			s_titleMarqueeRow = rowIndex;
-			s_titleMarqueeStartTime = ImGui::GetTime();
-		}
-
-		constexpr double PAUSE_BEFORE = 1.0;
-		constexpr double PAUSE_AFTER = 0.75;
-		constexpr double SCROLL_SPEED = 80.0;
-		const float  overflow = titleTextSize.x - titleAreaWidth;
-		const float  scaledSpeed = (float)(Scale(1) * SCROLL_SPEED);
-		const double scrollDur = overflow / scaledSpeed;
-		const double cycleDur = PAUSE_BEFORE + scrollDur + PAUSE_AFTER;
-
-		double elapsed = std::fmod(ImGui::GetTime() - s_titleMarqueeStartTime, cycleDur);
-		float  scrollX = 0.0f;
-
-		if (elapsed > PAUSE_BEFORE && elapsed < PAUSE_BEFORE + scrollDur)
-			scrollX = (float)((elapsed - PAUSE_BEFORE) * scaledSpeed);
-		else if (elapsed >= PAUSE_BEFORE + scrollDur)
-			scrollX = overflow;
+		const float loopWidth = titleTextSize.x + Scale(50);
+		float scrollX = GetTextScrollOffset(rowIndex, titleText, loopWidth, Scale(80), 1.0);
 
 		drawList->PushClipRect({ titleAreaStart, clipRectMin.y }, { titleAreaEnd, clipRectMax.y }, true);
 		ImVec2 scrolledTitlePos = { titlePos.x - scrollX, titlePos.y };
 
-
 		DrawMenuText(fontOptionSize, scrolledTitlePos, TexColor, titleText.c_str(), isHoverOrSelected);
+		DrawMenuText(fontOptionSize, { scrolledTitlePos.x + loopWidth, scrolledTitlePos.y }, TexColor, titleText.c_str(), isHoverOrSelected);
 
 		drawList->PopClipRect();
 	}
@@ -1115,42 +1127,19 @@ static void DrawOption
 
 	if (valueAreaWidth > 0.0f)
 	{
-
 		if (overflows && isHover)
 		{
-			// Marquee scroll: slide the text left over time, then snap back
-			static double s_marqueeStartTime = 0.0;
-			static int s_marqueeRow = -1;
+			const float loopWidth = rawValueSize.x + Scale(30);
+			float scrollX = GetTextScrollOffset(rowIndex, valueText, loopWidth, Scale(80), 0.5);
 
-			if (s_marqueeRow != rowIndex)
-			{
-				s_marqueeRow = rowIndex;
-				s_marqueeStartTime = ImGui::GetTime();
-			}
+			valuePos.x = valueAreaStart - scrollX;
 
-			constexpr double PAUSE_BEFORE = 1.0;   // seconds of pause before scrolling
-			constexpr double PAUSE_AFTER = 0.75;  // seconds of pause once fully scrolled
-			constexpr double SCROLL_SPEED = 40.0;  // pixels per second (pre-scale)
-			const float  overflow = rawValueSize.x - valueAreaWidth;
-			const float  scaledSpeed = (float)(Scale(1) * SCROLL_SPEED);
-			const double scrollDur = overflow / scaledSpeed;
-			const double cycleDur = PAUSE_BEFORE + scrollDur + PAUSE_AFTER;
-
-			double elapsed = std::fmod(ImGui::GetTime() - s_marqueeStartTime, cycleDur);
-			float  scrollX = 0.0f;
-
-			if (elapsed > PAUSE_BEFORE && elapsed < PAUSE_BEFORE + scrollDur)
-				scrollX = (float)((elapsed - PAUSE_BEFORE) * scaledSpeed);
-			else if (elapsed >= PAUSE_BEFORE + scrollDur)
-				scrollX = overflow;
-
-			float marqueeStartX = valueAreaStart;
-			valuePos.x = marqueeStartX - scrollX;
+			auto valueColor = IM_COL32(255, 255, 255, isAccessible ? 255 : 127);
 
 			drawList->PushClipRect({ valueAreaStart, clipRectMin.y }, { valueAreaEnd, clipRectMax.y }, true);
 
-
-			DrawMenuText(fontValueSize, valuePos, IM_COL32(255, 255, 255, isAccessible ? 255 : 127), valueText.data());
+			DrawMenuText(fontValueSize, valuePos, valueColor, valueText.data());
+			DrawMenuText(fontValueSize, { valuePos.x + loopWidth, valuePos.y }, valueColor, valueText.data());
 
 			drawList->PopClipRect();
 		}
