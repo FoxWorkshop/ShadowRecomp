@@ -151,7 +151,7 @@ CONFIG_DEFINE_LOCALE(ConfirmationPrompt)
     { ELanguage::Japanese, { "確認プロンプト", "セーブデータのロード、やめる、はじめからなどの際に確認プロンプトを表示します。このオプションを無効にすると、ゲームキューブ版と同じ動作になります。" } },
     { ELanguage::German,   { "Bestätigungsaufforderungen", "Zeigt Bestätigungsabfragen beim Laden eines Spielstands, beim Verlassen des Menüs, beim Neustart und in ähnlichen Situationen an. Durch Deaktivieren dieser Option wird das Verhalten der GameCube-Version Repliziert." } },
     { ELanguage::French,   { "Message de confirmation", "Affiche les messages de confirmation lors du chargement d'une sauvegarde, du retour au menu, du redémarrage et dans d'autres situations similaires. Désactiver cette option reproduit le comportement de la version GameCube." } },
-    { ELanguage::Spanish,  { "Mensajes de confirmación", "Muestra una confirmación al cargar un archivo de guardado, salir al menú principal, reiniciar el nivel y otras situaciones similares. Desactivar esta opción replica el funcionamiento de la version de GameCube." } },
+    { ELanguage::Spanish,  { "Mensajes de confirmación", "Muestra una confirmación al cargar un archivo de guardado, salir al menú principal, reiniciar el nivel y otras situaciones similares. Desactivar esta opción replica el funcionamiento de la versión de GameCube." } },
     { ELanguage::Italian,  { "Prompt di Conferma", "Mostra un Prompt di Conferma mentre carichi un salvataggio, ritornando al menu, riavviando il gioco, e altre simili situazioni. Disabilitare questa opzione replica il comportamento della versione GameCube." } },
 };
 
@@ -173,7 +173,7 @@ CONFIG_DEFINE_ENUM_LOCALE(EControllerIcons)
         {
             { EControllerIcons::Auto,        { "AUTO", "The game will determine which icons to use based on the current input device." } },
             { EControllerIcons::Xbox,        { "XBOX", "" } },
-            { EControllerIcons::PlayStation2, { "PLAYSTATION2", "" } },
+            { EControllerIcons::PlayStation2, { "PS2", "" } },
             { EControllerIcons::Gamecube, { "GAMECUBE", "" } }
         }
     },
@@ -182,7 +182,7 @@ CONFIG_DEFINE_ENUM_LOCALE(EControllerIcons)
         {
             { EControllerIcons::Auto,        { "自動", "現在の操作デバイスに応じて、ゲームが使用するアイコンを決定します。" } },
             { EControllerIcons::Xbox,        { "XBOX", "" } },
-            { EControllerIcons::PlayStation2, { "PLAYSTATION2", "" } },
+            { EControllerIcons::PlayStation2, { "PS2", "" } },
             { EControllerIcons::Gamecube, { "GAMECUBE", "" } }
         }
     },
@@ -191,7 +191,7 @@ CONFIG_DEFINE_ENUM_LOCALE(EControllerIcons)
         {
             { EControllerIcons::Auto,        { "AUTO", "Das Spiel erkennt automatisch deinen Controller um die Symbole dementsprechend anzupassen." } },
             { EControllerIcons::Xbox,        { "XBOX", "" } },
-            { EControllerIcons::PlayStation2, { "PLAYSTATION2", "" } },
+            { EControllerIcons::PlayStation2, { "PS2", "" } },
             { EControllerIcons::Gamecube, { "GAMECUBE", "" } }
         }
     },
@@ -200,7 +200,7 @@ CONFIG_DEFINE_ENUM_LOCALE(EControllerIcons)
         {
             { EControllerIcons::Auto,        { "AUTO", "Le jeu déterminera automatiquement quelles icônes utiliser en fonction du périphérique d'entrée." } },
             { EControllerIcons::Xbox,        { "XBOX", "" } },
-            { EControllerIcons::PlayStation2, { "PLAYSTATION2", "" } },
+            { EControllerIcons::PlayStation2, { "PS2", "" } },
             { EControllerIcons::Gamecube, { "GAMECUBE", "" } }
         }
     },
@@ -209,7 +209,7 @@ CONFIG_DEFINE_ENUM_LOCALE(EControllerIcons)
         {
             { EControllerIcons::Auto,        { "AUTO", "El juego determinará de forma automática qué iconos utilizar dependiendo del dispositivo de entrada." } },
             { EControllerIcons::Xbox,        { "XBOX", "" } },
-            { EControllerIcons::PlayStation2, { "PLAYSTATION2", "" } },
+            { EControllerIcons::PlayStation2, { "PS2", "" } },
             { EControllerIcons::Gamecube, { "GAMECUBE", "" } }
         }
     },
@@ -218,7 +218,7 @@ CONFIG_DEFINE_ENUM_LOCALE(EControllerIcons)
         {
             { EControllerIcons::Auto,        { "AUTO", "Auto: il gioco determinerà quali icone da utilizzare in base al dispositivo di input attuale." } },
             { EControllerIcons::Xbox,        { "XBOX", "" } },
-            { EControllerIcons::PlayStation2, { "PLAYSTATION2", "" } },
+            { EControllerIcons::PlayStation2, { "PS2", "" } },
             { EControllerIcons::Gamecube, { "GAMECUBE", "" } }
         }
     }
@@ -867,7 +867,7 @@ CONFIG_DEFINE_LOCALE(Brightness)
     { ELanguage::Japanese, { "明るさの設定", "画面の明るさを調整します。" } },
     { ELanguage::German,   { "Helligkeit", "Passe die Helligkeit an." } },
     { ELanguage::French,   { "Luminosité", "Réglez le niveau de luminosité." } },
-    { ELanguage::Spanish,  { "Brillo", "Ajusta el nivel de brillo." } },
+    { ELanguage::Spanish,  { "Brillo", "Ajusta el nivel del brillo." } },
     { ELanguage::Italian,  { "Luminosità", "Regola il livello di luminosità." } }
 };
 

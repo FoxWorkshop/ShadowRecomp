@@ -146,7 +146,7 @@ std::unordered_map<std::string_view, std::unordered_map<ELanguage, std::string>>
 		{ ELanguage::Japanese, "操作設定" },
 		{ ELanguage::German,   "Steuerung anpassen" },
 		{ ELanguage::French,   "Personnaliser les contrôles" },
-		{ ELanguage::Spanish,  "Personaliza los controles" },
+		{ ELanguage::Spanish,  "Personalizar los controles" },
 		{ ELanguage::Italian,  "Personalizzazione Input" }
 	}
 },
@@ -303,7 +303,7 @@ std::unordered_map<std::string_view, std::unordered_map<ELanguage, std::string>>
 		{ ELanguage::Japanese, "このオプションはゲームプレイ中は使用できません。" },
 		{ ELanguage::German,   "Diese Einstellung kann während des Spiels nicht verändert werden." },
 		{ ELanguage::French,   "Cette option n'est pas disponible en cours de jeu." },
-		{ ELanguage::Spanish,  "Esta opción no está disponible durante el juego." },
+		{ ELanguage::Spanish,  "Esta opción no está disponible durante la partida." },
 		{ ELanguage::Italian,  "Questa opzione non è disponibile durante il gioco." }
 	}
 },
@@ -455,7 +455,7 @@ std::unordered_map<std::string_view, std::unordered_map<ELanguage, std::string>>
 		{ ELanguage::Japanese, "Shadow Recompiledへようこそ！\n\nインストールを続行するには、\n『シャドウ・ザ・ヘッジホッグ』のXbox版が必要です。" },
 		{ ELanguage::German,   "Wilkommen zu Shadow Recompiled!\n\nDu wirst eine Xbox Kopie von\nShadow the Hedgehog benötigen um\nmit der Installation fortzufahren."},
 		{ ELanguage::French,   "Bienvenue sur Shadow Recompiled!\n\nVous aurez besoin d'une copie Xbox\nde Shadow the Hedgehog pour\npouvoir continuer l'installation." },
-		{ ELanguage::Spanish,  "¡Te damos la bienvenida a Shadow Recompiled!\n\nNecesitarás una copia de la versión de XBOX de\nShadow the Hedgehog para\nproceder con la instalación." },
+		{ ELanguage::Spanish,  "¡Te damos la bienvenida a\nShadow Recompiled!\n\nNecesitarás una copia de la versión de XBOX de Shadow the Hedgehog\npara proceder con la instalación." },
 		{ ELanguage::Italian,  "Benvenuti a Shadow Recompiled!\n\nTi servirà una copia XBOX di\nShadow the Hedgehog per poter\nProcedere con l'installazione" }
 	}
 },
@@ -477,7 +477,7 @@ std::unordered_map<std::string_view, std::unordered_map<ELanguage, std::string>>
 		{ ELanguage::Japanese, "ISOまたはdefault.xbeを\nドラッグ＆ドロップするか、選択してください。" },
 		{ ELanguage::German,   "Drag & Drop oder wähle eine ISO oder default.xbe aus." },
 		{ ELanguage::French,   "Faites glisser ou sélectionnez le fichier .ISO ou default.xbe" },
-		{ ELanguage::Spanish,  "Arrasta o selecciona el archivo .ISO o default.xbe" },
+		{ ELanguage::Spanish,  "Arrasta o selecciona el archivo ISO o default.xbe"  },
 		{ ELanguage::Italian,  "Trascina e rilascia o seleziona una ISO o default.xbe" }
 	}
 },
@@ -646,7 +646,7 @@ std::unordered_map<std::string_view, std::unordered_map<ELanguage, std::string>>
 		{ ELanguage::Japanese, "選択した元データは、\n『シャドウ・ザ・ヘッジホッグ』のXbox版ISOとしても、\n展開済みのゲームフォルダーとしても認識できません。" },
 		{ ELanguage::German,   "Die ausgewählte Quelle ist keine gültige Shadow the Hedgehog Xbox ISO-Datei\noder kein extrahierter Spielordner." },
 		{ ELanguage::French,   "La fichier sélectionnée n'est pas un .ISO valide\nou un dossier du jeu Shadow the Hedgehog." },
-		{ ELanguage::Spanish,  "El archivo de origen seleccionado no es un archivo .ISO válido o una carpeta de juego\nde Shadow the Hedgehog." },
+		{ ELanguage::Spanish,  "El archivo de origen seleccionado no es un archivo ISO válido de Shadow the Hedgehog\npara Xbox ni una carpeta de juego extraída." },
 		{ ELanguage::Italian,  "La fonte selezionata non è una XBOX ISO valida di Shadow the Hedgehog Xbox ISO\no una cartella di gioco estratta." }
 	}
 },
@@ -671,7 +671,7 @@ std::unordered_map<std::string_view, std::unordered_map<ELanguage, std::string>>
 		{ ELanguage::Japanese, "シャドウ・ザ・ヘッジホッグの\nゲームデータが存在しません。\nシャドウ・ザ・ヘッジホッグは\nオートセーブを使用しています。\nゲームデータの作成を行います。\nよろしいですか？" },
 		{ ELanguage::German,   "Auf Ihrem PC befinden sich keine Spieldaten.\nSHADOW THE HEDGEHOG™\nunterstützt eine automatische\nSpeicherfunktion. Möchten Sie Spieldaten erstellen?" },
 		{ ELanguage::French,   "Pas de données de jeu sur ce PC.\nSHADOW THE HEDGEHOG™\ndispose d'un système de sauvegarde automatique.\nCréer des données de jeu sur\nce PC?" },
-		{ ELanguage::Spanish,  "No se han encontrado datos de juego en tu PC.\nSHADOW THE HEDGEHOG™\nutiliza una función de autoguardado.\n¿Quieres crear datos de juego?" },
+		{ ELanguage::Spanish,  "No se han encontrado datos de juego en tu PC.\nSHADOW THE HEDGEHOG™ utiliza una función de autoguardado.\n¿Quieres crear datos de juego?" },
 		{ ELanguage::Italian,  "Non è stato trovato un salvataggio.\nSHADOW THE HEDGEHOG™\nsupporta una funzione di autosalvataggio.\nVuoi creare un nuovo salvataggio?" }
 	}
 },
@@ -684,7 +684,7 @@ std::unordered_map<std::string_view, std::unordered_map<ELanguage, std::string>>
 		{ ELanguage::Japanese, "ゲームデータを作成せずに開始します。\nこの場合、セーブはできません。" },
 		{ ELanguage::German,   "Spiel starten, ohne Spieldaten zu\nerstellen. Der Spielstand wird\nnicht gespeichert." },
 		{ ELanguage::French,   "Démarrer le jeu sans créer de données du jeu.\nLa progression du jeu ne sera\npas sauvegardée." },
-		{ ELanguage::Spanish,  "Comienza el juego sin crear\ndatos de juego.\nEl progreso durante la partida no será guardado." },
+		{ ELanguage::Spanish,  "Comenzarás el juego sin crear datos de juego.\nEl progreso durante la partida no será guardado." },
 		{ ELanguage::Italian,  "Incomincia senza creare un\nSalvataggio.\nI progressi di gioco non saranno salvati." }
 	}
 },
@@ -696,7 +696,7 @@ std::unordered_map<std::string_view, std::unordered_map<ELanguage, std::string>>
 		{ ELanguage::Japanese, "ゲームデータを読み込めません。\nゲームデータが破損しています。\nAボタンを押してください。" },
 		{ ELanguage::German,   "Spieldaten sind beschädigt und\nkönnen nicht verwendet werden.\nDrücken Sie bitte die A-Taste\num fortzufahren.." },
 		{ ELanguage::French,   "Les données de jeu sont endommagées.\nAppuyer sur A pour continuer." },
-		{ ELanguage::Spanish,  "Los datos de juego están dañados\ny no se pueden utilizar.\nPulsa el botón A para continuar." },
+		{ ELanguage::Spanish,  "Los datos de juego están dañados y no se pueden utilizar.\nPulsa el botón A para continuar." },
 		{ ELanguage::Italian,  "Il Salvataggio è danneggiato\ne non può essere usato.\nPremi A per continuare." },
 	}
 },
@@ -708,7 +708,7 @@ std::unordered_map<std::string_view, std::unordered_map<ELanguage, std::string>>
 		{ ELanguage::Japanese, "ゲームデータを読み込めません。\nゲームデータが破損しています。" },
 		{ ELanguage::German,   "Spieldaten sind beschädigt und\nkönnen nicht verwendet werden." },
 		{ ELanguage::French,   "Les données de jeu sont endommagées." },
-		{ ELanguage::Spanish,  "Los datos de juego están dañados." },
+		{ ELanguage::Spanish,  "Los datos de juego están dañados y no se pueden utilizar." },
 		{ ELanguage::Italian,  "Il salvataggio è danneggiato \ne e non può essere usato." },
 	}
 },
@@ -731,7 +731,7 @@ std::unordered_map<std::string_view, std::unordered_map<ELanguage, std::string>>
 		{ ELanguage::Japanese, "ゲームデータに上書きします。\n上書きした場合、今までのゲームデータの\n内容は消えてしまいます。よろしいですか？\n以降はこのゲームデータに\nオートセーブを行います。" },
 		{ ELanguage::German,   "Vorige Spieldaten sind auf dem Gerät\nschon vorhanden.\nspeichern wird sie überschrieben.\nSind Sie sicher das Sie Speichern\nmöchten?" },
 		{ ELanguage::French,   "Voulez-vous écraser les données de jeu ?\nAttention, cela écrasera toutes les données de jeu précédentes." },
-		{ ELanguage::Spanish,  "¿Quieres sobrescribir los datos de juego?\n¡Cuidado! Esto sobrescribirá\nlos datos de juego existentes." },
+		{ ELanguage::Spanish,  "¿Quieres sobrescribir los datos de juego?\n¡Cuidado! Esto sobrescribirá los datos de juego existentes." },
 		{ ELanguage::Italian,  "Desideri sovrascrivere il salvataggio?\nAttenzione! Questo sovrascrivera il\nsalvataggio di gioco presente" },
 	}
 },
@@ -742,7 +742,7 @@ std::unordered_map<std::string_view, std::unordered_map<ELanguage, std::string>>
 		{ ELanguage::Japanese, "ゲームデータをロードします。これまでの\nプレイ内容は上書きされるため失われて\nしまいます。よろしいですか？" },
 		{ ELanguage::German,   "Spieldaten Laden?\nAchtung! Bereits vorhandene Spieldaten\nwerden überschrieben." },
 		{ ELanguage::French,   "Voulez-vous charger les données de jeu ?\nAttention, cela écrasera toutes les données de jeu précédentes." },
-		{ ELanguage::Spanish,  "¿Quieres cargar los datos de juego?\n¡Cuidado! Esto sobrescribirá\nlos datos de juego existentes." },
+		{ ELanguage::Spanish,  "¿Quieres cargar los datos de juego?\n¡Cuidado! Esto sobrescribirá los datos de juego existentes." },
 		{ ELanguage::Italian,  "Vuoi caricare il salvataggio?\nAttenzione! Questo sovrascriverà\nil progresso di gioco presente." },
 	}
 },
@@ -753,7 +753,7 @@ std::unordered_map<std::string_view, std::unordered_map<ELanguage, std::string>>
 		{ ELanguage::Japanese, "ゲームデータのロードが完了しました。" },
 		{ ELanguage::German,   "Laden erfolgreicht." },
 		{ ELanguage::French,   "Chargement réussi." },
-		{ ELanguage::Spanish,  "Se ha cargado correctamente." },
+		{ ELanguage::Spanish,  "Se han cargado correctamente." },
 		{ ELanguage::Italian,  "Caricamento completato." },
 	}
 },
@@ -792,7 +792,7 @@ std::unordered_map<std::string_view, std::unordered_map<ELanguage, std::string>>
 		{ ELanguage::Japanese, "このステージのスタート地点から、\nゲームをやり直します。\n現在プレイしているステージの\n内容は失われます。\nよろしいですか？" },
 		{ ELanguage::German,   "Sind Sie sicher das Sie die Ebene  \nneu beginnen wollen? Der Spielfortschritt\ndieser Ebene wird dabei gelöscht." },
 		{ ELanguage::French,   "Recommencer l'étape ?\nVotre progression sur cette étape\nsera perdue si vous recommencez." },
-		{ ELanguage::Spanish,  "¿Quieres volver a empezar esta etapa?\nTodo el progreso en esta etapa se\nperderá si vuelves a empezar." },
+		{ ELanguage::Spanish,  "¿Quieres volver a empezar esta etapa?\nEl progreso en esta etapa se\nperderá si vuelves a empezar." },
 		{ ELanguage::Italian,  "Sicuro di voler ricominciare il quadro?\nI progressi di questo quadro andranno\npersi se ricominci." },
 	}
 },
@@ -804,7 +804,7 @@ std::unordered_map<std::string_view, std::unordered_map<ELanguage, std::string>>
 		{ ELanguage::Japanese, "ゲームを途中で終了します。\n現在プレイしているステージの\n進行状況はセーブされません。\nよろしいですか？" },
 		{ ELanguage::German,   "Sind Sie sicher das Sie das Spiel\nabbrechen wollen? \nSie verlieren dabei Ihren Fortschritt\nin dieser Ebene." },
 		{ ELanguage::French,   "Quitter la partie ?\nVotre progression sur cette étape\nsera perdue si vous quittez." },
-		{ ELanguage::Spanish,  "¿Quieres abandonar la partida?\nEl progreso de este nivel se\nperderá si abandonas." },
+		{ ELanguage::Spanish,  "¿Quieres abandonar la partida?\nEl progreso de esta etapa se\nperderá si abandonas." },
 		{ ELanguage::Italian,  "Sicuro di voler uscire dal gioco?\nI progressi di questo quadro andranno\npersi se esci dal gioco." },
 	}
 },
@@ -1069,7 +1069,7 @@ std::unordered_map<std::string_view, std::unordered_map<ELanguage, std::string>>
 		{ ELanguage::Japanese, "決定" },
 		{ ELanguage::German,   "wählen" },
 		{ ELanguage::French,   "confirmer" },
-		{ ELanguage::Spanish,  "selecciona" },
+		{ ELanguage::Spanish,  "elegir" },
 		{ ELanguage::Italian,  "seleziona" }
 	}
 },
