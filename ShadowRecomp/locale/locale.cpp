@@ -252,7 +252,7 @@ std::unordered_map<std::string_view, std::unordered_map<ELanguage, std::string>>
 	"Input_Button_LeftTrigger",
 	{
 		{ ELanguage::English,  "Left Trigger" },
-		{ ELanguage::Japanese, "TO DO" },
+		{ ELanguage::Japanese, "左トリガ" },
 		{ ELanguage::German,   "TO DO" },
 		{ ELanguage::French,   "Gachette Gauche" },
 		{ ELanguage::Spanish,  "TO DO" },
@@ -263,7 +263,7 @@ std::unordered_map<std::string_view, std::unordered_map<ELanguage, std::string>>
 	"Input_Button_RightTrigger",
 	{
 		{ ELanguage::English,  "Right Trigger" },
-		{ ELanguage::Japanese, "TO DO" },
+		{ ELanguage::Japanese, "右トリガ" },
 		{ ELanguage::German,   "TO DO" },
 		{ ELanguage::French,   "Gachette Droite" },
 		{ ELanguage::Spanish,  "TO DO" },
@@ -274,7 +274,7 @@ std::unordered_map<std::string_view, std::unordered_map<ELanguage, std::string>>
 	"Input_Button_DPadUp",
 	{
 		{ ELanguage::English,  "D-Pad Up" },
-		{ ELanguage::Japanese, "TO DO" },
+		{ ELanguage::Japanese, "十字キー\u200b上" },
 		{ ELanguage::German,   "TO DO" },
 		{ ELanguage::French,   "Croix Haut" },
 		{ ELanguage::Spanish,  "TO DO" },
@@ -285,7 +285,7 @@ std::unordered_map<std::string_view, std::unordered_map<ELanguage, std::string>>
 	"Input_Button_DPadDown",
 	{
 		{ ELanguage::English,  "D-Pad Down" },
-		{ ELanguage::Japanese, "TO DO" },
+		{ ELanguage::Japanese, "十字キー\u200b下" },
 		{ ELanguage::German,   "TO DO" },
 		{ ELanguage::French,   "Croix Bas" },
 		{ ELanguage::Spanish,  "TO DO" },
@@ -296,7 +296,7 @@ std::unordered_map<std::string_view, std::unordered_map<ELanguage, std::string>>
 	"Input_Button_DPadLeft",
 	{
 		{ ELanguage::English,  "D-Pad Left" },
-		{ ELanguage::Japanese, "TO DO" },
+		{ ELanguage::Japanese, "十字キー\u200b左" },
 		{ ELanguage::German,   "TO DO" },
 		{ ELanguage::French,   "Croix Gauche" },
 		{ ELanguage::Spanish,  "TO DO" },
@@ -307,7 +307,7 @@ std::unordered_map<std::string_view, std::unordered_map<ELanguage, std::string>>
 	"Input_Button_DPadRight",
 	{
 		{ ELanguage::English,  "D-Pad Right" },
-		{ ELanguage::Japanese, "TO DO" },
+		{ ELanguage::Japanese, "十字キー\u200b右" },
 		{ ELanguage::German,   "TO DO" },
 		{ ELanguage::French,   "Croix Droite" },
 		{ ELanguage::Spanish,  "TO DO" },
@@ -318,7 +318,7 @@ std::unordered_map<std::string_view, std::unordered_map<ELanguage, std::string>>
 	"Input_Button_White",
 	{
 		{ ELanguage::English,  "White" },
-		{ ELanguage::Japanese, "TO DO" },
+		{ ELanguage::Japanese, "白ボタン" },
 		{ ELanguage::German,   "TO DO" },
 		{ ELanguage::French,   "Blanc" },
 		{ ELanguage::Spanish,  "TO DO" },
@@ -329,7 +329,7 @@ std::unordered_map<std::string_view, std::unordered_map<ELanguage, std::string>>
 	"Input_Button_Black",
 	{
 		{ ELanguage::English,  "Black" },
-		{ ELanguage::Japanese, "TO DO" },
+		{ ELanguage::Japanese, "黒ボタン" },
 		{ ELanguage::German,   "TO DO" },
 		{ ELanguage::French,   "Noir" },
 		{ ELanguage::Spanish,  "TO DO" },
@@ -340,7 +340,7 @@ std::unordered_map<std::string_view, std::unordered_map<ELanguage, std::string>>
 	"Input_Button_LeftStickClick",
 	{
 		{ ELanguage::English,  "Left Stick Click" },
-		{ ELanguage::Japanese, "TO DO" },
+		{ ELanguage::Japanese, "左スティッククリック" },
 		{ ELanguage::German,   "TO DO" },
 		{ ELanguage::French,   "Clic Stick Gauche" },
 		{ ELanguage::Spanish,  "TO DO" },
@@ -351,7 +351,7 @@ std::unordered_map<std::string_view, std::unordered_map<ELanguage, std::string>>
 	"Input_Button_RightStickClick",
 	{
 		{ ELanguage::English,  "Right Stick Click" },
-		{ ELanguage::Japanese, "TO DO" },
+		{ ELanguage::Japanese, "右スティッククリック" },
 		{ ELanguage::German,   "TO DO" },
 		{ ELanguage::French,   "Clic Stick Droit" },
 		{ ELanguage::Spanish,  "TO DO" },
@@ -362,7 +362,7 @@ std::unordered_map<std::string_view, std::unordered_map<ELanguage, std::string>>
 	"Input_Button_LeftStickUp",
 	{
 		{ ELanguage::English,  "Left Stick Up" },
-		{ ELanguage::Japanese, "TO DO" },
+		{ ELanguage::Japanese, "左スティック\u200B上" },
 		{ ELanguage::German,   "TO DO" },
 		{ ELanguage::French,   "Stick Gauche Haut" },
 		{ ELanguage::Spanish,  "TO DO" },
@@ -373,7 +373,7 @@ std::unordered_map<std::string_view, std::unordered_map<ELanguage, std::string>>
 	"Input_Button_LeftStickDown",
 	{
 		{ ELanguage::English,  "Left Stick Down" },
-		{ ELanguage::Japanese, "TO DO" },
+		{ ELanguage::Japanese, "左スティック\u200B下" },
 		{ ELanguage::German,   "TO DO" },
 		{ ELanguage::French,   "Stick Gauche Bas" },
 		{ ELanguage::Spanish,  "TO DO" },
@@ -384,7 +384,7 @@ std::unordered_map<std::string_view, std::unordered_map<ELanguage, std::string>>
 	"Input_Button_LeftStickLeft",
 	{
 		{ ELanguage::English,  "Left Stick Left" },
-		{ ELanguage::Japanese, "TO DO" },
+		{ ELanguage::Japanese, "左スティック\u200B左" },
 		{ ELanguage::German,   "TO DO" },
 		{ ELanguage::French,   "Stick Gauche Gauche" },
 		{ ELanguage::Spanish,  "TO DO" },
@@ -395,7 +395,7 @@ std::unordered_map<std::string_view, std::unordered_map<ELanguage, std::string>>
 	"Input_Button_LeftStickRight",
 	{
 		{ ELanguage::English,  "Left Stick Right" },
-		{ ELanguage::Japanese, "TO DO" },
+		{ ELanguage::Japanese, "左スティック\u200B右" },
 		{ ELanguage::German,   "TO DO" },
 		{ ELanguage::French,   "Stick Gauche Droit" },
 		{ ELanguage::Spanish,  "TO DO" },
@@ -406,7 +406,7 @@ std::unordered_map<std::string_view, std::unordered_map<ELanguage, std::string>>
 	"Input_Button_RightStickUp",
 	{
 		{ ELanguage::English,  "Right Stick Up" },
-		{ ELanguage::Japanese, "TO DO" },
+		{ ELanguage::Japanese, "右スティック\u200B上" },
 		{ ELanguage::German,   "TO DO" },
 		{ ELanguage::French,   "Stick Droit Haut" },
 		{ ELanguage::Spanish,  "TO DO" },
@@ -417,7 +417,7 @@ std::unordered_map<std::string_view, std::unordered_map<ELanguage, std::string>>
 	"Input_Button_RightStickDown",
 	{
 		{ ELanguage::English,  "Right Stick Down" },
-		{ ELanguage::Japanese, "TO DO" },
+		{ ELanguage::Japanese, "右スティック\u200B下" },
 		{ ELanguage::German,   "TO DO" },
 		{ ELanguage::French,   "Stick Droit Bas" },
 		{ ELanguage::Spanish,  "TO DO" },
@@ -428,7 +428,7 @@ std::unordered_map<std::string_view, std::unordered_map<ELanguage, std::string>>
 	"Input_Button_RightStickLeft",
 	{
 		{ ELanguage::English,  "Right Stick Left" },
-		{ ELanguage::Japanese, "TO DO" },
+		{ ELanguage::Japanese, "右スティック\u200B左" },
 		{ ELanguage::German,   "TO DO" },
 		{ ELanguage::French,   "Stick Droit Gauche" },
 		{ ELanguage::Spanish,  "TO DO" },
@@ -439,7 +439,7 @@ std::unordered_map<std::string_view, std::unordered_map<ELanguage, std::string>>
 	"Input_Button_RightStickRight",
 	{
 		{ ELanguage::English,  "Right Stick Right" },
-		{ ELanguage::Japanese, "TO DO" },
+		{ ELanguage::Japanese, "右スティック\u200B右" },
 		{ ELanguage::German,   "TO DO" },
 		{ ELanguage::French,   "Stick Droit Droit" },
 		{ ELanguage::Spanish,  "TO DO" },
@@ -450,7 +450,7 @@ std::unordered_map<std::string_view, std::unordered_map<ELanguage, std::string>>
 	"Input_Button_PS_Cross",
 	{
 		{ ELanguage::English,  "CROSS" },
-		{ ELanguage::Japanese, "TO DO" },
+		{ ELanguage::Japanese, "×ボタン" },
 		{ ELanguage::German,   "TO DO" },
 		{ ELanguage::French,   "CROIX" },
 		{ ELanguage::Spanish,  "TO DO" },
@@ -461,7 +461,7 @@ std::unordered_map<std::string_view, std::unordered_map<ELanguage, std::string>>
 	"Input_Button_PS_Circle",
 	{
 		{ ELanguage::English,  "CIRCLE" },
-		{ ELanguage::Japanese, "TO DO" },
+		{ ELanguage::Japanese, "〇ボタン" },
 		{ ELanguage::German,   "TO DO" },
 		{ ELanguage::French,   "CERCLE" },
 		{ ELanguage::Spanish,  "TO DO" },
@@ -472,7 +472,7 @@ std::unordered_map<std::string_view, std::unordered_map<ELanguage, std::string>>
 	"Input_Button_PS_Square",
 	{
 		{ ELanguage::English,  "SQUARE" },
-		{ ELanguage::Japanese, "TO DO" },
+		{ ELanguage::Japanese, "□ボタン" },
 		{ ELanguage::German,   "TO DO" },
 		{ ELanguage::French,   "CARRÉ" },
 		{ ELanguage::Spanish,  "TO DO" },
@@ -483,7 +483,7 @@ std::unordered_map<std::string_view, std::unordered_map<ELanguage, std::string>>
 	"Input_Button_PS_Triangle",
 	{
 		{ ELanguage::English,  "TRIANGLE" },
-		{ ELanguage::Japanese, "TO DO" },
+		{ ELanguage::Japanese, "△ボタン" },
 		{ ELanguage::German,   "TO DO" },
 		{ ELanguage::French,   "TRIANGLE" },
 		{ ELanguage::Spanish,  "TO DO" },
@@ -494,7 +494,7 @@ std::unordered_map<std::string_view, std::unordered_map<ELanguage, std::string>>
 	"Input_Key_Return",
 	{
 		{ ELanguage::English,  "RETURN" },
-		{ ELanguage::Japanese, "TO DO" },
+		{ ELanguage::Japanese, "エンター" },
 		{ ELanguage::German,   "TO DO" },
 		{ ELanguage::French,   "ENTRÉE" },
 		{ ELanguage::Spanish,  "TO DO" },
@@ -505,7 +505,7 @@ std::unordered_map<std::string_view, std::unordered_map<ELanguage, std::string>>
 	"Input_Key_Escape",
 	{
 		{ ELanguage::English,  "ESCAPE" },
-		{ ELanguage::Japanese, "TO DO" },
+		{ ELanguage::Japanese, "エスケープ" },
 		{ ELanguage::German,   "TO DO" },
 		{ ELanguage::French,   "ECHAP" },
 		{ ELanguage::Spanish,  "TO DO" },
@@ -516,7 +516,7 @@ std::unordered_map<std::string_view, std::unordered_map<ELanguage, std::string>>
 	"Input_Key_Backspace",
 	{
 		{ ELanguage::English,  "BACKSPACE" },
-		{ ELanguage::Japanese, "TO DO" },
+		{ ELanguage::Japanese, "バックスペース" },
 		{ ELanguage::German,   "TO DO" },
 		{ ELanguage::French,   "RETOUR" },
 		{ ELanguage::Spanish,  "TO DO" },
@@ -527,7 +527,7 @@ std::unordered_map<std::string_view, std::unordered_map<ELanguage, std::string>>
 	"Input_Key_Space",
 	{
 		{ ELanguage::English,  "SPACE" },
-		{ ELanguage::Japanese, "TO DO" },
+		{ ELanguage::Japanese, "スペース" },
 		{ ELanguage::German,   "TO DO" },
 		{ ELanguage::French,   "ESPACE" },
 		{ ELanguage::Spanish,  "TO DO" },
@@ -538,7 +538,7 @@ std::unordered_map<std::string_view, std::unordered_map<ELanguage, std::string>>
 	"Input_Key_Up",
 	{
 		{ ELanguage::English,  "UP" },
-		{ ELanguage::Japanese, "TO DO" },
+		{ ELanguage::Japanese, "上" },
 		{ ELanguage::German,   "TO DO" },
 		{ ELanguage::French,   "HAUT" },
 		{ ELanguage::Spanish,  "TO DO" },
@@ -549,7 +549,7 @@ std::unordered_map<std::string_view, std::unordered_map<ELanguage, std::string>>
 	"Input_Key_Down",
 	{
 		{ ELanguage::English,  "DOWN" },
-		{ ELanguage::Japanese, "TO DO" },
+		{ ELanguage::Japanese, "下" },
 		{ ELanguage::German,   "TO DO" },
 		{ ELanguage::French,   "BAS" },
 		{ ELanguage::Spanish,  "TO DO" },
@@ -560,7 +560,7 @@ std::unordered_map<std::string_view, std::unordered_map<ELanguage, std::string>>
 	"Input_Key_Left",
 	{
 		{ ELanguage::English,  "LEFT" },
-		{ ELanguage::Japanese, "TO DO" },
+		{ ELanguage::Japanese, "左" },
 		{ ELanguage::German,   "TO DO" },
 		{ ELanguage::French,   "GAUCHE" },
 		{ ELanguage::Spanish,  "TO DO" },
@@ -571,7 +571,7 @@ std::unordered_map<std::string_view, std::unordered_map<ELanguage, std::string>>
 	"Input_Key_Right",
 	{
 		{ ELanguage::English,  "RIGHT" },
-		{ ELanguage::Japanese, "TO DO" },
+		{ ELanguage::Japanese, "右" },
 		{ ELanguage::German,   "TO DO" },
 		{ ELanguage::French,   "DROITE" },
 		{ ELanguage::Spanish,  "TO DO" },
@@ -582,7 +582,7 @@ std::unordered_map<std::string_view, std::unordered_map<ELanguage, std::string>>
 	"Input_Key_LeftCtrl",
 	{
 		{ ELanguage::English,  "LEFT CTRL" },
-		{ ELanguage::Japanese, "TO DO" },
+		{ ELanguage::Japanese, "左コントロール" },
 		{ ELanguage::German,   "TO DO" },
 		{ ELanguage::French,   "CTRL GAUCHE" },
 		{ ELanguage::Spanish,  "TO DO" },
@@ -593,7 +593,7 @@ std::unordered_map<std::string_view, std::unordered_map<ELanguage, std::string>>
 	"Input_Key_RightCtrl",
 	{
 		{ ELanguage::English,  "RIGHT CTRL" },
-		{ ELanguage::Japanese, "TO DO" },
+		{ ELanguage::Japanese, "右コントロール" },
 		{ ELanguage::German,   "TO DO" },
 		{ ELanguage::French,   "CTRL DROIT" },
 		{ ELanguage::Spanish,  "TO DO" },
@@ -604,7 +604,7 @@ std::unordered_map<std::string_view, std::unordered_map<ELanguage, std::string>>
 	"Input_Key_LeftShift",
 	{
 		{ ELanguage::English,  "LEFT SHIFT" },
-		{ ELanguage::Japanese, "TO DO" },
+		{ ELanguage::Japanese, "左シフト" },
 		{ ELanguage::German,   "TO DO" },
 		{ ELanguage::French,   "MAJ." },
 		{ ELanguage::Spanish,  "TO DO" },
@@ -615,7 +615,7 @@ std::unordered_map<std::string_view, std::unordered_map<ELanguage, std::string>>
 	"Input_Key_RightShift",
 	{
 		{ ELanguage::English,  "RIGHT SHIFT" },
-		{ ELanguage::Japanese, "TO DO" },
+		{ ELanguage::Japanese, "右シフト" },
 		{ ELanguage::German,   "TO DO" },
 		{ ELanguage::French,   "MAJ DROITE" },
 		{ ELanguage::Spanish,  "TO DO" },
@@ -626,7 +626,7 @@ std::unordered_map<std::string_view, std::unordered_map<ELanguage, std::string>>
 	"Input_Key_LeftAlt",
 	{
 		{ ELanguage::English,  "LEFT ALT" },
-		{ ELanguage::Japanese, "TO DO" },
+		{ ELanguage::Japanese, "左オルト" },
 		{ ELanguage::German,   "TO DO" },
 		{ ELanguage::French,   "ALT" },
 		{ ELanguage::Spanish,  "TO DO" },
@@ -637,7 +637,7 @@ std::unordered_map<std::string_view, std::unordered_map<ELanguage, std::string>>
 	"Input_Key_RightAlt",
 	{
 		{ ELanguage::English,  "RIGHT ALT" },
-		{ ELanguage::Japanese, "TO DO" },
+		{ ELanguage::Japanese, "右オルト" },
 		{ ELanguage::German,   "ALT GR" },
 		{ ELanguage::French,   "ALT GR" },
 		{ ELanguage::Spanish,  "ALT GR" },
@@ -802,7 +802,7 @@ std::unordered_map<std::string_view, std::unordered_map<ELanguage, std::string>>
 	"Achievements_Name",
 	{
 		{ ELanguage::English,  "achievements" },
-		{ ELanguage::Japanese, "実績" },
+		{ ELanguage::Japanese, "じっせき" },
 		{ ELanguage::German,   "erfolge" },
 		{ ELanguage::French,   "succès" },
 		{ ELanguage::Spanish,  "logros" },
