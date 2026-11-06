@@ -271,9 +271,15 @@ static std::string& GetCategoryDescription(OptionsMenuCategory category)
 }
 
 static constexpr int ICON_ATLAS_WIDTH = 165;
-static constexpr int ICON_ATLAS_HEIGHT = 414;
+static constexpr int ICON_ATLAS_HEIGHT = 494;
 static constexpr int ICON_CELL_SIZE = 82;
 static constexpr int ICON_CELL_PITCH = 83;
+
+enum
+{
+	ICON_ROW_INPUT = 1,
+	ICON_ROW_KEYBOARD = 5
+};
 
 static constexpr float LEGACY_ICON_SIZE = 79.0f;
 static constexpr float LEGACY_ICON_PITCH = 92.0f;
@@ -308,12 +314,13 @@ static int GetCategoryIconRow(OptionsMenuCategory category)
 	return 0;
 }
 
-static std::tuple<ImVec2, ImVec2> GetCategoryIconUVs(OptionsMenuCategory category, bool isCurrent)
+static std::tuple<ImVec2, ImVec2> GetCategoryIconUVs(int row, bool isCurrent)
 {
 	const int cellX = isCurrent ? ICON_CELL_PITCH : 0;
-	const int cellY = GetCategoryIconRow(category) * ICON_CELL_PITCH;
+	const int cellY = row * ICON_CELL_PITCH;
+	const int cellHeight = std::min(ICON_CELL_SIZE, ICON_ATLAS_HEIGHT - cellY);
 
-	return PIXELS_TO_UV_COORDS(ICON_ATLAS_WIDTH, ICON_ATLAS_HEIGHT, cellX, cellY, ICON_CELL_SIZE, ICON_CELL_SIZE);
+	return PIXELS_TO_UV_COORDS(ICON_ATLAS_WIDTH, ICON_ATLAS_HEIGHT, cellX, cellY, ICON_CELL_SIZE, cellHeight);
 }
 
 static bool IsCategoryVisible(OptionsMenuCategory category)
@@ -2484,7 +2491,7 @@ void DrawMenuListContainer(X86Context* ctx, ImVec2 min, ImVec2 max)
 struct CategoryEntry
 {
 	std::string Name;
-	OptionsMenuCategory IconCategory;
+	int IconRow;
 	bool IsCurrent;
 };
 
@@ -2496,7 +2503,8 @@ static std::vector<CategoryEntry> GetCategoryEntries()
 	{
 		for (int i = 0; i < GetRemapSectionCount(); i++)
 		{
-			entries.push_back({ GetRemapSectionName(i), OptionsMenuCategory::Input, i == g_remapSectionIndex });
+			auto iconRow = (ERemapSection)i == ERemapSection::Keyboard ? ICON_ROW_KEYBOARD : ICON_ROW_INPUT;
+			entries.push_back({ GetRemapSectionName(i), iconRow, i == g_remapSectionIndex });
 		}
 
 		return entries;
@@ -2508,7 +2516,7 @@ static std::vector<CategoryEntry> GetCategoryEntries()
 
 		if (IsCategoryVisible(category))
 		{
-			entries.push_back({ GetCategoryName(category), category, i == g_categoryIndex });
+			entries.push_back({ GetCategoryName(category), GetCategoryIconRow(category), i == g_categoryIndex });
 		}
 	}
 
@@ -2587,7 +2595,7 @@ static void DrawCategories(ImVec2 min, ImVec2 max)
 	for (auto& entry : entries)
 	{
 		const bool isCurrent = entry.IsCurrent;
-		auto iconUVs = GetCategoryIconUVs(entry.IconCategory, isCurrent);
+		auto iconUVs = GetCategoryIconUVs(entry.IconRow, isCurrent);
 
 #if OPTIONS_CATEGORY_STYLE == OPTIONS_CATEGORY_STYLE_ICON
 
