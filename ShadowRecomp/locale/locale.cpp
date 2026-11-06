@@ -73,7 +73,7 @@ std::unordered_map<std::string_view, std::unordered_map<ELanguage, std::string>>
 		"Options_Category_Video",
 		{
 			{ ELanguage::English,  "VIDEO" },
-			{ ELanguage::Japanese, "ビデオ" },
+			{ ELanguage::Japanese, "グラフィック" },
 			{ ELanguage::German,   "VIDEO" },
 			{ ELanguage::French,   "VIDÉO" },
 			{ ELanguage::Spanish,  "VÍDEO" },
@@ -84,7 +84,7 @@ std::unordered_map<std::string_view, std::unordered_map<ELanguage, std::string>>
 		"Options_Desc_Category_Video",
 		{
 			{ ELanguage::English,  "Adjust video settings." },
-			{ ELanguage::Japanese, "ビデオの設定を変更します。" },
+			{ ELanguage::Japanese, "グラフィックの設定を変更します。" },
 			{ ELanguage::German,   "Verändere Video-Einstellungen." },
 			{ ELanguage::French,   "Modifier les paramètres vidéo." },
 			{ ELanguage::Spanish,  "Ajusta la configuración de vídeo." },
@@ -274,7 +274,7 @@ std::unordered_map<std::string_view, std::unordered_map<ELanguage, std::string>>
 	"Input_Button_DPadUp",
 	{
 		{ ELanguage::English,  "D-Pad Up" },
-		{ ELanguage::Japanese, "十字キー\u200b上" },
+		{ ELanguage::Japanese, "十字キー 上" },
 		{ ELanguage::German,   "TO DO" },
 		{ ELanguage::French,   "Croix Haut" },
 		{ ELanguage::Spanish,  "Cruceta Arriba" },
@@ -285,7 +285,7 @@ std::unordered_map<std::string_view, std::unordered_map<ELanguage, std::string>>
 	"Input_Button_DPadDown",
 	{
 		{ ELanguage::English,  "D-Pad Down" },
-		{ ELanguage::Japanese, "十字キー\u200b下" },
+		{ ELanguage::Japanese, "十字キー 下" },
 		{ ELanguage::German,   "TO DO" },
 		{ ELanguage::French,   "Croix Bas" },
 		{ ELanguage::Spanish,  "Cruceta Abajo" },
@@ -296,7 +296,7 @@ std::unordered_map<std::string_view, std::unordered_map<ELanguage, std::string>>
 	"Input_Button_DPadLeft",
 	{
 		{ ELanguage::English,  "D-Pad Left" },
-		{ ELanguage::Japanese, "十字キー\u200b左" },
+		{ ELanguage::Japanese, "十字キー 左" },
 		{ ELanguage::German,   "TO DO" },
 		{ ELanguage::French,   "Croix Gauche" },
 		{ ELanguage::Spanish,  "Cruceta Izquierda" },
@@ -307,7 +307,7 @@ std::unordered_map<std::string_view, std::unordered_map<ELanguage, std::string>>
 	"Input_Button_DPadRight",
 	{
 		{ ELanguage::English,  "D-Pad Right" },
-		{ ELanguage::Japanese, "十字キー\u200b右" },
+		{ ELanguage::Japanese, "十字キー 右" },
 		{ ELanguage::German,   "TO DO" },
 		{ ELanguage::French,   "Croix Droite" },
 		{ ELanguage::Spanish,  "Cruceta Derecha" },
@@ -362,7 +362,7 @@ std::unordered_map<std::string_view, std::unordered_map<ELanguage, std::string>>
 	"Input_Button_LeftStickUp",
 	{
 		{ ELanguage::English,  "Left Stick Up" },
-		{ ELanguage::Japanese, "左スティック\u200B上" },
+		{ ELanguage::Japanese, "左スティック 上" },
 		{ ELanguage::German,   "TO DO" },
 		{ ELanguage::French,   "Stick Gauche Haut" },
 		{ ELanguage::Spanish,  "Stick Izquierdo Arriba" },
@@ -373,7 +373,7 @@ std::unordered_map<std::string_view, std::unordered_map<ELanguage, std::string>>
 	"Input_Button_LeftStickDown",
 	{
 		{ ELanguage::English,  "Left Stick Down" },
-		{ ELanguage::Japanese, "左スティック\u200B下" },
+		{ ELanguage::Japanese, "左スティック 下" },
 		{ ELanguage::German,   "TO DO" },
 		{ ELanguage::French,   "Stick Gauche Bas" },
 		{ ELanguage::Spanish,  "Stick Izquierdo Abajo" },
@@ -384,7 +384,7 @@ std::unordered_map<std::string_view, std::unordered_map<ELanguage, std::string>>
 	"Input_Button_LeftStickLeft",
 	{
 		{ ELanguage::English,  "Left Stick Left" },
-		{ ELanguage::Japanese, "左スティック\u200B左" },
+		{ ELanguage::Japanese, "左スティック 左" },
 		{ ELanguage::German,   "TO DO" },
 		{ ELanguage::French,   "Stick Gauche Gauche" },
 		{ ELanguage::Spanish,  "Stick Izquierdo Izquierda" },
@@ -395,7 +395,7 @@ std::unordered_map<std::string_view, std::unordered_map<ELanguage, std::string>>
 	"Input_Button_LeftStickRight",
 	{
 		{ ELanguage::English,  "Left Stick Right" },
-		{ ELanguage::Japanese, "左スティック\u200B右" },
+		{ ELanguage::Japanese, "左スティック 右" },
 		{ ELanguage::German,   "TO DO" },
 		{ ELanguage::French,   "Stick Gauche Droit" },
 		{ ELanguage::Spanish,  "Stick Izquierdo Derecha" },
@@ -406,7 +406,7 @@ std::unordered_map<std::string_view, std::unordered_map<ELanguage, std::string>>
 	"Input_Button_RightStickUp",
 	{
 		{ ELanguage::English,  "Right Stick Up" },
-		{ ELanguage::Japanese, "右スティック\u200B上" },
+		{ ELanguage::Japanese, "右スティック 上" },
 		{ ELanguage::German,   "TO DO" },
 		{ ELanguage::French,   "Stick Droit Haut" },
 		{ ELanguage::Spanish,  "Stick Derecho Arriba" },
@@ -417,7 +417,7 @@ std::unordered_map<std::string_view, std::unordered_map<ELanguage, std::string>>
 	"Input_Button_RightStickDown",
 	{
 		{ ELanguage::English,  "Right Stick Down" },
-		{ ELanguage::Japanese, "右スティック\u200B下" },
+		{ ELanguage::Japanese, "右スティック 下" },
 		{ ELanguage::German,   "TO DO" },
 		{ ELanguage::French,   "Stick Droit Bas" },
 		{ ELanguage::Spanish,  "Stick Derecho Abajo" },
@@ -428,7 +428,7 @@ std::unordered_map<std::string_view, std::unordered_map<ELanguage, std::string>>
 	"Input_Button_RightStickLeft",
 	{
 		{ ELanguage::English,  "Right Stick Left" },
-		{ ELanguage::Japanese, "右スティック\u200B左" },
+		{ ELanguage::Japanese, "右スティック 左" },
 		{ ELanguage::German,   "TO DO" },
 		{ ELanguage::French,   "Stick Droit Gauche" },
 		{ ELanguage::Spanish,  "Stick Derecho Izquierda" },
@@ -439,7 +439,7 @@ std::unordered_map<std::string_view, std::unordered_map<ELanguage, std::string>>
 	"Input_Button_RightStickRight",
 	{
 		{ ELanguage::English,  "Right Stick Right" },
-		{ ELanguage::Japanese, "右スティック\u200B右" },
+		{ ELanguage::Japanese, "右スティック 右" },
 		{ ELanguage::German,   "TO DO" },
 		{ ELanguage::French,   "Stick Droit Droit" },
 		{ ELanguage::Spanish,  "Stick Derecho Derecha" },
