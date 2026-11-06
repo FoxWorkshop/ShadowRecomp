@@ -189,17 +189,36 @@ static PJSPeripheral::ControllerSlot* GetPadSlot(uint32_t port)
 	return reinterpret_cast<PJSPeripheral::ControllerSlot*>(MmGetHostAddress(0x535550 + 0x50 + port * 0x28));
 }
 
+static bool IsHudVisible()
+{
+	auto base = g_memory.base;
+	return X86_LOAD_U8(0x54DE78) != 0;
+}
+
+static bool IsCustomPauseActive()
+{
+	return g_pauseCSD || !IsHudVisible();
+}
+
+static void ResetPauseInputs(bool upIsHeld, bool downIsHeld, bool leftIsHeld, bool rightIsHeld)
+{
+	g_up = false;
+	g_upWasHeld = upIsHeld;
+	g_down = false;
+	g_downWasHeld = downIsHeld;
+	g_left = false;
+	g_leftWasHeld = leftIsHeld;
+	g_right = false;
+	g_rightWasHeld = rightIsHeld;
+	g_isAccepted = false;
+}
+
 void DrawPauseText(X86Context* ctx)
 {
-	if (s_isVisible == false || g_pauseCSD == false) // ensure our CSD patch worked so we can draw pause text safely
+	if (s_isVisible == false || IsCustomPauseActive() == false) // ensure our CSD patch worked so we can draw pause text safely
 		return;
 
 	auto base = g_memory.base;
-
-	bool isHudVisible = X86_LOAD_U8(0x54DE78) != 0;
-
-	if (!isHudVisible)
-		return;
 
 	if (g_pauseModeAddr)
 	{
@@ -318,6 +337,12 @@ void DrawPauseText(X86Context* ctx)
 	}
 
 
+	if (IsHudVisible() == false)
+	{
+		ResetPauseInputs(upIsHeld, downIsHeld, leftIsHeld, rightIsHeld);
+		return;
+	}
+
 	auto drawList = ImGui::GetBackgroundDrawList();
 	auto& res = ImGui::GetIO().DisplaySize;
 	ImVec2 screenCentre = { res.x / 2.0f, res.y / 2.0f };
@@ -380,15 +405,7 @@ void DrawPauseText(X86Context* ctx)
 			menuItems[selection]);
 	}
 
-	g_up = false;
-	g_upWasHeld = upIsHeld;
-	g_down = false;
-	g_downWasHeld = downIsHeld;
-	g_left = false;
-	g_leftWasHeld = leftIsHeld;
-	g_right = false;
-	g_rightWasHeld = rightIsHeld;
-	g_isAccepted = false;
+	ResetPauseInputs(upIsHeld, downIsHeld, leftIsHeld, rightIsHeld);
 }
 
 // TPauseManagerExec
@@ -469,7 +486,9 @@ X86_OVERRIDE_FUNC(sub_5AAF0)
 
 	const uint32_t cursorAddr = ctx.ecx.u32 + 0x38;
 
-	if (g_pauseCSD) // ensure our CSD patch worked so we can allow custom input properly
+	const bool isCustomPause = IsCustomPauseActive();
+
+	if (isCustomPause) // ensure our CSD patch worked so we can allow custom input properly
 	{
 		g_animDonePlaying = X86_LOAD_U8(ctx.ecx.u32 + 0x4D) != 0;
 		if (X86_LOAD_U8(ctx.ecx.u32 + 0x4D) == 0 || s_OptionsRequest || s_AchievementRequest) // pause anim is playing, don't allow input yet
@@ -501,7 +520,7 @@ X86_OVERRIDE_FUNC(sub_5AAF0)
 	g_isBPressed = false;
 	__imp__sub_5AAF0(ctx, base);
 
-	if (g_pauseCSD)
+	if (isCustomPause)
 	{
 		auto mode = X86_LOAD_U8(ecx + 0x38);
 
