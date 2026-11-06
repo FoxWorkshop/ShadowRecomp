@@ -1473,18 +1473,18 @@ static const char* g_xboxButtonNames[] =
 	"B",
 	"X",
 	"Y",
-	"Left Trigger",
-	"Right Trigger",
+	"Input_Button_LeftTrigger",
+	"Input_Button_RightTrigger",
 	"Start",
 	"Back",
-	"D-Pad Up",
-	"D-Pad Down",
-	"D-Pad Left",
-	"D-Pad Right",
-	"White",
-	"Black",
-	"Left Stick Click",
-	"Right Stick Click"
+	"Input_Button_DPadUp",
+	"Input_Button_DPadDown",
+	"Input_Button_DPadLeft",
+	"Input_Button_DPadRight",
+	"Input_Button_White",
+	"Input_Button_Black",
+	"Input_Button_LeftStickClick",
+	"Input_Button_RightStickClick"
 };
 
 static_assert(std::size(g_xboxButtonNames) == (size_t)input::EXboxButton::Count);
@@ -1495,26 +1495,97 @@ static const std::pair<const char*, ConfigDef<SDL_Scancode>*> g_keyboardBindings
 	{ "B", &Config::Key_B },
 	{ "X", &Config::Key_X },
 	{ "Y", &Config::Key_Y },
-	{ "Left Trigger", &Config::Key_LeftTrigger },
-	{ "Right Trigger", &Config::Key_RightTrigger },
+	{ "Input_Button_LeftTrigger", &Config::Key_LeftTrigger },
+	{ "Input_Button_RightTrigger", &Config::Key_RightTrigger },
 	{ "Start", &Config::Key_Start },
 	{ "Back", &Config::Key_Back },
-	{ "D-Pad Up", &Config::Key_DPadUp },
-	{ "D-Pad Down", &Config::Key_DPadDown },
-	{ "D-Pad Left", &Config::Key_DPadLeft },
-	{ "D-Pad Right", &Config::Key_DPadRight },
-	{ "Left Stick Up", &Config::Key_LeftStickUp },
-	{ "Left Stick Down", &Config::Key_LeftStickDown },
-	{ "Left Stick Left", &Config::Key_LeftStickLeft },
-	{ "Left Stick Right", &Config::Key_LeftStickRight },
-	{ "Right Stick Up", &Config::Key_RightStickUp },
-	{ "Right Stick Down", &Config::Key_RightStickDown },
-	{ "Right Stick Left", &Config::Key_RightStickLeft },
-	{ "Right Stick Right", &Config::Key_RightStickRight },
-	{ "White", &Config::Key_LeftBumper },
-	{ "Black", &Config::Key_RightBumper }
+	{ "Input_Button_DPadUp", &Config::Key_DPadUp },
+	{ "Input_Button_DPadDown", &Config::Key_DPadDown },
+	{ "Input_Button_DPadLeft", &Config::Key_DPadLeft },
+	{ "Input_Button_DPadRight", &Config::Key_DPadRight },
+	{ "Input_Button_LeftStickUp", &Config::Key_LeftStickUp },
+	{ "Input_Button_LeftStickDown", &Config::Key_LeftStickDown },
+	{ "Input_Button_LeftStickLeft", &Config::Key_LeftStickLeft },
+	{ "Input_Button_LeftStickRight", &Config::Key_LeftStickRight },
+	{ "Input_Button_RightStickUp", &Config::Key_RightStickUp },
+	{ "Input_Button_RightStickDown", &Config::Key_RightStickDown },
+	{ "Input_Button_RightStickLeft", &Config::Key_RightStickLeft },
+	{ "Input_Button_RightStickRight", &Config::Key_RightStickRight },
+	{ "Input_Button_White", &Config::Key_LeftBumper },
+	{ "Input_Button_Black", &Config::Key_RightBumper }
 };
 
+// we can use universal name for some buttons, the rest should use localisation.
+static std::string GetButtonName(const char* name)
+{
+	if (std::string_view(name).starts_with("Input_Button_"))
+	{
+		return Localise(name);
+	}
+
+	return name;
+}
+
+// Some keys are named differently depending on the language too 
+static const std::pair<SDL_Scancode, const char*> g_keyNames[] =
+{
+	{ SDL_SCANCODE_RETURN, "Input_Key_Return" },
+	{ SDL_SCANCODE_ESCAPE, "Input_Key_Escape" },
+	{ SDL_SCANCODE_BACKSPACE, "Input_Key_Backspace" },
+	{ SDL_SCANCODE_SPACE, "Input_Key_Space" },
+	{ SDL_SCANCODE_UP, "Input_Key_Up" },
+	{ SDL_SCANCODE_DOWN, "Input_Key_Down" },
+	{ SDL_SCANCODE_LEFT, "Input_Key_Left" },
+	{ SDL_SCANCODE_RIGHT, "Input_Key_Right" },
+	{ SDL_SCANCODE_LCTRL, "Input_Key_LeftCtrl" },
+	{ SDL_SCANCODE_RCTRL, "Input_Key_RightCtrl" },
+	{ SDL_SCANCODE_LSHIFT, "Input_Key_LeftShift" },
+	{ SDL_SCANCODE_RSHIFT, "Input_Key_RightShift" },
+	{ SDL_SCANCODE_LALT, "Input_Key_LeftAlt" },
+	{ SDL_SCANCODE_RALT, "Input_Key_RightAlt" },
+};
+
+static bool IsTextInFont(ImFont* font, const char* text)
+{
+	while (*text)
+	{
+		unsigned int c = 0;
+		text += ImTextCharFromUtf8(&c, text, nullptr);
+
+		if (c > IM_UNICODE_CODEPOINT_MAX || !font->FindGlyphNoFallback((ImWchar)c))
+		{
+			return false;
+		}
+	}
+
+	return true;
+}
+
+// Since keys are saved by position, we can add support for Azerty by using SDL's scancode.
+static std::string GetKeyLabel(SDL_Scancode key, const std::string& fallback)
+{
+	for (auto& [scancode, name] : g_keyNames)
+	{
+		if (scancode == key)
+		{
+			return Localise(name);
+		}
+	}
+
+	auto keycode = SDL_GetKeyFromScancode(key, SDL_KMOD_NONE, true);
+
+	if (keycode > SDLK_SPACE && keycode != SDLK_DELETE && !(keycode & SDLK_SCANCODE_MASK))
+	{
+		auto name = SDL_GetKeyName(keycode);
+
+		if (name && *name && IsTextInFont(g_fntSeurat, name))
+		{
+			return name;
+		}
+	}
+
+	return fallback;
+}
 
 static std::string GetPadButtonLabel(EPadButton button, bool isPlayStation, const std::string& fallback)
 {
@@ -1522,10 +1593,10 @@ static std::string GetPadButtonLabel(EPadButton button, bool isPlayStation, cons
 	{
 		switch (button)
 		{
-		case EPadButton::A:             return "CROSS";
-		case EPadButton::B:             return "CIRCLE";
-		case EPadButton::X:             return "SQUARE";
-		case EPadButton::Y:             return "TRIANGLE";
+		case EPadButton::A:             return Localise("Input_Button_PS_Cross");
+		case EPadButton::B:             return Localise("Input_Button_PS_Circle");
+		case EPadButton::X:             return Localise("Input_Button_PS_Square");
+		case EPadButton::Y:             return Localise("Input_Button_PS_Triangle");
 		case EPadButton::Back:          return "SHARE";
 		case EPadButton::Guide:         return "PS";
 		case EPadButton::Start:         return "OPTIONS";
@@ -1537,6 +1608,15 @@ static std::string GetPadButtonLabel(EPadButton button, bool isPlayStation, cons
 		case EPadButton::RightTrigger:  return "R2";
 		default:                        break;
 		}
+	}
+
+	switch (button)
+	{
+	case EPadButton::DPadUp:    return Localise("Input_Button_DPadUp");
+	case EPadButton::DPadDown:  return Localise("Input_Button_DPadDown");
+	case EPadButton::DPadLeft:  return Localise("Input_Button_DPadLeft");
+	case EPadButton::DPadRight: return Localise("Input_Button_DPadRight");
+	default: break;
 	}
 
 	return fallback;
@@ -1776,7 +1856,7 @@ static void DrawBindingOption(X86Context* ctx, int rowIndex, ImVec2 min, ImVec2 
 	}
 	else if constexpr (isKeyboard)
 	{
-		valueText = config->ToString(false);
+		valueText = GetKeyLabel(config->Value, config->ToString(false));
 	}
 	else
 	{
@@ -1891,7 +1971,7 @@ static void DrawRemapOptions(X86Context* ctx, int& rowCount, ImVec2 min, ImVec2 
 	{
 		for (auto& [title, config] : g_keyboardBindings)
 		{
-			DrawBindingOption(ctx, rowCount++, min, max, title, config, -1);
+			DrawBindingOption(ctx, rowCount++, min, max, GetButtonName(title), config, -1);
 		}
 
 		return;
@@ -1906,7 +1986,7 @@ static void DrawRemapOptions(X86Context* ctx, int& rowCount, ImVec2 min, ImVec2 
 
 	for (size_t i = 0; i < bindings.size(); i++)
 	{
-		DrawBindingOption(ctx, rowCount++, min, max, g_xboxButtonNames[i], bindings[i], playerIndex);
+		DrawBindingOption(ctx, rowCount++, min, max, GetButtonName(g_xboxButtonNames[i]), bindings[i], playerIndex);
 	}
 }
 

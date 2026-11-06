@@ -368,7 +368,7 @@ CONFIG_DEFINE_LOCALE(StickDeadzone1P)
     { ELanguage::English,  { "Stick Deadzone", "Adjust analog deadzone." } },
     { ELanguage::Japanese, { "スティックのデッドゾーン", "アナログスティックのデッドゾーンを調整します。" } },
     { ELanguage::German,   { "Stick Totzone", "Analoge Totzone anpassen." } },
-    { ELanguage::French,   { "Zone morte du joystick", "Ajuster la zone morte analogique." } },
+    { ELanguage::French,   { "Zone morte du Stick", "Ajuster la zone morte analogique." } },
     { ELanguage::Spanish,  { "Zona muerta del joystick", "Ajusta la zona muerta del joystick." } },
     { ELanguage::Italian,  { "Zona morta dello Stick", "Regola la zona morta dello stick analogico." } }
 };
@@ -383,7 +383,7 @@ CONFIG_DEFINE_LOCALE(StickSensitivity1P)
     { ELanguage::English,  { "Stick Sensitivity", "Adjust analog sensitivity." } },
     { ELanguage::Japanese, { "スティック感度", "アナログスティックの感度を調整します。" } },
     { ELanguage::German,   { "Stick empfindlichkeit", "Analoge Empfindlichkeit anpassen." } },
-    { ELanguage::French,   { "Sensibilité du joystick", "Ajuster la sensibilité analogique." } },
+    { ELanguage::French,   { "Sensibilité du Stick", "Ajuster la sensibilité analogique." } },
     { ELanguage::Spanish,  { "Sensibilidad del joystick", "Ajusta la sensibilidad del joystick." } },
     { ELanguage::Italian,  { "Sensibilità dello Stick", "Regola la sensibilità dello stick analogico." } }
 };
