@@ -255,7 +255,7 @@ std::unordered_map<std::string_view, std::unordered_map<ELanguage, std::string>>
 		{ ELanguage::Japanese, "左トリガ" },
 		{ ELanguage::German,   "TO DO" },
 		{ ELanguage::French,   "Gachette Gauche" },
-		{ ELanguage::Spanish,  "TO DO" },
+		{ ELanguage::Spanish,  "Gatillo Izquierdo" },
 		{ ELanguage::Italian,  "TO DO" },
 	}
 },
@@ -266,7 +266,7 @@ std::unordered_map<std::string_view, std::unordered_map<ELanguage, std::string>>
 		{ ELanguage::Japanese, "右トリガ" },
 		{ ELanguage::German,   "TO DO" },
 		{ ELanguage::French,   "Gachette Droite" },
-		{ ELanguage::Spanish,  "TO DO" },
+		{ ELanguage::Spanish,  "Gatillo Derecho" },
 		{ ELanguage::Italian,  "TO DO" }
 	}
 },
@@ -277,7 +277,7 @@ std::unordered_map<std::string_view, std::unordered_map<ELanguage, std::string>>
 		{ ELanguage::Japanese, "十字キー\u200b上" },
 		{ ELanguage::German,   "TO DO" },
 		{ ELanguage::French,   "Croix Haut" },
-		{ ELanguage::Spanish,  "TO DO" },
+		{ ELanguage::Spanish,  "Cruceta Arriba" },
 		{ ELanguage::Italian,  "TO DO" }
 	}
 },
@@ -288,7 +288,7 @@ std::unordered_map<std::string_view, std::unordered_map<ELanguage, std::string>>
 		{ ELanguage::Japanese, "十字キー\u200b下" },
 		{ ELanguage::German,   "TO DO" },
 		{ ELanguage::French,   "Croix Bas" },
-		{ ELanguage::Spanish,  "TO DO" },
+		{ ELanguage::Spanish,  "Cruceta Abajo" },
 		{ ELanguage::Italian,  "TO DO" }
 	}
 },
@@ -299,7 +299,7 @@ std::unordered_map<std::string_view, std::unordered_map<ELanguage, std::string>>
 		{ ELanguage::Japanese, "十字キー\u200b左" },
 		{ ELanguage::German,   "TO DO" },
 		{ ELanguage::French,   "Croix Gauche" },
-		{ ELanguage::Spanish,  "TO DO" },
+		{ ELanguage::Spanish,  "Cruceta Izquierda" },
 		{ ELanguage::Italian,  "TO DO" }
 	}
 },
@@ -310,7 +310,7 @@ std::unordered_map<std::string_view, std::unordered_map<ELanguage, std::string>>
 		{ ELanguage::Japanese, "十字キー\u200b右" },
 		{ ELanguage::German,   "TO DO" },
 		{ ELanguage::French,   "Croix Droite" },
-		{ ELanguage::Spanish,  "TO DO" },
+		{ ELanguage::Spanish,  "Cruceta Derecha" },
 		{ ELanguage::Italian,  "TO DO" }
 	}
 },
@@ -321,7 +321,7 @@ std::unordered_map<std::string_view, std::unordered_map<ELanguage, std::string>>
 		{ ELanguage::Japanese, "白ボタン" },
 		{ ELanguage::German,   "TO DO" },
 		{ ELanguage::French,   "Blanc" },
-		{ ELanguage::Spanish,  "TO DO" },
+		{ ELanguage::Spanish,  "Blanco" },
 		{ ELanguage::Italian,  "TO DO" }
 	}
 },
@@ -332,7 +332,7 @@ std::unordered_map<std::string_view, std::unordered_map<ELanguage, std::string>>
 		{ ELanguage::Japanese, "黒ボタン" },
 		{ ELanguage::German,   "TO DO" },
 		{ ELanguage::French,   "Noir" },
-		{ ELanguage::Spanish,  "TO DO" },
+		{ ELanguage::Spanish,  "Negro" },
 		{ ELanguage::Italian,  "TO DO" }
 	}
 },
@@ -343,7 +343,7 @@ std::unordered_map<std::string_view, std::unordered_map<ELanguage, std::string>>
 		{ ELanguage::Japanese, "左スティッククリック" },
 		{ ELanguage::German,   "TO DO" },
 		{ ELanguage::French,   "Clic Stick Gauche" },
-		{ ELanguage::Spanish,  "TO DO" },
+		{ ELanguage::Spanish,  "Clic del Stick Izquierdo" },
 		{ ELanguage::Italian,  "TO DO" }
 	}
 },
@@ -354,7 +354,7 @@ std::unordered_map<std::string_view, std::unordered_map<ELanguage, std::string>>
 		{ ELanguage::Japanese, "右スティッククリック" },
 		{ ELanguage::German,   "TO DO" },
 		{ ELanguage::French,   "Clic Stick Droit" },
-		{ ELanguage::Spanish,  "TO DO" },
+		{ ELanguage::Spanish,  "Clic del Stick Derecho" },
 		{ ELanguage::Italian,  "TO DO" }
 	}
 },
@@ -365,7 +365,7 @@ std::unordered_map<std::string_view, std::unordered_map<ELanguage, std::string>>
 		{ ELanguage::Japanese, "左スティック\u200B上" },
 		{ ELanguage::German,   "TO DO" },
 		{ ELanguage::French,   "Stick Gauche Haut" },
-		{ ELanguage::Spanish,  "TO DO" },
+		{ ELanguage::Spanish,  "Stick Izquierdo Arriba" },
 		{ ELanguage::Italian,  "TO DO" }
 	}
 },
@@ -376,7 +376,7 @@ std::unordered_map<std::string_view, std::unordered_map<ELanguage, std::string>>
 		{ ELanguage::Japanese, "左スティック\u200B下" },
 		{ ELanguage::German,   "TO DO" },
 		{ ELanguage::French,   "Stick Gauche Bas" },
-		{ ELanguage::Spanish,  "TO DO" },
+		{ ELanguage::Spanish,  "Stick Izquierdo Abajo" },
 		{ ELanguage::Italian,  "TO DO" }
 	}
 },
@@ -387,7 +387,7 @@ std::unordered_map<std::string_view, std::unordered_map<ELanguage, std::string>>
 		{ ELanguage::Japanese, "左スティック\u200B左" },
 		{ ELanguage::German,   "TO DO" },
 		{ ELanguage::French,   "Stick Gauche Gauche" },
-		{ ELanguage::Spanish,  "TO DO" },
+		{ ELanguage::Spanish,  "Stick Izquierdo Izquierda" },
 		{ ELanguage::Italian,  "TO DO" }
 	}
 },
@@ -398,7 +398,7 @@ std::unordered_map<std::string_view, std::unordered_map<ELanguage, std::string>>
 		{ ELanguage::Japanese, "左スティック\u200B右" },
 		{ ELanguage::German,   "TO DO" },
 		{ ELanguage::French,   "Stick Gauche Droit" },
-		{ ELanguage::Spanish,  "TO DO" },
+		{ ELanguage::Spanish,  "Stick Izquierdo Derecha" },
 		{ ELanguage::Italian,  "TO DO" }
 	}
 },
@@ -409,7 +409,7 @@ std::unordered_map<std::string_view, std::unordered_map<ELanguage, std::string>>
 		{ ELanguage::Japanese, "右スティック\u200B上" },
 		{ ELanguage::German,   "TO DO" },
 		{ ELanguage::French,   "Stick Droit Haut" },
-		{ ELanguage::Spanish,  "TO DO" },
+		{ ELanguage::Spanish,  "Stick Derecho Arriba" },
 		{ ELanguage::Italian,  "TO DO" }
 	}
 },
@@ -420,7 +420,7 @@ std::unordered_map<std::string_view, std::unordered_map<ELanguage, std::string>>
 		{ ELanguage::Japanese, "右スティック\u200B下" },
 		{ ELanguage::German,   "TO DO" },
 		{ ELanguage::French,   "Stick Droit Bas" },
-		{ ELanguage::Spanish,  "TO DO" },
+		{ ELanguage::Spanish,  "Stick Derecho Abajo" },
 		{ ELanguage::Italian,  "TO DO" }
 	}
 },
@@ -431,7 +431,7 @@ std::unordered_map<std::string_view, std::unordered_map<ELanguage, std::string>>
 		{ ELanguage::Japanese, "右スティック\u200B左" },
 		{ ELanguage::German,   "TO DO" },
 		{ ELanguage::French,   "Stick Droit Gauche" },
-		{ ELanguage::Spanish,  "TO DO" },
+		{ ELanguage::Spanish,  "Stick Derecho Izquierda" },
 		{ ELanguage::Italian,  "TO DO" }
 	}
 },
@@ -442,7 +442,7 @@ std::unordered_map<std::string_view, std::unordered_map<ELanguage, std::string>>
 		{ ELanguage::Japanese, "右スティック\u200B右" },
 		{ ELanguage::German,   "TO DO" },
 		{ ELanguage::French,   "Stick Droit Droit" },
-		{ ELanguage::Spanish,  "TO DO" },
+		{ ELanguage::Spanish,  "Stick Derecho Derecha" },
 		{ ELanguage::Italian,  "TO DO" }
 	}
 },
@@ -453,7 +453,7 @@ std::unordered_map<std::string_view, std::unordered_map<ELanguage, std::string>>
 		{ ELanguage::Japanese, "×ボタン" },
 		{ ELanguage::German,   "TO DO" },
 		{ ELanguage::French,   "CROIX" },
-		{ ELanguage::Spanish,  "TO DO" },
+		{ ELanguage::Spanish,  "Cruz" },
 		{ ELanguage::Italian,  "TO DO" }
 	}
 },
@@ -464,7 +464,7 @@ std::unordered_map<std::string_view, std::unordered_map<ELanguage, std::string>>
 		{ ELanguage::Japanese, "〇ボタン" },
 		{ ELanguage::German,   "TO DO" },
 		{ ELanguage::French,   "CERCLE" },
-		{ ELanguage::Spanish,  "TO DO" },
+		{ ELanguage::Spanish,  "Círculo" },
 		{ ELanguage::Italian,  "TO DO" }
 	}
 },
@@ -475,7 +475,7 @@ std::unordered_map<std::string_view, std::unordered_map<ELanguage, std::string>>
 		{ ELanguage::Japanese, "□ボタン" },
 		{ ELanguage::German,   "TO DO" },
 		{ ELanguage::French,   "CARRÉ" },
-		{ ELanguage::Spanish,  "TO DO" },
+		{ ELanguage::Spanish,  "Cuadrado" },
 		{ ELanguage::Italian,  "TO DO" }
 	}
 },
@@ -486,7 +486,7 @@ std::unordered_map<std::string_view, std::unordered_map<ELanguage, std::string>>
 		{ ELanguage::Japanese, "△ボタン" },
 		{ ELanguage::German,   "TO DO" },
 		{ ELanguage::French,   "TRIANGLE" },
-		{ ELanguage::Spanish,  "TO DO" },
+		{ ELanguage::Spanish,  "Triángulo" },
 		{ ELanguage::Italian,  "TO DO" }
 	}
 },
@@ -497,7 +497,7 @@ std::unordered_map<std::string_view, std::unordered_map<ELanguage, std::string>>
 		{ ELanguage::Japanese, "エンター" },
 		{ ELanguage::German,   "TO DO" },
 		{ ELanguage::French,   "ENTRÉE" },
-		{ ELanguage::Spanish,  "TO DO" },
+		{ ELanguage::Spanish,  "Atrás" },
 		{ ELanguage::Italian,  "TO DO" }
 	}
 },
@@ -508,7 +508,7 @@ std::unordered_map<std::string_view, std::unordered_map<ELanguage, std::string>>
 		{ ELanguage::Japanese, "エスケープ" },
 		{ ELanguage::German,   "TO DO" },
 		{ ELanguage::French,   "ECHAP" },
-		{ ELanguage::Spanish,  "TO DO" },
+		{ ELanguage::Spanish,  "Escape" },
 		{ ELanguage::Italian,  "TO DO" }
 	}
 },
@@ -519,7 +519,7 @@ std::unordered_map<std::string_view, std::unordered_map<ELanguage, std::string>>
 		{ ELanguage::Japanese, "バックスペース" },
 		{ ELanguage::German,   "TO DO" },
 		{ ELanguage::French,   "RETOUR" },
-		{ ELanguage::Spanish,  "TO DO" },
+		{ ELanguage::Spanish,  "Retroceso" },
 		{ ELanguage::Italian,  "TO DO" }
 	}
 },
@@ -530,7 +530,7 @@ std::unordered_map<std::string_view, std::unordered_map<ELanguage, std::string>>
 		{ ELanguage::Japanese, "スペース" },
 		{ ELanguage::German,   "TO DO" },
 		{ ELanguage::French,   "ESPACE" },
-		{ ELanguage::Spanish,  "TO DO" },
+		{ ELanguage::Spanish,  "Espacio" },
 		{ ELanguage::Italian,  "TO DO" }
 	}
 },
@@ -541,7 +541,7 @@ std::unordered_map<std::string_view, std::unordered_map<ELanguage, std::string>>
 		{ ELanguage::Japanese, "上" },
 		{ ELanguage::German,   "TO DO" },
 		{ ELanguage::French,   "HAUT" },
-		{ ELanguage::Spanish,  "TO DO" },
+		{ ELanguage::Spanish,  "Arriba" },
 		{ ELanguage::Italian,  "TO DO" }
 	}
 },
@@ -552,7 +552,7 @@ std::unordered_map<std::string_view, std::unordered_map<ELanguage, std::string>>
 		{ ELanguage::Japanese, "下" },
 		{ ELanguage::German,   "TO DO" },
 		{ ELanguage::French,   "BAS" },
-		{ ELanguage::Spanish,  "TO DO" },
+		{ ELanguage::Spanish,  "Abajo" },
 		{ ELanguage::Italian,  "TO DO" }
 	}
 },
@@ -563,7 +563,7 @@ std::unordered_map<std::string_view, std::unordered_map<ELanguage, std::string>>
 		{ ELanguage::Japanese, "左" },
 		{ ELanguage::German,   "TO DO" },
 		{ ELanguage::French,   "GAUCHE" },
-		{ ELanguage::Spanish,  "TO DO" },
+		{ ELanguage::Spanish,  "Izquierda" },
 		{ ELanguage::Italian,  "TO DO" }
 	}
 },
@@ -574,7 +574,7 @@ std::unordered_map<std::string_view, std::unordered_map<ELanguage, std::string>>
 		{ ELanguage::Japanese, "右" },
 		{ ELanguage::German,   "TO DO" },
 		{ ELanguage::French,   "DROITE" },
-		{ ELanguage::Spanish,  "TO DO" },
+		{ ELanguage::Spanish,  "Derecha" },
 		{ ELanguage::Italian,  "TO DO" }
 	}
 },
@@ -585,7 +585,7 @@ std::unordered_map<std::string_view, std::unordered_map<ELanguage, std::string>>
 		{ ELanguage::Japanese, "左コントロール" },
 		{ ELanguage::German,   "TO DO" },
 		{ ELanguage::French,   "CTRL GAUCHE" },
-		{ ELanguage::Spanish,  "TO DO" },
+		{ ELanguage::Spanish,  "Control Izquierdo" },
 		{ ELanguage::Italian,  "TO DO" }
 	}
 },
@@ -596,7 +596,7 @@ std::unordered_map<std::string_view, std::unordered_map<ELanguage, std::string>>
 		{ ELanguage::Japanese, "右コントロール" },
 		{ ELanguage::German,   "TO DO" },
 		{ ELanguage::French,   "CTRL DROIT" },
-		{ ELanguage::Spanish,  "TO DO" },
+		{ ELanguage::Spanish,  "Control Derecho" },
 		{ ELanguage::Italian,  "TO DO" }
 	}
 },
@@ -607,7 +607,7 @@ std::unordered_map<std::string_view, std::unordered_map<ELanguage, std::string>>
 		{ ELanguage::Japanese, "左シフト" },
 		{ ELanguage::German,   "TO DO" },
 		{ ELanguage::French,   "MAJ." },
-		{ ELanguage::Spanish,  "TO DO" },
+		{ ELanguage::Spanish,  "Shift Izquierdo" },
 		{ ELanguage::Italian,  "TO DO" }
 	}
 },
@@ -618,7 +618,7 @@ std::unordered_map<std::string_view, std::unordered_map<ELanguage, std::string>>
 		{ ELanguage::Japanese, "右シフト" },
 		{ ELanguage::German,   "TO DO" },
 		{ ELanguage::French,   "MAJ DROITE" },
-		{ ELanguage::Spanish,  "TO DO" },
+		{ ELanguage::Spanish,  "Shift Derecho" },
 		{ ELanguage::Italian,  "TO DO" }
 	}
 },
@@ -629,7 +629,7 @@ std::unordered_map<std::string_view, std::unordered_map<ELanguage, std::string>>
 		{ ELanguage::Japanese, "左オルト" },
 		{ ELanguage::German,   "TO DO" },
 		{ ELanguage::French,   "ALT" },
-		{ ELanguage::Spanish,  "TO DO" },
+		{ ELanguage::Spanish,  "Alt Izquierdo" },
 		{ ELanguage::Italian,  "TO DO" }
 	}
 },
@@ -640,7 +640,7 @@ std::unordered_map<std::string_view, std::unordered_map<ELanguage, std::string>>
 		{ ELanguage::Japanese, "右オルト" },
 		{ ELanguage::German,   "ALT GR" },
 		{ ELanguage::French,   "ALT GR" },
-		{ ELanguage::Spanish,  "ALT GR" },
+		{ ELanguage::Spanish,  "Alt Gr" },
 		{ ELanguage::Italian,  "ALT GR" }
 	}
 },
