@@ -462,7 +462,11 @@ T GuestToHostFunction(const X86Context& currentCtx, const TFunction& func, TArgs
     newCtx.esp = currentCtx.esp;
     newCtx.ebp = currentCtx.ebp;
     newCtx.kpcr_ptr = currentCtx.kpcr_ptr;
-    // Copy other necessary registers
+
+    // reserve the stack args below caller esp
+    constexpr int regArgs = CC == CallConvention::Thiscall ? 1 : CC == CallConvention::Fastcall ? 2 : 0;
+    constexpr int stackArgs = std::max(0, static_cast<int>(sizeof...(TArgs)) - regArgs);
+    newCtx.esp.u32 -= stackArgs * 4;
 
     // Set up the arguments
     _translate_args_to_guest<CC>(newCtx, g_memory.base, args);
