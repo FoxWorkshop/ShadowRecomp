@@ -142,7 +142,7 @@ CONFIG_DEFINE_LOCALE(AchievementNotifications)
 CONFIG_DEFINE_LOCALE(ConfirmationPrompt)
 {
     { ELanguage::English,  { "Confirmation Prompts", "Shows confirmation prompts when loading a save file, exiting to the menu, restarting, and in other similar situations. Disabling this option replicates the behavior of the GameCube version." } },
-    { ELanguage::Japanese, { "確認プロンプト", "セーブデータのロード、やめる、はじめからなどの際に確認プロンプトを表示します。このオプションを無効にすると、ゲームキューブ版と同じ動作になります。" } },
+    { ELanguage::Japanese, { "確認プロンプト", "ゲームデータのロード、「やめる」、「はじめから」などの際に確認プロンプトを表示します。このオプションを無効にすると、ゲームキューブ版と同じ動作になります。" } },
     { ELanguage::German,   { "Bestätigungsaufforderungen", "Zeigt Bestätigungsabfragen beim Laden eines Spielstands, beim Verlassen des Menüs, beim Neustart und in ähnlichen Situationen an. Durch Deaktivieren dieser Option wird das Verhalten der GameCube-Version Repliziert." } },
     { ELanguage::French,   { "Message de confirmation", "Affiche les messages de confirmation lors du chargement d'une sauvegarde, du retour au menu, du redémarrage et dans d'autres situations similaires. Désactiver cette option reproduit le comportement de la version GameCube." } },
     { ELanguage::Spanish,  { "Mensajes de confirmación", "Muestra una confirmación al cargar un archivo de guardado, salir al menú principal, reiniciar el nivel y otras situaciones similares. Desactivar esta opción replica el funcionamiento de la versión de GameCube." } },
@@ -858,7 +858,7 @@ CONFIG_DEFINE_LOCALE(ShowFPS)
 CONFIG_DEFINE_LOCALE(Brightness)
 {
     { ELanguage::English, { "Brightness", "Adjust the brightness level." } },
-    { ELanguage::Japanese, { "明るさの設定", "画面の明るさを調整します。" } },
+    { ELanguage::Japanese, { "明るさ設定", "画面の明るさを調整します。" } },
     { ELanguage::German,   { "Helligkeit", "Passe die Helligkeit an." } },
     { ELanguage::French,   { "Luminosité", "Réglez le niveau de luminosité." } },
     { ELanguage::Spanish,  { "Brillo", "Ajusta el nivel del brillo." } },
