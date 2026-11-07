@@ -865,7 +865,7 @@ static void DrawOption
 				{
 					if (config == &Config::MasterVolume || config == &Config::MusicVolume || config == &Config::VoicesVolume ||
 						config == &Config::CutsceneVolume || config == &Config::EffectsVolume || config == &Config::ResolutionScale ||
-						config == &Config::Brightness || config == &Config::BloomIntensity ||
+						config == &Config::Brightness || config == &Config::BloomIntensity || config == &Config::ControllerLEDBrightness ||
 						std::ranges::find(g_stickDeadzones, config) != std::end(g_stickDeadzones) ||
 						std::ranges::find(g_stickSensitivities, config) != std::end(g_stickSensitivities))
 					{
@@ -1955,6 +1955,7 @@ static void DrawOptions(X86Context* ctx, ImVec2 minClipRect, ImVec2 maxClipRect,
 		}
 		DrawOption(ctx, rowCount++, &Config::ControllerIcons, !OptionsMenu::s_isPause, min, max, cmnReason);
 		DrawOption(ctx, rowCount++, &Config::ChaosPowerLEDSync, true, min, max);
+		DrawOption(ctx, rowCount++, &Config::ControllerLEDBrightness, true, min, max);
 		DrawOption(ctx, rowCount++, &Config::AllowBackgroundInput, true, min, max);
 		DrawCustomizeInputOption(ctx, rowCount++, min, max);
 		break;

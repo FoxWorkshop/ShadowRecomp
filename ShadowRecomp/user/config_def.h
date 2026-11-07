@@ -21,6 +21,7 @@ CONFIG_DEFINE_LOCALISED_OPTIONAL("Input", bool, Vibration4P, true, false);
 CONFIG_DEFINE_LOCALISED("Input", bool, AllowBackgroundInput, false, false);
 CONFIG_DEFINE_ENUM_LOCALISED("Input", EControllerIcons, ControllerIcons, EControllerIcons::Auto, true);
 CONFIG_DEFINE_LOCALISED("Input", bool, ChaosPowerLEDSync, true, false);
+CONFIG_DEFINE_LOCALISED("Input", float, ControllerLEDBrightness, 0.25f, false);
 CONFIG_DEFINE_LOCALISED("Input", float, StickDeadzone1P, 0.0f, false);
 CONFIG_DEFINE_LOCALISED("Input", float, StickDeadzone2P, 0.0f, false);
 CONFIG_DEFINE_LOCALISED_OPTIONAL("Input", float, StickDeadzone3P, 0.0f, false);

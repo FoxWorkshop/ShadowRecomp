@@ -207,7 +207,9 @@ public:
 
 	void SetLED(const uint8_t r, const uint8_t g, const uint8_t b) const
 	{
-		SDL_SetGamepadLED(controller, r, g, b);
+		const float brightness = std::clamp(Config::ControllerLEDBrightness.Value, 0.0f, 1.0f);
+		const auto scale = [brightness](uint8_t c) { return (uint8_t)std::lround(c * brightness); };
+		SDL_SetGamepadLED(controller, scale(r), scale(g), scale(b));
 	}
 };
 
@@ -465,7 +467,7 @@ static void SetControllerChaosModeLED(Controller& controller, ELedAura mode)
 	case LED_AURA_NEUTRAL:
 	default:
 	{
-		controller.SetLED(91, 91, 91);
+		controller.SetLED(24, 24, 24);
 	}
 	break;
 	case LED_AURA_HERO:
@@ -479,6 +481,25 @@ static void SetControllerChaosModeLED(Controller& controller, ELedAura mode)
 	}
 	break;
 	}
+}
+
+static void SetControllerPlayerColor(Controller& controller, size_t playerIndex)
+{
+	if (!controller.controller)
+	{
+		return;
+	}
+
+	static constexpr uint8_t s_playerColors[4][3] =
+	{
+		{   0,   0, 255 },
+		{ 255,   0,   0 },
+		{   0, 255,   0 },
+		{ 128,   0, 128 },
+	};
+
+	const auto& color = s_playerColors[playerIndex % std::size(s_playerColors)];
+	controller.SetLED(color[0], color[1], color[2]);
 }
 
 static bool s_auraDirty = true;
@@ -530,25 +551,34 @@ static void SyncControllers()
 
 // ds4 / ds5 led color aura fixes
 // when touching goal ring, the async / event thread start to be used which can easily deadlock with SDLs stuff
-static void ApplyChaosAura()
+static void ApplyControllerLEDs()
 {
-	if (!Config::ChaosPowerLEDSync.Value)
-	{
-		return;
-	}
-
 	static ELedAura s_appliedAura = LED_AURA_NEUTRAL;
+	static float s_appliedBrightness = -1.0f;
+	static bool s_appliedSync = false;
+
+	const bool sync = Config::ChaosPowerLEDSync.Value;
 	const auto aura = App::s_chaosMode.load(std::memory_order_relaxed);
+	const auto brightness = Config::ControllerLEDBrightness.Value;
 	const bool forced = std::exchange(s_auraDirty, false);
-	if (!forced && aura == s_appliedAura)
+	if (!forced && sync == s_appliedSync && (!sync || aura == s_appliedAura) && brightness == s_appliedBrightness)
 	{
 		return;
 	}
 
+	s_appliedSync = sync;
 	s_appliedAura = aura;
-	for (auto& controller : g_controllers)
+	s_appliedBrightness = brightness;
+	for (size_t i = 0; i < g_controllers.size(); i++)
 	{
-		SetControllerChaosModeLED(controller, aura);
+		if (sync)
+		{
+			SetControllerChaosModeLED(g_controllers[i], aura);
+		}
+		else
+		{
+			SetControllerPlayerColor(g_controllers[i], i);
+		}
 	}
 }
 
@@ -596,7 +626,7 @@ void input::SetChaosAura(ELedAura mode)
 void input::Update()
 {
 	MainThreadDispatcher::Get().Flush();
-	ApplyChaosAura();
+	ApplyControllerLEDs();
 	PublishPadFrame();
 }
 
