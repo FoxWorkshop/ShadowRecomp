@@ -320,7 +320,7 @@ static std::tuple<ImVec2, ImVec2> GetCategoryIconUVs(int row, bool isCurrent)
 	const int cellY = row * ICON_CELL_PITCH;
 	const int cellHeight = std::min(ICON_CELL_SIZE, ICON_ATLAS_HEIGHT - cellY);
 
-	return PIXELS_TO_UV_COORDS(ICON_ATLAS_WIDTH, ICON_ATLAS_HEIGHT, cellX, cellY, ICON_CELL_SIZE, cellHeight);
+	return PIXELS_TO_UV_COORDS(ICON_ATLAS_WIDTH, ICON_ATLAS_HEIGHT, cellX + 0.5f, cellY + 0.5f, ICON_CELL_SIZE - 1.0f, cellHeight - 1.0f);
 }
 
 static bool IsCategoryVisible(OptionsMenuCategory category)
