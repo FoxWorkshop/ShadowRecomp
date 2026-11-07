@@ -1203,7 +1203,7 @@ std::unordered_map<std::string_view, std::unordered_map<ELanguage, std::string>>
 	"Unlock_Message_LastStory",
 	{
 		{ ELanguage::English,  "LAST STORY unlocked!" },
-		{ ELanguage::Japanese, "LAST STORY が追加されました！" },
+		{ ELanguage::Japanese, "LAST STORYが追加されました！" },
 		{ ELanguage::German,   "LETZTE STORY freigeschaltet!" },
 		{ ELanguage::French,   "DERNIERE HISTOIRE déverrouillée !" },
 		{ ELanguage::Spanish,  "¡HISTORIA FINAL desbloqueada!" },
