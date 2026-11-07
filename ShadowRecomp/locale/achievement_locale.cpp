@@ -618,8 +618,8 @@ std::unordered_map<int, std::unordered_map<ELanguage, AchievementLocale>> g_shrL
 				ELanguage::Japanese,
 				{
 					"善悪の彼岸",
-					"すべてのステージをAランクでクリアしよう！",
-					"すべてのステージをAランクでクリアした。"
+					"すべてのステージをAランクを71個すべて取ろう！",
+					"すべてのステージをAランクを71個すべて取った。"
 				}
 			},
 			{

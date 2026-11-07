@@ -846,7 +846,7 @@ std::unordered_map<std::string_view, std::unordered_map<ELanguage, std::string>>
 	"Installer_Page_Introduction",
 	{
 		{ ELanguage::English,  "Welcome to Shadow Recompiled!\n\nYou'll need an Xbox copy of\nShadow the Hedgehog in order to\nproceed with the installation." },
-		{ ELanguage::Japanese, "Shadow Recompiledへようこそ！\n\nインストールを続行するには、\n『シャドウ・ザ・ヘッジホッグ』のXbox版が必要です。" },
+		{ ELanguage::Japanese, "Shadow Recompiledへようこそ！\n\nインストールを続行するには、\n『シャドウ・ザ・ヘッジホッグ』の\nXbox版が必要です。" },
 		{ ELanguage::German,   "Wilkommen zu Shadow Recompiled!\n\nDu wirst eine Xbox Kopie von\nShadow the Hedgehog benötigen um\nmit der Installation fortzufahren."},
 		{ ELanguage::French,   "Bienvenue sur Shadow Recompiled!\n\nVous aurez besoin d'une copie Xbox\nde Shadow the Hedgehog pour\npouvoir continuer l'installation." },
 		{ ELanguage::Spanish,  "¡Te damos la bienvenida a\nShadow Recompiled!\n\nNecesitarás una copia de la versión de XBOX de Shadow the Hedgehog\npara proceder con la instalación." },
