@@ -1234,12 +1234,12 @@ void ModLoader::Init()
 
 		if (strcmp(reservedIDName[(uint8_t)ModReservedID::Reloaded], modinf.ID.c_str()) == 0)
 		{
-			// add toggle for reloaded
+			Config::ReloadedMod.Value = true;
 		}
 
 		if (strcmp(reservedIDName[(uint8_t)ModReservedID::Multiplayer], modinf.ID.c_str()) == 0)
 		{
-			// add toggle for mp
+			Config::ExtendedMultiplayer.Value = true;
 		}
 
 		LoadReplaceIni(modDir, modDir / "replace.ini", &modinf, false);
