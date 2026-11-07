@@ -232,7 +232,7 @@ std::unordered_map<std::string_view, std::unordered_map<ELanguage, std::string>>
 		{ ELanguage::English,  "Press key to assign. Press Escape or wait to cancel." },
 		{ ELanguage::Japanese, "割り当てるキーを押してください。キャンセルするにはEscapeキーを押すか、そのままお待ちください。" },
 		{ ELanguage::German,   "Taste drücken zum Zuweisen. Drücke Escape oder warte um zurückzukehren." },
-		{ ELanguage::French,   "Appuyez sur une touche pour l'assigner. Appuyez sur Escape ou attendez pour annuler." },
+		{ ELanguage::French,   "Appuyez sur une touche pour assigner. Appuyez sur Escape ou attendez pour annuler." },
 		{ ELanguage::Spanish,  "Pulsa una tecla para asignar. Pulsa Escape o espera para cancelar." },
 		{ ELanguage::Italian,  "Premi un tasto per assegnare. Premi Escape o aspetta per annullare." }
 	}
