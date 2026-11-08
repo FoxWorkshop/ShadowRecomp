@@ -1087,9 +1087,11 @@ void AddTextWithOutline(ImDrawList* drawList, ImFont* font, float fontSize,
     ImVec2 pos, ImU32 textColor, ImU32 outlineColor,
     const char* text, float outlineSize, float outlineOffsetX, float outlineOffsetY)
 {
-    // two passes for thicker outline
-    for (float thickness = 1.0f; thickness <= outlineSize; thickness += 1.0f)
+    auto scaledSize = Scale(outlineSize);
+    auto rings = std::max(1.0f, std::ceil(scaledSize));
+    for (float ring = 1.0f; ring <= rings; ring += 1.0f)
     {
+        auto thickness = scaledSize * ring / rings;
         for (int dx = -1; dx <= 1; dx++)
         {
             for (int dy = -1; dy <= 1; dy++)
