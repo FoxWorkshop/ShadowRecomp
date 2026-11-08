@@ -117,9 +117,9 @@ This project does not plan to support any more platforms other than Windows and 
 ## Credits
 
 ### Shadow Recompiled
-- [Sora](https://github.com/Sora-yx): Creator and Lead Developer of the recompilation, as well as the developer of technologies created for it such as [XboxRecomp](https://github.com/FoxWorkshop/XboxRecomp) (before the XboxRecomp2 switch) and [XShaderRecomp](https://github.com/FoxWorkshop/XShaderRecomp).
+- [Sora](https://github.com/Sora-yx): Creator and Lead Developer of the recompilation, as well as the developer of technologies created for it such as [XboxRecomp](https://github.com/FoxWorkshop/XboxRecomp) (before the XboxRecomp2 switch) and [XShaderRecomp](https://github.com/FoxWorkshop/XShaderRecomp). Provided French localization for the custom menus.
 
-- [dreamsyntax](https://github.com/dreamsyntax): Second Developer, source for Shadow knowledge, ensuring port accuracy, and identifying flaws with the Xbox port of the game.
+- [dreamsyntax](https://github.com/dreamsyntax): Second Developer, source for Shadow knowledge, ensuring port accuracy, and identifying flaws with the Xbox port of the game. Provided English localization for the custom menus.
 
 - [Sewer56](https://github.com/Sewer56): Third Developer, who joined relatively late, implemented better widescreen, significantly improved performance with shaders and added NixOS support for Linux.
 
@@ -127,20 +127,23 @@ This project does not plan to support any more platforms other than Windows and 
 
 - [DonutStopGaming](https://github.com/DonutStopGaming): Help with understanding RenderWare and finding Shadow functions.
 
-- [Deep-Sea Berry](https://github.com/Deep-SeaBerry): Artist behind the project logo.
+- [Jesus_PK](https://github.com/Jesus-PK): Provided Spanish localization for the custom menus, also helped testing and finding bugs.
 
+- [Deep-Sea Berry](https://github.com/Deep-SeaBerry): Artist behind the project logo, along with custom options icons. Provided German localization for the custom menus and helped testing and finding bugs.
 
-TODO: Add translation credits too
+- [Emasplatter](https://twitter.com/emasplatter): Provided Italian localization for the custom menus.
+
+- [Windii](https://www.youtube.com/@WindiiGitlord/videos): Provided Japanese localization for the custom menus.
+
+- [macoscriptmusic](https://twitter.com/macoscriptmusic): Produced the installer music (original prod. by Jun Senoue).
 
 
 ### Tester Thanks
 - Rawlins
 - DarkShadow17
 - The Spectral Star
-- [Jesus_PK](https://github.com/Jesus-PK)
 - Pixel
 - [ultra0000](https://github.com/ultra0000)
-- [Deep-Sea Berry](https://github.com/Deep-SeaBerry)
 - Many others who helped briefly test
 
 ### Special Thanks
