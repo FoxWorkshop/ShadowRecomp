@@ -22,6 +22,7 @@
 #include <preload_executable.h>
 #include <patches/unix_patches.h>
 #include <patches/reloaded_mod_patches.h>
+#include <patches/multiplayer_mod_patches.h>
 #include <audio/embedded_player.h>
 #include <ui/installer_wizard.h>
 #include <install/installer.h>
@@ -356,6 +357,7 @@ int main(int argc, char* argv[])
 
     PatchUnixStrings();
     ReloadedValuePatches();
+    MultiplayerPatchesInit();
     PausePatchesInit();
     BloomConfigValueChangedCallback(&Config::BloomIntensity);
 

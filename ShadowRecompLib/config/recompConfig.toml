@@ -90,12 +90,14 @@ function_hooks = [
 	0x23950,
 	0x24CF0,
 	0x25DF0,
+	0x27250,
 	0x261A0,
 	0x55A80,
 	0x55BE0,
 	0x56FC0,
 	0x57630,
 	0x578B0,
+	0x58050,
 	0x59430,
 	0x59AE0,
 	0x59BB0,
@@ -117,8 +119,10 @@ function_hooks = [
 	0x8D1B0,
 	0x8E690,
 	0x8E9A0,
+	0x8FEC0,
 	0x908C0,
 	0x90D10,
+	0x91F90,
 	0x93190,
 	0x934D0,
 	0x96AD0,
@@ -138,14 +142,30 @@ function_hooks = [
 	0xC3580,
 	0xCCC90,
 	0xCEED0,
+	0xD2B20,
+	0x1105C0,
+	0x112DE0,
 	0x114650,
 	0x115A50,
 	0x125DA0,
+	0x125E70,
+	0x125E80,
+	0x125EB0,
+	0x125ED0,
+	0x125F00,
+	0x125F20,
 	0x125F50,
+	0x126250,
 	0x1269D0,
+	0x126AC0,
+	0x126AE0,
 	0x126AF0,
+	0x126E10,
 	0x1715B0,
 	0x173A20,
+	0x173AF0,
+	0x173B30,
+	0x177F70,
 	0x178850,
 	0x178AD0,
 	0x17A5C0,
@@ -153,12 +173,18 @@ function_hooks = [
 	0x17C1C0,
 	0x17E290,
 	0x181F80,
+	0x199DC0,
+	0x199F30,
+	0x19A180,
+	0x19A420,
 	0x1A1E60,
 	0x1AD1A0,
 	0x1B2C30,
 	0x1CD350,
 	0x1D0900,
 	0x1F89B0,
+	0x1FB940,
+	0x1FBD60,
 	0x20D980,
 	0x20E260,
 	0x226B00,
@@ -171,6 +197,7 @@ function_hooks = [
 	0x2378B0,
 	0x23BF90,
 	0x23C410,
+	0x23F7F0,
 	0x242240,
 	0x242470,
 	0x243BB0,
@@ -191,6 +218,7 @@ function_hooks = [
 	0x2595A0,
 	0x25B280,
 	0x25CBB0,
+	0x25E860,
 	0x25F120,
 	0x25F420,
 	0x25FD60,
@@ -306,6 +334,7 @@ function_hooks = [
 	0x316240,
 	0x3167D0,
 	0x316BC0,
+	0x31C720,
 	0x3258A0,
 	0x32EFE0,
 	0x332B60,
@@ -863,221 +892,6 @@ address = 0x23C877
 [[midasm_hook]]
 name = "PatchDisableHudMidAsmHook"
 address = 0x23CCE3
-
-#### Extended Multiplayer
-[[midasm_hook]]
-name = "ExtendedMultiplayerCameraAttachMidAsmHook"
-address = 0x165047
-jump_address_on_true = 0x165049
-jump_address_on_false = 0x165085
-
-[[midasm_hook]]
-name = "ExtendedMultiplayerPlayerSpawnMidAsmHook"
-address = 0x16F842
-jump_address_on_true = 0x16F854
-jump_address_on_false = 0x16F844
-
-[[midasm_hook]]
-name = "ExtendedMultiplayerCameraAllocationLoopMidAsmHook"
-address = 0x2A763
-jump_address_on_true = 0x2A6A0
-jump_address_on_false = 0x2A769
-
-[[midasm_hook]]
-name = "ExtendedMultiplayerExtraSpawnMidAsmHook"
-address = 0x16F891
-jump_address_on_true = 0x16F882
-
-[[midasm_hook]]
-name = "ExtendedMultiplayerExtraSpawnRedirectMidAsmHook"
-address = 0x16F887
-jump_address_on_true = 0x16F891
-
-[[midasm_hook]]
-name = "ExtendedMultiplayerPlayerPositionIDOverrideMidAsmHook"
-address = 0x16F733
-
-[[midasm_hook]]
-name = "ExtendedMultiplayerPlayerPositionLoopMidAsmHook"
-address = 0x16F739
-jump_address_on_true = 0x16F6DA
-
-[[midasm_hook]]
-name = "ExtendedMultiplayerPlayerPositionIDOverrideContinue0MidAsmHook"
-address = 0x16F788
-
-[[midasm_hook]]
-name = "ExtendedMultiplayerPlayerPositionLoopContinue0MidAsmHook"
-address = 0x16F78E
-jump_address_on_true = 0x16F76A
-
-[[midasm_hook]]
-name = "AssignPadPlayerIdSaveMidAsmHook"
-address = 0x91AEA
-
-[[midasm_hook]]
-name = "AssignPadPlayerIdOverrideMidAsmHook"
-address = 0x91B0F
-
-[[midasm_hook]]
-name = "PADBoundsCheckMidAsmHook"
-address = 0x91AF7
-jump_address_on_false = 0x91AF9
-
-# Partner PAD remapping
-[[midasm_hook]]
-name = "PlayerPADAssignBeginMidAsmHook"
-address = 0x9738C
-
-[[midasm_hook]]
-name = "PlayerPADAssignEndMidAsmHook"
-address = 0x97391
-
-[[midasm_hook]]
-name = "PartnerPADMidAsmHook"
-address = 0x91AF1
-# End Partner PAD remapping
-
-[[midasm_hook]]
-name = "ViewportDivEaxMidAsmHook"
-address = 0x3CC76F
-jump_address_on_true = 0x3CC771
-
-[[midasm_hook]]
-name = "ViewportDivEcxMidAsmHook"
-address = 0x3CC78F
-jump_address_on_true = 0x3CC791
-
-[[midasm_hook]]
-name = "ViewportDivEaxMidAsmHook"
-address = 0x3CC868
-jump_address_on_true = 0x3CC86A
-
-[[midasm_hook]]
-name = "ViewportDivEcxMidAsmHook"
-address = 0x3CC87E
-jump_address_on_true = 0x3CC880
-
-[[midasm_hook]]
-name = "ViewportExtendedPlayerCalcOverrideMidAsmHook"
-address = 0x3CC92B
-
-[[midasm_hook]]
-name = "CameraAttachSetupMidAsmHook"
-address = 0x165049
-jump_address_on_true = 0x165050
-
-[[midasm_hook]]
-name = "CameraAttachPlayerIdMidAsmHook"
-address = 0x165063
-jump_address_on_true = 0x165065
-
-[[midasm_hook]]
-name = "CameraAttachLoopMidAsmHook"
-address = 0x16508C
-jump_address_on_true = 0x165049
-
-[[midasm_hook]]
-name = "PlayerPostManagerLoopMidAsmHook"
-address = 0x95E96
-jump_address_on_true = 0x958B0
-jump_address_on_false = 0x95E9C
-
-[[midasm_hook]]
-name = "SplitscreenTypeInitializeUnpauseMidAsmHook"
-address = 0x2386CF
-jump_address_on_true = 0x2386D1
-jump_address_on_false = 0x23872C
-
-[[midasm_hook]]
-name = "RenderDivSaveThisMidAsmHook"
-address = 0x5B745
-
-[[midasm_hook]]
-name = "RenderDivExtraPassMidAsmHook"
-address = 0x5B77A
-jump_address_on_true = 0x5B739
-
-[[midasm_hook]]
-name = "RenderDivCameraLookupMidAsmHook"
-address = 0x5B76B
-jump_address_on_true = 0x5B772
-
-[[midasm_hook]]
-name = "RenderDivPlayerOverrideMidAsmHook"
-address = 0x5B74C
-jump_address_on_true = 0x5B74E
-
-[[midasm_hook]]
-name = "RenderDivCameraTargetOverrideMidAsmHook"
-address = 0x5B756
-jump_address_on_true = 0x5B760
-
-# Effect Slot Registration
-[[midasm_hook]]
-name = "EffectSlotPlayerIdOverrideMidAsmHook"
-address = 0x182225
-# End Effect Slot Registration
-
-# ItemIconManagerLoopCreation
-[[midasm_hook]]
-name = "ItemIconManagerLoopPushCountMidAsmHook"
-address = 0x28A690
-jump_address_on_true = 0x28A692
-
-[[midasm_hook]]
-name = "ItemIconManagerLoopCountMidAsmHook"
-address = 0x28A846
-jump_address_on_true = 0x28A710
-jump_address_on_false = 0x28A84C
-# End ItemIconManagerLoopCreation
-
-# SetObject Loading/Unloading per-player distance
-[[midasm_hook]]
-name = "SetObjLoadMultiplayerBranchMidAsmHook"
-address = 0x25A429
-jump_address_on_true = 0x25A458
-jump_address_on_false = 0x25A42B
-
-[[midasm_hook]]
-name = "SetObjUnloadMultiplayerBranchMidAsmHook"
-address = 0x181F8F
-jump_address_on_true = 0x182020
-jump_address_on_false = 0x181F95
-# End SetObject Loading/Unloading per-player distance
-
-[[midasm_hook]]
-name = "AddAllScoreToP1MidAsmHook"
-address = 0x22D630
-
-# AwakeExec Idle Drain Fix (fps carry + mp split)
-[[midasm_hook]]
-name = "AwakeIdleDrainMidAsmHook"
-address = 0x8EB8F
-
-# DarkShadow Sync
-[[midasm_hook]]
-name = "AwakeDarkThresholdBypassMidAsmHook"
-address = 0x9835F
-
-# HeroShadow Sync
-[[midasm_hook]]
-name = "AwakeHeroThresholdBypassMidAsmHook"
-address = 0x9837C
-# End Awake sync
-
-# Skip ChaosControl Cam
-[[midasm_hook]]
-name = "SkipCameraDemoMidAsmHook"
-address = 0x6CA92
-jump_address_on_true = 0x6CA99
-
-# Skip ChaosBlast Cam
-[[midasm_hook]]
-name = "SkipCameraDemoMidAsmHook"
-address = 0x6C06F
-jump_address_on_true = 0x6C075
-#### End Extended Multiplayer
 
 # Collision slopes ground-stick fix
 [[midasm_hook]]
@@ -2385,3 +2199,834 @@ jump_address = 0x71E68
 [[midasm_hook]]
 name = "PlayAsBattleCharactersMidAsmHook"
 address = 0x16F84A
+
+#### Extended Multiplayer
+[[midasm_hook]]
+name = "ExtendedMultiplayerCameraAttachMidAsmHook"
+address = 0x165047
+jump_address_on_true = 0x165049
+jump_address_on_false = 0x165085
+
+[[midasm_hook]]
+name = "ExtendedMultiplayerPlayerSpawnMidAsmHook"
+address = 0x16F842
+jump_address_on_true = 0x16F854
+jump_address_on_false = 0x16F844
+
+[[midasm_hook]]
+name = "ExtendedMultiplayerCameraAllocationLoopMidAsmHook"
+address = 0x2A763
+jump_address_on_true = 0x2A6A0
+jump_address_on_false = 0x2A769
+
+[[midasm_hook]]
+name = "ExtendedMultiplayerExtraSpawnMidAsmHook"
+address = 0x16F891
+jump_address_on_true = 0x16F882
+
+[[midasm_hook]]
+name = "ExtendedMultiplayerExtraSpawnRedirectMidAsmHook"
+address = 0x16F887
+jump_address_on_true = 0x16F891
+
+[[midasm_hook]]
+name = "ExtendedMultiplayerPlayerPositionIDOverrideMidAsmHook"
+address = 0x16F733
+
+[[midasm_hook]]
+name = "ExtendedMultiplayerPlayerPositionLoopMidAsmHook"
+address = 0x16F739
+jump_address_on_true = 0x16F6DA
+
+[[midasm_hook]]
+name = "ExtendedMultiplayerPlayerPositionIDOverrideContinue0MidAsmHook"
+address = 0x16F788
+
+[[midasm_hook]]
+name = "ExtendedMultiplayerPlayerPositionLoopContinue0MidAsmHook"
+address = 0x16F78E
+jump_address_on_true = 0x16F76A
+
+[[midasm_hook]]
+name = "AssignPadPlayerIdSaveMidAsmHook"
+address = 0x91AEA
+
+[[midasm_hook]]
+name = "AssignPadPlayerIdOverrideMidAsmHook"
+address = 0x91B0F
+
+[[midasm_hook]]
+name = "PADBoundsCheckMidAsmHook"
+address = 0x91AF7
+jump_address_on_false = 0x91AF9
+
+# Partner PAD remapping
+[[midasm_hook]]
+name = "PlayerPADAssignBeginMidAsmHook"
+address = 0x9738C
+
+[[midasm_hook]]
+name = "PlayerPADAssignEndMidAsmHook"
+address = 0x97391
+
+[[midasm_hook]]
+name = "PartnerPADMidAsmHook"
+address = 0x91AF1
+# End Partner PAD remapping
+
+[[midasm_hook]]
+name = "ViewportDivEaxMidAsmHook"
+address = 0x3CC76F
+jump_address_on_true = 0x3CC771
+
+[[midasm_hook]]
+name = "ViewportDivEcxMidAsmHook"
+address = 0x3CC78F
+jump_address_on_true = 0x3CC791
+
+[[midasm_hook]]
+name = "ViewportDivEaxMidAsmHook"
+address = 0x3CC868
+jump_address_on_true = 0x3CC86A
+
+[[midasm_hook]]
+name = "ViewportDivEcxMidAsmHook"
+address = 0x3CC87E
+jump_address_on_true = 0x3CC880
+
+[[midasm_hook]]
+name = "ViewportExtendedPlayerCalcOverrideMidAsmHook"
+address = 0x3CC92B
+
+# enemy HPBar view scale
+[[midasm_hook]]
+name = "HPBarViewScaleMidAsmHook"
+address = 0x285AE1
+
+[[midasm_hook]]
+name = "WorldCsdViewScaleMidAsmHook"
+address = 0x288FA1
+
+[[midasm_hook]]
+name = "CameraAttachSetupMidAsmHook"
+address = 0x165049
+jump_address_on_true = 0x165050
+
+[[midasm_hook]]
+name = "CameraAttachPlayerIdMidAsmHook"
+address = 0x165063
+jump_address_on_true = 0x165065
+
+[[midasm_hook]]
+name = "CameraAttachLoopMidAsmHook"
+address = 0x16508C
+jump_address_on_true = 0x165049
+
+[[midasm_hook]]
+name = "PlayerPostManagerLoopMidAsmHook"
+address = 0x95E96
+jump_address_on_true = 0x958B0
+jump_address_on_false = 0x95E9C
+
+[[midasm_hook]]
+name = "SplitscreenTypeInitializeUnpauseMidAsmHook"
+address = 0x2386CF
+jump_address_on_true = 0x2386D1
+jump_address_on_false = 0x23872C
+
+[[midasm_hook]]
+name = "RenderDivSaveThisMidAsmHook"
+address = 0x5B745
+
+[[midasm_hook]]
+name = "RenderDivExtraPassMidAsmHook"
+address = 0x5B77A
+jump_address_on_true = 0x5B739
+
+[[midasm_hook]]
+name = "RenderDivCameraLookupMidAsmHook"
+address = 0x5B76B
+jump_address_on_true = 0x5B772
+
+[[midasm_hook]]
+name = "RenderDivPlayerOverrideMidAsmHook"
+address = 0x5B74C
+jump_address_on_true = 0x5B74E
+
+[[midasm_hook]]
+name = "RenderDivCameraTargetOverrideMidAsmHook"
+address = 0x5B756
+jump_address_on_true = 0x5B760
+
+# Object Touch Cooldown
+[[midasm_hook]]
+name = "ObjectTouchCooldownAllocMidAsmHook"
+address = 0x18251D
+jump_address_on_true = 0x18251F
+
+[[midasm_hook]]
+name = "ObjectTouchCooldownInitMidAsmHook"
+address = 0x18255E
+
+[[midasm_hook]]
+name = "ObjectTouchCooldownRegisterMidAsmHook"
+address = 0x182225
+jump_address_on_true = 0x1822E4
+jump_address_on_false = 0x182252
+
+[[midasm_hook]]
+name = "ObjectTouchCooldownTickMidAsmHook"
+address = 0x181E80
+jump_address_on_true = 0x181ECD
+# End Object Touch Cooldown
+
+# ItemIconManagerLoopCreation
+[[midasm_hook]]
+name = "ItemIconManagerLoopPushCountMidAsmHook"
+address = 0x28A690
+jump_address_on_true = 0x28A692
+
+[[midasm_hook]]
+name = "ItemIconManagerLoopCountMidAsmHook"
+address = 0x28A846
+jump_address_on_true = 0x28A710
+jump_address_on_false = 0x28A84C
+
+[[midasm_hook]]
+name = "ItemIconCreatePlayerBoundMidAsmHook"
+address = 0x28A2D5
+jump_address_on_true = 0x28A38F
+jump_address_on_false = 0x28A2DE
+# End ItemIconManagerLoopCreation
+
+# SetObject Loading/Unloading per-player distance
+[[midasm_hook]]
+name = "SetObjLoadMultiplayerBranchMidAsmHook"
+address = 0x25A429
+jump_address_on_true = 0x25A458
+jump_address_on_false = 0x25A42B
+
+[[midasm_hook]]
+name = "SetObjUnloadMultiplayerBranchMidAsmHook"
+address = 0x181F8F
+jump_address_on_true = 0x182020
+jump_address_on_false = 0x181F95
+# End SetObject Loading/Unloading per-player distance
+
+[[midasm_hook]]
+name = "AddAllScoreToP1MidAsmHook"
+address = 0x22D630
+
+# AwakeExec Idle Drain Fix (fps carry + mp split)
+[[midasm_hook]]
+name = "AwakeIdleDrainMidAsmHook"
+address = 0x8EB8F
+
+# DarkShadow Sync
+[[midasm_hook]]
+name = "AwakeDarkThresholdBypassMidAsmHook"
+address = 0x9835F
+
+# HeroShadow Sync
+[[midasm_hook]]
+name = "AwakeHeroThresholdBypassMidAsmHook"
+address = 0x9837C
+# End Awake sync
+
+# Skip ChaosControl Cam
+[[midasm_hook]]
+name = "SkipCameraDemoMidAsmHook"
+address = 0x6CA92
+jump_address_on_true = 0x6CA99
+
+# Skip ChaosBlast Cam
+[[midasm_hook]]
+name = "SkipCameraDemoMidAsmHook"
+address = 0x6C06F
+jump_address_on_true = 0x6C075
+
+# Bosses Target Closest Player
+[[midasm_hook]]
+name = "BossTargetClosestPlayerMidAsmHook"
+address = 0xD64A7
+
+[[midasm_hook]]
+name = "BossTargetClosestPlayerMidAsmHook"
+address = 0xE2285
+
+[[midasm_hook]]
+name = "BossTargetClosestPlayerMidAsmHook"
+address = 0xF13B4
+
+[[midasm_hook]]
+name = "DevilDoomTargetMidAsmHook"
+address = 0x119697
+
+[[midasm_hook]]
+name = "BossTargetClosestPlayerEdxMidAsmHook"
+address = 0xF8AEC
+
+# Boss area attacks hit every player
+[[midasm_hook]]
+name = "BlackBullExplosionBeginMidAsmHook"
+address = 0xD7E5E
+
+[[midasm_hook]]
+name = "BlackBullExplosionEndMidAsmHook"
+address = 0xD7FFB
+jump_address_on_true = 0xD7E5E
+
+[[midasm_hook]]
+name = "BlackBullFireWallBeginMidAsmHook"
+address = 0xD84FA
+
+[[midasm_hook]]
+name = "BlackBullFireWallEndMidAsmHook"
+address = 0xD8713
+jump_address_on_true = 0xD84FA
+
+[[midasm_hook]]
+name = "BlackBullWaveBeginMidAsmHook"
+address = 0xD8B9D
+
+[[midasm_hook]]
+name = "BlackBullWaveEndMidAsmHook"
+address = 0xD8D77
+jump_address_on_true = 0xD8B9D
+
+[[midasm_hook]]
+name = "HeavyDogBlueFalconParticleBeamCannonBeginMidAsmHook"
+address = 0xE3779
+
+[[midasm_hook]]
+name = "HeavyDogBlueFalconParticleBeamCannonEndMidAsmHook"
+address = 0xE3904
+jump_address_on_true = 0xE3779
+
+# Coaster
+[[midasm_hook]]
+name = "CoasterClosestPlayerMidAsmHook"
+address = 0x1E8753
+
+[[midasm_hook]]
+name = "CoasterGrabMidAsmHook"
+address = 0x1E887C
+
+[[midasm_hook]]
+name = "CoasterRiderMidAsmHook"
+address = 0x1E899F
+
+[[midasm_hook]]
+name = "CoasterCameraPushMidAsmHook"
+address = 0x1E8276
+jump_address_on_true = 0x1E82C6
+
+# Castle Monster
+[[midasm_hook]]
+name = "MonsterClosestPlayerMidAsmHook"
+address = 0x1EDB75
+
+[[midasm_hook]]
+name = "MonsterClosestPlayerMidAsmHook"
+address = 0x1EE42B
+
+[[midasm_hook]]
+name = "CityLaserClosestPlayerMidAsmHook"
+address = 0x1D70D2
+
+[[midasm_hook]]
+name = "WatchCameraClosestPlayerMidAsmHook"
+address = 0x21BBC9
+
+[[midasm_hook]]
+name = "GunShipClosestPlayerMidAsmHook"
+address = 0x21D7E0
+
+[[midasm_hook]]
+name = "BkWormClosestPlayerMidAsmHook"
+address = 0x13FACC
+
+[[midasm_hook]]
+name = "PartnerCameraIndexMidAsmHook"
+address = 0x80110
+
+[[midasm_hook]]
+name = "PartnerDespawnCameraMidAsmHook"
+address = 0xA78D3
+
+[[midasm_hook]]
+name = "SecretDoorClosestPlayerMidAsmHook"
+address = 0x1B2977
+
+[[midasm_hook]]
+name = "MissionClearClosestPlayerMidAsmHook"
+address = 0x1A9BB0
+
+[[midasm_hook]]
+name = "HelicopterGrabAnyPlayerMidAsmHook"
+address = 0x1DAD22
+jump_address_on_true = 0x1DAD67
+jump_address_on_false = 0x1DAD28
+
+[[midasm_hook]]
+name = "VehicleDespawnMultiplayerMidAsmHook"
+address = 0x23EFC1
+jump_address_on_true = 0x23F01C
+jump_address_on_false = 0x23F022
+
+# UI for 1P Modes
+[[midasm_hook]]
+name = "MultiplayerHudMidAsmHook"
+address = 0x27DEDD
+jump_address_on_true = 0x27DEE3
+jump_address_on_false = 0x27E054
+
+[[midasm_hook]]
+name = "MultiplayerHudMidAsmHook"
+address = 0x27E7ED
+jump_address_on_true = 0x27E7EF
+jump_address_on_false = 0x27E831
+
+[[midasm_hook]]
+name = "MultiplayerHudMidAsmHook"
+address = 0x27EAF3
+jump_address_on_true = 0x27EB00
+jump_address_on_false = 0x27EBB0
+
+[[midasm_hook]]
+name = "MultiplayerHudMidAsmHook"
+address = 0x27EF3D
+jump_address_on_true = 0x27EF43
+jump_address_on_false = 0x27F0AD
+
+[[midasm_hook]]
+name = "MultiplayerHudMidAsmHook"
+address = 0x27F54A
+jump_address_on_true = 0x27F550
+jump_address_on_false = 0x27F6C4
+
+[[midasm_hook]]
+name = "MultiplayerHudMidAsmHook"
+address = 0x27FE3B
+jump_address_on_true = 0x27FE48
+jump_address_on_false = 0x2801C8
+
+[[midasm_hook]]
+name = "MultiplayerHudMidAsmHook"
+address = 0x280571
+jump_address_on_true = 0x28057E
+jump_address_on_false = 0x280841
+
+# 3P / 4P HUD
+[[midasm_hook]]
+name = "MultiplayerHudCounterSkipMidAsmHook"
+address = 0x27DE9F
+jump_address_on_true = 0x27E10E
+
+[[midasm_hook]]
+name = "MultiplayerHudCounterSkipMidAsmHook"
+address = 0x27EF1E
+jump_address_on_true = 0x27F307
+
+# Keep Chaos Powers & Score on Player Death
+[[midasm_hook]]
+name = "KeepChaosPowersOnDeathMidAsmHook"
+address = 0x173C1D
+jump_address_on_true = 0x173C29
+
+[[midasm_hook]]
+name = "KeepScoreOnDeathMidAsmHook"
+address = 0x173C85
+jump_address_on_true = 0x173C8D
+
+[[midasm_hook]]
+name = "TimerNoResetOnDeathMidAsmHook"
+address = 0x173C42
+jump_address_on_true = 0x173C4A
+
+[[midasm_hook]]
+name = "NoTargetOtherPlayerMidAsmHook"
+address = 0xA3076
+jump_address_on_true = 0xA30A8
+
+[[midasm_hook]]
+name = "AwakeGlowCloneMidAsmHook"
+address = 0x8E775
+
+[[midasm_hook]]
+name = "DisableTorchSfxMidAsmHook"
+address = 0x1B8F67
+jump_address_on_true = 0x1B8F8A
+
+[[midasm_hook]]
+name = "SuperAllPlayersMidAsmHook"
+address = 0x16F8CF
+
+[[midasm_hook]]
+name = "DevilDoomSharedRingsMidAsmHook"
+address = 0x8736F
+
+# Force 10 Ring Checkpoint Bonus
+[[midasm_hook]]
+name = "CheckpointRingBonusMidAsmHook"
+address = 0x1AF4ED
+jump_address_on_true = 0x1AF51F
+
+# HintRing / ItemCapsule face the drawn viewport
+[[midasm_hook]]
+name = "BillboardViewportCameraMidAsmHook"
+address = 0x1A1BF6
+
+[[midasm_hook]]
+name = "BillboardViewportCameraMidAsmHook"
+address = 0x1A2ADF
+
+# GUN Fortress SecurityCamera
+[[midasm_hook]]
+name = "WatchCameraNoSpecialCameraMidAsmHook"
+address = 0x21CA9D
+jump_address_on_true = 0x21CAB0
+
+# DevilDoom warp grace
+[[midasm_hook]]
+name = "DevilDoomWarpGraceMidAsmHook"
+address = 0x117BBC
+jump_address_on_true = 0x117BCD
+
+# DevilDoom warp distance
+[[midasm_hook]]
+name = "DevilDoomWarpDistanceMidAsmHook"
+address = 0x1176FA
+
+[[midasm_hook]]
+name = "SuperModelNullMidAsmHook"
+address = 0x9E90E
+jump_address_on_true = 0x9EA65
+
+[[midasm_hook]]
+name = "SuperWaitBodyMidAsmHook"
+address = 0x9F463
+jump_address_on_true = 0x9F4CA
+
+[[midasm_hook]]
+name = "SuperSkeletonMidAsmHook"
+address = 0x9F31D
+jump_address_on_true = 0x9F36C
+
+[[midasm_hook]]
+name = "SuperBindNullKeyMidAsmHook"
+address = 0x37645A
+jump_address_on_true = 0x376469
+
+# touching player
+[[midasm_hook]]
+name = "ContactPlayerMidAsmHook"
+address = 0x178057
+
+# GravitySwitcher
+[[midasm_hook]]
+name = "GravityTouchMidAsmHook"
+address = 0x20D2D2
+
+[[midasm_hook]]
+name = "GravityTouchMidAsmHook"
+address = 0x20D833
+
+[[midasm_hook]]
+name = "GravityTouchMidAsmHook"
+address = 0x20E113
+
+[[midasm_hook]]
+name = "GravityApplyMidAsmHook"
+address = 0x20D2EE
+
+[[midasm_hook]]
+name = "GravityApplyMidAsmHook"
+address = 0x20DB01
+
+[[midasm_hook]]
+name = "GravityApplyMidAsmHook"
+address = 0x20E3E1
+
+[[midasm_hook]]
+name = "GravityPlayerMidAsmHook"
+address = 0x580F1
+
+[[midasm_hook]]
+name = "GravityKeepTouchableMidAsmHook"
+address = 0x20D9B5
+jump_address_on_true = 0x20D9BD
+
+[[midasm_hook]]
+name = "GravityKeepTouchableMidAsmHook"
+address = 0x20E290
+jump_address_on_true = 0x20E298
+
+# GravityChangeCollision Fix
+[[midasm_hook]]
+name = "GravityCollisionCompareMidAsmHook"
+address = 0x20D2E9
+
+[[midasm_hook]]
+name = "GravityCollisionKeepMidAsmHook"
+address = 0x20D2FA
+jump_address_on_true = 0x20D306
+
+# Airbug Fix
+[[midasm_hook]]
+name = "FanStreamBeginMidAsmHook"
+address = 0x19AA7F
+
+[[midasm_hook]]
+name = "FanStreamEndMidAsmHook"
+address = 0x19ABEE
+jump_address_on_true = 0x19AA7F
+
+[[midasm_hook]]
+name = "ElecFanStreamBeginMidAsmHook"
+address = 0x1FC0B2
+
+[[midasm_hook]]
+name = "ElecFanStreamEndMidAsmHook"
+address = 0x1FC23C
+jump_address_on_true = 0x1FC0B2
+
+# Fix Vehicles for MP
+[[midasm_hook]]
+name = "VehicleCarPortMidAsmHook"
+address = 0x246F89
+
+[[midasm_hook]]
+name = "VehicleMountCameraMidAsmHook"
+address = 0x240217
+
+[[midasm_hook]]
+name = "VehicleMountCameraMidAsmHook"
+address = 0x186C21
+
+[[midasm_hook]]
+name = "VehicleMountCameraMidAsmHook"
+address = 0x188441
+
+[[midasm_hook]]
+name = "VehicleRiderCameraMidAsmHook"
+address = 0x224F0C
+
+[[midasm_hook]]
+name = "VehicleBirdCameraMidAsmHook"
+address = 0x250DFF
+
+# Checkpoint Warping
+[[midasm_hook]]
+name = "SavePointUserMidAsmHook"
+address = 0x1AEC31
+
+[[midasm_hook]]
+name = "SavePointWarpUserMidAsmHook"
+address = 0x1AEEE1
+
+[[midasm_hook]]
+name = "SavePointMenuPortMidAsmHook"
+address = 0x1AFEFE
+
+[[midasm_hook]]
+name = "SavePointMenuPortMidAsmHook"
+address = 0x1AFF80
+
+[[midasm_hook]]
+name = "SavePointMenuPortMidAsmHook"
+address = 0x1AFF98
+
+[[midasm_hook]]
+name = "SavePointMenuPortMidAsmHook"
+address = 0x1AFFB0
+
+# MP pause fix
+[[midasm_hook]]
+name = "PauseIdleMidAsmHook"
+address = 0x5AF4F
+
+[[midasm_hook]]
+name = "PauseOpenAnyPlayerMidAsmHook"
+address = 0x5A700
+jump_address_on_true = 0x5A6FB
+
+[[midasm_hook]]
+name = "PausePortEcxMidAsmHook"
+address = 0x5B014
+
+[[midasm_hook]]
+name = "PausePortEbpMidAsmHook"
+address = 0x5ABAE
+
+[[midasm_hook]]
+name = "PausePortEcxMidAsmHook"
+address = 0x5A261
+
+# MP Sound Listener Fix
+[[midasm_hook]]
+name = "SoundPanMultiplayerMidAsmHook"
+address = 0x25DE34
+jump_address_on_true = 0x25DF16
+jump_address_on_false = 0x25DE41
+
+[[midasm_hook]]
+name = "SoundDopplerClosestPlayerMidAsmHook"
+address = 0x25E128
+
+[[midasm_hook]]
+name = "SoundMultiplayerFlagEcxMidAsmHook"
+address = 0x25E472
+
+[[midasm_hook]]
+name = "SoundMultiplayerFlagEaxMidAsmHook"
+address = 0x25E610
+
+# Player Effect Material Animation
+[[midasm_hook]]
+name = "PlayerMaterialAnimBeginMidAsmHook"
+address = 0x8EDAD
+
+[[midasm_hook]]
+name = "PlayerMaterialAnimEndMidAsmHook"
+address = 0x8EDB2
+
+[[midasm_hook]]
+name = "PlayerMaterialAnimBeginMidAsmHook"
+address = 0x9E8E4
+
+[[midasm_hook]]
+name = "PlayerMaterialAnimEndMidAsmHook"
+address = 0x9E8E9
+
+[[midasm_hook]]
+name = "PlayerMaterialAnimBeginMidAsmHook"
+address = 0xB1CB5
+
+[[midasm_hook]]
+name = "PlayerMaterialAnimEndMidAsmHook"
+address = 0xB1CBA
+
+# P3 / P4 death reset
+[[midasm_hook]]
+name = "PlayerBlockDeathResetMidAsmHook"
+address = 0x173CA0
+
+# Independent Respawns
+[[midasm_hook]]
+name = "IndependentRespawnDeadMidAsmHook"
+address = 0x6DC66
+jump_address_on_true = 0x6DC73
+
+[[midasm_hook]]
+name = "IndependentRespawnTickMidAsmHook"
+address = 0x6DC73
+
+# Checkpoint Movement Allowed
+[[midasm_hook]]
+name = "SavePointNoWorldPauseMidAsmHook"
+address = 0x1AF21D
+jump_address_on_true = 0x1AF228
+
+[[midasm_hook]]
+name = "SavePointCancelMidAsmHook"
+address = 0x1AEFA0
+
+[[midasm_hook]]
+name = "WarpNoWorldPauseMidAsmHook"
+address = 0x1BFDAF
+jump_address_on_true = 0x1BFDBB
+
+# warp no fade
+[[midasm_hook]]
+name = "WarpNoFadeMidAsmHook"
+address = 0x1C0341
+jump_address_on_true = 0x1C0362
+
+[[midasm_hook]]
+name = "WarpNoFadeMidAsmHook"
+address = 0x1C03A0
+jump_address_on_true = 0x1C03A9
+
+[[midasm_hook]]
+name = "WarpNoFadeMidAsmHook"
+address = 0x1C04B3
+jump_address_on_true = 0x1C04C2
+
+# Chunk Fix / Render Chunk Fix
+[[midasm_hook]]
+name = "BlockMaskResetMidAsmHook"
+address = 0x12C03
+
+[[midasm_hook]]
+name = "BlockMaskStoreMidAsmHook"
+address = 0x12C28
+jump_address_on_true = 0x12C2F
+
+[[midasm_hook]]
+name = "LandDispBlockViewportMidAsmHook"
+address = 0x1BEA0
+
+# Remove ScreenShake
+[[midasm_hook]]
+name = "NoScreenShakeMidAsmHook"
+address = 0x2AD34
+jump_address_on_true = 0x2AD4E
+
+# Circus Park Hero Mission Co-Op
+[[midasm_hook]]
+name = "RingMissionCoOpMidAsmHook"
+address = 0x230BE8
+
+# Vibration Extension for MP
+[[midasm_hook]]
+name = "VibrationUnitCountMidAsmHook"
+address = 0x2A8DE3
+
+[[midasm_hook]]
+name = "VibrationUnitPortMidAsmHook"
+address = 0x2A8E0A
+
+[[midasm_hook]]
+name = "VibrationRequestPortMidAsmHook"
+address = 0x2A8F79
+
+[[midasm_hook]]
+name = "VibrationRequestPortMidAsmHook"
+address = 0x2A9014
+
+[[midasm_hook]]
+name = "VibrationRequestPosPortMidAsmHook"
+address = 0x2A91D5
+
+[[midasm_hook]]
+name = "VibrationPlayerPortMidAsmHook"
+address = 0x2A82B3
+
+[[midasm_hook]]
+name = "VibrationRequestPlayerMidAsmHook"
+address = 0x181EDC
+
+# No radial blur
+[[midasm_hook]]
+name = "NoRadialBlurMidAsmHook"
+address = 0xC1233
+jump_address_on_true = 0xC123A
+
+# BossCams
+[[midasm_hook]]
+name = "BossCameraReleaseMidAsmHook"
+address = 0xD2A0A
+
+[[midasm_hook]]
+name = "BossCameraIndexMidAsmHook"
+address = 0xD2C89
+
+[[midasm_hook]]
+name = "BossCameraPlayerMidAsmHook"
+address = 0xD2C1A
+
+[[midasm_hook]]
+name = "ChaseCameraIndexMidAsmHook"
+address = 0x126B49
+#### End Extended Multiplayer

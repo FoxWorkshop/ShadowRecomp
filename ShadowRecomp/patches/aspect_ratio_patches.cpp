@@ -10,6 +10,7 @@
 #include <app.h>
 #include <ui/options_menu.h>
 #include "pause_patches.h"
+#include "multiplayer_mod_patches.h"
 #include "prompt_patches.h"
 #include "global.h"
 #include <mod/mod_loader.h>
@@ -368,6 +369,23 @@ void PatchDisableHudMidAsmHook(X86Context& __restrict ctx, uint8_t* base)
 	}
 }
 
+static std::optional<XXH64_hash_t> FindCsdPath(uint32_t data);
+static bool IsMultiplayerHudHiddenScene(uint32_t scene)
+{
+	static const XXH64_hash_t s_hidden[] =
+	{
+		HashStr("csdFiles/2P_Ring.xncp/Ring1P"),
+		HashStr("csdFiles/2P_Ring.xncp/Ring2P"),
+		HashStr("csdFiles/2P_CommandWindow.xncp/CarMeter"),
+		HashStr("csdFiles/2P_CommandWindow.xncp/Car_BCom"),
+		HashStr("csdFiles/2P_CommandWindow.xncp/Weapon"),
+		HashStr("csdFiles/2P_CommandWindow.xncp/Window"),
+		HashStr("csdFiles/2P_Star.xncp/Star"),
+	};
+	const auto path = FindCsdPath(scene);
+	return path.has_value() && std::find(std::begin(s_hidden), std::end(s_hidden), path.value()) != std::end(s_hidden);
+}
+
 // Chao::CSD::Scene::Render
 X86_FUNC_IMPL(__imp__sub_38B5E0);
 X86_OVERRIDE_FUNC(sub_38B5E0)
@@ -379,6 +397,12 @@ X86_OVERRIDE_FUNC(sub_38B5E0)
 	auto pSceneAddr = X86_LOAD_U32(ctx.esp.u32 + 4);
 	auto pScene = (CSDScene*)(base + pSceneAddr);
 
+	// Hide the HUD in 3P/4P
+	if (IsExtraPlayerMode() && IsMultiplayerHudHiddenScene(pSceneAddr))
+	{
+		ctx.esp.u32 += 4;
+		return;
+	}
 	g_sceneModifier = FindCsdModifier(pSceneAddr);
 
 
@@ -950,7 +974,22 @@ static constexpr uint32_t g_itemIconVertices = 0x559688;
 void ItemIconDrawMidAsmHook(X86Context& __restrict ctx, uint8_t* base)
 {
 	CsdSavedVertices saved{};
-	UnstretchPrimitive(g_memory.Translate(g_itemIconVertices), CSDVertexCount, CSD_UNSTRETCH | CSD_ALIGN_BOTTOM_CENTRE, saved);
+	auto* verts = (RwD3D8Vertex*)g_memory.Translate(g_itemIconVertices);
+
+	// handle P3/P4 centers
+	if (AdjustMultiplayerItemIcon(ctx))
+	{
+		float minY = FLT_MAX, maxY = -FLT_MAX;
+		for (uint32_t i = 0; i < CSDVertexCount; i++)
+		{
+			minY = std::min(minY, verts[i].y);
+			maxY = std::max(maxY, verts[i].y);
+		}
+		const float centerY = (minY + maxY) * 0.5f;
+		UnstretchPrimitive(verts, CSDVertexCount, CSD_UNSTRETCH | CSD_ALIGN_SELF_H, saved, std::nullopt, CsdAnchor{ centerY, centerY });
+		return;
+	}
+	UnstretchPrimitive(verts, CSDVertexCount, CSD_UNSTRETCH | CSD_ALIGN_BOTTOM_CENTRE, saved);
 }
 
 
@@ -980,6 +1019,9 @@ X86_OVERRIDE_FUNC(sub_268FD0)
 {
 	uint32_t vertices = X86_LOAD_U32(ctx.esp.u32 + 4);
 	uint32_t centre = X86_LOAD_U32(ctx.esp.u32 + 8); //projected center the corners are offset from
+
+	// 3P / 4P view scale
+	X86_STORE_F32(ctx.esp.u32 + 0xC, X86_LOAD_F32(ctx.esp.u32 + 0xC) * GetMultiplayerViewScale());
 
 	__imp__sub_268FD0(ctx, base);
 
@@ -1627,21 +1669,26 @@ const xxHashMap<CsdModifier> g_csdModifiers =
 	// End Circus Park
 };
 
+static std::optional<XXH64_hash_t> FindCsdPath(uint32_t data)
+{
+	std::lock_guard lock(g_pathMutex);
+
+	auto findResult = g_paths.find(g_memory.Translate(data));
+
+	if (findResult == g_paths.end())
+		return {};
+
+	return findResult->second;
+}
+
 std::optional<CsdModifier> FindCsdModifier(uint32_t data)
 {
-	XXH64_hash_t path;
-	{
-		std::lock_guard lock(g_pathMutex);
+	const auto path = FindCsdPath(data);
 
-		auto findResult = g_paths.find(g_memory.Translate(data));
+	if (!path.has_value())
+		return {};
 
-		if (findResult == g_paths.end())
-			return {};
-
-		path = findResult->second;
-	}
-
-	auto findResult = g_csdModifiers.find(path);
+	auto findResult = g_csdModifiers.find(path.value());
 
 	if (findResult != g_csdModifiers.end())
 		return findResult->second;

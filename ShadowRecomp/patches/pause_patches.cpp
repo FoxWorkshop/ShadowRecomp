@@ -9,8 +9,10 @@
 #include <gpu/imgui/imgui_snapshot.h>
 #include <user/config.h>
 #include <input/padstate.h>
+#include <patches/patch_utils.h>
 #include <exports.h>
 #include <ui/achievement_menu.h>
+#include "multiplayer_mod_patches.h"
 
 
 // We patch pause to add an extra Options in the menu
@@ -178,15 +180,14 @@ static int8_t GetPauseItemRow(const uint8_t* items, uint8_t count, int8_t select
 	return 0;
 }
 
-// TODO: Only for handling base game P1/P2 pause; Extended MP would need to add a pause handler
 static uint8_t GetPausePadIndex()
 {
+	const uint32_t port = GetMultiplayerPausePort();
+	if (port < 4)
+	{
+		return port;
+	}
 	return g_PlayerPauseMode == ModeRunningP2 ? 1 : 0;
-}
-
-static PJSPeripheral::ControllerSlot* GetPadSlot(uint32_t port)
-{
-	return reinterpret_cast<PJSPeripheral::ControllerSlot*>(MmGetHostAddress(0x535550 + 0x50 + port * 0x28));
 }
 
 static bool IsHudVisible()
@@ -560,7 +561,9 @@ X86_OVERRIDE_FUNC(sub_5A240)
 {
 	const bool isAnimDone = X86_LOAD_U8(ctx.ecx.u32 + 0x4D) != 0;
 	__imp__sub_5A240(ctx, base);
-	if (ctx.eax.u8_lo == 0 && isAnimDone && (GetPadSlot(X86_LOAD_U32(0x5356E4))->justPressed & PJSPeripheral::BTN_B))
+	const uint32_t pausePort = GetMultiplayerPausePort();
+	const uint32_t port = pausePort < 4 ? pausePort : X86_LOAD_U32(0x5356E4);
+	if (ctx.eax.u8_lo == 0 && isAnimDone && ((GetPadSlot(port)->justPressed & PJSPeripheral::BTN_B) || RouteMenuAnyPlayerClose()))
 	{
 		ctx.eax.u8_lo = 1;
 	}

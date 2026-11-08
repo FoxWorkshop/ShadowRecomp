@@ -3,6 +3,7 @@
 #include <sdl_events.h>
 #include <input/input.h>
 #include "global.h"
+#include "multiplayer_mod_patches.h"
 #include <os/logger.h>
 
 uint32_t g_playerStructAddrs[4] = {};
@@ -41,7 +42,12 @@ X86_OVERRIDE_FUNC(sub_8E690)
 X86_FUNC_IMPL(__imp__sub_8E9A0);
 X86_OVERRIDE_FUNC(sub_8E9A0)
 {
+	const uint32_t glowClone = PopAwakeGlowClone(ctx.ecx.u32);
 	__imp__sub_8E9A0(ctx, base);
+	if (glowClone != 0)
+	{
+		GuestToHostFunction<uint32_t, CallConvention::Cdecl>(ctx, sub_2CB040, glowClone);
+	}
 	App::s_chaosMode = ELedAura::LED_AURA_NEUTRAL;
 }
 

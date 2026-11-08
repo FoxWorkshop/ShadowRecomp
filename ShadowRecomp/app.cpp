@@ -12,6 +12,7 @@
 #include <cpu/guest_thread.h>
 #include <gpu/frame_pacing/timer_resolution.h>
 #include <input/input.h>
+#include <patches/multiplayer_mod_patches.h>
 
 static std::thread::id g_mainThreadId = std::this_thread::get_id();
 
@@ -64,6 +65,7 @@ X86_OVERRIDE_FUNC(sub_57630)
 	App::s_time += App::s_deltaTime;
 	App::s_gamemode = X86_LOAD_U32(0x5022A4);
 	Video::BeginGameThreadProfiler();
+	MultiplayerPatchesUpdate(ctx, base);
 	__imp__sub_57630(ctx, base);
 	Video::EndGameThreadProfiler();
 	//std::this_thread::sleep_for(std::chrono::milliseconds(16));
