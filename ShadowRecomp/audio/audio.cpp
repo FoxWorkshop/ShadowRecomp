@@ -1,397 +1,373 @@
 #include <stdafx.h>
 #include <kernel/function.h>
-#include <kernel/io/file_system.h>
 #include <cpu/guest_thread.h>
 #include <kernel/kernel.h>
-#include <iostream>
-#include <filesystem>
 #include <user/config.h>
 #include <audio/audio.h>
 #include <audio/driver/sdl3_driver.h>
 
 
-HRESULT DirectSoundCreate_r(int* pcGuidDevice, SHTHR_SOUNDDEVICE* ppDS, int* pUnkOuter)
+HRESULT DirectSoundCreate_r(uint32_t pcGuidDevice, uint32_t* ppDirectSound, uint32_t pUnkOuter)
 {
-
-	auto device = SHTHRSoundCreate(&ppDS);
-
-	if (device <= 0)
+	auto key = SHTHRSoundCreate(&ppDS);
+	if (key <= 0)
+	{
 		return E_FAIL;
+	}
 
-	auto base = g_memory.base;
-	X86_STORE_U32(ppDSAddr, device);
+	if (ppDirectSound)
+	{
+		*ppDirectSound = key;
+	}
 	return S_OK;
 }
 
-
-int32_t IDirectSoundBuffer_Lock(int32_t keyBuffer, int32_t dwOffset, int32_t dwBytes, uint32_t ppvAudioPtr1, uint32_t pdwAudioBytes1, uint32_t ppvAudioPtr2, uint32_t pdwAudioBytes2, uint32_t dwFlags)
+int32_t IDirectSoundBuffer_Lock(int32_t keyBuffer, int32_t dwOffset, int32_t dwBytes, uint32_t* ppvAudioPtr1, uint32_t* pdwAudioBytes1, uint32_t* ppvAudioPtr2, uint32_t* pdwAudioBytes2, uint32_t dwFlags)
 {
 	auto pThis = GetCurrentSoundBuffer(keyBuffer);
-
 	if (!pThis)
+	{
 		return E_FAIL;
+	}
 
-	// Host-side temporary variables to receive the lock results
-	void* hostPpvAudioPtr1 = nullptr;
-	int32_t hostpdwAudioBytes1 = 0;
-	void* hostPpvAudioPtr2 = nullptr;
-	int32_t hostpdwAudioBytes2 = 0;
+	void* hostAudioPtr1 = nullptr;
+	int32_t hostAudioBytes1 = 0;
+	void* hostAudioPtr2 = nullptr;
+	int32_t hostAudioBytes2 = 0;
 
-	auto res = pThis->Lock(dwOffset, dwBytes, &hostPpvAudioPtr1, &hostpdwAudioBytes1, &hostPpvAudioPtr2, &hostpdwAudioBytes2, dwFlags);
-
-	if (res != 0)
+	auto res = pThis->Lock(dwOffset, dwBytes, &hostAudioPtr1, &hostAudioBytes1, &hostAudioPtr2, &hostAudioBytes2, dwFlags);
+	if (res != S_OK)
+	{
 		return res;
+	}
 
-	auto base = g_memory.base;
-
-	X86_STORE_U32(ppvAudioPtr1, g_memory.MapVirtual(hostPpvAudioPtr1));
-	X86_STORE_U32(pdwAudioBytes1, hostpdwAudioBytes1);
-	X86_STORE_U32(ppvAudioPtr2, g_memory.MapVirtual(hostPpvAudioPtr2));
-	X86_STORE_U32(pdwAudioBytes2, hostpdwAudioBytes2);
+	if (ppvAudioPtr1)
+	{
+		*ppvAudioPtr1 = hostAudioPtr1 ? g_memory.MapVirtual(hostAudioPtr1) : 0;
+	}
+	if (pdwAudioBytes1)
+	{
+		*pdwAudioBytes1 = hostAudioBytes1;
+	}
+	if (ppvAudioPtr2)
+	{
+		*ppvAudioPtr2 = hostAudioPtr2 ? g_memory.MapVirtual(hostAudioPtr2) : 0;
+	}
+	if (pdwAudioBytes2)
+	{
+		*pdwAudioBytes2 = hostAudioBytes2;
+	}
 	return res;
 }
 
-
-int32_t IDirectSoundBuffer_Unlock(int32_t keyBuffer, void* ppvAudioPtr1, int32_t pdwAudioBytes1, void* ppvAudioPtr2, int32_t pdwAudioBytes2)
+int32_t IDirectSoundBuffer_Unlock(int32_t keyBuffer, void* pvAudioPtr1, int32_t dwAudioBytes1, void* pvAudioPtr2, int32_t dwAudioBytes2)
 {
 	auto pThis = GetCurrentSoundBuffer(keyBuffer);
-
 	if (!pThis)
+	{
 		return E_FAIL;
-
-	return pThis->Unlock(ppvAudioPtr1, pdwAudioBytes1, ppvAudioPtr2, pdwAudioBytes2);
+	}
+	return pThis->Unlock(pvAudioPtr1, dwAudioBytes1, pvAudioPtr2, dwAudioBytes2);
 }
-
 
 HRESULT IDirectSoundBuffer_GetStatus(int32_t keyBuffer, uint32_t* pdwStatus)
 {
 	auto pThis = GetCurrentSoundBuffer(keyBuffer);
-	auto base = g_memory.base;
-
 	if (!pThis)
 	{
 		if (pdwStatus)
-			X86_STORE_U32(g_memory.MapVirtual(pdwStatus), 0);
-
+		{
+			*pdwStatus = 0;
+		}
 		return E_FAIL;
 	}
 
-	auto res = pThis->GetStatus(pdwStatus);
-
-	X86_STORE_U32(g_memory.MapVirtual(pdwStatus), res);
+	auto status = pThis->GetStatus(pdwStatus);
+	if (pdwStatus)
+	{
+		*pdwStatus = status;
+	}
 	return S_OK;
 }
 
-
-// Stub
-int32_t CDirectSound_DownloadEffectsImage(int* a1, LPCVOID pvImageBuffer, int32_t dwImageSize, void* pImageLoc, void** ppImageDesc)
+// stub (not needed)
+int32_t CDirectSound_DownloadEffectsImage(uint32_t pThis, uint32_t pvImageBuffer, uint32_t dwImageSize, uint32_t pImageLoc, uint32_t ppImageDesc)
 {
-	return E_FAIL;
+	return S_OK;
 }
 
-int32_t IDirectSoundBuffer_GetCurrentPosition(int32_t keyBuffer, int32_t CurrentPlayCursor, int32_t pdwCurrentWriteCursor)
+int32_t IDirectSoundBuffer_GetCurrentPosition(int32_t keyBuffer, uint32_t* pdwCurrentPlayCursor, uint32_t* pdwCurrentWriteCursor)
 {
-
 	auto pThis = GetCurrentSoundBuffer(keyBuffer);
-
 	if (!pThis)
+	{
 		return E_FAIL;
+	}
 
-	int32_t hostCurrentPlayCursor = 0;
-	int32_t hostpdwCurrentWriteCursor = 0;
-
-	auto res = pThis->GetCurrentPosition(&hostCurrentPlayCursor, &hostpdwCurrentWriteCursor);
-	auto base = g_memory.base;
-	X86_STORE_U32(CurrentPlayCursor, hostCurrentPlayCursor);
-	X86_STORE_U32(pdwCurrentWriteCursor, hostpdwCurrentWriteCursor);
+	int32_t hostPlayCursor = 0;
+	int32_t hostWriteCursor = 0;
+	auto res = pThis->GetCurrentPosition(&hostPlayCursor, &hostWriteCursor);
+	if (pdwCurrentPlayCursor)
+	{
+		*pdwCurrentPlayCursor = hostPlayCursor;
+	}
+	if (pdwCurrentWriteCursor)
+	{
+		*pdwCurrentWriteCursor = hostWriteCursor;
+	}
 	return res;
 }
 
 int32_t IDirectSoundBuffer_SetCurrentPosition(int32_t keyBuffer, int32_t dwNewPosition)
 {
 	auto pThis = GetCurrentSoundBuffer(keyBuffer);
-
 	if (!pThis)
+	{
 		return E_FAIL;
-
+	}
 	return pThis->SetCurrentPosition(dwNewPosition);
 }
 
-
-int32_t IDirectSound_CreateSoundBuffer(int32_t keyDevice, X_DSBUFFERDESC* pdsbd, SHTHR_SOUNDBUFFER** ppBufferOut, int a4)
+int32_t IDirectSound_CreateSoundBuffer(int32_t keyDevice, X_DSBUFFERDESC* pdsbd, uint32_t* ppBufferOut, uint32_t pUnkOuter)
 {
-
-	auto base = g_memory.base;
-
-	auto pThis = ppDS;
-
-	if (!pThis)
-		return E_FAIL;
-
-
-
-	auto bufferKey = pThis->CreateSoundBuffer(pdsbd, ppBufferOut);
-
-
-	if (bufferKey)
+	auto pDevice = ppDS;
+	if (!pDevice)
 	{
-
-		X86_STORE_U32(g_memory.MapVirtual(ppBufferOut), bufferKey);
-
-		return S_OK;
+		return E_FAIL;
 	}
 
+	SHTHR_SOUNDBUFFER* buffer = nullptr;
+	auto bufferKey = pDevice->CreateSoundBuffer(pdsbd, &buffer);
+	if (bufferKey)
+	{
+		if (ppBufferOut)
+		{
+			*ppBufferOut = bufferKey;
+		}
+		return S_OK;
+	}
 	return E_FAIL;
 }
 
-//This doesn't seem to exist on PC originally, it looks like it replace the buffer’s entire PCM data with this memory.
-int32_t IDirectSoundBuffer_SetBufferData(int32_t key, void* pvBufferData, uint32_t dwBufferBytes)
+int32_t IDirectSoundBuffer_SetBufferData(int32_t keyBuffer, void* pvBufferData, uint32_t dwBufferBytes)
 {
-	auto pThis = GetCurrentSoundBuffer(key);
-
+	auto pThis = GetCurrentSoundBuffer(keyBuffer);
 	if (!pThis)
+	{
 		return E_FAIL;
-
+	}
 	return pThis->SetBufferData(pvBufferData, dwBufferBytes);
 }
 
-
-int32_t IDirectSoundBuffer_Play(int32_t key, int32_t dwReserved1, int32_t dwReserved2, int32_t dwFlags)
+int32_t IDirectSoundBuffer_Play(int32_t keyBuffer, int32_t dwReserved1, int32_t dwReserved2, int32_t dwFlags)
 {
-	auto pThis = GetCurrentSoundBuffer(key);
-
+	auto pThis = GetCurrentSoundBuffer(keyBuffer);
 	if (!pThis)
+	{
 		return E_FAIL;
-
+	}
 	return pThis->Play(dwReserved1, dwReserved2, dwFlags);
 }
 
-
-int32_t IDirectSoundBuffer_Stop(int32_t keyDevice)
+int32_t IDirectSoundBuffer_Stop(int32_t keyBuffer)
 {
-	auto pThis = GetCurrentSoundBuffer(keyDevice);
-
+	auto pThis = GetCurrentSoundBuffer(keyBuffer);
 	if (!pThis)
+	{
 		return E_FAIL;
-
+	}
 	return pThis->Stop();
 }
 
-
-//this function had originally 3 params, but ended being 4 by the compiler due to the use of int 64 bits.
-int32_t IDirectSoundBuffer_StopEx(int32_t key, uint32_t rtTimeStamp_Low, uint32_t rtTimeStamp_High, dword_xt dwFlags)
+// this function had originally 3 params, but ended being 4 by the compiler due to the use of int 64 bits.
+int32_t IDirectSoundBuffer_StopEx(int32_t keyBuffer, uint32_t rtTimeStamp_Low, uint32_t rtTimeStamp_High, dword_xt dwFlags)
 {
-
-	auto pThis = GetCurrentSoundBuffer(key);
-
+	auto pThis = GetCurrentSoundBuffer(keyBuffer);
 	if (!pThis)
+	{
 		return E_FAIL;
+	}
 
 	// Recombine into 64-bit value
 	int64_t rtTimeStamp = (static_cast<int64_t>(rtTimeStamp_High) << 32) | rtTimeStamp_Low;
-
 	return pThis->StopEx(rtTimeStamp, dwFlags);
 }
 
 int32_t IDirectSoundBuffer_Release(int32_t keyBuffer)
 {
-
 	auto pDevice = ppDS;
-
 	if (!pDevice)
+	{
 		return E_FAIL;
+	}
 
 	auto pThis = GetCurrentSoundBuffer(keyBuffer);
-
 	if (!pThis)
+	{
 		return E_FAIL;
+	}
 
 	pThis->Stop();
-
 	pDevice->ReleaseSoundBuffer(pThis);
-
 	delete pThis;
-
 	return S_OK;
 }
 
-int32_t IDirectSoundBuffer_SetVolume(int32_t keyDevice, int32_t lVolume)
+int32_t IDirectSoundBuffer_SetVolume(int32_t keyBuffer, int32_t lVolume)
 {
-	auto pThis = GetCurrentSoundBuffer(keyDevice);
-
+	auto pThis = GetCurrentSoundBuffer(keyBuffer);
 	if (!pThis)
+	{
 		return E_FAIL;
-
+	}
 	return pThis->SetVolume(lVolume);
 }
-
 
 int32_t IDirectSoundBuffer_SetPosition(int32_t keyBuffer, float x, float y, float z, int32_t dwApply)
 {
 	auto pThis = GetCurrentSoundBuffer(keyBuffer);
-
-	if (!pThis)
+	if (!pThis || !pThis->m3DBuffer)
+	{
 		return E_FAIL;
-
+	}
 	return pThis->m3DBuffer->SetPosition(x, y, z, dwApply);
 }
 
 int32_t IDirectSoundBuffer_SetLoopRegion(int32_t keyBuffer, int32_t dwLoopStart, int32_t dwLoopLength)
 {
 	auto pThis = GetCurrentSoundBuffer(keyBuffer);
-
 	if (!pThis)
+	{
 		return E_FAIL;
-
+	}
 	return pThis->SetLoopRegion(dwLoopStart, dwLoopLength);
 }
 
-int32_t IDirectSound_SetAllParameters(int32_t keyDevice, Listener3D* pDS3DListenerParameters, char dwApply)
+int32_t IDirectSound_SetAllParameters(int32_t keyDevice, Listener3D* pDS3DListenerParameters, int32_t dwApply)
 {
-	auto pThis = ppDS;
-
-	if (!pThis)
+	auto pDevice = ppDS;
+	if (!pDevice)
+	{
 		return E_FAIL;
-
-	pThis->SetAllParameters(pDS3DListenerParameters);
-	return 0;
+	}
+	return pDevice->SetAllParameters(pDS3DListenerParameters);
 }
 
 int32_t IDirectSoundBuffer_SetMinDistance(int32_t keyBuffer, float flMinDistance, int32_t dwApply)
 {
 	auto pThis = GetCurrentSoundBuffer(keyBuffer);
-
-	if (!pThis)
+	if (!pThis || !pThis->m3DBuffer)
+	{
 		return E_FAIL;
-
-	return 	pThis->m3DBuffer->SetMinDistance(flMinDistance, dwApply);
+	}
+	return pThis->m3DBuffer->SetMinDistance(flMinDistance, dwApply);
 }
 
-//todo ?
-int IDirectSoundBuffer_SetMixBinVolumes_8(int32_t keyBuffer, int a2)
+// stub (not needed)
+int32_t IDirectSoundBuffer_SetMixBinVolumes_8(int32_t keyBuffer, uint32_t pMixBins)
 {
-
-	auto pThis = GetCurrentSoundBuffer(keyBuffer);
-
-	if (!pThis)
-		return E_FAIL;
-
-	return E_FAIL;
+	return S_OK;
 }
 
 int32_t IDirectSoundBuffer_SetMaxDistance(int32_t keyBuffer, float flMaxDistance, int32_t dwApply)
 {
 	auto pThis = GetCurrentSoundBuffer(keyBuffer);
-
-	if (!pThis)
+	if (!pThis || !pThis->m3DBuffer)
+	{
 		return E_FAIL;
-
-	return 	pThis->m3DBuffer->SetMaxDistance(flMaxDistance, dwApply);;
+	}
+	return pThis->m3DBuffer->SetMaxDistance(flMaxDistance, dwApply);
 }
 
-int32_t IDirectSoundBuffer_SetMixBins(int32_t keyBuffer, int mixBins)
+// stub (not needed)
+int32_t IDirectSoundBuffer_SetMixBins(int32_t keyBuffer, uint32_t pMixBins)
 {
-
-	auto pThis = GetCurrentSoundBuffer(keyBuffer);
-
-	if (!pThis)
-		return E_FAIL;
-
-	return E_FAIL;
+	return S_OK;
 }
 
-int32_t IDirectSoundBuffer_SetConeAngles(SHTHR_SOUNDBUFFER* pThis, int a2, int a3, int a4)
+// stub (not needed)
+int32_t IDirectSoundBuffer_SetConeAngles(int32_t keyBuffer, int32_t dwInsideConeAngle, int32_t dwOutsideConeAngle, int32_t dwApply)
 {
-
-	return E_FAIL;
+	return S_OK;
 }
 
-//todo
-int32_t IDirectSoundBuffer_SetPitch(SHTHR_SOUNDBUFFER* pThis, int a2)
+// stub (not needed)
+int32_t IDirectSoundBuffer_SetPitch(int32_t keyBuffer, int32_t lPitch)
 {
-
-	return E_FAIL;
+	return S_OK;
 }
 
-//todo
-int IDirectSoundBuffer_SetHeadroom(SHTHR_SOUNDBUFFER* pThis, int dwHeadroom)
+// stub (not needed)
+int32_t IDirectSoundBuffer_SetHeadroom(int32_t keyBuffer, int32_t dwHeadroom)
 {
-
-	return E_FAIL;
+	return S_OK;
 }
 
-int IDirectSoundBuffer_SetFrequency(int32_t keyBuffer, int frequency)
+int32_t IDirectSoundBuffer_SetFrequency(int32_t keyBuffer, int32_t dwFrequency)
 {
 	auto pThis = GetCurrentSoundBuffer(keyBuffer);
-
 	if (!pThis)
+	{
 		return E_FAIL;
-
-	return pThis->SetFrequency(frequency);
+	}
+	return pThis->SetFrequency(dwFrequency);
 }
-
 
 //====== IDIRECT SOUND FUNCTIONS ==========
 
-//stub
-int32_t IDirectSound_SetI3DL2Listener(int ppDS_, int a2, char a3)
+// stub (not needed)
+int32_t IDirectSound_SetI3DL2Listener(int32_t keyDevice, uint32_t pds3dlp, int32_t dwApply)
 {
-
-	return E_FAIL;
+	return S_OK;
 }
 
-
-int32_t IDirectSound_SetDistanceFactor(int32_t ppDS_, float fDistanceFactor, int32_t dwApply)
+int32_t IDirectSound_SetDistanceFactor(int32_t keyDevice, float flDistanceFactor, int32_t dwApply)
 {
-	auto pThis = ppDS;
-
-	if (!pThis)
+	auto pDevice = ppDS;
+	if (!pDevice)
+	{
 		return E_FAIL;
-
-	return pThis->SetDistanceFactor(fDistanceFactor, dwApply);
+	}
+	return pDevice->SetDistanceFactor(flDistanceFactor, dwApply);
 }
 
-
-int32_t IDirectSound_SetRolloffFactor(int32_t ppDS_, float RolloffFactor, int32_t dwApply)
+int32_t IDirectSound_SetRolloffFactor(int32_t keyDevice, float flRolloffFactor, int32_t dwApply)
 {
-	auto pThis = ppDS;
-
-	if (!pThis)
+	auto pDevice = ppDS;
+	if (!pDevice)
+	{
 		return E_FAIL;
-
-	return pThis->SetRolloffFactor(RolloffFactor, dwApply);
+	}
+	return pDevice->SetRolloffFactor(flRolloffFactor, dwApply);
 }
 
-
-int32_t IDirectSound_SetPosition(int pThis_, float x, float y, float z, int dwApply)
+int32_t IDirectSound_SetPosition(int32_t keyDevice, float x, float y, float z, int32_t dwApply)
 {
-	auto pThis = ppDS;
-
-	if (!pThis)
+	auto pDevice = ppDS;
+	if (!pDevice)
+	{
 		return E_FAIL;
-
-	return pThis->SetPosition(x, y, z, dwApply);
+	}
+	return pDevice->SetPosition(x, y, z, dwApply);
 }
 
-//todo(?)
-int32_t IDirectSound_SetOrientation(int a1, float xFront, float yFront, float zFront, float xTop, float yTop, float zTop, int dwApply)
+// stub (not needed)
+int32_t IDirectSound_SetOrientation(int32_t keyDevice, float xFront, float yFront, float zFront, float xTop, float yTop, float zTop, int32_t dwApply)
 {
-
-	return E_FAIL;
+	return S_OK;
 }
 
-int32_t CDirectSound_CommitDeferredSettings(int a1)
+// stub (not needed)
+int32_t CDirectSound_CommitDeferredSettings(uint32_t pThis)
 {
-	return E_FAIL;
+	return S_OK;
 }
 
-int32_t IDirectSound_CommitDeferredSettings(int a1)
+// stub (not needed)
+int32_t IDirectSound_CommitDeferredSettings(int32_t keyDevice)
 {
-
-	//printf("IDirectSound_CommitDeferredSettings\n");
-	return E_FAIL;
+	return S_OK;
 }
-
 
 void AudioConfigValueChangedCallback(X86Context* ctx, IConfigDef* config)
 {
@@ -401,9 +377,9 @@ void AudioConfigValueChangedCallback(X86Context* ctx, IConfigDef* config)
 		GuestToHostFunction<void>(*ctx, sub_25C750); // stop all sound
 
 		const uint32_t newVoiceLang = (uint32_t)Config::VoiceLanguage.Value;
-		X86_STORE_U32(0x54DD8C, newVoiceLang);  // set voice language to new value (eng or jp)
+		X86_STORE_U32(0x54DD8C, newVoiceLang); // set voice language to new value (eng or jp)
 
-		// Call ADXF_LoadPartitionNw to re load voice asf file 
+		// Call ADXF_LoadPartitionNw to re load voice asf file
 		if (newVoiceLang == (uint32_t)EVoiceLanguage::English)
 		{
 			GuestToHostFunction<void, CallConvention::Cdecl>(*ctx, sub_328BB0, 0, X86_LOAD_U32(0x51DDA0), 0, 0x54DED0);
@@ -422,14 +398,15 @@ void AudioConfigValueChangedCallback(X86Context* ctx, IConfigDef* config)
 			GuestToHostFunction<void>(*ctx, sub_328F30);
 			failSafeCount++;
 			if (failSafeCount >= 5000)
+			{
 				break;
+			}
 		}
-
 		X86_STORE_U32(0x51DD80, newVoiceLang);
 	}
 }
 
-GUEST_FUNCTION_HOOK_STDCALL(sub_3E5A27, DirectSoundCreate_r)
+GUEST_FUNCTION_HOOK_STDCALL(sub_3E5A27, DirectSoundCreate_r);
 GUEST_FUNCTION_HOOK_STDCALL(sub_3E5756, IDirectSound_CreateSoundBuffer);
 GUEST_FUNCTION_HOOK_STDCALL(sub_3E4EE9, IDirectSoundBuffer_SetBufferData);
 GUEST_FUNCTION_HOOK_STDCALL(sub_3E421C, IDirectSoundBuffer_GetStatus);

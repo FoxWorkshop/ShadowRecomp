@@ -1,5 +1,4 @@
 
-const int32_t ppDSAddr = 0x550310;
 const int32_t ppDSEventAddr = 0x5611C0;
 
 // CRI ADX
@@ -93,4 +92,4 @@ struct X_DSBUFFERDESC
 };
 
 
-int32_t IDirectSoundBuffer_SetVolume(int32_t keyDevice, int32_t lVolume);
+int32_t IDirectSoundBuffer_SetVolume(int32_t keyBuffer, int32_t lVolume);
