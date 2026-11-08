@@ -254,8 +254,21 @@ static void CreateEnemyColliders(const X86Context& ctx, uint8_t* base, uint32_t 
     call.esp.u32 -= 4;
     __imp__sub_CE6C0(call, base);
 
+    // GC inits these at 0,0,0 need to match otherwise WaitAppear enemies can be homing attacked
+    const uint32_t colliderState = X86_LOAD_U32(colliders);
+    for (uint32_t i = 0; colliderState != 0 && i < 2; i++)
+    {
+        const uint32_t collider = X86_LOAD_U32(colliderState + 0x8 + i * 8);
+        if (collider != 0)
+        {
+            X86_STORE_U32(collider + 0x8, 0);
+            X86_STORE_U32(collider + 0xC, 0);
+            X86_STORE_U32(collider + 0x10, 0);
+        }
+    }
+
     const uint32_t oldCount = X86_LOAD_U32(status + 0x68);
-    X86_STORE_U32(status + 0x64, X86_LOAD_U32(colliders));
+    X86_STORE_U32(status + 0x64, colliderState);
     X86_STORE_U32(status + 0x68, X86_LOAD_U32(colliders + 0x4));
     if (oldCount != 0)
     {
