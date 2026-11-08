@@ -59,8 +59,8 @@ enum class ModReservedID : uint8_t
 
 const char* reservedIDName[] =
 {
-	"shthr.Reloaded",
-	"shthr.Multiplayer"
+	"shthr.reloaded",
+	"shthr.multiplayer"
 };
 
 static std::vector<Mod> g_mods;
