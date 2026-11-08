@@ -27,6 +27,46 @@ namespace
     };
 
     static UbershaderCatalog<PixelShaderFamily> g_catalog;
+
+    // Sewer note: Convert the current shader state to key, the same way generate.py does.
+    //             Prevents breakages when FixedFunctionPixelShaderState changes.
+    ShaderVariantKey ProgramKey(const FixedFunctionPixelShaderState& state)
+    {
+        constexpr uint8_t ColorOpDisable = 1;
+        constexpr uint32_t StageCount = FixedFunctionPixelShaderState::TextureStageCount;
+
+        uint32_t activeStageCount = 0;
+        for (uint32_t i = 0; i < StageCount; i++)
+        {
+            if (state.color_op[i] != ColorOpDisable)
+                activeStageCount = i + 1;
+        }
+
+        uint32_t values[1 + StageCount * 10 + 5];
+        size_t count = 0;
+        values[count++] = activeStageCount;
+        for (uint32_t i = 0; i < activeStageCount; i++)
+        {
+            values[count++] = state.color_op[i];
+            values[count++] = state.color_arg0[i];
+            values[count++] = state.color_arg1[i];
+            values[count++] = state.color_arg2[i];
+            values[count++] = state.alpha_op[i];
+            values[count++] = state.alpha_arg0[i];
+            values[count++] = state.alpha_arg1[i];
+            values[count++] = state.alpha_arg2[i];
+            values[count++] = state.result_arg[i];
+            values[count++] = state.texture_sample_type[i];
+        }
+        values[count++] = state.specular_enable != 0;
+        values[count++] = state.fog_enable != 0;
+        values[count++] = state.fog_enable != 0 ? state.fog_table_mode : 0;
+        values[count++] = state.alpha_test_enable != 0;
+        values[count++] = state.alpha_test_enable != 0 ? state.alpha_func : 0;
+
+        const uint64_t key = rapidhash(values, count * sizeof(uint32_t));
+        return key != 0 ? key : 1;
+    }
 }
 
 namespace FixedFunctionPixelShaderVariants
@@ -34,6 +74,11 @@ namespace FixedFunctionPixelShaderVariants
     void Initialize(plume::RenderDevice* device, bool vulkan)
     {
         g_catalog.Initialize(device, vulkan);
+
+#ifndef NDEBUG
+        for (const auto& entry : PixelShaderFamily::States)
+            assert(ProgramKey(entry.state) == entry.programKey);
+#endif
     }
 
     FixedFunctionPixelShaderState Capture(const SharedConstants& constants)
@@ -69,7 +114,8 @@ namespace FixedFunctionPixelShaderVariants
 
     ShaderVariantKey Select(const FixedFunctionPixelShaderState& state)
     {
-        return g_catalog.Select(state);
+        const ShaderVariantKey key = ProgramKey(state);
+        return g_catalog.Contains(key) ? key : GenericShaderVariant;
     }
 
     bool Contains(ShaderVariantKey key)
