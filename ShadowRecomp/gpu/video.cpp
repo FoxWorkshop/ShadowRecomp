@@ -4785,6 +4785,30 @@ GuestSurface* CreateStandAloneSurface(int32_t Width, int32_t Height, int32_t a3,
 	return CreateSurface(Width, Height, Format);
 }
 
+// Helper to capture 512x384 draw in a 512x512 texture (aka bottom bloom box Xbox shit)
+static void TrackRenderTargetLiveArea(GuestSurface* surface, const RenderViewport& viewport)
+{
+	const auto parent = surface->parentTexture;
+
+	if (parent == nullptr || parent->texture != surface->texture)
+		return;
+
+	const uint32_t right = (uint32_t)std::clamp(viewport.x + viewport.width, 0.0f, (float)surface->g_width);
+	const uint32_t bottom = (uint32_t)std::clamp(viewport.y + viewport.height, 0.0f, (float)surface->g_height);
+
+	if (parent->liveAreaReset)
+	{
+		parent->liveWidth = right;
+		parent->liveHeight = bottom;
+		parent->liveAreaReset = false;
+	}
+	else
+	{
+		parent->liveWidth = std::max(parent->liveWidth, right);
+		parent->liveHeight = std::max(parent->liveHeight, bottom);
+	}
+}
+
 bool viewPort_wasFixed = false;
 static void FlushViewport(const bool isFixed)
 {
@@ -4793,6 +4817,8 @@ static void FlushViewport(const bool isFixed)
 	auto hostHeight = g_renderTarget->height;
 	auto viewport = g_renderviewport.vp;
 	auto backupVP = viewport;
+
+	TrackRenderTargetLiveArea(g_renderTarget, viewport);
 
 	if (isFixed != viewPort_wasFixed)
 	{
@@ -5433,6 +5459,26 @@ static void SetTextureInRenderThread(uint32_t index, GuestTexture* texture, cons
 
 			texCoordMinX = getFirstLiveTexel(texture->width, texture->g_width);
 			texCoordMinY = getFirstLiveTexel(texture->height, texture->g_height);
+
+			// partly drawn case (bottom banding bs)
+			const auto getLastLiveTexel = [](uint32_t hostSize, uint32_t guestSize, uint32_t liveSize) -> float
+				{
+					if (hostSize == 0 || liveSize == 0 || liveSize >= guestSize)
+						return FLT_MAX;
+
+					const float scale = float(hostSize) / float(guestSize);
+
+					return (std::floor(float(liveSize) * scale) - 0.5f) / float(hostSize);
+				};
+
+			const float lastLiveX = getLastLiveTexel(texture->width, texture->g_width, texture->liveWidth);
+			const float lastLiveY = getLastLiveTexel(texture->height, texture->g_height, texture->liveHeight);
+
+			if (lastLiveX != FLT_MAX || lastLiveY != FLT_MAX)
+			{
+				texCoordMaxX = lastLiveX;
+				texCoordMaxY = lastLiveY;
+			}
 		}
 		else if (texture->isFmv)
 		{
@@ -5619,6 +5665,12 @@ static void ProcSetRenderTarget(const RenderCommand& cmd)
 		{
 			SetFramebuffer(args.renderTarget, nullptr, true);
 			g_commandLists[g_frame]->clearColor(0, RenderColor(0.0f, 0.0f, 0.0f, 0.0f));
+		}
+
+		// re-measure in this case
+		if (args.renderTarget->parentTexture != nullptr)
+		{
+			args.renderTarget->parentTexture->liveAreaReset = true;
 		}
 	}
 }

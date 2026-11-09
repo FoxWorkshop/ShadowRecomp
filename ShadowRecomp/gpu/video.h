@@ -384,6 +384,9 @@ struct GuestTexture : GuestBaseTexture
 	bool isRenderTarget = false;
 	bool shouldFreeMemory = false;
 	bool isFmv = false;
+	uint32_t liveWidth = 0; // 'live' being the portion drawn in the mismatch texture and draw size case
+	uint32_t liveHeight = 0;
+	bool liveAreaReset = false;
 };
 
 struct GuestLockedRect

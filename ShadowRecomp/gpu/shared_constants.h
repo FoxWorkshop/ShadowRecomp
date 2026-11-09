@@ -66,6 +66,7 @@ struct SharedConstants
     // Same idea for the far edge (right side), though, this seems to only happen with FMVs at high resolution.
     // its frame is inside a bigger power of two textures, so the last texel gets blended with the padding causing
     // another bleed.
+    // also set for partly drawn render targets (bloom source)
     float texCoordMax[SharedTextureSlotCount][2];
 };
 
