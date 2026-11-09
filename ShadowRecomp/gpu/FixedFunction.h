@@ -1,3 +1,4 @@
+#pragma once
 #include "ubershaders/shader_variant.h"
 
 // Rebuilds the fixed-function vertex shader state constants when dirty and
@@ -41,3 +42,4 @@ static_assert(sizeof(Material) % 16 == 0, "Material must be multiple of 16 bytes
 
 void UpdateMaterial(Material* pMaterial);
 void UpdateLightData(uint32_t index, X_D3DLIGHT8* pLight);
+void MarkFixedFunctionVertexShaderStateDirty();

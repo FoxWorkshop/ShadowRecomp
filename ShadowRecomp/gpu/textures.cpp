@@ -5,6 +5,8 @@
 #include <bc_diff.h>
 #include <kernel/function.h>
 #include "guest_convert.h"
+#include "render_commands.h"
+#include "vertexshader.h"
 
 // This page handle textures process, such as palette conversion (originally used on Xbox),
 // copy to the gpu, the custom texs GUI made for Recomp etc.
@@ -510,7 +512,18 @@ X86_OVERRIDE_FUNC(sub_2ED0D0)
 	}
 }
 
+static void UnlockTextureRect(GuestTexture* texture)
+{
+	if (texture->isRenderTarget == true)
+	{
+		return;
+	}
 
+	RenderCommand cmd;
+	cmd.type = RenderCommandType::UnlockTextureRect;
+	cmd.unlockTextureRect.texture = texture;
+	g_renderQueue.enqueue(cmd);
+}
 
 GuestTexture* g_currentTextureRect = nullptr;
 // rwD3D8RasterUnlock
@@ -608,5 +621,22 @@ X86_OVERRIDE_FUNC(sub_2DFE20)
 	}
 }
 
+
+extern GuestTexture* g_texturesPSDef[4];
+void SetTexture(uint32_t stage, GuestTexture* texture)
+{
+	if (texture && texture->patchedTexture != nullptr)
+		texture = texture->patchedTexture.get();
+
+	RenderCommand cmd;
+	cmd.type = RenderCommandType::SetTexture;
+	cmd.setTexture.index = stage;
+	cmd.setTexture.texture = texture;
+	cmd.setTexture.isFixed = g_Xbox_VertexShaderMode == VertexShaderMode::FixedFunction;
+	g_texturesPSDef[stage] = texture;
+	g_renderQueue.enqueue(cmd);
+}
+
+GUEST_FUNCTION_HOOK_STDCALL(sub_3D0CD0, SetTexture);
 GUEST_FUNCTION_HOOK_STDCALL(sub_3DD710, CreateTexture_); //not used for 2D stuff at least.
 GUEST_FUNCTION_HOOK_STDCALL(sub_3DD810, LockTextureRect); //todo cube version?

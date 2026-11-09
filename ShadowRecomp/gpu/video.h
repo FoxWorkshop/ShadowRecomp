@@ -44,7 +44,6 @@ extern std::atomic<uint32_t> g_fmvFrameHeight;
 #define NV_PCRTC_INTR_EN_0                               0x00000140
 
 
-void CopyVertexShaderConstant(int32_t Register, DWORD* pConstantData, const uint32_t count);
 float GetRenderTargetHeight();
 double GetTargetFPS();
 
@@ -1072,7 +1071,6 @@ std::unique_ptr<RenderBuffer> PlumeCreateBufferWrapper(const uint32_t size);
 void PlumeSetTextureWrapper(uint32_t descriptorIndex, const RenderTexture* texture, const RenderTextureLayout textureLayout, const RenderTextureView* textureView);
 uint32_t AllocateTextureDescriptor();
 void FreeTextureDescriptor(const uint32_t descriptorIndex);
-void UnlockTextureRect(GuestTexture* texture);
 void ExecuteCopyCommandList(const std::function<void(RenderCommandList*)>& function);
 GuestTexture* CreateTexture(uint32_t width, uint32_t height, uint32_t depth, uint32_t levels, uint32_t usage, X_D3DFORMAT format, X_D3DRESOURCETYPE type);
 X_D3DRESOURCETYPE GetXboxTextureType(const X_D3DResource* pXboxResource);
@@ -1129,3 +1127,5 @@ void UnlockVertexBuffer(GuestBuffer* buffer);
 void AddDestructResource(GuestResource* ressource);
 void* GetDataFromXboxResource(X_D3DResource* pXboxResource);
 X_D3DFORMAT GetXboxPixelContainerFormat(const uint32_t XboxPixelContainer_Format);
+uint8_t* AllocIntermediaryUploadMemoryWrapper(const void* memory, uint32_t size);
+GuestShader* CreateShader(ResourceType resourceType);

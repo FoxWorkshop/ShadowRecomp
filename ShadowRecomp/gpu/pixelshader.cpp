@@ -2,7 +2,16 @@
 #include <shader/shader_cache.h>
 #include <map>
 #include "renderstate.h"
+#include "render_commands.h"
 
+
+
+// Original code (mostly) re-used from CXBX Reloaded
+
+static GuestPixelShader* g_pXbox_PixelShader = nullptr;
+static bool g_pixelShaderConstantsAnyDirty = true;
+uint32_t psh_constants[PSH_XBOX_CONSTANT_MAX][4]; // (slot of 4 because one register = 4 bytes)
+bool psh_constants_dirty[PSH_XBOX_CONSTANT_MAX];
 
 typedef struct D3DXCOLOR
 {
@@ -32,6 +41,11 @@ constexpr int HOST_D3DPS_CONSTREG_FOGINFO = PSH_XBOX_CONSTANT_FRONTFACE_FACTOR +
 constexpr int PSH_XBOX_CONSTANT_FOGENABLE = HOST_D3DPS_CONSTREG_FOGINFO + 1; // = 29
 
 static std::map<uint64_t, GuestShader*> pixelCache;
+
+GuestPixelShader* GetXboxPixelShader()
+{
+	return g_pXbox_PixelShader;
+}
 
 uint64_t GetPixelShaderKey(const uint32_t pXboxPixelShaderDef)
 {
@@ -166,6 +180,76 @@ bool UpdatePixelShaderConstant(uint32_t(*psh_constants)[4])
 	memcpy(&psh_constants[0][0], fColor, sizeof(fColor));
 	return true;
 
+}
+
+//SetPixelShaderConstants
+void SetPixelShaderConstants(LocalRenderCommandQueue& queue)
+{
+	if (g_pixelShaderConstantsAnyDirty)
+	{
+		auto& cmd = queue.enqueue();
+		cmd.type = RenderCommandType::SetPixelShaderConstants;
+		cmd.setPixelShaderConstants.memory =
+			AllocIntermediaryUploadMemoryWrapper(&psh_constants[0][0], PSH_XBOX_CONSTANT_MAX * sizeof(float) * 4);
+		cmd.setPixelShaderConstants.index = 0;
+		cmd.setPixelShaderConstants.size = PSH_XBOX_CONSTANT_MAX;
+		g_pixelShaderConstantsAnyDirty = false;
+	}
+}
+
+
+//SetPixelShaderConstant
+X86_FUNC_IMPL(__imp__sub_3DC790);
+X86_OVERRIDE_FUNC(sub_3DC790)
+{
+	__imp__sub_3DC790(ctx, base);
+
+	if (UpdatePixelShaderConstant(psh_constants))
+		g_pixelShaderConstantsAnyDirty = true;
+}
+
+
+// SetPixelShader
+X86_FUNC_IMPL(__imp__sub_3DC590);
+X86_OVERRIDE_FUNC(sub_3DC590)
+{
+	auto Handle = X86_LOAD_U32(ctx.esp.u32 + 4);
+
+	__imp__sub_3DC590(ctx, base);
+
+	RenderCommand cmd;
+	cmd.type = RenderCommandType::SetPixelShader;
+	g_pXbox_PixelShader = (GuestPixelShader*)g_memory.Translate(Handle);
+	if (Handle)
+	{
+		// Copy the Pixel Shader data to our RenderState handler (this includes values for pixel shader constants)
+		// This mirrors the fact that unpatched SetPixelShader does the same thing!
+
+		auto pXboxPixelShaderDef = X86_LOAD_U32(Handle + 0x8);
+		X_D3DPIXELSHADERDEF* pPSDef = (X_D3DPIXELSHADERDEF*)g_memory.Translate(pXboxPixelShaderDef);
+		memcpy(GetPixelShaderRenderStatePointer(), pPSDef, sizeof(X_D3DPIXELSHADERDEF) - 3 * sizeof(DWORD));
+		// Copy the PSDef.PSTextureModes field to it's dedicated slot, which lies outside the range of PixelShader render state slots
+		// Note : This seems to be what XDK's do as well. Needs verification.
+		SetGuestRenderState(X_D3DRS_PSTEXTUREMODES, pPSDef->PSTextureModes);
+
+		auto shader = CreateShader(ResourceType::PixelShader);
+
+		if (shader == nullptr)
+		{
+			return;
+		}
+		else
+		{
+			cmd.setPixelShader.shader = shader;
+		}
+	}
+	else
+	{
+		cmd.setPixelShader.shader = nullptr;
+	}
+
+	cmd.setPixelShader.isFixed = Handle == 0;
+	g_renderQueue.enqueue(cmd);
 }
 
 const uint8_t* CreateRecompiledPixelShader(X_D3DPIXELSHADERDEF* PSDef, void* psGuestInf, size_t* outSize)

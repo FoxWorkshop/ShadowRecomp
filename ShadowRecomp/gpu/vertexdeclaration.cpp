@@ -4,9 +4,14 @@
 #include <xxHashMap.h>
 #include <kernel/heap.h>
 #include <algorithm>
+#include "render_commands.h"
+#include "FixedFunction.h"
 
 static Mutex g_vertexDeclarationMutex;
 static xxHashMap<GuestVertexDeclaration*> g_vertexDeclarations;
+static VertexDeclarationKey g_fixedFunctionVertexDeclarationKey;
+static bool g_hasFixedFunctionVertexDeclarationKey;
+uint32_t g_fixedFunctionVertexRegisterDefaultMask = 0xFFFF;
 
 static const char* ConvertDeclUsage(uint32_t usage)
 {
@@ -380,4 +385,71 @@ GuestVertexDeclaration* FindVertexDeclarationByHash(uint64_t hash)
 	std::lock_guard lock(g_vertexDeclarationMutex);
 	auto it = g_vertexDeclarations.find(hash);
 	return it != g_vertexDeclarations.end() ? it->second : nullptr;
+}
+
+extern uint32_t vsh_constants[HOST_D3DVS_CONSTREG_FULL][4];
+void UpdateHostVertexDeclaration(HostVertexDeclaration* pHostVertexDeclaration)
+{
+	// Titles can specify default values for registers via calls like SetVertexData4f
+	// HLSL shaders need to know whether to use vertex data or default vertex shader values
+	// Any register not in the vertex declaration should be set to the default value
+	float vertexDefaultFlags[X_VSH_MAX_ATTRIBUTES];
+	uint32_t vertexRegisterDefaultMask = 0;
+	for (int32_t i = 0; i < X_VSH_MAX_ATTRIBUTES; i++)
+	{
+		vertexDefaultFlags[i] = pHostVertexDeclaration->vRegisterInDeclaration[i] ? 0.0f : 1.0f;
+
+		if (!pHostVertexDeclaration->vRegisterInDeclaration[i])
+			vertexRegisterDefaultMask |= 1u << i;
+	}
+	if (!g_hasFixedFunctionVertexDeclarationKey ||
+		g_fixedFunctionVertexDeclarationKey != pHostVertexDeclaration->Key)
+	{
+		g_fixedFunctionVertexDeclarationKey = pHostVertexDeclaration->Key;
+		g_hasFixedFunctionVertexDeclarationKey = true;
+		g_fixedFunctionVertexRegisterDefaultMask = vertexRegisterDefaultMask;
+		MarkFixedFunctionVertexShaderVariantDirty();
+	}
+
+
+	//192 + 16 = 208 vRegisterDefaultFlagsPacked
+	if (memcmp(&vsh_constants[HOST_D3DVS_CONSTREG_VREGDEFAULTS_FLAG_BASE][0], vertexDefaultFlags,
+		sizeof(vertexDefaultFlags)) != 0)
+		CopyVertexShaderConstant(HOST_D3DVS_CONSTREG_VREGDEFAULTS_FLAG_BASE, (DWORD*)vertexDefaultFlags,
+			HOST_D3DVS_CONSTREG_VREGDEFAULTS_FLAG_SIZE);
+}
+
+
+static void SetVertexDeclaration(GuestVertexDeclaration* vertexDeclaration)
+{
+	RenderCommand cmd;
+	cmd.type = RenderCommandType::SetVertexDeclaration;
+	cmd.setVertexDeclaration.vertexDeclaration = vertexDeclaration;
+	g_renderQueue.enqueue(cmd);
+}
+
+static GuestVertexDeclaration* CreateVertexDeclaration(D3DVERTEXELEMENT9* vertexElements, VertexShaderMode shaderMode)
+{
+	auto vertexDeclaration = CreateVertexDeclarationWithoutAddRef(vertexElements, shaderMode);
+	//vertexDeclaration->AddRef();
+	return vertexDeclaration;
+}
+
+
+void UpdateVertexDeclaration(uint32_t Handle)
+{
+	size_t host_handle = (size_t)g_memory.Translate(Handle);
+
+	//DWORD vshFlags = GetXboxVertexShaderForHandle(host_handle)->Flags;
+	RenderCommand cmd;
+	VertexShaderMode shaderMode = g_Xbox_VertexShaderMode;
+
+	//as mentioned above, there is no separate function that create vertex declaration, so we have to manually extract and handle them.
+	//we handle vertex declaration immediately to avoid a race issue.
+
+	auto vertexElement = XSR_HostGetVertexDeclaration(host_handle, shaderMode == VertexShaderMode::FixedFunction);
+
+	UpdateHostVertexDeclaration(vertexElement);
+	auto vertexDeclaration = CreateVertexDeclaration(vertexElement->pHostVertexElements, shaderMode);
+	SetVertexDeclaration(vertexDeclaration);
 }

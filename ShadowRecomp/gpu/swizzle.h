@@ -1,3 +1,4 @@
+#pragma once
 #include "video.h"
 
 typedef void(*FormatToARGBRow)(const uint8_t* src, uint8_t* dst_argb, int width);

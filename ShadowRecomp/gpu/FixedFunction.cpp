@@ -9,6 +9,7 @@
 #include <os/logger.h>
 #include "ubershaders/fixed_function_vertex_shader_variants.h"
 #include <kernel/function.h>
+#include "vertexshader.h"
 
 // original code (mostly) re used from CXBX Reloaded
 // Since modern API don't have a fixed function pipeline, we have to emulate it ourselves using shaders.

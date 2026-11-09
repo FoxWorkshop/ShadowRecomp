@@ -1,3 +1,4 @@
+#pragma once
 
 #include <plume_render_interface.h>
 #include <shader/shader_cache.h>
@@ -41,6 +42,7 @@ struct X_D3DVertexShader
 };
 
 extern uint32_t g_Xbox_VertexShader_FunctionSlots_StartAddress;
+extern DWORD g_Xbox_VertexShaderConstantMode;
 
 X_D3DVertexShader* GetXboxVertexShaderForHandle(size_t Handle);
 struct GuestShader* FindShaderCacheEntryNew();
@@ -56,3 +58,7 @@ extern uint32_t g_VertexShader_Handle;
 const uint8_t* CreateRecompiledShader(size_t handle, size_t* outSize);
 plume::RenderShader* GetOrLinkShader(struct GuestShader* guestShader, uint32_t specConstants);
 ShaderCacheEntry* FindShaderCacheEntry(XXH64_hash_t hash);
+void CopyVertexShaderConstant(int32_t Register, DWORD* pConstantData, const uint32_t count);
+struct LocalRenderCommandQueue;
+void HandleShadersConstant(LocalRenderCommandQueue& queue);
+

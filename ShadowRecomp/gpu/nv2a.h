@@ -1,3 +1,4 @@
+#pragma once
 
 // NV2A Push buffer command masks
 #define PUSH_TYPE_MASK         0x00000002 // 2 bits

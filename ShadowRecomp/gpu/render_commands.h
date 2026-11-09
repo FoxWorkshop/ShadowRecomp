@@ -253,3 +253,26 @@ struct RenderCommand
 };
 
 extern moodycamel::BlockingConcurrentQueue<RenderCommand> g_renderQueue;
+
+
+struct LocalRenderCommandQueue
+{
+	RenderCommand commands[20];
+	uint32_t count = 0;
+
+	void submit()
+	{
+		if (count == 0)
+			return;
+
+		g_renderQueue.enqueue_bulk(commands, count);
+		count = 0;
+	}
+
+	RenderCommand& enqueue()
+	{
+		if (count == std::size(commands))
+			submit();
+		return commands[count++];
+	}
+};

@@ -1,3 +1,4 @@
+#pragma once
 
 typedef enum _D3DRENDERSTATETYPE {
 	D3DRS_ZENABLE = 7,    /* D3DZBUFFERTYPE (or TRUE/FALSE for legacy) */

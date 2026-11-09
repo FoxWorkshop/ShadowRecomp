@@ -9,10 +9,19 @@
 #include <os/logger.h>
 #include "pixelshader.h"
 #include "pipeline.h"
+#include "render_commands.h"
+#include "FixedFunction.h"
 
 
+// Original code (mostly) re-used from CXBX Reloaded
+
+static bool g_vertexShaderConstantsAnyDirty = true;
+DWORD g_Xbox_VertexShaderConstantMode = 1;
+static uint32_t g_vertexShaderConstantBankShadow[2][HOST_D3DVS_CONSTREG_FULL * 4];
+uint32_t vsh_constants[HOST_D3DVS_CONSTREG_FULL][4]; //xbox registers (192) + host registers (slot of 4 because one register = 4 bytes)
+bool vsh_constants_dirty[HOST_D3DVS_CONSTREG_FULL];
 extern std::unique_ptr<uint8_t[]> g_shaderCache;
-extern GuestTexture* g_texturesPSDef[4];
+
 uint32_t g_Xbox_VertexShader_FunctionSlots_StartAddress = 0;
 
 // Variable set by [D3DDevice_LoadVertexShader() / [D3DDevice_LoadVertexShaderProgram() (both through CopyVertexShaderFunctionSlots):
@@ -706,8 +715,226 @@ ShaderCacheEntry* FindShaderCacheEntry(XXH64_hash_t hash)
 	return findResult != end && findResult->hash == hash ? findResult : nullptr;
 }
 
+void HandleShadersConstant(LocalRenderCommandQueue& queue)
+{
+	const bool fixedConstantBank = g_Xbox_VertexShaderMode == VertexShaderMode::FixedFunction;
+	if (g_vertexShaderConstantsAnyDirty)
+	{
+		// Each bank only uploads registers whose values changed since the
+		// last upload to that bank, so switching shader modes does not
+		// resend the full constant block.
+		const uint32_t bankIndex = fixedConstantBank ? 1 : 0;
+		int batchStartIndex = -1;
+		for (int i = 0; i < HOST_D3DVS_CONSTREG_FULL; i++)
+		{
+			const bool changed = vsh_constants_dirty[i] && memcmp(&vsh_constants[i][0],
+				&g_vertexShaderConstantBankShadow[bankIndex][i * 4], sizeof(vsh_constants[i])) != 0;
+			if (changed)
+			{
+				memcpy(&g_vertexShaderConstantBankShadow[bankIndex][i * 4],
+					&vsh_constants[i][0], sizeof(vsh_constants[i]));
+				if (batchStartIndex == -1)
+					batchStartIndex = i;
+			}
+			else if (batchStartIndex != -1)
+			{
+				int count = i - batchStartIndex;
+				auto& cmd = queue.enqueue();
+				cmd.type = RenderCommandType::SetVertexShaderConstants;
+				cmd.setVertexShaderConstants.memory =
+					AllocIntermediaryUploadMemoryWrapper(&vsh_constants[batchStartIndex][0], count * sizeof(float) * 4);
+				cmd.setVertexShaderConstants.index = batchStartIndex;
+				cmd.setVertexShaderConstants.size = count;
+				cmd.setVertexShaderConstants.isFixedFunc = fixedConstantBank;
+				batchStartIndex = -1;
+			}
+			vsh_constants_dirty[i] = false;
+		}
+		if (batchStartIndex != -1)
+		{
+			int count = HOST_D3DVS_CONSTREG_FULL - batchStartIndex;
+			auto& cmd = queue.enqueue();
+			cmd.type = RenderCommandType::SetVertexShaderConstants;
+			cmd.setVertexShaderConstants.memory =
+				AllocIntermediaryUploadMemoryWrapper(&vsh_constants[batchStartIndex][0], count * sizeof(float) * 4);
+			cmd.setVertexShaderConstants.index = batchStartIndex;
+			cmd.setVertexShaderConstants.size = count;
+			cmd.setVertexShaderConstants.isFixedFunc = fixedConstantBank;
+		}
+		g_vertexShaderConstantsAnyDirty = false;
+	}
 
 
+}
+
+
+void CopyVertexShaderConstant(int32_t Register, DWORD* pConstantData, const uint32_t count)
+{
+	// Skip registers whose values did not change.
+	// Must also match both bank shadows. While the flush
+	// uploads against the active bank only, a stale
+	// other-bank shadow still needs the dirty flag.
+	bool anyChanged = false;
+	for (DWORD i = 0; i < count; i++)
+	{
+		const DWORD* src = &pConstantData[i * 4];
+		uint32_t* dst = &vsh_constants[Register + i][0];
+
+		if (memcmp(dst, src, sizeof(float) * 4) != 0)
+		{
+			memcpy(dst, src, sizeof(float) * 4);
+			vsh_constants_dirty[Register + i] = true;
+			anyChanged = true;
+		}
+		else if (memcmp(&g_vertexShaderConstantBankShadow[0][(Register + i) * 4], src, sizeof(float) * 4) != 0 ||
+			memcmp(&g_vertexShaderConstantBankShadow[1][(Register + i) * 4], src, sizeof(float) * 4) != 0)
+		{
+			vsh_constants_dirty[Register + i] = true;
+			anyChanged = true;
+		}
+	}
+
+	if (anyChanged)
+		g_vertexShaderConstantsAnyDirty = true;
+}
+
+void D3DDevice_SetVertexShaderConstant1Fast(int32_t Register, DWORD* pConstantData)
+{
+	float* constants = (float*)pConstantData;
+	CopyVertexShaderConstant(Register, pConstantData, 1);
+}
+
+void D3DDevice_SetVertexShaderConstantNotInlineFast(int32_t Register, DWORD* pConstantData, uint32_t ConstantCount)
+{
+	float* constants = (float*)pConstantData;
+	CopyVertexShaderConstant(Register, pConstantData, ConstantCount / 4);
+}
+
+//SetShaderConstantMode
+X86_FUNC_IMPL(__imp__sub_3D2010);
+X86_OVERRIDE_FUNC(sub_3D2010)
+{
+	g_Xbox_VertexShaderConstantMode = X86_LOAD_U32(ctx.esp.u32 + 4);
+	__imp__sub_3D2010(ctx, base);
+}
+
+void SetVertexAttribute(int32_t Register, FLOAT a, FLOAT b, FLOAT c, FLOAT d)
+{
+
+	vsh_constants_dirty[HOST_D3DVS_CONSTREG_VREGDEFAULTS_BASE + Register] = true; 	//vRegisterDefaultValues aka 192 + i
+
+	float attribute_floats[4];
+	attribute_floats[0] = a;
+	attribute_floats[1] = b;
+	attribute_floats[2] = c;
+	attribute_floats[3] = d;
+
+	// Also, write the given register value to a matching host vertex shader constant
+	// This allows us to implement Xbox functionality where SetVertexData4f can be used to specify attributes
+	// not present in the vertex declaration.
+	// We use range 193 and up to store these values, as Xbox shaders stop at c192!
+	CopyVertexShaderConstant(HOST_D3DVS_CONSTREG_VREGDEFAULTS_BASE + Register, (DWORD*)attribute_floats, 1);
+}
+
+
+void SetFixedFunctionDefaultVertexAttributes(size_t Handle)
+{
+
+	DWORD vshFlags = GetXboxVertexShaderForHandle(Handle)->Flags;
+
+	auto decl = XSR_HostGetVertexDeclaration(Handle, true); 
+	for (int i = 0; i < X_D3DVSDE_TEXCOORD3; i++)
+	{
+		if (decl->vRegisterInDeclaration[i])
+		{
+			continue; // only reset missing attributes
+		}
+
+		const float white[4] = { 1, 1, 1, 1 };
+		const float black[4] = { 0, 0, 0, 0 };
+		const float unset[4] = { 0, 0, 0, 1 };
+		const float* value = unset;
+
+		// Account for flags that override this reset behaviour
+		if (i == X_D3DVSDE_DIFFUSE && !(vshFlags & X_VERTEXSHADER_FLAG_HASDIFFUSE) ||
+			i == X_D3DVSDE_BACKDIFFUSE && !(vshFlags & X_VERTEXSHADER_FLAG_HASBACKDIFFUSE)) {
+			value = white;
+		}
+		else if (i == X_D3DVSDE_SPECULAR && !(vshFlags & X_VERTEXSHADER_FLAG_HASSPECULAR) ||
+			i == X_D3DVSDE_BACKSPECULAR && !(vshFlags & X_VERTEXSHADER_FLAG_HASBACKSPECULAR)) {
+			value = black;
+		}
+
+		SetVertexAttribute(i, value[0], value[1], value[2], value[3]);
+	}
+}
+
+void UpdateVertexShader(uint32_t Handle)
+{
+	size_t host_handle = (size_t)g_memory.Translate(Handle);
+	DWORD vshFlags = GetXboxVertexShaderForHandle(host_handle)->Flags;
+	RenderCommand cmd;
+	bool isFixed = false;
+
+	if (vshFlags & g_X_VERTEXSHADER_FLAG_PROGRAM)
+	{
+		auto shader = CreateShader(ResourceType::VertexShader);
+		if (shader == nullptr)
+		{
+			return;
+		}
+		else
+		{
+			cmd.setVertexShader.shader = shader;
+		}
+	}
+	else
+	{
+		g_VertexShader_Handle = Handle;
+
+		SetFixedFunctionDefaultVertexAttributes(host_handle);
+
+		// Switch to passthrough program, if so required
+		if (vshFlags & X_VERTEXSHADER_FLAG_PASSTHROUGH)
+		{
+			SetVertexShaderPassthroughProgram();
+			g_Xbox_VertexShaderMode = VertexShaderMode::Passthrough;
+		}
+		else {
+
+			g_Xbox_VertexShaderMode = VertexShaderMode::FixedFunction;
+			MarkFixedFunctionVertexShaderStateDirty();
+
+		}
+	}
+
+
+	cmd.type = RenderCommandType::SetVertexShader;
+	cmd.setVertexShader.handle = Handle;
+	cmd.setVertexShader.type = g_Xbox_VertexShaderMode;
+	UpdateVertexDeclaration(Handle);
+
+	g_renderQueue.enqueue(cmd);
+}
+
+// DX8 has a fixed pipeline, meaning we won't always have a shader from this function, sometimes it can be FVF too
+// Since DX12 only support Shader, we will use a uber shader to emulate FVF stuff, see FixedFunctionVertexShader.hlsl
+X86_FUNC_IMPL(__imp__sub_3D2280);
+static void SetVertexShader(X86Context& ctx, uint32_t Handle)
+{
+	//let original code run first so it will call SelectVertexShader function
+	auto base = g_memory.base;
+	__imp__sub_3D2280(ctx, base);
+	ctx.esp.u32 -= 8; //1 arg + ret value*/
+
+	UpdateVertexShader(Handle);
+}
+
+//vertex shader
+GUEST_FUNCTION_HOOK_STDCALL(sub_3D2280, SetVertexShader);
 GUEST_FUNCTION_HOOK_STDCALL(sub_3D1F70, SelectVertexShader);
 GUEST_FUNCTION_HOOK_STDCALL(sub_3D1F00, LoadVertexShaderProgram);
 GUEST_FUNCTION_HOOK_STDCALL(sub_3D1EA0, LoadVertexShader);
+
+GUEST_FUNCTION_HOOK_FASTCALL(sub_3D1CE0, D3DDevice_SetVertexShaderConstant1Fast);
+GUEST_FUNCTION_HOOK_FASTCALL(sub_3D1D30, D3DDevice_SetVertexShaderConstantNotInlineFast);

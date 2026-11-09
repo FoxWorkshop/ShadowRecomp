@@ -1,4 +1,4 @@
-
+#pragma once
 
 // Remembered vertex content hashes per guest buffer, dropped when that exact
 // buffer is locked or freed. The hash covers one byte range, so
@@ -9,7 +9,6 @@ struct VBRangeHash
 	uint32_t length;
 	uint64_t hash;
 };
-
 
 
 struct DerivedVertexBuffer
