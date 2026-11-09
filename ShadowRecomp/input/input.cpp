@@ -722,6 +722,13 @@ bool Input_OnSDLEvent(void*, SDL_Event* event)
 void input::Init()
 {
 
+	// needed if installer was used before playing.
+	static bool s_isInit = false;
+	if (s_isInit)
+		return;
+
+	s_isInit = true;
+
 	SDL_SetHint(SDL_HINT_JOYSTICK_ALLOW_BACKGROUND_EVENTS, "1");
 	SDL_SetHint(SDL_HINT_JOYSTICK_HIDAPI_GAMECUBE, "1");
 	SDL_SetHint(SDL_HINT_JOYSTICK_HIDAPI_PS3, "1");

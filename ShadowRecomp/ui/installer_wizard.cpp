@@ -121,6 +121,12 @@ static bool g_currentCursorAccepted = false;
 static bool g_currentCursorBack = false;
 static int g_currentCursorIndex = -1;
 static int g_currentCursorDefault = 0;
+static int g_lastCursorIndex = -1;
+static WizardPage g_cursorPage = WizardPage::SelectLanguage;
+static bool g_cursorPickDefault = false;
+static bool g_mouseMoved = false;
+static bool g_mouseOverButton = false;
+static ImVec2 g_joypadAxis = {};
 static bool g_isQuitting = false;
 static bool g_browseClicked = false;
 static double g_sourceDropTime = -1.0;
@@ -128,11 +134,6 @@ static float g_openProgress = 0.0f;
 static bool g_isClosing = false;
 
 static std::vector<std::pair<ImVec2, ImVec2>> g_currentCursorRects;
-
-static bool playedNextSound = false;
-static bool playedPrevSound = false;
-static bool playedLangSound[6] = {false};
-static bool playedBrowseSound = false;
 
 static void Quit()
 {
@@ -223,46 +224,98 @@ static ImVec2 ComputeTextSize(ImFont* font, const char* text, float size, float&
 	return textSize;
 }
 
-static void DrawButton(X86Context* ctx, ImVec2 min, ImVec2 max, const char* buttonText, bool sourceButton, int i, bool buttonEnabled, bool& buttonPressed, float maxTextWidth = FLT_MAX, bool makeDefault = false)
+
+static bool IsPressedButton(ImVec2 min, ImVec2 max, bool& hovered, bool makeDefault = false)
 {
-	buttonPressed = false;
+	auto& io = ImGui::GetIO();
+
+	int index = int(g_currentCursorRects.size());
+	g_currentCursorRects.emplace_back(min, max);
+
+	if (makeDefault)
+		g_currentCursorDefault = index;
+
+	bool pressed = false;
+	bool mouseOver = io.MousePos.x >= min.x && io.MousePos.x <= max.x &&
+		io.MousePos.y >= min.y && io.MousePos.y <= max.y;
+
+	if (mouseOver && g_mouseMoved)
+	{
+		g_currentCursorIndex = index;
+		g_mouseOverButton = true;
+	}
+
+	if (mouseOver && io.MouseClicked[0])
+	{
+		g_currentCursorIndex = index;
+		pressed = true;
+	}
+
+	hovered = g_currentCursorIndex == index;
+
+	if (hovered && g_currentCursorAccepted)
+	{
+		g_currentCursorAccepted = false;
+		pressed = true;
+	}
+
+	return pressed;
+}
+
+static bool DrawTextButton(X86Context* ctx, ImVec2 min, ImVec2 max, const char* text, float textFontSize, bool enabled, const char* pressSound, bool makeDefault = false)
+{
+	auto drawList = ImGui::GetBackgroundDrawList();
+	auto* font = g_fntSeurat;
+
+	bool isHovered = false;
+	bool isPressed = false;
+
+	if (enabled)
+		isPressed = IsPressedButton(min, max, isHovered, makeDefault);
+
+	auto textSize = font->CalcTextSizeA(textFontSize, FLT_MAX, 0, text);
+	ImVec2 textPos(min.x + ((max.x - min.x) - textSize.x) * 0.5f, min.y + ((max.y - min.y) - textSize.y) * 0.5f);
+
+	if (isHovered)
+	{
+		drawList->AddText(font, textFontSize, textPos, IM_COL32(255, 255, 0, 255), text);
+	}
+	else
+	{
+		DrawTextWithShadow(font, textFontSize, textPos, IM_COL32(255, 255, 255, enabled ? 127 : 50), text, 1.5, 1, IM_COL32(0, 0, 0, 127));
+	}
+
+	if (isPressed)
+		Game_PlaySound(ctx, pressSound);
+
+	return isPressed;
+}
+
+static void DrawButton(X86Context* ctx, ImVec2 min, ImVec2 max, const char* buttonText, bool sourceButton, int i, bool btnEnabled, bool& btnPressed, float maxTextWidth = FLT_MAX, bool makeDefault = false)
+{
+	btnPressed = false;
 
 	// default to english
 	if (i == 2 && g_selectedBtn == -1)
 	{
-		buttonPressed = true;
-		buttonEnabled = true;
+		btnPressed = true;
+		btnEnabled = true;
 	}
 
 	auto drawList = ImGui::GetBackgroundDrawList();
-	auto& io = ImGui::GetIO();
 	bool btnHovered = false;
 
-	if (io.MousePos.x >= min.x && io.MousePos.x <= max.x &&
-		io.MousePos.y >= min.y && io.MousePos.y <= max.y)
+	if (IsPressedButton(min, max, btnHovered, makeDefault) && !btnEnabled)
 	{
-		btnHovered = true;
-		if(!playedLangSound[i] && !buttonEnabled){
-			Game_PlaySound(ctx, "cursor");
-			playedLangSound[i] = true;
-		}
-	}
-	else
-	{
-		playedLangSound[i] = false;
+		Game_PlaySound(ctx, "decide");
+		btnPressed = true;
+		g_selectedBtn = i;
 	}
 
 	float alpha = 255;
-	if (!buttonEnabled && !btnHovered)
+	if (!btnEnabled && !btnHovered)
 	{
 		alpha *= 0.5f;
-	}
-
-	if (btnHovered && io.MouseClicked[0] && !buttonEnabled)
-	{
-		Game_PlaySound(ctx, "decide");
-		buttonPressed = true;
-		g_selectedBtn = i;
 	}
 
 	ImFont* font = g_fntSeurat;
@@ -282,7 +335,7 @@ static void DrawButton(X86Context* ctx, ImVec2 min, ImVec2 max, const char* butt
 	SetScale({ squashRatio, 1.0f });
 
 	ImU32 textCol = IM_COL32(255, 255, 255, alpha);
-	if (buttonPressed || btnHovered || buttonEnabled)
+	if (btnPressed || btnHovered || btnEnabled)
 	{
 		textCol = IM_COL32(255, 255, 0, alpha);
 		drawList->AddText(font,
@@ -372,9 +425,10 @@ static void DrawLanguagePicker(X86Context* ctx, ImVec2 panelMin, ImVec2 panelMax
 		ImVec2 min = { minX, btnMinY };
 		ImVec2 max = { maxX, btnMaxY };
 
+		const bool isCurrent = i == g_selectedBtn || (g_selectedBtn == -1 && i == 2);
+
 		DrawButton(ctx, min, max, LANGUAGE_TEXT[i], false, i,
-			i == g_selectedBtn, buttonPressed, FLT_MAX,
-			LANGUAGE_ENUM[i] == ELanguage::English);
+			i == g_selectedBtn, buttonPressed, FLT_MAX, isCurrent);
 
 		if (buttonPressed)
 		{
@@ -383,186 +437,38 @@ static void DrawLanguagePicker(X86Context* ctx, ImVec2 panelMin, ImVec2 panelMax
 	}
 }
 
-static void DrawNextButton(X86Context* ctx, ImVec2& panelMin, ImVec2& panelMax, float scale)
+
+static void GetMainButtonRect(const ImVec2& panelMin, const ImVec2& panelMax, float scale, float width, ImVec2& min, ImVec2& max)
 {
-	auto& io = ImGui::GetIO();
-	auto drawList = ImGui::GetBackgroundDrawList();
-	auto& displaySize = io.DisplaySize;
-	auto* font = g_fntSeurat;
+	min = { panelMin.x + ((panelMax.x - panelMin.x) - width * scale) * 0.5f, panelMax.y - (20.0f * scale) - (70.0f * scale) };
+	max = { min.x + width * scale, min.y + 20.0f * scale };
+}
 
-	auto nextText = Localise("Installer_Button_Next").c_str();
-	auto nextSize = font->CalcTextSizeA(smallFontSize, FLT_MAX, 0, nextText);
+static void DrawNextButton(X86Context* ctx, ImVec2& panelMin, ImVec2& panelMax, float scale, bool makeDefault = true)
+{
+	ImVec2 min, max;
+	GetMainButtonRect(panelMin, panelMax, scale, 45.0f, min, max);
 
-	float nextBtnWidth = 45.0f * scale;
-	float nextBtnHeight = 20.0f * scale;
-	float nextBtnX = panelMin.x + ((panelMax.x - panelMin.x) - nextBtnWidth) * 0.5f;
-	float nextBtnY = panelMax.y - nextBtnHeight - (70.0f * scale);
-
-	bool nextHovered = false;
-
-	if (io.MousePos.x >= nextBtnX && io.MousePos.x <= nextBtnX + nextBtnWidth &&
-		io.MousePos.y >= nextBtnY && io.MousePos.y <= nextBtnY + nextBtnHeight)
-	{
-		nextHovered = true;
-		if(!playedNextSound)
-		{
-			Game_PlaySound(ctx, "cursor");
-			playedNextSound = true;
-		}
-	}
-	else
-	{
-		playedNextSound = false;
-	}
-
-	if (nextHovered)
-	{
-		drawList->AddText(
-			font,
-			smallFontSize,
-			ImVec2(nextBtnX + (nextBtnWidth - nextSize.x) * 0.5f, nextBtnY + (nextBtnHeight - nextSize.y) * 0.5f),
-			IM_COL32(255, 255, 0, 255),
-			nextText
-		);
-	}
-	else
-	{
-		DrawTextWithShadow(
-			font,
-			smallFontSize,
-			ImVec2(nextBtnX + (nextBtnWidth - nextSize.x) * 0.5f, nextBtnY + (nextBtnHeight - nextSize.y) * 0.5f),
-			IM_COL32(255, 255, 255, 127),
-			nextText,
-			1.5,
-			1,
-			IM_COL32(0, 0, 0, 127)
-		);
-	}
-
-	if (nextHovered && io.MouseClicked[0])
-	{
-		Game_PlaySound(ctx, "decide");
+	if (DrawTextButton(ctx, min, max, Localise("Installer_Button_Next").c_str(), smallFontSize, true, "decide", makeDefault))
 		g_currentPage = (WizardPage)((int)g_currentPage + 1);
-	}
 }
 
 static void DrawQuitButton(X86Context* ctx, ImVec2& panelMin, ImVec2& panelMax, float scale)
 {
-	auto& io = ImGui::GetIO();
-	auto drawList = ImGui::GetBackgroundDrawList();
-	auto& displaySize = io.DisplaySize;
-	auto* font = g_fntSeurat;
+	ImVec2 min = { panelMin.x + ((panelMax.x - panelMin.x) - 45.0f * scale) * 0.5f, panelMax.y - (20.0f * scale) - (35.0f * scale) };
+	ImVec2 max = { min.x + 45.0f * scale, min.y + 20.0f * scale };
 
-	auto quitText = Localise("Installer_Button_Quit").c_str();
-	auto quitSize = font->CalcTextSizeA(smallFontSize, FLT_MAX, 0, quitText);
-
-	float quitBtnWidth = 45.0f * scale;
-	float quitBtnHeight = 20.0f * scale;
-	float quitBtnX = panelMin.x + ((panelMax.x - panelMin.x) - quitBtnWidth) * 0.5f;
-	float quitBtnY = panelMax.y - quitBtnHeight - (35.0f * scale);
-
-	bool quitHovered = false;
-	if (io.MousePos.x >= quitBtnX && io.MousePos.x <= quitBtnX + quitBtnWidth &&
-		io.MousePos.y >= quitBtnY && io.MousePos.y <= quitBtnY + quitBtnHeight)
-	{
-		quitHovered = true;
-		if(!playedPrevSound){
-			Game_PlaySound(ctx, "cursor");
-			playedPrevSound = true;
-		}
-	}
-	else { playedPrevSound = false; }
-
-	if (quitHovered)
-	{
-		drawList->AddText(
-			font,
-			smallFontSize,
-			ImVec2(quitBtnX + (quitBtnWidth - quitSize.x) * 0.5f, quitBtnY + (quitBtnHeight - quitSize.y) * 0.5f),
-			IM_COL32(255, 255, 0, 255),
-			quitText
-		);
-	}
-	else
-	{
-		DrawTextWithShadow(
-			font,
-			smallFontSize,
-			ImVec2(quitBtnX + (quitBtnWidth - quitSize.x) * 0.5f, quitBtnY + (quitBtnHeight - quitSize.y) * 0.5f),
-			IM_COL32(255, 255, 255, 127),
-			quitText,
-			1.5,
-			1,
-			IM_COL32(0, 0, 0, 127)
-		);
-	}
-
-	if (quitHovered && io.MouseClicked[0])
-	{
-		Game_PlaySound(ctx, "cancel");
+	if (DrawTextButton(ctx, min, max, Localise("Installer_Button_Quit").c_str(), smallFontSize, true, "cancel"))
 		Quit();
-	}
 }
 
 static void DrawPrevButton(X86Context* ctx, ImVec2& panelMin, ImVec2& panelMax, float scale, bool enabled = true)
 {
-	auto& io = ImGui::GetIO();
-	auto drawList = ImGui::GetBackgroundDrawList();
-	auto& displaySize = io.DisplaySize;
-	auto* font = g_fntSeurat;
+	ImVec2 min = { panelMin.x + ((panelMax.x - panelMin.x) - 45.0f * scale) * 0.5f, panelMax.y - (20.0f * scale) - (35.0f * scale) };
+	ImVec2 max = { min.x + 45.0f * scale, min.y + 20.0f * scale };
 
-	auto prevText = Localise("Installer_Button_Back").c_str();
-	auto prevSize = font->CalcTextSizeA(smallFontSize, FLT_MAX, 0, prevText);
-
-	float prevBtnWidth = 45.0f * scale;
-	float prevBtnHeight = 20.0f * scale;
-	float prevBtnX = panelMin.x + ((panelMax.x - panelMin.x) - prevBtnWidth) * 0.5f;
-	float prevBtnY = panelMax.y - prevBtnHeight - (35.0f * scale);
-
-	bool prevHovered = false;
-	if (enabled && io.MousePos.x >= prevBtnX && io.MousePos.x <= prevBtnX + prevBtnWidth &&
-		io.MousePos.y >= prevBtnY && io.MousePos.y <= prevBtnY + prevBtnHeight)
-	{
-		prevHovered = true;
-		if(!playedPrevSound){
-			Game_PlaySound(ctx, "cursor");
-			playedPrevSound = true;
-		}
-	}
-	else
-	{
-		playedPrevSound = false;
-	}
-
-	if (prevHovered)
-	{
-		drawList->AddText(
-			font,
-			smallFontSize,
-			ImVec2(prevBtnX + (prevBtnWidth - prevSize.x) * 0.5f, prevBtnY + (prevBtnHeight - prevSize.y) * 0.5f),
-			IM_COL32(255, 255, 0, 255),
-			prevText
-		);
-	}
-	else
-	{
-		DrawTextWithShadow(
-			font,
-			smallFontSize,
-			ImVec2(prevBtnX + (prevBtnWidth - prevSize.x) * 0.5f, prevBtnY + (prevBtnHeight - prevSize.y) * 0.5f),
-			IM_COL32(255, 255, 255, enabled ? 127 : 50),
-			prevText,
-			1.5,
-			1,
-			IM_COL32(0, 0, 0, 127)
-		);
-	}
-
-	if (prevHovered && io.MouseClicked[0])
-	{
-		Game_PlaySound(ctx, "cancel");
+	if (DrawTextButton(ctx, min, max, Localise("Installer_Button_Back").c_str(), smallFontSize, enabled, "cancel"))
 		g_currentPage = (WizardPage)((int)g_currentPage - 1);
-	}
 }
 
 
@@ -667,12 +573,118 @@ static void DrawWizardParagraph(const char* text, float maxWidth, float lineMarg
 		draw);
 }
 
+
+static void ResetCursorRects()
+{
+	g_currentCursorDefault = 0;
+	g_currentCursorRects.clear();
+}
+
+static void CheckCancelAction(X86Context* ctx)
+{
+	if (!g_currentCursorBack)
+		return;
+
+	g_currentCursorBack = false;
+
+	if (g_isClosing || g_openProgress < 1.0f)
+		return;
+
+	switch (g_currentPage)
+	{
+	case WizardPage::SelectLanguage:
+		Game_PlaySound(ctx, "cancel");
+		Quit();
+		break;
+
+	case WizardPage::Introduction:
+	case WizardPage::CheckSpace:
+		Game_PlaySound(ctx, "cancel");
+		g_currentPage = (WizardPage)((int)g_currentPage - 1);
+		break;
+
+	case WizardPage::SelectGame:
+		if (!IsParsingSources())
+		{
+			Game_PlaySound(ctx, "cancel");
+			g_currentPage = WizardPage::Introduction;
+		}
+		break;
+	default:
+		break;
+	}
+}
+
+static void FinishCursorFrame(X86Context* ctx)
+{
+	if (g_mouseMoved && !g_mouseOverButton)
+		g_currentCursorIndex = -1;
+
+
+	if (g_cursorPickDefault && !g_currentCursorRects.empty())
+	{
+		g_cursorPickDefault = false;
+
+		if (input::g_inputDevice != input::EInputDevice::Mouse)
+		{
+			g_currentCursorIndex = g_currentCursorDefault;
+			g_lastCursorIndex = g_currentCursorIndex;
+		}
+	}
+
+	if (g_currentCursorIndex != g_lastCursorIndex)
+	{
+		if (g_currentCursorIndex >= 0)
+			Game_PlaySound(ctx, "cursor");
+
+		g_lastCursorIndex = g_currentCursorIndex;
+	}
+
+	CheckCancelAction(ctx);
+	g_currentCursorAccepted = false;
+}
+
+
+
+void InstallerWizard::Shutdown()
+{
+	JoinParseThread();
+
+	if (g_installerThread && g_installerThread->joinable())
+		g_installerThread->join();
+	g_installerThread.reset();
+
+	g_currentPage = WizardPage::SelectLanguage;
+	g_sourcePath.clear();
+	g_statusMessage.clear();
+	g_sourceDropTime = -1.0;
+	g_installerFinished.store(false);
+	g_installerFailed.store(false);
+	g_installerProgress = 0.0f;
+}
+
+
 void InstallerWizard::Draw(X86Context* ctx)
 {
 	if (!s_isVisible)
 		return;
 
 	auto& io = ImGui::GetIO();
+
+	ResetCursorRects();
+	g_mouseMoved = io.MouseDelta.x != 0.0f || io.MouseDelta.y != 0.0f;
+	g_mouseOverButton = false;
+
+
+	if (g_cursorPage != g_currentPage)
+	{
+		g_cursorPage = g_currentPage;
+		g_currentCursorIndex = -1;
+		g_lastCursorIndex = -1;
+		g_cursorPickDefault = true;
+	}
+
+
 	auto drawList = ImGui::GetBackgroundDrawList();
 	auto& displaySize = io.DisplaySize;
 	ImGuiViewport* viewport = ImGui::GetMainViewport();
@@ -700,13 +712,13 @@ void InstallerWizard::Draw(X86Context* ctx)
 	float verticalOffset = 40.0f * scale;
 
 	ImVec2 panelMin = ImVec2(
-						winPos.x + offsetX + (26.0f * scale),
-						winPos.y + offsetY + (59.0f * scale)
-					  );
+		winPos.x + offsetX + (26.0f * scale),
+		winPos.y + offsetY + (59.0f * scale)
+	);
 	ImVec2 panelMax = ImVec2(
-						panelMin.x + (587.0f * scale),
-						panelMin.y + (351.0f * scale)
-					  );
+		panelMin.x + (587.0f * scale),
+		panelMin.y + (351.0f * scale)
+	);
 
 	float panelWidth = panelMax.x - panelMin.x;
 	float centerX = (panelMin.x + panelMax.x) * 0.5f;
@@ -743,7 +755,7 @@ void InstallerWizard::Draw(X86Context* ctx)
 
 	if (g_openProgress > 0.0f)
 		DrawBackground(viewport, winPos, winSize, scale, offsetX, offsetY);
-	
+
 	if (g_openProgress < 1.0f)
 	{
 		return;
@@ -773,7 +785,7 @@ void InstallerWizard::Draw(X86Context* ctx)
 	{
 		DrawLanguagePicker(ctx, panelMin, panelMax);
 
-		DrawNextButton(ctx, panelMin, panelMax, scale);
+		DrawNextButton(ctx, panelMin, panelMax, scale, false);
 
 		DrawQuitButton(ctx, panelMin, panelMax, scale);
 	}
@@ -806,14 +818,14 @@ void InstallerWizard::Draw(X86Context* ctx)
 		const bool isParsing = IsParsingSources();
 
 		ImVec2 inputMin = ImVec2(
-							panelMin.x + (74.0f * scale),
-							panelMin.y + (141.0f * scale)
-						  );
+			panelMin.x + (74.0f * scale),
+			panelMin.y + (141.0f * scale)
+		);
 		float fieldBaseHeight = 32.0f;
 		ImVec2 inputMax = ImVec2(
-							inputMin.x + (350.0f * scale),
-							inputMin.y + (fieldBaseHeight * scale)
-						  );
+			inputMin.x + (350.0f * scale),
+			inputMin.y + (fieldBaseHeight * scale)
+		);
 
 		float pathClipWidth = (inputMax.x - (8.0f * scale)) - (inputMin.x + (8.0f * scale));
 
@@ -890,50 +902,11 @@ void InstallerWizard::Draw(X86Context* ctx)
 		float btnHeight = 20.0f * scale;
 		float btnY = inputMin.y + ((inputMax.y - inputMin.y) - btnHeight) * 0.5f;
 
-		bool btnHovered = false;
-		if (!isParsing && io.MousePos.x >= btnX && io.MousePos.x <= btnX + btnWidth &&
-			io.MousePos.y >= btnY && io.MousePos.y <= btnY + btnHeight)
-		{
-			btnHovered = true;
-			if(!playedBrowseSound){
-				Game_PlaySound(ctx, "cursor");
-				playedBrowseSound = true;
-			}
-		}
-		else
-		{
-			playedBrowseSound = false;
-		}
 
-		if (btnHovered)
-		{
-			drawList->AddText(
-				font,
-				browseFontSize,
-				ImVec2(btnX + (btnWidth - browsetextSize.x) * 0.5f, btnY + (btnHeight - browsetextSize.y) * 0.5f),
-				IM_COL32(255, 255, 0, 255),
-				browseText
-			);
-		}
-		else
-		{
-			DrawTextWithShadow(
-				font,
-				browseFontSize,
-				ImVec2(btnX + (btnWidth - browsetextSize.x) * 0.5f, btnY + (btnHeight - browsetextSize.y) * 0.5f),
-				IM_COL32(255, 255, 255, isParsing ? 50 : 127),
-				browseText,
-				1.5,
-				1,
-				IM_COL32(0, 0, 0, 127)
-			);
-		}
-
-		if (btnHovered && io.MouseClicked[0])
-		{
-			Game_PlaySound(ctx, "decide");
+		if (DrawTextButton(ctx, ImVec2(btnX, btnY), ImVec2(btnX + btnWidth, btnY + btnHeight), browseText, browseFontSize, !isParsing, "decide", g_sourcePath.empty()))
 			g_browseClicked = true;
-		}
+
+		DrawPrevButton(ctx, panelMin, panelMax, scale, !isParsing);
 
 		if (!g_statusMessage.empty())
 		{
@@ -950,56 +923,11 @@ void InstallerWizard::Draw(X86Context* ctx)
 
 		if (!g_sourcePath.empty())
 		{
-			float nextBtnWidth = 45.0f * scale;
-			float nextBtnHeight = 20.0f * scale;
-			float nextBtnX = panelMin.x + ((panelMax.x - panelMin.x) - nextBtnWidth) * 0.5f;
-			float nextBtnY = panelMax.y - nextBtnHeight - (70.0f * scale);
+			ImVec2 nextMin, nextMax;
+			GetMainButtonRect(panelMin, panelMax, scale, 45.0f, nextMin, nextMax);
 
-			auto nextText = Localise("Installer_Button_Next").c_str();
-			auto nextSize = font->CalcTextSizeA(smallFontSize, FLT_MAX, 0, nextText);
-
-			bool nextHovered = false;
-
-			if (!isParsing && io.MousePos.x >= nextBtnX && io.MousePos.x <= nextBtnX + nextBtnWidth &&
-				io.MousePos.y >= nextBtnY && io.MousePos.y <= nextBtnY + nextBtnHeight)
+			if (DrawTextButton(ctx, nextMin, nextMax, Localise("Installer_Button_Next").c_str(), smallFontSize, !isParsing, "decide", true))
 			{
-				nextHovered = true;
-				if(!playedNextSound)
-				{
-					Game_PlaySound(ctx, "cursor");
-					playedNextSound = true;
-				}
-			}
-			else { playedNextSound = false; }
-
-			if (nextHovered)
-			{
-				drawList->AddText(
-					font,
-					smallFontSize,
-					ImVec2(nextBtnX + (nextBtnWidth - nextSize.x) * 0.5f, nextBtnY + (nextBtnHeight - nextSize.y) * 0.5f),
-								  IM_COL32(255, 255, 0, 255),
-								  nextText
-				);
-			}
-			else
-			{
-				DrawTextWithShadow(
-					font,
-					smallFontSize,
-					ImVec2(nextBtnX + (nextBtnWidth - nextSize.x) * 0.5f, nextBtnY + (nextBtnHeight - nextSize.y) * 0.5f),
-								   IM_COL32(255, 255, 255, isParsing ? 50 : 127),
-								   nextText,
-					   1.5,
-					   1,
-					   IM_COL32(0, 0, 0, 127)
-				);
-			}
-
-			if (nextHovered && io.MouseClicked[0])
-			{
-				Game_PlaySound(ctx, "decide");
-
 				std::error_code spaceErrorCode;
 				std::filesystem::path spacePath = g_installPath;
 				while (spacePath.has_parent_path() && spacePath != spacePath.parent_path() && !std::filesystem::exists(spacePath, spaceErrorCode))
@@ -1018,8 +946,6 @@ void InstallerWizard::Draw(X86Context* ctx)
 				StartParseSources();
 			}
 		}
-
-		DrawPrevButton(ctx, panelMin, panelMax, scale, !isParsing);
 	}
 	break;
 	case WizardPage::CheckSpace:
@@ -1042,55 +968,11 @@ void InstallerWizard::Draw(X86Context* ctx)
 
 		DrawPrevButton(ctx, panelMin, panelMax, scale);
 
-		float nextBtnWidth = 45.0f * scale;
-		float nextBtnHeight = 20.0f * scale;
-		float nextBtnX = panelMin.x + ((panelMax.x - panelMin.x) - nextBtnWidth) * 0.5f;
-		float nextBtnY = panelMax.y - nextBtnHeight - (70.0f * scale);
+		ImVec2 installMin, installMax;
+		GetMainButtonRect(panelMin, panelMax, scale, 45.0f, installMin, installMax);
 
-		auto nextText = Localise("Common_Install").c_str();
-		auto nextSize = font->CalcTextSizeA(smallFontSize, FLT_MAX, 0, nextText);
-
-		bool nextHovered = false;
-
-		if (io.MousePos.x >= nextBtnX && io.MousePos.x <= nextBtnX + nextBtnWidth &&
-			io.MousePos.y >= nextBtnY && io.MousePos.y <= nextBtnY + nextBtnHeight)
+		if (DrawTextButton(ctx, installMin, installMax, Localise("Common_Install").c_str(), smallFontSize, true, "decide", true))
 		{
-			nextHovered = true;
-				if(!playedNextSound)
-			{
-				Game_PlaySound(ctx, "cursor");
-				playedNextSound = true;
-			}
-		}
-		else { playedNextSound = false; }
-
-		if (nextHovered)
-		{
-			drawList->AddText(
-				font,
-				smallFontSize,
-				ImVec2(nextBtnX + (nextBtnWidth - nextSize.x) * 0.5f, nextBtnY + (nextBtnHeight - nextSize.y) * 0.5f),
-				IM_COL32(255, 255, 0, 255),
-				nextText
-			);
-		}
-		else
-		{
-			DrawTextWithShadow(
-				font,
-				smallFontSize,
-				ImVec2(nextBtnX + (nextBtnWidth - nextSize.x) * 0.5f, nextBtnY + (nextBtnHeight - nextSize.y) * 0.5f),
-				IM_COL32(255, 255, 255, 127),
-				nextText,
-				1.5,
-				1,
-				IM_COL32(0, 0, 0, 127)
-			);
-		}
-
-		if (nextHovered && io.MouseClicked[0])
-		{
-			Game_PlaySound(ctx, "decide");
 			g_currentPage = WizardPage::Installing;
 			g_installerFinished.store(false);
 			g_installerFailed.store(false);
@@ -1134,7 +1016,7 @@ void InstallerWizard::Draw(X86Context* ctx)
 				ImVec2 fileTextPosition = ImVec2(barX, panelMin.y + (10.0f * scale));
 
 				DrawTextParagraph(font, fileFontSize, barWidth, fileTextPosition, textMargin, fileText,
-								  [&](const char* str, ImVec2 pos) { DrawTextWithShadow(g_fntSeurat, fileFontSize, pos, IM_COL32(255, 255, 255, 127), str, 1.5, 1, IM_COL32(0, 0, 0, 127)); });
+					[&](const char* str, ImVec2 pos) { DrawTextWithShadow(g_fntSeurat, fileFontSize, pos, IM_COL32(255, 255, 255, 127), str, 1.5, 1, IM_COL32(0, 0, 0, 127)); });
 			}
 		}
 
@@ -1176,7 +1058,6 @@ void InstallerWizard::Draw(X86Context* ctx)
 	case WizardPage::InstallSucceeded:
 	{
 		auto foxDev = "FoxWorkshop";
-		bool playHovered = false;
 
 		auto foxSize = font->CalcTextSizeA(descFontSize, FLT_MAX, 0, foxDev);
 		auto foxPositionY = textSize.y + textPosition.y + (25.0f * scale);
@@ -1189,7 +1070,7 @@ void InstallerWizard::Draw(X86Context* ctx)
 		float logoY = foxPositionY + (foxSize.y - logoHeight) * 0.5f;
 
 		drawList->AddImage(g_upTexFoxLogo.get(), ImVec2(foxGroupX, logoY), ImVec2(foxGroupX + logoWidth, logoY + logoHeight),
-						   ImVec2(71.0f / 640.0f, 17.0f / 512.0f), ImVec2(591.0f / 640.0f, 499.0f / 512.0f));
+			ImVec2(71.0f / 640.0f, 17.0f / 512.0f), ImVec2(591.0f / 640.0f, 499.0f / 512.0f));
 
 		DrawTextWithShadow(font, descFontSize, ImVec2(foxGroupX + logoWidth + logoGap, foxPositionY), IM_COL32(255, 255, 255, 255), foxDev, 1.5, 1, IM_COL32(0, 0, 0, 127));
 
@@ -1199,53 +1080,11 @@ void InstallerWizard::Draw(X86Context* ctx)
 
 		DrawQuitButton(ctx, panelMin, panelMax, scale);
 
-		float playBtnWidth = 75.0f * scale;
-		float playBtnHeight = 20.0f * scale;
-		float playBtnX = panelMin.x + ((panelMax.x - panelMin.x) - playBtnWidth) * 0.5f;
-		float playBtnY = panelMax.y - playBtnHeight - (70.0f * scale);
+		ImVec2 btnplayMin, btnplayMax;
+		GetMainButtonRect(panelMin, panelMax, scale, 75.0f, btnplayMin, btnplayMax);
 
-		auto playText = Localise("Installer_Button_PlayGame").c_str();
-		auto playSize = font->CalcTextSizeA(smallFontSize, FLT_MAX, 0, playText);
-
-		if (io.MousePos.x >= playBtnX && io.MousePos.x <= playBtnX + playBtnWidth &&
-			io.MousePos.y >= playBtnY && io.MousePos.y <= playBtnY + playBtnHeight)
+		if (DrawTextButton(ctx, btnplayMin, btnplayMax, Localise("Installer_Button_PlayGame").c_str(), smallFontSize, true, "decide", true))
 		{
-			playHovered = true;
-			if(!playedNextSound)
-			{
-				Game_PlaySound(ctx, "cursor");
-				playedNextSound = true;
-			}
-		}
-		else { playedNextSound = false; }
-
-		if (playHovered)
-		{
-			drawList->AddText(
-				font,
-				smallFontSize,
-				ImVec2(playBtnX + (playBtnWidth - playSize.x) * 0.5f, playBtnY + (playBtnHeight - playSize.y) * 0.5f),
-				IM_COL32(255, 255, 0, 255),
-				playText
-			);
-		}
-		else
-		{
-			DrawTextWithShadow(
-				font,
-				smallFontSize,
-				ImVec2(playBtnX + (playBtnWidth - playSize.x) * 0.5f, playBtnY + (playBtnHeight - playSize.y) * 0.5f),
-				IM_COL32(255, 255, 255, 127),
-				playText,
-				1.5,
-				1,
-				IM_COL32(0, 0, 0, 127)
-			);
-		}
-
-		if (playHovered && io.MouseClicked[0])
-		{
-			Game_PlaySound(ctx, "decide");
 			g_isClosing = true;
 			EmbeddedPlayer::FadeOutMusic();
 		}
@@ -1261,57 +1100,11 @@ void InstallerWizard::Draw(X86Context* ctx)
 
 		DrawWizardParagraph(errorMsg, textMaxWidth, textMargin, errorTextPosition);
 
-		auto retryText = Localise("Installer_Button_Retry").c_str();
-		auto retrySize = font->CalcTextSizeA(smallFontSize, FLT_MAX, 0, retryText);
+		ImVec2 btnretryMin, btnretryMax;
+		GetMainButtonRect(panelMin, panelMax, scale, 50.0f, btnretryMin, btnretryMax);
 
-		float retryBtnWidth = 50.0f * scale;
-		float retryBtnHeight = 20.0f * scale;
-		float retryBtnX = panelMin.x + ((panelMax.x - panelMin.x) - retryBtnWidth) * 0.5f;
-		float retryBtnY = panelMax.y - retryBtnHeight - (70.0f * scale);
-
-		bool retryHovered = false;
-		if (io.MousePos.x >= retryBtnX && io.MousePos.x <= retryBtnX + retryBtnWidth &&
-			io.MousePos.y >= retryBtnY && io.MousePos.y <= retryBtnY + retryBtnHeight)
+		if (DrawTextButton(ctx, btnretryMin, btnretryMax, Localise("Installer_Button_Retry").c_str(), smallFontSize, true, "decide", true))
 		{
-			retryHovered = true;
-			if(!playedNextSound)
-			{
-				Game_PlaySound(ctx, "cursor");
-				playedNextSound = true;
-			}
-		}
-		else
-		{
-			playedNextSound = false;
-		}
-
-		if (retryHovered)
-		{
-			drawList->AddText(
-				font,
-				smallFontSize,
-				ImVec2(retryBtnX + (retryBtnWidth - retrySize.x) * 0.5f, retryBtnY + (retryBtnHeight - retrySize.y) * 0.5f),
-				IM_COL32(255, 255, 0, 255),
-				retryText
-			);
-		}
-		else
-		{
-			DrawTextWithShadow(
-				font,
-				smallFontSize,
-				ImVec2(retryBtnX + (retryBtnWidth - retrySize.x) * 0.5f, retryBtnY + (retryBtnHeight - retrySize.y) * 0.5f),
-				IM_COL32(255, 255, 255, 127),
-				retryText,
-				1.5,
-				1,
-				IM_COL32(0, 0, 0, 127)
-			);
-		}
-
-		if (retryHovered && io.MouseClicked[0])
-		{
-			Game_PlaySound(ctx, "decide");
 			if (g_installerThread && g_installerThread->joinable())
 				g_installerThread->join();
 			g_installerThread.reset();
@@ -1332,25 +1125,8 @@ void InstallerWizard::Draw(X86Context* ctx)
 
 
 	DrawVersionString(g_fntSeurat, IM_COL32(255, 255, 255, (int)(70)));
+	FinishCursorFrame(ctx);
 }
-
-void InstallerWizard::Shutdown()
-{
-	JoinParseThread();
-
-	if (g_installerThread && g_installerThread->joinable())
-		g_installerThread->join();
-	g_installerThread.reset();
-
-	g_currentPage = WizardPage::SelectLanguage;
-	g_sourcePath.clear();
-	g_statusMessage.clear();
-	g_sourceDropTime = -1.0;
-	g_installerFinished.store(false);
-	g_installerFailed.store(false);
-	g_installerProgress = 0.0f;
-}
-
 // Dropping a file on the window works the same as Browse and a dropped folder
 // is taken as the extracted game.
 static void OnSourceDropped(X86Context* ctx, const char* file)
@@ -1382,6 +1158,145 @@ static void OnSourceDropped(X86Context* ctx, const char* file)
 	Game_PlaySound(ctx, "decide");
 }
 
+
+static void OnCursorEvent(const SDL_Event& event)
+{
+	if (g_isClosing || !IsInputAllowed())
+		return;
+
+	constexpr float axisValueRange = 32767.0f;
+	constexpr float axisTapRange = 0.5f;
+
+	ImVec2 tapDirection = {};
+	// re used from unleashed recomp
+	switch (event.type)
+	{
+	case SDL_EVENT_KEY_DOWN:
+	{
+		switch (event.key.scancode)
+		{
+		case SDL_SCANCODE_LEFT:
+		case SDL_SCANCODE_RIGHT:
+			tapDirection.x = (event.key.scancode == SDL_SCANCODE_RIGHT) ? 1.0f : -1.0f;
+			break;
+
+		case SDL_SCANCODE_UP:
+		case SDL_SCANCODE_DOWN:
+			tapDirection.y = (event.key.scancode == SDL_SCANCODE_DOWN) ? 1.0f : -1.0f;
+			break;
+
+		case SDL_SCANCODE_RETURN:
+		case SDL_SCANCODE_KP_ENTER:
+			if (!event.key.repeat)
+				g_currentCursorAccepted = g_currentCursorIndex >= 0;
+			break;
+
+		case SDL_SCANCODE_ESCAPE:
+			if (!event.key.repeat)
+				g_currentCursorBack = true;
+			break;
+		}
+
+		break;
+	}
+
+	case SDL_EVENT_GAMEPAD_BUTTON_DOWN:
+	{
+		switch (event.gbutton.button)
+		{
+		case SDL_GAMEPAD_BUTTON_DPAD_LEFT:
+			tapDirection = { -1.0f, 0.0f };
+			break;
+
+		case SDL_GAMEPAD_BUTTON_DPAD_RIGHT:
+			tapDirection = { 1.0f, 0.0f };
+			break;
+
+		case SDL_GAMEPAD_BUTTON_DPAD_UP:
+			tapDirection = { 0.0f, -1.0f };
+			break;
+
+		case SDL_GAMEPAD_BUTTON_DPAD_DOWN:
+			tapDirection = { 0.0f, 1.0f };
+			break;
+
+		case SDL_GAMEPAD_BUTTON_SOUTH:
+			g_currentCursorAccepted = g_currentCursorIndex >= 0;
+			break;
+
+		case SDL_GAMEPAD_BUTTON_EAST:
+			g_currentCursorBack = true;
+			break;
+		}
+
+		break;
+	}
+
+	case SDL_EVENT_GAMEPAD_AXIS_MOTION:
+	{
+		if (event.gaxis.axis < 2)
+		{
+			float newAxisValue = event.gaxis.value / axisValueRange;
+			bool sameDirection = (newAxisValue * g_joypadAxis[event.gaxis.axis]) > 0.0f;
+			bool wasInRange = abs(g_joypadAxis[event.gaxis.axis]) > axisTapRange;
+			bool isInRange = abs(newAxisValue) > axisTapRange;
+
+			if (sameDirection && !wasInRange && isInRange)
+				tapDirection[event.gaxis.axis] = newAxisValue;
+
+			g_joypadAxis[event.gaxis.axis] = newAxisValue;
+		}
+
+		break;
+	}
+	}
+
+	if (tapDirection.x == 0.0f && tapDirection.y == 0.0f)
+		return;
+
+	if (g_currentCursorIndex < 0 || g_currentCursorIndex >= int(g_currentCursorRects.size()))
+	{
+		if (!g_currentCursorRects.empty())
+			g_currentCursorIndex = g_currentCursorDefault;
+
+		return;
+	}
+
+	auto& currentRect = g_currentCursorRects[g_currentCursorIndex];
+	ImVec2 currentPoint = ImVec2
+	(
+		(currentRect.first.x + currentRect.second.x) / 2.0f + tapDirection.x * (currentRect.second.x - currentRect.first.x) / 2.0f,
+		(currentRect.first.y + currentRect.second.y) / 2.0f + tapDirection.y * (currentRect.second.y - currentRect.first.y) / 2.0f
+	);
+
+	int newCursorIndex = g_currentCursorIndex;
+	float closestDistance = FLT_MAX;
+	for (int i = 0; i < int(g_currentCursorRects.size()); i++)
+	{
+		if (i == g_currentCursorIndex)
+			continue;
+
+		auto& targetRect = g_currentCursorRects[i];
+		ImVec2 targetPoint = ImVec2
+		(
+			(targetRect.first.x + targetRect.second.x) / 2.0f + tapDirection.x * (targetRect.first.x - targetRect.second.x) / 2.0f,
+			(targetRect.first.y + targetRect.second.y) / 2.0f + tapDirection.y * (targetRect.first.y - targetRect.second.y) / 2.0f
+		);
+
+		ImVec2 delta = ImVec2(targetPoint.x - currentPoint.x, targetPoint.y - currentPoint.y);
+		float projectedDistance = delta.x * tapDirection.x + delta.y * tapDirection.y;
+		float manhattanDistance = abs(delta.x) + abs(delta.y);
+
+		if (projectedDistance > 0.0f && manhattanDistance < closestDistance)
+		{
+			newCursorIndex = i;
+			closestDistance = manhattanDistance;
+		}
+	}
+
+	g_currentCursorIndex = newCursorIndex;
+}
+
 bool InstallerWizard::Run(std::filesystem::path installPath)
 {
 	g_installPath = installPath / "game";
@@ -1390,6 +1305,15 @@ bool InstallerWizard::Run(std::filesystem::path installPath)
 	g_openProgress = 0.0f;
 	g_bgFadeOutStart = -1.0;
 	g_currentPage = WizardPage::SelectLanguage;
+	g_cursorPage = g_currentPage;
+	g_cursorPickDefault = true;
+	g_currentCursorIndex = -1;
+	g_lastCursorIndex = -1;
+	g_currentCursorAccepted = false;
+	g_currentCursorBack = false;
+	g_joypadAxis = {};
+
+	input::Init();
 
 	EmbeddedPlayer::Init();
 	NFD_Init();
@@ -1422,6 +1346,7 @@ bool InstallerWizard::Run(std::filesystem::path installPath)
 				g_sourcePath = outPath;
 				g_statusMessage.clear();
 				NFD_FreePathU8(outPath);
+				g_cursorPickDefault = true;
 			}
 			else if (result == NFD_ERROR)
 			{
@@ -1449,6 +1374,10 @@ bool InstallerWizard::Run(std::filesystem::path installPath)
 			else if (event.type == SDL_EVENT_DROP_FILE)
 			{
 				OnSourceDropped(nullptr, event.drop.data);
+			}
+			else
+			{
+				OnCursorEvent(event);
 			}
 		}
 
