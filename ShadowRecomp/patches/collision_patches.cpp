@@ -422,3 +422,54 @@ void CoasterHangbarCollisionMidAsmHook(X86Context& __restrict ctx, uint8_t* base
 {
 	X86_STORE_U32(ctx.esp.u32, 0x40000);
 }
+
+// Lethal Highway stg0202_gr_001 bad last vert fix
+// PATH.PTP load
+void PathSplineFixMidAsmHook(X86Context& __restrict ctx, uint8_t* base)
+{
+	uint32_t path = ctx.eax.u32;
+	if (path == NULL)
+	{
+		return;
+	}
+
+	uint32_t table = X86_LOAD_U32(path + 0x14);
+	uint32_t spline;
+	while (true)
+	{
+		spline = X86_LOAD_U32(table);
+		if (spline == NULL)
+		{
+			return;
+		}
+
+		// decided to match by length and name rather than hashing since mods that tweak (e.g. grindable other types) should still get this fix
+		uint32_t name = X86_LOAD_U32(spline + 0x2C);
+		if (name != NULL && X86_LOAD_U32(spline) == 35 && strcmp(reinterpret_cast<const char*>(base + name), "stg0202_gr_001") == 0)
+		{
+			break;
+		}
+		table += 4;
+	}
+
+	uint32_t vertices = X86_LOAD_U32(spline + 0x8);
+	uint32_t last = vertices + 33 * 0x20;
+	X86_STORE_F32(spline + 0x4, X86_LOAD_F32(spline + 0x4) - X86_LOAD_F32(last + 0x18)); // update total length
+
+	// fix the prior rotation
+	for (int i = 0; i < 3; i++)
+	{
+		X86_STORE_F32(last + 0xC + i * 4, X86_LOAD_F32(last - 0x20 + 0xC + i * 4));
+	}
+	X86_STORE_F32(last + 0x18, 0.0f);
+	X86_STORE_U32(last + 0x1C, 0);
+
+	float minY = X86_LOAD_F32(vertices + 0x4);
+	for (uint32_t v = 1; v < 34; v++)
+	{
+		float y = X86_LOAD_F32(vertices + v * 0x20 + 0x4);
+		minY = std::min(minY, y);
+	}
+	X86_STORE_F32(spline + 0x24, minY);
+	X86_STORE_U32(spline, 34);
+}

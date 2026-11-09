@@ -3030,3 +3030,7 @@ address = 0xD2C1A
 name = "ChaseCameraIndexMidAsmHook"
 address = 0x126B49
 #### End Extended Multiplayer
+
+[[midasm_hook]]
+name = "PathSplineFixMidAsmHook"
+address = 0x17012A
