@@ -110,6 +110,7 @@ static std::atomic<bool> g_parseFinished{ false };
 static bool g_parseSucceeded = false;
 static Installer::Sources g_parsedSources;
 static std::string g_creditsStr;
+static ELanguage g_creditsLanguage;
 static double g_creditsScrollStart = -1.0;
 static double g_bgFadeStart = -1.0;
 static constexpr float BG_FADE_IN_DURATION = 1.0f;
@@ -531,10 +532,26 @@ static void DrawShadowImage()
 }
 
 
+static void InitCreditsString()
+{
+	g_creditsLanguage = Config::Language.Value;
+	g_creditsStr = Localise("Installer_Credits_Message");
+
+	for (int i = 0; i < g_credits.size(); i++)
+	{
+		g_creditsStr += g_credits[i];
+		if (i < g_credits.size() - 1)
+			g_creditsStr += ",  ";
+	}
+}
+
 static void DrawScrollingCredits(const ImVec2& min, const ImVec2& max, float scale)
 {
 	auto drawList = ImGui::GetBackgroundDrawList();
 	auto* font = g_fntSeurat;
+
+	if (g_creditsLanguage != Config::Language.Value)
+		InitCreditsString();
 
 	if (g_creditsScrollStart < 0.0)
 		g_creditsScrollStart = ImGui::GetTime() + 1.0;
@@ -1419,13 +1436,5 @@ void InstallerWizard::Init()
 	g_upTexOptionsBG2 = LOAD_ZSTD_TEXTURE(g_options_bg2);
 	g_upTexFoxLogo = LOAD_ZSTD_TEXTURE(g_foxLogo);
 
-	g_creditsStr = Localise("Installer_Credits_Message");
-
-	for (int i = 0; i < g_credits.size(); i++)
-	{
-		g_creditsStr += g_credits[i];
-		if (i < g_credits.size() - 1)
-			g_creditsStr += ",  ";
-
-	}
+	InitCreditsString();
 }
