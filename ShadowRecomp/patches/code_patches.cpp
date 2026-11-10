@@ -64,16 +64,19 @@ void FireVacuumCallbackMidAsmHook(X86Context& __restrict ctx, uint8_t* base)
     ctx.esp.u32 += 8;
 }
 
-// Expert Select (port of Reloaded v1.2 version)
-// TODO: Switch to Zetti's version before release
-// TODO: Move to reloaded or cheat code only (probably a code)
-// This one has the bug where it can apply to Story Mode / Last Story too
+// Expert Select
 void ExpertSelectMidAsmHook(X86Context& __restrict ctx, uint8_t* base)
 {
-    if (PJSPeripheral::IsHeld(0, PJSPeripheral::BTN_X))
+    const bool enabled = Config::SelectModeExpertStages || Config::ReloadedMod;
+    if (enabled && PJSPeripheral::IsHeld(0, PJSPeripheral::BTN_X))
     {
-        X86_STORE_U8(ctx.edx.u32 + 0x59, 1);
+        X86_STORE_U8(0x54DE55, 1);
     }
+}
+
+bool ExpertSelectNoSaveMidAsmHook(X86Context& __restrict ctx, uint8_t* base)
+{
+    return X86_LOAD_U32(0x54DDFC) == 0;
 }
 
 // Hold LT to force JumpDash standalone code (also enabled with Reloaded)
@@ -82,7 +85,6 @@ void ExpertSelectMidAsmHook(X86Context& __restrict ctx, uint8_t* base)
 // Table of all PlayerBehavior @ 0x4EEE58
 // 0x6 = JumpDash
 // 0x8 = HomingAttack
-// TODO: We will extend this further to enable state transitions like SpinDash->Slide etc in the future
 X86_FUNC_IMPL(__imp__sub_977D0);
 X86_OVERRIDE_FUNC(sub_977D0)
 {

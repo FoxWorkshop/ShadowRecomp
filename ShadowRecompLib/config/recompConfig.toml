@@ -1163,9 +1163,29 @@ jump_address_on_true = 0x8EA63
 name = "BombingWallBreakMidAsmHook"
 address = 0x222451
 
+## Expert Mode stages in Select
 [[midasm_hook]]
 name = "ExpertSelectMidAsmHook"
-address = 0x25862B
+address = 0x29782D
+
+# clear (init/westo)
+[[midasm_hook]]
+name = "ExpertSelectNoSaveMidAsmHook"
+address = 0x237B36
+jump_address_on_true = 0x237B61
+
+# exit
+[[midasm_hook]]
+name = "ExpertSelectNoSaveMidAsmHook"
+address = 0x5A806
+jump_address_on_true = 0x5A840
+
+# game over
+[[midasm_hook]]
+name = "ExpertSelectNoSaveMidAsmHook"
+address = 0x23A43D
+jump_address_on_true = 0x23A45A
+## end Expert Mode stages in Select
 
 [[midasm_hook]]
 name = "CircuitSpeedControlMidAsmHook"
