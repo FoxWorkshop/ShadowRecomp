@@ -363,7 +363,7 @@ CONFIG_DEFINE_LOCALE(StickDeadzone1P)
     { ELanguage::Japanese, { "スティックのデッドゾーン", "アナログスティックのデッドゾーンを調整します。" } },
     { ELanguage::German,   { "Stick Totzone", "Analoge Totzone anpassen." } },
     { ELanguage::French,   { "Zone morte du Stick", "Ajuster la zone morte analogique." } },
-    { ELanguage::Spanish,  { "Zona muerta del joystick", "Ajusta la zona muerta del joystick." } },
+    { ELanguage::Spanish,  { "Zona muerta del stick", "Ajusta la zona muerta del stick." } },
     { ELanguage::Italian,  { "Zona morta dello Stick", "Regola la zona morta dello stick analogico." } }
 };
 
@@ -378,7 +378,7 @@ CONFIG_DEFINE_LOCALE(StickSensitivity1P)
     { ELanguage::Japanese, { "スティック感度", "アナログスティックの感度を調整します。" } },
     { ELanguage::German,   { "Stick empfindlichkeit", "Analoge Empfindlichkeit anpassen." } },
     { ELanguage::French,   { "Sensibilité du Stick", "Ajuster la sensibilité analogique." } },
-    { ELanguage::Spanish,  { "Sensibilidad del joystick", "Ajusta la sensibilidad del joystick." } },
+    { ELanguage::Spanish,  { "Sensibilidad del stick", "Ajusta la sensibilidad del stick." } },
     { ELanguage::Italian,  { "Sensibilità dello Stick", "Regola la sensibilità dello stick analogico." } }
 };
 
@@ -518,7 +518,7 @@ CONFIG_DEFINE_LOCALE(GraphicsAPI)
     { ELanguage::Japanese, { "レンダリングバックエンド", "レンダリングに使用するグラフィックAPIを設定します。映像に問題が発生した場合のみ変更してください。" } },
     { ELanguage::German,   { "Rendering-Backend", "Legt die für das Rendering verwendete Grafik-API fest. Ändere diese Einstellung nur, wenn visuelle Probleme auftreten." } },
     { ELanguage::French,   { "Moteur de Rendu", "Sélectionnez le moteur graphique. Ne modifiez ce paramètre que si vous rencontrez des problèmes visuels dans le jeu." } },
-    { ELanguage::Spanish,  { "Motor de gráficos", "Selecciona el motor de gráficos. Solamente cambia esto si tienes problemas visuales en el juego." } },
+    { ELanguage::Spanish,  { "Motor de gráficos", "Selecciona el motor de gráficos. Solamente cambia esto si encuentras problemas visuales en el juego." } },
     { ELanguage::Italian,  { "Rendering Backend", "Imposta L'API Grafico usato per il rendering. Cambia questa opzione solamente se stai sperimentando problemi visivi." } }
 };
 
@@ -734,9 +734,9 @@ CONFIG_DEFINE_ENUM_LOCALE(EFMVAspectRatio)
     {
         ELanguage::Spanish,
         {
-            { EFMVAspectRatio::Stretched, { "ESTIRAR", "El video se estira para ocupar la pantalla." } },
-            { EFMVAspectRatio::Fit,       { "ADAPTAR", "El vídeo mantiene su relación de aspecto original con bordes negros." } },
-            { EFMVAspectRatio::Fill,      { "RELLENAR", "El vídeo se recorta y amplia con su relación de aspecto original." } },
+            { EFMVAspectRatio::Stretched, { "ESTIRAR", "El vídeo se estirará para ocupar la pantalla." } },
+            { EFMVAspectRatio::Fit,       { "ADAPTAR", "El vídeo mantendrá su relación de aspecto original, añadiendo bordes negros." } },
+            { EFMVAspectRatio::Fill,      { "RELLENAR", "El vídeo se recortará y ampliará, manteniendo su relación de aspecto original." } },
         }
     },
     {
@@ -871,7 +871,7 @@ CONFIG_DEFINE_LOCALE(BloomIntensity)
     { ELanguage::Japanese, { "ブルーム強度", "ブルーム効果の強さを調整します。" } },
     { ELanguage::German,   { "Bloom-Intensität", "Passe die Intensität des Bloom-Effekts an." } },
     { ELanguage::French,   { "Intensité du Bloom", "Réglez l'intensité de l'effet du bloom." } },
-    { ELanguage::Spanish,  { "Intensidad del bloom", "Ajusta la intensidad de la fuente de luz." } },
+    { ELanguage::Spanish,  { "Intensidad del bloom", "Ajusta la intensidad de las fuentes de luz." } },
     { ELanguage::Italian,  { "Intensità del bloom", "Regola l'intensità dell'effetto bloom." } }
 };
 

@@ -251,199 +251,199 @@ std::unordered_map<std::string_view, std::unordered_map<ELanguage, std::string>>
 {
 	"Input_Button_LeftTrigger",
 	{
-		{ ELanguage::English,  "Left Trigger" },
+		{ ELanguage::English,  "LEFT TRIGGER" },
 		{ ELanguage::Japanese, "左トリガ" },
 		{ ELanguage::German,   "LINKER TRIGGER" },
-		{ ELanguage::French,   "Gachette Gauche" },
-		{ ELanguage::Spanish,  "Gatillo Izquierdo" },
-		{ ELanguage::Italian,  "Trigger Sinistro" },
+		{ ELanguage::French,   "GACHETTE GAUCHE" },
+		{ ELanguage::Spanish,  "GATILLO IZQUIERDO" },
+		{ ELanguage::Italian,  "TRIGGER SINISTRO" },
 	}
 },
 {
 	"Input_Button_RightTrigger",
 	{
-		{ ELanguage::English,  "Right Trigger" },
+		{ ELanguage::English,  "RIGHT TRIGGER" },
 		{ ELanguage::Japanese, "右トリガ" },
 		{ ELanguage::German,   "RECHTER TRIGGER" },
-		{ ELanguage::French,   "Gachette Droite" },
-		{ ELanguage::Spanish,  "Gatillo Derecho" },
-		{ ELanguage::Italian,  "Trigger Destro" }
+		{ ELanguage::French,   "GACHETTE DROITE" },
+		{ ELanguage::Spanish,  "GATILLO DERECHO" },
+		{ ELanguage::Italian,  "TRIGGER DESTRO" }
 	}
 },
 {
 	"Input_Button_DPadUp",
 	{
-		{ ELanguage::English,  "D-Pad Up" },
+		{ ELanguage::English,  "D-PAD UP" },
 		{ ELanguage::Japanese, "十字キー 上" },
 		{ ELanguage::German,   "D-PAD HOCH" },
-		{ ELanguage::French,   "Croix Haut" },
-		{ ELanguage::Spanish,  "Cruceta Arriba" },
-		{ ELanguage::Italian,  "D-Pad Su" }
+		{ ELanguage::French,   "CROIX HAUT" },
+		{ ELanguage::Spanish,  "CRUCETA ARRIBA" },
+		{ ELanguage::Italian,  "D-PAD SU" }
 	}
 },
 {
 	"Input_Button_DPadDown",
 	{
-		{ ELanguage::English,  "D-Pad Down" },
+		{ ELanguage::English,  "D-PAD DOWN" },
 		{ ELanguage::Japanese, "十字キー 下" },
 		{ ELanguage::German,   "D-PAD RUNTER" },
-		{ ELanguage::French,   "Croix Bas" },
-		{ ELanguage::Spanish,  "Cruceta Abajo" },
-		{ ELanguage::Italian,  "D-Pad Giù" }
+		{ ELanguage::French,   "CROIX BAS" },
+		{ ELanguage::Spanish,  "CRUCETA ABAJO" },
+		{ ELanguage::Italian,  "D-PAD GIÙ" }
 	}
 },
 {
 	"Input_Button_DPadLeft",
 	{
-		{ ELanguage::English,  "D-Pad Left" },
+		{ ELanguage::English,  "D-PAD LEFT" },
 		{ ELanguage::Japanese, "十字キー 左" },
 		{ ELanguage::German,   "D-PAD LINKS" },
-		{ ELanguage::French,   "Croix Gauche" },
-		{ ELanguage::Spanish,  "Cruceta Izquierda" },
-		{ ELanguage::Italian,  "D-Pad Sinistro" }
+		{ ELanguage::French,   "CROIX GAUCHE" },
+		{ ELanguage::Spanish,  "CRUCETA IZQUIERDA" },
+		{ ELanguage::Italian,  "D-PAD SINISTRO" }
 	}
 },
 {
 	"Input_Button_DPadRight",
 	{
-		{ ELanguage::English,  "D-Pad Right" },
+		{ ELanguage::English,  "D-PAD RIGHT" },
 		{ ELanguage::Japanese, "十字キー 右" },
 		{ ELanguage::German,   "D-PAD RECHTS" },
-		{ ELanguage::French,   "Croix Droite" },
-		{ ELanguage::Spanish,  "Cruceta Derecha" },
-		{ ELanguage::Italian,  "D-Pad Destro" }
+		{ ELanguage::French,   "CROIX DROITE" },
+		{ ELanguage::Spanish,  "CRUCETA DERECHA" },
+		{ ELanguage::Italian,  "D-PAD DESTRO" }
 	}
 },
 {
 	"Input_Button_White",
 	{
-		{ ELanguage::English,  "White" },
+		{ ELanguage::English,  "WHITE" },
 		{ ELanguage::Japanese, "白ボタン" },
 		{ ELanguage::German,   "WEIßER KNOPF" },
-		{ ELanguage::French,   "Blanc" },
-		{ ELanguage::Spanish,  "Blanco" },
-		{ ELanguage::Italian,  "Bianco" }
+		{ ELanguage::French,   "BLANC" },
+		{ ELanguage::Spanish,  "BLANCO" },
+		{ ELanguage::Italian,  "BIANCO" }
 	}
 },
 {
 	"Input_Button_Black",
 	{
-		{ ELanguage::English,  "Black" },
+		{ ELanguage::English,  "BLACK" },
 		{ ELanguage::Japanese, "黒ボタン" },
-		{ ELanguage::German,   "SCHWARZER Knopf" },
-		{ ELanguage::French,   "Noir" },
-		{ ELanguage::Spanish,  "Negro" },
-		{ ELanguage::Italian,  "Nero" }
+		{ ELanguage::German,   "SCHWARZER KNOPF" },
+		{ ELanguage::French,   "NOIR" },
+		{ ELanguage::Spanish,  "NEGRO" },
+		{ ELanguage::Italian,  "NERO" }
 	}
 },
 {
 	"Input_Button_LeftStickClick",
 	{
-		{ ELanguage::English,  "Left Stick Click" },
+		{ ELanguage::English,  "LEFT STICK CLICK" },
 		{ ELanguage::Japanese, "左スティッククリック" },
 		{ ELanguage::German,   "L-STICK KLICK" },
-		{ ELanguage::French,   "Clic Stick Gauche" },
-		{ ELanguage::Spanish,  "Clic del Stick Izquierdo" },
-		{ ELanguage::Italian,  "Click Stick Sinistro" }
+		{ ELanguage::French,   "CLIC STICK GAUCHE" },
+		{ ELanguage::Spanish,  "CLIC DEL STICK IZQUIERDO" },
+		{ ELanguage::Italian,  "CLICK STICK SINISTRO" }
 	}
 },
 {
 	"Input_Button_RightStickClick",
 	{
-		{ ELanguage::English,  "Right Stick Click" },
+		{ ELanguage::English,  "RIGHT STICK CLICK" },
 		{ ELanguage::Japanese, "右スティッククリック" },
 		{ ELanguage::German,   "R-STICK KLICK" },
-		{ ELanguage::French,   "Clic Stick Droit" },
-		{ ELanguage::Spanish,  "Clic del Stick Derecho" },
-		{ ELanguage::Italian,  "Click Stick Destro" }
+		{ ELanguage::French,   "CLIC STICK DROIT" },
+		{ ELanguage::Spanish,  "CLIC DEL STICK DERECHO" },
+		{ ELanguage::Italian,  "CLICK STICK DESTRO" }
 	}
 },
 {
 	"Input_Button_LeftStickUp",
 	{
-		{ ELanguage::English,  "Left Stick Up" },
+		{ ELanguage::English,  "LEFT STICK UP" },
 		{ ELanguage::Japanese, "左スティック 上" },
 		{ ELanguage::German,   "L-STICK HOCH" },
-		{ ELanguage::French,   "Stick Gauche Haut" },
-		{ ELanguage::Spanish,  "Stick Izquierdo Arriba" },
-		{ ELanguage::Italian,  "Stick Sinistro Su" }
+		{ ELanguage::French,   "STICK GAUCHE HAUT" },
+		{ ELanguage::Spanish,  "STICK IZQUIERDO ARRIBA" },
+		{ ELanguage::Italian,  "STICK SINISTRO SU" }
 	}
 },
 {
 	"Input_Button_LeftStickDown",
 	{
-		{ ELanguage::English,  "Left Stick Down" },
+		{ ELanguage::English,  "LEFT STICK DOWN" },
 		{ ELanguage::Japanese, "左スティック 下" },
 		{ ELanguage::German,   "L-STICK RUNTER" },
-		{ ELanguage::French,   "Stick Gauche Bas" },
-		{ ELanguage::Spanish,  "Stick Izquierdo Abajo" },
-		{ ELanguage::Italian,  "Stick Sinistro Giù" }
+		{ ELanguage::French,   "STICK GAUCHE BAS" },
+		{ ELanguage::Spanish,  "STICK IZQUIERDO ABAJO" },
+		{ ELanguage::Italian,  "STICK SINISTRO GIÙ" }
 	}
 },
 {
 	"Input_Button_LeftStickLeft",
 	{
-		{ ELanguage::English,  "Left Stick Left" },
+		{ ELanguage::English,  "LEFT STICK LEFT" },
 		{ ELanguage::Japanese, "左スティック 左" },
 		{ ELanguage::German,   "L-STICK LINKS" },
-		{ ELanguage::French,   "Stick Gauche Gauche" },
-		{ ELanguage::Spanish,  "Stick Izquierdo Izquierda" },
-		{ ELanguage::Italian,  "Stick Sinistro Sinistra" }
+		{ ELanguage::French,   "STICK GAUCHE GAUCHE" },
+		{ ELanguage::Spanish,  "STICK IZQUIERDO IZQUIERDA" },
+		{ ELanguage::Italian,  "STICK SINISTRO SINISTRA" }
 	}
 },
 {
 	"Input_Button_LeftStickRight",
 	{
-		{ ELanguage::English,  "Left Stick Right" },
+		{ ELanguage::English,  "LEFT STICK RIGHT" },
 		{ ELanguage::Japanese, "左スティック 右" },
 		{ ELanguage::German,   "L-STICK RECHTS" },
-		{ ELanguage::French,   "Stick Gauche Droit" },
-		{ ELanguage::Spanish,  "Stick Izquierdo Derecha" },
-		{ ELanguage::Italian,  "Stick Sinistro Destra" }
+		{ ELanguage::French,   "STICK GAUCHE DROIT" },
+		{ ELanguage::Spanish,  "STICK IZQUIERDO DERECHA" },
+		{ ELanguage::Italian,  "STICK SINISTRO DESTRA" }
 	}
 },
 {
 	"Input_Button_RightStickUp",
 	{
-		{ ELanguage::English,  "Right Stick Up" },
+		{ ELanguage::English,  "RIGHT STICK UP" },
 		{ ELanguage::Japanese, "右スティック 上" },
 		{ ELanguage::German,   "R-STICK HOCH" },
-		{ ELanguage::French,   "Stick Droit Haut" },
-		{ ELanguage::Spanish,  "Stick Derecho Arriba" },
-		{ ELanguage::Italian,  "Stick Destro Su" }
+		{ ELanguage::French,   "STICK DROIT HAUT" },
+		{ ELanguage::Spanish,  "STICK DERECHO ARRIBA" },
+		{ ELanguage::Italian,  "STICK DESTRO SU" }
 	}
 },
 {
 	"Input_Button_RightStickDown",
 	{
-		{ ELanguage::English,  "Right Stick Down" },
+		{ ELanguage::English,  "RIGHT STICK DOWN" },
 		{ ELanguage::Japanese, "右スティック 下" },
 		{ ELanguage::German,   "R-STICK RUNTER" },
-		{ ELanguage::French,   "Stick Droit Bas" },
-		{ ELanguage::Spanish,  "Stick Derecho Abajo" },
-		{ ELanguage::Italian,  "Stick Destro Giù" }
+		{ ELanguage::French,   "STICK DROIT BAS" },
+		{ ELanguage::Spanish,  "STICK DERECHO ABAJO" },
+		{ ELanguage::Italian,  "STICK DESTRO GIÙ" }
 	}
 },
 {
 	"Input_Button_RightStickLeft",
 	{
-		{ ELanguage::English,  "Right Stick Left" },
+		{ ELanguage::English,  "RIGHT STICK LEFT" },
 		{ ELanguage::Japanese, "右スティック 左" },
 		{ ELanguage::German,   "R-STICK LINKS" },
-		{ ELanguage::French,   "Stick Droit Gauche" },
-		{ ELanguage::Spanish,  "Stick Derecho Izquierda" },
-		{ ELanguage::Italian,  "Stick Destro Sinistra" }
+		{ ELanguage::French,   "STICK DROIT GAUCHE" },
+		{ ELanguage::Spanish,  "STICK DERECHO IZQUIERDA" },
+		{ ELanguage::Italian,  "STICK DESTRO SINISTRA" }
 	}
 },
 {
 	"Input_Button_RightStickRight",
 	{
-		{ ELanguage::English,  "Right Stick Right" },
+		{ ELanguage::English,  "RIGHT STICK RIGHT" },
 		{ ELanguage::Japanese, "右スティック 右" },
 		{ ELanguage::German,   "R-STICK RECHTS" },
-		{ ELanguage::French,   "Stick Droit Droit" },
-		{ ELanguage::Spanish,  "Stick Derecho Derecha" },
-		{ ELanguage::Italian,  "Stick Destro Destra" }
+		{ ELanguage::French,   "STICK DROIT DROIT" },
+		{ ELanguage::Spanish,  "STICK DERECHO DERECHA" },
+		{ ELanguage::Italian,  "STICK DESTRO DESTRA" }
 	}
 },
 {
@@ -453,7 +453,7 @@ std::unordered_map<std::string_view, std::unordered_map<ELanguage, std::string>>
 		{ ELanguage::Japanese, "×ボタン" },
 		{ ELanguage::German,   "KREUZ" },
 		{ ELanguage::French,   "CROIX" },
-		{ ELanguage::Spanish,  "Cruz" },
+		{ ELanguage::Spanish,  "CRUZ" },
 		{ ELanguage::Italian,  "CROCE" }
 	}
 },
@@ -464,7 +464,7 @@ std::unordered_map<std::string_view, std::unordered_map<ELanguage, std::string>>
 		{ ELanguage::Japanese, "〇ボタン" },
 		{ ELanguage::German,   "KREIS" },
 		{ ELanguage::French,   "CERCLE" },
-		{ ELanguage::Spanish,  "Círculo" },
+		{ ELanguage::Spanish,  "CÍRCULO" },
 		{ ELanguage::Italian,  "CERCHIO" }
 	}
 },
@@ -475,7 +475,7 @@ std::unordered_map<std::string_view, std::unordered_map<ELanguage, std::string>>
 		{ ELanguage::Japanese, "□ボタン" },
 		{ ELanguage::German,   "QUADRAT" },
 		{ ELanguage::French,   "CARRÉ" },
-		{ ELanguage::Spanish,  "Cuadrado" },
+		{ ELanguage::Spanish,  "CUADRADO" },
 		{ ELanguage::Italian,  "QUADRATO" }
 	}
 },
@@ -486,7 +486,7 @@ std::unordered_map<std::string_view, std::unordered_map<ELanguage, std::string>>
 		{ ELanguage::Japanese, "△ボタン" },
 		{ ELanguage::German,   "DREIECK" },
 		{ ELanguage::French,   "TRIANGLE" },
-		{ ELanguage::Spanish,  "Triángulo" },
+		{ ELanguage::Spanish,  "TRIÁNGULO" },
 		{ ELanguage::Italian,  "TRIANGOLO" }
 	}
 },
@@ -497,7 +497,7 @@ std::unordered_map<std::string_view, std::unordered_map<ELanguage, std::string>>
 		{ ELanguage::Japanese, "エンター" },
 		{ ELanguage::German,   "ENTER" },
 		{ ELanguage::French,   "ENTRÉE" },
-		{ ELanguage::Spanish,  "Atrás" },
+		{ ELanguage::Spanish,  "ATRÁS" },
 		{ ELanguage::Italian,  "RETURN" }
 	}
 },
@@ -508,7 +508,7 @@ std::unordered_map<std::string_view, std::unordered_map<ELanguage, std::string>>
 		{ ELanguage::Japanese, "エスケープ" },
 		{ ELanguage::German,   "ESCAPE" },
 		{ ELanguage::French,   "ECHAP" },
-		{ ELanguage::Spanish,  "Escape" },
+		{ ELanguage::Spanish,  "ESCAPE" },
 		{ ELanguage::Italian,  "ESCAPE" }
 	}
 },
@@ -519,7 +519,7 @@ std::unordered_map<std::string_view, std::unordered_map<ELanguage, std::string>>
 		{ ELanguage::Japanese, "バックスペース" },
 		{ ELanguage::German,   "RÜCKTASTE" },
 		{ ELanguage::French,   "RETOUR" },
-		{ ELanguage::Spanish,  "Retroceso" },
+		{ ELanguage::Spanish,  "RETROCESO" },
 		{ ELanguage::Italian,  "BACKSPACE" }
 	}
 },
@@ -530,7 +530,7 @@ std::unordered_map<std::string_view, std::unordered_map<ELanguage, std::string>>
 		{ ELanguage::Japanese, "スペース" },
 		{ ELanguage::German,   "LEERTASTE" },
 		{ ELanguage::French,   "ESPACE" },
-		{ ELanguage::Spanish,  "Espacio" },
+		{ ELanguage::Spanish,  "ESPACIO" },
 		{ ELanguage::Italian,  "SPAZIO" }
 	}
 },
@@ -541,7 +541,7 @@ std::unordered_map<std::string_view, std::unordered_map<ELanguage, std::string>>
 		{ ELanguage::Japanese, "上" },
 		{ ELanguage::German,   "HOCH" },
 		{ ELanguage::French,   "HAUT" },
-		{ ELanguage::Spanish,  "Arriba" },
+		{ ELanguage::Spanish,  "ARRIBA" },
 		{ ELanguage::Italian,  "SU" }
 	}
 },
@@ -552,7 +552,7 @@ std::unordered_map<std::string_view, std::unordered_map<ELanguage, std::string>>
 		{ ELanguage::Japanese, "下" },
 		{ ELanguage::German,   "RUNTER" },
 		{ ELanguage::French,   "BAS" },
-		{ ELanguage::Spanish,  "Abajo" },
+		{ ELanguage::Spanish,  "ABAJO" },
 		{ ELanguage::Italian,  "Giù" }
 	}
 },
@@ -563,7 +563,7 @@ std::unordered_map<std::string_view, std::unordered_map<ELanguage, std::string>>
 		{ ELanguage::Japanese, "左" },
 		{ ELanguage::German,   "LINKS" },
 		{ ELanguage::French,   "GAUCHE" },
-		{ ELanguage::Spanish,  "Izquierda" },
+		{ ELanguage::Spanish,  "IZQUIERDA" },
 		{ ELanguage::Italian,  "SINISTRA" }
 	}
 },
@@ -574,7 +574,7 @@ std::unordered_map<std::string_view, std::unordered_map<ELanguage, std::string>>
 		{ ELanguage::Japanese, "右" },
 		{ ELanguage::German,   "RECHTS" },
 		{ ELanguage::French,   "DROITE" },
-		{ ELanguage::Spanish,  "Derecha" },
+		{ ELanguage::Spanish,  "DERECHA" },
 		{ ELanguage::Italian,  "DESTRA" }
 	}
 },
@@ -585,7 +585,7 @@ std::unordered_map<std::string_view, std::unordered_map<ELanguage, std::string>>
 		{ ELanguage::Japanese, "左コントロール" },
 		{ ELanguage::German,   "STRG LINKS" },
 		{ ELanguage::French,   "CTRL GAUCHE" },
-		{ ELanguage::Spanish,  "Control Izquierdo" },
+		{ ELanguage::Spanish,  "CONTROL IZQUIERDO" },
 		{ ELanguage::Italian,  "CNTRL SINISTRO" }
 	}
 },
@@ -596,7 +596,7 @@ std::unordered_map<std::string_view, std::unordered_map<ELanguage, std::string>>
 		{ ELanguage::Japanese, "右コントロール" },
 		{ ELanguage::German,   "STRG RECHTS" },
 		{ ELanguage::French,   "CTRL DROIT" },
-		{ ELanguage::Spanish,  "Control Derecho" },
+		{ ELanguage::Spanish,  "CONTROL DERECHO" },
 		{ ELanguage::Italian,  "CNTRL DESTRO" }
 	}
 },
@@ -607,7 +607,7 @@ std::unordered_map<std::string_view, std::unordered_map<ELanguage, std::string>>
 		{ ELanguage::Japanese, "左シフト" },
 		{ ELanguage::German,   "UMSCHALT LINKS" },
 		{ ELanguage::French,   "MAJ." },
-		{ ELanguage::Spanish,  "Shift Izquierdo" },
+		{ ELanguage::Spanish,  "SHIFT IZQUIERDO" },
 		{ ELanguage::Italian,  "SHIFT SINISTRO" }
 	}
 },
@@ -618,7 +618,7 @@ std::unordered_map<std::string_view, std::unordered_map<ELanguage, std::string>>
 		{ ELanguage::Japanese, "右シフト" },
 		{ ELanguage::German,   "UMSCHALT RECHTS" },
 		{ ELanguage::French,   "MAJ DROITE" },
-		{ ELanguage::Spanish,  "Shift Derecho" },
+		{ ELanguage::Spanish,  "SHIFT DERECHO" },
 		{ ELanguage::Italian,  "SHIFT DESTRO" }
 	}
 },
@@ -629,7 +629,7 @@ std::unordered_map<std::string_view, std::unordered_map<ELanguage, std::string>>
 		{ ELanguage::Japanese, "左オルト" },
 		{ ELanguage::German,   "ALT LINKS" },
 		{ ELanguage::French,   "ALT" },
-		{ ELanguage::Spanish,  "Alt Izquierdo" },
+		{ ELanguage::Spanish,  "ALT IZQUIERDO" },
 		{ ELanguage::Italian,  "ALT SINISTRO" }
 	}
 },
@@ -640,7 +640,7 @@ std::unordered_map<std::string_view, std::unordered_map<ELanguage, std::string>>
 		{ ELanguage::Japanese, "右オルト" },
 		{ ELanguage::German,   "ALT RECHTS" },
 		{ ELanguage::French,   "ALT GR" },
-		{ ELanguage::Spanish,  "Alt Gr" },
+		{ ELanguage::Spanish,  "ALT GR" },
 		{ ELanguage::Italian,  "ALT DESTRO" }
 	}
 },
@@ -838,7 +838,7 @@ std::unordered_map<std::string_view, std::unordered_map<ELanguage, std::string>>
 		{ ELanguage::Japanese, "言語を選択してください。" },
 		{ ELanguage::German,   "Bitte eine Sprache auswählen." },
 		{ ELanguage::French,   "Choisissez une langue." },
-		{ ELanguage::Spanish,  "Selecciona un idioma." },
+		{ ELanguage::Spanish,  "Por favor, selecciona un idioma." },
 		{ ELanguage::Italian,  "Seleziona una lingua." }
 	}
 },
@@ -871,7 +871,7 @@ std::unordered_map<std::string_view, std::unordered_map<ELanguage, std::string>>
 		{ ELanguage::Japanese, "ISOまたはdefault.xbeを\nドラッグ＆ドロップするか、選択してください。" },
 		{ ELanguage::German,   "Drag & Drop oder wähle eine ISO oder default.xbe aus." },
 		{ ELanguage::French,   "Faites glisser ou sélectionnez le fichier .ISO ou default.xbe" },
-		{ ELanguage::Spanish,  "Arrasta o selecciona el archivo ISO o default.xbe"  },
+		{ ELanguage::Spanish,  "Arrasta o selecciona el archivo ISO\no default.xbe"  },
 		{ ELanguage::Italian,  "Trascina e rilascia o seleziona una ISO o default.xbe" }
 	}
 },
