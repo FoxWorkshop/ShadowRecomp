@@ -66,6 +66,11 @@ const char* reservedIDName[] =
 static std::vector<Mod> g_mods;
 
 
+static std::mutex g_afsMutex; // I'm paranoid
+static std::unordered_map<std::string, std::filesystem::path> g_afsReplacedFiles; // used on startup to check which files are replaced by mods
+static std::unordered_map<std::string, std::vector<std::string>> g_afsEntryNames; 
+
+
 std::filesystem::path ModLoader::ResolvePath(std::string_view path)
 {
 	std::string_view root;
@@ -90,6 +95,18 @@ std::filesystem::path ModLoader::ResolvePath(std::string_view path)
 
 	std::string pathStr(path);
 	std::replace(pathStr.begin(), pathStr.end(), '\\', '/');
+
+	// afs stuff
+	{
+		std::string lowerPath = pathStr;
+		std::transform(lowerPath.begin(), lowerPath.end(), lowerPath.begin(), [](unsigned char c) { return (char)std::tolower(c); });
+
+		std::lock_guard lock(g_afsMutex);
+		auto afsIt = g_afsReplacedFiles.find(lowerPath);
+		if (afsIt != g_afsReplacedFiles.end())
+			return s_cache.emplace(hash, afsIt->second).first->second;
+	}
+
 	std::filesystem::path fsPath(std::move(pathStr));
 
 
@@ -775,6 +792,36 @@ static std::vector<std::string> ReadOneFileAssetNames(const fs::path& path)
 }
 
 
+// Memo: AFS layout work by storing the entry names in a separate table at the end of the file, so we need to read the header and the table to get the names.
+// Each name table record is 48 bytes and starts with name (32 bytes?).
+static std::vector<std::string> GetAfsEntryNames(const fs::path& path)
+{
+	std::vector<std::string> names;
+	std::ifstream afsFile(path, std::ios::binary);
+	uint32_t afsHeader[2];
+
+	if (!afsFile.read(reinterpret_cast<char*>(afsHeader), sizeof(afsHeader)) || afsHeader[0] != 0x00534641 || afsHeader[1] > 0x10000)
+		return names;
+
+	uint32_t table[2];
+	afsFile.seekg(8 + 8 * size_t(afsHeader[1]));
+
+	if (!afsFile.read(reinterpret_cast<char*>(table), sizeof(table)) || table[1] < 48 * afsHeader[1])
+		return names;
+
+	std::vector<char> records(48 * size_t(afsHeader[1]));
+	afsFile.seekg(table[0]);
+
+	if (!afsFile.read(records.data(), records.size()))
+		return names;
+
+	for (uint32_t i = 0; i < afsHeader[1]; i++)
+		names.push_back(ToLower(std::string(records.data() + 48 * i, strnlen(records.data() + 48 * i, 32))));
+
+	return names;
+}
+
+
 static void LogIndividualFilesReplacement()
 {
 	std::vector<std::pair<std::string, std::vector<std::string>>> archives;
@@ -783,7 +830,9 @@ static void LogIndividualFilesReplacement()
 
 	for (auto it = fs::recursive_directory_iterator(gameRoot, ec); !ec && it != fs::recursive_directory_iterator(); it.increment(ec))
 	{
-		if (!it->is_regular_file() || ToLower(it->path().extension().string()) != ".one")
+		std::string ext = it->is_regular_file() ? ToLower(it->path().extension().string()) : std::string();
+
+		if (ext != ".one" && ext != ".afs")
 			continue;
 
 		std::string archive = NormalizeArchiveName(fs::relative(it->path(), gameRoot).generic_string());
@@ -792,8 +841,18 @@ static void LogIndividualFilesReplacement()
 				return std::any_of(mod.archiveWorker.begin(), mod.archiveWorker.end(), [&](const ModArchiveWorker& modWK) { return isMatchingName(modWK, archive); });
 			});
 
-		if (isUsed)
+		if (!isUsed)
+			continue;
+
+		if (ext == ".afs")
+		{
+			g_afsEntryNames[archive] = GetAfsEntryNames(it->path());
+			archives.emplace_back(std::move(archive), g_afsEntryNames[archive]);
+		}
+		else
+		{
 			archives.emplace_back(std::move(archive), ReadOneFileAssetNames(it->path()));
+		}
 	}
 
 	for (auto& mod : g_mods)
@@ -1088,6 +1147,58 @@ X86_OVERRIDE_FUNC(sub_1F570)
 	}
 
 	ctx.AddEsp(5); // we loaded the file ourselves, clean up the stack for the skipped function (4 args + ret addr)
+}
+
+// ADXT_StartAf(adxt, partition, entry)
+X86_FUNC_IMPL(__imp__sub_32A9A0);
+X86_OVERRIDE_FUNC(sub_32A9A0)
+{
+	uint32_t adxt = static_cast<uint32_t>(GetHostParameter(ctx, 1));
+	uint32_t partition = static_cast<uint32_t>(GetHostParameter(ctx, 2));
+	uint32_t entry = static_cast<uint32_t>(GetHostParameter(ctx, 3));
+
+	// call OG if no mods are replacing anything
+	if (!flagIndividualFileReplace || partition != 0)
+	{
+		__imp__sub_32A9A0(ctx, base);
+		return;
+	}
+
+	// We first check which AFS is being used depending on voice language config, then we 
+	// look up the entry name in the table we built earlier.
+	bool isEnglish = X86_LOAD_U32(0x54DD8C) != 0;
+	const char* afsName = (const char*)(g_memory.Translate(X86_LOAD_U32(isEnglish ? 0x51DDA0 : 0x51DD9C)));
+	std::string archive = NormalizeArchiveName(afsName);
+	const ModArchiveWorker* modWK = nullptr;
+	std::string key = "";
+
+	auto namesIt = g_afsEntryNames.find(archive);
+	if (namesIt != g_afsEntryNames.end() && entry < namesIt->second.size())
+	{
+		key = archive + "/" + namesIt->second[entry];
+		modWK = FindReplacedFiles(archive, HashLowerName(namesIt->second[entry]));
+	}
+
+	if (!modWK)
+	{
+		__imp__sub_32A9A0(ctx, base);
+		return;
+	}
+
+	{
+		std::lock_guard lock(g_afsMutex);
+		g_afsReplacedFiles[key] = modWK->file;
+	}
+
+	// ADXT_StartFname copy the name, so a string under the guest stack is enough
+	X86Context nameCtx = ctx;
+	nameCtx.esp.u32 -= 0x110;
+	strncpy(reinterpret_cast<char*>(g_memory.Translate(nameCtx.esp.u32)), key.c_str(), 0xFF);
+	X86_STORE_U8(nameCtx.esp.u32 + 0xFF, 0);
+
+	//Call ADXT_StartFname
+	GuestToHostFunction<void>(nameCtx, sub_32A9D0, adxt, nameCtx.esp.u32);
+	ctx.AddEsp(1);
 }
 
 
