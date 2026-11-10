@@ -1,11 +1,8 @@
-#include "global.h"
 #include <kernel/function.h>
 #include <input/padstate.h>
 #include <user/config.h>
 #include <patches/patch_utils.h>
 
-
-// TODO: Finalize and add any gecko / optional disables (some people like to restore the original health of escape plane, Keep Skid, etc)
 
 // Player::Behaviors @ 0x4EEE58
 enum PlayerBehaviorId : uint32_t
@@ -153,7 +150,6 @@ bool HoldableSlideReleaseMidAsmHook(X86Context& __restrict ctx, uint8_t* base)
 	return Config::ReloadedMod && !IsSlideHeld(ctx.ebx.u32);
 }
 
-// TODO: Might move this as an always on patch, haven't decided, arguably its a bug
 // Fix Sliding on Steep Slopes
 bool SlideSteepSlopeMidAsmHook(X86Context& __restrict ctx, uint8_t* base)
 {
