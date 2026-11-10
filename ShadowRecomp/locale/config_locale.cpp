@@ -458,7 +458,7 @@ CONFIG_DEFINE_LOCALE(MuteOnFocusLost)
     { ELanguage::Italian,  { "Audio muto con finestra inattiva", "Disattiva l'audio del gioco quando la finestra non è attiva." } }
 };
 
-// TODO: I changed this completely; Sora to review before shipping to translators
+
 CONFIG_DEFINE_LOCALE(IdleChaosPowersMusic)
 {
     { ELanguage::English,  { "Chaos Power Music", "Play the theme when either chaos gauge is full. 'OFF' will continue to play the stage music instead." } },
@@ -469,7 +469,7 @@ CONFIG_DEFINE_LOCALE(IdleChaosPowersMusic)
     { ELanguage::Italian,  { "Musica Chaos Power", "La musica parte quando entrambi i Chaos gauge sono pieni. 'OFF' farà continuare invece la musica del quadro." } }
 };
 
-// TODO: This was changed slightly, retranslate FR
+
 CONFIG_DEFINE_LOCALE(ChaosPowerLEDSync)
 {
     { ELanguage::English,  { "Chaos Power LED Sync", "Sync controller LED color with the active Chaos Power." } },
@@ -480,7 +480,6 @@ CONFIG_DEFINE_LOCALE(ChaosPowerLEDSync)
     { ELanguage::Italian,  { "Sincronizzazione LED Chaos Power", "Sincronizza il colore del LED quando Chaos Power è attivo." } }
 };
 
-// TODO: Not yet used, but will add this before release so adding it here before translators start
 CONFIG_DEFINE_LOCALE(ControllerLEDBrightness)
 {
     { ELanguage::English,  { "Controller LED Brightness", "LED brightness for compatible controllers." } },
@@ -491,7 +490,7 @@ CONFIG_DEFINE_LOCALE(ControllerLEDBrightness)
     { ELanguage::Italian,  { "Luminosità LED Controller", "Luminosità del LED per i controller compatibili." } }
 };
 
-// Note: English was updated to match OG game, retranslate this
+
 CONFIG_DEFINE_LOCALE(VoiceLanguage)
 {
     { ELanguage::English, { "Voice Language", "Change the spoken language." } },
@@ -875,7 +874,7 @@ CONFIG_DEFINE_LOCALE(BloomIntensity)
     { ELanguage::Italian,  { "Intensità del bloom", "Regola l'intensità dell'effetto bloom." } }
 };
 
-// TODO: Retranslate this one, I changed it
+
 CONFIG_DEFINE_LOCALE(EnablePartnerIntro)
 {
     { ELanguage::English,  { "Partner Intro", "Show intro when meeting new partners." } },
