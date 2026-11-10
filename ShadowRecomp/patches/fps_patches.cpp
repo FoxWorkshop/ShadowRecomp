@@ -29,6 +29,11 @@ void SetFramerateMidAsmHook(X86Context& __restrict ctx, uint8_t* base)
 	}
 
 	uint32_t refRate = (uint32_t)GetTargetFPS();
+
+	constexpr uint32_t eventMinFps = 30; // event shouldn't go below 30 otherwise they will desync.
+	if (g_isEventPlaying)
+		refRate = std::max(refRate, eventMinFps);
+
 	g_refRate = refRate;
 	if (g_isEventPlaying == false)
 	{
@@ -3152,6 +3157,9 @@ void EventCreatedMidAsmHook(X86Context& __restrict ctx, uint8_t* base)
 	g_isEventCameraCutting = false;
 	g_eventStreamWaitCarry = 0.0f;
 	g_eventBattleFadeHoldTime = 0.0f;
+
+	// needed to make events run at 30 even if player run at lower fps
+	g_isEventPlaying = true;
 
 	if (IsCutsceneFramerateUnlocked())
 	{
