@@ -108,25 +108,12 @@ X86_OVERRIDE_FUNC(sub_96B50)
 	}
 }
 
-//edit this if you want to set a specific start position for the player
-bool oncePos = false;
+// TODO: remove before release
 X86_FUNC_IMPL(__imp__sub_90D10);
 X86_OVERRIDE_FUNC(sub_90D10)
 {
-	auto a2Addr = X86_LOAD_U32(ctx.esp.u32 + 4);
-	auto mode = X86_LOAD_U16(a2Addr + 4);
 	__imp__sub_90D10(ctx, base);
-
 	TriggerGoalAction();
-
-	RwV3d* p1Pos = GetPlayerPos(0);
-	if (p1Pos && !oncePos && mode == 2)
-	{
-		/**p1Pos->x = 6.004902;
-		p1Pos->y = -494.980072;
-		p1Pos->z = -411.312012;
-		oncePos = true;*/
-	}
 }
 
 // Originally clones SHADOW_FOOTEFF_R.DFF 3 times, make it clone a 4th and assign to slot 0x68 (bone 10).
@@ -143,7 +130,6 @@ void JetEffectRestoreFourthFlameMidAsmHook(X86Context& __restrict ctx, uint8_t* 
 	if (firstFlame != 0 && X86_LOAD_U32(jet + 0x68) == 0)
 	{
 		// 0x2CB460 - model clone func
-		// TODO: Probably re-use this for Awake effect clone too for MP patches
 		const uint32_t clone = GuestToHostFunction<uint32_t, CallConvention::Cdecl>(ctx, sub_2CB460, firstFlame);
 		if (clone != 0)
 		{

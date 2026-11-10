@@ -3,9 +3,12 @@
 
 #include <locale/locale.h>
 
+// TODO: Rework this to instead do 0-240 then 241 represents 'unlocked' (like unleashed etc)
+// OR if your monitor has higher refresh rate than 240, we use that refresh rate as the new max
+// We can probably drop 'MaxSoft' when this is reworked as this is kinda weird
 static constexpr int32_t FPS_MIN = 15;
-static constexpr int32_t FPS_MAXSoft = 960; // TODO: Change to 241 before release
-static constexpr int32_t FPS_MAX = 961;
+static constexpr int32_t FPS_MAXSoft = 240;
+static constexpr int32_t FPS_MAX = 241;
 static bool s_ExpandFPSLimit = false;
 
 class IConfigDef

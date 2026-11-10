@@ -867,7 +867,6 @@ void InstallerWizard::Draw(X86Context* ctx)
 
 		if (pathOverflows)
 		{
-			// TODO: Maybe can this crap if we do drag/drop and typing? just scrollable with end shown
 			// Find the longest tail of displayPath that, when prefixed with
 			// "...", still fits within pathClipWidth.
 			const std::string ellipsis = "...";

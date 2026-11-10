@@ -179,7 +179,7 @@ void TexChangeAddRefOriginalMidAsmHook(X86Register& eax)
 }
 
 // TXD getter for ANY texture Dict, Name -> RwTexture*
-// TODO: This may also allow events to pull in other TXDs, so will need to be careful (may be a good thing for modding actually)
+// Confirmed this DOES allow events to use shadow.one TXDs as a side effect (modders will like this, so keeping it)
 X86_OVERRIDE_FUNC(sub_2D8400)
 {
 	uint32_t dict = X86_LOAD_U32(ctx.esp.u32 + 0x4);

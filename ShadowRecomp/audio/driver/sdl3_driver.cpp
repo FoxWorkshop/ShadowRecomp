@@ -65,7 +65,7 @@ static constexpr uint32_t ADXT_RNA = 0xC;
 static constexpr uint32_t ADXT_NAME = 0xAC;
 static constexpr uint32_t ADXT_NAME_MAX = 0x100;
 
-static std::unordered_set<std::string> g_eventTracks; // TODO: Added incase a mod adds pauseable events/sfds
+static std::unordered_set<std::string> g_eventTracks; // Added incase a mod adds pauseable events/sfds
 static std::mutex g_eventTracksMutex;
 
 // the rna plays its stream through its mwSnd port, so the port buffer key is the guest key
