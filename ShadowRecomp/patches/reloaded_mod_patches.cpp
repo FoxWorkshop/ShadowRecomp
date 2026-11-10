@@ -485,11 +485,10 @@ bool DevilDoomAndLastWayRankedMidAsmHook(X86Context& __restrict ctx, uint8_t* ba
 	return Config::ReloadedMod;
 }
 
-// TODO: Probably make this an opt out code since some people hate it
 static bool IsExpertRingLoss()
 {
 	auto base = g_memory.base;
-	return Config::ReloadedMod && X86_LOAD_U8(0x54DE55) != 0;
+	return Config::ReloadedMod && !Config::ReloadedModOriginalExpertRingDropBehavior && X86_LOAD_U8(0x54DE55) != 0;
 }
 
 // Expert Ring Loss
