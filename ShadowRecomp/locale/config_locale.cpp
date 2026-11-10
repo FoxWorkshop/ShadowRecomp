@@ -54,7 +54,7 @@ CONFIG_DEFINE_LOCALE(Language)
     { ELanguage::German,  { "Sprache", "Ändere die verwendete Sprache für text." } },
     { ELanguage::French,   { "Langue", "Modifie la langue utilisée pour le texte." } },
     { ELanguage::Spanish,  { "Idioma", "Cambia el idioma de los textos." } },
-    { ELanguage::Italian,  { "Language", "Cambia la lingua usata per il testo" } },
+    { ELanguage::Italian,  { "Linguaggio", "Cambia la lingua usata per il testo" } },
 };
 
 // Notes: do not localise this.
@@ -499,7 +499,7 @@ CONFIG_DEFINE_LOCALE(VoiceLanguage)
     { ELanguage::German,  { "Sprachausgabe ", "Ändere die gesprochene Sprache." } },
     { ELanguage::French,   { "Langue des Voix", "Changez la langue des voix du jeu." } },
     { ELanguage::Spanish,  { "Idioma de las voces", "Cambia el idioma de las voces del juego." } },
-    { ELanguage::Italian, { "Linguaggio voci", "Cambia la lingua parlata." } },
+    { ELanguage::Italian, { "Linguaggio voci", "Cambia la lingua parlata nei dialoghi." } },
 };
 
 CONFIG_DEFINE_LOCALE(Subtitles)
