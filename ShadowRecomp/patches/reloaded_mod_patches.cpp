@@ -21,25 +21,6 @@ enum PlayerBehaviorId : uint32_t
 static constexpr uint32_t g_currentStageId = 0x54DDD8;
 static constexpr uint32_t LAUNCH_FLAG_NO_BLUR = 0x80000000; // disables CommonEffect 'BLUR' id 0x5C
 
-// TODO: move to utils later
-static uint32_t AllocGuestString(const char* str)
-{
-	auto* copy = static_cast<char*>(g_userHeap.Alloc(strlen(str) + 1));
-	return g_memory.MapVirtual(strcpy(copy, str));
-}
-
-static uint32_t GetBehaviorId(uint32_t player)
-{
-	auto base = g_memory.base;
-	const uint32_t executer = X86_LOAD_U32(player + 0x22C);
-	if (executer == 0)
-	{
-		return UINT32_MAX;
-	}
-	const uint32_t behavior = X86_LOAD_U32(executer + 0x30);
-	return behavior != 0 ? X86_LOAD_U32(behavior + 0x10) : UINT32_MAX;
-}
-
 // Inlined Homing Attack Speed 1000f -> 2000f [Reloaded Phys]
 void HomingAttackSpeedMidAsmHook(X86Context& __restrict ctx, uint8_t* base)
 {
