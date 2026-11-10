@@ -1,8 +1,17 @@
 #include <kernel/function.h>
-#include "global.h"
 #include <input/padstate.h>
 #include <user/config.h>
 #include <patches/patch_utils.h>
+
+void CodeValuePatches()
+{
+    auto base = g_memory.base;
+    if (Config::SelectModeEnableLastStoryDevilDoomSlots || Config::ReloadedMod)
+    {
+        X86_STORE_U32(0x478EF0, 0x1B); // Last Way below Final Haunt
+        X86_STORE_U32(0x478F90, 0x2C); // Devil Doom right of Last Way
+    }
+}
 
 // Vacuum gives score + hero points on sucking up fire
 // Fix the missing ScoreCommand if vacuum picks up fire (debatable if this was a bug or not, so making this a cheat)
@@ -283,4 +292,9 @@ void PlayAsBattleCharactersMidAsmHook(X86Context& __restrict ctx, uint8_t* base)
     {
         X86_STORE_U32(ctx.esp.u32, character);
     }
+}
+
+bool SelectMenuExpansionMidAsmHook(X86Context& __restrict ctx, uint8_t* base)
+{
+    return (Config::SelectModeEnableLastStoryDevilDoomSlots || Config::ReloadedMod) && ctx.esi.u32 == 5 && ctx.edi.u32 == 5;
 }

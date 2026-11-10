@@ -779,14 +779,6 @@ bool GhostRedRingsSaveSkipMidAsmHook(X86Context& __restrict ctx, uint8_t* base)
 	return true;
 }
 
-// Last Way & Devil Doom in Select Menu
-// TODO: Probably make this a code too, nice to have for vanilla shadow too
-// TODO: Maybe later we can actually expand this with imgui or a csd edit
-bool SelectMenuExpansionMidAsmHook(X86Context& __restrict ctx, uint8_t* base)
-{
-	return Config::ReloadedMod && ctx.esi.u32 == 5 && ctx.edi.u32 == 5;
-}
-
 // Melee Weapon Core Revamp
 static bool s_reloadedMelee[4] = {}; // 4P support
 static std::unordered_map<uint32_t, float> s_meleeRehitTimes;
@@ -1020,11 +1012,6 @@ void ReloadedValuePatches()
 
 	// EggBalloon Stat Adjustment 400 -> 1100
 	X86_STORE_F32(0x46A2C0, 1100.0f);
-
-	// Last Way below Final Haunt -1 -> 0x1B
-	X86_STORE_U32(0x478EF0, 0x1B);
-	// Devil Doom right of Last Way -> 0x2C
-	X86_STORE_U32(0x478F90, 0x2C);
 
 	// == The Last Way idle lines ==
 	// 0x1B7 -> 0x1E6

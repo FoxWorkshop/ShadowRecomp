@@ -132,6 +132,7 @@ CONFIG_DEFINE_HIDDEN("Codes", bool, ExtendedMultiplayer, false, false);
 CONFIG_DEFINE_HIDDEN("Codes", uint32_t, ExtendedMultiplayerPlayerCount, 2, false);
 CONFIG_DEFINE_HIDDEN("Codes", bool, PlayAsBattleCharacters, false, false);
 CONFIG_DEFINE_HIDDEN("Codes", bool, SelectModeExpertStages, false, false);
+CONFIG_DEFINE_HIDDEN("Codes", bool, SelectModeEnableLastStoryDevilDoomSlots, false, false);
 
 CONFIG_DEFINE("Update", bool, CheckForUpdates, false, false); // TODO: default to enabled before release
 CONFIG_DEFINE("Update", time_t, LastChecked, 0, false);
