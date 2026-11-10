@@ -1,11 +1,8 @@
-// TODO: Move any mod loader cheat code related patches here
-// TODO: e.g. Chaos Power refills, vac patch, event skip, etc
-// TODO: Depending on how we handle code mods, this may be redundant/obsolete
-
 #include <kernel/function.h>
 #include "global.h"
 #include <input/padstate.h>
 #include <user/config.h>
+#include <patches/patch_utils.h>
 
 // Vacuum gives score + hero points on sucking up fire
 // Fix the missing ScoreCommand if vacuum picks up fire (debatable if this was a bug or not, so making this a cheat)
@@ -93,18 +90,10 @@ X86_OVERRIDE_FUNC(sub_977D0)
     const bool forceJumpDash = Config::HoldLTForceJumpDash || Config::ReloadedMod;
     if (forceJumpDash && X86_LOAD_U32(ctx.esp.u32 + 8) == 8) // HomingAttack
     {
-        uint32_t player = X86_LOAD_U32(ctx.ecx.u32 + 4);
-        for (uint32_t i = 0; i < 4; i++) // Checking player structs 1-4 TODO: Maybe grab the extended multiplayer value later?
+        const uint32_t port = GetPlayerPort(X86_LOAD_U32(ctx.ecx.u32 + 4));
+        if (port < 4 && PJSPeripheral::IsHeld(port, PJSPeripheral::BTN_LEFT_TRIG))
         {
-            if (g_playerStructAddrs[i] == player)
-            {
-                // TODO: Account for this if we do Action remapping; Input remapping should be fine to auto handle this
-                if (PJSPeripheral::IsHeld(i, PJSPeripheral::BTN_LEFT_TRIG))
-                {
-                    X86_STORE_U32(ctx.esp.u32 + 8, 6); // Change target Behavior to JumpDash
-                }
-                break;
-            }
+            X86_STORE_U32(ctx.esp.u32 + 8, 6); // Change target Behavior to JumpDash
         }
     }
     __imp__sub_977D0(ctx, base);

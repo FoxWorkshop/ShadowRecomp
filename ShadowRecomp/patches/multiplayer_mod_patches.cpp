@@ -98,15 +98,6 @@ static void SetClosestPlayerId(X86Register& reg, uint32_t pos)
 	}
 }
 
-static uint32_t GetPlayerPort(uint32_t player)
-{
-	auto base = g_memory.base;
-	const uint32_t input = X86_LOAD_U32(player + 0x218);
-	const uint32_t pad = input ? X86_LOAD_U32(input + 0x10) : 0;
-	const uint32_t port = (pad - 0x541A68) / 0x2C;
-	return pad >= 0x541A68 && (pad - 0x541A68) % 0x2C == 0 && port < 4 ? port : X86_LOAD_U32(input + 0x14);
-}
-
 // CameraManager @ 0x537770
 static uint32_t GetCameraCount()
 {
