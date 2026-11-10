@@ -130,14 +130,10 @@ static void HandleChaosGaugeCheat(X86Context& ctx, uint8_t* base)
     if (isCCCheat || isCBCheat)
     {
         uint32_t player = X86_LOAD_U32(ctx.ecx.u32 + 0x28);
-        uint32_t pad = 0;
-        for (uint32_t i = 0; i < 4; i++)
+        uint32_t pad = GetPlayerPort(player);
+        if (pad >= 4)
         {
-            if (g_playerStructAddrs[i] == player)
-            {
-                pad = i;
-                break;
-            }
+            return;
         }
 
         using namespace PJSPeripheral;

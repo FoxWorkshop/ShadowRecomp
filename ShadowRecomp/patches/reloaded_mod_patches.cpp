@@ -2,6 +2,7 @@
 #include <kernel/function.h>
 #include <input/padstate.h>
 #include <user/config.h>
+#include <patches/patch_utils.h>
 
 
 // TODO: Finalize and add any gecko / optional disables (some people like to restore the original health of escape plane, Keep Skid, etc)
@@ -59,22 +60,13 @@ void CircuitSpeedControlMidAsmHook(X86Context& __restrict ctx, uint8_t* base)
 
 	// ecx = Behavior::ElectricCircuit
 	// ecx+4 = player instance
-	uint32_t player = X86_LOAD_U32(ctx.ecx.u32 + 4);
-	uint32_t padIndex = 0;
-	for (uint32_t i = 0; i < 4; i++)
-	{
-		if (g_playerStructAddrs[i] == player)
-		{
-			padIndex = i;
-			break;
-		}
-	}
+	const uint32_t port = GetPlayerPort(X86_LOAD_U32(ctx.ecx.u32 + 4));
 	float speed = 800.0f;
-	if (PJSPeripheral::IsHeld(padIndex, PJSPeripheral::BTN_A))
+	if (port < 4 && PJSPeripheral::IsHeld(port, PJSPeripheral::BTN_A))
 	{
 		speed = 1600.0f;
 	}
-	else if (PJSPeripheral::IsHeld(padIndex, PJSPeripheral::BTN_X))
+	else if (port < 4 && PJSPeripheral::IsHeld(port, PJSPeripheral::BTN_X))
 	{
 		speed = 400.0f;
 	}
