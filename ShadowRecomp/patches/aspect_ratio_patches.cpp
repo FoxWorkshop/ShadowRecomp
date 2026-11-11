@@ -2034,5 +2034,65 @@ void D3DDevice_SetScreenSpaceOffset(float a1, float a2)
 {
 	;
 }
-
 GUEST_FUNCTION_HOOK_STDCALL(sub_3D1320, D3DDevice_SetScreenSpaceOffset);
+
+// Lens flare aspect fix (draws with camera BUT the sprites still need adjustment)
+static constexpr uint32_t LensFlareVertexStride = 0x1C;
+static constexpr uint32_t LensFlareQuadVertices = 4;
+static void UnstretchLensFlareQuad(uint32_t quad)
+{
+	auto base = g_memory.base;
+	float centerX = 0.0f;
+	float centerY = 0.0f;
+	for (uint32_t i = 0; i < LensFlareQuadVertices; i++)
+	{
+		centerX += X86_LOAD_F32(quad + i * LensFlareVertexStride);
+		centerY += X86_LOAD_F32(quad + i * LensFlareVertexStride + 0x4);
+	}
+
+	centerX /= LensFlareQuadVertices;
+	centerY /= LensFlareQuadVertices;
+	for (uint32_t i = 0; i < LensFlareQuadVertices; i++)
+	{
+		uint32_t vertex = quad + i * LensFlareVertexStride;
+		X86_STORE_F32(vertex, centerX + (X86_LOAD_F32(vertex) - centerX) * g_hudUnstretchX);
+		X86_STORE_F32(vertex + 0x4, centerY + (X86_LOAD_F32(vertex + 0x4) - centerY) * g_hudUnstretchY);
+	}
+}
+
+X86_FUNC_IMPL(__imp__sub_323990);
+X86_OVERRIDE_FUNC(sub_323990)
+{
+	const uint32_t lensFlare = ctx.ecx.u32;
+	__imp__sub_323990(ctx, base);
+
+	// 4:3 or other aspect with no squash
+	if (g_hudUnstretchX >= 1.0f && g_hudUnstretchY >= 1.0f)
+	{
+		return;
+	}
+
+	const uint32_t quads = X86_LOAD_U32(lensFlare + 0x28);
+	const int32_t count = int32_t(X86_LOAD_U32(lensFlare + 0x24));
+
+	// skipped some frames
+	if (quads == 0)
+	{
+		return;
+	}
+
+	// base
+	if (X86_LOAD_U8(lensFlare + 0x9C) == 0 && count > 0)
+	{
+		UnstretchLensFlareQuad(quads);
+	}
+
+	// sub sprites
+	if (X86_LOAD_U8(lensFlare + 0x9D) == 0)
+	{
+		for (int32_t i = 1; i < count; i++)
+		{
+			UnstretchLensFlareQuad(quads + i * LensFlareQuadVertices * LensFlareVertexStride);
+		}
+	}
+}
