@@ -46,6 +46,9 @@ extern std::atomic<uint32_t> g_fmvFrameHeight;
 
 float GetRenderTargetHeight();
 double GetTargetFPS();
+int32_t GetMaxFPS();
+int32_t GetUnlockedFPS();
+bool IsFPSUnlocked();
 
 inline bool g_needsResize;
 

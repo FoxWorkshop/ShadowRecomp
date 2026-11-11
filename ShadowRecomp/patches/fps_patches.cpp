@@ -13,6 +13,9 @@ static const GuestVariable<uint32_t> g_refRate{ 0x54DD80 };
 static const GuestVariable<int32_t> g_frameRateDivisor{ 0x54DD40 };
 static const GuestVariable<int32_t> g_maxFrames{ 0x54DD64 }; // Most frames' worth of time one frame can count for.
 
+static bool g_isFpsUnlocked = false; // if true sub_56FC0 runs without waiting (unround)
+static uint32_t g_unlockedRefRate = 0; // last measured fps
+
 static bool g_isEventPlaying = false; // Note for future self, we CANNOT use this for audio detection
 
 static bool IsCutsceneFramerateUnlocked()
@@ -25,10 +28,17 @@ void SetFramerateMidAsmHook(X86Context& __restrict ctx, uint8_t* base)
 {
 	if (g_isEventPlaying && !IsCutsceneFramerateUnlocked())
 	{
+		g_isFpsUnlocked = false;
 		return;
 	}
 
+	// unlocked has no rate, align with sub_56FC0
 	uint32_t refRate = (uint32_t)GetTargetFPS();
+	g_isFpsUnlocked = IsFPSUnlocked();
+	if (g_isFpsUnlocked && g_unlockedRefRate != 0)
+	{
+		refRate = g_unlockedRefRate;
+	}
 
 	constexpr uint32_t eventMinFps = 30; // event shouldn't go below 30 otherwise they will desync.
 	if (g_isEventPlaying)
@@ -108,7 +118,7 @@ float GetInternalFrameRate()
 	}
 
 	float fps = (float)refRate / (float)divisor;
-	return (fps >= 1.0f && fps <= (float)FPS_MAX) ? fps : 0.0f;
+	return (fps >= 1.0f && fps <= (float)GetUnlockedFPS()) ? fps : 0.0f;
 }
 
 // Which frame a time falls in.
@@ -242,33 +252,64 @@ X86_OVERRIDE_FUNC(sub_56FC0)
 		sub_342960(ctx, base); // ends up in CRI_BlockUntilVerticalBlank
 	}
 
-	// Wait until `divisor` frames have passed.
-	int64_t lastFrame = TimeToFrame(lastTime - start, refRate);
-	if (!g_frameLimiterOff && divisor > 0)
+	int64_t frames;
+	float deltaTime;
+	float unroundedDeltaTime;
+	if (g_isFpsUnlocked)
 	{
-		static FramePacer pacer; // do the waitin'
-		auto deadline = start + FrameToTime(lastFrame + divisor, refRate);
-		pacer.SleepUntil(deadline, FramePacer::WaitMode::SleepThenSpin);
-	}
+		// every frame is one frame of whatever current rate (timer goes by whole frames, so its necessary to not mess up timer)
+		auto now = Clock::now();
+		double elapsed = std::chrono::duration<double>(now - lastTime).count();
+		lastTime = now;
 
-	// Update the time.
-	auto now = Clock::now();
-	int64_t frames = TimeToFrame(now - start, refRate) - lastFrame;
-	float deltaTime = float(double(frames) / refRate);
-	float unroundedDeltaTime = float(std::chrono::duration<double>(now - lastTime).count());
-	lastTime = now;
+		// matching the same drift rule sewer did in SetFramerateMidAsmHook
+		double maxElapsed = g_isEventPlaying ? 1.0 : 0.05;
+		double clamped = std::clamp(elapsed, 0.000001, maxElapsed);
+
+		refRate = std::max<int64_t>(std::llround(1.0 / clamped), 1);
+		maxFrames = std::max<int32_t>(int32_t(std::ceil(refRate * maxElapsed)), 1);
+		g_unlockedRefRate = uint32_t(refRate);
+		g_refRate = uint32_t(refRate);
+		g_maxFrames = maxFrames;
+
+		frames = 1;
+		deltaTime = float(clamped);
+		unroundedDeltaTime = float(elapsed);
+	}
+	else
+	{
+		// Wait until `divisor` frames have passed.
+		int64_t lastFrame = TimeToFrame(lastTime - start, refRate);
+		if (!g_frameLimiterOff && divisor > 0)
+		{
+			static FramePacer pacer; // do the waitin'
+			auto deadline = start + FrameToTime(lastFrame + divisor, refRate);
+			pacer.SleepUntil(deadline, FramePacer::WaitMode::SleepThenSpin);
+		}
+
+		// Update the time.
+		auto now = Clock::now();
+		frames = TimeToFrame(now - start, refRate) - lastFrame;
+		deltaTime = float(double(frames) / refRate);
+		unroundedDeltaTime = float(std::chrono::duration<double>(now - lastTime).count());
+		lastTime = now;
+	}
 
 	float fixedDeltaTime = g_fixedDeltaTime;
 	if (fixedDeltaTime > 0.0f)
 		deltaTime = unroundedDeltaTime = fixedDeltaTime;
 
 	// A frame counts for between 1 and maxFrames frames.
+	// (unlocked did its own clamp above, its refRate is rounded and would nudge the delta time)
 	float minDeltaTime = float(1.0 / refRate);
 	float maxDeltaTime = float(double(maxFrames) / refRate);
-	if (deltaTime > maxDeltaTime)
-		deltaTime = maxDeltaTime;
-	else if (deltaTime < minDeltaTime)
-		deltaTime = minDeltaTime;
+	if (!g_isFpsUnlocked || fixedDeltaTime > 0.0f)
+	{
+		if (deltaTime > maxDeltaTime)
+			deltaTime = maxDeltaTime;
+		else if (deltaTime < minDeltaTime)
+			deltaTime = minDeltaTime;
+	}
 
 	g_deltaTime = deltaTime;
 	g_unroundedDeltaTime = unroundedDeltaTime;
@@ -330,8 +371,8 @@ void FpsConfigValueChangedCallback(IConfigDef* config)
 		if (Config::FPS.Value < 0.01f)
 			Config::FPS.Value = 0.0f;
 
-		if (Config::FPS.Value > FPS_MAX)
-			Config::FPS.Value = FPS_MAX;
+		if (Config::FPS.Value > GetUnlockedFPS())
+			Config::FPS.Value = GetUnlockedFPS();
 	}
 }
 

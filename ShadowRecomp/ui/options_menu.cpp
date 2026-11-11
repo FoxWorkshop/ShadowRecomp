@@ -856,13 +856,13 @@ static void DrawOption
 						if (PJSPeripheral::IsJustPressed(OptionsMenu::s_padIndex, PJSPeripheral::BTN_WHITE | PJSPeripheral::BTN_LEFT_TRIG))
 						{
 							Game_PlaySound(ctx, "cursor");
-							config->Value = std::clamp(config->Value - 30, valueMin, valueMax);
+							config->Value = config->Value >= valueMax ? valueMax - 1 : std::max(config->Value - 30, valueMin);
 							FpsConfigValueChangedCallback(config);
 						}
 						else if (PJSPeripheral::IsJustPressed(OptionsMenu::s_padIndex, PJSPeripheral::BTN_BLACK | PJSPeripheral::BTN_RIGHT_TRIG))
 						{
 							Game_PlaySound(ctx, "cursor");
-							config->Value = std::clamp(config->Value + 30, valueMin, valueMax);
+							config->Value = config->Value >= valueMax - 1 ? valueMax : std::min(config->Value + 30, valueMax - 1);
 							FpsConfigValueChangedCallback(config);
 						}
 					}
@@ -2088,7 +2088,7 @@ static void DrawOptions(X86Context* ctx, ImVec2 minClipRect, ImVec2 maxClipRect,
 		DrawOption(ctx, rowCount++, &Config::FMVAspectRatio, true, min, max, nullptr);
 		DrawOption(ctx, rowCount++, &Config::MaxHUDWidth, true, min, max, nullptr);
 		DrawOption(ctx, rowCount++, &Config::VSync, true, min, max, nullptr);
-		DrawOption(ctx, rowCount++, &Config::FPS, true, min, max, nullptr, FPS_MIN, 120, FPS_MAXSoft);
+		DrawOption(ctx, rowCount++, &Config::FPS, true, min, max, nullptr, FPS_MIN, 120, GetUnlockedFPS());
 		DrawOption(ctx, rowCount++, &Config::CutsceneFramerate, true, min, max, nullptr);
 		DrawOption(ctx, rowCount++, &Config::ShowFPS, true, min, max, nullptr);
 		DrawOption(ctx, rowCount++, &Config::Brightness, true, min, max, nullptr);

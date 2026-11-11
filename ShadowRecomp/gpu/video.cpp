@@ -3673,10 +3673,27 @@ static double GetDisplayRefreshRate()
 	return 0.0;
 }
 
+// 240 or Max Hz
+int32_t GetMaxFPS()
+{
+	return std::max(FPS_MAX, (int32_t)GetDisplayRefreshRate());
+}
+
+// 241 or MaxHz+1 represents 'unlocked' mode
+int32_t GetUnlockedFPS()
+{
+	return GetMaxFPS() + 1;
+}
+
+bool IsFPSUnlocked()
+{
+	return GetTargetFPS() >= GetUnlockedFPS();
+}
+
 // The configured FPS, or the display refresh rate when VSync is on.
 double GetTargetFPS()
 {
-	double fps = Config::FPS.Value;
+	double fps = std::min(Config::FPS.Value, GetUnlockedFPS());
 	if (!Config::VSync)
 		return fps;
 
