@@ -843,37 +843,24 @@ bool SetObjUnloadMultiplayerBranchMidAsmHook(X86Context& __restrict ctx, uint8_t
 	return X86_LOAD_U8(0x54DDE2) == 0;
 }
 
-// Object <-> Player distance check (inside SetObjLoad)
+// Object <-> Camera distance check (inside SetObjLoad)
 X86_FUNC_IMPL(__imp__sub_2595A0);
 X86_OVERRIDE_FUNC(sub_2595A0)
 {
-	uint32_t objEntryAddr = X86_LOAD_U32(ctx.esp.u32 + 4);
-	uint32_t subObjAddr = X86_LOAD_U32(objEntryAddr);
+	const uint32_t objEntryAddr = X86_LOAD_U32(ctx.esp.u32 + 0x4);
+	const uint32_t subObjAddr = X86_LOAD_U32(objEntryAddr);
 
 	__imp__sub_2595A0(ctx, base);
 
 	if (Config::ExtendedMultiplayer && g_multiplayerPlayerCount > 2 && ctx.eax.u8_lo == 0 && subObjAddr)
 	{
-		float objX = X86_LOAD_F32(subObjAddr);
-		float objY = X86_LOAD_F32(subObjAddr + 4);
-		float objZ = X86_LOAD_F32(subObjAddr + 8);
-		uint8_t thresholdByte = X86_LOAD_U8(subObjAddr + 0x23);
-		float thresholdSq = (float)(thresholdByte * thresholdByte) * X86_LOAD_F32(0x448F28);
-
-		for (uint32_t i = 2; i < g_multiplayerPlayerCount; i++)
+		const uint8_t thresholdByte = X86_LOAD_U8(subObjAddr + 0x23);
+		const float thresholdSq = (float)(thresholdByte * thresholdByte) * X86_LOAD_F32(0x448F28);
+		const uint32_t count = std::min(GetCameraCount(), g_multiplayerPlayerCount);
+		for (uint32_t i = 2; i < count; i++)
 		{
-			RwV3d* pos = GetPlayerPos(i);
-			if (!pos)
-			{
-				continue;
-			}
-
-			float dx = objX - pos->x;
-			float dy = objY - pos->y;
-			float dz = objZ - pos->z;
-			float distSq = dx * dx + dy * dy + dz * dz;
-
-			if (distSq < thresholdSq)
+			const uint32_t cameraPos = GetCameraPos(ctx, i);
+			if (cameraPos && GetDistanceSq(cameraPos, subObjAddr) < thresholdSq)
 			{
 				ctx.eax.u8_lo = 1;
 				return;
@@ -882,34 +869,22 @@ X86_OVERRIDE_FUNC(sub_2595A0)
 	}
 }
 
-// Object <-> Player distance check (inside SetObjUnload)
+// Object <-> Camera distance check (inside SetObjUnload)
 X86_FUNC_IMPL(__imp__sub_181F80);
 X86_OVERRIDE_FUNC(sub_181F80)
 {
-	uint32_t objPosAddr = X86_LOAD_U32(ctx.esp.u32 + 4);
-	float thresholdSq = X86_LOAD_F32(ctx.esp.u32 + 8);
+	const uint32_t objPosAddr = X86_LOAD_U32(ctx.esp.u32 + 0x4);
+	const float thresholdSq = X86_LOAD_F32(ctx.esp.u32 + 0x8);
 
 	__imp__sub_181F80(ctx, base);
 
 	if (Config::ExtendedMultiplayer && g_multiplayerPlayerCount > 2 && ctx.eax.u8_lo != 0)
 	{
-		float objX = X86_LOAD_F32(objPosAddr);
-		float objY = X86_LOAD_F32(objPosAddr + 4);
-		float objZ = X86_LOAD_F32(objPosAddr + 8);
-
-		for (uint32_t i = 2; i < g_multiplayerPlayerCount; i++)
+		const uint32_t count = std::min(GetCameraCount(), g_multiplayerPlayerCount);
+		for (uint32_t i = 2; i < count; i++)
 		{
-			RwV3d* pos = GetPlayerPos(i);
-			if (!pos)
-			{
-				continue;
-			}
-
-			float dx = objX - pos->x;
-			float dy = objY - pos->y;
-			float dz = objZ - pos->z;
-
-			if (thresholdSq > (dx * dx + dy * dy + dz * dz))
+			const uint32_t cameraPos = GetCameraPos(ctx, i);
+			if (cameraPos && GetDistanceSq(cameraPos, objPosAddr) < thresholdSq)
 			{
 				ctx.eax.u8_lo = 0;
 				return;
