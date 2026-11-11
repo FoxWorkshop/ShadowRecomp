@@ -46,9 +46,9 @@ string(TOLOWER "${SHADOW_RECOMP_ARCHITECTURE}" SHADOW_RECOMP_ARCHITECTURE)
 message(STATUS "Detected architecture: ${SHADOW_RECOMP_ARCHITECTURE}")
 
 if (SHADOW_RECOMP_ARCHITECTURE STREQUAL "x86_64" OR SHADOW_RECOMP_ARCHITECTURE STREQUAL "amd64")
-    # Target Sandy Bridge for all projects
     add_compile_options(
-        -march=sandybridge
+        -march=sandybridge # You have a puter made after 2011, right?
+        -mtune=znver4      # Most probably have one circa 2022-2023
     )
 endif()
 
