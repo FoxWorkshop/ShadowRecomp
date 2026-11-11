@@ -8,15 +8,14 @@ inline std::array<const char*, 16> g_credits =
     "DonutStopGaming",
     "TheHatedGravity",
     "Deep-Sea Berry",
+    "Jesus_PK",
+    "Emasplatter",
+    "Windii",
     "Rawlins",
     "DarkShadow17",
-    "The Spectral Star",
-	"Windii",
-    "Jesus_PK",
+    "The Spectral Star",  
 	"Pixel",
 	"ultra0000",
-	"Emasplatter",
-	"macoscriptmusic",
+	"Kondrashov's Lair",
 	"Amosohto"
-
 };

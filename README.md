@@ -135,7 +135,7 @@ This project does not plan to support any more platforms other than Windows and 
 
 - [Windii](https://www.youtube.com/@WindiiGitlord/videos): Provided Japanese localization for the custom menus.
 
-- [macoscriptmusic](https://twitter.com/macoscriptmusic): Produced the installer music (original prod. by Jun Senoue).
+- [Kondrashov's Lair](https://www.youtube.com/channel/UCUU-r-7kVY3ig-GY7KTFvlw): Produced the installer music (original prod. by Sins Of A Divine Mother).
 
 
 ### Tester Thanks
