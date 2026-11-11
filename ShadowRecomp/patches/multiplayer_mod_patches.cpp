@@ -241,6 +241,18 @@ bool ExtendedMultiplayerCameraAllocationLoopMidAsmHook(X86Context& __restrict ct
 	return ctx.edi.u32 < limit;
 }
 
+void ExtendedMultiplayerCharIdMidAsmHook(X86Context& __restrict ctx, uint8_t* base)
+{
+	if (Config::ExtendedMultiplayerP1CharId >= 0)
+	{
+		ctx.eax.u32 = Config::ExtendedMultiplayerP1CharId;
+	}
+	if (Config::ExtendedMultiplayerP2CharId >= 0)
+	{
+		ctx.esi.u32 = Config::ExtendedMultiplayerP2CharId;
+	}
+}
+
 static bool s_extraSpawnActive = false;
 static bool s_extraSpawnDone = false;
 static uint32_t s_extraSpawnRemaining = 0;
@@ -270,7 +282,8 @@ bool ExtendedMultiplayerExtraSpawnMidAsmHook(X86Context& __restrict ctx, uint8_t
 	ctx.esp.u32 -= 4;
 	X86_STORE_U32(ctx.esp.u32, s_extraSpawnPlayerIndex);
 	ctx.esp.u32 -= 4;
-	X86_STORE_U32(ctx.esp.u32, 14 + s_extraSpawnPlayerIndex);
+	int32_t charId = s_extraSpawnPlayerIndex == 2 ? Config::ExtendedMultiplayerP3CharId : Config::ExtendedMultiplayerP4CharId;
+	X86_STORE_U32(ctx.esp.u32, charId >= 0 ? charId : 14 + s_extraSpawnPlayerIndex);
 	s_extraSpawnRemaining--;
 	s_extraSpawnPlayerIndex++;
 	return true;

@@ -2241,6 +2241,10 @@ jump_address_on_true = 0x2A6A0
 jump_address_on_false = 0x2A769
 
 [[midasm_hook]]
+name = "ExtendedMultiplayerCharIdMidAsmHook"
+address = 0x16F87D
+
+[[midasm_hook]]
 name = "ExtendedMultiplayerExtraSpawnMidAsmHook"
 address = 0x16F891
 jump_address_on_true = 0x16F882

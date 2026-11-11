@@ -286,7 +286,11 @@ X86_OVERRIDE_FUNC(sub_CCC90)
 
 void PlayAsBattleCharactersMidAsmHook(X86Context& __restrict ctx, uint8_t* base)
 {
-    const int32_t character = X86_LOAD_U32(0x54DE6C); // P1 battle character
+    int32_t character = X86_LOAD_U32(0x54DE6C); // P1 battle character
+    if (Config::ExtendedMultiplayerP1CharId >= 0)
+    {
+        character = Config::ExtendedMultiplayerP1CharId;
+    }
     const bool enabled = Config::PlayAsBattleCharacters || Config::ReloadedMod;
     if (enabled && X86_LOAD_U32(0x54DDD8) != 710 && character > 0xE && character <= 0x13)
     {
