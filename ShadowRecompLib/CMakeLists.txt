@@ -5,9 +5,17 @@ add_compile_options(
 )
 
 if (WIN32)
-    add_compile_options(/fp:fast)
+    add_compile_options(/fp:precise)
+
+    if (CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
+        add_compile_options(/clang:-ffp-contract=off)
+    endif()
 else()
-    add_compile_options(-ffast-math)
+    add_compile_options(
+            -ffp-model=precise
+            -ffp-contract=off
+            -fno-math-errno
+    )
 endif()
 
 # Note(sewer): Recompiled functions are huge.
