@@ -117,16 +117,27 @@ static uint32_t GetCameraPos(const X86Context& ctx, uint32_t index)
 X86_FUNC_IMPL(__imp__sub_22D250);
 X86_OVERRIDE_FUNC(sub_22D250)
 {
-	__imp__sub_22D250(ctx, base);
-	if (Config::ExtendedMultiplayer)
+	const bool awake = isAwakeAboutToInvoke;
+	isAwakeAboutToInvoke = false;
+	if (Config::ExtendedMultiplayer && !awake)
 	{
-		if (!isAwakeAboutToInvoke)
-		{
-			X86_STORE_U32(0x5456CC, 0x0);
-			X86_STORE_U32(0x5456D8, 0x0);
-		}
-		isAwakeAboutToInvoke = false;
+		ctx.esp.u32 += 8;
+		return;
 	}
+	__imp__sub_22D250(ctx, base);
+}
+
+X86_FUNC_IMPL(__imp__sub_22D260);
+X86_OVERRIDE_FUNC(sub_22D260)
+{
+	const bool awake = isAwakeAboutToRevoke;
+	isAwakeAboutToRevoke = false;
+	if (Config::ExtendedMultiplayer && !awake)
+	{
+		ctx.esp.u32 += 8;
+		return;
+	}
+	__imp__sub_22D260(ctx, base);
 }
 // End Chaos Powers Enabled for MP Fix
 

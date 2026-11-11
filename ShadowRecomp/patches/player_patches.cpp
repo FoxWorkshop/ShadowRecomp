@@ -8,6 +8,7 @@
 
 uint32_t g_playerStructAddrs[4] = {};
 bool isAwakeAboutToInvoke = false;
+bool isAwakeAboutToRevoke = false;
 
 RwV3d* GetPlayerPos(uint32_t slot)
 {
@@ -43,6 +44,7 @@ X86_FUNC_IMPL(__imp__sub_8E9A0);
 X86_OVERRIDE_FUNC(sub_8E9A0)
 {
 	const uint32_t glowClone = PopAwakeGlowClone(ctx.ecx.u32);
+	isAwakeAboutToRevoke = true;
 	__imp__sub_8E9A0(ctx, base);
 	if (glowClone != 0)
 	{

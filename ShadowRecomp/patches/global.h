@@ -50,6 +50,7 @@ struct WeightedMesh
 typedef RwMatrixTag RwMatrix;
 
 extern bool isAwakeAboutToInvoke;
+extern bool isAwakeAboutToRevoke;
 extern thread_local bool g_isStartingEventAudio;
 extern uint32_t g_multiplayerPlayerCount;
 uint32_t GetAwakeDrainDivisor(uint32_t awake);
