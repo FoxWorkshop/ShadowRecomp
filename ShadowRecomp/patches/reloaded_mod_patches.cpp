@@ -309,7 +309,7 @@ void EnemyWarpAppearTimeMidAsmHook(X86Context& __restrict ctx, uint8_t* base)
 void ElecCodeSpeedMidAsmHook(X86Context& __restrict ctx, uint8_t* base)
 {
 	ctx.esp.u32 -= 4;
-	X86_STORE_F32(ctx.esp.u32, Config::ReloadedMod ? 350.0f : 50.0f);
+	X86_STORE_F32(ctx.esp.u32, Config::ReloadedMod && !Config::ReloadedOriginalElecCodeEnemySpeed ? 350.0f : 50.0f);
 }
 
 // Katana LV1 Ammo 4 -> 18

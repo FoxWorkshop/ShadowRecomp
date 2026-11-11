@@ -128,6 +128,7 @@ CONFIG_DEFINE_HIDDEN("Codes", bool, XboxEarlyTargetBehavior, false, false);
 CONFIG_DEFINE_HIDDEN("Codes", bool, HoldLTForceJumpDash, false, false);
 CONFIG_DEFINE_HIDDEN("Codes", bool, ReloadedMod, false, true);
 CONFIG_DEFINE_HIDDEN("Codes", bool, ReloadedModOriginalExpertRingDropBehavior, false, false);
+CONFIG_DEFINE_HIDDEN("Codes", bool, ReloadedOriginalElecCodeEnemySpeed, false, false);
 CONFIG_DEFINE_HIDDEN("Codes", bool, ExtendedMultiplayer, false, false);
 CONFIG_DEFINE_HIDDEN("Codes", uint32_t, ExtendedMultiplayerPlayerCount, 2, false);
 CONFIG_DEFINE_HIDDEN("Codes", int32_t, ExtendedMultiplayerP1CharId, -1, false);
