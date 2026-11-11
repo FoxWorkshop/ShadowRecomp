@@ -194,6 +194,7 @@ set(SHADOW_RECOMP_UI_CXX_SOURCES
     "ui/options_menu.cpp"
     "ui/message_window.cpp"
     "ui/menu_common.cpp"
+    "ui/multiplayer_hud.cpp"
     "ui/installer_wizard.cpp"
 )
 
@@ -529,6 +530,12 @@ BIN2C(TARGET_OBJ ShadowRecomp SOURCE_FILE "${RESOURCES_SOURCE_PATH}/images/commo
 BIN2C(TARGET_OBJ ShadowRecomp SOURCE_FILE "${RESOURCES_SOURCE_PATH}/images/common/controllerBtn.png" DEST_FILE "${RESOURCES_OUTPUT_PATH}/images/common/controllerBtn.png" ARRAY_NAME "g_controller" COMPRESSION_TYPE "zstd")
 
 BIN2C(TARGET_OBJ ShadowRecomp SOURCE_FILE "${RESOURCES_SOURCE_PATH}/images/common/arrow.png" DEST_FILE "${RESOURCES_OUTPUT_PATH}/images/common/arrow.png" ARRAY_NAME "g_arrow" COMPRESSION_TYPE "zstd")
+
+## 3P/4P HUD ##
+BIN2C(TARGET_OBJ ShadowRecomp SOURCE_FILE "${RESOURCES_SOURCE_PATH}/images/common/mp_hud_ring.png" DEST_FILE "${RESOURCES_OUTPUT_PATH}/images/common/mp_hud_ring.png" ARRAY_NAME "g_mpHudRing" COMPRESSION_TYPE "zstd")
+BIN2C(TARGET_OBJ ShadowRecomp SOURCE_FILE "${RESOURCES_SOURCE_PATH}/images/common/mp_hud_ammo.png" DEST_FILE "${RESOURCES_OUTPUT_PATH}/images/common/mp_hud_ammo.png" ARRAY_NAME "g_mpHudAmmo" COMPRESSION_TYPE "zstd")
+BIN2C(TARGET_OBJ ShadowRecomp SOURCE_FILE "${RESOURCES_SOURCE_PATH}/images/common/mp_hud_ammo_types.png" DEST_FILE "${RESOURCES_OUTPUT_PATH}/images/common/mp_hud_ammo_types.png" ARRAY_NAME "g_mpHudAmmoTypes" COMPRESSION_TYPE "zstd")
+BIN2C(TARGET_OBJ ShadowRecomp SOURCE_FILE "${RESOURCES_SOURCE_PATH}/images/common/mp_hud_digits.png" DEST_FILE "${RESOURCES_OUTPUT_PATH}/images/common/mp_hud_digits.png" ARRAY_NAME "g_mpHudDigits" COMPRESSION_TYPE "zstd")
 
 ## Installer ##
 BIN2C(TARGET_OBJ ShadowRecomp SOURCE_FILE "${RESOURCES_SOURCE_PATH}/images/installer/FoxLogo.png" DEST_FILE "${RESOURCES_OUTPUT_PATH}/images/installer/FoxLogo.png" ARRAY_NAME "g_foxLogo" COMPRESSION_TYPE "zstd")

@@ -109,6 +109,7 @@ const uint32_t g_cameraAddr = 0x540C40;
 #include <patches/fps_patches.h>
 #include <ui/achievement_menu.h>
 #include <ui/achievement_overlay.h>
+#include <ui/multiplayer_hud.h>
 #include "vertexbuffer.h"
 #include "guest_convert.h"
 #include "render_commands.h"
@@ -1937,6 +1938,7 @@ static void CreateImGuiBackend()
 
 	AchievementMenu::Init();
 	AchievementOverlay::Init();
+	MultiplayerHud::Init();
 
 
 	InitImGuiUtils();
@@ -3789,6 +3791,7 @@ static void DrawImGui(X86Context* ctx)
 
 	ResetImGuiCallbacks();
 
+	MultiplayerHud::Draw();
 	DrawPauseText(ctx);
 
 	AchievementMenu::Draw(ctx);

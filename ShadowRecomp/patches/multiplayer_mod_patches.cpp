@@ -1723,8 +1723,7 @@ bool MultiplayerHudMidAsmHook(X86Context& __restrict ctx, uint8_t* base)
 	return Config::ExtendedMultiplayer || X86_LOAD_U8(0x54DDE2) != 0;
 }
 
-// 3P / 4P HUD
-// TODO: per player ammo / ring counts drawn with imgui
+// 3P / 4P HUD handled in imgui
 bool MultiplayerHudCounterSkipMidAsmHook(X86Context& __restrict ctx, uint8_t* base)
 {
 	return IsExtraPlayerMode();
@@ -1835,6 +1834,52 @@ static uint32_t GetPlayerBlock(uint32_t number)
 		s_extraPlayerBlocks = g_memory.MapVirtual(blocks);
 	}
 	return s_extraPlayerBlocks + (number - 2) * PLAYER_BLOCK_SIZE;
+}
+
+// player+0x238 [ShadowWeapon] -> +0x34
+// for 3p/4p UI to hide built-in and endless weapons
+// I decided against doing id checks incase we mod the android slots or extend them later
+static uint32_t GetAmmoWeaponType(uint32_t player)
+{
+	auto base = g_memory.base;
+	const uint32_t holder = X86_LOAD_U32(player + 0x238);
+	if (!holder || X86_LOAD_U32(holder) != 0x44B5A4)
+	{
+		return 0;
+	}
+	const uint32_t weapon = X86_LOAD_U32(holder + 0x34);
+	if (!weapon)
+	{
+		return 0;
+	}
+	switch (X86_LOAD_U32(weapon))
+	{
+		case 0x4737AC: // EmbeddedGun::AutoRifle
+		case 0x4737F0: // EmbeddedBazooka::Bazooka
+		case 0x47413C: // ChaosSpear
+			return 0;
+		default:
+			return X86_LOAD_U32(weapon + 0x18);
+	}
+}
+
+bool GetMultiplayerHudCounters(uint32_t number, MultiplayerHudCounters& counters)
+{
+	if (number >= g_multiplayerPlayerCount || (number >= 2 && !s_extraPlayerBlocks))
+	{
+		return false;
+	}
+	const uint32_t player = GetPlayerByNumber(number);
+	if (!player)
+	{
+		return false;
+	}
+	auto base = g_memory.base;
+	const uint32_t block = GetPlayerBlock(number);
+	counters.rings = X86_LOAD_U32(block + 0x28);
+	counters.ammo = X86_LOAD_U32(block + 0x1C);
+	counters.weaponType = GetAmmoWeaponType(player);
+	return true;
 }
 
 X86_FUNC_IMPL(__imp__sub_173AF0);
