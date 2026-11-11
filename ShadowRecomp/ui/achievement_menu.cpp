@@ -471,7 +471,28 @@ static void DrawAchievement(int rowIndex, Achievement& achievement, bool isUnloc
 	}
 
 
-	DrawTextWithMarquee(g_fntSeurat, descFontSize, descPos, marqueeMin, marqueeMax, textColour, descText.c_str(), g_rowSelectionTime, marqueeDelay, shouldMarquee ? Scale(200) : 0);
+
+	// draw achievement description (completed or not).
+	float loopWidth = descSize.x + Scale(80);
+	float scrollX = 0.0f;
+
+	if (shouldMarquee)
+	{
+		double elapsed = ImGui::GetTime() - (g_rowSelectionTime + marqueeDelay);
+
+		if (elapsed > 0.0)
+			scrollX = (float)std::fmod(elapsed * Scale(100), (double)loopWidth);
+	}
+
+	drawList->PushClipRect(marqueeMin, marqueeMax, true);
+
+	DrawTextBasic(g_fntSeurat, descFontSize, { descPos.x - scrollX, descPos.y }, textColour, descText.c_str());
+
+	// we draw twice for a smooth loop
+	if (shouldMarquee)
+		DrawTextBasic(g_fntSeurat, descFontSize, { descPos.x - scrollX + loopWidth, descPos.y }, textColour, descText.c_str());
+
+	drawList->PopClipRect();
 }
 
 void AchievementMenu::Draw(X86Context* ctx)
