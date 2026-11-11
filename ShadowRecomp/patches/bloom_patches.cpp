@@ -1,5 +1,6 @@
 #include <kernel/function.h>
 #include <user/config.h>
+#include "aspect_ratio_patches.h"
 
 static const uint32_t bloomAddr = 0x52E5C4;
 
@@ -40,6 +41,18 @@ struct BloomData
 // texture when a tap shifts by a fraction of a pixel. Thus, they lowered the destination quad, which ends being too small.
 // We can patch this by keeping the quad full size and shift the UV window by the same amount
 
+// bloom spreads narrower or wider you get, so ultrawide or ultranarrow looks awful (esp for jet shoes)
+// scale to spread like 4:3
+static float UnstretchBloomTap(float offset, float unstretch)
+{
+	// 0 is the composite quad, not a tap
+	if (unstretch >= 1.0f || offset == 0.0f)
+	{
+		return offset;
+	}
+	return (offset + 0.5f) * unstretch - 0.5f;
+}
+
 X86_FUNC_IMPL(__imp__sub_3258A0);
 X86_OVERRIDE_FUNC(sub_3258A0)
 {
@@ -47,8 +60,8 @@ X86_OVERRIDE_FUNC(sub_3258A0)
 
 	BloomData bwk;
 	memset(&bwk, 0, sizeof(BloomData));
-	bwk.offsetX = GetHostParameterFloat(ctx, 2, CallConvention::Thiscall);
-	bwk.offsetY = GetHostParameterFloat(ctx, 3, CallConvention::Thiscall);
+	bwk.offsetX = UnstretchBloomTap(GetHostParameterFloat(ctx, 2, CallConvention::Thiscall), g_hudUnstretchX);
+	bwk.offsetY = UnstretchBloomTap(GetHostParameterFloat(ctx, 3, CallConvention::Thiscall), g_hudUnstretchY);
 	bwk.width = GetHostParameterFloat(ctx, 4, CallConvention::Thiscall);
 	bwk.height = GetHostParameterFloat(ctx, 5, CallConvention::Thiscall);
 	bwk.u0 = GetHostParameterFloat(ctx, 6, CallConvention::Thiscall);
