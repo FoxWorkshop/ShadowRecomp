@@ -298,6 +298,28 @@ void PlayAsBattleCharactersMidAsmHook(X86Context& __restrict ctx, uint8_t* base)
     }
 }
 
+static bool IsShadowAndroidWithWeapons(uint8_t* base, uint32_t player)
+{
+    if (!Config::ShadowAndroidsNoEmbeddedWeapons)
+    {
+        return false;
+    }
+    const uint32_t character = X86_LOAD_U32(player + 0x64);
+    return character >= 0x10 && character <= 0x13;
+}
+
+// skip embedded gun/bazooka flag
+bool ShadowAndroidsSkipEmbeddedWeaponMidAsmHook(X86Context& __restrict ctx, uint8_t* base)
+{
+    return IsShadowAndroidWithWeapons(base, ctx.edi.u32);
+}
+
+// vehicle driving over weapons unrestrict
+bool ShadowAndroidsVehicleWeaponMidAsmHook(X86Context& __restrict ctx, uint8_t* base)
+{
+    return IsShadowAndroidWithWeapons(base, ctx.eax.u32);
+}
+
 bool SelectMenuExpansionMidAsmHook(X86Context& __restrict ctx, uint8_t* base)
 {
     return (Config::SelectModeEnableLastStoryDevilDoomSlots || Config::ReloadedMod) && ctx.esi.u32 == 5 && ctx.edi.u32 == 5;

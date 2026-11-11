@@ -3064,3 +3064,13 @@ address = 0x17012A
 name = "SkipLoadingAnyEventsMidAsmHook"
 address = 0x23D91B
 jump_address_on_true = 0x23D920
+
+[[midasm_hook]]
+name = "ShadowAndroidsSkipEmbeddedWeaponMidAsmHook"
+address = 0x9708C
+jump_address_on_true = 0x9718E
+
+[[midasm_hook]]
+name = "ShadowAndroidsVehicleWeaponMidAsmHook"
+address = 0xA4B81
+jump_address_on_true = 0xA4B87

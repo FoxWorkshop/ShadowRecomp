@@ -135,6 +135,7 @@ CONFIG_DEFINE_HIDDEN("Codes", int32_t, ExtendedMultiplayerP2CharId, -1, false);
 CONFIG_DEFINE_HIDDEN("Codes", int32_t, ExtendedMultiplayerP3CharId, -1, false);
 CONFIG_DEFINE_HIDDEN("Codes", int32_t, ExtendedMultiplayerP4CharId, -1, false);
 CONFIG_DEFINE_HIDDEN("Codes", bool, PlayAsBattleCharacters, false, false);
+CONFIG_DEFINE_HIDDEN("Codes", bool, ShadowAndroidsNoEmbeddedWeapons, false, false);
 CONFIG_DEFINE_HIDDEN("Codes", bool, SelectModeExpertStages, false, false);
 CONFIG_DEFINE_HIDDEN("Codes", bool, SelectModeEnableLastStoryDevilDoomSlots, false, false);
 CONFIG_DEFINE_HIDDEN("Codes", bool, SkipLoadingAnyEvents, false, false);
