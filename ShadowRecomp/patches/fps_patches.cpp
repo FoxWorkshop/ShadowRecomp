@@ -3795,3 +3795,15 @@ X86_OVERRIDE_FUNC(sub_7ED90)
 	}
 	__imp__sub_7ED90(ctx, base);
 }
+
+// BkLarvaGenerator @ sub_138A00 (parent) uses deltatime already so its applied twice scaling with FPS
+static const GuestVariable<float> g_motionStep{ 0x532A48 }; // larva speed
+void LarvaMotionSpeedMidAsmHook(X86Context& __restrict ctx, uint8_t* base)
+{
+	const float step = g_motionStep;
+	const uint32_t speed = ctx.esp.u32 + 0x30;
+	if (step > 0.0f)
+	{
+		X86_STORE_F32(speed, X86_LOAD_F32(speed) / step);
+	}
+}
