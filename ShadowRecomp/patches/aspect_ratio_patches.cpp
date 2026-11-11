@@ -937,33 +937,48 @@ void DrawHudMidAsmHook(X86Context& __restrict ctx, uint8_t* base)
 // The projection uses the camera's own fov, which we never widen. thus, we cannot patch it at vertex levels,
 // so we will do it the old way.
 
+// squeeze a projected screen position (x, y floats) around the center of the screen rect (x, y, w, h ints).
+static void UnstretchProjectedPoint(uint32_t screenRect, uint32_t screenPos)
+{
+	auto base = g_memory.base;
+
+	if (g_hudUnstretchX < 1.0f)
+	{
+		float rectX = float(int32_t(X86_LOAD_U32(screenRect)));
+		float rectW = float(int32_t(X86_LOAD_U32(screenRect + 0x8)));
+		float centreX = rectX + rectW * 0.5f;
+
+		X86_STORE_F32(screenPos, centreX + (X86_LOAD_F32(screenPos) - centreX) * g_hudUnstretchX);
+	}
+
+	if (g_hudUnstretchY < 1.0f)
+	{
+		float rectY = float(int32_t(X86_LOAD_U32(screenRect + 0x4)));
+		float rectH = float(int32_t(X86_LOAD_U32(screenRect + 0xC)));
+		float centreY = rectY + rectH * 0.5f;
+
+		X86_STORE_F32(screenPos + 0x4, centreY + (X86_LOAD_F32(screenPos + 0x4) - centreY) * g_hudUnstretchY);
+	}
+}
+
 void HpBarProjectionMidAsmHook(X86Context& __restrict ctx, uint8_t* base)
 {
-	if (g_hudUnstretchX >= 1.0f)
-		return;
-
-
 	// rEax = SonicteamUSA::System::Camera::GetScreenRectangle(screenType)
-	float rectX = float(int32_t(X86_LOAD_U32(ctx.eax.u32)));
-	float rectW = float(int32_t(X86_LOAD_U32(ctx.eax.u32 + 8)));
-	float centreX = rectX + rectW * 0.5f;
-
-	// esi + 0x2C = projected screen X, still to be culled against the screen rect below
-	float screenX = X86_LOAD_F32(ctx.esi.u32 + 0x2C);
-	X86_STORE_F32(ctx.esi.u32 + 0x2C, centreX + (screenX - centreX) * g_hudUnstretchX);
+	// esi + 0x2C = projected screen X / Y, still to be culled against the screen rect below
+	UnstretchProjectedPoint(ctx.eax.u32, ctx.esi.u32 + 0x2C);
 }
 
 // the game scales the bar against a fixed 640x480 space (rect.w * scale / 640, rect.h * scale / 480),
 // and the 2D layer then stretches that space over the whole viewport, so like everything else here
-// the bar comes out too wide on wide screens. squeeze X back to square pixels.
+// the bar comes out too wide on wide screens (too tall on narrow ones). squeeze it back to square pixels.
 void HpBarScaleMidAsmHook(X86Context& __restrict ctx, uint8_t* base)
 {
-	if (g_hudUnstretchX >= 1.0f)
-		return;
+	// esi + 0x38 = scale X, esi + 0x3C = scale Y, consumed by the CSD SetScale call further down.
+	if (g_hudUnstretchX < 1.0f)
+		X86_STORE_F32(ctx.esi.u32 + 0x38, X86_LOAD_F32(ctx.esi.u32 + 0x38) * g_hudUnstretchX);
 
-
-	// esi + 0x38 = scale X, consumed by the CSD SetScale call further down.
-	X86_STORE_F32(ctx.esi.u32 + 0x38, X86_LOAD_F32(ctx.esi.u32 + 0x38) * g_hudUnstretchX);
+	if (g_hudUnstretchY < 1.0f)
+		X86_STORE_F32(ctx.esi.u32 + 0x3C, X86_LOAD_F32(ctx.esi.u32 + 0x3C) * g_hudUnstretchY);
 }
 
 // Item reward icon from CP
@@ -997,18 +1012,9 @@ void ItemIconDrawMidAsmHook(X86Context& __restrict ctx, uint8_t* base)
 // Those have the same problem than enemy hp bar above
 void LockOnProjectionMidAsmHook(X86Context& __restrict ctx, uint8_t* base)
 {
-	if (g_hudUnstretchX >= 1.0f)
-		return;
-
 	//eax is camera's screen rectangle
-	// esp + 8 is the project screen X
-
-	float rectX = float(int32_t(X86_LOAD_U32(ctx.eax.u32)));
-	float rectW = float(int32_t(X86_LOAD_U32(ctx.eax.u32 + 8)));
-	float centreX = rectX + rectW * 0.5f;
-
-	float screenX = X86_LOAD_F32(ctx.esp.u32 + 8);
-	X86_STORE_F32(ctx.esp.u32 + 8, centreX + (screenX - centreX) * g_hudUnstretchX);
+	// esp + 8 is the project screen X, esp + 0xC the Y
+	UnstretchProjectedPoint(ctx.eax.u32, ctx.esp.u32 + 0x8);
 }
 
 // sub_268FD0 creates one reticle (quad) which isn't called, so it's safe to patch the corners here
@@ -1028,15 +1034,26 @@ X86_OVERRIDE_FUNC(sub_268FD0)
 	if (!vertices || !centre)
 		return;
 
-	if (g_hudUnstretchX >= 1.0f)
-		return;
-
-	float centreX = X86_LOAD_F32(centre);
-
-	for (uint32_t i = 0; i < LockOnVertexCount; i++)
+	if (g_hudUnstretchX < 1.0f)
 	{
-		uint32_t vertexX = vertices + i * LockOnStride;
-		X86_STORE_F32(vertexX, centreX + (X86_LOAD_F32(vertexX) - centreX) * g_hudUnstretchX);
+		float centreX = X86_LOAD_F32(centre);
+
+		for (uint32_t i = 0; i < LockOnVertexCount; i++)
+		{
+			uint32_t vertexX = vertices + i * LockOnStride;
+			X86_STORE_F32(vertexX, centreX + (X86_LOAD_F32(vertexX) - centreX) * g_hudUnstretchX);
+		}
+	}
+
+	if (g_hudUnstretchY < 1.0f)
+	{
+		float centreY = X86_LOAD_F32(centre + 0x4);
+
+		for (uint32_t i = 0; i < LockOnVertexCount; i++)
+		{
+			uint32_t vertexY = vertices + i * LockOnStride + 0x4;
+			X86_STORE_F32(vertexY, centreY + (X86_LOAD_F32(vertexY) - centreY) * g_hudUnstretchY);
+		}
 	}
 }
 
@@ -1060,41 +1077,29 @@ X86_OVERRIDE_FUNC(sub_19730)
 // Button prompt above air saucers, checkpoints etc.
 // This is originally a simple CSD, but the game places it like the enemy HP bar: it projects as if the screen was 4:3,
 // so it looks wrong at high resolution. The idea is to fix the position before the cull and squeeze 
-// the scale X value directly instead of the vertex.
-static void UnstretchVHArrowX(uint32_t screenRect, uint32_t screenX)
-{
-	if (g_hudUnstretchX >= 1.0f)
-		return;
+// the scale X / Y value directly instead of the vertex.
 
-	auto base = g_memory.base;
-
-	float rectX = float(int32_t(X86_LOAD_U32(screenRect)));
-	float rectW = float(int32_t(X86_LOAD_U32(screenRect + 8)));
-	float centerX = rectX + rectW * 0.5f;
-
-	X86_STORE_F32(screenX, centerX + (X86_LOAD_F32(screenX) - centerX) * g_hudUnstretchX);
-}
-
-// Memo: eax = GetScreenRectangle(0), esp + 0x10 = projected screen X
+// Memo: eax = GetScreenRectangle(0), esp + 0x10 = projected screen X, esp + 0x14 = Y
 void VHArrowProjectionMidAsmHook(X86Context& __restrict ctx, uint8_t* base)
 {
-	UnstretchVHArrowX(ctx.eax.u32, ctx.esp.u32 + 0x10);
+	UnstretchProjectedPoint(ctx.eax.u32, ctx.esp.u32 + 0x10);
 }
 
 // split screen variant for MP
-// Memo: esp+0xC = projected screen X, eax = GetScreenRectangle(screen).
+// Memo: esp+0xC = projected screen X, esp+0x10 = Y, eax = GetScreenRectangle(screen).
 void VHArrowProjectionSplitMidAsmHook(X86Context& __restrict ctx, uint8_t* base)
 {
-	UnstretchVHArrowX(ctx.eax.u32, ctx.esp.u32 + 0xC);
+	UnstretchProjectedPoint(ctx.eax.u32, ctx.esp.u32 + 0xC);
 }
 
 // Memo: esp = scale X pushed for sub_2BBB40, esp+4 = scale Y
 void VHArrowScaleMidAsmHook(X86Context& __restrict ctx, uint8_t* base)
 {
-	if (g_hudUnstretchX >= 1.0f)
-		return;
+	if (g_hudUnstretchX < 1.0f)
+		X86_STORE_F32(ctx.esp.u32, X86_LOAD_F32(ctx.esp.u32) * g_hudUnstretchX);
 
-	X86_STORE_F32(ctx.esp.u32, X86_LOAD_F32(ctx.esp.u32) * g_hudUnstretchX);
+	if (g_hudUnstretchY < 1.0f)
+		X86_STORE_F32(ctx.esp.u32 + 0x4, X86_LOAD_F32(ctx.esp.u32 + 0x4) * g_hudUnstretchY);
 }
 
 
