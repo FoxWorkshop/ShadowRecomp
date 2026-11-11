@@ -222,7 +222,7 @@ CONFIG_DEFINE_LOCALE(HorizontalCamera1P)
 {
     { ELanguage::English, { "1P Horizontal Camera", "Change how the camera moves left and right." } },
     { ELanguage::Japanese, { "1Pカメラの左右", "カメラ左右の動く方向を選択できます。" } },
-    { ELanguage::German,   { "1P Horizontale Kamera", "Ändere wie sich die Kamera nach links und rechts bewegt." } },
+    { ELanguage::German,   { "1SP Horizontale Kamera", "Ändere wie sich die Kamera nach links und rechts bewegt." } },
     { ELanguage::French,   { "J1 Caméra horizontale", "Modifie la rotation horizontale de la caméra." } },
     { ELanguage::Spanish,  { "J1 Cámara Horizontal", "Selecciona la dirección horizontal de la cámara del Jugador 1." } },
     { ELanguage::Italian,  { "1P Telecamera orizzontale", "Modifica come la telecamera si muove da sinistra a destra." } }
@@ -232,7 +232,7 @@ CONFIG_DEFINE_LOCALE(HorizontalCamera2P)
 {
     { ELanguage::English, { "2P Horizontal Camera", "Change how the camera moves left and right." } },
     { ELanguage::Japanese, { "2Pカメラの左右", "カメラ左右の動く方向を選択できます。" } },
-    { ELanguage::German,   { "2P Horizontale Kamera", "Ändere wie sich die Kamera nach links und rechts bewegt." } },
+    { ELanguage::German,   { "2SP Horizontale Kamera", "Ändere wie sich die Kamera nach links und rechts bewegt." } },
     { ELanguage::French,   { "J2 Caméra horizontale", "Modifie la rotation horizontale de la caméra." } },
     { ELanguage::Spanish,  { "J2 Cámara Horizontal", "Selecciona la dirección horizontal de la cámara del Jugador 2." } },
     { ELanguage::Italian,  { "2P Telecamera orizzontale", "Modifica come la telecamera si muove da sinistra a destra." } }
@@ -242,7 +242,7 @@ CONFIG_DEFINE_LOCALE(HorizontalCamera3P)
 {
     { ELanguage::English, { "3P Horizontal Camera", "Change how the camera moves left and right." } },
     { ELanguage::Japanese, { "3Pカメラの左右", "カメラ左右の動く方向を選択できます。" } },
-    { ELanguage::German,   { "3P Horizontale Kamera", "Ändere wie sich die Kamera nach links und rechts bewegt." } },
+    { ELanguage::German,   { "3SP Horizontale Kamera", "Ändere wie sich die Kamera nach links und rechts bewegt." } },
     { ELanguage::French,   { "J3 Caméra horizontale", "Modifie la rotation horizontale de la caméra." } },
     { ELanguage::Spanish,  { "J3 Cámara Horizontal", "Selecciona la dirección horizontal de la cámara del Jugador 3." } },
     { ELanguage::Italian,  { "3P Telecamera orizzontale", "Modifica come la telecamera si muove da sinistra a destra." } }
@@ -252,7 +252,7 @@ CONFIG_DEFINE_LOCALE(HorizontalCamera4P)
 {
     { ELanguage::English, { "4P Horizontal Camera", "Change how the camera moves left and right." } },
     { ELanguage::Japanese, { "4Pカメラの左右", "カメラ左右の動く方向を選択できます。" } },
-    { ELanguage::German,   { "4P Horizontale Kamera", "Ändere wie sich die Kamera nach links und rechts bewegt." } },
+    { ELanguage::German,   { "4SP Horizontale Kamera", "Ändere wie sich die Kamera nach links und rechts bewegt." } },
     { ELanguage::French,   { "J4 Caméra horizontale", "Modifie la rotation horizontale de la caméra." } },
     { ELanguage::Spanish,  { "J4 Cámara Horizontal", "Selecciona la dirección horizontal de la cámara del Jugador 4." } },
     { ELanguage::Italian,  { "4P Telecamera orizzontale", "Modifica come la telecamera si muove da sinistra a destra." } }
@@ -311,7 +311,7 @@ CONFIG_DEFINE_LOCALE(Vibration1P)
 {
     { ELanguage::English,  { "1P Vibration", "Toggle controller vibration." } },
     { ELanguage::Japanese, { "1P振動", "コントローラの振動機能を切り替えます。" } },
-    { ELanguage::German,   { "1P Vibration", "Ändere die Vibrations einstellungen des Controllers." } },
+    { ELanguage::German,   { "1SP Vibration", "Ändere die Vibrations einstellungen des Controllers." } },
     { ELanguage::French,   { "J1 Vibration", "Active les vibrations de la manette." } },
     { ELanguage::Spanish,  { "J1 Vibración", "Activa o desactiva la vibración del mando del Jugador 1." } },
     { ELanguage::Italian,  { "1P Vibrazione", "Attiva/disattiva la vibrazione del controller." } }
@@ -321,7 +321,7 @@ CONFIG_DEFINE_LOCALE(Vibration2P)
 {
     { ELanguage::English,  { "2P Vibration", "Toggle controller vibration." } },
     { ELanguage::Japanese, { "2P振動", "コントローラの振動機能を切り替えます。" } },
-    { ELanguage::German,   { "2P Vibration", "Ändere die Vibrations einstellungen des Controllers." } },
+    { ELanguage::German,   { "2SP Vibration", "Ändere die Vibrations einstellungen des Controllers." } },
     { ELanguage::French,   { "J2 Vibration", "Active les vibrations de la manette." } },
     { ELanguage::Spanish,  { "J2 Vibración", "Activa o desactiva la vibración del mando del Jugador 2." } },
     { ELanguage::Italian,  { "2P Vibrazione", "Attiva/disattiva la vibrazione del controller." } }
@@ -331,7 +331,7 @@ CONFIG_DEFINE_LOCALE(Vibration3P)
 {
     { ELanguage::English,  { "3P Vibration", "Toggle controller vibration." } },
     { ELanguage::Japanese, { "3P振動", "コントローラの振動機能を切り替えます。" } },
-    { ELanguage::German,   { "3P Vibration", "Ändere die Vibrations einstellungen des Controllers." } },
+    { ELanguage::German,   { "3SP Vibration", "Ändere die Vibrations einstellungen des Controllers." } },
     { ELanguage::French,   { "J3 Vibration", "Active les vibrations de la manette." } },
     { ELanguage::Spanish,  { "J3 Vibración", "Activa o desactiva la vibración del mando del Jugador 3." } },
     { ELanguage::Italian,  { "3P Vibrazione", "Attiva/disattiva la vibrazione del controller." } }
@@ -341,7 +341,7 @@ CONFIG_DEFINE_LOCALE(Vibration4P)
 {
     { ELanguage::English,  { "4P Vibration", "Toggle controller vibration." } },
     { ELanguage::Japanese, { "4P振動", "コントローラの振動機能を切り替えます。" } },
-    { ELanguage::German,   { "4P Vibration", "Ändere die Vibrations einstellungen des Controllers." } },
+    { ELanguage::German,   { "4SP Vibration", "Ändere die Vibrations einstellungen des Controllers." } },
     { ELanguage::French,   { "J4 Vibration", "Active les vibrations de la manette." } },
     { ELanguage::Spanish,  { "J4 Vibración", "Activa o desactiva la vibración del mando del Jugador 4." } },
     { ELanguage::Italian,  { "4P Vibrazione", "Attiva/disattiva la vibrazione del controller." } }
