@@ -54,9 +54,9 @@ add_compile_options(
 
 
 if (WIN32)
-    add_compile_options(/fp:strict)
+    add_compile_options(/fp:fast)
 else()
-    add_compile_options(-ffp-model=strict)
+    add_compile_options(-ffast-math)
 endif()
 
 add_compile_definitions(
