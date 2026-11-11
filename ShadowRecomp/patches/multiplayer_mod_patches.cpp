@@ -302,6 +302,71 @@ bool ExtendedMultiplayerExtraSpawnRedirectMidAsmHook(X86Context& __restrict ctx,
 	return false;
 }
 
+static uint32_t s_extraPlayerStartPos = 0;
+
+// special cases for aligning P3 and P4 differently
+static constexpr uint32_t EXTRA_START_SIDE_STAGES[] =
+{
+	201,
+	301,
+	401,
+	501,
+	504,
+};
+static constexpr float EXTRA_START_SIDE[3] = { 0.0f, 0.0f, 20.0f };
+static constexpr float EXTRA_START_HEIGHT = 30.0f;
+
+// nukkoro spacing assumed from P1 -> P2 difference (in the future maybe we extend the nukkoro2 parser... but screw that for now)
+static uint32_t GetExtraPlayerStartPos(uint32_t id, uint32_t pos)
+{
+	auto base = g_memory.base;
+	const uint32_t gameState = X86_LOAD_U32(0x54963C);
+
+	// stored checkpoint check
+	if (id < 2 || !gameState || X86_LOAD_U32(gameState) != 0)
+	{
+		return pos;
+	}
+	if (!s_extraPlayerStartPos)
+	{
+		s_extraPlayerStartPos = g_memory.MapVirtual(g_userHeap.Alloc(0xC));
+	}
+	const uint32_t p1 = gameState + 0xC;
+	const uint32_t p2 = p1 + 0x20 * 0x1C;
+	const uint32_t stage = X86_LOAD_U32(0x54DDD8);
+	if (std::find(std::begin(EXTRA_START_SIDE_STAGES), std::end(EXTRA_START_SIDE_STAGES), stage) != std::end(EXTRA_START_SIDE_STAGES))
+	{
+		const uint32_t from = id == 2 ? p1 : pos;
+		for (uint32_t i = 0; i < 3; i++)
+		{
+			X86_STORE_F32(s_extraPlayerStartPos + i * 0x4, X86_LOAD_F32(from + i * 0x4) + EXTRA_START_SIDE[i]);
+		}
+		return s_extraPlayerStartPos;
+	}
+
+	float step[3];
+	float lengthSq = 0.0f;
+	for (uint32_t i = 0; i < 3; i++)
+	{
+		step[i] = X86_LOAD_F32(p2 + i * 0x4) - X86_LOAD_F32(p1 + i * 0x4);
+		lengthSq += step[i] * step[i];
+	}
+
+	// stack above case
+	if (lengthSq < 1.0f || lengthSq > 200.0f * 200.0f)
+	{
+		step[0] = 0.0f;
+		step[1] = EXTRA_START_HEIGHT;
+		step[2] = 0.0f;
+	}
+	const float scale = float(id - 1);
+	for (uint32_t i = 0; i < 3; i++)
+	{
+		X86_STORE_F32(s_extraPlayerStartPos + i * 0x4, X86_LOAD_F32(pos + i * 0x4) + step[i] * scale);
+	}
+	return s_extraPlayerStartPos;
+}
+
 static uint32_t s_extraPlayerPositionID = 0;
 
 void ExtendedMultiplayerPlayerPositionIDOverrideMidAsmHook(X86Context& __restrict ctx, uint8_t* base)
@@ -309,6 +374,7 @@ void ExtendedMultiplayerPlayerPositionIDOverrideMidAsmHook(X86Context& __restric
 	if (Config::ExtendedMultiplayer && s_extraPlayerPositionID != 0)
 	{
 		ctx.edx.u32 = s_extraPlayerPositionID;
+		X86_STORE_U32(ctx.esp.u32, GetExtraPlayerStartPos(s_extraPlayerPositionID, X86_LOAD_U32(ctx.esp.u32)));
 	}
 }
 
@@ -343,6 +409,7 @@ void ExtendedMultiplayerPlayerPositionIDOverrideContinue0MidAsmHook(X86Context& 
 	if (Config::ExtendedMultiplayer && s_extraPlayerPositionID_Continue0 != 0)
 	{
 		ctx.edx.u32 = s_extraPlayerPositionID_Continue0;
+		X86_STORE_U32(ctx.esp.u32, GetExtraPlayerStartPos(s_extraPlayerPositionID_Continue0, X86_LOAD_U32(ctx.esp.u32)));
 	}
 }
 
@@ -2252,7 +2319,7 @@ static void RespawnPlayer(X86Context& ctx, uint8_t* base, uint32_t player, uint3
 	}
 	const uint32_t id = X86_LOAD_U32(player + 0x298);
 	const uint32_t checkpointId = std::min(id, 1u);
-	const uint32_t pos = GuestToHostFunction<uint32_t, CallConvention::Thiscall>(ctx, sub_22D440, gameState, checkpointId);
+	const uint32_t pos = GetExtraPlayerStartPos(id, GuestToHostFunction<uint32_t, CallConvention::Thiscall>(ctx, sub_22D440, gameState, checkpointId));
 	const uint32_t rot = GuestToHostFunction<uint32_t, CallConvention::Thiscall>(ctx, sub_22D460, gameState, checkpointId);
 	GuestToHostFunction<void, CallConvention::Cdecl>(ctx, sub_A45B0, id, pos, rot);
 	// revive command
