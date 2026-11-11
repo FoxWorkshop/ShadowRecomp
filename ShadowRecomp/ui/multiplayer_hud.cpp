@@ -20,7 +20,6 @@ struct HudRect
     float x, y, w, h;
 };
 
-// This is the best I can, do its a bit jank unless we find a better way
 static bool IsHudActive()
 {
     auto base = g_memory.base;
@@ -44,6 +43,12 @@ static bool IsHudActive()
         default:
             return false;
     }
+}
+
+static float GetHudAlpha()
+{
+    auto base = g_memory.base;
+    return 1.0f - std::clamp(float(X86_LOAD_F32(0x5394B8)), 0.0f, 1.0f);
 }
 
 static HudRect GetPlayerRect(const uint32_t number, const ImVec2& display)
@@ -70,25 +75,25 @@ static HudRect GetPlayerRect(const uint32_t number, const ImVec2& display)
     return { number * thirdW, 0.0f, thirdW, display.y };
 }
 
-static void DrawIcon(ImDrawList* drawList, GuestTexture* texture, const ImVec2& min, const float size, const ImVec2& uvMin = { 0.0f, 0.0f }, const ImVec2& uvMax = { 1.0f, 1.0f })
+static void DrawIcon(ImDrawList* drawList, GuestTexture* texture, const ImVec2& min, const float size, const float alpha, const ImVec2& uvMin = { 0.0f, 0.0f }, const ImVec2& uvMax = { 1.0f, 1.0f })
 {
-    drawList->AddImage(texture, min, { min.x + size, min.y + size }, uvMin, uvMax);
+    drawList->AddImage(texture, min, { min.x + size, min.y + size }, uvMin, uvMax, IM_COL32(255, 255, 255, int32_t(alpha * 255.0f)));
 }
 
-static void DrawAmmoIcon(ImDrawList* drawList, uint32_t weaponType, const ImVec2& min, const float size)
+static void DrawAmmoIcon(ImDrawList* drawList, uint32_t weaponType, const ImVec2& min, const float size, const float alpha)
 {
     static constexpr int32_t s_columns[] = { -1, 1, 2, 3, 4, 0, 5 };
     const int32_t column = weaponType < std::size(s_columns) ? s_columns[weaponType] : -1;
     if (column < 0)
     {
-        DrawIcon(drawList, g_upTexAmmo.get(), min, size);
+        DrawIcon(drawList, g_upTexAmmo.get(), min, size, alpha);
         return;
     }
-    DrawIcon(drawList, g_upTexAmmoTypes.get(), min, size, { column / 6.0f, 0.0f }, { (column + 1) / 6.0f, 1.0f });
+    DrawIcon(drawList, g_upTexAmmoTypes.get(), min, size, alpha, { column / 6.0f, 0.0f }, { (column + 1) / 6.0f, 1.0f });
 }
 
 // matching the gradient the game applies to the numbers
-static void DrawCounter(ImDrawList* drawList, float centerX, float y, float unit, uint32_t value)
+static void DrawCounter(ImDrawList* drawList, float centerX, float y, float unit, uint32_t value, float alpha)
 {
     char text[8];
     snprintf(text, sizeof(text), "%03u", std::min(value, 999u));
@@ -96,8 +101,9 @@ static void DrawCounter(ImDrawList* drawList, float centerX, float y, float unit
     const float glyphW = 16.0f * unit;
     const float glyphH = 18.0f * unit;
     float x = centerX - glyphW * count * 0.5f;
-    const ImU32 light = IM_COL32_WHITE;
-    const ImU32 dark = IM_COL32(128, 128, 128, 255);
+    const auto appliedAlpha = int32_t(alpha * 255.0f);
+    const ImU32 light = IM_COL32(255, 255, 255, appliedAlpha);
+    const ImU32 dark = IM_COL32(128, 128, 128, appliedAlpha);
     drawList->PushTextureID(g_upTexDigits.get());
     for (int32_t i = 0; i < count; i++, x += glyphW)
     {
@@ -120,7 +126,7 @@ static void DrawCounter(ImDrawList* drawList, float centerX, float y, float unit
     drawList->PopTextureID();
 }
 
-static void DrawPlayerCounters(ImDrawList* drawList, const HudRect& rect, const MultiplayerHudCounters& counters)
+static void DrawPlayerCounters(ImDrawList* drawList, const HudRect& rect, const MultiplayerHudCounters& counters, const float alpha)
 {
     const float unit = std::min(rect.w / 640.0f, rect.h / 480.0f);
     const float iconSize = 36.0f * unit;
@@ -131,15 +137,15 @@ static void DrawPlayerCounters(ImDrawList* drawList, const HudRect& rect, const 
     const float iconY = textY + 7.0f * unit - iconSize;
 
     const float ringX = rect.x + margin;
-    DrawIcon(drawList, g_upTexRing.get(), { ringX, iconY }, iconSize);
-    DrawCounter(drawList, ringX + iconSize * 0.5f, textY, unit, counters.rings);
+    DrawIcon(drawList, g_upTexRing.get(), { ringX, iconY }, iconSize, alpha);
+    DrawCounter(drawList, ringX + iconSize * 0.5f, textY, unit, counters.rings, alpha);
     if (counters.weaponType == 0)
     {
         return;
     }
     const float ammoX = rect.x + rect.w - margin - iconSize;
-    DrawAmmoIcon(drawList, counters.weaponType, { ammoX, iconY }, iconSize);
-    DrawCounter(drawList, ammoX + iconSize * 0.5f, textY, unit, counters.ammo);
+    DrawAmmoIcon(drawList, counters.weaponType, { ammoX, iconY }, iconSize, alpha);
+    DrawCounter(drawList, ammoX + iconSize * 0.5f, textY, unit, counters.ammo, alpha);
 }
 
 void MultiplayerHud::Init()
@@ -156,6 +162,11 @@ void MultiplayerHud::Draw()
     {
         return;
     }
+    const float alpha = GetHudAlpha();
+    if (alpha <= 0.0f)
+    {
+        return;
+    }
     const auto drawList = ImGui::GetBackgroundDrawList();
     const ImVec2 display = ImGui::GetIO().DisplaySize;
     for (uint32_t i = 0; i < g_multiplayerPlayerCount; i++)
@@ -163,7 +174,7 @@ void MultiplayerHud::Draw()
         MultiplayerHudCounters counters{};
         if (GetMultiplayerHudCounters(i, counters))
         {
-            DrawPlayerCounters(drawList, GetPlayerRect(i, display), counters);
+            DrawPlayerCounters(drawList, GetPlayerRect(i, display), counters, alpha);
         }
     }
 }
