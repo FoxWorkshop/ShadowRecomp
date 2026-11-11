@@ -276,7 +276,7 @@ std::unordered_map<std::string_view, std::unordered_map<ELanguage, std::string>>
 		{ ELanguage::English,  "D-PAD UP" },
 		{ ELanguage::Japanese, "十字キー 上" },
 		{ ELanguage::German,   "D-PAD HOCH" },
-		{ ELanguage::French,   "CROIX HAUT" },
+		{ ELanguage::French,   "D-PAD HAUT" },
 		{ ELanguage::Spanish,  "CRUCETA ARRIBA" },
 		{ ELanguage::Italian,  "D-PAD SU" }
 	}
@@ -287,7 +287,7 @@ std::unordered_map<std::string_view, std::unordered_map<ELanguage, std::string>>
 		{ ELanguage::English,  "D-PAD DOWN" },
 		{ ELanguage::Japanese, "十字キー 下" },
 		{ ELanguage::German,   "D-PAD RUNTER" },
-		{ ELanguage::French,   "CROIX BAS" },
+		{ ELanguage::French,   "D-PAD BAS" },
 		{ ELanguage::Spanish,  "CRUCETA ABAJO" },
 		{ ELanguage::Italian,  "D-PAD GIÙ" }
 	}
@@ -298,7 +298,7 @@ std::unordered_map<std::string_view, std::unordered_map<ELanguage, std::string>>
 		{ ELanguage::English,  "D-PAD LEFT" },
 		{ ELanguage::Japanese, "十字キー 左" },
 		{ ELanguage::German,   "D-PAD LINKS" },
-		{ ELanguage::French,   "CROIX GAUCHE" },
+		{ ELanguage::French,   "D-PAD GAUCHE" },
 		{ ELanguage::Spanish,  "CRUCETA IZQUIERDA" },
 		{ ELanguage::Italian,  "D-PAD SINISTRO" }
 	}
@@ -309,7 +309,7 @@ std::unordered_map<std::string_view, std::unordered_map<ELanguage, std::string>>
 		{ ELanguage::English,  "D-PAD RIGHT" },
 		{ ELanguage::Japanese, "十字キー 右" },
 		{ ELanguage::German,   "D-PAD RECHTS" },
-		{ ELanguage::French,   "CROIX DROITE" },
+		{ ELanguage::French,   "D-PAD DROITE" },
 		{ ELanguage::Spanish,  "CRUCETA DERECHA" },
 		{ ELanguage::Italian,  "D-PAD DESTRO" }
 	}

@@ -89,7 +89,7 @@ std::unordered_map<int, std::unordered_map<ELanguage, AchievementLocale>> g_shrL
 				ELanguage::French,
 			{
 					"A la Conquête du Monde",
-					"Complétez la fin Pure Dark / Fin Héro !",
+					"Complétez la fin Pure Dark / Hero !",
 					"Fin Pure Dark / Hero complétée"
 				}
 			},
@@ -143,7 +143,7 @@ std::unordered_map<int, std::unordered_map<ELanguage, AchievementLocale>> g_shrL
 				ELanguage::French,
 				{
 					"Le chemin des ténèbres",
-					"Completez la fin Semi-Dark / Dark!",
+					"Complétez la fin Semi-Dark / Dark !",
 					"Fin Semi-Dark / Dark complétée"
 				}
 			},
@@ -197,7 +197,7 @@ std::unordered_map<int, std::unordered_map<ELanguage, AchievementLocale>> g_shrL
 				ELanguage::French,
 				{
 					"Dernier Objectif",
-					"Complétez la fin Semi-Dark / Hero!",
+					"Complétez la fin Semi-Dark / Hero !",
 					"Fin Semi-Dark / Hero complétée"
 				}
 			},
@@ -634,8 +634,8 @@ std::unordered_map<int, std::unordered_map<ELanguage, AchievementLocale>> g_shrL
 				ELanguage::French,
 				{
 					"Au-delà du Bien et du Mal",
-					"Obtenez tous les 71 Ranks A !",
-					"Tous les 71 Ranks A obtenus"
+					"Débloquez les 71 Ranks A !",
+					"Vous avez obtenu les 71 Ranks A"
 				}
 			},
 			{
@@ -688,8 +688,8 @@ std::unordered_map<int, std::unordered_map<ELanguage, AchievementLocale>> g_shrL
 				ELanguage::French,
 				{
 					"Maître des Clés",
-					"Collectez toutes les 115 clés !",
-					"Toutes les 115 clés collectées"
+					"Collectez les 115 clés !",
+					"Vous avez obtenu les 115 clés"
 				}
 			},
 			{
@@ -797,7 +797,7 @@ std::unordered_map<int, std::unordered_map<ELanguage, AchievementLocale>> g_shrL
 				{
 					"Hum. Parfait...",
 					"Détruisez le tank des Black Arms dans Lethal Highway en conduisant un véhicule !",
-					"Tank des Black Arms détruit dans Lethal Highway en conduisant un véhicule"
+					"Vous avez détruit le Tank des Black Arms dans Lethal Highway en conduisant un véhicule"
 				}
 			},
 			{
@@ -850,8 +850,8 @@ std::unordered_map<int, std::unordered_map<ELanguage, AchievementLocale>> g_shrL
 				ELanguage::French,
 				{
 					"3 minutes, douche comprise",
-					"Terminez la mission héros de Central City en moins de 3 minutes !",
-					"Mission héros de Central City terminée en moins de 3 minutes"
+					"Terminez la mission Hero de Central City en moins de 3 minutes !",
+					"Vous avez terminé la mission Hero de Central City en moins de 3 minutes"
 				}
 			},
 			{
