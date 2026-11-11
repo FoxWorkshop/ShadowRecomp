@@ -1606,10 +1606,10 @@ const xxHashMap<CsdModifier> g_csdModifiers =
 	{ HashStr("csdFiles/2P_Ring.xncp/Ring1P/Null_ring/ring"), { CSD_UNSTRETCH | CSD_ALIGN_AUTO_H | CSD_ALIGN_TOP } },
 	{ HashStr("csdFiles/2P_Ring.xncp/Ring2P/Null_ring/ring"), { CSD_UNSTRETCH | CSD_ALIGN_AUTO_H | CSD_ALIGN_TOP } },
 
-	{ HashStr("csdFiles/2P_Star.xncp/Star"), { CSD_UNSTRETCH | CSD_ALIGN_BOTTOM_CENTRE} },
+	{ HashStr("csdFiles/2P_Star.xncp/Star"), { CSD_UNSTRETCH | CSD_ALIGN_TOP_CENTRE} },
 	{ HashStr("csdFiles/2P_Start.xncp/Start"), { CSD_UNSTRETCH | CSD_FORCE_UNSTRETCH} },
-	{ HashStr("csdFiles/2P_Result.xncp/Result"), { CSD_UNSTRETCH | CSD_CENTER_UNSTRETCH} },
-	{ HashStr("csdFiles/2P_Result.xncp/TimeUp"), { CSD_UNSTRETCH | CSD_ALIGN_BOTTOM_CENTRE} },
+	{ HashStr("csdFiles/2P_Result.xncp/Result"), { CSD_UNSTRETCH | CSD_CENTER_UNSTRETCH | CSD_FORCE_UNSTRETCH} },
+	{ HashStr("csdFiles/2P_Result.xncp/TimeUp"), { CSD_UNSTRETCH | CSD_CENTER_UNSTRETCH | CSD_FORCE_UNSTRETCH} },
 
 	// 2P_CommandWindow.xncp
 	{ HashStr("csdFiles/2P_CommandWindow.xncp/Window/window/info_bg"), { CSD_UNSTRETCH | CSD_ALIGN_AUTO_H | CSD_ALIGN_BOTTOM } },
