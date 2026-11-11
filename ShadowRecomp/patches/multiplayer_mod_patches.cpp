@@ -2709,7 +2709,14 @@ static bool EndAreaAttack(X86Context& ctx, uint32_t unit, uint32_t pos, uint32_t
 
 static void ReleaseStaleAreaAttacks(const X86Context& ctx)
 {
+	auto base = g_memory.base;
 	s_areaAttackFrame++;
+	// handle some bosses calling sub_14E030 (black bull in death ruins)
+	if (!s_areaAttacks.empty() && X86_LOAD_U32(0x541BA0) == 0)
+	{
+		s_areaAttacks.clear();
+		return;
+	}
 	for (auto it = s_areaAttacks.begin(); it != s_areaAttacks.end();)
 	{
 		if (s_areaAttackFrame - it->second.frame < 2)
