@@ -324,19 +324,19 @@ void KatanaLv2AmmoMidAsmHook(X86Context& __restrict ctx, uint8_t* base)
 	X86_STORE_U32(0x5594E0, Config::ReloadedMod ? 32 : 8);
 }
 
-// SatelliteLaser LV1 Ammo 6 -> 18
+// SatelliteLaser LV1 Ammo 6 -> 10
 void SatelliteLaserLv1AmmoMidAsmHook(X86Context& __restrict ctx, uint8_t* base)
 {
-	X86_STORE_U32(0x559514, Config::ReloadedMod ? 18 : 6);
+	X86_STORE_U32(0x559514, Config::ReloadedMod ? 10 : 6);
 }
 
-// SatelliteLaser LV2 Ammo 10 -> 30
+// SatelliteLaser LV2 Ammo 10 -> 24
 void SatelliteLaserLv2AmmoMidAsmHook(X86Context& __restrict ctx, uint8_t* base)
 {
-	X86_STORE_U32(0x559544, Config::ReloadedMod ? 30 : 10);
+	X86_STORE_U32(0x559544, Config::ReloadedMod ? 24 : 10);
 }
 
-// CannonAndroid Damage 8 -> 16
+// CannonAndroid Damage 8 -> 16 (direct hits)
 X86_FUNC_IMPL(__imp__sub_2621A0);
 X86_OVERRIDE_FUNC(sub_2621A0)
 {
@@ -550,7 +550,6 @@ static bool CountsAsARank(uint32_t rank)
 // S Rank System
 bool SRankSystemEcxMidAsmHook(X86Context& __restrict ctx, uint8_t* base) { return CountsAsARank(ctx.ecx.u32); }
 bool SRankSystemEaxMidAsmHook(X86Context& __restrict ctx, uint8_t* base) { return CountsAsARank(ctx.eax.u32); }
-
 bool SRankSystemMemMidAsmHook(X86Context& __restrict ctx, uint8_t* base)
 {
 	return CountsAsARank(X86_LOAD_U32(ctx.ebp.u32));
