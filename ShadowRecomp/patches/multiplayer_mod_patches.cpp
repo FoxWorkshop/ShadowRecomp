@@ -561,6 +561,16 @@ void ViewportExtendedPlayerCalcOverrideMidAsmHook(X86Context& __restrict ctx, ui
 		X86_STORE_U32(0x4E5E54, dimBdiv);
 		X86_STORE_U32(0x4E5E58, dimAdiv);
 		X86_STORE_U32(0x4E5E5C, dimBdiv);
+
+		// FOV
+		X86_STORE_F32(0x4E5DD0, 0.75f); // P1
+		X86_STORE_F32(0x4E5DD4, 0.75f);
+		X86_STORE_F32(0x4E5E00, 0.75f); // P2
+		X86_STORE_F32(0x4E5E04, 0.75f);
+		X86_STORE_F32(0x4E5E30, 0.75f); // P3
+		X86_STORE_F32(0x4E5E34, 0.75f);
+		X86_STORE_F32(0x4E5E60, 0.75f); // P4
+		X86_STORE_F32(0x4E5E64, 0.75f);
 	}
 	else
 	{
@@ -581,6 +591,12 @@ void ViewportExtendedPlayerCalcOverrideMidAsmHook(X86Context& __restrict ctx, ui
 		X86_STORE_U32(0x4E5E54, dimB);
 		X86_STORE_U32(0x4E5E58, dimAdiv);
 		X86_STORE_U32(0x4E5E5C, dimB);
+
+		// FOV
+		X86_STORE_F32(0x4E5E30, 0.5f); // P3
+		X86_STORE_F32(0x4E5E34, 1.0f);
+		X86_STORE_F32(0x4E5E60, 0.5f); // P4
+		X86_STORE_F32(0x4E5E64, 1.0f);
 	}
 }
 
@@ -794,24 +810,6 @@ bool SplitscreenTypeInitializeUnpauseMidAsmHook(X86Context& __restrict ctx, uint
 {
 	if (Config::ExtendedMultiplayer)
 	{
-		if (g_multiplayerPlayerCount == 3)
-		{
-			X86_STORE_F32(0x4E5E30, 0.5f); // P3
-			X86_STORE_F32(0x4E5E34, 1.0f);
-			X86_STORE_F32(0x4E5E60, 0.5f); // P4
-			X86_STORE_F32(0x4E5E64, 1.0f);
-		}
-		else if (g_multiplayerPlayerCount == 4)
-		{
-			X86_STORE_F32(0x4E5DD0, 0.75f); // P1
-			X86_STORE_F32(0x4E5DD4, 0.75f);
-			X86_STORE_F32(0x4E5E00, 0.75f); // P2
-			X86_STORE_F32(0x4E5E04, 0.75f);
-			X86_STORE_F32(0x4E5E30, 0.75f); // P3
-			X86_STORE_F32(0x4E5E34, 0.75f);
-			X86_STORE_F32(0x4E5E60, 0.75f); // P4
-			X86_STORE_F32(0x4E5E64, 0.75f);
-		}
 		return true;
 	}
 	return (ctx.eax.u8_lo & 0x2) != 0;
