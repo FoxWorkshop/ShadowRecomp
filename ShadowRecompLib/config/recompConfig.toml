@@ -3,18 +3,18 @@ file_path = "../private/default.xbe"
 out_directory_path = "../x86"
 
 [optimizations]
-enable = true                   # master toggle
-eliminate_return_slot = true    # don't put return addresses on the stack where possible
-eliminate_stack_args = true     # optimise away push+pop across function calls
-trust_callee_returns = true     # trust `ret N` to restore ESP in functions we can't fully follow
-optimize_x87 = true             # speed up x87 code
-optimize_mmx = true             # keep MMX registers in a local array so clang can optimise them
+enable = true                    # master toggle
+eliminate_return_slot = true     # don't put return addresses on the stack where possible
+eliminate_stack_args = true      # optimise away push+pop across function calls
+trust_callee_returns = true      # trust `ret N` to restore ESP in functions we can't fully follow
+optimize_x87 = true              # speed up x87 code
+optimize_mmx = true              # keep MMX registers in a local array so clang can optimise them
 eliminate_dead_x87_status = true # skip x87 C0-C3 writes that nothing reads
-eliminate_dead_flags = true     # compute only flags later instructions read
-fuse_compare_branch = true      # turn cmp + jump into a plain `if (a < b)`
-find_ebp_frames = true          # find functions using EBP as frame pointer (more `nonvolatile_stack`)
-idiv32_after_cdq = true         # use a 32-bit divide for `idiv` after `cdq`
-find_string_direction = true    # skip the direction flag check in `rep movs` and co.
+eliminate_dead_flags = true      # compute only flags later instructions read
+fuse_compare_branch = true       # turn cmp + jump into a plain `if (a < b)`
+find_ebp_frames = true           # find functions using EBP as frame pointer (more `nonvolatile_stack`)
+idiv32_after_cdq = true          # use a 32-bit divide for `idiv` after `cdq`
+find_string_direction = true     # skip the direction flag check in `rep movs` and co.
 
 # Hacks that sacrifice accuracy for speed. Usually safe.
 [speed_hacks]
@@ -61,6 +61,11 @@ clobber_eflags_for_unknown_code = true
 #              So like CMOV, a guest crash is avoided when it should happen.
 plain_sse_memory = true
 
+# Let the compiler merge/drop guest loads and stores outside the stack.
+# Side effect: Unsafe if a host thread writes memory that the guest code
+#              reads without/lock or wait loop. (Concurrency)
+nonvolatile_memory = true
+
 # 64-bit instead of 80-bit x87 trig and 2^x.
 # Side effect: Results can differ in the last few bits (tiny accuracy difference).
 fast_trig = true
@@ -93,7 +98,13 @@ fast_sse_status = true
 # - Wrong hints break the game.
 [optimization_hints]
 
-# Info about x87 stack upon entering a function.
+x87_stack_effects = [
+	{
+		address = 0x37E1A5, # __security_check_cookie
+		stack_at_entry = 0, # items on the x87 stack at function entry (its parameters)
+		stack_at_exit = 0,  # items on the x87 stack at function exit (0, or 1 for a float result)
+	},
+]# Info about x87 stack upon entering a function.
 #
 # Almost all x87 code on OG Xbox enters functions with empty x87 stack,
 # as MSVC passes parameters either via stack (usual), or registers.
@@ -105,13 +116,6 @@ fast_sse_status = true
 # we forbid in analysis like FFREE/FXRSTOR; or other limitations.
 #
 # This allows you to set overrides.
-x87_stack_effects = [
-	{
-		address = 0x37E1A5, # __security_check_cookie
-		stack_at_entry = 0, # items on the x87 stack at function entry (its parameters)
-		stack_at_exit = 0,  # items on the x87 stack at function exit (0, or 1 for a float result)
-	},
-]
 
 [fixes]
 # When you replace a function using:
