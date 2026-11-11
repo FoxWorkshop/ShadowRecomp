@@ -83,20 +83,57 @@ You will be rewarded with achievements as you progress through the game.
 > [!NOTE]
 Achievements cannot be used with platforms such as Steam or RetroAchievements.
 
+### Mod Support
+
+The game includes a mod loader compatible with [SA Mod Manager](https://github.com/X-Hax/SA-Mod-Manager).
+
+The mod format uses the same standard as the one used by Sonic Adventure mods. 
+
+> [!NOTE]
+Code modding is currently not possible and is planned for a future update. As a workaround for the time being, some codes have been directly embedded into the game and can be accessed through SA Mod Manager's Codes tab.
+
+
 ## Known Issues
 
 Before reporting any issues, check if they are listed [here](https://github.com/FoxWorkshop/ShadowRecomp/issues).
 
 ## FAQ
 
+### Do you have a website?
+
+Shadow Recompiled does not have an official website.
+
+**Please link here when directing anyone to the project.**
+
 > [!CAUTION]
-> Do not download builds of Shadow Recompiled from anywhere but our [Releases](https://github.com/FoxWorkshop/ShadowRecomp/releases) page.
+> Do not download builds of Shadow Recompiled from anywhere but our [Releases](https://github.com/FoxWorkshop/ShadowRecomp/releases/latest) page.
 >
 > **We will never distribute builds on other websites, via Discord servers or via third-party update tools.**
 
 ### Can I install the game using a GameCube / PlayStation 2 version?
 
 **You cannot use the files from the GameCube or PlayStation 2 version of the game.** Supporting these files would require an entirely new recompilation to handle all the differences.
+
+### Where is the save data and configuration file stored?
+
+The save data and configuration files are stored at the following locations:
+
+- Windows: `%APPDATA%\ShadowRecomp\`
+- Linux: `~/.config/ShadowRecomp/`
+
+You will find the save data under the `save` folder. The configuration file is named `config.toml`.
+
+### I want to update the game. How can I avoid losing my save data? Do I need to reinstall the game?
+
+Updating the game can be done by simply copying and replacing the files from a [release](https://github.com/FoxWorkshop/ShadowRecomp/releases) on top of your existing installation. **Your save data and configuration will not be lost.** You won't need to reinstall the game, as the game files will always remain the same across versions of Shadow Recompiled.
+
+### How can I force the game to store the save data and configuration in the installation folder?
+
+You can make the game ignore the default configuration paths and force it to save everything in the installation directory by creating an empty `portable.txt` file. You are directly responsible for the safekeeping of your save data and configuration if you choose this option.
+
+### How can I force the game to run the installation again?
+
+While it's unlikely you'll need to do this unless you've modified your game files by accident, you can force the installer to run again by using the launch argument: `--install`.
 
 ### Why are there line breaks on some of the UI?
 
