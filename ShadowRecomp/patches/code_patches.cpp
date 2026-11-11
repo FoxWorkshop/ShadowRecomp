@@ -298,3 +298,13 @@ bool SelectMenuExpansionMidAsmHook(X86Context& __restrict ctx, uint8_t* base)
 {
     return (Config::SelectModeEnableLastStoryDevilDoomSlots || Config::ReloadedMod) && ctx.esi.u32 == 5 && ctx.edi.u32 == 5;
 }
+
+bool SkipLoadingAnyEventsMidAsmHook(X86Context& __restrict ctx, uint8_t* base)
+{
+    if (!Config::SkipLoadingAnyEvents)
+    {
+        return false;
+    }
+    ctx.esp.u32 += 8;
+    return true;
+}

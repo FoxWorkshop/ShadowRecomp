@@ -3055,3 +3055,8 @@ address = 0x126B49
 [[midasm_hook]]
 name = "PathSplineFixMidAsmHook"
 address = 0x17012A
+
+[[midasm_hook]]
+name = "SkipLoadingAnyEventsMidAsmHook"
+address = 0x23D91B
+jump_address_on_true = 0x23D920
