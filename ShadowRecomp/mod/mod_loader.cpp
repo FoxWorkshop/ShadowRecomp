@@ -116,13 +116,13 @@ std::filesystem::path ModLoader::ResolvePath(std::string_view path)
 
 		for (auto& includeDir : mod.includeDirs)
 		{
-			std::filesystem::path modPath = includeDir / fsPath;
+			std::filesystem::path modPath = (includeDir / fsPath).lexically_normal();
 			if (std::filesystem::exists(modPath))
 				return s_cache.emplace(hash, modPath).first->second;
 		}
 
 		std::filesystem::path commonDir = mod.commonDir;
-		std::filesystem::path modPath = commonDir / fsPath;
+		std::filesystem::path modPath = (commonDir / fsPath).lexically_normal();
 		if (std::filesystem::exists(modPath))
 			return s_cache.emplace(hash, modPath).first->second;
 	}
@@ -446,6 +446,12 @@ static bool ReadTXDFile(const fs::path& path, std::vector<uint8_t>& data)
 }
 
 
+static fs::path JoinModPath(const fs::path& dir, std::string value)
+{
+	std::replace(value.begin(), value.end(), '\\', '/');
+	return (dir / fs::path(value)).lexically_normal();
+}
+
 static bool IsPathInModFolder(const fs::path& modDir, const fs::path& path)
 {
 	std::error_code curError;
@@ -481,7 +487,7 @@ static std::vector<fs::path> GetAppendTXDFiles(const fs::path& modDir, const fs:
 		if (text.empty())
 			continue;
 
-		fs::path path = iniDir / text;
+		fs::path path = JoinModPath(iniDir, text);
 		std::error_code ec;
 
 		// file replacement that point outside mod directory should be ignored for safety
@@ -606,7 +612,7 @@ static void LoadReplaceIni(const fs::path& modDir, const fs::path& iniPath, Mod*
 				continue;
 			}
 
-			fs::path assetPath = iniDir / value;
+			fs::path assetPath = JoinModPath(iniDir, value);
 
 			if (value.empty() || !fs::is_regular_file(assetPath))
 			{
@@ -870,8 +876,6 @@ static void LogIndividualFilesReplacement()
 
 			if (matchesCount == 0)
 				LOGF_IMPL(Error, "Mod Loader", "{}: [{}] {}{} matched no archive, check the names", mod.Name, modwk.archive, modwk.asset, op);
-			else
-				LOGF_IMPL(Utility, "Mod Loader", "{}: [{}] {}{} matched {} archive(s)", mod.Name, modwk.archive, modwk.asset, op, matchesCount);
 		}
 	}
 }
@@ -1271,10 +1275,7 @@ void ModLoader::Init()
 		modinfo->getBool("RedirectMainSave"),
 		};
 
-		std::filesystem::path modGameDir = modDir / "game";
-		std::string modDirStr = modGameDir.string();
-		std::replace(modDirStr.begin(), modDirStr.end(), '\\', '/');
-		modGameDir = modDirStr;
+		std::filesystem::path modGameDir = JoinModPath(modDir, "game");
 
 		bool commonDirExist = false;
 		bool includeDirExist = false;
@@ -1318,7 +1319,7 @@ void ModLoader::Init()
 					if (incDirPath.empty())
 						continue;
 
-					if (!IsPathInModFolder(modDir, modDir / incDirPath))
+					if (!IsPathInModFolder(modDir, JoinModPath(modDir, incDirPath)))
 					{
 						continue;
 					}
@@ -1326,14 +1327,10 @@ void ModLoader::Init()
 					LOGF_IMPL(Utility, "Mod Loader", "Mod {} use config folder {}", reinterpret_cast<const char*>(mod_nameA.c_str()), reinterpret_cast<const char*>(incDirPath.c_str()));
 					includeDirExist = true;
 
-					std::filesystem::path modConfigGameDir = modDir / incDirPath / "game";
-					std::string modDirStr = modConfigGameDir.string();
-					std::replace(modDirStr.begin(), modDirStr.end(), '\\', '/');
-					modConfigGameDir = modDirStr;
+					std::filesystem::path modConfigGameDir = JoinModPath(modDir, incDirPath + "/game");
 					modinf.includeDirs.push_back(modConfigGameDir);
 				}
 			}
-
 		}
 
 

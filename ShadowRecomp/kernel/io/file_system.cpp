@@ -118,14 +118,15 @@ static const DriveMapping& GetDriveMapping(const std::string_view& letter)
 	return fallback;
 }
 
-std::filesystem::path FileSystem::ResolvePath(const std::string_view& path, bool checkForMods)
+std::filesystem::path FileSystem::ResolvePath(const std::string_view& path, bool checkForMods, bool logModFile)
 {
 	if (checkForMods)
 	{
 		std::filesystem::path resolvedPath = ModLoader::ResolvePath(path);
 		if (!resolvedPath.empty())
 		{
-			LOGF_IMPL(Utility, "Mod Loader", "Loading file: \"{}\"", reinterpret_cast<const char*>(resolvedPath.u8string().c_str()));
+			if (logModFile)
+				LOGF_IMPL(Utility, "Mod Loader", "Loading file: \"{}\"", reinterpret_cast<const char*>(resolvedPath.u8string().c_str()));
 			return resolvedPath;
 		}
 	}
@@ -209,7 +210,7 @@ FileHandle* XCreateFile_r(const char* SourceString, ULONG CreateDisposition, ULO
 		break;
 	}
 
-	std::filesystem::path filePath = FileSystem::ResolvePath(SourceString, true);
+	std::filesystem::path filePath = FileSystem::ResolvePath(SourceString, true, true);
 	std::fstream fileStream;
 	std::ios::openmode fileOpenMode = std::ios::binary;
 
