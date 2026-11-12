@@ -2066,7 +2066,7 @@ static void DrawOptions(X86Context* ctx, ImVec2 minClipRect, ImVec2 maxClipRect,
 		DrawOption(ctx, rowCount++, &Config::CutsceneVolume, true, min, max, nullptr, 0.0f, 1.0f, 1.0f);
 		DrawOption(ctx, rowCount++, &Config::MusicAttenuation, os::media::IsSupported(), min, max, &Localise("Options_Desc_OSNotSupported"));
 		DrawOption(ctx, rowCount++, &Config::MuteOnFocusLost, true, min, max);
-		DrawOption(ctx, rowCount++, &Config::IdleChaosPowersMusic, !OptionsMenu::s_isPause, min, max, cmnReason);
+		DrawOption(ctx, rowCount++, &Config::IdleChaosPowersMusic, true, min, max);
 		DrawActionOption(ctx, rowCount++, min, Localise("Options_Name_SoundTest"), Localise("Options_Desc_SoundTest"), !OptionsMenu::s_isPause, cmnReason, OpenSoundTest);
 		break;
 

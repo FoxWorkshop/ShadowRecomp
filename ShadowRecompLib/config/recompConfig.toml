@@ -282,6 +282,7 @@ function_hooks = [
 	0x2549F0,
 	0x255780,
 	0x2595A0,
+	0x25A960,
 	0x25B280,
 	0x25CBB0,
 	0x25E860,
@@ -1215,12 +1216,12 @@ name = "CoasterHangbarCollisionMidAsmHook"
 address = 0x1E95F4
 
 [[midasm_hook]]
-name = "IdleChaosPowersMusicMidAsmHook"
+name = "IdleChaosPowersMusicStartMidAsmHook"
 address = 0x8E925
 jump_address_on_true = 0x8E92A
 
 [[midasm_hook]]
-name = "IdleChaosPowersMusicMidAsmHook"
+name = "IdleChaosPowersMusicStopMidAsmHook"
 address = 0x8EA5E
 jump_address_on_true = 0x8EA63
 

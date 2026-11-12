@@ -304,11 +304,47 @@ void AdxtPauseReloadStatMidAsmHook(X86Context& __restrict ctx, uint8_t* base)
 
 /* --END MUSIC RACE ISSUE PATCH-- */
 
-bool IdleChaosPowersMusicMidAsmHook(X86Context& __restrict ctx, uint8_t* base)
+/* --CHAOS POWER MUSIC OPTION-- */
+static int32_t g_awakeJingle = -1;
+static bool g_awakeThemePlaying = false;
+bool IdleChaosPowersMusicStartMidAsmHook(X86Context& __restrict ctx, uint8_t* base)
 {
-	return !Config::IdleChaosPowersMusic;
+	g_awakeJingle = int32_t(ctx.ecx.u32);
+	g_awakeThemePlaying = Config::IdleChaosPowersMusic;
+	return !g_awakeThemePlaying;
 }
 
+bool IdleChaosPowersMusicStopMidAsmHook(X86Context& __restrict ctx, uint8_t* base)
+{
+	const bool wasPlaying = g_awakeThemePlaying;
+	g_awakeJingle = -1;
+	g_awakeThemePlaying = false;
+	return !wasPlaying;
+}
+
+// ActStageController::Exec
+X86_FUNC_IMPL(__imp__sub_25A960);
+X86_OVERRIDE_FUNC(sub_25A960)
+{
+	const bool chaosPowerMusicEnabled = Config::IdleChaosPowersMusic;
+	if (g_awakeJingle >= 0 && chaosPowerMusicEnabled != g_awakeThemePlaying)
+	{
+		if (!chaosPowerMusicEnabled)
+		{
+			GuestToHostFunction<void, CallConvention::Cdecl>(ctx, sub_25A790, uint32_t(g_awakeJingle));
+			g_awakeThemePlaying = false;
+		}
+		// 0x54DDF0 = music playing flag
+		// 0x54DEC8 = music state (& 0x2 = stopped, invoke restart)
+		else if (X86_LOAD_U8(0x54DDF0) == 0 && (X86_LOAD_U8(0x54DEC8) & 0x2) == 0)
+		{
+			GuestToHostFunction<void, CallConvention::Cdecl>(ctx, sub_25A720, uint32_t(g_awakeJingle));
+			g_awakeThemePlaying = true;
+		}
+	}
+	__imp__sub_25A960(ctx, base);
+}
+/* --END CHAOS POWER MUSIC OPTION-- */
 
 /* --GRIND RAIL SAMPLE PATCH-- */
 
