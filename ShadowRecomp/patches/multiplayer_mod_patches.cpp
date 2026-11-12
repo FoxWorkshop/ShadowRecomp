@@ -2389,6 +2389,7 @@ void IndependentRespawnTickMidAsmHook(X86Context& __restrict ctx, uint8_t* base)
 }
 
 static void ReleaseStaleAreaAttacks(const X86Context& ctx);
+static void UpdatePlayerTargetModes();
 
 // respawn outside the Dead exec
 void MultiplayerPatchesUpdate(X86Context& ctx, uint8_t* base)
@@ -2398,6 +2399,7 @@ void MultiplayerPatchesUpdate(X86Context& ctx, uint8_t* base)
 		return;
 	}
 	ReleaseStaleAreaAttacks(ctx);
+	UpdatePlayerTargetModes();
 	for (uint32_t i = 0; i < 4; i++)
 	{
 		if (!s_respawnReady[i])
@@ -3442,3 +3444,139 @@ void PartnerDespawnCameraMidAsmHook(X86Context& __restrict ctx, uint8_t* base)
 		}
 	}
 }
+
+// Player Target Toggle
+static uint32_t s_targetModePlayers[4] = {};
+static bool s_targetModeHostile[4] = {};
+static uint32_t GetPlayerTargetCollider(uint32_t player)
+{
+	auto base = g_memory.base;
+	const uint32_t target = X86_LOAD_U32(player + 0x24C);
+	const uint32_t ref = target ? X86_LOAD_U32(target + 0x10) : 0;
+	return ref && X86_LOAD_U32(ref + 0x4) ? X86_LOAD_U32(target + 0xC) : 0;
+}
+
+static void UpdatePlayerTargetModes()
+{
+	auto base = g_memory.base;
+	const bool playing = IsStagePlaying();
+	bool anyHostile = false;
+
+	// friendly flag
+	for (auto i = 0; i < g_multiplayerPlayerCount; i++)
+	{
+		const uint32_t player = GetPlayerByNumber(i);
+		if (player != s_targetModePlayers[i])
+		{
+			s_targetModePlayers[i] = player;
+			s_targetModeHostile[i] = false;
+		}
+		const uint32_t port = player ? GetPlayerPort(player) : UINT32_MAX;
+		if (playing && port < 4 && (GetPadSlot(port)->justPressed & PJSPeripheral::BTN_BACK) != 0)
+		{
+			s_targetModeHostile[i] = !s_targetModeHostile[i];
+		}
+		anyHostile |= s_targetModeHostile[i];
+	}
+
+	// target flag
+	for (uint32_t i = 0; i < g_multiplayerPlayerCount; i++)
+	{
+		const uint32_t player = GetPlayerByNumber(i);
+		const uint32_t collider = player ? GetPlayerTargetCollider(player) : 0;
+		if (!collider)
+		{
+			continue;
+		}
+		const uint32_t flags = X86_LOAD_U32(collider + 0x30);
+		const uint32_t wanted = anyHostile ? flags | 0x2C00 : flags & ~0x2C00u;
+		if (wanted != flags)
+		{
+			X86_STORE_U32(collider + 0x30, wanted);
+		}
+	}
+}
+
+// TargetSearch @ 0x8
+// End @ 0x14
+static void DropOtherPlayerTargets(uint32_t searcher, uint32_t number)
+{
+	auto base = g_memory.base;
+	uint32_t colliders[4] = {};
+	for (uint32_t i = 0; i < g_multiplayerPlayerCount; i++)
+	{
+		const uint32_t player = i != number ? GetPlayerByNumber(i) : 0;
+		colliders[i] = player ? GetPlayerTargetCollider(player) : 0;
+	}
+	const uint32_t begin = X86_LOAD_U32(searcher + 0x8);
+	const uint32_t end = X86_LOAD_U32(searcher + 0x14);
+	uint32_t out = begin;
+	for (uint32_t it = begin; it < end; it += 0x4)
+	{
+		const uint32_t entry = X86_LOAD_U32(it);
+		const uint32_t target = entry ? X86_LOAD_U32(entry) : 0;
+		if (target && std::find(std::begin(colliders), std::end(colliders), target) != std::end(colliders))
+		{
+			continue;
+		}
+		X86_STORE_U32(out, entry);
+		out += 0x4;
+	}
+	X86_STORE_U32(searcher + 0x14, out);
+}
+
+static void FilterFriendlySearch(uint32_t searcher, uint32_t number)
+{
+	if (number < g_multiplayerPlayerCount && !s_targetModeHostile[number])
+	{
+		DropOtherPlayerTargets(searcher, number);
+	}
+}
+
+// Target Search Exclude
+X86_FUNC_IMPL(__imp__sub_61300);
+X86_OVERRIDE_FUNC(sub_61300)
+{
+	const uint32_t searcher = ctx.ecx.u32;
+	const uint32_t handle = X86_LOAD_U32(ctx.esp.u32 + 0x4);
+	const uint32_t target = handle ? X86_LOAD_U32(handle) : 0;
+	__imp__sub_61300(ctx, base);
+	if (!Config::ExtendedMultiplayer || !target)
+	{
+		return;
+	}
+	for (uint32_t i = 0; i < g_multiplayerPlayerCount; i++)
+	{
+		const uint32_t player = GetPlayerByNumber(i);
+		if (player && GetPlayerTargetCollider(player) == target)
+		{
+			FilterFriendlySearch(searcher, i);
+			return;
+		}
+	}
+}
+
+// Target Search Exclude (for pWeapon, like lock-on weapons)
+X86_FUNC_IMPL(__imp__sub_61360);
+X86_OVERRIDE_FUNC(sub_61360)
+{
+	const uint32_t searcher = ctx.ecx.u32;
+	const uint32_t handle = X86_LOAD_U32(ctx.esp.u32 + 0x4);
+	const uint32_t owner = handle ? X86_LOAD_U32(handle) : 0;
+	__imp__sub_61360(ctx, base);
+	if (!Config::ExtendedMultiplayer || !owner)
+	{
+		return;
+	}
+	for (uint32_t i = 0; i < g_multiplayerPlayerCount; i++)
+	{
+		const uint32_t player = GetPlayerByNumber(i);
+		const uint32_t collider = player ? GetPlayerTargetCollider(player) : 0;
+		if (player && (owner == player || (collider && X86_LOAD_U32(collider + 0x8) == owner)))
+		{
+			FilterFriendlySearch(searcher, i);
+			return;
+		}
+	}
+}
+// End Player Target Toggle
