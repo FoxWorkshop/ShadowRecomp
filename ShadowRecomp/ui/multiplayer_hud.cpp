@@ -128,7 +128,7 @@ static void DrawCounter(ImDrawList* drawList, float centerX, float y, float unit
 
 static void DrawPlayerCounters(ImDrawList* drawList, const HudRect& rect, const MultiplayerHudCounters& counters, const float alpha)
 {
-    const float unit = std::min(rect.w / 640.0f, rect.h / 480.0f);
+    const float unit = std::min(rect.w / 640.0f, rect.h / 480.0f) * (g_multiplayerPlayerCount == 3 ? 1.5f : 1.0f);
     const float iconSize = 36.0f * unit;
     const float margin = 20.0f * unit;
 
