@@ -1593,9 +1593,36 @@ static void SetRiderCamera(X86Context& ctx, uint8_t* base, uint32_t vehicle)
 }
 
 // GunLift
-void VehicleRiderCameraMidAsmHook(X86Context& __restrict ctx, uint8_t* base)
+void GunLiftMountCameraMidAsmHook(X86Context& __restrict ctx, uint8_t* base)
 {
-	SetRiderCamera(ctx, base, ctx.esi.u32);
+	const uint32_t lift = ctx.esi.u32;
+	const uint32_t camera = X86_LOAD_U32(lift + 0x154);
+	auto it = s_vehicleRiders.find(lift);
+	const uint32_t rider = it != s_vehicleRiders.end() ? it->second : 0;
+	if (!camera || !IsMultiplayerPlayer(rider))
+	{
+		return;
+	}
+	const uint32_t number = X86_LOAD_U32(rider + 0x54);
+	if (X86_LOAD_U32(camera + 0xA4) == number)
+	{
+		return;
+	}
+	const uint32_t out = ctx.esp.u32 + 0x20;
+	GuestToHostFunction<uint32_t, CallConvention::Cdecl>(ctx, sub_2E0E0, out, 0u, number);
+	const uint32_t newCamera = X86_LOAD_U32(out);
+	if (!newCamera)
+	{
+		return;
+	}
+	GuestToHostFunction<uint32_t, CallConvention::Thiscall>(ctx, sub_CD080, newCamera + 0xC4, camera + 0xC4);
+	const uint32_t ref = X86_LOAD_U32(lift + 0x158);
+	X86_STORE_U32(lift + 0x154, newCamera);
+	X86_STORE_U32(lift + 0x158, X86_LOAD_U32(out + 0x4));
+	if (ref)
+	{
+		GuestToHostFunction<void, CallConvention::Thiscall>(ctx, sub_12350, ref);
+	}
 }
 
 // BirdBase

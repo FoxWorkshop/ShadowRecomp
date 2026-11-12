@@ -2903,8 +2903,8 @@ name = "VehicleMountCameraMidAsmHook"
 address = 0x188441
 
 [[midasm_hook]]
-name = "VehicleRiderCameraMidAsmHook"
-address = 0x224F0C
+name = "GunLiftMountCameraMidAsmHook"
+address = 0x223DB8
 
 [[midasm_hook]]
 name = "VehicleBirdCameraMidAsmHook"
