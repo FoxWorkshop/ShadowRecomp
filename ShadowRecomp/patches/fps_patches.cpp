@@ -2034,6 +2034,48 @@ X86_OVERRIDE_FUNC(sub_84E50)
 	__imp__sub_84E50(ctx, base);
 }
 
+// Launch (invoke)
+static thread_local int g_launchRequest = 0;
+X86_FUNC_IMPL(__imp__sub_87760);
+X86_OVERRIDE_FUNC(sub_87760)
+{
+	g_launchRequest++;
+	__imp__sub_87760(ctx, base);
+	g_launchRequest--;
+}
+
+// Player::Behavior::LightDash::End
+X86_FUNC_IMPL(__imp__sub_76FD0);
+X86_OVERRIDE_FUNC(sub_76FD0)
+{
+	const uint32_t lightDash = ctx.ecx.u32;
+	const uint32_t player = X86_LOAD_U32(lightDash + 0x4);
+	bool keepVelocity = false;
+	float velocity[3] = {};
+
+	if (g_launchRequest > 0 && player != NULL)
+	{
+		// stack velocity (for DashRings overlapping with ring trails)
+		float ahead = 0.0f;
+		for (int i = 0; i < 3; i++)
+		{
+			velocity[i] = X86_LOAD_F32(player + 0x1C + i * 4);
+			ahead += (X86_LOAD_F32(lightDash + 0x30 + i * 4) - X86_LOAD_F32(player + 0x4 + i * 4)) * X86_LOAD_F32(lightDash + 0x24 + i * 4);
+		}
+		keepVelocity = ahead <= 0.0f;
+	}
+
+	__imp__sub_76FD0(ctx, base);
+
+	if (keepVelocity)
+	{
+		for (int i = 0; i < 3; i++)
+		{
+			X86_STORE_F32(player + 0x1C + i * 4, velocity[i]);
+		}
+	}
+}
+
 // Player::Behavior::Launch::Start
 X86_FUNC_IMPL(__imp__sub_76DE0);
 X86_OVERRIDE_FUNC(sub_76DE0)
