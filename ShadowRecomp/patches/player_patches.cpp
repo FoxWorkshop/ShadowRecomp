@@ -15,20 +15,6 @@ RwV3d* GetPlayerPos(uint32_t slot)
 	return g_playerStructAddrs[slot] != 0 ? (RwV3d*)g_memory.Translate(g_playerStructAddrs[slot] + 4) : nullptr;
 }
 
-// clear stage Shift+F5
-// TODO: remove before release
-void TriggerGoalAction()
-{
-	static bool f5Held = false;
-	auto base = g_memory.base;
-	bool f5 = SDL_GetKeyboardState(nullptr)[SDL_SCANCODE_F5] != 0;
-	if (f5 && !f5Held && (SDL_GetModState() & SDL_KMOD_SHIFT))
-	{
-		X86_STORE_U32(0x5496C4, 6);
-	}
-	f5Held = f5;
-}
-
 //Awake Set Chaos Control / Blast mode
 X86_FUNC_IMPL(__imp__sub_8E690);
 X86_OVERRIDE_FUNC(sub_8E690)
@@ -108,14 +94,6 @@ X86_OVERRIDE_FUNC(sub_96B50)
 			break;
 		}
 	}
-}
-
-// TODO: remove before release
-X86_FUNC_IMPL(__imp__sub_90D10);
-X86_OVERRIDE_FUNC(sub_90D10)
-{
-	__imp__sub_90D10(ctx, base);
-	TriggerGoalAction();
 }
 
 // Originally clones SHADOW_FOOTEFF_R.DFF 3 times, make it clone a 4th and assign to slot 0x68 (bone 10).
