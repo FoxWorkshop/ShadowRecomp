@@ -29,6 +29,7 @@ namespace RichPresence
             ---------------
         */
 
+        static bool IsPlayingStage();
         static std::string GetStageName();
         static std::string GetMenuStateName();
         static std::string GetModeName();

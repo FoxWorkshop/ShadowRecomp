@@ -59,7 +59,7 @@ namespace RichPresence::ShadowRpc
         // Set Timestamp.
         if (Shadow::GetMenuState() == MenuState::InGame)
         {
-            if (!Shadow::IsGameplayFrozen())
+            if (Shadow::IsPlayingStage())
             {
                 auto stageStartTime = std::time(nullptr) - (int64_t)Shadow::StageTimer();
                 richPresence.startTimestamp = stageStartTime;

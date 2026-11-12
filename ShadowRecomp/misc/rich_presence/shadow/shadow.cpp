@@ -88,6 +88,17 @@ namespace RichPresence
         ---------------
     */
 
+    bool Shadow::IsPlayingStage()
+    {
+        if (GetMenuState() != MenuState::InGame || IsWatchingCutscene() || IsGameplayFrozen())
+            return false;
+
+        if (CurrentMode() == Modes::Menu || !ModeNameDictionary::TryGetValue(CurrentMode()))
+            return false;
+
+        return StageNameDictionary::TryGetValue(StageId()) != nullptr;
+    }
+
     std::string Shadow::GetStageName()
     {
         if (auto stageName = StageNameDictionary::TryGetValue(StageId()))
