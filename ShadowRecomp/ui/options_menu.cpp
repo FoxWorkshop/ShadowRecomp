@@ -1519,7 +1519,9 @@ static const std::pair<const char*, ConfigDef<SDL_Scancode>*> g_keyboardBindings
 	{ "Input_Button_RightStickLeft", &Config::Key_RightStickLeft },
 	{ "Input_Button_RightStickRight", &Config::Key_RightStickRight },
 	{ "Input_Button_White", &Config::Key_LeftBumper },
-	{ "Input_Button_Black", &Config::Key_RightBumper }
+	{ "Input_Button_Black", &Config::Key_RightBumper },
+	{ "Input_Button_LeftStickClick", &Config::Key_LeftThumb },
+	{ "Input_Button_RightStickClick", &Config::Key_RightThumb }
 };
 
 // we can use universal name for some buttons, the rest should use localisation.

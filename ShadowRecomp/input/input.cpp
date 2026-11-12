@@ -346,6 +346,12 @@ public:
 
 		if (keystate[Config::Key_Start])
 			state.wButtons |= XINPUT_GAMEPAD_START;
+		if (keystate[Config::Key_Back])
+			state.wButtons |= XINPUT_GAMEPAD_BACK;
+		if (keystate[Config::Key_LeftThumb])
+			state.wButtons |= XINPUT_GAMEPAD_LEFT_THUMB;
+		if (keystate[Config::Key_RightThumb])
+			state.wButtons |= XINPUT_GAMEPAD_RIGHT_THUMB;
 
 		if (keystate[Config::Key_DPadUp])
 			state.wButtons |= XINPUT_GAMEPAD_DPAD_UP;

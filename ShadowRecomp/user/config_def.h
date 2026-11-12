@@ -45,6 +45,8 @@ CONFIG_DEFINE_ENUM("Bindings", SDL_Scancode, Key_LeftTrigger, SDL_SCANCODE_Q, fa
 CONFIG_DEFINE_ENUM("Bindings", SDL_Scancode, Key_RightTrigger, SDL_SCANCODE_W, false);
 CONFIG_DEFINE_ENUM("Bindings", SDL_Scancode, Key_LeftBumper, SDL_SCANCODE_E, false);
 CONFIG_DEFINE_ENUM("Bindings", SDL_Scancode, Key_RightBumper, SDL_SCANCODE_D, false);
+CONFIG_DEFINE_ENUM("Bindings", SDL_Scancode, Key_LeftThumb, SDL_SCANCODE_COMMA, false);
+CONFIG_DEFINE_ENUM("Bindings", SDL_Scancode, Key_RightThumb, SDL_SCANCODE_PERIOD, false);
 CONFIG_DEFINE_ENUM("Bindings", SDL_Scancode, Key_LeftStickUp, SDL_SCANCODE_UP, false);
 CONFIG_DEFINE_ENUM("Bindings", SDL_Scancode, Key_LeftStickDown, SDL_SCANCODE_DOWN, false);
 CONFIG_DEFINE_ENUM("Bindings", SDL_Scancode, Key_LeftStickLeft, SDL_SCANCODE_LEFT, false);
