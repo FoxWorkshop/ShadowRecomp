@@ -13,6 +13,7 @@
 #include <gpu/frame_pacing/timer_resolution.h>
 #include <input/input.h>
 #include <patches/multiplayer_mod_patches.h>
+#include <misc/rich_presence/shadow_rpc.h>
 
 static std::thread::id g_mainThreadId = std::this_thread::get_id();
 
@@ -24,6 +25,7 @@ void App::Restart(std::vector<std::string> restartArgs)
 
 void App::Exit()
 {
+	RichPresence::ShadowRpc::Stop();
 	Video::Shutdown();
 	AudioShutDown();
 	Config::Save();

@@ -18,6 +18,11 @@ static uint32_t g_unlockedRefRate = 0; // last measured fps
 
 static bool g_isEventPlaying = false; // Note for future self, we CANNOT use this for audio detection
 
+bool IsEventPlaying()
+{
+	return g_isEventPlaying;
+}
+
 static bool IsCutsceneFramerateUnlocked()
 {
 	return Config::CutsceneFramerate == ECutsceneFramerate::Unlocked;

@@ -31,6 +31,7 @@
 #include <gpu/frame_pacing/timer_resolution.h>
 #include <patches/pause_patches.h>
 #include <patches/bloom_patches.h>
+#include <misc/rich_presence/shadow_rpc.h>
 
 
 #if defined(_WIN32) && defined(SHADOW_RECOMP_D3D12)
@@ -362,6 +363,7 @@ int main(int argc, char* argv[])
     MultiplayerPatchesInit();
     PausePatchesInit();
     BloomConfigValueChangedCallback(&Config::BloomIntensity);
+    RichPresence::ShadowRpc::Start();
 
     //launch the Start function of the game
     isHostThread = true;
