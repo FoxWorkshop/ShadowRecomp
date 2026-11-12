@@ -18,6 +18,7 @@ The development of that recompiler was directly inspired by [XenonRecomp](https:
 - [Features](#features)
 - [Known Issues](#known-issues)
 - [FAQ](#faq)
+- [Controls] (#controls)
 - [Building](#building)
 - [Credits](#credits)
 
@@ -146,6 +147,47 @@ The Xbox version of the game has several missing sound effects. See [details her
 ### What other platforms will be supported?
 
 This project does not plan to support any more platforms other than Windows and Linux at the moment. Any contributors who wish to support more platforms should do so through a fork.
+
+## Controls
+
+Default control scheme for keyboard. We loosely follow the Dolphin Emulator default keyboard scheme, adapted to Xbox. You can remap to your liking within the in-game options or by editing your config directly.
+
+| Hotkey | Action |
+|---|---|
+| Alt+Enter | Toggle fullscreen/windowed mode |
+| Ctrl+1 | Keyboard controls port 1 |
+| Ctrl+2 | Keyboard controls port 2 |
+| Ctrl+3 | Keyboard controls port 3 |
+| Ctrl+4 | Keyboard controls port 4 |
+| F1 | Toggle profiler |
+| F8 | Toggle HUD |
+
+| Game | Keyboard |
+|---|---|
+| A | X |
+| B | C |
+| X | Z |
+| Y | S |
+| D-Pad Up | T |
+| D-Pad Down | G |
+| D-Pad Left | F |
+| D-Pad Right | H |
+| Start | Enter |
+| Back | Backspace |
+| Left Trigger | Q |
+| Right Trigger | W |
+| Left Bumper | E |
+| Right Bumper | D |
+| Left Stick Click | , |
+| Right Stick Click | . |
+| Left Stick Up | Up Arrow |
+| Left Stick Down | Down Arrow |
+| Left Stick Left | Left Arrow |
+| Left Stick Right | Right Arrow |
+| Right Stick Up | I |
+| Right Stick Down | K |
+| Right Stick Left | J |
+| Right Stick Right | L |
 
 ## Building
 

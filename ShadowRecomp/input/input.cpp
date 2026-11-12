@@ -680,9 +680,10 @@ bool Input_OnSDLEvent(void*, SDL_Event* event)
 	}
 
 	case SDL_EVENT_KEY_DOWN:
-		if (event->key.scancode == SDL_SCANCODE_F6 && (event->key.mod & SDL_KMOD_SHIFT) && !event->key.repeat)
+		if ((event->key.mod & SDL_KMOD_CTRL) && !event->key.repeat &&
+			event->key.scancode >= SDL_SCANCODE_1 && event->key.scancode <= SDL_SCANCODE_4)
 		{
-			g_keyboardPort = (g_keyboardPort % 4) + 1;
+			g_keyboardPort = event->key.scancode - SDL_SCANCODE_1 + 1;
 			LOGFN("Keyboard now controlling PORT {}", g_keyboardPort);
 		}
 		if (event->key.scancode == SDL_SCANCODE_F7 && !event->key.repeat)
