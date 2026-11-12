@@ -264,8 +264,41 @@ bool CarRevampMidAsmHook(X86Context& __restrict ctx, uint8_t* base)
 	return Config::ReloadedMod;
 }
 
-// TODO: I may want to rework this later to drift with LB and RB, but tabling that for now
-bool CarNoDriftMidAsmHook(X86Context& __restrict ctx, uint8_t* base)
+bool CarDriftHoldableMidAsmHook(X86Context& __restrict ctx, uint8_t* base)
+{
+	if (!Config::ReloadedMod)
+	{
+		return false;
+	}
+
+	const uint32_t car = ctx.edi.u32;
+	const float dt = X86_LOAD_F32(ctx.esp.u32 + 0x14);
+	const auto* pad = GetPadSlot(X86_LOAD_U32(car + 0x260));
+	const bool held = pad && (pad->buttons & (PJSPeripheral::BTN_WHITE | PJSPeripheral::BTN_BLACK)) != 0;
+	const float drift = X86_LOAD_F32(car + 0x70);
+
+	// ease back
+	const float pitchRate = X86_LOAD_F32(0x51CD50 + X86_LOAD_U32(car + 0x25C) * 0xAC);
+	X86_STORE_F32(car + 0x7C, std::max(X86_LOAD_F32(car + 0x7C) - pitchRate * dt, 0.0f));
+
+	// remove the broken 'drift exit' timers that they never finished
+	X86_STORE_F32(car + 0x74, 0.0f);
+	X86_STORE_F32(car + 0x78, 0.0f);
+	if (held)
+	{
+		X86_STORE_F32(car + 0x70, std::max(drift, 0.0f) + dt);
+	}
+	else if (drift > 0.0f)
+	{
+		// mark drift end
+		X86_STORE_F32(car + 0x70, 0.0f);
+		X86_STORE_U8(car + 0x2B4, 1);
+	}
+	return true;
+}
+
+// Fix steering during drift
+bool CarDriftRecoverySteerMidAsmHook(X86Context& __restrict ctx, uint8_t* base)
 {
 	return Config::ReloadedMod;
 }

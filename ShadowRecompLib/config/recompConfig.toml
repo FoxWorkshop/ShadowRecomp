@@ -1435,9 +1435,14 @@ address = 0x242074
 jump_address_on_true = 0x24207A
 
 [[midasm_hook]]
-name = "CarNoDriftMidAsmHook"
-address = 0x243FD2
+name = "CarDriftHoldableMidAsmHook"
+address = 0x243EB6
 jump_address_on_true = 0x244015
+
+[[midasm_hook]]
+name = "CarDriftRecoverySteerMidAsmHook"
+address = 0x2421C6
+jump_address_on_true = 0x2421D0
 
 [[midasm_hook]]
 name = "AirSaucerJumpMidAsmHook"
