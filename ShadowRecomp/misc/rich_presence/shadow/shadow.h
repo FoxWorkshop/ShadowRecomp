@@ -30,6 +30,7 @@ namespace RichPresence
         */
 
         static bool IsPlayingStage();
+        static bool IsBossStage();
         static std::string GetStageName();
         static std::string GetMenuStateName();
         static std::string GetModeName();

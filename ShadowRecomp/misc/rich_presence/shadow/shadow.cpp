@@ -99,6 +99,14 @@ namespace RichPresence
         return StageNameDictionary::TryGetValue(StageId()) != nullptr;
     }
 
+    bool Shadow::IsBossStage()
+    {
+        int32_t stage = (int32_t)StageId() % 100;
+        return StageId() >= StageID::LethalHighwayBlackBull
+            && StageId() <= StageID::DevilDoom
+            && stage >= 10 && stage <= 18;
+    }
+
     std::string Shadow::GetStageName()
     {
         if (auto stageName = StageNameDictionary::TryGetValue(StageId()))

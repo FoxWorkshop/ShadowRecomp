@@ -29,31 +29,47 @@ namespace RichPresence::ShadowRpc
         std::string details;
         std::string state;
 
-        // Details
-        if (Shadow::IsWatchingCutscene())
+        // Menus
+        if (Shadow::CurrentMode() == Modes::Menu)
+        {
+            details = Shadow::GetMenuStateName();
+            if (details.empty())
+                details = "In Menu";
+        }
+
+        // Library events
+        else if (Shadow::GetModeName().empty())
+        {
+            details = "Watching Cutscenes";
+        }
+
+        // Cutscenes
+        else if (Shadow::IsWatchingCutscene())
+        {
             details = "Watching Cutscene";
-        else if (Shadow::CurrentMode() == Modes::Menu)
-            details = "Navigating Menu";
+        }
+
+        // Loading
+        else if (Shadow::GetStageName().empty())
+        {
+            details = "Loading…";
+        }
+
+        // Normal Game
         else
+        {
             details = Shadow::GetStageName();
 
-        // Game State
-        {
-            // Normal Game
-            if (!Shadow::IsWatchingCutscene() && Shadow::CurrentMode() != Modes::Menu)
-                state = Shadow::GetCurrentMissionName();
-
-            // Expert Mode
-            if (!Shadow::IsWatchingCutscene() && Shadow::CurrentMode() == Modes::ExpertMode)
-                state = Shadow::GetModeName();
-
-            // Menus
-            if (Shadow::CurrentMode() == Modes::Menu)
-                state = Shadow::GetMenuStateName();
-
-            // Paused
             if (Shadow::IsGameplayFrozen())
                 state = "Paused";
+            else if (Shadow::CurrentMode() == Modes::TwoPlayer)
+                state = "Duking it Out!";
+            else if (Shadow::IsBossStage())
+                state = "Boss Fight!";
+            else if (Shadow::CurrentMode() == Modes::ExpertMode)
+                state = Shadow::GetModeName();
+            else
+                state = Shadow::GetCurrentMissionName();
         }
 
         // Set Timestamp.
