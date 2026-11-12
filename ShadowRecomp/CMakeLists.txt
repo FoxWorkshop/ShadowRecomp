@@ -544,6 +544,8 @@ BIN2C(TARGET_OBJ ShadowRecomp SOURCE_FILE "${RESOURCES_SOURCE_PATH}/images/commo
 BIN2C(TARGET_OBJ ShadowRecomp SOURCE_FILE "${RESOURCES_SOURCE_PATH}/images/common/mp_hud_ammo.png" DEST_FILE "${RESOURCES_OUTPUT_PATH}/images/common/mp_hud_ammo.png" ARRAY_NAME "g_mpHudAmmo" COMPRESSION_TYPE "zstd")
 BIN2C(TARGET_OBJ ShadowRecomp SOURCE_FILE "${RESOURCES_SOURCE_PATH}/images/common/mp_hud_ammo_types.png" DEST_FILE "${RESOURCES_OUTPUT_PATH}/images/common/mp_hud_ammo_types.png" ARRAY_NAME "g_mpHudAmmoTypes" COMPRESSION_TYPE "zstd")
 BIN2C(TARGET_OBJ ShadowRecomp SOURCE_FILE "${RESOURCES_SOURCE_PATH}/images/common/mp_hud_digits.png" DEST_FILE "${RESOURCES_OUTPUT_PATH}/images/common/mp_hud_digits.png" ARRAY_NAME "g_mpHudDigits" COMPRESSION_TYPE "zstd")
+BIN2C(TARGET_OBJ ShadowRecomp SOURCE_FILE "${RESOURCES_SOURCE_PATH}/images/common/mp_hud_meter.png" DEST_FILE "${RESOURCES_OUTPUT_PATH}/images/common/mp_hud_meter.png" ARRAY_NAME "g_mpHudMeter" COMPRESSION_TYPE "zstd")
+BIN2C(TARGET_OBJ ShadowRecomp SOURCE_FILE "${RESOURCES_SOURCE_PATH}/images/common/mp_hud_mission.png" DEST_FILE "${RESOURCES_OUTPUT_PATH}/images/common/mp_hud_mission.png" ARRAY_NAME "g_mpHudMission" COMPRESSION_TYPE "zstd")
 
 ## Installer ##
 BIN2C(TARGET_OBJ ShadowRecomp SOURCE_FILE "${RESOURCES_SOURCE_PATH}/images/installer/FoxLogo.png" DEST_FILE "${RESOURCES_OUTPUT_PATH}/images/installer/FoxLogo.png" ARRAY_NAME "g_foxLogo" COMPRESSION_TYPE "zstd")

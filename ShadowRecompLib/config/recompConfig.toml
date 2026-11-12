@@ -2712,6 +2712,16 @@ name = "MultiplayerHudCounterSkipMidAsmHook"
 address = 0x27EF1E
 jump_address_on_true = 0x27F307
 
+[[midasm_hook]]
+name = "MultiplayerHudTimerSkipMidAsmHook"
+address = 0x27FE32
+jump_address_on_true = 0x2803A0
+
+[[midasm_hook]]
+name = "MultiplayerHudMissionMidAsmHook"
+address = 0x284B1F
+jump_address_on_true = 0x284BD7
+
 # Keep Chaos Powers & Score on Player Death
 [[midasm_hook]]
 name = "KeepChaosPowersOnDeathMidAsmHook"

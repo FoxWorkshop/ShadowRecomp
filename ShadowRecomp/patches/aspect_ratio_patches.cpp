@@ -381,9 +381,24 @@ static bool IsMultiplayerHudHiddenScene(uint32_t scene)
 		HashStr("csdFiles/2P_CommandWindow.xncp/Weapon"),
 		HashStr("csdFiles/2P_CommandWindow.xncp/Window"),
 		HashStr("csdFiles/2P_Star.xncp/Star"),
+		HashStr("csdFiles/HeroGauge.xncp/Scene_0000"),
+		HashStr("csdFiles/DarkGauge.xncp/Scene_0000"),
+		HashStr("csdFiles/TWindow.xncp/TargetWindow/TargetDark"),
+		HashStr("csdFiles/TWindow.xncp/TargetWindow/TargetHero"),
+		HashStr("csdFiles/Hissatu_Hero.xncp/HissatuHero"),
+		HashStr("csdFiles/Hissatu_Dark.xncp/HissatuDark"),
 	};
 	const auto path = FindCsdPath(scene);
-	return path.has_value() && std::find(std::begin(s_hidden), std::end(s_hidden), path.value()) != std::end(s_hidden);
+	if (!path.has_value())
+	{
+		return false;
+	}
+	if (path.value() == HashStr("csdFiles/BossGauge.xncp/Scene_0000"))
+	{
+		NotifyMultiplayerHudBossGauge();
+		return true;
+	}
+	return std::find(std::begin(s_hidden), std::end(s_hidden), path.value()) != std::end(s_hidden);
 }
 
 // Chao::CSD::Scene::Render

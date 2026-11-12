@@ -1960,6 +1960,63 @@ bool GetMultiplayerHudCounters(uint32_t number, MultiplayerHudCounters& counters
 	return true;
 }
 
+static MultiplayerHudMission s_hudMission[2] = {};
+static bool s_hudBossGauge = false;
+
+// matching flag 0x5595E8
+void NotifyMultiplayerHudBossGauge()
+{
+	s_hudBossGauge = true;
+}
+
+bool MultiplayerHudTimerSkipMidAsmHook(X86Context& __restrict ctx, uint8_t* base)
+{
+	return IsExtraPlayerMode();
+}
+
+bool MultiplayerHudMissionMidAsmHook(X86Context& __restrict ctx, uint8_t* base)
+{
+	if (!IsExtraPlayerMode())
+	{
+		return false;
+	}
+	if (ctx.ebx.u32 < 2)
+	{
+		s_hudMission[ctx.ebx.u32] = { true, int32_t(X86_LOAD_U32(ctx.esp.u32 + 0x8)), int32_t(X86_LOAD_U32(ctx.esp.u32 + 0xC)) };
+	}
+	ctx.esp.u32 += 0x10;
+	return true;
+}
+
+static float GetHudGauge(uint32_t gauge)
+{
+	auto base = g_memory.base;
+	const int32_t value = X86_LOAD_U32(gauge);
+	const int32_t max = X86_LOAD_U32(gauge + 0x4);
+	return max > 0 ? std::clamp(float(value) / float(max), 0.0f, 1.0f) : 0.0f;
+}
+
+void GetMultiplayerHudShared(MultiplayerHudShared& shared)
+{
+	auto base = g_memory.base;
+	shared = {};
+	const bool limit = X86_LOAD_F32(0x54DDCC) > 0.0f && X86_LOAD_U8(0x54DE7A) != 0;
+	shared.time = X86_LOAD_F32(limit ? 0x54DDD0 : 0x54DDC4); // time limits shown (space gadget, central city, cosmic fall)
+	const uint32_t gameState = X86_LOAD_U32(0x54963C);
+	if (gameState)
+	{
+		shared.heroGauge = GetHudGauge(gameState + 0x70C);
+		shared.darkGauge = GetHudGauge(gameState + 0x718);
+	}
+	shared.dark = s_hudMission[0];
+	shared.hero = s_hudMission[1];
+	s_hudMission[0].visible = false;
+	s_hudMission[1].visible = false;
+	shared.bossVisible = s_hudBossGauge;
+	shared.bossGauge = std::clamp(float(X86_LOAD_F32(0x5595EC)), 0.0f, 1.0f);
+	s_hudBossGauge = false;
+}
+
 X86_FUNC_IMPL(__imp__sub_173AF0);
 X86_OVERRIDE_FUNC(sub_173AF0)
 {
