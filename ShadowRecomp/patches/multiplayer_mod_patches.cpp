@@ -579,11 +579,11 @@ void ViewportExtendedPlayerCalcOverrideMidAsmHook(X86Context& __restrict ctx, ui
 		uint32_t dimAdiv = dimA / g_multiplayerPlayerCount;
 
 		X86_STORE_U32(0x4E5E10, x);
-		X86_STORE_U32(0x4E5E18, w);
+		X86_STORE_U32(0x4E5E18, screenWidth - x);
 		X86_STORE_U32(0x4E5E1C, screenHeight);
 		X86_STORE_U32(0x4E5E20, 2 * dimAdiv); // P3 2D x
 		X86_STORE_U32(0x4E5E24, 0);
-		X86_STORE_U32(0x4E5E28, dimAdiv); // P3 2D width
+		X86_STORE_U32(0x4E5E28, dimA - 2 * dimAdiv); // P3 2D width (gets the excess pixels since / 3)
 		X86_STORE_U32(0x4E5E2C, dimB);
 		X86_STORE_U32(0x4E5E44, screenHeight);
 		X86_STORE_U32(0x4E5E48, w);
