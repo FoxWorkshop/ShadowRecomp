@@ -566,3 +566,57 @@ void GrindRailExitVelocityMidAsmHook(X86Context& __restrict ctx, uint8_t* base)
 
 // Stub the double apply (exit already handles jump) leading to awkward fling
 void GrindRailJumpVelocityMidAsmHook(X86Context& __restrict ctx, uint8_t* base) {}
+
+// Material Animation shared bug
+// Effects are per viewport, but some things are per object
+// shared materials advance once per frame
+static uint32_t s_playerMaterialAnimCall = 0;
+static uint32_t s_playerMaterialAnimCounter = 0;
+static std::unordered_map<uint32_t, std::pair<int32_t, uint32_t>> s_playerMaterialAnims;
+
+void PlayerMaterialAnimBeginMidAsmHook(X86Context& __restrict ctx, uint8_t* base)
+{
+	if (Config::ExtendedMultiplayer)
+	{
+		s_playerMaterialAnimCall = ++s_playerMaterialAnimCounter;
+	}
+}
+
+void PlayerMaterialAnimEndMidAsmHook(X86Context& __restrict ctx, uint8_t* base)
+{
+	s_playerMaterialAnimCall = 0;
+}
+
+// Vehicles materials cycle fix (not per viewport, but PER OBJECT)
+X86_FUNC_IMPL(__imp__sub_269E90);
+X86_OVERRIDE_FUNC(sub_269E90)
+{
+	s_playerMaterialAnimCall = ++s_playerMaterialAnimCounter;
+	__imp__sub_269E90(ctx, base);
+	s_playerMaterialAnimCall = 0;
+}
+
+// Fix effect cycling per viewport (wtf), super and chaos auras mainly
+X86_FUNC_IMPL(__imp__sub_27250);
+X86_OVERRIDE_FUNC(sub_27250)
+{
+	const uint32_t material = X86_LOAD_U32(ctx.esp.u32 + 0x4);
+	const uint32_t args = X86_LOAD_U32(ctx.esp.u32 + 0x8);
+	if (s_playerMaterialAnimCall != 0 && X86_LOAD_F32(args + 0x4) < 0.0f)
+	{
+		const int32_t frame = X86_LOAD_U32(0x54DDB8);
+		if (s_playerMaterialAnims.size() > 0x1000)
+		{
+			s_playerMaterialAnims.clear();
+		}
+		auto [it, inserted] = s_playerMaterialAnims.try_emplace(material, frame, s_playerMaterialAnimCall);
+		if (!inserted && it->second.first == frame && it->second.second != s_playerMaterialAnimCall)
+		{
+			ctx.eax.u32 = material;
+			ctx.esp.u32 += 4;
+			return;
+		}
+		it->second = { frame, s_playerMaterialAnimCall };
+	}
+	__imp__sub_27250(ctx, base);
+}
