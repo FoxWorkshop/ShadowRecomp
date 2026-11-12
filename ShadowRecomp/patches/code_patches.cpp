@@ -11,6 +11,14 @@ void CodeValuePatches()
         X86_STORE_U32(0x478EF0, 0x1B); // Last Way below Final Haunt
         X86_STORE_U32(0x478F90, 0x2C); // Devil Doom right of Last Way
     }
+    if (Config::AllPartnersCanHomingAttack)
+    {
+        for (uint32_t character = 2; character <= 10; character++)
+        {
+            X86_STORE_U8(0x449D68 + character * 0x2C, 1); // homing attack
+        }
+        X86_STORE_U8(0x449EF5, 1); // maria jumpdash
+    }
 }
 
 // Vacuum gives score + hero points on sucking up fire
