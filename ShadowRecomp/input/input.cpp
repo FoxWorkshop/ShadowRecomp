@@ -300,7 +300,8 @@ static void MapPadButtons(const PadSnapshot& snapshot, uint32_t playerIndex, XIN
 std::array<Controller, 4> g_controllers;
 Controller* g_activeController;
 uint32_t g_keyboardPort = 1;
-std::atomic<bool> g_chaosControlHoldCheat = false; // remove before release, dev use only (not the same as the CC code)
+std::atomic<bool> g_chaosControlHoldCheat = false;
+std::atomic<bool> g_chaosBlastHoldCheat = false;
 
 class KeyboardController
 {
@@ -686,9 +687,13 @@ bool Input_OnSDLEvent(void*, SDL_Event* event)
 			g_keyboardPort = event->key.scancode - SDL_SCANCODE_1 + 1;
 			LOGFN("Keyboard now controlling PORT {}", g_keyboardPort);
 		}
-		if (event->key.scancode == SDL_SCANCODE_F7 && !event->key.repeat)
+		if (event->key.scancode == SDL_SCANCODE_F7 && !event->key.repeat && Config::FillChaosControlGaugeOnInput)
 		{
 			g_chaosControlHoldCheat = !g_chaosControlHoldCheat;
+		}
+		if (event->key.scancode == SDL_SCANCODE_F6 && !event->key.repeat && Config::FillChaosBlastGaugeOnInput)
+		{
+			g_chaosBlastHoldCheat = !g_chaosBlastHoldCheat;
 		}
 		input::g_inputDevice = input::EInputDevice::Keyboard;
 		break;
@@ -809,14 +814,6 @@ uint32_t input::GetState(uint32_t dwUserIndex, XINPUT_STATE* pState)
 
 	if (IsInputAllowed())
 	{
-		// TODO: Remove before release
-		if (dwUserIndex == 1 && g_chaosControlHoldCheat)
-		{
-			auto base = g_memory.base;
-			X86_STORE_U32(0x5456C4, X86_LOAD_U32(0x5456C8));
-		}
-		// TODO: END Remove before release
-
 		if (snapshot.connected)
 		{
 			MapPadButtons(snapshot, dwUserIndex - 1, pState->Gamepad);

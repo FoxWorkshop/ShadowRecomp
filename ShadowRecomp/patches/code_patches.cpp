@@ -117,9 +117,12 @@ X86_OVERRIDE_FUNC(sub_977D0)
 }
 
 // Chaos Gauge Fill Cheat
-// RB + R fills the hero gauge, RB + L fills the dark one.
+// RB + R (or F7) fills the hero gauge, RB + L (or F6) fills the dark one.
 static constexpr uint32_t HeroGaugeOffset = 0x70C;
 static constexpr uint32_t DarkGaugeOffset = 0x718;
+
+extern std::atomic<bool> g_chaosControlHoldCheat;
+extern std::atomic<bool> g_chaosBlastHoldCheat;
 
 static bool s_heroComboHeld[4] = {};
 static bool s_darkComboHeld[4] = {};
@@ -143,6 +146,11 @@ static void HandleChaosGaugeCheat(X86Context& ctx, uint8_t* base)
 {
     const bool isCCCheat = Config::FillChaosControlGaugeOnInput;
     const bool isCBCheat = Config::FillChaosBlastGaugeOnInput;
+
+    if (isCCCheat && g_chaosControlHoldCheat)
+        FillChaosGauge(HeroGaugeOffset, 0);
+    if (isCBCheat && g_chaosBlastHoldCheat)
+        FillChaosGauge(DarkGaugeOffset, 0);
 
     if (isCCCheat || isCBCheat)
     {
