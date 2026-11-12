@@ -7,7 +7,9 @@
 //
 // Differences from the original:
 //   - The "offensive captions" setting is not ported.
-//   - Uses Discord's `discord-rpc` library instead of the `DiscordRichPresence` NuGet package.
+//   - Fixed handling of FMVs.
+//   - Minor presentation changes.
+//   - Handle missions at end of story properly (e.g. no Neutral in Lava Shelter)
 
 namespace RichPresence::ShadowRpc
 {
