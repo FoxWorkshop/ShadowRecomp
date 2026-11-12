@@ -334,3 +334,27 @@ bool SkipLoadingAnyEventsMidAsmHook(X86Context& __restrict ctx, uint8_t* base)
     ctx.esp.u32 += 8;
     return true;
 }
+
+// Single Frame Invuln/Recovery
+bool SingleFrameInvulnMidAsmHook(X86Context& __restrict ctx, uint8_t* base)
+{
+    return Config::SingleFrameInvulnRecovery;
+}
+
+// make state 1 skip the flag 0x25 check
+bool DamageSkipFlagMidAsmHook(X86Context& __restrict ctx, uint8_t* base)
+{
+    return Config::SingleFrameInvulnRecovery;
+}
+
+// jump to recovery branch
+bool DamageImmediateRecoverMidAsmHook(X86Context& __restrict ctx, uint8_t* base)
+{
+    if (!Config::SingleFrameInvulnRecovery)
+    {
+        return false;
+    }
+    X86_STORE_U32(ctx.esi.u32 + 0x1C, 2);
+    X86_STORE_U32(ctx.esi.u32 + 0x20, 1);
+    return true;
+}

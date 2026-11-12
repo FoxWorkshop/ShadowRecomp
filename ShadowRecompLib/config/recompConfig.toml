@@ -3154,6 +3154,23 @@ name = "ShadowAndroidsVehicleWeaponMidAsmHook"
 address = 0xA4B81
 jump_address_on_true = 0xA4B87
 
+## Single Frame Invuln/Recovery
+[[midasm_hook]]
+name = "SingleFrameInvulnMidAsmHook"
+address = 0x6A760
+jump_address_on_true = 0x6A792
+
+[[midasm_hook]]
+name = "DamageSkipFlagMidAsmHook"
+address = 0x6CF3C
+jump_address_on_true = 0x6CF44
+
+[[midasm_hook]]
+name = "DamageImmediateRecoverMidAsmHook"
+address = 0x6CF95
+jump_address_on_true = 0x6CFB9
+## end Single Frame Invuln/Recovery
+
 [[midasm_hook]]
 name = "LarvaMotionSpeedMidAsmHook"
 address = 0x138C09
