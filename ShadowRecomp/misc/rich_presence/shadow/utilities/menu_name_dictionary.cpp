@@ -17,7 +17,7 @@ namespace RichPresence::MenuNameDictionary
             case MenuState::SelectMode:      return "Picking a Stage!";
             case MenuState::TwoPlayer:       return "Setting up 2P with a Buddy!";
 
-            case MenuState::OpeningMovie:    return "Watching Cutscenes";
+            case MenuState::OpeningMovie:    return "Watching Cutscene";
             case MenuState::BootMessage:     return "Booting Up";
             case MenuState::Logos:           return "Looking at Cool Logos";
         }

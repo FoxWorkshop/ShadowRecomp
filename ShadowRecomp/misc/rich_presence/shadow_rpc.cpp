@@ -40,7 +40,7 @@ namespace RichPresence::ShadowRpc
         // Library events
         else if (Shadow::GetModeName().empty())
         {
-            details = "Watching Cutscenes";
+            details = "Watching Cutscene";
         }
 
         // Cutscenes
