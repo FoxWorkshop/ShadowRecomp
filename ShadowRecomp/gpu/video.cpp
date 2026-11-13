@@ -334,10 +334,9 @@ static Profiler g_renderDirectorProfiler;
 static Profiler g_frameFenceProfiler;
 static Profiler g_presentWaitProfiler;
 static Profiler g_swapChainAcquireProfiler;
-static Profiler g_executeCmdListWaitProfiler;
-static Profiler g_beginCmdListWaitProfiler;
+static Profiler g_frameEndWaitProfiler;
 
-// --- Per-frame command counters (reset at ExecuteCommandList) ---
+// --- Per-frame command counters (reset at EndFrame) ---
 // Render thread only, so plain integers: a lock-prefixed add per command is measurable.
 static uint32_t g_drawCallCount = 0;      // DrawPrimitive + DrawIndexedPrimitive + DrawPrimitiveUP
 static uint32_t g_stateChangeCount = 0;   // All non-draw, non-frame-boundary commands
@@ -576,9 +575,20 @@ struct IntermediaryUploadAllocator
 	}
 };
 
-static IntermediaryUploadAllocator g_intermediaryUploadAllocator;
+static std::atomic<uint32_t> g_gameFrame{ 0 };
 
-static StagedBufferUploadAllocator g_stagedBufferUploads[NUM_FRAMES];
+static IntermediaryUploadAllocator g_intermediaryUploadAllocators[3];
+static StagedBufferUploadAllocator g_stagedBufferUploads[4];
+
+static IntermediaryUploadAllocator& GameFrameUploads()
+{
+	return g_intermediaryUploadAllocators[g_gameFrame.load(std::memory_order_relaxed) % std::size(g_intermediaryUploadAllocators)];
+}
+
+static StagedBufferUploadAllocator& GameFrameStagedUploads()
+{
+	return g_stagedBufferUploads[g_gameFrame.load(std::memory_order_relaxed) % std::size(g_stagedBufferUploads)];
+}
 
 static std::vector<GuestResource*> g_tempResources[NUM_FRAMES];
 static std::vector<std::unique_ptr<RenderBuffer>> g_tempBuffers[NUM_FRAMES];
@@ -617,7 +627,7 @@ bool Video::is_vulkan()
 
 uint8_t* AllocIntermediaryUploadMemoryWrapper(const void* memory, uint32_t size)
 {
-	return g_intermediaryUploadAllocator.allocate(memory, size);
+	return GameFrameUploads().allocate(memory, size);
 }
 
 std::unique_ptr<RenderBuffer> PlumeCreateBufferWrapper(const uint32_t size)
@@ -1272,6 +1282,7 @@ std::vector<GuestResource*> g_tempUnreadyResource; // store VB that weren't read
 std::atomic<bool> g_pendingSurfaceResizeFlag = false;
 std::atomic<uint32_t> g_fmvFrameWidth = 0;
 std::atomic<uint32_t> g_fmvFrameHeight = 0;
+std::atomic<bool> g_frameReadsGuestMemory = false;
 static Mutex g_surfaceRTsMutex; // Multiple threads can access Surface RT so we can prevent a potential race issue with mutex
 static Mutex g_tempUnreadyResourceMutex; // for destruct resource (VB, texture stuff)
 
@@ -2173,13 +2184,18 @@ static bool Vulkan_RebuildSwapChain(const char* failReason)
 	return true;
 }
 
-static void CheckSwapChain()
+static void ComputeViewportSize();
+
+static std::atomic<bool> g_swapChainRebuildRequested{ false };
+
+static void CheckSwapChain(bool canRebuild)
 {
 	SetSwapChainVsync();
 	const bool isSwapChainInvalid = !g_swapChainValid;
-	g_swapChainValid &= !g_swapChain->needsResize();
+	const bool needsRebuild = isSwapChainInvalid || g_swapChain->needsResize();
+	g_swapChainRebuildRequested = needsRebuild && !canRebuild;
 
-	if (!g_swapChainValid)
+	if (needsRebuild && canRebuild)
 	{
 		Video::WaitForGPU();
 		{
@@ -2213,7 +2229,7 @@ static void CheckSwapChain()
 	}
 
 	if (g_needsResize)
-		Video::ComputeViewportDimensions();
+		ComputeViewportSize();
 
 	g_backBuffer->width = Video::s_viewportWidth;
 	g_backBuffer->height = Video::s_viewportHeight;
@@ -2321,7 +2337,7 @@ static void RecreateGuestSurfaceTexture(GuestBaseTexture* tex, bool isRT)
 		RenderTextureLayout::SHADER_READ, tex->textureView.get());
 }
 
-static void BeginCommandList()
+static void BeginCommandList(bool canResizeSurfaces)
 {
 	g_renderTarget = g_backBuffer;
 	g_depthStencil = nullptr;
@@ -2339,7 +2355,7 @@ static void BeginCommandList()
 		uint32_t height = Video::s_viewportHeight;
 
 		// Clear the request first so a new request isn't lost.
-		const bool resizedSurfaces = g_pendingSurfaceResizeFlag.exchange(false);
+		const bool resizedSurfaces = canResizeSurfaces && g_pendingSurfaceResizeFlag.exchange(false);
 		if (resizedSurfaces)
 		{
 			for (size_t i = 0; i < NUM_FRAMES; i++)
@@ -2768,8 +2784,9 @@ bool Video::CreateHostDevice(const char* sdlVideoDriver, bool graphicsApiRetry)
 
 	DiscardInitRenderResource(g_backBuffer->textureHolder.get(), true);
 	Video::ComputeViewportDimensions();
-	CheckSwapChain();
-	BeginCommandList();
+	CheckSwapChain(true);
+	AspectRatioPatches::ComputeOffsets();
+	BeginCommandList(true);
 
 	RenderTextureBarrier blankTextureBarriers[TEXTURE_DESCRIPTOR_NULL_COUNT];
 	for (size_t i = 0; i < TEXTURE_DESCRIPTOR_NULL_COUNT; i++)
@@ -3176,8 +3193,7 @@ static void DrawProfiler()
 		double frameFenceAvg = g_frameFenceProfiler.UpdateAndReturnAverage();
 		double presentWaitAvg = g_presentWaitProfiler.UpdateAndReturnAverage();
 		double swapChainAcquireAvg = g_swapChainAcquireProfiler.UpdateAndReturnAverage();
-		double executeCmdListWaitAvg = g_executeCmdListWaitProfiler.UpdateAndReturnAverage();
-		double beginCmdListWaitAvg = g_beginCmdListWaitProfiler.UpdateAndReturnAverage();
+		double frameEndWaitAvg = g_frameEndWaitProfiler.UpdateAndReturnAverage();
 		double rtPsoWorkAvg = g_rtPsoWorkAccum.UpdateAndReturnAverage();
 		double rtFlushWorkAvg = g_rtFlushWorkAccum.UpdateAndReturnAverage();
 		double rtDrawCallAvg = g_rtDrawCallAccum.UpdateAndReturnAverage();
@@ -3203,8 +3219,7 @@ static void DrawProfiler()
 				ImPlot::PlotLine<double>("Present Wait", g_presentWaitProfiler.values, PROFILER_VALUE_COUNT, 1.0, 0.0, ImPlotLineFlags_None, g_profilerValueIndex);
 				ImPlot::PlotLine<double>("Frame Fence", g_frameFenceProfiler.values, PROFILER_VALUE_COUNT, 1.0, 0.0, ImPlotLineFlags_None, g_profilerValueIndex);
 				ImPlot::PlotLine<double>("Swap Chain Acquire", g_swapChainAcquireProfiler.values, PROFILER_VALUE_COUNT, 1.0, 0.0, ImPlotLineFlags_None, g_profilerValueIndex);
-				ImPlot::PlotLine<double>("Exec CmdList Wait", g_executeCmdListWaitProfiler.values, PROFILER_VALUE_COUNT, 1.0, 0.0, ImPlotLineFlags_None, g_profilerValueIndex);
-				ImPlot::PlotLine<double>("Begin CmdList Wait", g_beginCmdListWaitProfiler.values, PROFILER_VALUE_COUNT, 1.0, 0.0, ImPlotLineFlags_None, g_profilerValueIndex);
+				ImPlot::PlotLine<double>("Frame End Wait", g_frameEndWaitProfiler.values, PROFILER_VALUE_COUNT, 1.0, 0.0, ImPlotLineFlags_None, g_profilerValueIndex);
 				ImPlot::EndPlot();
 			}
 
@@ -3225,8 +3240,7 @@ static void DrawProfiler()
 					"Present Wait         {:.4g} ms\n"
 					"Frame Fence          {:.4g} ms\n"
 					"Swap Chain Acquire   {:.4g} ms\n"
-					"Exec CmdList Wait    {:.4g} ms\n"
-					"Begin CmdList Wait   {:.4g} ms\n"
+					"Frame End Wait       {:.4g} ms\n"
 					"\n"
 					"RENDER-THREAD BREAKDOWN (averages):\n"
 					"PSO Work             {:.4g} ms\n"
@@ -3268,7 +3282,7 @@ static void DrawProfiler()
 					"Present (in GT, cur) {:.4g} ms\n"
 					"Game Logic (cur)     {:.4g} ms\n",
 					applicationAvg, gpuFrameAvg, presentAvg, gameThreadAvg, renderThreadWorkAvg,
-					presentWaitAvg, frameFenceAvg, swapChainAcquireAvg, executeCmdListWaitAvg, beginCmdListWaitAvg,
+					presentWaitAvg, frameFenceAvg, swapChainAcquireAvg, frameEndWaitAvg,
 					rtPsoWorkAvg, rtFlushWorkAvg, std::max(rtFlushWorkAvg - rtPsoWorkAvg, 0.0), rtDrawCallAvg,
 					rtDrawHandlerAvg, std::max(rtDrawHandlerAvg - rtFlushWorkAvg - rtDrawCallAvg, 0.0),
 					rtOtherCmdsAvg, rtBeginCmdListWorkAvg, rtQueueWaitAvg,
@@ -3350,13 +3364,12 @@ static void DrawProfiler()
 				drawPerfGroup("Idle",
 					"Waiting, not work: deliberate pacing or one stage blocked on another.\n\nIt does not count toward the Work rows above.");
 				drawPerfGroup("    Game Thread");
-				drawPerfRow("        Present", g_presentProfiler.value.load(), presentAvg, false, "Video::Present on the game thread: waits, swapchain submit,\nframe limiter sleep, setup of the next frame.\n\nMostly waiting, not CPU work.\nThe (wait) rows below show which side it waited on.");
-				drawPerfRow("            Exec CmdList (wait)", g_executeCmdListWaitProfiler.value.load(), executeCmdListWaitAvg, false, "Blocked waiting for the render thread to finish\nthe command list.");
-				drawPerfRow("            Frame Fence (wait)", g_frameFenceProfiler.value.load(), frameFenceAvg, false, "Blocked waiting for the GPU to finish an older frame\n(backpressure from the buffered-frame pipeline).");
-				drawPerfRow("            Swap Chain Acquire", g_swapChainAcquireProfiler.value.load(), swapChainAcquireAvg, false, "Acquiring a free backbuffer image from the swap chain.");
-				drawPerfRow("            Begin CmdList (wait)", g_beginCmdListWaitProfiler.value.load(), beginCmdListWaitAvg, false, "Blocked waiting for the render thread to open the\nnext command list.");
-				drawPerfRow("        Present Wait (VSync)", g_presentWaitProfiler.value.load(), presentWaitAvg, false, "VSync pacing: waiting on the swap chain between frames\n(Vsync ON FIFO only).");
+				drawPerfRow("        Present", g_presentProfiler.value.load(), presentAvg, false, "Video::Present on the game thread: draws the overlay UI and\nqueues the frame end for the render thread.\n\nThe (wait) row below is the time it was blocked.");
+				drawPerfRow("            Frame End (wait)", g_frameEndWaitProfiler.value.load(), frameEndWaitAvg, false, "Blocked waiting for the render thread to finish\na frame end.\n\nNear zero unless the render thread is the bottleneck,\nor the game thread waits on purpose (VSync, GPU bound).");
 				drawPerfGroup("    Render Thread");
+				drawPerfRow("        Frame Fence (wait)", g_frameFenceProfiler.value.load(), frameFenceAvg, false, "Blocked waiting for the GPU to finish an older frame\n(backpressure from the buffered-frame pipeline).");
+				drawPerfRow("        Swap Chain Acquire", g_swapChainAcquireProfiler.value.load(), swapChainAcquireAvg, false, "Acquiring a free backbuffer image from the swap chain.");
+				drawPerfRow("        Present Wait (VSync)", g_presentWaitProfiler.value.load(), presentWaitAvg, false, "VSync pacing: waiting on the swap chain between frames\n(Vsync ON FIFO only).");
 				drawPerfRow("        Queue Wait", g_rtQueueWaitInFrameAccum.value.load(), rtQueueWaitInFrameAvg, false, "Starved render thread: commands exhausted, waiting for the\ngame thread to send more.\n\nSame value as Queue Wait (idle) in the Render-Thread Breakdown.");
 
 				ImGui::EndTable();
@@ -3968,7 +3981,19 @@ static void ProcDrawImGui(const RenderCommand& cmd)
 	}
 }
 
-static std::atomic<bool> g_executedCommandList;
+static std::atomic<uint32_t> g_frameEndsDone{ 0 };
+static constexpr double GPU_BOUND_FENCE_WAIT_MS = 0.1;
+
+static void WaitForFrameEnds(uint32_t count)
+{
+	uint32_t done = g_frameEndsDone.load();
+	while (done != count)
+	{
+		g_frameEndsDone.wait(done);
+		done = g_frameEndsDone.load();
+	}
+}
+
 static std::atomic<bool> presentExecuted(true);
 
 static int g_drawPrimitiveUP_ID = 0;
@@ -3988,8 +4013,8 @@ void VideoDebug_DumpPresentState()
 	LOGN("=== VideoDebug_DumpPresentState ===");
 	LOGFN("  swap chain: g_swapChain={} g_swapChainValid={} presentWait_capable={} g_backBufferIndex={}",
 		(void*)g_swapChain.get(), (int)g_swapChainValid, (int)g_capabilities.presentWait, g_backBufferIndex);
-	LOGFN("  present pipeline: presentExecuted={} g_executedCommandList={}",
-		(int)presentExecuted.load(), (int)g_executedCommandList.load());
+	LOGFN("  present pipeline: presentExecuted={} gameFrame={} frameEndsDone={}",
+		(int)presentExecuted.load(), g_gameFrame.load(), g_frameEndsDone.load());
 	LOGFN("  frames: g_frame={} g_nextFrame={}", g_frame, g_nextFrame);
 	std::string commandListStates;
 	for (size_t i = 0; i < NUM_FRAMES; ++i)
@@ -4049,66 +4074,40 @@ void Video::Present(X86Context* ctx)
 		s_prevPresentTime = now;
 	}
 
+	const uint32_t gameFrame = g_gameFrame.load(std::memory_order_relaxed);
+	g_frameEndWaitProfiler.Begin();
+	WaitForFrameEnds(gameFrame);
+	g_frameEndWaitProfiler.End();
+
 	DrawImGui(ctx);
 
-	g_readyForCommands = false;
+	const bool gpuBound = g_frameFenceProfiler.value.load(std::memory_order_relaxed) > GPU_BOUND_FENCE_WAIT_MS;
+	const bool resizing = g_pendingSurfaceResizeFlag || g_swapChainRebuildRequested;
+	const bool readsGuestMemory = g_frameReadsGuestMemory.exchange(false);
+	const bool waitForFrameEnd = Config::VSync || gpuBound || resizing || readsGuestMemory || !isPresentIntervalOne || ctx == nullptr;
+
+	g_intermediaryUploadAllocators[(gameFrame + 1) % std::size(g_intermediaryUploadAllocators)].reset();
+	g_stagedBufferUploads[(gameFrame + 1) % std::size(g_stagedBufferUploads)].reset();
+
 	RenderCommand cmd;
-	cmd.type = RenderCommandType::ExecuteCommandList;
+	cmd.type = RenderCommandType::EndFrame;
+	cmd.endFrame.gameThreadWaits = waitForFrameEnd;
 	g_renderQueue.enqueue(cmd);
+	g_gameFrame.store(gameFrame + 1, std::memory_order_relaxed);
 
-	presentExecuted = false;
-	g_executeCmdListWaitProfiler.Begin();
-	g_executedCommandList.wait(false);
-	g_executeCmdListWaitProfiler.End();
-	g_executedCommandList = false;
-
-	if (g_swapChainValid)
+	if (waitForFrameEnd)
 	{
-		RenderCommandSemaphore* signalSemaphores[] = { g_renderSemaphores[g_frame].get() };
-		g_swapChainValid = g_swapChain->present(g_backBufferIndex, signalSemaphores, std::size(signalSemaphores));
+		WaitForFrameEnds(gameFrame + 1);
+
+		static uint32_t s_offsetsWidth = 0;
+		static uint32_t s_offsetsHeight = 0;
+		if (s_offsetsWidth != s_viewportWidth || s_offsetsHeight != s_viewportHeight)
+		{
+			AspectRatioPatches::ComputeOffsets();
+			s_offsetsWidth = s_viewportWidth;
+			s_offsetsHeight = s_viewportHeight;
+		}
 	}
-	presentExecuted = true;
-
-	uint32_t oldFrame = g_frame;
-	g_frame = g_nextFrame;
-	g_nextFrame = (g_frame + 1) % NUM_FRAMES;
-
-	if (g_commandListStates[g_frame])
-	{
-		g_frameFenceProfiler.Begin();
-		g_queue->waitForCommandFence(g_commandFences[g_frame].get());
-		g_frameFenceProfiler.End();
-		g_commandListStates[g_frame] = false;
-
-		g_queryPools[g_frame]->queryResults();
-		const uint64_t* frameTimestamps = g_queryPools[g_frame]->getResults();
-		g_gpuFrameProfiler.Set(double(frameTimestamps[1] - frameTimestamps[0]) / 1000000.0);
-	}
-
-	g_dirtyStates = DirtyStates(true);
-
-	g_intermediaryUploadAllocator.reset();
-	g_stagedBufferUploads[g_frame].reset();
-	g_quadIndexData.reset();
-
-	g_presentWaitProfiler.Begin();
-
-	// wait on fifo only
-	if (g_vulkan && g_swapChainValid && g_capabilities.presentWait && Config::VSync && GetVulkanSwapChain()->createdPresentMode == VK_PRESENT_MODE_FIFO_KHR)
-	{
-		g_swapChain->wait();
-	}
-	g_presentWaitProfiler.End();
-
-	CheckSwapChain();
-
-	cmd.type = RenderCommandType::BeginCommandList;
-	g_renderQueue.enqueue(cmd);
-
-	g_beginCmdListWaitProfiler.Begin();
-	g_readyForCommands.wait(false);
-	g_beginCmdListWaitProfiler.End();
-
 
 	presentLock.unlock();
 
@@ -4269,8 +4268,6 @@ static void ProcExecuteCommandList(const RenderCommand& cmd)
 	}
 
 	g_commandListStates[g_frame] = true;
-	g_executedCommandList = true;
-	g_executedCommandList.notify_one();
 }
 
 // hold commands that arrive late (previously discarded)
@@ -4281,11 +4278,11 @@ static void ProcBeginCommandList(const RenderCommand& cmd)
 	RtScopeTimer _scope(g_rtBeginCmdListWorkAccum);
 	DestructTempResources();
 
-	// Present has already waited.
+	// ProcEndFrame has already waited.
 	// So this is safe to clear here 
 	// - Sewer-chan
 	g_uploadAllocators[g_frame].reset();
-	BeginCommandList();
+	BeginCommandList(cmd.endFrame.gameThreadWaits);
 
 	// Run deferred commands; TODO: Maybe just discard them like before, needs more testing
 	std::vector<RenderCommand> deferred = std::move(g_deferredRenderCommands);
@@ -4294,7 +4291,53 @@ static void ProcBeginCommandList(const RenderCommand& cmd)
 		ProcessRenderCommand(deferredCmd);
 }
 
-void Video::ComputeViewportDimensions()
+static void ProcEndFrame(const RenderCommand& cmd)
+{
+	ProcExecuteCommandList(cmd);
+
+	presentExecuted = false;
+	if (g_swapChainValid)
+	{
+		RenderCommandSemaphore* signalSemaphores[] = { g_renderSemaphores[g_frame].get() };
+		g_swapChainValid = g_swapChain->present(g_backBufferIndex, signalSemaphores, std::size(signalSemaphores));
+	}
+	presentExecuted = true;
+
+	g_frame = g_nextFrame;
+	g_nextFrame = (g_frame + 1) % NUM_FRAMES;
+
+	if (g_commandListStates[g_frame])
+	{
+		g_frameFenceProfiler.Begin();
+		g_queue->waitForCommandFence(g_commandFences[g_frame].get());
+		g_frameFenceProfiler.End();
+		g_commandListStates[g_frame] = false;
+
+		g_queryPools[g_frame]->queryResults();
+		const uint64_t* frameTimestamps = g_queryPools[g_frame]->getResults();
+		g_gpuFrameProfiler.Set(double(frameTimestamps[1] - frameTimestamps[0]) / 1000000.0);
+	}
+
+	g_dirtyStates = DirtyStates(true);
+	g_quadIndexData.reset();
+
+	g_presentWaitProfiler.Begin();
+
+	// wait on fifo only
+	if (g_vulkan && g_swapChainValid && g_capabilities.presentWait && Config::VSync && GetVulkanSwapChain()->createdPresentMode == VK_PRESENT_MODE_FIFO_KHR)
+	{
+		g_swapChain->wait();
+	}
+	g_presentWaitProfiler.End();
+
+	CheckSwapChain(cmd.endFrame.gameThreadWaits);
+	ProcBeginCommandList(cmd);
+
+	g_frameEndsDone.fetch_add(1);
+	g_frameEndsDone.notify_all();
+}
+
+static void ComputeViewportSize()
 {
 	uint32_t width = g_swapChain->getWidth();
 	uint32_t height = g_swapChain->getHeight();
@@ -4348,12 +4391,14 @@ void Video::ComputeViewportDimensions()
 	{
 		std::lock_guard lock(g_surfaceRTsMutex);
 		// The swapchain can change size without another window resize event.
-		surface_resize::SetViewportSize(s_viewportWidth, s_viewportHeight, width, height,
+		surface_resize::SetViewportSize(Video::s_viewportWidth, Video::s_viewportHeight, width, height,
 			g_pendingSurfaceResizeFlag);
 	}
+}
 
-	auto base = g_memory.base;
-
+void Video::ComputeViewportDimensions()
+{
+	ComputeViewportSize();
 	AspectRatioPatches::ComputeOffsets();
 }
 
@@ -6090,7 +6135,7 @@ static void UnlockBuffer(GuestBuffer* buffer, bool useCopyQueue)
 	else if (useCopyQueue && buffer->dataSize <= StagedBufferUploadAllocator::SIZE)
 	{
 		// Game thread: reserve staging bytes, memcpy, push one command.
-		auto allocation = g_stagedBufferUploads[g_frame].allocate(buffer->dataSize, 0x4, *g_device);
+		auto allocation = GameFrameStagedUploads().allocate(buffer->dataSize, 0x4, *g_device);
 		memcpy(allocation.memory, buffer->mappedMemory, buffer->dataSize);
 
 		RenderCommand cmd;
@@ -6254,7 +6299,7 @@ uint8_t* ApplyVertexPatch(uint8_t* vertexData, const uint8_t indexStream, const 
 	if (!bNeedVertexPatching)
 		return nullptr;
 
-	uint8_t* pHostVertexData = useHostMemory ? g_intermediaryUploadAllocator.allocate(VertexCount * alignedStride) : (uint8_t*)g_userHeap.AllocPhysical(VertexCount * alignedStride, 0x10);
+	uint8_t* pHostVertexData = useHostMemory ? GameFrameUploads().allocate(VertexCount * alignedStride) : (uint8_t*)g_userHeap.AllocPhysical(VertexCount * alignedStride, 0x10);
 
 	for (uint32_t uiVertex = 0; uiVertex < VertexCount; uiVertex++)
 	{
@@ -6445,7 +6490,7 @@ void DrawPrimitive(X_D3DPRIMITIVETYPE PrimitiveType, uint32_t StartVertex, uint3
 			else
 			{
 				const size_t originalSize = VertexCount * alignedStride;
-				vertexParticles = (uint8_t*)g_intermediaryUploadAllocator.allocate(VertexCount * alignedStride);
+				vertexParticles = (uint8_t*)GameFrameUploads().allocate(VertexCount * alignedStride);
 				memcpy(vertexParticles, pXboxVertexData, originalSize);
 			}
 
@@ -6580,7 +6625,7 @@ void DrawIndexedPrimitive(X_D3DPRIMITIVETYPE PrimitiveType, uint32_t VertexCount
 			uint8_t* vertexData = ApplyVertexPatch(pXboxVertexData, i, usedVertices, originalStride, alignedStride, true);
 			if (vertexData == nullptr)
 			{
-				vertexData = g_intermediaryUploadAllocator.allocate(usedVertices * alignedStride);
+				vertexData = GameFrameUploads().allocate(usedVertices * alignedStride);
 				memcpy(vertexData, pXboxVertexData, usedVertices * originalStride);
 			}
 
@@ -6658,7 +6703,7 @@ void DrawPrimitiveUP(X_D3DPRIMITIVETYPE PrimitiveType, uint32_t VertexCount, voi
 	cmd.drawPrimitiveUP.ID = g_drawPrimitiveUP_ID++;
 	cmd.drawPrimitiveUP.primitiveType = PrimitiveType;
 	cmd.drawPrimitiveUP.primitiveCount = VertexCount;
-	cmd.drawPrimitiveUP.vertexStreamZeroData = g_intermediaryUploadAllocator.allocate(vertexData, VertexCount * VertexStreamZeroStride);
+	cmd.drawPrimitiveUP.vertexStreamZeroData = GameFrameUploads().allocate(vertexData, VertexCount * VertexStreamZeroStride);
 	cmd.drawPrimitiveUP.vertexStreamZeroSize = VertexCount * VertexStreamZeroStride;
 	cmd.drawPrimitiveUP.vertexStreamZeroStride = VertexStreamZeroStride;
 	cmd.drawPrimitiveUP.isFixed = g_Xbox_VertexShaderMode == VertexShaderMode::FixedFunction;
@@ -7111,7 +7156,7 @@ static std::thread g_renderThread([]
 					ProcStagedCopyRange(&commands[i], stagedCount);
 					i += stagedCount - 1;
 				} break;
-				case RenderCommandType::ExecuteCommandList:
+				case RenderCommandType::EndFrame:
 					g_drawCallCountSnapshot = std::exchange(g_drawCallCount, 0);
 					g_stateChangeCountSnapshot = std::exchange(g_stateChangeCount, 0);
 					g_totalCommandCountSnapshot = std::exchange(g_totalCommandCount, 0);
@@ -7126,9 +7171,7 @@ static std::thread g_renderThread([]
 					g_rtQueueWaitAccum.SnapshotAndReset();
 					g_rtQueueWaitInFrameAccum.SnapshotAndReset();
 					g_renderDirectorProfiler.End();
-					ProcExecuteCommandList(cmd); break;
-				case RenderCommandType::BeginCommandList:
-					ProcBeginCommandList(cmd);
+					ProcEndFrame(cmd);
 					g_renderDirectorProfiler.Begin();
 					break;
 				default:

@@ -18,6 +18,7 @@ extern std::atomic<bool> g_pendingSurfaceResizeFlag;
 
 extern std::atomic<uint32_t> g_fmvFrameWidth;
 extern std::atomic<uint32_t> g_fmvFrameHeight;
+extern std::atomic<bool> g_frameReadsGuestMemory;
 
 // Xbox vertex shader counts
 #define X_VSH_MAX_ATTRIBUTES          16

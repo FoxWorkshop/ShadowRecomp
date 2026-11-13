@@ -25,8 +25,9 @@ struct UploadAllocation
 // Flow per upload: game thread reserves a slice and writes bytes; render
 // thread copies the slice to its final GPU buffer.
 //
-// Lifetime: one ring per frame in flight. Present rewinds a frame's ring
-// after the GPU finished that frame, so live bytes never get overwritten.
+// Lifetime: one ring per game frame, see g_stagedBufferUploads. Present
+// rewinds a ring once the GPU has finished the frames that read it, so live
+// bytes never get overwritten.
 //
 // Size: 16MB per block is a floor, not a cap. A frame needing more gets
 // another block; blocks are reused after the rewind.

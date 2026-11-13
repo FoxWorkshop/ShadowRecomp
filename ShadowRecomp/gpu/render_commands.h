@@ -15,8 +15,7 @@ enum class RenderCommandType
 	UnlockBuffer16,
 	UnlockBuffer32,
 	DrawImGui,
-	ExecuteCommandList,
-	BeginCommandList,
+	EndFrame,
 	StretchRect,
 	SetRenderTarget,
 	SetDepthStencilSurface,
@@ -59,6 +58,11 @@ struct RenderCommand
 		{
 			GuestResource* resource;
 		} destructResource;
+
+		struct
+		{
+			bool gameThreadWaits;
+		} endFrame;
 
 		struct
 		{

@@ -522,6 +522,8 @@ static void UnlockTextureRect(GuestTexture* texture)
 	RenderCommand cmd;
 	cmd.type = RenderCommandType::UnlockTextureRect;
 	cmd.unlockTextureRect.texture = texture;
+
+	g_frameReadsGuestMemory = true;
 	g_renderQueue.enqueue(cmd);
 }
 
