@@ -13,12 +13,9 @@
 
 namespace RichPresence::ShadowRpc
 {
-    // Starts updating the presence in the background, if enabled in the config.
+    // Starts updating the presence in the background.
     void Start();
 
     // Stops updating the presence and clears it from Discord.
     void Stop();
-
-    // Starts or stops the presence after `Config::DiscordRichPresence` changes.
-    void ConfigValueChangedCallback();
 }

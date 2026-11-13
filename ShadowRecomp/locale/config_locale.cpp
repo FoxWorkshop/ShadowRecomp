@@ -139,11 +139,6 @@ CONFIG_DEFINE_LOCALE(AchievementNotifications)
     { ELanguage::Italian,  { "Notifiche obiettivi", "Mostra delle notifiche quando sblocchi degli obiettivi. Gli obiettivi verranno comunque assegnati anche con le notifiche disattivate." } }
 };
 
-CONFIG_DEFINE_LOCALE(DiscordRichPresence)
-{
-    { ELanguage::English,  { "Discord Rich Presence", "Show what you are playing on your Discord profile." } }
-};
-
 CONFIG_DEFINE_LOCALE(ConfirmationPrompt)
 {
     { ELanguage::English,  { "Confirmation Prompts", "Shows confirmation prompts when loading a save file, exiting to the menu, restarting, and in other similar situations. Disabling this option replicates the behavior of the GameCube version." } },

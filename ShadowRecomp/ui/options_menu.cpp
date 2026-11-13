@@ -2018,7 +2018,6 @@ static void DrawOptions(X86Context* ctx, ImVec2 minClipRect, ImVec2 maxClipRect,
 		DrawOption(ctx, rowCount++, &Config::ConfirmationPrompt, true, min, max);
 		DrawOption(ctx, rowCount++, &Config::Hints, true, min, max);
 		DrawOption(ctx, rowCount++, &Config::AchievementNotifications, true, min, max);
-		DrawOption(ctx, rowCount++, &Config::DiscordRichPresence, true, min, max);
 
 		break;
 

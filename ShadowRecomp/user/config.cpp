@@ -3,7 +3,6 @@
 #include <ui/game_window.h>
 #include <user/paths.h>
 #include <gpu/video.h>
-#include <misc/rich_presence/shadow_rpc.h>
 
 #include <cmath>
 
@@ -841,11 +840,6 @@ void Config::CreateCallbacks()
                     X86_STORE_U32(0x54DD88, value);
                     X86_STORE_U32(0x541504, value);
                 });
-        };
-
-    Config::DiscordRichPresence.Callback = [](ConfigDef<bool>* def)
-        {
-            RichPresence::ShadowRpc::ConfigValueChangedCallback();
         };
 
 

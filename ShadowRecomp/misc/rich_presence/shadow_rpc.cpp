@@ -5,7 +5,6 @@
 #include <thread>
 
 #include <discord_rpc.h>
-#include <user/config.h>
 
 #include "shadow/shadow.h"
 #include "shadow/utilities/image_name_dictionary.h"
@@ -109,7 +108,7 @@ namespace RichPresence::ShadowRpc
 
     void Start()
     {
-        if (!Config::DiscordRichPresence || s_thread.joinable())
+        if (s_thread.joinable())
             return;
 
         s_stopRequested = false;
@@ -128,13 +127,5 @@ namespace RichPresence::ShadowRpc
 
         s_stopSignal.notify_all();
         s_thread.join();
-    }
-
-    void ConfigValueChangedCallback()
-    {
-        if (Config::DiscordRichPresence)
-            Start();
-        else
-            Stop();
     }
 }
