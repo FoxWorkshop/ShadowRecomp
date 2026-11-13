@@ -1,8 +1,16 @@
 name: validate
 on:
   workflow_dispatch:
+  workflow_call:
+    secrets:
+      ASSET_REPO:
+        required: true
+      ASSET_REPO_TOKEN:
+        required: true
+      XBOXRECOMP2_TOKEN:
+        required: true
 concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
 
 jobs:

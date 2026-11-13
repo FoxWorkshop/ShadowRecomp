@@ -1,0 +1,22 @@
+name: validate-external
+on:
+  pull_request_target:
+    types: [opened, synchronize]
+permissions:
+  contents: read
+jobs:
+  authorize:
+    if: github.repository != github.event.pull_request.head.repo.full_name
+    environment:
+      ${{ contains(fromJSON('["OWNER", "MEMBER"]'), github.event.pull_request.author_association) &&
+      'internal' || 'external' }}
+    runs-on: ubuntu-26.04
+    steps:
+      - run: echo shadowthehedgehogbaby
+  build:
+    needs: authorize
+    uses: ./.github/workflows/validate.yml
+    secrets: # explicitly define for external just incase
+      ASSET_REPO: ${{ secrets.ASSET_REPO }}
+      ASSET_REPO_TOKEN: ${{ secrets.ASSET_REPO_TOKEN }}
+      XBOXRECOMP2_TOKEN: ${{ secrets.XBOXRECOMP2_TOKEN }} # TODO: yeet before release
