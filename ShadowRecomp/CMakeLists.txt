@@ -211,6 +211,15 @@ set(SHADOW_RECOMP_MOD_CXX_SOURCES
     "mod/IniFile.cpp"
 )
 
+set(SHADOW_RECOMP_MISC_CXX_SOURCES
+    "misc/rich_presence/shadow_rpc.cpp"
+    "misc/rich_presence/shadow/shadow.cpp"
+    "misc/rich_presence/shadow/utilities/image_name_dictionary.cpp"
+    "misc/rich_presence/shadow/utilities/menu_name_dictionary.cpp"
+    "misc/rich_presence/shadow/utilities/mode_name_dictionary.cpp"
+    "misc/rich_presence/shadow/utilities/stage_name_dictionary.cpp"
+)
+
 
 set(SHADOW_RECOMP_THIRDPARTY_SOURCES
     "${SHADOW_RECOMP_THIRDPARTY_ROOT}/imgui/backends/imgui_impl_sdl3.cpp"
@@ -262,6 +271,7 @@ set(SHADOW_RECOMP_CXX_SOURCES
     ${SHADOW_RECOMP_UI_CXX_SOURCES}
     ${SHADOW_RECOMP_USER_CXX_SOURCES}
     ${SHADOW_RECOMP_MOD_CXX_SOURCES}
+    ${SHADOW_RECOMP_MISC_CXX_SOURCES}
     ${SHADOW_RECOMP_INSTALL_CXX_SOURCES}
     ${SHADOW_RECOMP_THIRDPARTY_SOURCES}
 )
@@ -388,6 +398,7 @@ if (WIN32)
 endif()
 
 target_link_libraries(ShadowRecomp PRIVATE
+    discord-rpc
     fmt::fmt
     libzstd_static
     msdf-atlas-gen::msdf-atlas-gen
