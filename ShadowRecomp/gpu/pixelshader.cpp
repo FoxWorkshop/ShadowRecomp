@@ -9,6 +9,7 @@
 // Original code (mostly) re-used from CXBX Reloaded
 
 static GuestPixelShader* g_pXbox_PixelShader = nullptr;
+static bool g_isFixedFunctionPixelShader = false;
 static bool g_pixelShaderConstantsAnyDirty = true;
 uint32_t psh_constants[PSH_XBOX_CONSTANT_MAX][4]; // (slot of 4 because one register = 4 bytes)
 bool psh_constants_dirty[PSH_XBOX_CONSTANT_MAX];
@@ -45,6 +46,11 @@ static std::map<uint64_t, GuestShader*> pixelCache;
 GuestPixelShader* GetXboxPixelShader()
 {
 	return g_pXbox_PixelShader;
+}
+
+bool IsFixedFunctionPixelShader()
+{
+	return g_isFixedFunctionPixelShader;
 }
 
 uint64_t GetPixelShaderKey(const uint32_t pXboxPixelShaderDef)
@@ -249,7 +255,8 @@ X86_OVERRIDE_FUNC(sub_3DC590)
 	}
 
 	cmd.setPixelShader.isFixed = Handle == 0;
-	g_renderQueue.enqueue(cmd);
+	g_isFixedFunctionPixelShader = cmd.setPixelShader.isFixed;
+	g_pendingRenderCommands.enqueue() = cmd;
 }
 
 const uint8_t* CreateRecompiledPixelShader(X_D3DPIXELSHADERDEF* PSDef, void* psGuestInf, size_t* outSize)

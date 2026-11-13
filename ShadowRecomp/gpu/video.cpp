@@ -150,6 +150,7 @@ static GuestSurface* g_depthStencil;
 static GuestSurface* g_next_RenderTarget; //because of how heavy and fast the game swap the render target, our queue system sometimes faces a race issue, this second pointer copy the current RT earlier as a workaround
 static RenderFramebuffer* g_framebuffer;
 static RenderViewport_r g_renderviewport = { { 0.0f, 0.0f, 640.0f, 480.0f }, true, false };
+static RenderViewport g_gameViewport = { 0.0f, 0.0f, 640.0f, 480.0f };
 
 static PipelineState g_pipelineState;
 static int32_t g_depthBias;
@@ -333,18 +334,18 @@ static Profiler g_renderDirectorProfiler;
 static Profiler g_frameFenceProfiler;
 static Profiler g_presentWaitProfiler;
 static Profiler g_swapChainAcquireProfiler;
-static Profiler g_executeCmdListWaitProfiler;
-static Profiler g_beginCmdListWaitProfiler;
+static Profiler g_frameEndWaitProfiler;
 
-// --- Per-frame command counters (reset at ExecuteCommandList) ---
-static std::atomic<uint32_t> g_drawCallCount{ 0 };      // DrawPrimitive + DrawIndexedPrimitive + DrawPrimitiveUP
-static std::atomic<uint32_t> g_stateChangeCount{ 0 };   // All non-draw, non-frame-boundary commands
-static std::atomic<uint32_t> g_totalCommandCount{ 0 };  // Everything
+// --- Per-frame command counters (reset at EndFrame) ---
+// Render thread only, so plain integers: a lock-prefixed add per command is measurable.
+static uint32_t g_drawCallCount = 0;      // DrawPrimitive + DrawIndexedPrimitive + DrawPrimitiveUP
+static uint32_t g_stateChangeCount = 0;   // All non-draw, non-frame-boundary commands
+static uint32_t g_totalCommandCount = 0;  // Everything
 static uint32_t g_drawCallCountSnapshot = 0;
 static uint32_t g_stateChangeCountSnapshot = 0;
 static uint32_t g_totalCommandCountSnapshot = 0;
-static std::atomic<uint32_t> g_psoCacheHits{ 0 };
-static std::atomic<uint32_t> g_psoCacheMisses{ 0 };
+static uint32_t g_psoCacheHits = 0;
+static uint32_t g_psoCacheMisses = 0;
 static uint32_t g_psoCacheHitsSnapshot = 0;
 static uint32_t g_psoCacheMissesSnapshot = 0;
 
@@ -462,9 +463,9 @@ struct UploadBuffer
 	uint64_t deviceAddress = 0;
 };
 
+// Render thread only!!
 struct UploadAllocator
 {
-	std::mutex mutex;
 	std::vector<UploadBuffer> buffers;
 	uint32_t index = 0;
 	uint32_t offset = 0;
@@ -473,7 +474,6 @@ struct UploadAllocator
 	{
 		assert(size <= UploadBuffer::SIZE);
 
-		std::lock_guard lock(mutex);
 		offset = (offset + alignment - 1) & ~(alignment - 1);
 
 		if (offset + size > UploadBuffer::SIZE)
@@ -511,7 +511,6 @@ struct UploadAllocator
 
 	void reset()
 	{
-		std::lock_guard lock(mutex);
 		index = 0;
 		offset = 0;
 	}
@@ -576,9 +575,62 @@ struct IntermediaryUploadAllocator
 	}
 };
 
-static IntermediaryUploadAllocator g_intermediaryUploadAllocator;
+static std::atomic<uint32_t> g_gameFrame{ 0 };
 
-static StagedBufferUploadAllocator g_stagedBufferUploads[NUM_FRAMES];
+static IntermediaryUploadAllocator g_intermediaryUploadAllocators[3];
+static StagedBufferUploadAllocator g_stagedBufferUploads[4];
+
+static IntermediaryUploadAllocator& GameFrameUploads()
+{
+	return g_intermediaryUploadAllocators[g_gameFrame.load(std::memory_order_relaxed) % std::size(g_intermediaryUploadAllocators)];
+}
+
+static StagedBufferUploadAllocator& GameFrameStagedUploads()
+{
+	return g_stagedBufferUploads[g_gameFrame.load(std::memory_order_relaxed) % std::size(g_stagedBufferUploads)];
+}
+
+// Allocates from a per-thread block.
+static uint8_t* AllocateDrawData(uint32_t size)
+{
+	static constexpr uint32_t BLOCK_SIZE = 64 * 1024;
+
+	struct Block
+	{
+		uint8_t* memory = nullptr;
+		uint32_t offset = BLOCK_SIZE;
+		uint32_t gameFrame = 0;
+	};
+
+	thread_local Block block; // <= PER THREAD. (Don't miss this!! Codo-reader-chan!)
+
+	// Skip block for huge allocations. We want to group the smol.
+	const uint32_t alignedSize = (size + 0xF) & ~0xF;
+	if (alignedSize > BLOCK_SIZE / 4)
+		return GameFrameUploads().allocate(size);
+
+	// Make new block if needed.
+	// On gem frem or if it's too big.
+	const uint32_t gameFrame = g_gameFrame.load(std::memory_order_relaxed);
+	if (block.gameFrame != gameFrame || block.offset + alignedSize > BLOCK_SIZE)
+	{
+		block.memory = GameFrameUploads().allocate(BLOCK_SIZE);
+		block.offset = 0;
+		block.gameFrame = gameFrame;
+	}
+
+	// Bump allocate.
+	uint8_t* result = block.memory + block.offset;
+	block.offset += alignedSize;
+	return result;
+}
+
+static uint8_t* AllocateDrawData(const void* memory, uint32_t size)
+{
+	uint8_t* result = AllocateDrawData(size);
+	memcpy(result, memory, size);
+	return result;
+}
 
 static std::vector<GuestResource*> g_tempResources[NUM_FRAMES];
 static std::vector<std::unique_ptr<RenderBuffer>> g_tempBuffers[NUM_FRAMES];
@@ -617,7 +669,7 @@ bool Video::is_vulkan()
 
 uint8_t* AllocIntermediaryUploadMemoryWrapper(const void* memory, uint32_t size)
 {
-	return g_intermediaryUploadAllocator.allocate(memory, size);
+	return AllocateDrawData(memory, size);
 }
 
 std::unique_ptr<RenderBuffer> PlumeCreateBufferWrapper(const uint32_t size)
@@ -1272,6 +1324,7 @@ std::vector<GuestResource*> g_tempUnreadyResource; // store VB that weren't read
 std::atomic<bool> g_pendingSurfaceResizeFlag = false;
 std::atomic<uint32_t> g_fmvFrameWidth = 0;
 std::atomic<uint32_t> g_fmvFrameHeight = 0;
+std::atomic<bool> g_frameReadsGuestMemory = false;
 static Mutex g_surfaceRTsMutex; // Multiple threads can access Surface RT so we can prevent a potential race issue with mutex
 static Mutex g_tempUnreadyResourceMutex; // for destruct resource (VB, texture stuff)
 
@@ -1500,7 +1553,7 @@ void SetRenderState(X_D3DRENDERSTATETYPE state, uint32_t value)
 	cmd.type = RenderCommandType::SetRenderState;
 	cmd.setRenderState.type = state;
 	cmd.setRenderState.value = value;
-	g_renderQueue.enqueue(cmd);
+	g_pendingRenderCommands.enqueue() = cmd;
 }
 
 static void ProcSetRenderState(const RenderCommand& cmd)
@@ -2173,13 +2226,18 @@ static bool Vulkan_RebuildSwapChain(const char* failReason)
 	return true;
 }
 
-static void CheckSwapChain()
+static void ComputeViewportSize();
+
+static std::atomic<bool> g_swapChainRebuildRequested{ false };
+
+static void CheckSwapChain(bool canRebuild)
 {
 	SetSwapChainVsync();
 	const bool isSwapChainInvalid = !g_swapChainValid;
-	g_swapChainValid &= !g_swapChain->needsResize();
+	const bool needsRebuild = isSwapChainInvalid || g_swapChain->needsResize();
+	g_swapChainRebuildRequested = needsRebuild && !canRebuild;
 
-	if (!g_swapChainValid)
+	if (needsRebuild && canRebuild)
 	{
 		Video::WaitForGPU();
 		{
@@ -2213,7 +2271,7 @@ static void CheckSwapChain()
 	}
 
 	if (g_needsResize)
-		Video::ComputeViewportDimensions();
+		ComputeViewportSize();
 
 	g_backBuffer->width = Video::s_viewportWidth;
 	g_backBuffer->height = Video::s_viewportHeight;
@@ -2321,7 +2379,7 @@ static void RecreateGuestSurfaceTexture(GuestBaseTexture* tex, bool isRT)
 		RenderTextureLayout::SHADER_READ, tex->textureView.get());
 }
 
-static void BeginCommandList()
+static void BeginCommandList(bool canResizeSurfaces)
 {
 	g_renderTarget = g_backBuffer;
 	g_depthStencil = nullptr;
@@ -2339,7 +2397,7 @@ static void BeginCommandList()
 		uint32_t height = Video::s_viewportHeight;
 
 		// Clear the request first so a new request isn't lost.
-		const bool resizedSurfaces = g_pendingSurfaceResizeFlag.exchange(false);
+		const bool resizedSurfaces = canResizeSurfaces && g_pendingSurfaceResizeFlag.exchange(false);
 		if (resizedSurfaces)
 		{
 			for (size_t i = 0; i < NUM_FRAMES; i++)
@@ -2768,8 +2826,9 @@ bool Video::CreateHostDevice(const char* sdlVideoDriver, bool graphicsApiRetry)
 
 	DiscardInitRenderResource(g_backBuffer->textureHolder.get(), true);
 	Video::ComputeViewportDimensions();
-	CheckSwapChain();
-	BeginCommandList();
+	CheckSwapChain(true);
+	AspectRatioPatches::ComputeOffsets();
+	BeginCommandList(true);
 
 	RenderTextureBarrier blankTextureBarriers[TEXTURE_DESCRIPTOR_NULL_COUNT];
 	for (size_t i = 0; i < TEXTURE_DESCRIPTOR_NULL_COUNT; i++)
@@ -2959,7 +3018,7 @@ void GetXboxViewportOffsetAndScale(float(&vOffset)[4], float(&vScale)[4])
 	float aaOffsetY = 0.0f;
 	//GetScreenScaleFactors(aaScaleX, aaScaleY); //todo check if this is needed
 
-	auto g_viewport = g_renderviewport.vp;
+	auto g_viewport = g_gameViewport;
 
 	float scaledX = g_viewport.x * aaScaleX;
 	float scaledY = g_viewport.y * aaScaleY;
@@ -3176,8 +3235,7 @@ static void DrawProfiler()
 		double frameFenceAvg = g_frameFenceProfiler.UpdateAndReturnAverage();
 		double presentWaitAvg = g_presentWaitProfiler.UpdateAndReturnAverage();
 		double swapChainAcquireAvg = g_swapChainAcquireProfiler.UpdateAndReturnAverage();
-		double executeCmdListWaitAvg = g_executeCmdListWaitProfiler.UpdateAndReturnAverage();
-		double beginCmdListWaitAvg = g_beginCmdListWaitProfiler.UpdateAndReturnAverage();
+		double frameEndWaitAvg = g_frameEndWaitProfiler.UpdateAndReturnAverage();
 		double rtPsoWorkAvg = g_rtPsoWorkAccum.UpdateAndReturnAverage();
 		double rtFlushWorkAvg = g_rtFlushWorkAccum.UpdateAndReturnAverage();
 		double rtDrawCallAvg = g_rtDrawCallAccum.UpdateAndReturnAverage();
@@ -3203,8 +3261,7 @@ static void DrawProfiler()
 				ImPlot::PlotLine<double>("Present Wait", g_presentWaitProfiler.values, PROFILER_VALUE_COUNT, 1.0, 0.0, ImPlotLineFlags_None, g_profilerValueIndex);
 				ImPlot::PlotLine<double>("Frame Fence", g_frameFenceProfiler.values, PROFILER_VALUE_COUNT, 1.0, 0.0, ImPlotLineFlags_None, g_profilerValueIndex);
 				ImPlot::PlotLine<double>("Swap Chain Acquire", g_swapChainAcquireProfiler.values, PROFILER_VALUE_COUNT, 1.0, 0.0, ImPlotLineFlags_None, g_profilerValueIndex);
-				ImPlot::PlotLine<double>("Exec CmdList Wait", g_executeCmdListWaitProfiler.values, PROFILER_VALUE_COUNT, 1.0, 0.0, ImPlotLineFlags_None, g_profilerValueIndex);
-				ImPlot::PlotLine<double>("Begin CmdList Wait", g_beginCmdListWaitProfiler.values, PROFILER_VALUE_COUNT, 1.0, 0.0, ImPlotLineFlags_None, g_profilerValueIndex);
+				ImPlot::PlotLine<double>("Frame End Wait", g_frameEndWaitProfiler.values, PROFILER_VALUE_COUNT, 1.0, 0.0, ImPlotLineFlags_None, g_profilerValueIndex);
 				ImPlot::EndPlot();
 			}
 
@@ -3225,8 +3282,7 @@ static void DrawProfiler()
 					"Present Wait         {:.4g} ms\n"
 					"Frame Fence          {:.4g} ms\n"
 					"Swap Chain Acquire   {:.4g} ms\n"
-					"Exec CmdList Wait    {:.4g} ms\n"
-					"Begin CmdList Wait   {:.4g} ms\n"
+					"Frame End Wait       {:.4g} ms\n"
 					"\n"
 					"RENDER-THREAD BREAKDOWN (averages):\n"
 					"PSO Work             {:.4g} ms\n"
@@ -3268,7 +3324,7 @@ static void DrawProfiler()
 					"Present (in GT, cur) {:.4g} ms\n"
 					"Game Logic (cur)     {:.4g} ms\n",
 					applicationAvg, gpuFrameAvg, presentAvg, gameThreadAvg, renderThreadWorkAvg,
-					presentWaitAvg, frameFenceAvg, swapChainAcquireAvg, executeCmdListWaitAvg, beginCmdListWaitAvg,
+					presentWaitAvg, frameFenceAvg, swapChainAcquireAvg, frameEndWaitAvg,
 					rtPsoWorkAvg, rtFlushWorkAvg, std::max(rtFlushWorkAvg - rtPsoWorkAvg, 0.0), rtDrawCallAvg,
 					rtDrawHandlerAvg, std::max(rtDrawHandlerAvg - rtFlushWorkAvg - rtDrawCallAvg, 0.0),
 					rtOtherCmdsAvg, rtBeginCmdListWorkAvg, rtQueueWaitAvg,
@@ -3350,13 +3406,12 @@ static void DrawProfiler()
 				drawPerfGroup("Idle",
 					"Waiting, not work: deliberate pacing or one stage blocked on another.\n\nIt does not count toward the Work rows above.");
 				drawPerfGroup("    Game Thread");
-				drawPerfRow("        Present", g_presentProfiler.value.load(), presentAvg, false, "Video::Present on the game thread: waits, swapchain submit,\nframe limiter sleep, setup of the next frame.\n\nMostly waiting, not CPU work.\nThe (wait) rows below show which side it waited on.");
-				drawPerfRow("            Exec CmdList (wait)", g_executeCmdListWaitProfiler.value.load(), executeCmdListWaitAvg, false, "Blocked waiting for the render thread to finish\nthe command list.");
-				drawPerfRow("            Frame Fence (wait)", g_frameFenceProfiler.value.load(), frameFenceAvg, false, "Blocked waiting for the GPU to finish an older frame\n(backpressure from the buffered-frame pipeline).");
-				drawPerfRow("            Swap Chain Acquire", g_swapChainAcquireProfiler.value.load(), swapChainAcquireAvg, false, "Acquiring a free backbuffer image from the swap chain.");
-				drawPerfRow("            Begin CmdList (wait)", g_beginCmdListWaitProfiler.value.load(), beginCmdListWaitAvg, false, "Blocked waiting for the render thread to open the\nnext command list.");
-				drawPerfRow("        Present Wait (VSync)", g_presentWaitProfiler.value.load(), presentWaitAvg, false, "VSync pacing: waiting on the swap chain between frames\n(Vsync ON FIFO only).");
+				drawPerfRow("        Present", g_presentProfiler.value.load(), presentAvg, false, "Video::Present on the game thread: draws the overlay UI and\nqueues the frame end for the render thread.\n\nThe (wait) row below is the time it was blocked.");
+				drawPerfRow("            Frame End (wait)", g_frameEndWaitProfiler.value.load(), frameEndWaitAvg, false, "Blocked waiting for the render thread to finish\na frame end.\n\nNear zero unless the render thread is the bottleneck,\nor the game thread waits on purpose (VSync, GPU bound).");
 				drawPerfGroup("    Render Thread");
+				drawPerfRow("        Frame Fence (wait)", g_frameFenceProfiler.value.load(), frameFenceAvg, false, "Blocked waiting for the GPU to finish an older frame\n(backpressure from the buffered-frame pipeline).");
+				drawPerfRow("        Swap Chain Acquire", g_swapChainAcquireProfiler.value.load(), swapChainAcquireAvg, false, "Acquiring a free backbuffer image from the swap chain.");
+				drawPerfRow("        Present Wait (VSync)", g_presentWaitProfiler.value.load(), presentWaitAvg, false, "VSync pacing: waiting on the swap chain between frames\n(Vsync ON FIFO only).");
 				drawPerfRow("        Queue Wait", g_rtQueueWaitInFrameAccum.value.load(), rtQueueWaitInFrameAvg, false, "Starved render thread: commands exhausted, waiting for the\ngame thread to send more.\n\nSame value as Queue Wait (idle) in the Render-Thread Breakdown.");
 
 				ImGui::EndTable();
@@ -3817,7 +3872,7 @@ static void DrawImGui(X86Context* ctx)
 	{
 		RenderCommand cmd;
 		cmd.type = RenderCommandType::DrawImGui;
-		g_renderQueue.enqueue(cmd);
+		SendRenderCommand(cmd);
 	}
 }
 
@@ -3968,7 +4023,19 @@ static void ProcDrawImGui(const RenderCommand& cmd)
 	}
 }
 
-static std::atomic<bool> g_executedCommandList;
+static std::atomic<uint32_t> g_frameEndsDone{ 0 };
+static constexpr double GPU_BOUND_FENCE_WAIT_MS = 0.1;
+
+static void WaitForFrameEnds(uint32_t count)
+{
+	uint32_t done = g_frameEndsDone.load();
+	while (done != count)
+	{
+		g_frameEndsDone.wait(done);
+		done = g_frameEndsDone.load();
+	}
+}
+
 static std::atomic<bool> presentExecuted(true);
 
 static int g_drawPrimitiveUP_ID = 0;
@@ -3988,8 +4055,8 @@ void VideoDebug_DumpPresentState()
 	LOGN("=== VideoDebug_DumpPresentState ===");
 	LOGFN("  swap chain: g_swapChain={} g_swapChainValid={} presentWait_capable={} g_backBufferIndex={}",
 		(void*)g_swapChain.get(), (int)g_swapChainValid, (int)g_capabilities.presentWait, g_backBufferIndex);
-	LOGFN("  present pipeline: presentExecuted={} g_executedCommandList={}",
-		(int)presentExecuted.load(), (int)g_executedCommandList.load());
+	LOGFN("  present pipeline: presentExecuted={} gameFrame={} frameEndsDone={}",
+		(int)presentExecuted.load(), g_gameFrame.load(), g_frameEndsDone.load());
 	LOGFN("  frames: g_frame={} g_nextFrame={}", g_frame, g_nextFrame);
 	std::string commandListStates;
 	for (size_t i = 0; i < NUM_FRAMES; ++i)
@@ -4049,67 +4116,40 @@ void Video::Present(X86Context* ctx)
 		s_prevPresentTime = now;
 	}
 
+	const uint32_t gameFrame = g_gameFrame.load(std::memory_order_relaxed);
+	g_frameEndWaitProfiler.Begin();
+	WaitForFrameEnds(gameFrame);
+	g_frameEndWaitProfiler.End();
+
 	DrawImGui(ctx);
 
-	g_readyForCommands = false;
+	const bool gpuBound = g_frameFenceProfiler.value.load(std::memory_order_relaxed) > GPU_BOUND_FENCE_WAIT_MS;
+	const bool resizing = g_pendingSurfaceResizeFlag || g_swapChainRebuildRequested;
+	const bool readsGuestMemory = g_frameReadsGuestMemory.exchange(false);
+	const bool waitForFrameEnd = Config::VSync || gpuBound || resizing || readsGuestMemory || !isPresentIntervalOne || ctx == nullptr;
+
+	g_intermediaryUploadAllocators[(gameFrame + 1) % std::size(g_intermediaryUploadAllocators)].reset();
+	g_stagedBufferUploads[(gameFrame + 1) % std::size(g_stagedBufferUploads)].reset();
+
 	RenderCommand cmd;
-	cmd.type = RenderCommandType::ExecuteCommandList;
-	g_renderQueue.enqueue(cmd);
+	cmd.type = RenderCommandType::EndFrame;
+	cmd.endFrame.gameThreadWaits = waitForFrameEnd;
+	SendRenderCommand(cmd);
+	g_gameFrame.store(gameFrame + 1, std::memory_order_relaxed);
 
-	presentExecuted = false;
-	g_executeCmdListWaitProfiler.Begin();
-	g_executedCommandList.wait(false);
-	g_executeCmdListWaitProfiler.End();
-	g_executedCommandList = false;
-
-	if (g_swapChainValid)
+	if (waitForFrameEnd)
 	{
-		RenderCommandSemaphore* signalSemaphores[] = { g_renderSemaphores[g_frame].get() };
-		g_swapChainValid = g_swapChain->present(g_backBufferIndex, signalSemaphores, std::size(signalSemaphores));
+		WaitForFrameEnds(gameFrame + 1);
+
+		static uint32_t s_offsetsWidth = 0;
+		static uint32_t s_offsetsHeight = 0;
+		if (s_offsetsWidth != s_viewportWidth || s_offsetsHeight != s_viewportHeight)
+		{
+			AspectRatioPatches::ComputeOffsets();
+			s_offsetsWidth = s_viewportWidth;
+			s_offsetsHeight = s_viewportHeight;
+		}
 	}
-	presentExecuted = true;
-
-	uint32_t oldFrame = g_frame;
-	g_frame = g_nextFrame;
-	g_nextFrame = (g_frame + 1) % NUM_FRAMES;
-
-	if (g_commandListStates[g_frame])
-	{
-		g_frameFenceProfiler.Begin();
-		g_queue->waitForCommandFence(g_commandFences[g_frame].get());
-		g_frameFenceProfiler.End();
-		g_commandListStates[g_frame] = false;
-
-		g_queryPools[g_frame]->queryResults();
-		const uint64_t* frameTimestamps = g_queryPools[g_frame]->getResults();
-		g_gpuFrameProfiler.Set(double(frameTimestamps[1] - frameTimestamps[0]) / 1000000.0);
-	}
-
-	g_dirtyStates = DirtyStates(true);
-
-	g_uploadAllocators[g_frame].reset();
-	g_intermediaryUploadAllocator.reset();
-	g_stagedBufferUploads[g_frame].reset();
-	g_quadIndexData.reset();
-
-	g_presentWaitProfiler.Begin();
-
-	// wait on fifo only
-	if (g_vulkan && g_swapChainValid && g_capabilities.presentWait && Config::VSync && GetVulkanSwapChain()->createdPresentMode == VK_PRESENT_MODE_FIFO_KHR)
-	{
-		g_swapChain->wait();
-	}
-	g_presentWaitProfiler.End();
-
-	CheckSwapChain();
-
-	cmd.type = RenderCommandType::BeginCommandList;
-	g_renderQueue.enqueue(cmd);
-
-	g_beginCmdListWaitProfiler.Begin();
-	g_readyForCommands.wait(false);
-	g_beginCmdListWaitProfiler.End();
-
 
 	presentLock.unlock();
 
@@ -4270,8 +4310,6 @@ static void ProcExecuteCommandList(const RenderCommand& cmd)
 	}
 
 	g_commandListStates[g_frame] = true;
-	g_executedCommandList = true;
-	g_executedCommandList.notify_one();
 }
 
 // hold commands that arrive late (previously discarded)
@@ -4281,7 +4319,12 @@ static void ProcBeginCommandList(const RenderCommand& cmd)
 {
 	RtScopeTimer _scope(g_rtBeginCmdListWorkAccum);
 	DestructTempResources();
-	BeginCommandList();
+
+	// ProcEndFrame has already waited.
+	// So this is safe to clear here 
+	// - Sewer-chan
+	g_uploadAllocators[g_frame].reset();
+	BeginCommandList(cmd.endFrame.gameThreadWaits);
 
 	// Run deferred commands; TODO: Maybe just discard them like before, needs more testing
 	std::vector<RenderCommand> deferred = std::move(g_deferredRenderCommands);
@@ -4290,7 +4333,53 @@ static void ProcBeginCommandList(const RenderCommand& cmd)
 		ProcessRenderCommand(deferredCmd);
 }
 
-void Video::ComputeViewportDimensions()
+static void ProcEndFrame(const RenderCommand& cmd)
+{
+	ProcExecuteCommandList(cmd);
+
+	presentExecuted = false;
+	if (g_swapChainValid)
+	{
+		RenderCommandSemaphore* signalSemaphores[] = { g_renderSemaphores[g_frame].get() };
+		g_swapChainValid = g_swapChain->present(g_backBufferIndex, signalSemaphores, std::size(signalSemaphores));
+	}
+	presentExecuted = true;
+
+	g_frame = g_nextFrame;
+	g_nextFrame = (g_frame + 1) % NUM_FRAMES;
+
+	if (g_commandListStates[g_frame])
+	{
+		g_frameFenceProfiler.Begin();
+		g_queue->waitForCommandFence(g_commandFences[g_frame].get());
+		g_frameFenceProfiler.End();
+		g_commandListStates[g_frame] = false;
+
+		g_queryPools[g_frame]->queryResults();
+		const uint64_t* frameTimestamps = g_queryPools[g_frame]->getResults();
+		g_gpuFrameProfiler.Set(double(frameTimestamps[1] - frameTimestamps[0]) / 1000000.0);
+	}
+
+	g_dirtyStates = DirtyStates(true);
+	g_quadIndexData.reset();
+
+	g_presentWaitProfiler.Begin();
+
+	// wait on fifo only
+	if (g_vulkan && g_swapChainValid && g_capabilities.presentWait && Config::VSync && GetVulkanSwapChain()->createdPresentMode == VK_PRESENT_MODE_FIFO_KHR)
+	{
+		g_swapChain->wait();
+	}
+	g_presentWaitProfiler.End();
+
+	CheckSwapChain(cmd.endFrame.gameThreadWaits);
+	ProcBeginCommandList(cmd);
+
+	g_frameEndsDone.fetch_add(1);
+	g_frameEndsDone.notify_all();
+}
+
+static void ComputeViewportSize()
 {
 	uint32_t width = g_swapChain->getWidth();
 	uint32_t height = g_swapChain->getHeight();
@@ -4344,12 +4433,14 @@ void Video::ComputeViewportDimensions()
 	{
 		std::lock_guard lock(g_surfaceRTsMutex);
 		// The swapchain can change size without another window resize event.
-		surface_resize::SetViewportSize(s_viewportWidth, s_viewportHeight, width, height,
+		surface_resize::SetViewportSize(Video::s_viewportWidth, Video::s_viewportHeight, width, height,
 			g_pendingSurfaceResizeFlag);
 	}
+}
 
-	auto base = g_memory.base;
-
+void Video::ComputeViewportDimensions()
+{
+	ComputeViewportSize();
 	AspectRatioPatches::ComputeOffsets();
 }
 
@@ -5314,7 +5405,8 @@ static void SetViewport(GuestViewport* viewport, GuestSurface* surface)
 		cmd.setViewport.minDepth = viewport->MinZ;
 		cmd.setViewport.maxDepth = viewport->MaxZ;
 		cmd.setViewport.isFixed = isFixed;
-		g_renderQueue.enqueue(cmd);
+		g_gameViewport = RenderViewport(cmd.setViewport.x, cmd.setViewport.y, width, height, viewport->MinZ, viewport->MaxZ);
+		g_pendingRenderCommands.enqueue() = cmd;
 	}
 }
 
@@ -5393,7 +5485,7 @@ void D3DDevice_SetRenderTarget(X86Context& ctx, GuestSurface* surface, GuestSurf
 	RenderCommand cmd;
 	cmd.type = RenderCommandType::SetRenderTarget;
 	cmd.setRenderTarget.renderTarget = newSurface;
-	g_renderQueue.enqueue(cmd);
+	g_pendingRenderCommands.enqueue() = cmd;
 
 	static GuestViewport defaultViewport;
 	defaultViewport.X = 0;
@@ -5408,7 +5500,7 @@ void D3DDevice_SetRenderTarget(X86Context& ctx, GuestSurface* surface, GuestSurf
 	RenderCommand cmd2;
 	cmd2.type = RenderCommandType::SetDepthStencilSurface;
 	cmd2.setDepthStencilSurface.depthStencil = newDepthStencil;
-	g_renderQueue.enqueue(cmd2);
+	g_pendingRenderCommands.enqueue() = cmd2;
 
 	g_next_RenderTarget = newSurface;
 	MarkFixedFunctionVertexShaderStateDirty();
@@ -5624,7 +5716,7 @@ void D3DDevice_Clear(uint32_t count, _D3DRECT* pRects, uint32_t flags, uint32_t 
 	const bool clearStencil = (flags & X_D3DCLEAR_STENCIL) != 0;
 
 
-	g_renderQueue.enqueue(cmd);
+	SendRenderCommand(cmd);
 }
 
 //D3DDevice_SetTransform
@@ -5729,11 +5821,11 @@ static RenderPipeline* CreateGraphicsPipelineInRenderThread(PipelineState pipeli
 
 	if (s_lastPipeline != nullptr && std::memcmp(&pipelineState, &s_lastSanitizedState, sizeof(PipelineState)) == 0)
 	{
-		g_psoCacheHits.fetch_add(1, std::memory_order_relaxed);
+		g_psoCacheHits++;
 		return s_lastPipeline;
 	}
 
-	g_psoCacheMisses.fetch_add(1, std::memory_order_relaxed);
+	g_psoCacheMisses++;
 
 	XXH64_hash_t hash = ComputePipelineStateHash(pipelineState);
 	auto& pipeline = g_pipelines[hash];
@@ -5842,7 +5934,7 @@ static void FlushRenderStateForMainThread(LocalRenderCommandQueue& queue)
 		// Select the specialized shader for the current controls and forward
 		// changes to the render thread.
 		const auto variant = UpdateFixedFunctionVertexShaderState((size_t)g_memory.Translate(g_VertexShader_Handle),
-			g_pipelineState.isFixedFunctionPS, g_fixedFunctionVertexRegisterDefaultMask);
+			IsFixedFunctionPixelShader(), g_fixedFunctionVertexRegisterDefaultMask);
 		if (variant != g_lastSentVertexShaderVariant)
 		{
 			auto& cmd = queue.enqueue();
@@ -6085,7 +6177,7 @@ static void UnlockBuffer(GuestBuffer* buffer, bool useCopyQueue)
 	else if (useCopyQueue && buffer->dataSize <= StagedBufferUploadAllocator::SIZE)
 	{
 		// Game thread: reserve staging bytes, memcpy, push one command.
-		auto allocation = g_stagedBufferUploads[g_frame].allocate(buffer->dataSize, 0x4, *g_device);
+		auto allocation = GameFrameStagedUploads().allocate(buffer->dataSize, 0x4, *g_device);
 		memcpy(allocation.memory, buffer->mappedMemory, buffer->dataSize);
 
 		RenderCommand cmd;
@@ -6094,7 +6186,7 @@ static void UnlockBuffer(GuestBuffer* buffer, bool useCopyQueue)
 		cmd.stagedCopy.srcBuffer = allocation.buffer;
 		cmd.stagedCopy.srcOffset = allocation.offset;
 		cmd.stagedCopy.size = buffer->dataSize;
-		g_renderQueue.enqueue(cmd);
+		SendRenderCommand(cmd);
 	}
 	else
 	{
@@ -6249,7 +6341,7 @@ uint8_t* ApplyVertexPatch(uint8_t* vertexData, const uint8_t indexStream, const 
 	if (!bNeedVertexPatching)
 		return nullptr;
 
-	uint8_t* pHostVertexData = useHostMemory ? g_intermediaryUploadAllocator.allocate(VertexCount * alignedStride) : (uint8_t*)g_userHeap.AllocPhysical(VertexCount * alignedStride, 0x10);
+	uint8_t* pHostVertexData = useHostMemory ? AllocateDrawData(VertexCount * alignedStride) : (uint8_t*)g_userHeap.AllocPhysical(VertexCount * alignedStride, 0x10);
 
 	for (uint32_t uiVertex = 0; uiVertex < VertexCount; uiVertex++)
 	{
@@ -6399,7 +6491,7 @@ void DrawPrimitive(X_D3DPRIMITIVETYPE PrimitiveType, uint32_t StartVertex, uint3
 	Guard_Rendering();
 	std::shared_lock presentLock(g_presentMutex);
 
-	LocalRenderCommandQueue queue;
+	LocalRenderCommandQueue& queue = g_pendingRenderCommands;
 
 	FlushRenderStateForMainThread(queue);
 
@@ -6440,7 +6532,7 @@ void DrawPrimitive(X_D3DPRIMITIVETYPE PrimitiveType, uint32_t StartVertex, uint3
 			else
 			{
 				const size_t originalSize = VertexCount * alignedStride;
-				vertexParticles = (uint8_t*)g_intermediaryUploadAllocator.allocate(VertexCount * alignedStride);
+				vertexParticles = (uint8_t*)AllocateDrawData(VertexCount * alignedStride);
 				memcpy(vertexParticles, pXboxVertexData, originalSize);
 			}
 
@@ -6486,7 +6578,7 @@ static void ProcDrawPrimitive(const RenderCommand& cmd)
 void DrawIndexedPrimitive(X_D3DPRIMITIVETYPE PrimitiveType, uint32_t VertexCount, int16_t* pIndexData)
 {
 	RtScopeTimer _gtScope(g_gtDrawRecordingAccum);
-	LocalRenderCommandQueue queue;
+	LocalRenderCommandQueue& queue = g_pendingRenderCommands;
 
 	Guard_Rendering();
 	std::shared_lock presentLock(g_presentMutex);
@@ -6575,7 +6667,7 @@ void DrawIndexedPrimitive(X_D3DPRIMITIVETYPE PrimitiveType, uint32_t VertexCount
 			uint8_t* vertexData = ApplyVertexPatch(pXboxVertexData, i, usedVertices, originalStride, alignedStride, true);
 			if (vertexData == nullptr)
 			{
-				vertexData = g_intermediaryUploadAllocator.allocate(usedVertices * alignedStride);
+				vertexData = AllocateDrawData(usedVertices * alignedStride);
 				memcpy(vertexData, pXboxVertexData, usedVertices * originalStride);
 			}
 
@@ -6642,7 +6734,7 @@ void DrawPrimitiveUP(X_D3DPRIMITIVETYPE PrimitiveType, uint32_t VertexCount, voi
 	Guard_Rendering();
 	std::shared_lock presentLock(g_presentMutex);
 
-	LocalRenderCommandQueue queue;
+	LocalRenderCommandQueue& queue = g_pendingRenderCommands;
 	FlushRenderStateForMainThread(queue);
 
 
@@ -6653,7 +6745,7 @@ void DrawPrimitiveUP(X_D3DPRIMITIVETYPE PrimitiveType, uint32_t VertexCount, voi
 	cmd.drawPrimitiveUP.ID = g_drawPrimitiveUP_ID++;
 	cmd.drawPrimitiveUP.primitiveType = PrimitiveType;
 	cmd.drawPrimitiveUP.primitiveCount = VertexCount;
-	cmd.drawPrimitiveUP.vertexStreamZeroData = g_intermediaryUploadAllocator.allocate(vertexData, VertexCount * VertexStreamZeroStride);
+	cmd.drawPrimitiveUP.vertexStreamZeroData = AllocateDrawData(vertexData, VertexCount * VertexStreamZeroStride);
 	cmd.drawPrimitiveUP.vertexStreamZeroSize = VertexCount * VertexStreamZeroStride;
 	cmd.drawPrimitiveUP.vertexStreamZeroStride = VertexStreamZeroStride;
 	cmd.drawPrimitiveUP.isFixed = g_Xbox_VertexShaderMode == VertexShaderMode::FixedFunction;
@@ -7026,30 +7118,30 @@ static void ProcessRenderCommand(const RenderCommand& cmd)
 
 	switch (cmd.type)
 	{
-	case RenderCommandType::DestructResource: { g_stateChangeCount.fetch_add(1, std::memory_order_relaxed); RtScopeTimer _s(g_rtOtherCmdsAccum); ProcDestructResource(cmd); } break;
-	case RenderCommandType::UnlockTextureRect: { g_stateChangeCount.fetch_add(1, std::memory_order_relaxed); RtScopeTimer _s(g_rtOtherCmdsAccum); ProcUnlockTextureRect(cmd); } break;
-	case RenderCommandType::UnlockBuffer16: { g_stateChangeCount.fetch_add(1, std::memory_order_relaxed); RtScopeTimer _s(g_rtOtherCmdsAccum); ProcUnlockBuffer16(cmd); } break;
-	case RenderCommandType::UnlockBuffer32: { g_stateChangeCount.fetch_add(1, std::memory_order_relaxed); RtScopeTimer _s(g_rtOtherCmdsAccum); ProcUnlockBuffer32(cmd); } break;
-	case RenderCommandType::SetRenderState: { g_stateChangeCount.fetch_add(1, std::memory_order_relaxed); RtScopeTimer _s(g_rtOtherCmdsAccum); ProcSetRenderState(cmd); } break;
-	case RenderCommandType::DrawImGui: { g_stateChangeCount.fetch_add(1, std::memory_order_relaxed); RtScopeTimer _s(g_rtOtherCmdsAccum); ProcDrawImGui(cmd); } break;
-	case RenderCommandType::SetRenderTarget: { g_stateChangeCount.fetch_add(1, std::memory_order_relaxed); RtScopeTimer _s(g_rtOtherCmdsAccum); ProcSetRenderTarget(cmd); } break;
-	case RenderCommandType::SetDepthStencilSurface: { g_stateChangeCount.fetch_add(1, std::memory_order_relaxed); RtScopeTimer _s(g_rtOtherCmdsAccum); ProcSetDepthStencilSurface(cmd); } break;
-	case RenderCommandType::Clear: { g_stateChangeCount.fetch_add(1, std::memory_order_relaxed); RtScopeTimer _s(g_rtOtherCmdsAccum); ProcClear(cmd); } break;
-	case RenderCommandType::SetViewport: { g_stateChangeCount.fetch_add(1, std::memory_order_relaxed); RtScopeTimer _s(g_rtOtherCmdsAccum); ProcSetViewport(cmd); } break;
-	case RenderCommandType::SetTexture: { g_stateChangeCount.fetch_add(1, std::memory_order_relaxed); RtScopeTimer _s(g_rtOtherCmdsAccum); ProcSetTexture(cmd); } break;
-	case RenderCommandType::SetTextureStageState: { g_stateChangeCount.fetch_add(1, std::memory_order_relaxed); RtScopeTimer _s(g_rtOtherCmdsAccum); ProcSetTextureStageState(cmd); } break;
-	case RenderCommandType::SetVertexShaderConstants: { g_stateChangeCount.fetch_add(1, std::memory_order_relaxed); RtScopeTimer _s(g_rtOtherCmdsAccum); ProcSetVertexShaderConstants(cmd); } break;
-	case RenderCommandType::SetVertexShaderVariant: { g_stateChangeCount.fetch_add(1, std::memory_order_relaxed); RtScopeTimer _s(g_rtOtherCmdsAccum); ProcSetVertexShaderVariant(cmd); } break;
-	case RenderCommandType::SetPixelShaderConstants: { g_stateChangeCount.fetch_add(1, std::memory_order_relaxed); RtScopeTimer _s(g_rtOtherCmdsAccum); ProcSetPixelShaderConstants(cmd); } break;
-	case RenderCommandType::DrawPrimitive: { g_drawCallCount.fetch_add(1, std::memory_order_relaxed); ProcDrawPrimitive(cmd); } break;
-	case RenderCommandType::DrawIndexedPrimitive: { g_drawCallCount.fetch_add(1, std::memory_order_relaxed); ProcDrawIndexedPrimitive(cmd); } break;
-	case RenderCommandType::DrawPrimitiveUP: { g_drawCallCount.fetch_add(1, std::memory_order_relaxed); ProcDrawPrimitiveUP(cmd); } break;
-	case RenderCommandType::SetVertexDeclaration: { g_stateChangeCount.fetch_add(1, std::memory_order_relaxed); RtScopeTimer _s(g_rtOtherCmdsAccum); ProcSetVertexDeclaration(cmd); } break;
-	case RenderCommandType::SetVertexShader: { g_stateChangeCount.fetch_add(1, std::memory_order_relaxed); RtScopeTimer _s(g_rtOtherCmdsAccum); ProcSetVertexShader(cmd); } break;
-	case RenderCommandType::SetStreamSource: { g_stateChangeCount.fetch_add(1, std::memory_order_relaxed); RtScopeTimer _s(g_rtOtherCmdsAccum); ProcSetStreamSource(cmd); } break;
-	case RenderCommandType::SetStreamSourceUP: { g_stateChangeCount.fetch_add(1, std::memory_order_relaxed); RtScopeTimer _s(g_rtOtherCmdsAccum); ProcSetStreamSourceUP(cmd); } break;
-	case RenderCommandType::SetIndices: { g_stateChangeCount.fetch_add(1, std::memory_order_relaxed); RtScopeTimer _s(g_rtOtherCmdsAccum); ProcSetIndices(cmd); } break;
-	case RenderCommandType::SetPixelShader: { g_stateChangeCount.fetch_add(1, std::memory_order_relaxed); RtScopeTimer _s(g_rtOtherCmdsAccum); ProcSetPixelShader(cmd); } break;
+	case RenderCommandType::DestructResource: { g_stateChangeCount++; RtScopeTimer _s(g_rtOtherCmdsAccum); ProcDestructResource(cmd); } break;
+	case RenderCommandType::UnlockTextureRect: { g_stateChangeCount++; RtScopeTimer _s(g_rtOtherCmdsAccum); ProcUnlockTextureRect(cmd); } break;
+	case RenderCommandType::UnlockBuffer16: { g_stateChangeCount++; RtScopeTimer _s(g_rtOtherCmdsAccum); ProcUnlockBuffer16(cmd); } break;
+	case RenderCommandType::UnlockBuffer32: { g_stateChangeCount++; RtScopeTimer _s(g_rtOtherCmdsAccum); ProcUnlockBuffer32(cmd); } break;
+	case RenderCommandType::SetRenderState: { g_stateChangeCount++; RtScopeTimer _s(g_rtOtherCmdsAccum); ProcSetRenderState(cmd); } break;
+	case RenderCommandType::DrawImGui: { g_stateChangeCount++; RtScopeTimer _s(g_rtOtherCmdsAccum); ProcDrawImGui(cmd); } break;
+	case RenderCommandType::SetRenderTarget: { g_stateChangeCount++; RtScopeTimer _s(g_rtOtherCmdsAccum); ProcSetRenderTarget(cmd); } break;
+	case RenderCommandType::SetDepthStencilSurface: { g_stateChangeCount++; RtScopeTimer _s(g_rtOtherCmdsAccum); ProcSetDepthStencilSurface(cmd); } break;
+	case RenderCommandType::Clear: { g_stateChangeCount++; RtScopeTimer _s(g_rtOtherCmdsAccum); ProcClear(cmd); } break;
+	case RenderCommandType::SetViewport: { g_stateChangeCount++; RtScopeTimer _s(g_rtOtherCmdsAccum); ProcSetViewport(cmd); } break;
+	case RenderCommandType::SetTexture: { g_stateChangeCount++; RtScopeTimer _s(g_rtOtherCmdsAccum); ProcSetTexture(cmd); } break;
+	case RenderCommandType::SetTextureStageState: { g_stateChangeCount++; RtScopeTimer _s(g_rtOtherCmdsAccum); ProcSetTextureStageState(cmd); } break;
+	case RenderCommandType::SetVertexShaderConstants: { g_stateChangeCount++; RtScopeTimer _s(g_rtOtherCmdsAccum); ProcSetVertexShaderConstants(cmd); } break;
+	case RenderCommandType::SetVertexShaderVariant: { g_stateChangeCount++; RtScopeTimer _s(g_rtOtherCmdsAccum); ProcSetVertexShaderVariant(cmd); } break;
+	case RenderCommandType::SetPixelShaderConstants: { g_stateChangeCount++; RtScopeTimer _s(g_rtOtherCmdsAccum); ProcSetPixelShaderConstants(cmd); } break;
+	case RenderCommandType::DrawPrimitive: { g_drawCallCount++; ProcDrawPrimitive(cmd); } break;
+	case RenderCommandType::DrawIndexedPrimitive: { g_drawCallCount++; ProcDrawIndexedPrimitive(cmd); } break;
+	case RenderCommandType::DrawPrimitiveUP: { g_drawCallCount++; ProcDrawPrimitiveUP(cmd); } break;
+	case RenderCommandType::SetVertexDeclaration: { g_stateChangeCount++; RtScopeTimer _s(g_rtOtherCmdsAccum); ProcSetVertexDeclaration(cmd); } break;
+	case RenderCommandType::SetVertexShader: { g_stateChangeCount++; RtScopeTimer _s(g_rtOtherCmdsAccum); ProcSetVertexShader(cmd); } break;
+	case RenderCommandType::SetStreamSource: { g_stateChangeCount++; RtScopeTimer _s(g_rtOtherCmdsAccum); ProcSetStreamSource(cmd); } break;
+	case RenderCommandType::SetStreamSourceUP: { g_stateChangeCount++; RtScopeTimer _s(g_rtOtherCmdsAccum); ProcSetStreamSourceUP(cmd); } break;
+	case RenderCommandType::SetIndices: { g_stateChangeCount++; RtScopeTimer _s(g_rtOtherCmdsAccum); ProcSetIndices(cmd); } break;
+	case RenderCommandType::SetPixelShader: { g_stateChangeCount++; RtScopeTimer _s(g_rtOtherCmdsAccum); ProcSetPixelShader(cmd); } break;
 	case RenderCommandType::AddPipeline: { ProcAddPipeline(cmd); } break;
 	default:
 		assert(false && "Unrecognized render command type.");
@@ -7088,7 +7180,7 @@ static std::thread g_renderThread([]
 			for (size_t i = 0; i < count; i++)
 			{
 				auto& cmd = commands[i];
-				g_totalCommandCount.fetch_add(1, std::memory_order_relaxed);
+				g_totalCommandCount++;
 
 				switch (cmd.type)
 				{
@@ -7101,17 +7193,17 @@ static std::thread g_renderThread([]
 					while (i + stagedCount < count && commands[i + stagedCount].type == RenderCommandType::StagedCopy)
 						++stagedCount;
 
-					g_stateChangeCount.fetch_add(stagedCount, std::memory_order_relaxed);
-					g_totalCommandCount.fetch_add(stagedCount - 1, std::memory_order_relaxed);
+					g_stateChangeCount += uint32_t(stagedCount);
+					g_totalCommandCount += uint32_t(stagedCount - 1);
 					ProcStagedCopyRange(&commands[i], stagedCount);
 					i += stagedCount - 1;
 				} break;
-				case RenderCommandType::ExecuteCommandList:
-					g_drawCallCountSnapshot = g_drawCallCount.exchange(0, std::memory_order_relaxed);
-					g_stateChangeCountSnapshot = g_stateChangeCount.exchange(0, std::memory_order_relaxed);
-					g_totalCommandCountSnapshot = g_totalCommandCount.exchange(0, std::memory_order_relaxed);
-					g_psoCacheHitsSnapshot = g_psoCacheHits.exchange(0, std::memory_order_relaxed);
-					g_psoCacheMissesSnapshot = g_psoCacheMisses.exchange(0, std::memory_order_relaxed);
+				case RenderCommandType::EndFrame:
+					g_drawCallCountSnapshot = std::exchange(g_drawCallCount, 0);
+					g_stateChangeCountSnapshot = std::exchange(g_stateChangeCount, 0);
+					g_totalCommandCountSnapshot = std::exchange(g_totalCommandCount, 0);
+					g_psoCacheHitsSnapshot = std::exchange(g_psoCacheHits, 0);
+					g_psoCacheMissesSnapshot = std::exchange(g_psoCacheMisses, 0);
 					g_rtOtherCmdsAccum.SnapshotAndReset();
 					g_rtBeginCmdListWorkAccum.SnapshotAndReset();
 					g_rtPsoWorkAccum.SnapshotAndReset();
@@ -7121,9 +7213,7 @@ static std::thread g_renderThread([]
 					g_rtQueueWaitAccum.SnapshotAndReset();
 					g_rtQueueWaitInFrameAccum.SnapshotAndReset();
 					g_renderDirectorProfiler.End();
-					ProcExecuteCommandList(cmd); break;
-				case RenderCommandType::BeginCommandList:
-					ProcBeginCommandList(cmd);
+					ProcEndFrame(cmd);
 					g_renderDirectorProfiler.Begin();
 					break;
 				default:

@@ -425,7 +425,7 @@ static void SetVertexDeclaration(GuestVertexDeclaration* vertexDeclaration)
 	RenderCommand cmd;
 	cmd.type = RenderCommandType::SetVertexDeclaration;
 	cmd.setVertexDeclaration.vertexDeclaration = vertexDeclaration;
-	g_renderQueue.enqueue(cmd);
+	g_pendingRenderCommands.enqueue() = cmd;
 }
 
 static GuestVertexDeclaration* CreateVertexDeclaration(D3DVERTEXELEMENT9* vertexElements, VertexShaderMode shaderMode)

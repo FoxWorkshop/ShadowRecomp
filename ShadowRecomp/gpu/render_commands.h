@@ -15,8 +15,7 @@ enum class RenderCommandType
 	UnlockBuffer16,
 	UnlockBuffer32,
 	DrawImGui,
-	ExecuteCommandList,
-	BeginCommandList,
+	EndFrame,
 	StretchRect,
 	SetRenderTarget,
 	SetDepthStencilSurface,
@@ -59,6 +58,11 @@ struct RenderCommand
 		{
 			GuestResource* resource;
 		} destructResource;
+
+		struct
+		{
+			bool gameThreadWaits;
+		} endFrame;
 
 		struct
 		{
@@ -276,3 +280,19 @@ struct LocalRenderCommandQueue
 		return commands[count++];
 	}
 };
+
+struct PendingRenderCommands : LocalRenderCommandQueue
+{
+	~PendingRenderCommands()
+	{
+		submit();
+	}
+};
+
+inline thread_local PendingRenderCommands g_pendingRenderCommands;
+
+inline void SendRenderCommand(const RenderCommand& cmd)
+{
+	g_pendingRenderCommands.enqueue() = cmd;
+	g_pendingRenderCommands.submit();
+}
