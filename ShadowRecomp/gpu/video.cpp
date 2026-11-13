@@ -463,9 +463,9 @@ struct UploadBuffer
 	uint64_t deviceAddress = 0;
 };
 
+// Render thread only!!
 struct UploadAllocator
 {
-	std::mutex mutex;
 	std::vector<UploadBuffer> buffers;
 	uint32_t index = 0;
 	uint32_t offset = 0;
@@ -474,7 +474,6 @@ struct UploadAllocator
 	{
 		assert(size <= UploadBuffer::SIZE);
 
-		std::lock_guard lock(mutex);
 		offset = (offset + alignment - 1) & ~(alignment - 1);
 
 		if (offset + size > UploadBuffer::SIZE)
@@ -512,7 +511,6 @@ struct UploadAllocator
 
 	void reset()
 	{
-		std::lock_guard lock(mutex);
 		index = 0;
 		offset = 0;
 	}
@@ -4088,7 +4086,6 @@ void Video::Present(X86Context* ctx)
 
 	g_dirtyStates = DirtyStates(true);
 
-	g_uploadAllocators[g_frame].reset();
 	g_intermediaryUploadAllocator.reset();
 	g_stagedBufferUploads[g_frame].reset();
 	g_quadIndexData.reset();
@@ -4282,6 +4279,11 @@ static void ProcBeginCommandList(const RenderCommand& cmd)
 {
 	RtScopeTimer _scope(g_rtBeginCmdListWorkAccum);
 	DestructTempResources();
+
+	// Present has already waited.
+	// So this is safe to clear here 
+	// - Sewer-chan
+	g_uploadAllocators[g_frame].reset();
 	BeginCommandList();
 
 	// Run deferred commands; TODO: Maybe just discard them like before, needs more testing
