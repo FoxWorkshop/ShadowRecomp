@@ -337,14 +337,15 @@ static Profiler g_executeCmdListWaitProfiler;
 static Profiler g_beginCmdListWaitProfiler;
 
 // --- Per-frame command counters (reset at ExecuteCommandList) ---
-static std::atomic<uint32_t> g_drawCallCount{ 0 };      // DrawPrimitive + DrawIndexedPrimitive + DrawPrimitiveUP
-static std::atomic<uint32_t> g_stateChangeCount{ 0 };   // All non-draw, non-frame-boundary commands
-static std::atomic<uint32_t> g_totalCommandCount{ 0 };  // Everything
+// Render thread only, so plain integers: a lock-prefixed add per command is measurable.
+static uint32_t g_drawCallCount = 0;      // DrawPrimitive + DrawIndexedPrimitive + DrawPrimitiveUP
+static uint32_t g_stateChangeCount = 0;   // All non-draw, non-frame-boundary commands
+static uint32_t g_totalCommandCount = 0;  // Everything
 static uint32_t g_drawCallCountSnapshot = 0;
 static uint32_t g_stateChangeCountSnapshot = 0;
 static uint32_t g_totalCommandCountSnapshot = 0;
-static std::atomic<uint32_t> g_psoCacheHits{ 0 };
-static std::atomic<uint32_t> g_psoCacheMisses{ 0 };
+static uint32_t g_psoCacheHits = 0;
+static uint32_t g_psoCacheMisses = 0;
 static uint32_t g_psoCacheHitsSnapshot = 0;
 static uint32_t g_psoCacheMissesSnapshot = 0;
 
@@ -5729,11 +5730,11 @@ static RenderPipeline* CreateGraphicsPipelineInRenderThread(PipelineState pipeli
 
 	if (s_lastPipeline != nullptr && std::memcmp(&pipelineState, &s_lastSanitizedState, sizeof(PipelineState)) == 0)
 	{
-		g_psoCacheHits.fetch_add(1, std::memory_order_relaxed);
+		g_psoCacheHits++;
 		return s_lastPipeline;
 	}
 
-	g_psoCacheMisses.fetch_add(1, std::memory_order_relaxed);
+	g_psoCacheMisses++;
 
 	XXH64_hash_t hash = ComputePipelineStateHash(pipelineState);
 	auto& pipeline = g_pipelines[hash];
@@ -7026,30 +7027,30 @@ static void ProcessRenderCommand(const RenderCommand& cmd)
 
 	switch (cmd.type)
 	{
-	case RenderCommandType::DestructResource: { g_stateChangeCount.fetch_add(1, std::memory_order_relaxed); RtScopeTimer _s(g_rtOtherCmdsAccum); ProcDestructResource(cmd); } break;
-	case RenderCommandType::UnlockTextureRect: { g_stateChangeCount.fetch_add(1, std::memory_order_relaxed); RtScopeTimer _s(g_rtOtherCmdsAccum); ProcUnlockTextureRect(cmd); } break;
-	case RenderCommandType::UnlockBuffer16: { g_stateChangeCount.fetch_add(1, std::memory_order_relaxed); RtScopeTimer _s(g_rtOtherCmdsAccum); ProcUnlockBuffer16(cmd); } break;
-	case RenderCommandType::UnlockBuffer32: { g_stateChangeCount.fetch_add(1, std::memory_order_relaxed); RtScopeTimer _s(g_rtOtherCmdsAccum); ProcUnlockBuffer32(cmd); } break;
-	case RenderCommandType::SetRenderState: { g_stateChangeCount.fetch_add(1, std::memory_order_relaxed); RtScopeTimer _s(g_rtOtherCmdsAccum); ProcSetRenderState(cmd); } break;
-	case RenderCommandType::DrawImGui: { g_stateChangeCount.fetch_add(1, std::memory_order_relaxed); RtScopeTimer _s(g_rtOtherCmdsAccum); ProcDrawImGui(cmd); } break;
-	case RenderCommandType::SetRenderTarget: { g_stateChangeCount.fetch_add(1, std::memory_order_relaxed); RtScopeTimer _s(g_rtOtherCmdsAccum); ProcSetRenderTarget(cmd); } break;
-	case RenderCommandType::SetDepthStencilSurface: { g_stateChangeCount.fetch_add(1, std::memory_order_relaxed); RtScopeTimer _s(g_rtOtherCmdsAccum); ProcSetDepthStencilSurface(cmd); } break;
-	case RenderCommandType::Clear: { g_stateChangeCount.fetch_add(1, std::memory_order_relaxed); RtScopeTimer _s(g_rtOtherCmdsAccum); ProcClear(cmd); } break;
-	case RenderCommandType::SetViewport: { g_stateChangeCount.fetch_add(1, std::memory_order_relaxed); RtScopeTimer _s(g_rtOtherCmdsAccum); ProcSetViewport(cmd); } break;
-	case RenderCommandType::SetTexture: { g_stateChangeCount.fetch_add(1, std::memory_order_relaxed); RtScopeTimer _s(g_rtOtherCmdsAccum); ProcSetTexture(cmd); } break;
-	case RenderCommandType::SetTextureStageState: { g_stateChangeCount.fetch_add(1, std::memory_order_relaxed); RtScopeTimer _s(g_rtOtherCmdsAccum); ProcSetTextureStageState(cmd); } break;
-	case RenderCommandType::SetVertexShaderConstants: { g_stateChangeCount.fetch_add(1, std::memory_order_relaxed); RtScopeTimer _s(g_rtOtherCmdsAccum); ProcSetVertexShaderConstants(cmd); } break;
-	case RenderCommandType::SetVertexShaderVariant: { g_stateChangeCount.fetch_add(1, std::memory_order_relaxed); RtScopeTimer _s(g_rtOtherCmdsAccum); ProcSetVertexShaderVariant(cmd); } break;
-	case RenderCommandType::SetPixelShaderConstants: { g_stateChangeCount.fetch_add(1, std::memory_order_relaxed); RtScopeTimer _s(g_rtOtherCmdsAccum); ProcSetPixelShaderConstants(cmd); } break;
-	case RenderCommandType::DrawPrimitive: { g_drawCallCount.fetch_add(1, std::memory_order_relaxed); ProcDrawPrimitive(cmd); } break;
-	case RenderCommandType::DrawIndexedPrimitive: { g_drawCallCount.fetch_add(1, std::memory_order_relaxed); ProcDrawIndexedPrimitive(cmd); } break;
-	case RenderCommandType::DrawPrimitiveUP: { g_drawCallCount.fetch_add(1, std::memory_order_relaxed); ProcDrawPrimitiveUP(cmd); } break;
-	case RenderCommandType::SetVertexDeclaration: { g_stateChangeCount.fetch_add(1, std::memory_order_relaxed); RtScopeTimer _s(g_rtOtherCmdsAccum); ProcSetVertexDeclaration(cmd); } break;
-	case RenderCommandType::SetVertexShader: { g_stateChangeCount.fetch_add(1, std::memory_order_relaxed); RtScopeTimer _s(g_rtOtherCmdsAccum); ProcSetVertexShader(cmd); } break;
-	case RenderCommandType::SetStreamSource: { g_stateChangeCount.fetch_add(1, std::memory_order_relaxed); RtScopeTimer _s(g_rtOtherCmdsAccum); ProcSetStreamSource(cmd); } break;
-	case RenderCommandType::SetStreamSourceUP: { g_stateChangeCount.fetch_add(1, std::memory_order_relaxed); RtScopeTimer _s(g_rtOtherCmdsAccum); ProcSetStreamSourceUP(cmd); } break;
-	case RenderCommandType::SetIndices: { g_stateChangeCount.fetch_add(1, std::memory_order_relaxed); RtScopeTimer _s(g_rtOtherCmdsAccum); ProcSetIndices(cmd); } break;
-	case RenderCommandType::SetPixelShader: { g_stateChangeCount.fetch_add(1, std::memory_order_relaxed); RtScopeTimer _s(g_rtOtherCmdsAccum); ProcSetPixelShader(cmd); } break;
+	case RenderCommandType::DestructResource: { g_stateChangeCount++; RtScopeTimer _s(g_rtOtherCmdsAccum); ProcDestructResource(cmd); } break;
+	case RenderCommandType::UnlockTextureRect: { g_stateChangeCount++; RtScopeTimer _s(g_rtOtherCmdsAccum); ProcUnlockTextureRect(cmd); } break;
+	case RenderCommandType::UnlockBuffer16: { g_stateChangeCount++; RtScopeTimer _s(g_rtOtherCmdsAccum); ProcUnlockBuffer16(cmd); } break;
+	case RenderCommandType::UnlockBuffer32: { g_stateChangeCount++; RtScopeTimer _s(g_rtOtherCmdsAccum); ProcUnlockBuffer32(cmd); } break;
+	case RenderCommandType::SetRenderState: { g_stateChangeCount++; RtScopeTimer _s(g_rtOtherCmdsAccum); ProcSetRenderState(cmd); } break;
+	case RenderCommandType::DrawImGui: { g_stateChangeCount++; RtScopeTimer _s(g_rtOtherCmdsAccum); ProcDrawImGui(cmd); } break;
+	case RenderCommandType::SetRenderTarget: { g_stateChangeCount++; RtScopeTimer _s(g_rtOtherCmdsAccum); ProcSetRenderTarget(cmd); } break;
+	case RenderCommandType::SetDepthStencilSurface: { g_stateChangeCount++; RtScopeTimer _s(g_rtOtherCmdsAccum); ProcSetDepthStencilSurface(cmd); } break;
+	case RenderCommandType::Clear: { g_stateChangeCount++; RtScopeTimer _s(g_rtOtherCmdsAccum); ProcClear(cmd); } break;
+	case RenderCommandType::SetViewport: { g_stateChangeCount++; RtScopeTimer _s(g_rtOtherCmdsAccum); ProcSetViewport(cmd); } break;
+	case RenderCommandType::SetTexture: { g_stateChangeCount++; RtScopeTimer _s(g_rtOtherCmdsAccum); ProcSetTexture(cmd); } break;
+	case RenderCommandType::SetTextureStageState: { g_stateChangeCount++; RtScopeTimer _s(g_rtOtherCmdsAccum); ProcSetTextureStageState(cmd); } break;
+	case RenderCommandType::SetVertexShaderConstants: { g_stateChangeCount++; RtScopeTimer _s(g_rtOtherCmdsAccum); ProcSetVertexShaderConstants(cmd); } break;
+	case RenderCommandType::SetVertexShaderVariant: { g_stateChangeCount++; RtScopeTimer _s(g_rtOtherCmdsAccum); ProcSetVertexShaderVariant(cmd); } break;
+	case RenderCommandType::SetPixelShaderConstants: { g_stateChangeCount++; RtScopeTimer _s(g_rtOtherCmdsAccum); ProcSetPixelShaderConstants(cmd); } break;
+	case RenderCommandType::DrawPrimitive: { g_drawCallCount++; ProcDrawPrimitive(cmd); } break;
+	case RenderCommandType::DrawIndexedPrimitive: { g_drawCallCount++; ProcDrawIndexedPrimitive(cmd); } break;
+	case RenderCommandType::DrawPrimitiveUP: { g_drawCallCount++; ProcDrawPrimitiveUP(cmd); } break;
+	case RenderCommandType::SetVertexDeclaration: { g_stateChangeCount++; RtScopeTimer _s(g_rtOtherCmdsAccum); ProcSetVertexDeclaration(cmd); } break;
+	case RenderCommandType::SetVertexShader: { g_stateChangeCount++; RtScopeTimer _s(g_rtOtherCmdsAccum); ProcSetVertexShader(cmd); } break;
+	case RenderCommandType::SetStreamSource: { g_stateChangeCount++; RtScopeTimer _s(g_rtOtherCmdsAccum); ProcSetStreamSource(cmd); } break;
+	case RenderCommandType::SetStreamSourceUP: { g_stateChangeCount++; RtScopeTimer _s(g_rtOtherCmdsAccum); ProcSetStreamSourceUP(cmd); } break;
+	case RenderCommandType::SetIndices: { g_stateChangeCount++; RtScopeTimer _s(g_rtOtherCmdsAccum); ProcSetIndices(cmd); } break;
+	case RenderCommandType::SetPixelShader: { g_stateChangeCount++; RtScopeTimer _s(g_rtOtherCmdsAccum); ProcSetPixelShader(cmd); } break;
 	case RenderCommandType::AddPipeline: { ProcAddPipeline(cmd); } break;
 	default:
 		assert(false && "Unrecognized render command type.");
@@ -7088,7 +7089,7 @@ static std::thread g_renderThread([]
 			for (size_t i = 0; i < count; i++)
 			{
 				auto& cmd = commands[i];
-				g_totalCommandCount.fetch_add(1, std::memory_order_relaxed);
+				g_totalCommandCount++;
 
 				switch (cmd.type)
 				{
@@ -7101,17 +7102,17 @@ static std::thread g_renderThread([]
 					while (i + stagedCount < count && commands[i + stagedCount].type == RenderCommandType::StagedCopy)
 						++stagedCount;
 
-					g_stateChangeCount.fetch_add(stagedCount, std::memory_order_relaxed);
-					g_totalCommandCount.fetch_add(stagedCount - 1, std::memory_order_relaxed);
+					g_stateChangeCount += uint32_t(stagedCount);
+					g_totalCommandCount += uint32_t(stagedCount - 1);
 					ProcStagedCopyRange(&commands[i], stagedCount);
 					i += stagedCount - 1;
 				} break;
 				case RenderCommandType::ExecuteCommandList:
-					g_drawCallCountSnapshot = g_drawCallCount.exchange(0, std::memory_order_relaxed);
-					g_stateChangeCountSnapshot = g_stateChangeCount.exchange(0, std::memory_order_relaxed);
-					g_totalCommandCountSnapshot = g_totalCommandCount.exchange(0, std::memory_order_relaxed);
-					g_psoCacheHitsSnapshot = g_psoCacheHits.exchange(0, std::memory_order_relaxed);
-					g_psoCacheMissesSnapshot = g_psoCacheMisses.exchange(0, std::memory_order_relaxed);
+					g_drawCallCountSnapshot = std::exchange(g_drawCallCount, 0);
+					g_stateChangeCountSnapshot = std::exchange(g_stateChangeCount, 0);
+					g_totalCommandCountSnapshot = std::exchange(g_totalCommandCount, 0);
+					g_psoCacheHitsSnapshot = std::exchange(g_psoCacheHits, 0);
+					g_psoCacheMissesSnapshot = std::exchange(g_psoCacheMisses, 0);
 					g_rtOtherCmdsAccum.SnapshotAndReset();
 					g_rtBeginCmdListWorkAccum.SnapshotAndReset();
 					g_rtPsoWorkAccum.SnapshotAndReset();
