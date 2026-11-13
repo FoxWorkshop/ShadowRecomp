@@ -7,11 +7,10 @@
 #include <mutex>
 #include <vector>
 
-// A reserved slice of a staging area.
-// - memory: write the bytes here on the CPU.
-// - buffer + offset: where the render thread copies from on the GPU.
-// - deviceAddress: GPU address of the same spot; unused by staged uploads,
-//   kept for the other upload allocators.
+// A slice of upload memory.
+// - memory: CPU pointer to write the data to.
+// - buffer + offset: where the GPU reads it from.
+// - deviceAddress: unused here, other allocators use it.
 struct UploadAllocation
 {
 	const plume::RenderBuffer* buffer;
@@ -20,22 +19,23 @@ struct UploadAllocation
 	uint64_t deviceAddress;
 };
 
-// Shared staging area for index/vertex buffer uploads on discrete GPUs.
+// Staging memory for vertex and index buffer uploads on discrete GPUs.
 //
-// Flow per upload: game thread reserves a slice and writes bytes; render
-// thread copies the slice to its final GPU buffer.
+// How it works:
+// - The game thread writes the data here.
+// - The render thread copies it into the real buffer.
 //
-// Lifetime: one ring per game frame, see g_stagedBufferUploads. Present
-// rewinds a ring once the GPU has finished the frames that read it, so live
-// bytes never get overwritten.
+// Info:
+// - There's one per game frame, g_stagedBufferUploads.
+// - Present resets this once the GPU has finished that frame.
 //
-// Size: 16MB per block is a floor, not a cap. A frame needing more gets
-// another block; blocks are reused after the rewind.
+// Sizing:
+// - Expands by 16 MB when a frame needs more.
 struct StagedBufferUploadAllocator
 {
 	static constexpr size_t SIZE = 16 * 1024 * 1024;
 
-	// One 16MB GPU block of CPU-writable memory the ring hands out pieces of.
+	// A 16 MB GPU buffer the CPU can write to.
 	struct Block
 	{
 		std::unique_ptr<plume::RenderBuffer> buffer;
@@ -47,43 +47,41 @@ struct StagedBufferUploadAllocator
 	uint32_t index = 0;
 	uint32_t offset = 0;
 
+	// Reserves `size` bytes at the given alignment.
 	UploadAllocation allocate(uint32_t size, uint32_t alignment, plume::RenderDevice& device)
 	{
 		assert(size <= SIZE);
 
 		std::lock_guard lock(mutex);
+		offset = (offset + alignment - 1) & ~(alignment - 1); // align
 
-		// Line the write cursor up to the alignment boundary.
-		offset = (offset + alignment - 1) & ~(alignment - 1);
-
-		// Block full: continue at the start of a fresh one.
+		// Move to the next block if this one is full.
 		if (offset + size > SIZE)
 		{
 			++index;
 			offset = 0;
 		}
 
-		// First time this block is used: make room for it in the list.
+		// Create the block on first use.
 		if (buffers.size() <= index)
 			buffers.resize(index + 1);
 
 		auto& buffer = buffers[index];
 		if (buffer.buffer == nullptr)
 		{
-			// New block: create its GPU buffer and open CPU write access once.
+			// Make new block if we're out of space.
 			buffer.buffer = device.createBuffer(plume::RenderBufferDesc::UploadBuffer(SIZE, plume::RenderBufferFlag::VERTEX | plume::RenderBufferFlag::INDEX));
 			buffer.memory = reinterpret_cast<uint8_t*>(buffer.buffer->map());
 		}
 
-		// Carve the slice out and move the cursor past it.
+		// Carve out slice, advance cursor.
 		auto ref = buffer.buffer->at(offset);
 		offset += size;
 
 		return { ref.ref, ref.offset, buffer.memory + ref.offset, 0 };
 	}
 
-	// Back to the first block. Called once per frame after the GPU is done
-	// with it, so slices can be handed out again.
+	// Starts again from the first block.
 	void reset()
 	{
 		std::lock_guard lock(mutex);
