@@ -150,6 +150,7 @@ static GuestSurface* g_depthStencil;
 static GuestSurface* g_next_RenderTarget; //because of how heavy and fast the game swap the render target, our queue system sometimes faces a race issue, this second pointer copy the current RT earlier as a workaround
 static RenderFramebuffer* g_framebuffer;
 static RenderViewport_r g_renderviewport = { { 0.0f, 0.0f, 640.0f, 480.0f }, true, false };
+static RenderViewport g_gameViewport = { 0.0f, 0.0f, 640.0f, 480.0f };
 
 static PipelineState g_pipelineState;
 static int32_t g_depthBias;
@@ -2958,7 +2959,7 @@ void GetXboxViewportOffsetAndScale(float(&vOffset)[4], float(&vScale)[4])
 	float aaOffsetY = 0.0f;
 	//GetScreenScaleFactors(aaScaleX, aaScaleY); //todo check if this is needed
 
-	auto g_viewport = g_renderviewport.vp;
+	auto g_viewport = g_gameViewport;
 
 	float scaledX = g_viewport.x * aaScaleX;
 	float scaledY = g_viewport.y * aaScaleY;
@@ -5317,6 +5318,7 @@ static void SetViewport(GuestViewport* viewport, GuestSurface* surface)
 		cmd.setViewport.minDepth = viewport->MinZ;
 		cmd.setViewport.maxDepth = viewport->MaxZ;
 		cmd.setViewport.isFixed = isFixed;
+		g_gameViewport = RenderViewport(cmd.setViewport.x, cmd.setViewport.y, width, height, viewport->MinZ, viewport->MaxZ);
 		g_renderQueue.enqueue(cmd);
 	}
 }
@@ -5845,7 +5847,7 @@ static void FlushRenderStateForMainThread(LocalRenderCommandQueue& queue)
 		// Select the specialized shader for the current controls and forward
 		// changes to the render thread.
 		const auto variant = UpdateFixedFunctionVertexShaderState((size_t)g_memory.Translate(g_VertexShader_Handle),
-			g_pipelineState.isFixedFunctionPS, g_fixedFunctionVertexRegisterDefaultMask);
+			IsFixedFunctionPixelShader(), g_fixedFunctionVertexRegisterDefaultMask);
 		if (variant != g_lastSentVertexShaderVariant)
 		{
 			auto& cmd = queue.enqueue();
