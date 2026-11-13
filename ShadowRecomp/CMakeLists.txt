@@ -279,8 +279,16 @@ set(SHADOW_RECOMP_CXX_SOURCES
 include("version.cmake")
 
 set(VERSION_TXT "${PROJECT_SOURCE_DIR}/res/version.txt")
-# TODO re-gate for release on Nov 15
+
+# Use version without commit info for tagged releases
+if ("$ENV{GITHUB_REF_TYPE}" STREQUAL "tag")
+    set(SHADOW_RECOMP_TAG_BUILD ON)
+endif()
+
 set(SHOW_GIT_INFO_AND_BUILD_TYPE 1)
+if (SHADOW_RECOMP_TAG_BUILD AND ${CMAKE_BUILD_TYPE} MATCHES "Release")
+    set(SHOW_GIT_INFO_AND_BUILD_TYPE 0)
+endif()
 
 GenerateVersionSources(
     OUTPUT_DIR ${PROJECT_SOURCE_DIR}

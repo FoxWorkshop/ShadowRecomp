@@ -66,6 +66,11 @@ jobs:
         run: |
           flatpak --user remote-add --if-not-exists flathub https://flathub.org/repo/flathub.flatpakrepo
 
+      # flatpak-builder ignores ref, set the flag manually
+      - name: Tag Build Prep
+        if: github.ref_type == 'tag'
+        run: sed -i 's/-DSHADOW_RECOMP_FLATPAK=ON/-DSHADOW_RECOMP_FLATPAK=ON -DSHADOW_RECOMP_TAG_BUILD=ON/' ./flatpak/${{ env.FLATPAK_ID }}.json
+
       - name: Build Flatpak
         run: |
           echo "commit_message=$(git log -1 --pretty=%s)" >> $GITHUB_ENV
