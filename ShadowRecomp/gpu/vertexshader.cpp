@@ -727,6 +727,29 @@ void HandleShadersConstant(LocalRenderCommandQueue& queue)
 		int batchStartIndex = -1;
 		for (int i = 0; i < HOST_D3DVS_CONSTREG_FULL; i++)
 		{
+			// Sewer note:
+			//
+			// - This cropped up in profiler! Profilah!
+			// - Almost always, all items are clean.
+			// - But we still do extra logic, and expensive `changed` check.
+			// - So this is a trick, of just copying a bunch of bools at once.
+			//
+			// i.e. 8 on a 64-bit machine, as each is 1 byte.
+			// - Until we find a dirty one...
+			constexpr int flagsPerWord = sizeof(size_t);
+			const bool wordAligned = (i % flagsPerWord) == 0;
+			const bool wordFits = i + flagsPerWord <= HOST_D3DVS_CONSTREG_FULL;
+			if (batchStartIndex == -1 && wordAligned && wordFits)
+			{
+				size_t dirtyFlags;
+				memcpy(&dirtyFlags, &vsh_constants_dirty[i], sizeof(dirtyFlags));
+				if (dirtyFlags == 0)
+				{
+					i += flagsPerWord - 1;
+					continue;
+				}
+			}
+
 			const bool changed = vsh_constants_dirty[i] && memcmp(&vsh_constants[i][0],
 				&g_vertexShaderConstantBankShadow[bankIndex][i * 4], sizeof(vsh_constants[i])) != 0;
 			if (changed)
