@@ -17,6 +17,10 @@
 #include <util.h>
 #include <gpu/renderstate.h>
 
+// This page contains the implementation of the Xbox kernel functions 
+// Some functions were stub since they were considered not needed for Shadow to run.
+// Some were inspired by CXBX Reloaded to work properly.
+// Other stuff were just faked (as in, tell the game that everything is fine).
 
 // APU registers
 uint8_t g_mmio[MMIO_APERTURE_SIZE];
@@ -41,8 +45,6 @@ constexpr uint32_t GPU_ALIGNMENT = 4096;
 #define VECTOR2IRQL(vector) (MAX_BUS_INTERRUPT_LEVEL - VECTOR2IRQ(vector))
 
 
-static bool first = false;
-inline std::atomic_bool g_bEnableAllInterrupts = true;
 class HalSystemInterrupt 
 {
 public:
@@ -239,7 +241,6 @@ void AvGetSavedDataAddress()
 int32_t NtFreeVirtualMemory(IN OUT uint32_t* BaseAddress, IN OUT ULONG32 FreeSize, IN uint32_t FreeType)
 {
 	LOG_UTILITY("!!! STUB !!!");
-	//g_userHeap.Free(g_memory.Translate((size_t)BaseAddress));
 	return X_STATUS_SUCCESS;
 }
 
@@ -249,12 +250,6 @@ int32_t NtAllocateVirtualMemory(IN OUT uint32_t* BaseAddress,
 	IN dword_xt         AllocationType,
 	IN dword_xt         Protect)
 {
-	/**void* ptr = g_userHeap.Alloc(*AllocationSize);
-
-	uint32_t xbox_addr = g_memory.MapVirtual(ptr);
-	*BaseAddress = reinterpret_cast<uint32_t>(xbox_addr);
-
-	printf("NtAllocateVirtualMemory: %zu bytes -> 0x%08X\n\n", *AllocationSize, xbox_addr);*/
 	return X_STATUS_SUCCESS;
 }
 
@@ -302,8 +297,6 @@ uint32_t ExQueryPoolBlockSize
 	auto size = g_userHeap.Size(PoolBlock);
 	return size;
 }
-
-
 
 LONG ExQueryNonVolatileSetting(
 	IN  dword_xt  ValueIndex,
@@ -372,7 +365,6 @@ LONG FscSetCacheSize(ULONG NumberOfCachePages)
 {
 	return X_STATUS_SUCCESS;
 }
-
 
 uint32_t HalGetInterruptVector(uint32_t BusInterruptLevel, std::uint8_t* Irql)
 {
@@ -548,7 +540,7 @@ std::uint8_t KeConnectInterrupt(xbox::KINTERRUPT* InterruptObject)
 
 	if (!InterruptObject->Connected)
 	{
-		// One interrupt per IRQ - only set when not set yet :
+		// One interrupt per IRQ - only set when not set yet:
 		if (EmuInterruptList[InterruptObject->BusInterruptLevel] == NULL)
 		{
 			InterruptObject->Connected = TRUE;
@@ -584,8 +576,6 @@ LONG KeDelayExecutionThread(uint8_t WaitMode, BOOLEAN Alertable, int64_t* Interv
 
 	return X_STATUS_SUCCESS;
 }
-
-
 
 std::uint8_t KeCancelTimer(uint32_t* Timer_)
 {
@@ -627,9 +617,7 @@ VOID KeInitializeTimerEx(_XKTIMER* Timer, uint32_t Type)
 	Timer->TimerListEntry.Flink = NULL;
 	Timer->DueTime.QuadPart = 0;
 	Timer->Period = 0;
-
 }
-
 
 int32_t KeRestoreFloatingPointState(uint32_t* SaveArea_)
 {
@@ -658,7 +646,6 @@ int map_xbox_priority(int xbox_priority) {
 	}
 }
 
-extern int adxm_vsyncThread;
 std::int32_t KeSetBasePriorityThread(GuestThreadHandle* hThread, LONG priority)
 {
 #ifdef _WIN32
@@ -674,9 +661,6 @@ std::int32_t KeSetBasePriorityThread(GuestThreadHandle* hThread, LONG priority)
 	{
 		priority = THREAD_PRIORITY_NORMAL;
 	}
-
-
-	//SetThreadPriority(hThread == GetKernelObject(CURRENT_THREAD_HANDLE) ? GetCurrentThread() : hThread->thread.native_handle(), priority);
 
 	if (!SetThreadPriority(hThread == GetKernelObject(CURRENT_THREAD_HANDLE) ? GetCurrentThread() : hThread->thread.native_handle(), priority)) 
 	{
@@ -706,16 +690,11 @@ LONG KeSetEvent(XKEVENT* pEvent, uint32_t Increment, bool Wait)
 
 BOOLEAN KeSetTimer(uint32_t* Dpc, uint32_t* DueTime, uint32_t* Timer)
 {
-	//return FALSE;
-
-
-	//printf("[STUB] KeSetTimer(%p, %lld ns, Dpc %p)\n", Timer, DueTime.QuadPart, Dpc);
 	return FALSE; // Timer wasn't already active
 }
 
 VOID KeStallExecutionProcessor(ULONG Microseconds)
 {
-	//printf("[STUB] KeStallExecutionProcessor(%u)\n", Microseconds);
 	std::this_thread::sleep_for(std::chrono::microseconds(Microseconds));
 }
 
@@ -749,7 +728,6 @@ LONG KeWaitForSingleObject(XDISPATCHER_HEADER* Object, uint32_t WaitReason, uint
 std::uint8_t KfRaiseIrql(std::uint8_t NewIrql)
 {
 	std::uint8_t old = PASSIVE_LEVEL;
-	//printf("[STUB] KfRaiseIrql(%d) -> %d\n", NewIrql, old);
 	return old; // Return previous IRQL
 }
 
@@ -763,7 +741,6 @@ uint32_t* MmAllocateContiguousMemoryEx(uint32_t NumberOfBytes, uint32_t LowestAc
 	uint32_t ProtectionType
 )
 {
-	//printf("MmAllocateContiguousMemoryEx(%zu bytes, Align %u)\n\n", NumberOfBytes, Alignment);
 	return reinterpret_cast<uint32_t*>(g_memory.MapVirtual(g_userHeap.AllocPhysical(NumberOfBytes, Alignment)));
 }
 
@@ -782,8 +759,6 @@ void MmFreeContiguousMemory(uint32_t guestAddress)
 VOID MmFreeSystemMemory(uint32_t* BaseAddress, uint32_t NumberOfBytes)
 {
 	LOGF_UTILITY("!!! STUB !!! ({}, {} bytes)", fmt::ptr(BaseAddress), NumberOfBytes);
-
-	//g_userHeap.Free(g_memory.Translate((size_t)BaseAddress));
 }
 
 uint32_t MmAllocateSystemMemory(uint32_t NumberOfBytes, ULONG Protect)
@@ -906,11 +881,6 @@ LONG NtOpenFile(
 	ULONG OpenOptions
 ) {
 
-	//xbox::POBJECT_ATTRIBUTES ObjectAttributes = (xbox::POBJECT_ATTRIBUTES)ObjectAttributes_;
-	//xbox::PIO_STATUS_BLOCK IoStatusBlock = (xbox::PIO_STATUS_BLOCK)IoStatusBlock_;
-	// Reuse NtCreateFile logic
-	//_LARGE_INTEGER t;
-	//memset(&t, 0, sizeof(_LARGE_INTEGER));
 	return -1; // NtCreateFile(FileHandle, DesiredAccess, ObjectAttributes_, IoStatusBlock_, 0, ShareAccess, FILE_OPEN, OpenOptions, NULL);
 }
 
@@ -940,7 +910,6 @@ LONG NtQueryDirectoryFile(
 //todo figure out if this is correct
 LONG NtQueryFullAttributesFile(uint32_t* ObjectAttributes_, uint32_t* FileInformation_)
 {
-	//printf("NtQueryFullAttributesFile STUB\n");
 	return -1073741772;
 }
 
@@ -992,24 +961,6 @@ LONG NtQueryVirtualMemory(uint32_t* BaseAddress, uint32_t* Buffer)
 
 	if (!Buffer)
 		return X_STATUS_UNSUCCESSFUL;
-
-	//memset(Buffer, 0, sizeof(MEMORY_BASIC_INFORMATION));
-
-	/**if (!g_memory.IsInMemoryRange(BaseAddress))
-	{
-		Buffer->BaseAddress = BaseAddress;
-		Buffer->State = MEM_FREE;
-		Buffer->RegionSize = 0x1000;
-		return X_STATUS_SUCCESS;
-	}
-
-	Buffer->BaseAddress = BaseAddress;
-	Buffer->AllocationBase = g_memory.base;
-	Buffer->RegionSize = X86_MEMORY_SIZE;
-	Buffer->State = MEM_COMMIT;
-	Buffer->Protect = PAGE_READWRITE;
-	Buffer->Type = MEM_PRIVATE;*/
-
 	return X_STATUS_SUCCESS;
 }
 
@@ -1094,8 +1045,6 @@ LONG NtWriteFile(
 ) {
 
 	LOG_UTILITY("!!! STUB !!!");
-
-
 	return X_STATUS_SUCCESS;
 }
 
@@ -1120,7 +1069,6 @@ LONG NtSuspendThread(GuestThreadHandle* ThreadHandle, uint32_t* PreviousSuspendC
 	if (!ThreadHandle) 
 		return STATUS_INVALID_HANDLE;
 
-	//printf("NtSuspendThread(0x%X) id: (0x%X)\n", ThreadHandle, ThreadHandle->thread.get_id());
 	assert(ThreadHandle != GetKernelObject(CURRENT_THREAD_HANDLE) && ThreadHandle->thread.get_id() == std::this_thread::get_id());
 
 	std::unique_lock lock(ThreadHandle->suspendMutex);
@@ -1134,7 +1082,7 @@ LONG NtResumeThread(GuestThreadHandle* ThreadHandle, uint32_t* PreviousSuspendCo
 {
 	if (!ThreadHandle)
 		return STATUS_INVALID_HANDLE;
-	//printf("NtResumeThread(0x%X), id: (0x%X)\n", ThreadHandle, ThreadHandle->thread.get_id());
+
 	assert(ThreadHandle != GetKernelObject(CURRENT_THREAD_HANDLE));
 
 	{
@@ -1202,7 +1150,6 @@ LONG ObReferenceObjectByHandle(uint32_t Handle, uint32_t ObjectType, uint32_t Ob
 {
 	auto base = g_memory.base;
 	X86_STORE_U32(Object, Handle);
-	//*Object = Handle;
 	return X_STATUS_SUCCESS;
 }
 
@@ -1252,7 +1199,6 @@ void RtlLeaveCriticalSection(XRTL_CRITICAL_SECTION* CritSec)
 }
 
 
-
 void RtlInitAnsiString(_XANSI_STRING* Destination, char* Source)
 {
 	const uint16_t length = Source ? (uint16_t)strlen(Source) : 0;
@@ -1269,21 +1215,6 @@ LONG NtQueryVolumeInformationFile(
 	uint32_t FsInformationClass_
 )
 {
-	/**xbox::PIO_STATUS_BLOCK IoStatusBlock = (xbox::PIO_STATUS_BLOCK)IoStatusBlock_;
-	xbox::FS_INFORMATION_CLASS FsInformationClass = (xbox::FS_INFORMATION_CLASS)FsInformationClass_;
-	if (IoStatusBlock)
-	{
-		IoStatusBlock->Status = X_STATUS_SUCCESS;
-		IoStatusBlock->Information = 0;
-	}
-
-	// Return dummy volume info
-	if (FsInformationClass == xbox::FileFsVolumeInformation)
-	{
-		auto* info = (xbox::FILE_FS_VOLUME_INFORMATION*)FsInformation;
-		info->VolumeSerialNumber = 0x1234ABCD;
-		info->VolumeLabelLength = 0;
-	}*/
 
 	return X_STATUS_SUCCESS;
 }
@@ -1296,14 +1227,6 @@ LONG NtSetInformationFile(
 	uint32_t* FileInformationClass
 )
 {
-
-	/**xbox::PIO_STATUS_BLOCK IoStatusBlock = (xbox::PIO_STATUS_BLOCK)IoStatusBlock_;
-	//xbox::FILE_INFORMATION_CLASS fileInfo = (xbox::FILE_INFORMATION_CLASS*)FileInformationClass;
-	if (IoStatusBlock)
-	{
-		IoStatusBlock->Status = X_STATUS_SUCCESS;
-		IoStatusBlock->Information = 0;
-	}*/
 	return X_STATUS_SUCCESS;
 }
 
@@ -1347,7 +1270,6 @@ uint32_t XGetLanguage()
 }
 
 
-
 void RtlRaiseException_(uint32_t* ExceptionRecord)
 {
 	std::terminate();
@@ -1382,7 +1304,6 @@ uint32_t NtWaitForSingleObjectEx(uint32_t Handle, uint32_t WaitMode, uint32_t Al
 
 	return STATUS_TIMEOUT;
 }
-
 
 // See also :
 // https://github.com/reactos/reactos/blob/40a16a9cf1cdfca399e9154b42d32c30b63480f5/reactos/drivers/filesystems/udfs/Include/env_spec_w32.h
