@@ -60,7 +60,7 @@ jobs:
       - name: Download XboxRecomp2
         env:
           GH_TOKEN: ${{ secrets.XBOXRECOMP2_TOKEN }}
-        run: cmake -DVERSION=0.2.0 -DDESTINATION=out/xr2-bin -P ShadowRecompLib/cmake/recompile/select/download.cmake
+        run: cmake -DVERSION=0.3.0 -DDESTINATION=out/xr2-bin -P ShadowRecompLib/cmake/recompile/select/download.cmake
 
       - name: Prepare Flatpak
         run: |

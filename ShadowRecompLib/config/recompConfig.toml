@@ -25,6 +25,10 @@ enable = true # master toggle
 #              But this has practically 0% chance of happening.
 nonvolatile_stack = true
 
+# Keep leaf functions' stack slots in C++ locals.
+# Side effect: Stack memory below ESP differs from real hardware after a return.
+stack_slots_in_locals = true
+
 # CMOV only reads memory when it actually moves.
 # Side effect: Invalid addresses are skipped.
 #              Stops game from crashing where real HW might have crashed.

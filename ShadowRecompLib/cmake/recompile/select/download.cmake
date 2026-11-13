@@ -13,7 +13,7 @@ set(XBOXRECOMP2_ASSETS
 # Downloads the XboxRecomp2 binary for this host.
 #
 # Arguments:
-# - version: release tag like `0.2.0`, or `latest`.
+# - version: release tag like `0.3.0`, or `latest`.
 # - destination: download folder. Each version gets a subfolder.
 # - out_executable: variable that receives the binary path.
 # - out_error: variable that receives why the download failed, or empty.
