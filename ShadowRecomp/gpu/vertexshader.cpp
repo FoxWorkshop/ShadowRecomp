@@ -11,15 +11,19 @@
 #include "pipeline.h"
 #include "render_commands.h"
 #include "FixedFunction.h"
+#include <bit>
 
 
 // Original code (mostly) re-used from CXBX Reloaded
 
-static bool g_vertexShaderConstantsAnyDirty = true;
 DWORD g_Xbox_VertexShaderConstantMode = 1;
 static uint32_t g_vertexShaderConstantBankShadow[2][HOST_D3DVS_CONSTREG_FULL * 4];
 uint32_t vsh_constants[HOST_D3DVS_CONSTREG_FULL][4]; //xbox registers (192) + host registers (slot of 4 because one register = 4 bytes)
-bool vsh_constants_dirty[HOST_D3DVS_CONSTREG_FULL];
+
+// Dirty bit per register, per bank.
+constexpr int VSH_DIRTY_BITS = 64; // bits per uint64_t
+constexpr int VSH_DIRTY_WORDS = (HOST_D3DVS_CONSTREG_FULL + VSH_DIRTY_BITS - 1) / VSH_DIRTY_BITS;
+static uint64_t g_vertexShaderConstantDirty[2][VSH_DIRTY_WORDS]; // [bank]: 0 = vertex shader, 1 = fixed function
 extern std::unique_ptr<uint8_t[]> g_shaderCache;
 
 uint32_t g_Xbox_VertexShader_FunctionSlots_StartAddress = 0;
@@ -715,110 +719,106 @@ ShaderCacheEntry* FindShaderCacheEntry(XXH64_hash_t hash)
 	return findResult != end && findResult->hash == hash ? findResult : nullptr;
 }
 
+static void EnqueueVertexShaderConstants(LocalRenderCommandQueue& queue, int start, int end, bool fixedConstantBank);
+
 void HandleShadersConstant(LocalRenderCommandQueue& queue)
 {
 	const bool fixedConstantBank = g_Xbox_VertexShaderMode == VertexShaderMode::FixedFunction;
-	if (g_vertexShaderConstantsAnyDirty)
+
+	// Each bank only uploads registers whose values changed since the
+	// last upload to that bank, so switching shader modes does not
+	// resend the full constant block.
+	const uint32_t bankIndex = fixedConstantBank ? 1 : 0;
+	uint64_t* dirty = g_vertexShaderConstantDirty[bankIndex];
+
+	// Sewer note:
+	//
+	// - Each bank's dirty flags are usually mostly empty.
+	// - So we bit pack them for fast tests: 4 x uint64_t cover all 226 registers.
+	// - Then jump straight to the set bits.
+	//
+	// Also sewer note:
+	// - I only made this faster, by changing data layout of dirty flags.
+	// - Not 100% sure what this does; didn't work on this part.
+	int batchStart = -1;     // first register of the run being built, -1 = none
+	int last_dirty_reg = -1; // last dirty register visited
+	for (int x = 0; x < VSH_DIRTY_WORDS; x++)
 	{
-		// Each bank only uploads registers whose values changed since the
-		// last upload to that bank, so switching shader modes does not
-		// resend the full constant block.
-		const uint32_t bankIndex = fixedConstantBank ? 1 : 0;
-		int batchStartIndex = -1;
-		for (int i = 0; i < HOST_D3DVS_CONSTREG_FULL; i++)
+		uint64_t bits = dirty[x];
+		dirty[x] = 0;
+		while (bits != 0)
 		{
-			// Sewer note:
-			//
-			// - This cropped up in profiler! Profilah!
-			// - Almost always, all items are clean.
-			// - But we still do extra logic, and expensive `changed` check.
-			// - So this is a trick, of just copying a bunch of bools at once.
-			//
-			// i.e. 8 on a 64-bit machine, as each is 1 byte.
-			// - Until we find a dirty one...
-			constexpr int flagsPerWord = sizeof(size_t);
-			const bool wordAligned = (i % flagsPerWord) == 0;
-			const bool wordFits = i + flagsPerWord <= HOST_D3DVS_CONSTREG_FULL;
-			if (batchStartIndex == -1 && wordAligned && wordFits)
+			const int y = x * VSH_DIRTY_BITS + std::countr_zero(bits);
+			bits &= bits - 1;
+
+			// Next dirty register isn't beside/adjacent/contiguous.
+			// We have to submit the current batch before starting a new one.
+			if (batchStart != -1 && y != last_dirty_reg + 1)
 			{
-				size_t dirtyFlags;
-				memcpy(&dirtyFlags, &vsh_constants_dirty[i], sizeof(dirtyFlags));
-				if (dirtyFlags == 0)
-				{
-					i += flagsPerWord - 1;
-					continue;
-				}
+				EnqueueVertexShaderConstants(queue, batchStart, last_dirty_reg + 1, fixedConstantBank);
+				batchStart = -1;
 			}
 
-			const bool changed = vsh_constants_dirty[i] && memcmp(&vsh_constants[i][0],
-				&g_vertexShaderConstantBankShadow[bankIndex][i * 4], sizeof(vsh_constants[i])) != 0;
-			if (changed)
+			last_dirty_reg = y;
+
+			// Changed since last flush.
+			// But back to value already there.
+			// e.g. A -> B -> A
+			// Skip it.
+			uint32_t* shadow = &g_vertexShaderConstantBankShadow[bankIndex][y * 4];
+			if (memcmp(&vsh_constants[y][0], shadow, sizeof(vsh_constants[y])) == 0)
 			{
-				memcpy(&g_vertexShaderConstantBankShadow[bankIndex][i * 4],
-					&vsh_constants[i][0], sizeof(vsh_constants[i]));
-				if (batchStartIndex == -1)
-					batchStartIndex = i;
+				if (batchStart != -1)
+				{
+					EnqueueVertexShaderConstants(queue, batchStart, y, fixedConstantBank);
+					batchStart = -1;
+				}
+
+				continue;
 			}
-			else if (batchStartIndex != -1)
-			{
-				int count = i - batchStartIndex;
-				auto& cmd = queue.enqueue();
-				cmd.type = RenderCommandType::SetVertexShaderConstants;
-				cmd.setVertexShaderConstants.memory =
-					AllocIntermediaryUploadMemoryWrapper(&vsh_constants[batchStartIndex][0], count * sizeof(float) * 4);
-				cmd.setVertexShaderConstants.index = batchStartIndex;
-				cmd.setVertexShaderConstants.size = count;
-				cmd.setVertexShaderConstants.isFixedFunc = fixedConstantBank;
-				batchStartIndex = -1;
-			}
-			vsh_constants_dirty[i] = false;
+
+			memcpy(shadow, &vsh_constants[y][0], sizeof(vsh_constants[y]));
+			if (batchStart == -1)
+				batchStart = y;
 		}
-		if (batchStartIndex != -1)
-		{
-			int count = HOST_D3DVS_CONSTREG_FULL - batchStartIndex;
-			auto& cmd = queue.enqueue();
-			cmd.type = RenderCommandType::SetVertexShaderConstants;
-			cmd.setVertexShaderConstants.memory =
-				AllocIntermediaryUploadMemoryWrapper(&vsh_constants[batchStartIndex][0], count * sizeof(float) * 4);
-			cmd.setVertexShaderConstants.index = batchStartIndex;
-			cmd.setVertexShaderConstants.size = count;
-			cmd.setVertexShaderConstants.isFixedFunc = fixedConstantBank;
-		}
-		g_vertexShaderConstantsAnyDirty = false;
 	}
 
+	if (batchStart != -1)
+		EnqueueVertexShaderConstants(queue, batchStart, last_dirty_reg + 1, fixedConstantBank);
+}
 
+static void EnqueueVertexShaderConstants(LocalRenderCommandQueue& queue, int start, int end, bool fixedConstantBank)
+{
+	const int count = end - start;
+	auto& cmd = queue.enqueue();
+	cmd.type = RenderCommandType::SetVertexShaderConstants;
+	cmd.setVertexShaderConstants.memory =
+		AllocIntermediaryUploadMemoryWrapper(&vsh_constants[start][0], count * sizeof(float) * 4);
+	cmd.setVertexShaderConstants.index = start;
+	cmd.setVertexShaderConstants.size = count;
+	cmd.setVertexShaderConstants.isFixedFunc = fixedConstantBank;
 }
 
 
 void CopyVertexShaderConstant(int32_t Register, DWORD* pConstantData, const uint32_t count)
 {
 	// Skip registers whose values did not change.
-	// Must also match both bank shadows. While the flush
+	// Changes mark both banks. While the flush
 	// uploads against the active bank only, a stale
 	// other-bank shadow still needs the dirty flag.
-	bool anyChanged = false;
 	for (DWORD i = 0; i < count; i++)
 	{
 		const DWORD* src = &pConstantData[i * 4];
 		uint32_t* dst = &vsh_constants[Register + i][0];
+		if (memcmp(dst, src, sizeof(float) * 4) == 0)
+			continue;
 
-		if (memcmp(dst, src, sizeof(float) * 4) != 0)
-		{
-			memcpy(dst, src, sizeof(float) * 4);
-			vsh_constants_dirty[Register + i] = true;
-			anyChanged = true;
-		}
-		else if (memcmp(&g_vertexShaderConstantBankShadow[0][(Register + i) * 4], src, sizeof(float) * 4) != 0 ||
-			memcmp(&g_vertexShaderConstantBankShadow[1][(Register + i) * 4], src, sizeof(float) * 4) != 0)
-		{
-			vsh_constants_dirty[Register + i] = true;
-			anyChanged = true;
-		}
+		memcpy(dst, src, sizeof(float) * 4);
+		const uint32_t reg = Register + i;
+		const uint64_t bit = 1ull << (reg % VSH_DIRTY_BITS);
+		g_vertexShaderConstantDirty[0][reg / VSH_DIRTY_BITS] |= bit;
+		g_vertexShaderConstantDirty[1][reg / VSH_DIRTY_BITS] |= bit;
 	}
-
-	if (anyChanged)
-		g_vertexShaderConstantsAnyDirty = true;
 }
 
 void D3DDevice_SetVertexShaderConstant1Fast(int32_t Register, DWORD* pConstantData)
@@ -843,9 +843,6 @@ X86_OVERRIDE_FUNC(sub_3D2010)
 
 void SetVertexAttribute(int32_t Register, FLOAT a, FLOAT b, FLOAT c, FLOAT d)
 {
-
-	vsh_constants_dirty[HOST_D3DVS_CONSTREG_VREGDEFAULTS_BASE + Register] = true; 	//vRegisterDefaultValues aka 192 + i
-
 	float attribute_floats[4];
 	attribute_floats[0] = a;
 	attribute_floats[1] = b;
