@@ -87,6 +87,26 @@ fast_x87_stack = true
 #              Only code reading the raw status word or saved FPU state would notice.
 fast_x87_ffree = true
 
+# Unlock spin locks with a regular store instead of a locked `xchg`.
+# Only in functions that also lock with `xchg`.
+# Side effect: Other threads see the unlock slightly later.
+#              Unsafe if another thread swaps the same value.
+plain_lock_release = true
+
+# Skip the locked `xchg` at or above this address. 0 turns it off.
+# 0x16A1000 is the heap start (HEAP_BEGIN in kernel/heap.cpp).
+# Side effect: Assumes only one thread uses each heap lock.
+#              True in every stage, event and menu tested.
+#              If not, a ref count can break: crash or leak.
+single_thread_locks_from = 0x16A1000
+
+# Debug check for `single_thread_locks_from`.
+# Logs on error.
+# Logs to stderr and `x86_lock_check.log` when two threads use one lock.
+#   "AT THE SAME TIME": the hack breaks this lock.
+#   "at different times": may just be reused heap memory.
+check_single_thread_locks = false
+
 # FSCALE uses a double-only path.
 # Side effect: Huge scales (beyond 2^±1022) give wrong results. Only math library error paths use them.
 fast_fscale = true
@@ -108,7 +128,9 @@ x87_stack_effects = [
 		stack_at_entry = 0, # items on the x87 stack at function entry (its parameters)
 		stack_at_exit = 0,  # items on the x87 stack at function exit (0, or 1 for a float result)
 	},
-]# Info about x87 stack upon entering a function.
+]
+
+# Info about x87 stack upon entering a function.
 #
 # Almost all x87 code on OG Xbox enters functions with empty x87 stack,
 # as MSVC passes parameters either via stack (usual), or registers.
