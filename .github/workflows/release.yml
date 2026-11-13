@@ -1,0 +1,61 @@
+name: release
+on:
+  release:
+    types: [published]
+permissions:
+  contents: read
+jobs:
+  version:
+    runs-on: ubuntu-26.04
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+    steps:
+      - name: Checkout version to compare
+        uses: actions/checkout@v7
+        with:
+          sparse-checkout: ShadowRecomp/res/version.txt
+          sparse-checkout-cone-mode: false
+
+      # safety check because I know I'll mess this up otherwise
+      - name: Validate Release Version
+        id: version
+        env:
+          TAG: ${{ github.event.release.tag_name }}
+        run: |
+          get() { sed -n "s/^$1=\"\?\([^\"]*\)\"\?\r\?$/\1/p" ShadowRecomp/res/version.txt; }
+          VERSION="v$(get VERSION_MAJOR).$(get VERSION_MINOR).$(get VERSION_REVISION)"
+          if [ "${TAG}" != "${VERSION}" ]; then
+            echo "::error::Tag ${TAG} does not match expected ${VERSION}"
+            exit 1
+          fi
+          echo "version=${VERSION}" >> $GITHUB_OUTPUT
+  build:
+    needs: version
+    uses: ./.github/workflows/validate.yml
+    secrets: inherit
+  upload:
+    needs: [version, build]
+    runs-on: ubuntu-26.04
+    permissions:
+      contents: write
+    env:
+      GH_TOKEN: ${{ github.token }}
+      TAG: ${{ github.event.release.tag_name }}
+      VERSION: ${{ needs.version.outputs.version }}
+    steps:
+      - name: Download Artifacts
+        uses: actions/download-artifact@v7
+        with:
+          path: ./artifacts
+
+      - name: Prep
+        run: |
+          mkdir ./assets
+          cp ./artifacts/ShadowRecomp-Flatpak/*.flatpak ./assets/ShadowRecomp-Flatpak-${VERSION}.flatpak
+          cp ./artifacts/ShadowRecomp-Linux-linux-release/*.tar.gz ./assets/ShadowRecomp-Linux-${VERSION}.tar.gz
+          (cd ./artifacts/ShadowRecomp-Windows-x64-Clang-Release && zip -r ../../assets/ShadowRecomp-Windows-${VERSION}.zip .)
+          (cd ./artifacts/ShadowRecomp-Windows-x64-Clang-Release-PDB && zip -r ../../assets/ShadowRecomp-Windows-${VERSION}-PDB.zip .)
+          ls -l ./assets
+
+      - name: Upload
+        run: gh release upload "${TAG}" ./assets/* --clobber --repo "${{ github.repository }}"
