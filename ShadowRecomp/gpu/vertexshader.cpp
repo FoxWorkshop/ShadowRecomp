@@ -937,7 +937,7 @@ void UpdateVertexShader(uint32_t Handle)
 	cmd.setVertexShader.type = g_Xbox_VertexShaderMode;
 	UpdateVertexDeclaration(Handle);
 
-	g_renderQueue.enqueue(cmd);
+	g_pendingRenderCommands.enqueue() = cmd;
 }
 
 // DX8 has a fixed pipeline, meaning we won't always have a shader from this function, sometimes it can be FVF too

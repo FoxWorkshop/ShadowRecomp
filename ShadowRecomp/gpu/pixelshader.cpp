@@ -256,7 +256,7 @@ X86_OVERRIDE_FUNC(sub_3DC590)
 
 	cmd.setPixelShader.isFixed = Handle == 0;
 	g_isFixedFunctionPixelShader = cmd.setPixelShader.isFixed;
-	g_renderQueue.enqueue(cmd);
+	g_pendingRenderCommands.enqueue() = cmd;
 }
 
 const uint8_t* CreateRecompiledPixelShader(X_D3DPIXELSHADERDEF* PSDef, void* psGuestInf, size_t* outSize)

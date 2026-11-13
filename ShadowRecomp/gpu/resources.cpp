@@ -9,7 +9,7 @@ void AddDestructResource(GuestResource* ressource)
 	RenderCommand cmd;
 	cmd.type = RenderCommandType::DestructResource;
 	cmd.destructResource.resource = ressource;
-	g_renderQueue.enqueue(cmd);
+	SendRenderCommand(cmd);
 }
 
 void DestructResource(GuestResource* resource)

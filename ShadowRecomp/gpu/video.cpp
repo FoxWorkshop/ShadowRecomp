@@ -1511,7 +1511,7 @@ void SetRenderState(X_D3DRENDERSTATETYPE state, uint32_t value)
 	cmd.type = RenderCommandType::SetRenderState;
 	cmd.setRenderState.type = state;
 	cmd.setRenderState.value = value;
-	g_renderQueue.enqueue(cmd);
+	g_pendingRenderCommands.enqueue() = cmd;
 }
 
 static void ProcSetRenderState(const RenderCommand& cmd)
@@ -3830,7 +3830,7 @@ static void DrawImGui(X86Context* ctx)
 	{
 		RenderCommand cmd;
 		cmd.type = RenderCommandType::DrawImGui;
-		g_renderQueue.enqueue(cmd);
+		SendRenderCommand(cmd);
 	}
 }
 
@@ -4092,7 +4092,7 @@ void Video::Present(X86Context* ctx)
 	RenderCommand cmd;
 	cmd.type = RenderCommandType::EndFrame;
 	cmd.endFrame.gameThreadWaits = waitForFrameEnd;
-	g_renderQueue.enqueue(cmd);
+	SendRenderCommand(cmd);
 	g_gameFrame.store(gameFrame + 1, std::memory_order_relaxed);
 
 	if (waitForFrameEnd)
@@ -5364,7 +5364,7 @@ static void SetViewport(GuestViewport* viewport, GuestSurface* surface)
 		cmd.setViewport.maxDepth = viewport->MaxZ;
 		cmd.setViewport.isFixed = isFixed;
 		g_gameViewport = RenderViewport(cmd.setViewport.x, cmd.setViewport.y, width, height, viewport->MinZ, viewport->MaxZ);
-		g_renderQueue.enqueue(cmd);
+		g_pendingRenderCommands.enqueue() = cmd;
 	}
 }
 
@@ -5443,7 +5443,7 @@ void D3DDevice_SetRenderTarget(X86Context& ctx, GuestSurface* surface, GuestSurf
 	RenderCommand cmd;
 	cmd.type = RenderCommandType::SetRenderTarget;
 	cmd.setRenderTarget.renderTarget = newSurface;
-	g_renderQueue.enqueue(cmd);
+	g_pendingRenderCommands.enqueue() = cmd;
 
 	static GuestViewport defaultViewport;
 	defaultViewport.X = 0;
@@ -5458,7 +5458,7 @@ void D3DDevice_SetRenderTarget(X86Context& ctx, GuestSurface* surface, GuestSurf
 	RenderCommand cmd2;
 	cmd2.type = RenderCommandType::SetDepthStencilSurface;
 	cmd2.setDepthStencilSurface.depthStencil = newDepthStencil;
-	g_renderQueue.enqueue(cmd2);
+	g_pendingRenderCommands.enqueue() = cmd2;
 
 	g_next_RenderTarget = newSurface;
 	MarkFixedFunctionVertexShaderStateDirty();
@@ -5674,7 +5674,7 @@ void D3DDevice_Clear(uint32_t count, _D3DRECT* pRects, uint32_t flags, uint32_t 
 	const bool clearStencil = (flags & X_D3DCLEAR_STENCIL) != 0;
 
 
-	g_renderQueue.enqueue(cmd);
+	SendRenderCommand(cmd);
 }
 
 //D3DDevice_SetTransform
@@ -6144,7 +6144,7 @@ static void UnlockBuffer(GuestBuffer* buffer, bool useCopyQueue)
 		cmd.stagedCopy.srcBuffer = allocation.buffer;
 		cmd.stagedCopy.srcOffset = allocation.offset;
 		cmd.stagedCopy.size = buffer->dataSize;
-		g_renderQueue.enqueue(cmd);
+		SendRenderCommand(cmd);
 	}
 	else
 	{
@@ -6449,7 +6449,7 @@ void DrawPrimitive(X_D3DPRIMITIVETYPE PrimitiveType, uint32_t StartVertex, uint3
 	Guard_Rendering();
 	std::shared_lock presentLock(g_presentMutex);
 
-	LocalRenderCommandQueue queue;
+	LocalRenderCommandQueue& queue = g_pendingRenderCommands;
 
 	FlushRenderStateForMainThread(queue);
 
@@ -6536,7 +6536,7 @@ static void ProcDrawPrimitive(const RenderCommand& cmd)
 void DrawIndexedPrimitive(X_D3DPRIMITIVETYPE PrimitiveType, uint32_t VertexCount, int16_t* pIndexData)
 {
 	RtScopeTimer _gtScope(g_gtDrawRecordingAccum);
-	LocalRenderCommandQueue queue;
+	LocalRenderCommandQueue& queue = g_pendingRenderCommands;
 
 	Guard_Rendering();
 	std::shared_lock presentLock(g_presentMutex);
@@ -6692,7 +6692,7 @@ void DrawPrimitiveUP(X_D3DPRIMITIVETYPE PrimitiveType, uint32_t VertexCount, voi
 	Guard_Rendering();
 	std::shared_lock presentLock(g_presentMutex);
 
-	LocalRenderCommandQueue queue;
+	LocalRenderCommandQueue& queue = g_pendingRenderCommands;
 	FlushRenderStateForMainThread(queue);
 
 

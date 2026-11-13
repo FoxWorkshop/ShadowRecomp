@@ -269,7 +269,7 @@ static void EnqueueAddPipeline(XXH64_hash_t hash, std::unique_ptr<RenderPipeline
 	cmd.type = RenderCommandType::AddPipeline;
 	cmd.addPipeline.hash = hash;
 	cmd.addPipeline.pipeline = pipeline.release();
-	g_renderQueue.enqueue(cmd);
+	SendRenderCommand(cmd);
 }
 
 void CompilePendingPipelinesForShader(uint64_t runtimeHash, GuestShader* shader, bool isVertexShader)

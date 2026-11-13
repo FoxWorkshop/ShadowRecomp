@@ -524,7 +524,7 @@ static void UnlockTextureRect(GuestTexture* texture)
 	cmd.unlockTextureRect.texture = texture;
 
 	g_frameReadsGuestMemory = true;
-	g_renderQueue.enqueue(cmd);
+	SendRenderCommand(cmd);
 }
 
 GuestTexture* g_currentTextureRect = nullptr;
@@ -636,7 +636,7 @@ void SetTexture(uint32_t stage, GuestTexture* texture)
 	cmd.setTexture.texture = texture;
 	cmd.setTexture.isFixed = g_Xbox_VertexShaderMode == VertexShaderMode::FixedFunction;
 	g_texturesPSDef[stage] = texture;
-	g_renderQueue.enqueue(cmd);
+	g_pendingRenderCommands.enqueue() = cmd;
 }
 
 GUEST_FUNCTION_HOOK_STDCALL(sub_3D0CD0, SetTexture);
