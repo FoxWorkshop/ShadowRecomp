@@ -1514,8 +1514,6 @@ static void DestructTempResources()
 }
 
 
-
-
 #define SPEC_CONSTANT_ALPHA_TEST        (1 << 2)
 #define SPEC_CONSTANT_ALPHA_TO_COVERAGE (1 << 3)
 // Records a change to shared pixel shader constants.
@@ -2862,28 +2860,11 @@ void Video::WaitForGPU()
 	g_queue->waitForCommandFence(g_commandFences[0].get());
 }
 
-
-
 static void ProcSetVertexDeclaration(const RenderCommand& cmd)
 {
 	auto& args = cmd.setVertexDeclaration;
-
-	if (args.vertexDeclaration != nullptr)
-	{
-		//SetDirtyValue(g_dirtyStates.sharedConstants, g_sharedConstants.swappedTexcoords, args.vertexDeclaration->swappedTexcoords);
-
-		/**uint32_t specConstants = g_pipelineState.specConstants;
-		if (args.vertexDeclaration->hasR11G11B10Normal)
-			specConstants |= SPEC_CONSTANT_R11G11B10_NORMAL;
-		else
-			specConstants &= ~SPEC_CONSTANT_R11G11B10_NORMAL;
-
-		SetDirtyValue(g_dirtyStates.pipelineState, g_pipelineState.specConstants, specConstants);*/
-	}
-
 	SetDirtyValue(g_dirtyStates.pipelineState, g_pipelineState.vertexDeclaration, args.vertexDeclaration);
 }
-
 
 GuestShader* CreateShader(ResourceType resourceType)
 {
@@ -3108,8 +3089,6 @@ static void ProcSetVertexShader(const RenderCommand& cmd)
 	}
 
 }
-
-
 
 
 static void ProcSetPixelShader(const RenderCommand& cmd)
@@ -3852,12 +3831,8 @@ static void DrawImGui(X86Context* ctx)
 	AchievementMenu::Draw(ctx);
 	OptionsMenu::Draw(ctx);
 	AchievementOverlay::Draw(ctx);
-
 	ButtonGuide::Draw();
-
-
 	InstallerWizard::Draw(ctx);
-	//BlackBar::Draw();
 	MessageWindow::Draw(ctx);
 	Fader::Draw();
 
@@ -4444,7 +4419,6 @@ void Video::ComputeViewportDimensions()
 	AspectRatioPatches::ComputeOffsets();
 }
 
-//todo check if this is all correct
 GuestTexture* CreateTexture(uint32_t width, uint32_t height, uint32_t depth, uint32_t levels, uint32_t usage, X_D3DFORMAT format, X_D3DRESOURCETYPE type)
 {
 	// Only resizable textures need the resize lock.
@@ -5184,7 +5158,6 @@ float GetZScaleForPixelContainer(X_D3DPixelContainer* pSurface)
 }
 
 
-
 void UpdateHostTextureScaling(GuestTexture* tex, const bool isFixedFunc)
 {
 
@@ -5302,12 +5275,10 @@ static void SetTextureInRenderThread(uint32_t index, GuestTexture* texture, cons
 	SetDirtyValue(g_dirtyStates.sharedConstants, g_sharedConstants.textureCubeIndices[index], texture != nullptr &&
 		viewDimension == RenderTextureViewDimension::TEXTURE_CUBE ? texture->descriptorIndex : TEXTURE_DESCRIPTOR_NULL_TEXTURE_CUBE);
 
-
 	float texCoordMinX = 0.0f;
 	float texCoordMinY = 0.0f;
 	float texCoordMaxX = 0.0f;
 	float texCoordMaxY = 0.0f;
-
 
 	if (texture != nullptr)
 	{
@@ -5377,7 +5348,6 @@ static void SetTextureInRenderThread(uint32_t index, GuestTexture* texture, cons
 	SetDirtyValue(g_dirtyStates.sharedConstants, g_sharedConstants.texCoordMin[index][1], texCoordMinY);
 	SetDirtyValue(g_dirtyStates.sharedConstants, g_sharedConstants.texCoordMax[index][0], texCoordMaxX);
 	SetDirtyValue(g_dirtyStates.sharedConstants, g_sharedConstants.texCoordMax[index][1], texCoordMaxY);
-
 }
 
 
@@ -5409,7 +5379,6 @@ static void SetViewport(GuestViewport* viewport, GuestSurface* surface)
 		g_pendingRenderCommands.enqueue() = cmd;
 	}
 }
-
 
 // The game doesn't create the backbuffer and depth surface in CreateSurface / CreateTexture like the other surfaces
 // Instead it does it in InitializeFramebuffers, since the function is complex we can't just blindly replace it.
@@ -5451,7 +5420,6 @@ X86_OVERRIDE_FUNC(sub_3D5140)
 		ReplaceDeviceSurface(device, GuestDeviceAutoDepthOffset, g_defaultStencil);
 	}
 }
-
 
 // The main thread and the loading thread can both run SetRenderTarget at the same time, thus, they can read
 // the same old surface and release it twice, so memory can get corrupted, let's mutex this as a fix.
@@ -5505,7 +5473,6 @@ void D3DDevice_SetRenderTarget(X86Context& ctx, GuestSurface* surface, GuestSurf
 	g_next_RenderTarget = newSurface;
 	MarkFixedFunctionVertexShaderStateDirty();
 }
-
 
 static void ProcSetRenderTarget(const RenderCommand& cmd)
 {
@@ -5572,7 +5539,6 @@ void D3DDevice_SetViewport(X86Context& ctx, GuestViewport* viewport)
 
 	SetViewport(viewport, g_next_RenderTarget);
 }
-
 
 static void SetFramebuffer(GuestSurface* renderTarget, GuestSurface* depthStencil, bool settingForClear)
 {
@@ -5714,8 +5680,6 @@ void D3DDevice_Clear(uint32_t count, _D3DRECT* pRects, uint32_t flags, uint32_t 
 
 	const bool clearDepth = (flags & X_D3DCLEAR_ZBUFFER) != 0;
 	const bool clearStencil = (flags & X_D3DCLEAR_STENCIL) != 0;
-
-
 	SendRenderCommand(cmd);
 }
 
@@ -5763,7 +5727,6 @@ int D3DDevice_Swap(X86Context& ctx, int32_t a1)
 	return 0;
 }
 
-
 static void SetSurface(uint32_t index, GuestSurface* surface)
 {
 	AddBarrier(surface, RenderTextureLayout::SHADER_READ);
@@ -5772,7 +5735,6 @@ static void SetSurface(uint32_t index, GuestSurface* surface)
 	SetDirtyValue(g_dirtyStates.sharedConstants, g_sharedConstants.texture3DIndices[index], uint32_t(TEXTURE_DESCRIPTOR_NULL_TEXTURE_3D));
 	SetDirtyValue(g_dirtyStates.sharedConstants, g_sharedConstants.textureCubeIndices[index], uint32_t(TEXTURE_DESCRIPTOR_NULL_TEXTURE_CUBE));
 }
-
 
 static void ProcSetTexture(const RenderCommand& cmd)
 {
@@ -5884,8 +5846,6 @@ static TextureStageDirtyState GetTextureStageDirtyState()
 
 	return {};
 }
-
-
 
 inline int GetXboxPixelContainerDimensionCount(const X_D3DPixelContainer* pXboxPixelContainer)
 {
@@ -6142,7 +6102,6 @@ static void* LockBuffer(GuestBuffer* buffer, uint32_t flags)
 
 	return buffer->mappedMemory;
 }
-
 
 //D3DVertexBuffer_Lock2 - DX8 on Xbox doesn't have an unlock function so we will unlock right before rendering
 void* LockVertexBuffer(GuestBuffer* buffer, uint32_t flags2)
@@ -6756,7 +6715,6 @@ void DrawPrimitiveUP(X_D3DPRIMITIVETYPE PrimitiveType, uint32_t VertexCount, voi
 	//	printf("Game called Draw Primitive UP - ID: %d, thread id %d - g_frame=%u\n", g_drawPrimitiveUP_ID, GetCurrentThreadId(), g_frame);
 
 }
-extern bool readyToDebug;
 
 static void ProcDrawPrimitiveUP(const RenderCommand& cmd)
 {
@@ -6930,7 +6888,6 @@ X86_OVERRIDE_FUNC(sub_3D5F10)
 	}
 }
 
-
 //Free Vertex Buffer
 X86_FUNC_IMPL(__imp__sub_2E6140);
 X86_OVERRIDE_FUNC(sub_2E6140)
@@ -6954,7 +6911,6 @@ X86_OVERRIDE_FUNC(sub_2E6140)
 
 	__imp__sub_2E6140(ctx, base);
 }
-
 
 //CreateStandAloneSurface
 X86_FUNC_IMPL(__imp__sub_3DA0A0);
