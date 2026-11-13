@@ -12,6 +12,7 @@
 #include "pause_patches.h"
 #include "multiplayer_mod_patches.h"
 #include "prompt_patches.h"
+#include "fps_patches.h"
 #include "global.h"
 #include <mod/mod_loader.h>
 
@@ -1952,8 +1953,7 @@ static Rt2dFontUnstretch g_rt2dFontUnstretch{};
 
 static bool ShouldUnstretchRt2dFont()
 {
-
-	if (g_isInStageMode || g_isDrawingSynopsisText || g_isDrawingLibraryText || App::s_gamemode != -1)
+	if (g_isInStageMode || g_isDrawingSynopsisText || g_isDrawingLibraryText || App::s_gamemode != -1 || IsEventPlaying())
 	{
 		return false;
 	}
