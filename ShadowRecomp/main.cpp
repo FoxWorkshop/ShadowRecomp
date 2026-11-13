@@ -202,6 +202,7 @@ int main(int argc, char* argv[])
         forceInstallationCheck = forceInstallationCheck || (strcmp(argv[i], "--install-check") == 0);
         graphicsApiRetry = graphicsApiRetry || (strcmp(argv[i], "--graphics-api-retry") == 0);
         QuickBootConfig = QuickBootConfig || (strcmp(argv[i], "--quickboot") == 0);
+        Video::s_dumpPipelineCacheHeader = Video::s_dumpPipelineCacheHeader || (strcmp(argv[i], "--dump-pipeline-cache") == 0);
 
         if (strcmp(argv[i], "-l") == 0 || strcmp(argv[i], "--level") == 0)
         {

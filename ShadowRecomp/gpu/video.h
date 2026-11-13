@@ -56,6 +56,7 @@ using namespace plume;
 
 struct Video
 {
+	static inline bool s_dumpPipelineCacheHeader = false;
 	static inline uint32_t s_viewportWidth;
 	static inline uint32_t s_viewportHeight;
 

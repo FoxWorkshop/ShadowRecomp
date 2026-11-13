@@ -6959,6 +6959,9 @@ void Video::Shutdown()
 
 	SavePipelineCache();
 
+	if (!s_dumpPipelineCacheHeader)
+		return;
+
 	std::lock_guard lock(g_pipelineCacheMutex);
 	if (g_pipelineCacheEntries.empty())
 		return;
