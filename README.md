@@ -18,7 +18,7 @@ The development of that recompiler was directly inspired by [XenonRecomp](https:
 - [Features](#features)
 - [Known Issues](#known-issues)
 - [FAQ](#faq)
-- [Controls] (#controls)
+- [Controls](#controls)
 - [Building](#building)
 - [Credits](#credits)
 
@@ -132,7 +132,7 @@ Updating the game can be done by simply copying and replacing the files from a [
 
 You can make the game ignore the default configuration paths and force it to save everything in the installation directory by creating an empty `portable.txt` file. You are directly responsible for the safekeeping of your save data and configuration if you choose this option.
 
-### How can I force the game to run the installation again?
+### How can I make the game run the installation again?
 
 While it's unlikely you'll need to do this unless you've modified your game files by accident, you can force the installer to run again by using the launch argument: `--install`.
 
