@@ -590,6 +590,48 @@ static StagedBufferUploadAllocator& GameFrameStagedUploads()
 	return g_stagedBufferUploads[g_gameFrame.load(std::memory_order_relaxed) % std::size(g_stagedBufferUploads)];
 }
 
+// Allocates from a per-thread block.
+static uint8_t* AllocateDrawData(uint32_t size)
+{
+	static constexpr uint32_t BLOCK_SIZE = 64 * 1024;
+
+	struct Block
+	{
+		uint8_t* memory = nullptr;
+		uint32_t offset = BLOCK_SIZE;
+		uint32_t gameFrame = 0;
+	};
+
+	thread_local Block block; // <= PER THREAD. (Don't miss this!! Codo-reader-chan!)
+
+	// Skip block for huge allocations. We want to group the smol.
+	const uint32_t alignedSize = (size + 0xF) & ~0xF;
+	if (alignedSize > BLOCK_SIZE / 4)
+		return GameFrameUploads().allocate(size);
+
+	// Make new block if needed.
+	// On gem frem or if it's too big.
+	const uint32_t gameFrame = g_gameFrame.load(std::memory_order_relaxed);
+	if (block.gameFrame != gameFrame || block.offset + alignedSize > BLOCK_SIZE)
+	{
+		block.memory = GameFrameUploads().allocate(BLOCK_SIZE);
+		block.offset = 0;
+		block.gameFrame = gameFrame;
+	}
+
+	// Bump allocate.
+	uint8_t* result = block.memory + block.offset;
+	block.offset += alignedSize;
+	return result;
+}
+
+static uint8_t* AllocateDrawData(const void* memory, uint32_t size)
+{
+	uint8_t* result = AllocateDrawData(size);
+	memcpy(result, memory, size);
+	return result;
+}
+
 static std::vector<GuestResource*> g_tempResources[NUM_FRAMES];
 static std::vector<std::unique_ptr<RenderBuffer>> g_tempBuffers[NUM_FRAMES];
 
@@ -627,7 +669,7 @@ bool Video::is_vulkan()
 
 uint8_t* AllocIntermediaryUploadMemoryWrapper(const void* memory, uint32_t size)
 {
-	return GameFrameUploads().allocate(memory, size);
+	return AllocateDrawData(memory, size);
 }
 
 std::unique_ptr<RenderBuffer> PlumeCreateBufferWrapper(const uint32_t size)
@@ -6299,7 +6341,7 @@ uint8_t* ApplyVertexPatch(uint8_t* vertexData, const uint8_t indexStream, const 
 	if (!bNeedVertexPatching)
 		return nullptr;
 
-	uint8_t* pHostVertexData = useHostMemory ? GameFrameUploads().allocate(VertexCount * alignedStride) : (uint8_t*)g_userHeap.AllocPhysical(VertexCount * alignedStride, 0x10);
+	uint8_t* pHostVertexData = useHostMemory ? AllocateDrawData(VertexCount * alignedStride) : (uint8_t*)g_userHeap.AllocPhysical(VertexCount * alignedStride, 0x10);
 
 	for (uint32_t uiVertex = 0; uiVertex < VertexCount; uiVertex++)
 	{
@@ -6490,7 +6532,7 @@ void DrawPrimitive(X_D3DPRIMITIVETYPE PrimitiveType, uint32_t StartVertex, uint3
 			else
 			{
 				const size_t originalSize = VertexCount * alignedStride;
-				vertexParticles = (uint8_t*)GameFrameUploads().allocate(VertexCount * alignedStride);
+				vertexParticles = (uint8_t*)AllocateDrawData(VertexCount * alignedStride);
 				memcpy(vertexParticles, pXboxVertexData, originalSize);
 			}
 
@@ -6625,7 +6667,7 @@ void DrawIndexedPrimitive(X_D3DPRIMITIVETYPE PrimitiveType, uint32_t VertexCount
 			uint8_t* vertexData = ApplyVertexPatch(pXboxVertexData, i, usedVertices, originalStride, alignedStride, true);
 			if (vertexData == nullptr)
 			{
-				vertexData = GameFrameUploads().allocate(usedVertices * alignedStride);
+				vertexData = AllocateDrawData(usedVertices * alignedStride);
 				memcpy(vertexData, pXboxVertexData, usedVertices * originalStride);
 			}
 
@@ -6703,7 +6745,7 @@ void DrawPrimitiveUP(X_D3DPRIMITIVETYPE PrimitiveType, uint32_t VertexCount, voi
 	cmd.drawPrimitiveUP.ID = g_drawPrimitiveUP_ID++;
 	cmd.drawPrimitiveUP.primitiveType = PrimitiveType;
 	cmd.drawPrimitiveUP.primitiveCount = VertexCount;
-	cmd.drawPrimitiveUP.vertexStreamZeroData = GameFrameUploads().allocate(vertexData, VertexCount * VertexStreamZeroStride);
+	cmd.drawPrimitiveUP.vertexStreamZeroData = AllocateDrawData(vertexData, VertexCount * VertexStreamZeroStride);
 	cmd.drawPrimitiveUP.vertexStreamZeroSize = VertexCount * VertexStreamZeroStride;
 	cmd.drawPrimitiveUP.vertexStreamZeroStride = VertexStreamZeroStride;
 	cmd.drawPrimitiveUP.isFixed = g_Xbox_VertexShaderMode == VertexShaderMode::FixedFunction;
