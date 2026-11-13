@@ -5743,9 +5743,8 @@ static RenderPipeline* CreateGraphicsPipelineInRenderThread(PipelineState pipeli
 		pipeline = CreateGraphicsPipeline(pipelineState);
 		auto pipeElapsed = std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - pipeStart).count();
 
-		LOGFN("CreateGraphicsPipeline: PIPELINE MISS hash={:016X} -> {:.2f} ms {}",
-			hash, pipeElapsed,
-			pipeElapsed > 0.5 ? "*** STUTTER ***" : "");
+		LOGFN("CreateGraphicsPipeline: PIPELINE MISS hash={:016X} -> {:.2f} ms",
+			hash, pipeElapsed);
 
 		RecordPipelineState(pipelineState);
 	}
