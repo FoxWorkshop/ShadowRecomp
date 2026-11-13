@@ -51,10 +51,10 @@ jobs:
       - name: Prep
         run: |
           mkdir ./assets
-          cp ./artifacts/ShadowRecomp-Flatpak/*.flatpak ./assets/ShadowRecomp-Flatpak-${VERSION}.flatpak
-          cp ./artifacts/ShadowRecomp-Linux-linux-release/*.tar.gz ./assets/ShadowRecomp-Linux-${VERSION}.tar.gz
-          (cd ./artifacts/ShadowRecomp-Windows-x64-Clang-Release && zip -r ../../assets/ShadowRecomp-Windows-${VERSION}.zip .)
-          (cd ./artifacts/ShadowRecomp-Windows-x64-Clang-Release-PDB && zip -r ../../assets/ShadowRecomp-Windows-${VERSION}-PDB.zip .)
+          cp ./artifacts/ShadowRecomp-Flatpak-x86_64/*.flatpak ./assets/ShadowRecomp-Flatpak-x86_64-${VERSION}.flatpak
+          cp ./artifacts/ShadowRecomp-Linux-x86_64-linux-release/*.tar.gz ./assets/ShadowRecomp-Linux-x86_64-${VERSION}.tar.gz
+          (cd ./artifacts/ShadowRecomp-Windows-x64-Clang-Release && zip -r ../../assets/ShadowRecomp-Windows-x64-${VERSION}.zip .)
+          (cd ./artifacts/ShadowRecomp-Windows-x64-Clang-Release-PDB && zip -r ../../assets/ShadowRecomp-Windows-x64-${VERSION}-PDB.zip .)
           ls -l ./assets
 
       - name: Upload

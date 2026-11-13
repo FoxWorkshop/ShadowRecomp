@@ -11,8 +11,13 @@ on:
 
 jobs:
   build-flatpak:
-    name: Build Flatpak
-    runs-on: ubuntu-26.04
+    name: Build Flatpak (${{ matrix.arch.name }})
+    runs-on: ${{ matrix.arch.runner }}
+    strategy:
+      matrix:
+        arch: [
+          {"name": "x86_64", "runner": "ubuntu-26.04"},
+          ]
     env:
       FLATPAK_ID: io.github.foxworkshop.shadowrecomp
 
@@ -53,7 +58,7 @@ jobs:
         uses: actions/cache@v6
         with:
           path: /tmp/ccache
-          key: ccache-${{ runner.os }}
+          key: ccache-${{ runner.os }}-${{ matrix.arch.name }}
 
       - name: Prepare Project
         run: cp ./private/* ./ShadowRecompLib/private
@@ -83,6 +88,6 @@ jobs:
       - name: Upload Artifact
         uses: actions/upload-artifact@v7
         with:
-          name: ShadowRecomp-Flatpak
+          name: ShadowRecomp-Flatpak-${{ matrix.arch.name }}
           path: ./${{ env.FLATPAK_ID }}.flatpak
           retention-days: 3
