@@ -102,6 +102,8 @@ Default keyboard controls:
 
 - Egg Dealer roulette flashing white
 
+- AirSaucer Effect Speed Multiplying by Number of Saucers
+
 - Artifacts on screen edges
 
 - Animated textures sometimes not animating
