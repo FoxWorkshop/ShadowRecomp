@@ -109,6 +109,8 @@ Default keyboard controls:
 
 - Animated textures sometimes not animating
 
+- Objects with fade-in disappearing for a frame
+
 - Shadow's shoes
     - Finally, after 21 years they have 4 jet flames instead of 3.
 
