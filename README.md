@@ -116,9 +116,9 @@ Default keyboard controls:
     - No inverted Spin Dash
     - No slides
     - No flipping 180 after landing
-- Lethal highway rail that can kill the player
+- Lethal Highway rail that can kill the player
 - Rails applying velocity on detach incorrectly
-- Sound effects cutting off in busy areas (e.g. in 'The Doom')
+- Sound effects cutting off in busy areas (e.g. in Glyphic Canyon / Sky Troops)
 
 ## FAQ
 
