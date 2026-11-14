@@ -38,6 +38,7 @@
 
 - Any aspect: 16:9, 16:10 and ultrawide (21:9+)
 - Adjustable UI alignment
+- Bloom intensity slider (optional)
 - High framerate (optional)
 - Unlocked cutscene framerate (optional)
 
@@ -120,6 +121,7 @@ Default keyboard controls:
 - Lethal Highway rail that can kill the player
 - Rails applying velocity on detach incorrectly
 - Sound effects cutting off in busy areas (e.g. in Glyphic Canyon / Sky Troops)
+- Fixed Black Hawk softlock at end of some paths (e.g. Cryptic Castle)
 
 ## FAQ
 
