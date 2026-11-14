@@ -51,7 +51,7 @@
 **Achievements**
 
 - View from pause menu
-- Local only.
+- Local only
 
 **Mods**
 
@@ -64,9 +64,9 @@
 
 Default keyboard controls:
 
-- Loosely based on Dolphin Emulator's default keyboard layout.
-    - Adapted to the Xbox controller.
-- Remap them in the in-game options, or in `config.toml`.
+- Loosely based on Dolphin Emulator's default keyboard layout
+    - Adapted to the Xbox controller
+- Remap them in the in-game options, or in `config.toml`
 
 ![Keymap](docs/assets/controls-xbox.webp)
 
@@ -87,7 +87,7 @@ Default keyboard controls:
 - Subtitles too faint after a Restart/Quit prompt
 - White flash on environment/destructible object fade in
 - Audio distance and looping bugs
-    - e.g. Goal Ring going 0% to 100% on volume instead of proper proximity. 
+    - e.g. Goal Ring going 0% to 100% on volume instead of proper proximity
 - Player 2 not controlling the partner
 - Egg Dealer missing looping noise
 
@@ -112,14 +112,14 @@ Default keyboard controls:
 - Objects with fade-in disappearing for a frame
 
 - Drop shadows vanishing during laser lock-on
-    - e.g. 4SHOT, 8SHOT, Satellite Laser.
+    - e.g. 4SHOT, 8SHOT, Satellite Laser
 
 - Shadow's shoes
-    - Finally, after 21 years they have 4 jet flames instead of 3.
+    - Finally, after 21 years they have 4 jet flames instead of 3
 
 ### Gameplay
 
-- A LOT of High framerate glitches.
+- A LOT of High framerate glitches
 - Space Gadget gravity
     - Slide & Spin Dash controls properly in all gravity modes (no more inverted controls)
     - No flipping 180 after landing upside down
@@ -128,9 +128,9 @@ Default keyboard controls:
 - Sound effects cutting off in busy areas (e.g. in Glyphic Canyon / Sky Troops)
 - Fixed Black Hawk softlock at end of some paths (e.g. Cryptic Castle)
 - Black Tank invincible while waiting for the player
-    - It's meant to give struggling players a chance to hit it.
+    - It's meant to give struggling players a chance to hit it
 - Ball Switches ignoring melee hits
-    - Now react to melee instead of draining your ammo.
+    - Now react to melee instead of draining your ammo
 
 ## FAQ
 
@@ -162,8 +162,8 @@ your game folder.
 
 Copy the files from a new [release][all releases] over your existing install.
 
-- Saves and settings are kept.
-- Reinstall not needed afterwards. Just boot the game.
+- Saves and settings are kept
+- Reinstall not needed afterwards. Just boot the game
 
 ### How do I run the installer again?
 
@@ -211,16 +211,16 @@ Before reporting any issues, check if they are listed [here][issues].
 **Programming**
 - [Sora]
     - Creator and lead dev
-    - Built tech like [XShaderRecomp] and OG [XboxRecomp].
-    - The reason this project exists.
+    - Built tech like [XShaderRecomp] and OG [XboxRecomp]
+    - The reason this project exists
 - [dreamsyntax]
     - Shadow expert: kept the port accurate and found flaws in the Xbox port
-    - A huge amount of game patches.
+    - A huge amount of game patches
 - [Sewer56]
-    - Helped Sora understand recompilation.
-    - Improved framepacing, widescreen base, Discord RPC, Nix support. etc.
-    - [XboxRecomp2] recompiler.
-    - Months of performance work. >4x FPS gain.
+    - Helped Sora understand recompilation
+    - Improved framepacing, widescreen base, Discord RPC, Nix support. etc
+    - [XboxRecomp2] recompiler
+    - Months of performance work. >4x FPS gain
 - [DonutStopGaming]: help with RenderWare and finding Shadow functions
 
 **Design & Art**
@@ -254,22 +254,22 @@ Before reporting any issues, check if they are listed [here][issues].
 **Projects**
 
 - [CXBX-Reloaded] team: their research on the HLE Emulation of the OG Xbox
-  was the base for nearly every part of this project, *especially* graphics.
+  was the base for nearly every part of this project, *especially* graphics
 
-- [Unleashed Recompiled] team: laid much of the groundwork and sped up development a lot.
+- [Unleashed Recompiled] team: laid much of the groundwork and sped up development a lot
 
-- [Marathon Recompiled]: reference for features and debugging.
+- [Marathon Recompiled]: reference for features and debugging
 
-- [extract-xiso]: game file extraction in the installer.
-    - By in@fishtank.com and other contributors.
+- [extract-xiso]: game file extraction in the installer
+    - By in@fishtank.com and other contributors
 
 **People**
 
 - [Skyth]: helped Sora understand recompilation
-    - Wrote the original graphics pipeline, mostly reused here.
-- [Darío]: created [plume], the graphics layer under our renderer.
-- [MattKC]: explained the Xbox push buffer system on [his Reburn3 blog][Reburn3 blog].
-- [ocornut]: created Dear ImGui, the base of our custom menus.
+    - Wrote the original graphics pipeline, mostly reused here
+- [Darío]: created [plume], the graphics layer under our renderer
+- [MattKC]: explained the Xbox push buffer system on [his Reburn3 blog][Reburn3 blog]
+- [ocornut]: created Dear ImGui, the base of our custom menus
 
 [SA Mod Manager]: https://github.com/X-Hax/SA-Mod-Manager
 [Releases]: https://github.com/FoxWorkshop/ShadowRecomp/releases/latest
