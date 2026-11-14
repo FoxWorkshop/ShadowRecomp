@@ -104,7 +104,6 @@ First, we fixed some bugs present in all console versions:
     - No dark bands or boxes blending over the screen
 
 - Transparency issues:
-    - Bigfoot's front windshield
     - Vertical Elevators (Lost Impact, The Doom)
 
 - Shadow's shoes
