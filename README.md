@@ -95,6 +95,7 @@ First, we fixed some bugs present in all console versions:
 - Audio distance and looping bugs
     - e.g. Goal Ring going 0% to 100% on volume instead of proper proximity. 
 - Player 2 not controlling the partner
+- Egg Dealer missing looping noise
 
 ### Visuals
 
@@ -105,6 +106,8 @@ First, we fixed some bugs present in all console versions:
 
 - Transparency issues:
     - Vertical Elevators (Lost Impact, The Doom)
+
+- Egg Dealer roulette flashing white
 
 - Shadow's shoes
     - Finally, after 21 years they have 4 jet flames instead of 3.
@@ -120,6 +123,8 @@ First, we fixed some bugs present in all console versions:
     - No inverted Spin Dash
     - No slides
     - No flipping 180 after landing
+- Lethal highway rail that can kill the player
+- Rails applying velocity on detach incorrectly
 
 ## FAQ
 
@@ -234,7 +239,7 @@ Before reporting any issues, check if they are listed [here][issues].
 - [Rawlins]
 - [DarkShadow17]
 - [The Spectral Star]
-- [Pixel](https://x.com/PixelTheRetro) The Retro
+- [Pixel The Retro]
 - [ultra0000]
 - Many others who helped briefly test
 
@@ -292,3 +297,4 @@ Before reporting any issues, check if they are listed [here][issues].
 [MattKC]: https://github.com/itsmattkc
 [Reburn3 blog]: https://forum.mattkc.com/viewtopic.php?t=154
 [ocornut]: https://github.com/ocornut
+[Pixel The Retro]: https://x.com/PixelTheRetro
