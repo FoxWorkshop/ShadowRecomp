@@ -97,25 +97,17 @@ Default keyboard controls:
     - Now covers the whole screen
     - No artifacts along the bottom edge
     - No dark bands or boxes blending over the screen
-
 - Transparency issues:
     - Vertical Elevators (Lost Impact, The Doom)
-
-- Egg Dealer roulette flashing white
-
-- AirSaucer Effect Speed Multiplying by Number of Saucers
-
-- Artifacts on screen edges
-
-- Animated textures sometimes not animating
-
-- Objects with fade-in disappearing for a frame
-
 - Drop shadows vanishing during laser lock-on
     - e.g. 4SHOT, 8SHOT, Satellite Laser
-
 - Shadow's shoes
     - Finally, after 21 years they have 4 jet flames instead of 3
+- Egg Dealer roulette flashing white
+- AirSaucer Effect Speed Multiplying by Number of Saucers
+- Artifacts on screen edges
+- Animated textures sometimes not animating
+- Objects with fade-in disappearing for a frame
 
 ### Gameplay
 
