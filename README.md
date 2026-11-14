@@ -81,13 +81,6 @@ Default keyboard controls:
 
 ## Fixes
 
-### Console Version Bugs Fixed
-
-First, we fixed some bugs present in all console versions:
-
-- Artifacts on screen edges
-- Animated textures sometimes not animating
-
 ### Xbox-only Bugs Fixed
 
 - Subtitles too faint after a Restart/Quit prompt
@@ -109,12 +102,12 @@ First, we fixed some bugs present in all console versions:
 
 - Egg Dealer roulette flashing white
 
+- Artifacts on screen edges
+
+- Animated textures sometimes not animating
+
 - Shadow's shoes
     - Finally, after 21 years they have 4 jet flames instead of 3.
-
-### Audio
-
-- Sound effects cutting off in busy areas (e.g. in 'The Doom')
 
 ### Gameplay
 
@@ -125,6 +118,7 @@ First, we fixed some bugs present in all console versions:
     - No flipping 180 after landing
 - Lethal highway rail that can kill the player
 - Rails applying velocity on detach incorrectly
+- Sound effects cutting off in busy areas (e.g. in 'The Doom')
 
 ## FAQ
 
