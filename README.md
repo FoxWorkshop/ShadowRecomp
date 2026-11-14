@@ -112,10 +112,9 @@ Default keyboard controls:
 ### Gameplay
 
 - A LOT of High framerate glitches.
-- Space Gadget gravity; 
-    - No inverted Spin Dash
-    - No slides
-    - No flipping 180 after landing
+- Space Gadget gravity
+    - Slide & Spin Dash controls properly in all gravity modes (no more inverted controls)
+    - No flipping 180 after landing upside down
 - Lethal Highway rail that can kill the player
 - Rails applying velocity on detach incorrectly
 - Sound effects cutting off in busy areas (e.g. in Glyphic Canyon / Sky Troops)
