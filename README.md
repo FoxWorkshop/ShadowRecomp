@@ -1,102 +1,126 @@
 <p align="center">
+    <b>F O X ■ W O R K S H O P ■ P R E S E N T S</b>
+</p>
+
+<p align="center">
     <img src="https://github.com/FoxWorkshop/ShadowRecompResources/blob/master/images/logo/logo.png?raw=true" width="1024"/>
+</p>
+
+<h3 align="center">
+    Shadow '05 for the OG Xbox, now on PC.<br/>
+    20 Months in the Making
+</h3>
+
+<p align="center">
+    <a href="https://github.com/FoxWorkshop/ShadowRecomp/releases/latest"><b>Download</b></a>
+    ·
+    <a href="#installation"><b>Install</b></a>
+    ·
+    <a href="#faq"><b>FAQ</b></a>
+    ·
+    <a href="/docs/BUILDING.md"><b>Building</b></a>
+    ·
+    <a href="https://github.com/FoxWorkshop/ShadowRecomp/issues"><b>Issues</b></a>
+    ·
+    <a href="#credits"><b>Credits</b></a>
 </p>
 
 ---
 
-Shadow Recompiled is an unofficial PC port of the original Xbox version of Shadow the Hedgehog (2005) created through the process of static recompilation.
-The port supports Windows and Linux.
-
-**This project does not include any game assets. You must provide the files from your own legally acquired copy of the game to install or build Shadow Recompiled.**
-
-[XboxRecomp2](https://github.com/Sewer56/XboxRecomp2) (previously [XboxRecomp](https://github.com/FoxWorkshop/XboxRecomp)) is the main recompiler used for converting the game's original x86 code into compatible C++. 
-The development of that recompiler was directly inspired by [XenonRecomp](https://github.com/hedge-dev/XenonRecomp), which was used to create [Sonic Unleashed Recompiled](https://github.com/hedge-dev/UnleashedRecomp).
-
-## Table of Contents
-
-- [Minimum System Requirements](#minimum-system-requirements)
-- [Features](#features)
-- [Known Issues](#known-issues)
-- [FAQ](#faq)
-- [Controls](#controls)
-- [Building](#building)
-- [Credits](#credits)
-
-
-## Minimum System Requirements
-
-- CPU with support for the AVX instruction set:
-    - Intel: Sandy Bridge (Intel Core 2nd Generation)
-    - AMD: Bulldozer (AMD FX series)
-- GPU with support for Direct3D 12.0 (Shader Model 6) or Vulkan 1.2:
-    - NVIDIA: GeForce GT 630 (Kepler)
-    - AMD: Radeon HD 7750 (2012, not the RX 7000)
-    - Intel: HD Graphics 510 (Skylake)
-- Memory:
-    - 8 GB minimum
-- Operating System:
-    - Windows 10 (version 1909)
-    - A modern Linux distro (or one with flatpak support)
-- Storage:
-    - 2.4 GiB required
-
-
 ## Features
 
-### Easy to Use Installer
+**Setup**
 
-A built-in installer will guide you through the game installation process, performing many integrity checks to ensure the process goes as smoothly as possible.
+- Built-in installer
+- Verifies your game files
 
-### Options Menu
+**Display**
 
-A new options menu for PC has been added, replacing the game's original settings. 
-Get access to many quality of life features and graphics options directly in-game with navigation that is fully compatible with a controller.
+- Any aspect: 16:9, 16:10 and ultrawide (21:9+)
+- Adjustable UI alignment
+- High framerate (optional)
+- Unlocked cutscene framerate (optional)
 
-### Widescreen and Ultrawide Support
+**Menus**
 
-Aspect ratios for 16:9 and 16:10, as well as ultrawide displays (such as 21:9 or even wider) are supported with options to adjust the alignment of the UI.
+- Custom options menu
+- Full controller navigation
+- Skip any cutscene
 
-### High Frame Rate Support
+**Achievements**
 
-Support for high frame rate has been added as an available option. Many glitches that normally occur at higher frame rates have been fixed and are included as part of the recompilation.
-Cutscenes have also an option to play at unlocked frame rate.
+- View from pause menu
+- Local only.
 
-### Enhancements
+**Mods**
 
-Extra care and attention was taken to make the experience the best as possible:
-- Bloom has been overhauled to fixes many issues such as not covering the whole screen, bottom artifacts, and extra dark band / box blending on the screen.
-- Sound effect limits are expanded to fix sound cutting off in areas with many sound effects.
-- Edge artifacts that are in every version of the game has been completely fixed.
-- Shadow's shoes have been patched to restore the use of 4 Jet Effects instead of 3.
-- Cutscenes can always be skipped even if you never watched them before.
-- Player 2 can now properly control the Partner on the screen like on the others versions of the game.
-- Animated textures which normally have a chance to not work in every version of the game have been fixed.
-- Space Gadget's gravity system has been updated to fix wrong rotation issues, fixing the infamous inverted Spin Dash, slide, and landing flip bugs.
-- Many audio issues exclusive to the Xbox port have been fixed (distance, loop etc.).
-- Various minor graphics glitches like transparency issues and the Xbox exclusive 'white flash' on object load-in have been fixed.
+- Works with [SA Mod Manager]
+- Uses the Sonic Adventure mod format
+- Code mods: not yet
+- Some code mods built in: see Mod Manager's Codes tab
 
-### Achievements
+## Controls
 
-Achievements have been implemented to the game, they can be checked from the pause menu; a full new menu has been added.
+Default keyboard controls:
 
-You will be rewarded with achievements as you progress through the game. 
+- Loosely based on Dolphin Emulator's default keyboard layout.
+    - Adapted to the Xbox controller.
+- Remap them in the in-game options, or in `config.toml`.
 
-> [!NOTE]
-Achievements cannot be used with platforms such as Steam or RetroAchievements.
+![Keymap](docs/assets/controls-xbox.webp)
 
-### Mod Support
+| Hotkey    | Action                          |
+| --------- | ------------------------------- |
+| Alt+Enter | Toggle fullscreen/windowed mode |
+| Ctrl+1    | Keyboard controls port 1        |
+| Ctrl+2    | Keyboard controls port 2        |
+| Ctrl+3    | Keyboard controls port 3        |
+| Ctrl+4    | Keyboard controls port 4        |
+| F1        | Toggle profiler                 |
+| F8        | Toggle HUD                      |
 
-The game includes a mod loader compatible with [SA Mod Manager](https://github.com/X-Hax/SA-Mod-Manager).
+## Fixes
 
-The mod format uses the same standard as the one used by Sonic Adventure mods. 
+### Console Version Bugs Fixed
 
-> [!NOTE]
-Code modding is currently not possible and is planned for a future update. As a workaround for the time being, some codes have been directly embedded into the game and can be accessed through SA Mod Manager's Codes tab.
+First, we fixed some bugs present in all console versions:
 
+- Artifacts on screen edges
+- Animated textures sometimes not animating
 
-## Known Issues
+### Xbox-only Bugs Fixed
 
-Before reporting any issues, check if they are listed [here](https://github.com/FoxWorkshop/ShadowRecomp/issues).
+- Subtitles too faint after a Restart/Quit prompt
+- White flash on object load
+- Audio distance and looping bugs
+    - e.g. Goal Ring going 0% to 100% on volume instead of proper proximity. 
+- Player 2 not controlling the partner
+
+### Visuals
+
+- Bloom:
+    - Now covers the whole screen
+    - No artifacts along the bottom edge
+    - No dark bands or boxes blending over the screen
+
+- Transparency issues:
+    - Bigfoot's front windshield
+    - Vertical Elevators (Lost Impact, The Doom)
+
+- Shadow's shoes
+    - Finally, after 21 years they have 4 jet flames instead of 3.
+
+### Audio
+
+- Sound effects cutting off in busy areas (e.g. in 'The Doom')
+
+### Gameplay
+
+- A LOT of High framerate glitches.
+- Space Gadget gravity; 
+    - No inverted Spin Dash
+    - No slides
+    - No flipping 180 after landing
 
 ## FAQ
 
@@ -104,141 +128,167 @@ Before reporting any issues, check if they are listed [here](https://github.com/
 
 Shadow Recompiled does not have an official website.
 
-**Please link here when directing anyone to the project.**
+Link people to this GitHub page.
 
 > [!CAUTION]
-> Do not download builds of Shadow Recompiled from anywhere but our [Releases](https://github.com/FoxWorkshop/ShadowRecomp/releases/latest) page.
->
-> **We will never distribute builds on other websites, via Discord servers or via third-party update tools.**
+> **Only download from our [Releases] page.**
+> We never share builds on other sites, Discord or third-party updaters.
 
-### Can I install the game using a GameCube / PlayStation 2 version?
+### Can I install using GameCube / PlayStation 2 version?
 
-**You cannot use the files from the GameCube or PlayStation 2 version of the game.** Supporting these files would require an entirely new recompilation to handle all the differences.
+**No**. Would require separate recomps.
 
-### Where is the save data and configuration file stored?
-
-The save data and configuration files are stored at the following locations:
+### Where are save data & configs?
 
 - Windows: `%APPDATA%\ShadowRecomp\`
 - Linux: `~/.config/ShadowRecomp/`
 
-You will find the save data under the `save` folder. The configuration file is named `config.toml`.
+Inside, saves are in `save/` and settings in `config.toml`.
 
-### I want to update the game. How can I avoid losing my save data? Do I need to reinstall the game?
+You can also create `portable.txt` beside the `.exe` to keep everything in
+your game folder.
 
-Updating the game can be done by simply copying and replacing the files from a [release](https://github.com/FoxWorkshop/ShadowRecomp/releases) on top of your existing installation. **Your save data and configuration will not be lost.** You won't need to reinstall the game, as the game files will always remain the same across versions of Shadow Recompiled.
+### How do I update?
 
-### How can I force the game to store the save data and configuration in the installation folder?
+Copy the files from a new [release][all releases] over your existing install.
 
-You can make the game ignore the default configuration paths and force it to save everything in the installation directory by creating an empty `portable.txt` file. You are directly responsible for the safekeeping of your save data and configuration if you choose this option.
+- Saves and settings are kept.
+- Reinstall not needed afterwards. Just boot the game.
 
-### How can I make the game run the installation again?
+### How do I run the installer again?
 
-While it's unlikely you'll need to do this unless you've modified your game files by accident, you can force the installer to run again by using the launch argument: `--install`.
+Launch the game with `--install`.
+In a console/terminal window.
 
-### Why are there line breaks on some of the UI?
+You'll only need this if you changed the game files; and
+want to revert to a stock setup.
 
-Shadow was designed for 480p, and unfortuntely defects in the art are exasperated at higher resolutions. This is not a bug, please do not open an issue about this. We use the original files the game ships with. You will need to use a HD GUI mod to fix these defects.
+### Why does some of the UI have visible lines or gaps?
+
+This is a vanilla game issue.
+Higher resolutions unfortunately make this issue easier to see.
+
+- Please don't open an issue for it.
+- To fix it, use HD GUI mod(s).
 
 ### Why are some sound effects missing
 
-The Xbox version of the game has several missing sound effects. See [details here](https://github.com/FoxWorkshop/ShadowRecomp/issues/44) if interested. You will need to use a SFX Restoration mod to fix these defects.
+The Xbox version of the game has several missing sound effects.
+See [details here][issue 44] if interested.
+
+You will need to use a SFX Restoration mod to fix these defects.
 
 ### What other platforms will be supported?
 
-This project does not plan to support any more platforms other than Windows and Linux at the moment. Any contributors who wish to support more platforms should do so through a fork.
+We only have Windows + Linux machines.  
+We'd happily accept community contribution for macOS.  
 
-## Controls
+But folks who want to support platforms that require more significant modifications 
+(e.g. touchscreen on mobile); should make a fork.
 
-Default control scheme for keyboard. We loosely follow the Dolphin Emulator default keyboard scheme, adapted to Xbox. You can remap to your liking within the in-game options or by editing your config directly.
+## Known Issues
 
-| Hotkey | Action |
-|---|---|
-| Alt+Enter | Toggle fullscreen/windowed mode |
-| Ctrl+1 | Keyboard controls port 1 |
-| Ctrl+2 | Keyboard controls port 2 |
-| Ctrl+3 | Keyboard controls port 3 |
-| Ctrl+4 | Keyboard controls port 4 |
-| F1 | Toggle profiler |
-| F8 | Toggle HUD |
-
-| Game | Keyboard |
-|---|---|
-| A | X |
-| B | C |
-| X | Z |
-| Y | S |
-| D-Pad Up | T |
-| D-Pad Down | G |
-| D-Pad Left | F |
-| D-Pad Right | H |
-| Start | Enter |
-| Back | Backspace |
-| Left Trigger | Q |
-| Right Trigger | W |
-| Left Bumper | E |
-| Right Bumper | D |
-| Left Stick Click | , |
-| Right Stick Click | . |
-| Left Stick Up | Up Arrow |
-| Left Stick Down | Down Arrow |
-| Left Stick Left | Left Arrow |
-| Left Stick Right | Right Arrow |
-| Right Stick Up | I |
-| Right Stick Down | K |
-| Right Stick Left | J |
-| Right Stick Right | L |
+Before reporting any issues, check if they are listed [here][issues].
 
 ## Building
 
-[Check out the building instructions here](/docs/BUILDING.md).
+[Check out the building instructions here][BUILDING.md].
 
 ## Credits
 
 ### Shadow Recompiled
-- [Sora](https://github.com/Sora-yx): Creator and Lead Developer of the recompilation, as well as the developer of technologies created for it such as [XboxRecomp](https://github.com/FoxWorkshop/XboxRecomp) (before the XboxRecomp2 switch) and [XShaderRecomp](https://github.com/FoxWorkshop/XShaderRecomp). Provided French localization for the custom menus. Final design decisions and UI for installer, achievements, and other custom menus.
 
-- [dreamsyntax](https://github.com/dreamsyntax): Second Developer, source for Shadow knowledge, ensuring port accuracy, and identifying flaws with the Xbox port of the game. Provided English localization for the custom menus.
+**Programming**
+- [Sora]
+    - Creator and lead dev
+    - Built tech like [XShaderRecomp] and OG [XboxRecomp].
+    - The reason this project exists.
+- [dreamsyntax]
+    - Shadow expert: kept the port accurate and found flaws in the Xbox port
+    - A huge amount of game patches.
+- [Sewer56]
+    - Helped Sora understand recompilation.
+    - Improved framepacing, widescreen base, Discord RPC, Nix support. etc.
+    - [XboxRecomp2] recompiler.
+    - Months of performance work. >4x FPS gain.
+- [DonutStopGaming]: help with RenderWare and finding Shadow functions
 
-- [Sewer56](https://github.com/Sewer56): Third Developer, who joined relatively late, implemented better widescreen, significantly improved performance with shaders and added NixOS support for Linux.
+**Design & Art**
+- [Sora]: final design and UI for the installer, achievements and custom menus
+- [TheHatedGravity]: first installer design, UI polish, spotting visual flaws
+- [Deep-Sea Berry]: project logo and options icons
 
-- [TheHatedGravity](https://github.com/TheHatedGravity): Initial installer design, UI polish + eagle eye for finding flaws in our visuals
+**Music**
+- [Kondrashov's Lair]: installer music (original by Sins Of A Divine Mother)
 
-- [DonutStopGaming](https://github.com/DonutStopGaming): Help with understanding RenderWare and finding Shadow functions.
-
-- [Jesus_PK](https://github.com/Jesus-PK): Provided Spanish localization for the custom menus, also helped testing and finding bugs.
-
-- [Deep-Sea Berry](https://github.com/Deep-SeaBerry): Artist behind the project logo, along with custom options icons. Provided German localization for the custom menus and helped testing and finding bugs.
-
-- [Emasplatter](https://twitter.com/emasplatter): Provided Italian localization for the custom menus.
-
-- [Windii](https://www.youtube.com/@WindiiGitlord/videos): Provided Japanese localization for the custom menus.
-
-- [Kondrashov's Lair](https://www.youtube.com/channel/UCUU-r-7kVY3ig-GY7KTFvlw): Produced the installer music (original prod. by Sins Of A Divine Mother).
-
+**Translation** (custom menus)
+- English: [dreamsyntax]
+- French: [Sora]
+- German: [Deep-Sea Berry]
+- Italian: [Emasplatter]
+- Japanese: [Windii]
+- Spanish: [Jesus_PK]
 
 ### Tester Thanks
-- Rawlins
-- DarkShadow17
+- [Jesus_PK]
+- [Deep-Sea Berry]
+- [Rawlins]
+- [DarkShadow17]
 - The Spectral Star
-- Pixel
-- [ultra0000](https://github.com/ultra0000)
+- [Pixel](https://x.com/PixelTheRetro) The Retro
+- [ultra0000]
 - Many others who helped briefly test
 
 ### Special Thanks
 
-- CXBX-Reloaded Development Team: This project would not have been possible without the [CXBX emulator](https://github.com/Cxbx-Reloaded/Cxbx-Reloaded-legacy). Nearly every aspect of the development was guided by referencing CXBX's research on the original Xbox, especially the graphics part.
+**Projects**
 
-- [extract-xiso](https://github.com/XboxDev/extract-xiso): extract-xiso devs (in@fishtank.com and other extract-xiso contributors) for core extraction in the installer.
+- [CXBX-Reloaded] team: their research on the HLE Emulation of the OG Xbox
+  was the base for nearly every part of this project, *especially* graphics.
 
-- Unleashed Recompiled Development Team: Created much of the ground work that made all of this possible and sped up development time considerably.
+- Unleashed Recompiled team: laid much of the groundwork and sped up development a lot.
 
-- [Marathon Recompiled](https://github.com/sonicnext-dev/MarathonRecomp): Used as a reference for various features and help with debugging.
+- [Marathon Recompiled]: reference for features and debugging.
 
-- [Skyth](https://github.com/blueskythlikesclouds): Provided help to understand how Recompilation works, also the author of the original graphics pipeline code which was (mostly) reused here.
+- [extract-xiso]: game file extraction in the installer.
+    - By in@fishtank.com and other contributors.
 
-- [Darío](https://github.com/DarioSamo): Creator of the graphics hardware abstraction layer [plume](https://github.com/renderbag/plume), used by the project's graphics backend.
+**People**
 
-- [MattKC](https://github.com/itsmattkc): Useful explanation of Xbox's Push Buffers system on [his blog with Reburn3.](https://forum.mattkc.com/viewtopic.php?t=154)
+- [Skyth]: helped Sora understand recompilation
+    - Wrote the original graphics pipeline, mostly reused here.
+- [Darío]: created [plume], the graphics layer under our renderer.
+- [MattKC]: explained the Xbox push buffer system on [his Reburn3 blog][Reburn3 blog].
+- [ocornut]: created Dear ImGui, the base of our custom menus.
 
-- [ocornut](https://github.com/ocornut): Creator of Dear ImGui, which is used as the backbone of the custom menus.
+[SA Mod Manager]: https://github.com/X-Hax/SA-Mod-Manager
+[Releases]: https://github.com/FoxWorkshop/ShadowRecomp/releases/latest
+[issues]: https://github.com/FoxWorkshop/ShadowRecomp/issues
+[all releases]: https://github.com/FoxWorkshop/ShadowRecomp/releases
+[issue 44]: https://github.com/FoxWorkshop/ShadowRecomp/issues/44
+[BUILDING.md]: /docs/BUILDING.md
+[Sora]: https://github.com/Sora-yx
+[XboxRecomp]: https://github.com/FoxWorkshop/XboxRecomp
+[XboxRecomp2]: https://sewer56.dev/XboxRecomp2
+[XShaderRecomp]: https://github.com/FoxWorkshop/XShaderRecomp
+[dreamsyntax]: https://github.com/dreamsyntax
+[Sewer56]: https://github.com/Sewer56
+[TheHatedGravity]: https://github.com/TheHatedGravity
+[DonutStopGaming]: https://github.com/DonutStopGaming
+[Jesus_PK]: https://github.com/Jesus-PK
+[Deep-Sea Berry]: https://github.com/Deep-SeaBerry
+[Emasplatter]: https://twitter.com/emasplatter
+[Windii]: https://www.youtube.com/@WindiiGitlord/videos
+[Kondrashov's Lair]: https://www.youtube.com/channel/UCUU-r-7kVY3ig-GY7KTFvlw
+[ultra0000]: https://github.com/ultra0000
+[Rawlins]: https://www.youtube.com/channel/UCjbUqRzVay-6HjoJjODre5w
+[DarkShadow17]: https://www.youtube.com/@DarkShadowtH
+[CXBX-Reloaded]: https://github.com/Cxbx-Reloaded/Cxbx-Reloaded-legacy
+[extract-xiso]: https://github.com/XboxDev/extract-xiso
+[Marathon Recompiled]: https://github.com/sonicnext-dev/MarathonRecomp
+[Skyth]: https://github.com/blueskythlikesclouds
+[Darío]: https://github.com/DarioSamo
+[plume]: https://github.com/renderbag/plume
+[MattKC]: https://github.com/itsmattkc
+[Reburn3 blog]: https://forum.mattkc.com/viewtopic.php?t=154
+[ocornut]: https://github.com/ocornut
