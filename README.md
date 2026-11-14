@@ -111,6 +111,9 @@ Default keyboard controls:
 
 - Objects with fade-in disappearing for a frame
 
+- Drop shadows vanishing during laser lock-on
+    - e.g. 4SHOT, 8SHOT, Satellite Laser.
+
 - Shadow's shoes
     - Finally, after 21 years they have 4 jet flames instead of 3.
 
@@ -124,6 +127,10 @@ Default keyboard controls:
 - Rails applying velocity on detach incorrectly
 - Sound effects cutting off in busy areas (e.g. in Glyphic Canyon / Sky Troops)
 - Fixed Black Hawk softlock at end of some paths (e.g. Cryptic Castle)
+- Black Tank invincible while waiting for the player
+    - It's meant to give struggling players a chance to hit it.
+- Ball Switches ignoring melee hits
+    - Now react to melee instead of draining your ammo.
 
 ## FAQ
 
