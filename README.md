@@ -84,7 +84,7 @@ Default keyboard controls:
 ### Xbox-only Bugs Fixed
 
 - Subtitles too faint after a Restart/Quit prompt
-- White flash on object load
+- White flash on environment/destructible object fade in
 - Audio distance and looping bugs
     - e.g. Goal Ring going 0% to 100% on volume instead of proper proximity. 
 - Player 2 not controlling the partner
