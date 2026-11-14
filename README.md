@@ -250,7 +250,7 @@ Before reporting any issues, check if they are listed [here][issues].
 - [CXBX-Reloaded] team: their research on the HLE Emulation of the OG Xbox
   was the base for nearly every part of this project, *especially* graphics.
 
-- Unleashed Recompiled team: laid much of the groundwork and sped up development a lot.
+- [Unleashed Recompiled] team: laid much of the groundwork and sped up development a lot.
 
 - [Marathon Recompiled]: reference for features and debugging.
 
@@ -298,3 +298,4 @@ Before reporting any issues, check if they are listed [here][issues].
 [Reburn3 blog]: https://forum.mattkc.com/viewtopic.php?t=154
 [ocornut]: https://github.com/ocornut
 [Pixel The Retro]: https://x.com/PixelTheRetro
+[Unleashed Recompiled]: https://github.com/hedge-dev/UnleashedRecomp
