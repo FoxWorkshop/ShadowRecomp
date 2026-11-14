@@ -234,7 +234,7 @@ Before reporting any issues, check if they are listed [here][issues].
 - [Deep-Sea Berry]
 - [Rawlins]
 - [DarkShadow17]
-- The Spectral Star
+- [The Spectral Star]
 - [Pixel](https://x.com/PixelTheRetro) The Retro
 - [ultra0000]
 - Many others who helped briefly test
@@ -283,6 +283,7 @@ Before reporting any issues, check if they are listed [here][issues].
 [ultra0000]: https://github.com/ultra0000
 [Rawlins]: https://www.youtube.com/channel/UCjbUqRzVay-6HjoJjODre5w
 [DarkShadow17]: https://www.youtube.com/@DarkShadowtH
+[The Spectral Star]: https://www.youtube.com/@the-spectral-star5086
 [CXBX-Reloaded]: https://github.com/Cxbx-Reloaded/Cxbx-Reloaded-legacy
 [extract-xiso]: https://github.com/XboxDev/extract-xiso
 [Marathon Recompiled]: https://github.com/sonicnext-dev/MarathonRecomp
