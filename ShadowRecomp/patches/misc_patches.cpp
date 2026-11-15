@@ -620,3 +620,38 @@ X86_OVERRIDE_FUNC(sub_27250)
 	}
 	__imp__sub_27250(ctx, base);
 }
+
+// DMA overflow fix (type 4 is DMA)
+// rpXboxVtxFmtInstV3d
+X86_FUNC_IMPL(__imp__sub_2CFF30);
+X86_OVERRIDE_FUNC(sub_2CFF30)
+{
+	uint32_t type = X86_LOAD_U32(ctx.esp.u32 + 0x4);
+	if (type != 4) // skip if not DMA or other packed type
+	{
+		__imp__sub_2CFF30(ctx, base);
+		return;
+	}
+
+	uint8_t* dst = base + X86_LOAD_U32(ctx.esp.u32 + 0x8);
+	RwV3d* src = (RwV3d*)(base + X86_LOAD_U32(ctx.esp.u32 + 0xC));
+	int32_t count = (int32_t)X86_LOAD_U32(ctx.esp.u32 + 0x10);
+	uint32_t stride = X86_LOAD_U32(ctx.esp.u32 + 0x14);
+	for (int32_t i = 0; i < count; i++)
+	{
+		// original processes these as ints no this is NOT a typo
+		int32_t x = (int32_t)(src->x * 1023.0f);
+		int32_t y = (int32_t)(src->y * 1023.0f);
+		int32_t z = (int32_t)(src->z * 511.0f);
+
+		// both side clamp (commander was underflowing a LOT, shadow overflowed in the maria event)
+		x = std::clamp(x, -1023, 1023);
+		y = std::clamp(y, -1023, 1023);
+		z = std::clamp(z, -511, 511);
+		*(uint32_t*)dst = ((uint32_t)z << 22) | ((y & 0x7FF) << 11) | (x & 0x7FF);
+		src++;
+		dst += stride;
+	}
+	ctx.eax.u32 = type;
+	ctx.esp.u32 += 4;
+}
