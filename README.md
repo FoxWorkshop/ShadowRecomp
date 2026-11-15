@@ -192,6 +192,15 @@ But folks who want to support platforms that require more significant modificati
 
 Before reporting any issues, check if they are listed [here][issues].
 
+## Minimum System Requirements
+
+- CPU: Sandy Bridge (2011) equivalent or newer
+- GPU with support for Direct3D 12.0 (Shader Model 6) or Vulkan 1.2
+    - Anything 2012+ for AMD/Nvidia and 2015+ for Intel
+- Operating System:
+    - Windows 10 (1909+)
+    - A modern Linux distro
+
 ## Building
 
 [Check out the building instructions here][BUILDING.md].
