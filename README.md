@@ -2,6 +2,28 @@
     <img src="https://github.com/FoxWorkshop/ShadowRecompResources/blob/master/images/logo/logo.png?raw=true" width="1024"/>
 </p>
 
+<h3 align="center">
+    Happy 21st Birthday, Shadow The Hedgehog
+</h3>
+
+<p align="center">
+    <a href="https://github.com/FoxWorkshop/ShadowRecomp/releases/latest"><b>Download</b></a>
+    ·
+    <a href="#minimum-system-requirements"><b>Requirements</b></a>
+    ·
+    <a href="#features"><b>Features</b></a>
+    ·
+    <a href="#known-issues"><b>Known Issues</b></a>
+    ·
+    <a href="#controls"><b>Controls</b></a>
+    ·
+    <a href="#faq"><b>FAQ</b></a>
+    ·
+    <a href="#building"><b>Building</b></a>
+    ·
+    <a href="#credits"><b>Credits</b></a>
+</p>
+
 ---
 
 Shadow Recompiled is an unofficial PC port of the original Xbox version of Shadow the Hedgehog (2005) created through the process of static recompilation.
@@ -12,34 +34,16 @@ The port supports Windows and Linux.
 [XboxRecomp2] (previously [XboxRecomp](https://github.com/FoxWorkshop/XboxRecomp)) is the main recompiler used for converting the game's original x86 code into compatible C++. 
 The development of that recompiler was directly inspired by [XenonRecomp](https://github.com/hedge-dev/XenonRecomp), which was used to create [Sonic Unleashed Recompiled](https://github.com/hedge-dev/UnleashedRecomp).
 
-## Table of Contents
-
-- [Minimum System Requirements](#minimum-system-requirements)
-- [Features](#features)
-- [Known Issues](#known-issues)
-- [Controls](#controls)
-- [FAQ](#faq)
-- [Building](#building)
-- [Credits](#credits)
-
-
 ## Minimum System Requirements
 
-- CPU with support for the AVX instruction set:
-    - Intel: Sandy Bridge (Intel Core 2nd Generation)
-    - AMD: Bulldozer (AMD FX series)
-- GPU with support for Direct3D 12.0 (Shader Model 6) or Vulkan 1.2:
-    - NVIDIA: GeForce GT 630 (Kepler)
-    - AMD: Radeon HD 7750 (2012, not the RX 7000)
-    - Intel: HD Graphics 510 (Skylake)
-- Memory:
-    - 8 GB minimum
+- CPU: Sandy Bridge (2011) equivalent or newer
+- GPU with support for Direct3D 12.0 (Shader Model 6) or Vulkan 1.2
+    - Anything 2012+ for AMD/Nvidia and 2015+ for Intel
 - Operating System:
-    - Windows 10 (version 1909)
-    - A modern Linux distro (or one with flatpak support)
+    - Windows 10 (1909+)
+    - A modern Linux distro
 - Storage:
     - 2.4 GiB required
-
 
 ## Features
 
@@ -101,7 +105,6 @@ The mod format uses the same standard as the one used by Sonic Adventure mods.
 > [!NOTE]
 Code modding is currently not possible and is planned for a future update. As a workaround for the time being, some codes have been directly embedded into the game and can be accessed through SA Mod Manager's Codes tab.
 
-
 ## Known Issues
 
 Before reporting any issues, check if they are listed [here](https://github.com/FoxWorkshop/ShadowRecomp/issues).
@@ -141,7 +144,8 @@ Shadow Recompiled does not have an official website.
 
 ### Can I install the game using a GameCube / PlayStation 2 version?
 
-**You cannot use the files from the GameCube or PlayStation 2 version of the game.** Supporting these files would require an entirely new recompilation to handle all the differences.
+**You cannot use the files from the GameCube or PlayStation 2 version of the game.**  
+Supporting these files would require an entirely new recompilation to handle all the differences.
 
 ### Where are save data & configs?
 
@@ -207,7 +211,7 @@ Before reporting any issues, check if they are listed [here][issues].
 
 - [dreamsyntax](https://github.com/dreamsyntax): Second Developer, source for Shadow knowledge, ensuring port accuracy, and identifying flaws with the Xbox port of the game. Provided English localization for the custom menus.
 
-- [Sewer56](https://github.com/Sewer56): Third Developer, who joined relatively late, added NixOS support for Linux, Discord RPC, implemented better widescreen, and significantly improved performance with shaders and [XboxRecomp2].
+- [Sewer56](https://github.com/Sewer56): Third Developer. Added nix support, Discord RPC, implemented better widescreen, better framepacing and >4x'd performance with shaders and [XboxRecomp2].
 
 - [TheHatedGravity](https://github.com/TheHatedGravity): First installer design, UI polish, spotting visual flaws
 
@@ -254,7 +258,7 @@ Before reporting any issues, check if they are listed [here][issues].
 [all releases]: https://github.com/FoxWorkshop/ShadowRecomp/releases
 [issue 44]: https://github.com/FoxWorkshop/ShadowRecomp/issues/44
 [BUILDING.md]: /docs/BUILDING.md
-[XboxRecomp2]: https://github.com/Sewer56/XboxRecomp2
+[XboxRecomp2]: https://sewer56.dev/XboxRecomp2
 [ultra0000]: https://github.com/ultra0000
 [Rawlins]: https://www.youtube.com/channel/UCjbUqRzVay-6HjoJjODre5w
 [DarkShadow17]: https://www.youtube.com/@DarkShadowtH
