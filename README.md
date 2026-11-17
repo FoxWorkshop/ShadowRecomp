@@ -264,5 +264,5 @@ Before reporting any issues, check if they are listed [here][issues].
 [DarkShadow17]: https://www.youtube.com/@DarkShadowtH
 [The Spectral Star]: https://www.youtube.com/@the-spectral-star5086
 [Marathon Recompiled]: https://github.com/sonicnext-dev/MarathonRecomp
-[Pixel The Retro]: https://x.com/PixelTheRetro
+[Pixel The Retro]: https://www.youtube.com/@PixelTheRetro
 [Unleashed Recompiled]: https://github.com/hedge-dev/UnleashedRecomp
