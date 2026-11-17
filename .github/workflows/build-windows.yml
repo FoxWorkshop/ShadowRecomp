@@ -6,6 +6,21 @@ on:
         required: true
       ASSET_REPO_TOKEN:
         required: true
+  workflow_dispatch:
+    inputs:
+      march:
+        description: "Target -march level"
+        type: choice
+        default: sandybridge
+        options:
+          - sandybridge # AVX (2011)
+          - x86-64-v2   # SSE4.2 (Nehalem, 2009)
+          - x86-64-v3   # AVX/AVX2 (Haswell, 2013)
+          - nehalem
+          - native
+
+env:
+  SHADOW_RECOMP_MARCH: ${{ inputs.march || 'sandybridge' }}
 
 jobs:
   build-windows:
@@ -90,7 +105,7 @@ jobs:
         run: copy .\private\* .\ShadowRecompLib\private
 
       - name: Configure Project
-        run: cmake . --preset ${{ env.CMAKE_PRESET }} -DSHADOW_RECOMP_XBOXRECOMP2=binary
+        run: cmake . --preset ${{ env.CMAKE_PRESET }} -DSHADOW_RECOMP_XBOXRECOMP2=binary -DSHADOW_RECOMP_MARCH=${{ env.SHADOW_RECOMP_MARCH }}
         # -DCMAKE_CXX_COMPILER_LAUNCHER=ccache -DCMAKE_C_COMPILER_LAUNCHER=ccache
 
       - name: Build Project
