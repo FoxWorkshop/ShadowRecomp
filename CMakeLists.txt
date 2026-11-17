@@ -46,9 +46,11 @@ string(TOLOWER "${SHADOW_RECOMP_ARCHITECTURE}" SHADOW_RECOMP_ARCHITECTURE)
 message(STATUS "Detected architecture: ${SHADOW_RECOMP_ARCHITECTURE}")
 
 if (SHADOW_RECOMP_ARCHITECTURE STREQUAL "x86_64" OR SHADOW_RECOMP_ARCHITECTURE STREQUAL "amd64")
+    # Override with -DSHADOW_RECOMP_MARCH=..., e.g. x86-64-v2 for SSE4.2 (Nehalem, 2009).
+    set(SHADOW_RECOMP_MARCH "sandybridge" CACHE STRING "Target microarchitecture level for x86-64 builds")
     add_compile_options(
-        -march=sandybridge # You have a puter made after 2011, right?
-        -mtune=znver4      # Most probably have one circa 2022-2023
+        -march=${SHADOW_RECOMP_MARCH} # Min supported puter x86 arch.
+        -mtune=znver4                 # Most probably have one circa 2022-2023
     )
 endif()
 

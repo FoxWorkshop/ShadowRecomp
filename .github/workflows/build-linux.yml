@@ -8,6 +8,21 @@ on:
         required: true
       XBOXRECOMP2_TOKEN:
         required: true
+  workflow_dispatch:
+    inputs:
+      march:
+        description: "Target -march level"
+        type: choice
+        default: sandybridge
+        options:
+          - sandybridge # AVX (2011)
+          - x86-64-v2   # SSE4.2 (Nehalem, 2009)
+          - x86-64-v3   # AVX/AVX2 (Haswell, 2013)
+          - nehalem
+          - native
+
+env:
+  SHADOW_RECOMP_MARCH: ${{ inputs.march || 'sandybridge' }}
 
 jobs:
   build-linux:
@@ -68,7 +83,7 @@ jobs:
       - name: Setup ccache
         uses: hendrikmuhs/ccache-action@v1.2
         with:
-          key: ${{ runner.os }}-${{ matrix.arch.name }}-${{ matrix.preset }}
+          key: ${{ runner.os }}-${{ matrix.arch.name }}-${{ matrix.preset }}-${{ env.SHADOW_RECOMP_MARCH }}
 
       - name: Cache vcpkg
         uses: actions/cache@v6
@@ -87,7 +102,7 @@ jobs:
       - name: Configure Project
         env:
           GH_TOKEN: ${{ secrets.XBOXRECOMP2_TOKEN }}
-        run: cmake . --preset ${{ env.CMAKE_PRESET }} -DCMAKE_CXX_COMPILER_LAUNCHER=ccache -DCMAKE_C_COMPILER_LAUNCHER=ccache -DSHADOW_RECOMP_XBOXRECOMP2=binary
+        run: cmake . --preset ${{ env.CMAKE_PRESET }} -DCMAKE_CXX_COMPILER_LAUNCHER=ccache -DCMAKE_C_COMPILER_LAUNCHER=ccache -DSHADOW_RECOMP_XBOXRECOMP2=binary -DSHADOW_RECOMP_MARCH=${{ env.SHADOW_RECOMP_MARCH }}
 
       - name: Build Project
         run: cmake --build ./out/build/${{ env.CMAKE_PRESET }} --target ShadowRecomp
