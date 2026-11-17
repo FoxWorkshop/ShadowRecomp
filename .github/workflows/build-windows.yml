@@ -6,8 +6,6 @@ on:
         required: true
       ASSET_REPO_TOKEN:
         required: true
-      XBOXRECOMP2_TOKEN:
-        required: true
   workflow_dispatch:
     inputs:
       march:
@@ -43,13 +41,13 @@ jobs:
         with:
           ref: ${{ github.event_name == 'pull_request_target' && github.event.pull_request.head.sha || '' }}
           allow-unsafe-pr-checkout: true
-          token: ${{ secrets.ASSET_REPO_TOKEN }}
+          token: ${{ secrets.ASSET_REPO_TOKEN || github.token }}
 
       # HACK: Fine-grained token can't access cross-org repos.
       # REMOVE when XboxRecomp2 & assets repo go public.
       - name: Checkout Submodules
         env:
-          TOKEN: ${{ secrets.ASSET_REPO_TOKEN }}
+          TOKEN: ${{ secrets.ASSET_REPO_TOKEN || github.token }}
         run: >-
           git -c "url.https://x-access-token:$env:TOKEN@github.com/.insteadOf=https://github.com/"
           -c submodule.tools/XboxRecomp2.update=none
@@ -95,10 +93,7 @@ jobs:
       - name: Prepare Project
         run: copy .\private\* .\ShadowRecompLib\private
 
-      # HACK: GH_TOKEN for private XboxRecomp2. REMOVE when public.
       - name: Configure Project
-        env:
-          GH_TOKEN: ${{ secrets.XBOXRECOMP2_TOKEN }}
         run: cmake . --preset ${{ env.CMAKE_PRESET }} -DCMAKE_CXX_COMPILER_LAUNCHER=ccache -DCMAKE_C_COMPILER_LAUNCHER=ccache -DSHADOW_RECOMP_XBOXRECOMP2=binary -DSHADOW_RECOMP_MARCH=${{ env.SHADOW_RECOMP_MARCH }}
 
       - name: Build Project
