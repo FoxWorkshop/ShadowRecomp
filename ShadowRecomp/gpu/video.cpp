@@ -26,6 +26,9 @@
 #include <decompressor.h>
 #include <input/input.h>
 #include <plume_vulkan.h>
+#ifdef SHADOW_RECOMP_D3D12
+#include <plume_d3d12.h>
+#endif
 
 #include <res/bc_diff/button_bc_diff_gc.bin.h>
 #include <res/bc_diff/button_bc_diff_ps2.bin.h>
@@ -2691,6 +2694,14 @@ bool Video::CreateHostDevice(const char* sdlVideoDriver, bool graphicsApiRetry)
 #endif
 
 	g_capabilities = g_device->getCapabilities();
+
+#ifdef SHADOW_RECOMP_D3D12
+	if (!g_vulkan && static_cast<plume::D3D12Device*>(g_device.get())->gpuUploadHeapFallback)
+	{
+		g_capabilities.gpuUploadHeap = false;
+	}
+#endif
+
 	FixedFunctionVertexShaderVariants::Initialize(g_device.get(), g_vulkan);
 	FixedFunctionPixelShaderVariants::Initialize(g_device.get(), g_vulkan);
 
