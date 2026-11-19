@@ -158,9 +158,51 @@ static void ParseEventList(const char* arg)
     }
 }
 
+#ifdef _WIN32
+#include <DbgHelp.h>
+#include <csignal>
+#pragma comment(lib, "dbghelp.lib")
+
+static LONG WINAPI WriteCrashDump(EXCEPTION_POINTERS* exceptionPointers)
+{
+    WCHAR path[MAX_PATH + 32];
+    DWORD length = GetModuleFileNameW(nullptr, path, MAX_PATH);
+    if (length == 0 || length >= MAX_PATH)
+    {
+        return EXCEPTION_CONTINUE_SEARCH;
+    }
+
+    swprintf_s(path + length, std::size(path) - length, L".%lu.dmp", GetCurrentProcessId());
+    HANDLE file = CreateFileW(path, GENERIC_WRITE, 0, nullptr, CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, nullptr);
+    if (file != INVALID_HANDLE_VALUE)
+    {
+        MINIDUMP_EXCEPTION_INFORMATION exceptionInfo{ GetCurrentThreadId(), exceptionPointers, FALSE };
+        constexpr auto dumpType = static_cast<MINIDUMP_TYPE>(
+            MiniDumpWithIndirectlyReferencedMemory | MiniDumpWithDataSegs | MiniDumpWithThreadInfo | MiniDumpWithUnloadedModules
+        );
+        MiniDumpWriteDump(GetCurrentProcess(), GetCurrentProcessId(), file, dumpType, &exceptionInfo, nullptr, nullptr);
+        CloseHandle(file);
+    }
+    return EXCEPTION_CONTINUE_SEARCH;
+}
+
+// To force abort and virtual to also make a dmp
+static void AbortCrashDump(int)
+{
+    __try
+    {
+        RaiseException(0x40000015, EXCEPTION_NONCONTINUABLE, 0, nullptr);
+    }
+    __except (WriteCrashDump(GetExceptionInformation()), EXCEPTION_EXECUTE_HANDLER){}
+}
+#endif
+
 int main(int argc, char* argv[])
 {
 #ifdef _WIN32
+    SetUnhandledExceptionFilter(WriteCrashDump);
+    signal(SIGABRT, AbortCrashDump);
+
     //SetProcessAffinityMask(GetCurrentProcess(), 1);
     TimerResolution::SetHighestResolution();
 
