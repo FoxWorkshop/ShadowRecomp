@@ -225,7 +225,7 @@ Before reporting any issues, check if they are listed [here][issues].
 
 - [Windii](https://www.youtube.com/@WindiiGitlord/videos): Provided Japanese localization for the custom menus.
 
-- [Kondrashov's Lair](https://www.youtube.com/channel/UCUU-r-7kVY3ig-GY7KTFvlw): Produced the installer music (original prod. by Sins Of A Divine Mother).
+- [Kondrashov's Lair](https://www.youtube.com/channel/UCUU-r-7kVY3ig-GY7KTFvlw): Produced the [installer music](https://www.youtube.com/watch?v=7_pwiwb9V14) (original prod. by Sins Of A Divine Mother).
 
 ### Tester Thanks
 - [Rawlins]
