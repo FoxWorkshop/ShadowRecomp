@@ -60,6 +60,7 @@ const uint32_t g_cameraAddr = 0x540C40;
 #define DepthStencilFormat RenderFormat::D32_FLOAT
 
 #ifdef SHADOW_RECOMP_D3D12
+#include "requirements.h"
 #include "FixedFunctionVertexShader.hlsl.dxil.h"
 #include "FixedFunctionPixelShader.hlsl.dxil.h"
 #include "shader/PassthroughVertexShader.hlsl.dxil.h"
@@ -2568,6 +2569,13 @@ bool Video::CreateHostDevice(const char* sdlVideoDriver, bool graphicsApiRetry)
 #ifdef SHADOW_RECOMP_D3D12
 				if (interfaceFunction == CreateD3D12Interface)
 				{
+					if (!CheckD3D12DeviceRequirements(g_device.get()))
+					{
+						g_device.reset();
+						g_interface.reset();
+						continue;
+					}
+
 					// TODO: This may be no longer be true with newer drivers
 					// Hardware resolve seems to be completely bugged on Intel D3D12 drivers.
 					g_hardwareResolve = (deviceDescription.vendor != RenderDeviceVendor::INTEL);

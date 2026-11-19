@@ -135,6 +135,7 @@ set(SHADOW_RECOMP_GPU_CXX_SOURCES
     "gpu/imgui/imgui_common.cpp"
     "gpu/imgui/imgui_font_builder.cpp"
     "gpu/imgui/imgui_snapshot.cpp"
+    "gpu/requirements.cpp"
 )
 
 
