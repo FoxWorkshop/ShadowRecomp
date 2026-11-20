@@ -127,6 +127,7 @@ Default keyboard controls:
 | Ctrl+3    | Keyboard controls port 3        |
 | Ctrl+4    | Keyboard controls port 4        |
 | F1        | Toggle profiler                 |
+| F5        | Reset controller ports          |
 | F8        | Toggle HUD                      |
 
 ## FAQ
