@@ -3202,3 +3202,9 @@ jump_address_on_true = 0x6CFB9
 [[midasm_hook]]
 name = "LarvaMotionSpeedMidAsmHook"
 address = 0x138C09
+
+[[midasm_hook]]
+name = "InfoWindowHideMidAsmHook"
+address = 0x27F250
+jump_address_on_true = 0x27F2AA
+jump_address_on_false = 0x27F2C7

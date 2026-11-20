@@ -3854,3 +3854,46 @@ void LarvaMotionSpeedMidAsmHook(X86Context& __restrict ctx, uint8_t* base)
 		X86_STORE_F32(speed, X86_LOAD_F32(speed) / step);
 	}
 }
+
+// InfoWindow life / key hold for 3s
+static const GuestVariable<uint8_t> g_infoWindowForceShow{ 0x54DDB4 };
+static const GuestVariable<uint32_t> g_gameState{ 0x54963C };
+struct InfoWindowStamp
+{
+	uint32_t frame;
+	double frames60;
+};
+static double g_infoWindowFrames60 = 0.0;
+static uint32_t g_infoWindowFrame = 0;
+static InfoWindowStamp g_infoWindowLife{};
+static InfoWindowStamp g_infoWindowKey{};
+
+static double GetInfoWindowElapsed(InfoWindowStamp& stamp, uint32_t stamped, double step)
+{
+	if (stamp.frame != stamped)
+	{
+		stamp.frame = stamped;
+		stamp.frames60 = g_infoWindowFrames60 - std::max(int32_t(g_infoWindowFrame - stamped), 0) * step;
+	}
+	return g_infoWindowFrames60 - stamp.frames60;
+}
+
+bool InfoWindowHideMidAsmHook(X86Context& __restrict ctx, uint8_t* base)
+{
+	if (g_infoWindowForceShow != 0)
+	{
+		return true;
+	}
+
+	const uint32_t frame = g_unpausedFrameCount2;
+	const double step = g_unroundedDeltaTime * 60.0;
+	if (int32_t(frame - g_infoWindowFrame) > 0)
+	{
+		g_infoWindowFrames60 += (frame - g_infoWindowFrame) * step;
+	}
+	g_infoWindowFrame = frame;
+	const double holdFrames = X86_LOAD_F32(0x525680) * X86_LOAD_F32(0x42A0F0);
+	const double key = GetInfoWindowElapsed(g_infoWindowKey, X86_LOAD_U32(g_gameState + 0x724), step);
+	const double life = GetInfoWindowElapsed(g_infoWindowLife, X86_LOAD_U32(ctx.ebp.u32 + 0x24), step);
+	return key < holdFrames || life < holdFrames;
+}
