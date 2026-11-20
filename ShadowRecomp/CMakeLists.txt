@@ -205,6 +205,7 @@ set(SHADOW_RECOMP_UI_CXX_SOURCES
     "ui/menu_common.cpp"
     "ui/multiplayer_hud.cpp"
     "ui/installer_wizard.cpp"
+    "ui/boot_precompile.cpp"
 )
 
 set(SHADOW_RECOMP_MOD_CXX_SOURCES

@@ -26,6 +26,7 @@
 #include <patches/multiplayer_mod_patches.h>
 #include <audio/embedded_player.h>
 #include <ui/installer_wizard.h>
+#include <ui/boot_precompile.h>
 #include <install/installer.h>
 #include <install/update_checker.h>
 #include <gpu/frame_pacing/timer_resolution.h>
@@ -398,7 +399,7 @@ int main(int argc, char* argv[])
 
 
 
-    Video::PrecompileShadersAndPipelines();
+    BootPrecompile::Run();
 
     PatchUnixStrings();
     ReloadedValuePatches();

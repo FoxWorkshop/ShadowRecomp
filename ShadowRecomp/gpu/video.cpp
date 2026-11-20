@@ -42,6 +42,7 @@
 #include <shader/shader_cache.h>
 #include <ui/imgui_utils.h>
 #include <ui/installer_wizard.h>
+#include <ui/boot_precompile.h>
 #include <xxHashMap.h>
 #include <rapidhash.h>
 #include <shared_mutex>
@@ -822,7 +823,7 @@ static void LoadEmbeddedResources()
 	g_buttonBcDiff_PS2 = decompressZstd(g_button_bc_diff_ps2, g_button_bc_diff_ps2_uncompressed_size);
 }
 
-constexpr float PIPELINE_PRECOMPILE_SHADER_STAGE_END = 0.55f;
+constexpr float PIPELINE_PRECOMPILE_SHADER_STAGE_END = 0.02f;
 
 static void PrecompileShaders(const std::function<void(float)>& progress = {})
 {
@@ -830,6 +831,11 @@ static void PrecompileShaders(const std::function<void(float)>& progress = {})
 	for (size_t i = 0; i < g_shaderCacheEntryCount; i++)
 	{
 		auto& entry = g_shaderCacheEntries[i];
+		if (entry.guestShader != nullptr)
+		{
+			continue;
+		}
+
 		GuestShader* guestShader = g_userHeap.AllocPhysical<GuestShader>(ResourceType::VertexShader);
 		guestShader->shaderCacheEntry = &entry;
 		entry.guestShader = guestShader;
@@ -851,7 +857,7 @@ static void PrecompileShaders(const std::function<void(float)>& progress = {})
 #endif
 		if (progress)
 		{
-			progress(PIPELINE_PRECOMPILE_SHADER_STAGE_END * (float)(i + 1) / (float)g_shaderCacheEntryCount);
+			progress((float)(i + 1) / (float)g_shaderCacheEntryCount);
 		}
 	}
 	auto totalElapsed = std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - totalStart).count();
@@ -933,7 +939,6 @@ static_assert(uint32_t(RenderFormat::MAX) == 75);
 static Mutex g_pipelineCacheMutex;
 static std::atomic<bool> g_pipelineCacheShutdownDone{ false };
 static ankerl::unordered_dense::map<uint64_t, PipelineCacheEntry> g_pipelineCacheEntries;
-static bool TryCompileFromCacheEntry(const PipelineCacheEntry& entry);
 
 
 static std::filesystem::path GetCachePath()
@@ -1001,20 +1006,20 @@ static void SavePipelineCache()
 	LOGFN("PipelineCache: Saved {} entries", entryCount);
 }
 
-static void PrecompileUserPipelines()
+static std::vector<PipelineCacheEntry> LoadUserPipelineCache()
 {
 	auto path = GetPipelineCachePath();
 	if (!std::filesystem::exists(path))
 	{
 		LOGFN("PipelineCache: No cache file found at {}", path.string());
-		return;
+		return {};
 	}
 
 	std::ifstream file(path, std::ios::binary);
 	if (!file.is_open())
 	{
 		LOGFN("PipelineCache: Failed to open {}", path.string());
-		return;
+		return {};
 	}
 
 	std::error_code ec;
@@ -1022,14 +1027,14 @@ static void PrecompileUserPipelines()
 	if (ec)
 	{
 		LOGFN("PipelineCache: Failed to get file size for {}", path.string());
-		return;
+		return {};
 	}
 
 	constexpr size_t headerSize = sizeof(PIPELINE_CACHE_MAGIC) + sizeof(PIPELINE_CACHE_VERSION) + sizeof(uint32_t);
 	if (fileSize < headerSize)
 	{
 		LOGFN("PipelineCache: File too small for header ({} bytes)", fileSize);
-		return;
+		return {};
 	}
 
 	uint32_t magic, version, entryCount;
@@ -1040,7 +1045,7 @@ static void PrecompileUserPipelines()
 	if (magic != PIPELINE_CACHE_MAGIC || version != PIPELINE_CACHE_VERSION)
 	{
 		LOGFN("PipelineCache: Invalid cache file (magic={:X} version={})", magic, version);
-		return;
+		return {};
 	}
 
 	std::vector<uint8_t> compressed(fileSize - headerSize);
@@ -1050,7 +1055,7 @@ static void PrecompileUserPipelines()
 	if (entryCount == 0 || ZSTD_getFrameContentSize(compressed.data(), compressed.size()) != rawSize)
 	{
 		LOGFN("PipelineCache: corrupt file ({} entries)", entryCount);
-		return;
+		return {};
 	}
 
 	std::vector<PipelineCacheEntry> entries(entryCount);
@@ -1058,45 +1063,13 @@ static void PrecompileUserPipelines()
 	if (ZSTD_isError(decompressedSize) || decompressedSize != rawSize)
 	{
 		LOGFN("PipelineCache: ZSTD failed ({})", ZSTD_isError(decompressedSize) ? ZSTD_getErrorName(decompressedSize) : "unknown error");
-		return;
+		return {};
 	}
 
-	LOGFN("PipelineCache: Loading {} entries...", entryCount);
-
-	auto totalStart = std::chrono::steady_clock::now();
-	uint32_t compiled = 0;
-	uint32_t skipped = 0;
-	uint32_t dropped = 0;
-
-	for (auto& entry : entries)
-	{
-		if (!IsPipelineCacheEntryInRange(entry))
-		{
-			dropped++;
-			continue;
-		}
-
-		entry.pipelineHash = ComputePipelineEntryHash(entry);
-
-		if (TryCompileFromCacheEntry(entry))
-			compiled++;
-		else
-		{
-			EnqueueDeferredPipeline(entry);
-			skipped++;
-		}
-
-		{
-			std::lock_guard lock(g_pipelineCacheMutex);
-			g_pipelineCacheEntries.emplace(entry.pipelineHash, entry);
-		}
-	}
-
-	auto totalElapsed = std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - totalStart).count();
-	LOGFN("PipelineCache: Precompiled {} pipelines ({} skipped, {} dropped) in {:.2f} ms", compiled, skipped, dropped, totalElapsed);
+	return entries;
 }
 
-static bool TryCompileFromCacheEntry(const PipelineCacheEntry& entry)
+static bool BuildPipelineStateFromCacheEntry(const PipelineCacheEntry& entry, PipelineState& pipelineState)
 {
 	GuestShader* vertexShader = nullptr;
 	GuestShader* pixelShader = nullptr;
@@ -1139,7 +1112,6 @@ static bool TryCompileFromCacheEntry(const PipelineCacheEntry& entry)
 			return false;
 	}
 
-	PipelineState pipelineState;
 	pipelineState.vertexShader = vertexShader;
 	pipelineState.pixelShader = pixelShader;
 	pipelineState.vertexDeclaration = vertexDecl;
@@ -1178,15 +1150,117 @@ static bool TryCompileFromCacheEntry(const PipelineCacheEntry& entry)
 	pipelineState.specConstants = entry.specConstants;
 
 	SanitizePipelineState(pipelineState);
+	return true;
+}
+
+struct PipelineCompileJob
+{
+	XXH64_hash_t hash;
+	PipelineState pipelineState;
+	std::unique_ptr<RenderPipeline> pipeline;
+};
+
+static bool QueuePipelineCompile(const PipelineCacheEntry& entry, std::vector<PipelineCompileJob>& jobs, ankerl::unordered_dense::set<XXH64_hash_t, xxHash>& queued)
+{
+	PipelineState pipelineState;
+	if (!BuildPipelineStateFromCacheEntry(entry, pipelineState))
+	{
+		return false;
+	}
 
 	XXH64_hash_t hash = ComputePipelineStateHash(pipelineState);
-	auto& pipeline = g_pipelines[hash];
-	if (pipeline == nullptr)
+	if (g_pipelines.contains(hash) || !queued.insert(hash).second)
 	{
-		pipeline = CreateGraphicsPipeline(pipelineState);
-		return true;
+		return false;
 	}
-	return false;
+
+	jobs.push_back({ hash, pipelineState });
+	return true;
+}
+
+static void CompilePipelineJobs(std::vector<PipelineCompileJob>& jobs, const std::function<void(float)>& progress)
+{
+	size_t threadCount = std::min<size_t>({ std::max(std::thread::hardware_concurrency(), 1u), 8, jobs.size() });
+
+	std::atomic<size_t> next{ 0 };
+	std::atomic<size_t> done{ 0 };
+	auto compile = [&](bool reportProgress)
+		{
+			for (size_t i = next++; i < jobs.size(); i = next++)
+			{
+				jobs[i].pipeline = CreateGraphicsPipeline(jobs[i].pipelineState);
+				done++;
+				if (reportProgress && progress)
+				{
+					progress(float(done) / float(jobs.size()));
+				}
+			}
+		};
+
+	std::vector<std::thread> workers;
+	for (size_t t = 1; t < threadCount; t++)
+	{
+		workers.emplace_back(compile, false);
+	}
+	compile(true);
+
+	for (auto& worker : workers)
+	{
+		worker.join();
+	}
+
+	for (auto& job : jobs)
+	{
+		g_pipelines[job.hash] = std::move(job.pipeline);
+	}
+
+	if (progress)
+	{
+		progress(1.0f);
+	}
+}
+
+static void PrecompileUserPipelines(std::vector<PipelineCacheEntry>& entries, const std::function<void(float)>& progress = {})
+{
+	if (entries.empty())
+	{
+		return;
+	}
+
+	LOGFN("PipelineCache: Loading {} entries...", entries.size());
+
+	auto totalStart = std::chrono::steady_clock::now();
+	uint32_t skipped = 0;
+	uint32_t dropped = 0;
+
+	std::vector<PipelineCompileJob> jobs;
+	ankerl::unordered_dense::set<XXH64_hash_t, xxHash> queued;
+
+	for (auto& entry : entries)
+	{
+		if (!IsPipelineCacheEntryInRange(entry))
+		{
+			dropped++;
+			continue;
+		}
+
+		entry.pipelineHash = ComputePipelineEntryHash(entry);
+		if (!QueuePipelineCompile(entry, jobs, queued))
+		{
+			EnqueueDeferredPipeline(entry);
+			skipped++;
+		}
+
+		{
+			std::lock_guard lock(g_pipelineCacheMutex);
+			g_pipelineCacheEntries.emplace(entry.pipelineHash, entry);
+		}
+	}
+
+	CompilePipelineJobs(jobs, progress);
+
+	auto totalElapsed = std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - totalStart).count();
+	LOGFN("PipelineCache: Precompiled {} pipelines ({} skipped, {} dropped) in {:.2f} ms", jobs.size(), skipped, dropped, totalElapsed);
 }
 
 static void PrecompileStaticPipelines(const std::function<void(float)>& progress = {})
@@ -1197,27 +1271,23 @@ static void PrecompileStaticPipelines(const std::function<void(float)>& progress
 	LOGFN("PipelineCache: Precompiling {} static pipelines...", g_staticPipelineCacheCount);
 
 	auto totalStart = std::chrono::steady_clock::now();
-	uint32_t compiled = 0;
 	uint32_t deferred = 0;
+
+	std::vector<PipelineCompileJob> jobs;
+	ankerl::unordered_dense::set<XXH64_hash_t, xxHash> queued;
+	jobs.reserve(g_staticPipelineCacheCount);
 
 	auto entries = reinterpret_cast<const PipelineCacheEntry*>(g_staticPipelineCacheData);
 	for (size_t i = 0; i < g_staticPipelineCacheCount; i++)
 	{
-		if (TryCompileFromCacheEntry(entries[i]))
-		{
-			compiled++;
-		}
-		else
+		if (!QueuePipelineCompile(entries[i], jobs, queued))
 		{
 			EnqueueDeferredPipeline(entries[i]);
 			deferred++;
 		}
-
-		if (progress)
-		{
-			progress(PIPELINE_PRECOMPILE_SHADER_STAGE_END + (1.0f - PIPELINE_PRECOMPILE_SHADER_STAGE_END) * (float)(i + 1) / (float)g_staticPipelineCacheCount);
-		}
 	}
+
+	CompilePipelineJobs(jobs, progress);
 
 	{
 		std::lock_guard lock(g_pipelineCacheMutex);
@@ -1230,7 +1300,7 @@ static void PrecompileStaticPipelines(const std::function<void(float)>& progress
 	}
 
 	auto totalElapsed = std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - totalStart).count();
-	LOGFN("PipelineCache: Static precompiled {} pipelines ({} deferred) in {:.2f} ms", compiled, deferred, totalElapsed);
+	LOGFN("PipelineCache: Static precompiled {} pipelines ({} deferred) in {:.2f} ms", jobs.size(), deferred, totalElapsed);
 }
 
 
@@ -1996,6 +2066,7 @@ static void CreateImGuiBackend()
 	InitImGuiUtils();
 	ButtonGuide::Init();
 	InstallerWizard::Init();
+	BootPrecompile::Init();
 	OptionsMenu::Init();
 	MessageWindow::Init();
 
@@ -3841,6 +3912,7 @@ static void DrawImGui(X86Context* ctx)
 	AchievementOverlay::Draw(ctx);
 	ButtonGuide::Draw();
 	InstallerWizard::Draw(ctx);
+	BootPrecompile::Draw();
 	MessageWindow::Draw(ctx);
 	Fader::Draw();
 
@@ -4147,17 +4219,45 @@ void Video::Present(X86Context* ctx)
 	g_presentProfiler.End();
 }
 
-void Video::PrecompileShadersAndPipelines()
+static std::function<void(float)> MakeStageProgress(const std::function<void(float)>& progress, float begin, float end)
 {
-	PrecompileShaders();
-	PrecompileStaticPipelines();
-	PrecompileUserPipelines();
+	if (!progress)
+	{
+		return {};
+	}
+	return [&progress, begin, end](float stage) { progress(begin + (end - begin) * stage); };
+}
+
+void Video::PrecompileShadersAndPipelines(const std::function<void(float)>& progress)
+{
+	auto userEntries = LoadUserPipelineCache();
+	if (!userEntries.empty())
+	{
+		ankerl::unordered_dense::set<XXH64_hash_t> staticHashes;
+		staticHashes.reserve(g_staticPipelineCacheCount);
+		auto staticEntries = reinterpret_cast<const PipelineCacheEntry*>(g_staticPipelineCacheData);
+		for (size_t i = 0; i < g_staticPipelineCacheCount; i++)
+		{
+			staticHashes.insert(ComputePipelineEntryHash(staticEntries[i]));
+		}
+		// avoid double counting
+		std::erase_if(userEntries, [&](const PipelineCacheEntry& entry) { return staticHashes.contains(ComputePipelineEntryHash(entry)); });
+	}
+
+	const float pipelineTotal = float(g_staticPipelineCacheCount + userEntries.size());
+	const float staticEnd = pipelineTotal > 0.0f
+		? PIPELINE_PRECOMPILE_SHADER_STAGE_END + (1.0f - PIPELINE_PRECOMPILE_SHADER_STAGE_END) * (float(g_staticPipelineCacheCount) / pipelineTotal)
+		: 1.0f;
+
+	PrecompileShaders(MakeStageProgress(progress, 0.0f, PIPELINE_PRECOMPILE_SHADER_STAGE_END));
+	PrecompileStaticPipelines(MakeStageProgress(progress, PIPELINE_PRECOMPILE_SHADER_STAGE_END, staticEnd));
+	PrecompileUserPipelines(userEntries, MakeStageProgress(progress, staticEnd, 1.0f));
 }
 
 void Video::PrecompileShadersAndPipelinesForInstall(const std::function<void(float)>& progress)
 {
-	PrecompileShaders(progress);
-	PrecompileStaticPipelines(progress);
+	PrecompileShaders(MakeStageProgress(progress, 0.0f, PIPELINE_PRECOMPILE_SHADER_STAGE_END));
+	PrecompileStaticPipelines(MakeStageProgress(progress, PIPELINE_PRECOMPILE_SHADER_STAGE_END, 1.0f));
 }
 
 static PixelPushConstants BuildPixelPushConstants(const SharedConstants& constants)
