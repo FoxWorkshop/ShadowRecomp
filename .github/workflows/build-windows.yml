@@ -75,6 +75,12 @@ jobs:
         with:
           arch: x64
 
+      - name: Force VS Clang/LLVM (temp until MS fixes CI bs)
+        run: |
+          $llvm = "$env:VCINSTALLDIR\Tools\Llvm\x64\bin"
+          "Path=$llvm;$env:Path" >> $env:GITHUB_ENV
+          & "$llvm\clang-cl.exe" --version
+
       - name: Prepare Project
         run: copy .\private\* .\ShadowRecompLib\private
 
