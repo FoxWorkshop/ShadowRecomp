@@ -3208,3 +3208,7 @@ name = "InfoWindowHideMidAsmHook"
 address = 0x27F250
 jump_address_on_true = 0x27F2AA
 jump_address_on_false = 0x27F2C7
+
+[[midasm_hook]]
+name = "ChaosControlAccelMidAsmHook"
+address = 0x6C55D

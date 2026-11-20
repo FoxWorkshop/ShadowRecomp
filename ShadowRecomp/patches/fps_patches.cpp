@@ -3897,3 +3897,15 @@ bool InfoWindowHideMidAsmHook(X86Context& __restrict ctx, uint8_t* base)
 	const double life = GetInfoWindowElapsed(g_infoWindowLife, X86_LOAD_U32(ctx.ebp.u32 + 0x24), step);
 	return key < holdFrames || life < holdFrames;
 }
+
+// Player::Behavior::ChaosControl::Exec
+// accel is per frame
+void ChaosControlAccelMidAsmHook(X86Context& __restrict ctx, uint8_t* base)
+{
+	const uint32_t chaosControl = ctx.esi.u32;
+	const float frames = X86_LOAD_F32(ctx.esp.u32 + 0x60) * 60.0f;
+	const float target = X86_LOAD_F32(0x4EC240);
+	const float retention = 1.0f - X86_LOAD_F32(0x42B460);
+	const float speed = X86_LOAD_F32(chaosControl + 0x2C);
+	X86_STORE_F32(chaosControl + 0x2C, target - (target - speed) * std::pow(retention, frames - 1.0f));
+}
