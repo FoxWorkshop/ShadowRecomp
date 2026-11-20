@@ -42,6 +42,7 @@
 #include <shader/shader_cache.h>
 #include <ui/imgui_utils.h>
 #include <ui/installer_wizard.h>
+#include <ui/boot_precompile.h>
 #include <xxHashMap.h>
 #include <rapidhash.h>
 #include <shared_mutex>
@@ -822,7 +823,7 @@ static void LoadEmbeddedResources()
 	g_buttonBcDiff_PS2 = decompressZstd(g_button_bc_diff_ps2, g_button_bc_diff_ps2_uncompressed_size);
 }
 
-constexpr float PIPELINE_PRECOMPILE_SHADER_STAGE_END = 0.55f;
+constexpr float PIPELINE_PRECOMPILE_SHADER_STAGE_END = 0.02f;
 
 static void PrecompileShaders(const std::function<void(float)>& progress = {})
 {
@@ -830,6 +831,11 @@ static void PrecompileShaders(const std::function<void(float)>& progress = {})
 	for (size_t i = 0; i < g_shaderCacheEntryCount; i++)
 	{
 		auto& entry = g_shaderCacheEntries[i];
+		if (entry.guestShader != nullptr)
+		{
+			continue;
+		}
+
 		GuestShader* guestShader = g_userHeap.AllocPhysical<GuestShader>(ResourceType::VertexShader);
 		guestShader->shaderCacheEntry = &entry;
 		entry.guestShader = guestShader;
@@ -851,7 +857,7 @@ static void PrecompileShaders(const std::function<void(float)>& progress = {})
 #endif
 		if (progress)
 		{
-			progress(PIPELINE_PRECOMPILE_SHADER_STAGE_END * (float)(i + 1) / (float)g_shaderCacheEntryCount);
+			progress((float)(i + 1) / (float)g_shaderCacheEntryCount);
 		}
 	}
 	auto totalElapsed = std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - totalStart).count();
@@ -1001,20 +1007,20 @@ static void SavePipelineCache()
 	LOGFN("PipelineCache: Saved {} entries", entryCount);
 }
 
-static void PrecompileUserPipelines()
+static std::vector<PipelineCacheEntry> LoadUserPipelineCache()
 {
 	auto path = GetPipelineCachePath();
 	if (!std::filesystem::exists(path))
 	{
 		LOGFN("PipelineCache: No cache file found at {}", path.string());
-		return;
+		return {};
 	}
 
 	std::ifstream file(path, std::ios::binary);
 	if (!file.is_open())
 	{
 		LOGFN("PipelineCache: Failed to open {}", path.string());
-		return;
+		return {};
 	}
 
 	std::error_code ec;
@@ -1022,14 +1028,14 @@ static void PrecompileUserPipelines()
 	if (ec)
 	{
 		LOGFN("PipelineCache: Failed to get file size for {}", path.string());
-		return;
+		return {};
 	}
 
 	constexpr size_t headerSize = sizeof(PIPELINE_CACHE_MAGIC) + sizeof(PIPELINE_CACHE_VERSION) + sizeof(uint32_t);
 	if (fileSize < headerSize)
 	{
 		LOGFN("PipelineCache: File too small for header ({} bytes)", fileSize);
-		return;
+		return {};
 	}
 
 	uint32_t magic, version, entryCount;
@@ -1040,7 +1046,7 @@ static void PrecompileUserPipelines()
 	if (magic != PIPELINE_CACHE_MAGIC || version != PIPELINE_CACHE_VERSION)
 	{
 		LOGFN("PipelineCache: Invalid cache file (magic={:X} version={})", magic, version);
-		return;
+		return {};
 	}
 
 	std::vector<uint8_t> compressed(fileSize - headerSize);
@@ -1050,7 +1056,7 @@ static void PrecompileUserPipelines()
 	if (entryCount == 0 || ZSTD_getFrameContentSize(compressed.data(), compressed.size()) != rawSize)
 	{
 		LOGFN("PipelineCache: corrupt file ({} entries)", entryCount);
-		return;
+		return {};
 	}
 
 	std::vector<PipelineCacheEntry> entries(entryCount);
@@ -1058,18 +1064,34 @@ static void PrecompileUserPipelines()
 	if (ZSTD_isError(decompressedSize) || decompressedSize != rawSize)
 	{
 		LOGFN("PipelineCache: ZSTD failed ({})", ZSTD_isError(decompressedSize) ? ZSTD_getErrorName(decompressedSize) : "unknown error");
+		return {};
+	}
+
+	return entries;
+}
+
+static void PrecompileUserPipelines(std::vector<PipelineCacheEntry>& entries, const std::function<void(float)>& progress = {})
+{
+	if (entries.empty())
+	{
 		return;
 	}
 
-	LOGFN("PipelineCache: Loading {} entries...", entryCount);
+	LOGFN("PipelineCache: Loading {} entries...", entries.size());
 
 	auto totalStart = std::chrono::steady_clock::now();
 	uint32_t compiled = 0;
 	uint32_t skipped = 0;
 	uint32_t dropped = 0;
 
-	for (auto& entry : entries)
+	for (size_t i = 0; i < entries.size(); i++)
 	{
+		auto& entry = entries[i];
+		if (progress)
+		{
+			progress(float(i) / float(entries.size()));
+		}
+
 		if (!IsPipelineCacheEntryInRange(entry))
 		{
 			dropped++;
@@ -1077,7 +1099,6 @@ static void PrecompileUserPipelines()
 		}
 
 		entry.pipelineHash = ComputePipelineEntryHash(entry);
-
 		if (TryCompileFromCacheEntry(entry))
 			compiled++;
 		else
@@ -1092,6 +1113,10 @@ static void PrecompileUserPipelines()
 		}
 	}
 
+	if (progress)
+	{
+		progress(1.0f);
+	}
 	auto totalElapsed = std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - totalStart).count();
 	LOGFN("PipelineCache: Precompiled {} pipelines ({} skipped, {} dropped) in {:.2f} ms", compiled, skipped, dropped, totalElapsed);
 }
@@ -1215,7 +1240,7 @@ static void PrecompileStaticPipelines(const std::function<void(float)>& progress
 
 		if (progress)
 		{
-			progress(PIPELINE_PRECOMPILE_SHADER_STAGE_END + (1.0f - PIPELINE_PRECOMPILE_SHADER_STAGE_END) * (float)(i + 1) / (float)g_staticPipelineCacheCount);
+			progress((float)(i + 1) / (float)g_staticPipelineCacheCount);
 		}
 	}
 
@@ -1996,6 +2021,7 @@ static void CreateImGuiBackend()
 	InitImGuiUtils();
 	ButtonGuide::Init();
 	InstallerWizard::Init();
+	BootPrecompile::Init();
 	OptionsMenu::Init();
 	MessageWindow::Init();
 
@@ -3841,6 +3867,7 @@ static void DrawImGui(X86Context* ctx)
 	AchievementOverlay::Draw(ctx);
 	ButtonGuide::Draw();
 	InstallerWizard::Draw(ctx);
+	BootPrecompile::Draw();
 	MessageWindow::Draw(ctx);
 	Fader::Draw();
 
@@ -4147,17 +4174,45 @@ void Video::Present(X86Context* ctx)
 	g_presentProfiler.End();
 }
 
-void Video::PrecompileShadersAndPipelines()
+static std::function<void(float)> MakeStageProgress(const std::function<void(float)>& progress, float begin, float end)
 {
-	PrecompileShaders();
-	PrecompileStaticPipelines();
-	PrecompileUserPipelines();
+	if (!progress)
+	{
+		return {};
+	}
+	return [&progress, begin, end](float stage) { progress(begin + (end - begin) * stage); };
+}
+
+void Video::PrecompileShadersAndPipelines(const std::function<void(float)>& progress)
+{
+	auto userEntries = LoadUserPipelineCache();
+	if (!userEntries.empty())
+	{
+		ankerl::unordered_dense::set<XXH64_hash_t> staticHashes;
+		staticHashes.reserve(g_staticPipelineCacheCount);
+		auto staticEntries = reinterpret_cast<const PipelineCacheEntry*>(g_staticPipelineCacheData);
+		for (size_t i = 0; i < g_staticPipelineCacheCount; i++)
+		{
+			staticHashes.insert(ComputePipelineEntryHash(staticEntries[i]));
+		}
+		// avoid double counting
+		std::erase_if(userEntries, [&](const PipelineCacheEntry& entry) { return staticHashes.contains(ComputePipelineEntryHash(entry)); });
+	}
+
+	const float pipelineTotal = float(g_staticPipelineCacheCount + userEntries.size());
+	const float staticEnd = pipelineTotal > 0.0f
+		? PIPELINE_PRECOMPILE_SHADER_STAGE_END + (1.0f - PIPELINE_PRECOMPILE_SHADER_STAGE_END) * (float(g_staticPipelineCacheCount) / pipelineTotal)
+		: 1.0f;
+
+	PrecompileShaders(MakeStageProgress(progress, 0.0f, PIPELINE_PRECOMPILE_SHADER_STAGE_END));
+	PrecompileStaticPipelines(MakeStageProgress(progress, PIPELINE_PRECOMPILE_SHADER_STAGE_END, staticEnd));
+	PrecompileUserPipelines(userEntries, MakeStageProgress(progress, staticEnd, 1.0f));
 }
 
 void Video::PrecompileShadersAndPipelinesForInstall(const std::function<void(float)>& progress)
 {
-	PrecompileShaders(progress);
-	PrecompileStaticPipelines(progress);
+	PrecompileShaders(MakeStageProgress(progress, 0.0f, PIPELINE_PRECOMPILE_SHADER_STAGE_END));
+	PrecompileStaticPipelines(MakeStageProgress(progress, PIPELINE_PRECOMPILE_SHADER_STAGE_END, 1.0f));
 }
 
 static PixelPushConstants BuildPixelPushConstants(const SharedConstants& constants)
