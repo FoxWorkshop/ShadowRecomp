@@ -939,7 +939,6 @@ static_assert(uint32_t(RenderFormat::MAX) == 75);
 static Mutex g_pipelineCacheMutex;
 static std::atomic<bool> g_pipelineCacheShutdownDone{ false };
 static ankerl::unordered_dense::map<uint64_t, PipelineCacheEntry> g_pipelineCacheEntries;
-static bool TryCompileFromCacheEntry(const PipelineCacheEntry& entry);
 
 
 static std::filesystem::path GetCachePath()
@@ -1070,58 +1069,7 @@ static std::vector<PipelineCacheEntry> LoadUserPipelineCache()
 	return entries;
 }
 
-static void PrecompileUserPipelines(std::vector<PipelineCacheEntry>& entries, const std::function<void(float)>& progress = {})
-{
-	if (entries.empty())
-	{
-		return;
-	}
-
-	LOGFN("PipelineCache: Loading {} entries...", entries.size());
-
-	auto totalStart = std::chrono::steady_clock::now();
-	uint32_t compiled = 0;
-	uint32_t skipped = 0;
-	uint32_t dropped = 0;
-
-	for (size_t i = 0; i < entries.size(); i++)
-	{
-		auto& entry = entries[i];
-		if (progress)
-		{
-			progress(float(i) / float(entries.size()));
-		}
-
-		if (!IsPipelineCacheEntryInRange(entry))
-		{
-			dropped++;
-			continue;
-		}
-
-		entry.pipelineHash = ComputePipelineEntryHash(entry);
-		if (TryCompileFromCacheEntry(entry))
-			compiled++;
-		else
-		{
-			EnqueueDeferredPipeline(entry);
-			skipped++;
-		}
-
-		{
-			std::lock_guard lock(g_pipelineCacheMutex);
-			g_pipelineCacheEntries.emplace(entry.pipelineHash, entry);
-		}
-	}
-
-	if (progress)
-	{
-		progress(1.0f);
-	}
-	auto totalElapsed = std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - totalStart).count();
-	LOGFN("PipelineCache: Precompiled {} pipelines ({} skipped, {} dropped) in {:.2f} ms", compiled, skipped, dropped, totalElapsed);
-}
-
-static bool TryCompileFromCacheEntry(const PipelineCacheEntry& entry)
+static bool BuildPipelineStateFromCacheEntry(const PipelineCacheEntry& entry, PipelineState& pipelineState)
 {
 	GuestShader* vertexShader = nullptr;
 	GuestShader* pixelShader = nullptr;
@@ -1164,7 +1112,6 @@ static bool TryCompileFromCacheEntry(const PipelineCacheEntry& entry)
 			return false;
 	}
 
-	PipelineState pipelineState;
 	pipelineState.vertexShader = vertexShader;
 	pipelineState.pixelShader = pixelShader;
 	pipelineState.vertexDeclaration = vertexDecl;
@@ -1203,15 +1150,117 @@ static bool TryCompileFromCacheEntry(const PipelineCacheEntry& entry)
 	pipelineState.specConstants = entry.specConstants;
 
 	SanitizePipelineState(pipelineState);
+	return true;
+}
+
+struct PipelineCompileJob
+{
+	XXH64_hash_t hash;
+	PipelineState pipelineState;
+	std::unique_ptr<RenderPipeline> pipeline;
+};
+
+static bool QueuePipelineCompile(const PipelineCacheEntry& entry, std::vector<PipelineCompileJob>& jobs, ankerl::unordered_dense::set<XXH64_hash_t, xxHash>& queued)
+{
+	PipelineState pipelineState;
+	if (!BuildPipelineStateFromCacheEntry(entry, pipelineState))
+	{
+		return false;
+	}
 
 	XXH64_hash_t hash = ComputePipelineStateHash(pipelineState);
-	auto& pipeline = g_pipelines[hash];
-	if (pipeline == nullptr)
+	if (g_pipelines.contains(hash) || !queued.insert(hash).second)
 	{
-		pipeline = CreateGraphicsPipeline(pipelineState);
-		return true;
+		return false;
 	}
-	return false;
+
+	jobs.push_back({ hash, pipelineState });
+	return true;
+}
+
+static void CompilePipelineJobs(std::vector<PipelineCompileJob>& jobs, const std::function<void(float)>& progress)
+{
+	size_t threadCount = std::min<size_t>({ std::max(std::thread::hardware_concurrency(), 1u), 8, jobs.size() });
+
+	std::atomic<size_t> next{ 0 };
+	std::atomic<size_t> done{ 0 };
+	auto compile = [&](bool reportProgress)
+		{
+			for (size_t i = next++; i < jobs.size(); i = next++)
+			{
+				jobs[i].pipeline = CreateGraphicsPipeline(jobs[i].pipelineState);
+				done++;
+				if (reportProgress && progress)
+				{
+					progress(float(done) / float(jobs.size()));
+				}
+			}
+		};
+
+	std::vector<std::thread> workers;
+	for (size_t t = 1; t < threadCount; t++)
+	{
+		workers.emplace_back(compile, false);
+	}
+	compile(true);
+
+	for (auto& worker : workers)
+	{
+		worker.join();
+	}
+
+	for (auto& job : jobs)
+	{
+		g_pipelines[job.hash] = std::move(job.pipeline);
+	}
+
+	if (progress)
+	{
+		progress(1.0f);
+	}
+}
+
+static void PrecompileUserPipelines(std::vector<PipelineCacheEntry>& entries, const std::function<void(float)>& progress = {})
+{
+	if (entries.empty())
+	{
+		return;
+	}
+
+	LOGFN("PipelineCache: Loading {} entries...", entries.size());
+
+	auto totalStart = std::chrono::steady_clock::now();
+	uint32_t skipped = 0;
+	uint32_t dropped = 0;
+
+	std::vector<PipelineCompileJob> jobs;
+	ankerl::unordered_dense::set<XXH64_hash_t, xxHash> queued;
+
+	for (auto& entry : entries)
+	{
+		if (!IsPipelineCacheEntryInRange(entry))
+		{
+			dropped++;
+			continue;
+		}
+
+		entry.pipelineHash = ComputePipelineEntryHash(entry);
+		if (!QueuePipelineCompile(entry, jobs, queued))
+		{
+			EnqueueDeferredPipeline(entry);
+			skipped++;
+		}
+
+		{
+			std::lock_guard lock(g_pipelineCacheMutex);
+			g_pipelineCacheEntries.emplace(entry.pipelineHash, entry);
+		}
+	}
+
+	CompilePipelineJobs(jobs, progress);
+
+	auto totalElapsed = std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - totalStart).count();
+	LOGFN("PipelineCache: Precompiled {} pipelines ({} skipped, {} dropped) in {:.2f} ms", jobs.size(), skipped, dropped, totalElapsed);
 }
 
 static void PrecompileStaticPipelines(const std::function<void(float)>& progress = {})
@@ -1222,27 +1271,23 @@ static void PrecompileStaticPipelines(const std::function<void(float)>& progress
 	LOGFN("PipelineCache: Precompiling {} static pipelines...", g_staticPipelineCacheCount);
 
 	auto totalStart = std::chrono::steady_clock::now();
-	uint32_t compiled = 0;
 	uint32_t deferred = 0;
+
+	std::vector<PipelineCompileJob> jobs;
+	ankerl::unordered_dense::set<XXH64_hash_t, xxHash> queued;
+	jobs.reserve(g_staticPipelineCacheCount);
 
 	auto entries = reinterpret_cast<const PipelineCacheEntry*>(g_staticPipelineCacheData);
 	for (size_t i = 0; i < g_staticPipelineCacheCount; i++)
 	{
-		if (TryCompileFromCacheEntry(entries[i]))
-		{
-			compiled++;
-		}
-		else
+		if (!QueuePipelineCompile(entries[i], jobs, queued))
 		{
 			EnqueueDeferredPipeline(entries[i]);
 			deferred++;
 		}
-
-		if (progress)
-		{
-			progress((float)(i + 1) / (float)g_staticPipelineCacheCount);
-		}
 	}
+
+	CompilePipelineJobs(jobs, progress);
 
 	{
 		std::lock_guard lock(g_pipelineCacheMutex);
@@ -1255,7 +1300,7 @@ static void PrecompileStaticPipelines(const std::function<void(float)>& progress
 	}
 
 	auto totalElapsed = std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - totalStart).count();
-	LOGFN("PipelineCache: Static precompiled {} pipelines ({} deferred) in {:.2f} ms", compiled, deferred, totalElapsed);
+	LOGFN("PipelineCache: Static precompiled {} pipelines ({} deferred) in {:.2f} ms", jobs.size(), deferred, totalElapsed);
 }
 
 
