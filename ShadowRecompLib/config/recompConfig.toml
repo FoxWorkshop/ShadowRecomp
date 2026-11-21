@@ -3212,3 +3212,8 @@ jump_address_on_false = 0x27F2C7
 [[midasm_hook]]
 name = "ChaosControlAccelMidAsmHook"
 address = 0x6C55D
+
+[[midasm_hook]]
+name = "GroundCannonShootKnockbackIdleTransitionMidAsmHook"
+address = 0x736FD
+jump_address_on_true = 0x7373D

@@ -3909,3 +3909,55 @@ void ChaosControlAccelMidAsmHook(X86Context& __restrict ctx, uint8_t* base)
 	const float speed = X86_LOAD_F32(chaosControl + 0x2C);
 	X86_STORE_F32(chaosControl + 0x2C, target - (target - speed) * std::pow(retention, frames - 1.0f));
 }
+
+// Behavior::Ground transitions to Behavior::Idle when Cannon weapons are shot at 60 (but not above)
+static std::unordered_map<uint32_t, float> g_groundKickElapsed;
+bool GroundCannonShootKnockbackIdleTransitionMidAsmHook(X86Context& __restrict ctx, uint8_t* base)
+{
+	const uint32_t ground = ctx.edi.u32;
+	const uint32_t player = X86_LOAD_U32(ctx.esi.u32);
+	const uint32_t weapon = X86_LOAD_U32(player + 0x238);
+	if (!(X86_LOAD_F32(ground + 0x2C) < X86_LOAD_F32(ground + 0x24)))
+	{
+		g_groundKickElapsed.erase(ground);
+		return false;
+	}
+	const auto found = g_groundStep.find(player + 0x4);
+	if (found == g_groundStep.end())
+	{
+		return false;
+	}
+	const GroundStepRecord& step = found->second;
+	if (!step.grounded || step.dt <= 0.0f || step.dt >= 1.0f / 60.0f || App::s_time - step.time > App::s_deltaTime * 1.5)
+	{
+		return false;
+	}
+	const auto kick = g_groundKickElapsed.find(ground);
+	float elapsed = step.dt;
+	if (weapon == 0 || (X86_LOAD_U32(weapon + 0x30) & 0x8) == 0)
+	{
+		if (kick == g_groundKickElapsed.end())
+		{
+			return false;
+		}
+		elapsed += kick->second;
+	}
+
+	// Drop after a single step matching 60fps
+	if (elapsed > 1.0f / 60.0f + 0.0001f)
+	{
+		g_groundKickElapsed.erase(ground);
+		return false;
+	}
+	g_groundKickElapsed[ground] = elapsed;
+
+	// apply accel directly (weighted to 60 fps)
+	const float drag = X86_LOAD_F32(0x4ED6A0);
+	const float force = std::sqrt(step.force[0] * step.force[0] + step.force[2] * step.force[2]) / (60.0f * elapsed);
+	const float vel = force / drag * (1.0f - std::exp(-drag / 60.0f));
+	if (elapsed == step.dt)
+	{
+		X86_STORE_F32(ground + 0x2C, X86_LOAD_F32(ground + 0x2C) * (1.0f / 60.0f + 1.0f / 120.0f - step.dt * 0.5f) / step.dt);
+	}
+	return vel >= X86_LOAD_F32(0x4EC7F8);
+}
