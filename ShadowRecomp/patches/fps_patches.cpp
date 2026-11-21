@@ -4014,3 +4014,12 @@ bool GroundCannonShootKnockbackIdleTransitionMidAsmHook(X86Context& __restrict c
 	}
 	return vel >= X86_LOAD_F32(0x4EC7F8);
 }
+
+// Player::Behavior::SpinDash::Exec (per frame fix)
+void SpinDashColiWaitMidAsmHook(X86Context& __restrict ctx, uint8_t* base)
+{
+	const uint32_t player = X86_LOAD_U32(ctx.edi.u32 + 0x4);
+	const float frames = X86_LOAD_F32(ctx.esp.u32 + 0x5C) * 60.0f;
+	const float step = X86_LOAD_F32(0x4ED19C);
+	X86_STORE_F32(player + 0x274, X86_LOAD_F32(player + 0x274) + step * (1.0f - frames));
+}

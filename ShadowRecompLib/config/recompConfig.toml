@@ -3217,3 +3217,7 @@ address = 0x6C55D
 name = "GroundCannonShootKnockbackIdleTransitionMidAsmHook"
 address = 0x736FD
 jump_address_on_true = 0x7373D
+
+[[midasm_hook]]
+name = "SpinDashColiWaitMidAsmHook"
+address = 0x7C136
