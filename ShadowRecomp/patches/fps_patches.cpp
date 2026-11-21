@@ -3596,19 +3596,52 @@ X86_OVERRIDE_FUNC(sub_A1740)
 }
 
 // ControlLockon
+static std::unordered_map<uint32_t, float> g_lockonStepElapsed;
 X86_FUNC_IMPL(__imp__sub_A1C10);
 X86_OVERRIDE_FUNC(sub_A1C10)
 {
 	const uint32_t control = ctx.ecx.u32;
+	const uint32_t weapon = X86_LOAD_U32(control + 0x4);
 	const float dt = X86_LOAD_F32(ctx.esp.u32 + 0x4);
-	const float cooldown = X86_LOAD_F32(control + 0x14);
+	const uint32_t stateBefore = X86_LOAD_U32(control + 0x10);
+	const bool rescale = NeedsFpsRescale(g_deltaTime * 60.0f) && dt > 0.0f;
+
+	float stepElapsed = 0.0f;
+	if (rescale && stateBefore >= 1 && stateBefore <= 4)
+	{
+		stepElapsed = (g_lockonStepElapsed[control] += dt);
+	}
+
+	// 3 frame (60 fps scaled) wait
+	const uint32_t flags = X86_LOAD_U32(weapon + 0x30);
+	const bool holdTrigger = rescale && stateBefore >= 1 && stateBefore <= 3 && stepElapsed < 3.0f / 60.0f - dt - 1.0e-5f && (flags & 0x1) == 0;
+	if (holdTrigger)
+	{
+		X86_STORE_U32(weapon + 0x30, flags | 0x1);
+	}
+
 	__imp__sub_A1C10(ctx, base);
 
-	const float frames = g_deltaTime * 60.0f;
-	const float set = X86_LOAD_F32(control + 0x14);
-	if (NeedsFpsRescale(frames) && dt > 0.0f && set > 0.0f && set > cooldown)
+	if (holdTrigger)
 	{
-		X86_STORE_F32(control + 0x14, Get60FPSWait(set, 0.0f, dt, 2));
+		X86_STORE_U32(weapon + 0x30, X86_LOAD_U32(weapon + 0x30) & ~0x1u);
+	}
+
+	const uint32_t stateAfter = X86_LOAD_U32(control + 0x10);
+	if (rescale && stateAfter != stateBefore && (stateAfter == 1 || stateAfter == 4))
+	{
+		g_lockonStepElapsed[control] = 0.0f;
+	}
+	else if ((stateAfter == 0 || stateAfter == 100) && !g_lockonStepElapsed.empty())
+	{
+		g_lockonStepElapsed.erase(control);
+	}
+
+	const float set = X86_LOAD_F32(control + 0x14);
+	if (rescale && set > 0.0f && stateBefore == 4 && stateAfter == 100)
+	{
+		const float pad = std::max(1.0f / 60.0f - stepElapsed, 0.0f);
+		X86_STORE_F32(control + 0x14, Get60FPSWait(set, 0.0f, dt, 2) + pad);
 	}
 }
 
@@ -3677,17 +3710,21 @@ void GroundSpeedDecayMidAsmHook(X86Context& __restrict ctx, uint8_t* base)
 	X86_STORE_F32(ground + 0x2C, std::max(speed, walk));
 }
 
+struct GroundKick
+{
+	double time;
+	float speed;
+};
+static std::unordered_map<uint32_t, GroundKick> g_groundKick;
 void GroundWeaponKickbackMidAsmHook(X86Context& __restrict ctx, uint8_t* base)
 {
-	const uint32_t factorAddr = ctx.esp.u32 + 0x8;
-	const float factor = X86_LOAD_F32(factorAddr);
-	if (factor <= 0.0f || factor >= 1.0f)
+	const uint32_t ground = ctx.edi.u32;
+	const float factor = X86_LOAD_F32(ctx.esp.u32 + 0x8);
+	if (!(factor < 1.0f)) // skip for non lock-on/cannon types
 	{
 		return;
 	}
-
-	const float frames = X86_LOAD_F32(ctx.esp.u32 + 0x34) * 60.0f;
-	X86_STORE_F32(factorAddr, std::pow(factor, frames));
+	g_groundKick[ground] = { App::s_time, factor * X86_LOAD_F32(ground + 0x2C) };
 }
 
 struct GroundSampleClock
@@ -3934,6 +3971,7 @@ bool GroundCannonShootKnockbackIdleTransitionMidAsmHook(X86Context& __restrict c
 	}
 	const auto kick = g_groundKickElapsed.find(ground);
 	float elapsed = step.dt;
+	float kickSpeed = 0.0f;
 	if (weapon == 0 || (X86_LOAD_U32(weapon + 0x30) & 0x8) == 0)
 	{
 		if (kick == g_groundKickElapsed.end())
@@ -3941,6 +3979,20 @@ bool GroundCannonShootKnockbackIdleTransitionMidAsmHook(X86Context& __restrict c
 			return false;
 		}
 		elapsed += kick->second;
+	}
+	else
+	{
+		const auto kicked = g_groundKick.find(ground);
+		if (kicked == g_groundKick.end() || kicked->second.time != App::s_time)
+		{
+			if (kick != g_groundKickElapsed.end())
+			{
+				g_groundKickElapsed.erase(kick);
+			}
+			return false;
+		}
+		kickSpeed = kicked->second.speed;
+		g_groundKick.erase(kicked);
 	}
 
 	// Drop after a single step matching 60fps
@@ -3957,7 +4009,8 @@ bool GroundCannonShootKnockbackIdleTransitionMidAsmHook(X86Context& __restrict c
 	const float vel = force / drag * (1.0f - std::exp(-drag / 60.0f));
 	if (elapsed == step.dt)
 	{
-		X86_STORE_F32(ground + 0x2C, X86_LOAD_F32(ground + 0x2C) * (1.0f / 60.0f + 1.0f / 120.0f - step.dt * 0.5f) / step.dt);
+		const float speed = X86_LOAD_F32(ground + 0x2C);
+		X86_STORE_F32(ground + 0x2C, kickSpeed + (speed - kickSpeed) * (1.0f / 60.0f + 1.0f / 120.0f - step.dt * 0.5f) / step.dt);
 	}
 	return vel >= X86_LOAD_F32(0x4EC7F8);
 }
