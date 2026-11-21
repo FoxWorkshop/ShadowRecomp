@@ -1211,6 +1211,34 @@ X86_OVERRIDE_FUNC(sub_32A9A0)
 	ctx.AddEsp(1);
 }
 
+// Note this would normally be done by separated code mod (likely through DLL)
+// but we don't have that yet, so until then this is a temp solution since Reloaded is embbedded in the mod loader.
+void ReloadedModConfig(std::string reloadedDir)
+{
+	if (!Config::ReloadedMod.Value)
+		return;
+
+	IniFile* config = new IniFile(GetGamePath() / reloadedDir / "config.ini");
+	Config::ReloadedModOriginalExpertRingDropBehavior = config->getBool("General", "ReloadedModOriginalExpertRingDropBehavior", false);
+	Config::ReloadedOriginalElecCodeEnemySpeed = config->getBool("General", "ReloadedOriginalElecCodeEnemySpeed", false);
+	delete config;
+}
+
+// same as above
+void MultiplayerModConfig(std::string mpDIR)
+{
+	if (!Config::ExtendedMultiplayer.Value)
+		return;
+
+	IniFile* config = new IniFile(GetGamePath() / mpDIR / "config.ini");
+	Config::ExtendedMultiplayerPlayerCount = config->getInt("General", "ExtendedMultiplayerPlayerCount", 2);
+	Config::ShadowAndroidsNoEmbeddedWeapons = config->getBool("General", "ShadowAndroidsNoEmbeddedWeapons", false);
+	Config::ExtendedMultiplayerP1CharId = config->getInt("Chara", "ExtendedMultiplayerP1CharId", 14);
+	Config::ExtendedMultiplayerP2CharId = config->getInt("Chara", "ExtendedMultiplayerP2CharId", 15);
+	Config::ExtendedMultiplayerP3CharId = config->getInt("Chara", "ExtendedMultiplayerP3CharId", 16);
+	Config::ExtendedMultiplayerP4CharId = config->getInt("Chara", "ExtendedMultiplayerP4CharId", 17);
+	delete config;
+}
 
 void ModLoader::Init()
 {
@@ -1349,11 +1377,13 @@ void ModLoader::Init()
 		if (strcmp(reservedIDName[(uint8_t)ModReservedID::Reloaded], modinf.ID.c_str()) == 0)
 		{
 			Config::ReloadedMod.Value = true;
+			ReloadedModConfig(modDir.string());
 		}
 
 		if (strcmp(reservedIDName[(uint8_t)ModReservedID::Multiplayer], modinf.ID.c_str()) == 0)
 		{
 			Config::ExtendedMultiplayer.Value = true;
+			MultiplayerModConfig(modDir.string());
 		}
 
 		LoadReplaceIni(modDir, modDir / "replace.ini", &modinf, false);
