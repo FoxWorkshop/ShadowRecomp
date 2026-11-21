@@ -3854,3 +3854,110 @@ void LarvaMotionSpeedMidAsmHook(X86Context& __restrict ctx, uint8_t* base)
 		X86_STORE_F32(speed, X86_LOAD_F32(speed) / step);
 	}
 }
+
+// InfoWindow life / key hold for 3s
+static const GuestVariable<uint8_t> g_infoWindowForceShow{ 0x54DDB4 };
+static const GuestVariable<uint32_t> g_gameState{ 0x54963C };
+struct InfoWindowStamp
+{
+	uint32_t frame;
+	double frames60;
+};
+static double g_infoWindowFrames60 = 0.0;
+static uint32_t g_infoWindowFrame = 0;
+static InfoWindowStamp g_infoWindowLife{};
+static InfoWindowStamp g_infoWindowKey{};
+
+static double GetInfoWindowElapsed(InfoWindowStamp& stamp, uint32_t stamped, double step)
+{
+	if (stamp.frame != stamped)
+	{
+		stamp.frame = stamped;
+		stamp.frames60 = g_infoWindowFrames60 - std::max(int32_t(g_infoWindowFrame - stamped), 0) * step;
+	}
+	return g_infoWindowFrames60 - stamp.frames60;
+}
+
+bool InfoWindowHideMidAsmHook(X86Context& __restrict ctx, uint8_t* base)
+{
+	if (g_infoWindowForceShow != 0)
+	{
+		return true;
+	}
+
+	const uint32_t frame = g_unpausedFrameCount2;
+	const double step = g_unroundedDeltaTime * 60.0;
+	if (int32_t(frame - g_infoWindowFrame) > 0)
+	{
+		g_infoWindowFrames60 += (frame - g_infoWindowFrame) * step;
+	}
+	g_infoWindowFrame = frame;
+	const double holdFrames = X86_LOAD_F32(0x525680) * X86_LOAD_F32(0x42A0F0);
+	const double key = GetInfoWindowElapsed(g_infoWindowKey, X86_LOAD_U32(g_gameState + 0x724), step);
+	const double life = GetInfoWindowElapsed(g_infoWindowLife, X86_LOAD_U32(ctx.ebp.u32 + 0x24), step);
+	return key < holdFrames || life < holdFrames;
+}
+
+// Player::Behavior::ChaosControl::Exec
+// accel is per frame
+void ChaosControlAccelMidAsmHook(X86Context& __restrict ctx, uint8_t* base)
+{
+	const uint32_t chaosControl = ctx.esi.u32;
+	const float frames = X86_LOAD_F32(ctx.esp.u32 + 0x60) * 60.0f;
+	const float target = X86_LOAD_F32(0x4EC240);
+	const float retention = 1.0f - X86_LOAD_F32(0x42B460);
+	const float speed = X86_LOAD_F32(chaosControl + 0x2C);
+	X86_STORE_F32(chaosControl + 0x2C, target - (target - speed) * std::pow(retention, frames - 1.0f));
+}
+
+// Behavior::Ground transitions to Behavior::Idle when Cannon weapons are shot at 60 (but not above)
+static std::unordered_map<uint32_t, float> g_groundKickElapsed;
+bool GroundCannonShootKnockbackIdleTransitionMidAsmHook(X86Context& __restrict ctx, uint8_t* base)
+{
+	const uint32_t ground = ctx.edi.u32;
+	const uint32_t player = X86_LOAD_U32(ctx.esi.u32);
+	const uint32_t weapon = X86_LOAD_U32(player + 0x238);
+	if (!(X86_LOAD_F32(ground + 0x2C) < X86_LOAD_F32(ground + 0x24)))
+	{
+		g_groundKickElapsed.erase(ground);
+		return false;
+	}
+	const auto found = g_groundStep.find(player + 0x4);
+	if (found == g_groundStep.end())
+	{
+		return false;
+	}
+	const GroundStepRecord& step = found->second;
+	if (!step.grounded || step.dt <= 0.0f || step.dt >= 1.0f / 60.0f || App::s_time - step.time > App::s_deltaTime * 1.5)
+	{
+		return false;
+	}
+	const auto kick = g_groundKickElapsed.find(ground);
+	float elapsed = step.dt;
+	if (weapon == 0 || (X86_LOAD_U32(weapon + 0x30) & 0x8) == 0)
+	{
+		if (kick == g_groundKickElapsed.end())
+		{
+			return false;
+		}
+		elapsed += kick->second;
+	}
+
+	// Drop after a single step matching 60fps
+	if (elapsed > 1.0f / 60.0f + 0.0001f)
+	{
+		g_groundKickElapsed.erase(ground);
+		return false;
+	}
+	g_groundKickElapsed[ground] = elapsed;
+
+	// apply accel directly (weighted to 60 fps)
+	const float drag = X86_LOAD_F32(0x4ED6A0);
+	const float force = std::sqrt(step.force[0] * step.force[0] + step.force[2] * step.force[2]) / (60.0f * elapsed);
+	const float vel = force / drag * (1.0f - std::exp(-drag / 60.0f));
+	if (elapsed == step.dt)
+	{
+		X86_STORE_F32(ground + 0x2C, X86_LOAD_F32(ground + 0x2C) * (1.0f / 60.0f + 1.0f / 120.0f - step.dt * 0.5f) / step.dt);
+	}
+	return vel >= X86_LOAD_F32(0x4EC7F8);
+}
