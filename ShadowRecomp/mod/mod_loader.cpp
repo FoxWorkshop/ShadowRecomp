@@ -756,7 +756,7 @@ X86_OVERRIDE_FUNC(sub_38F810)
 	X86_STORE_U32(this_ + 268, (*g_jumpBallColors[curCharID])[2] << 22);
 }
 
-void ModLoader::ApplyHelperPatches()
+void SetSpinTrailColors()
 {
 	auto base = g_memory.base;
 
@@ -773,6 +773,12 @@ void ModLoader::ApplyHelperPatches()
 }
 
 // --- Aura Color Helper for Mods END ---
+
+
+void ModLoader::ApplyHelperPatches()
+{
+	SetSpinTrailColors();
+}
 
 static std::vector<std::string> ReadOneFileAssetNames(const fs::path& path)
 {

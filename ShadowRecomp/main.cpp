@@ -406,6 +406,7 @@ int main(int argc, char* argv[])
     CodeValuePatches();
     MultiplayerPatchesInit();
     PausePatchesInit();
+    ModLoader::ApplyHelperPatches();
     BloomConfigValueChangedCallback(&Config::BloomIntensity);
     RichPresence::ShadowRpc::Start();
 
