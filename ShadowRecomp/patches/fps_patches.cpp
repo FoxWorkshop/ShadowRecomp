@@ -3824,8 +3824,14 @@ bool GroundStartSpeedMidAsmHook(X86Context& __restrict ctx, uint8_t* base)
 }
 /**	--Ground Run Speed Patch END-- */
 
-/** --Strafe Jump Animation Patch START-- */
-static std::unordered_map<uint32_t, float> g_jumpState;
+/** --Strafe Jump Animation & Phys Patch START-- */
+struct JumpState
+{
+	float held;
+	float elapsed;
+	int32_t guard;
+};
+static std::unordered_map<uint32_t, JumpState> g_jumpState;
 
 // Jump Init
 X86_FUNC_IMPL(__imp__sub_75390);
@@ -3833,7 +3839,7 @@ X86_OVERRIDE_FUNC(sub_75390)
 {
 	const uint32_t jump = ctx.ecx.u32;
 	__imp__sub_75390(ctx, base);
-	g_jumpState.erase(jump);
+	g_jumpState[jump] = { 0.0f, 0.0f, (int32_t)X86_LOAD_U32(jump + 0x40) };
 }
 
 // Jump Exec
@@ -3842,24 +3848,32 @@ X86_OVERRIDE_FUNC(sub_75B70)
 {
 	const uint32_t jump = ctx.ecx.u32;
 	const float dt = X86_LOAD_F32(ctx.esp.u32 + 0x4);
+	JumpState& state = g_jumpState[jump];
 
 	// hold the flip animation to match 60FPS
 	if (X86_LOAD_U32(jump + 0x1C) == 4)
 	{
-		float& held = g_jumpState[jump];
-		held += dt;
-		if (held < 1.0f / 60.0f - 0.0001f)
+		state.held += dt;
+		if (state.held < 1.0f / 60.0f - 0.0001f)
 		{
 			X86_STORE_U32(jump + 0x1C, 3);
 		}
-		else
-		{
-			g_jumpState.erase(jump);
-		}
+	}
+
+	// guard snap state paced at 60fps (no more stick mid-cancel)
+	if (state.guard > 0 && (int32_t)X86_LOAD_U32(jump + 0x40) > 0)
+	{
+		const float frames = std::ceil(state.guard - state.elapsed * 60.0f - 0.001f);
+		X86_STORE_U32(jump + 0x40, (uint32_t)std::max(frames, 0.0f));
 	}
 	__imp__sub_75B70(ctx, base);
+	state.elapsed += dt;
+	if (X86_LOAD_U32(jump + 0x1C) == 3)
+	{
+		state.held = 0.0f;
+	}
 }
-/** --Strafe Jump Animation Patch END-- */
+/** --Strafe Jump Animation & Phys Patch END-- */
 
 // Fix global turn rate (player and partner behaviors)
 X86_FUNC_IMPL(__imp__sub_7ED90);
