@@ -144,6 +144,7 @@ CONFIG_DEFINE_HIDDEN("Codes", bool, SelectModeEnableLastStoryDevilDoomSlots, fal
 CONFIG_DEFINE_HIDDEN("Codes", bool, SkipLoadingAnyEvents, false, false);
 CONFIG_DEFINE_HIDDEN("Codes", bool, SingleFrameInvulnRecovery, false, false);
 CONFIG_DEFINE_HIDDEN("Codes", bool, AllPartnersCanHomingAttack, false, false);
+CONFIG_DEFINE_HIDDEN("Codes", bool, UnlockGeoColiNameRestrictions, false, false);
 
 CONFIG_DEFINE("Update", bool, CheckForUpdates, true, false);
 CONFIG_DEFINE("Update", time_t, LastChecked, 0, false);
