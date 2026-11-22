@@ -1220,7 +1220,15 @@ void ReloadedModConfig(std::string reloadedDir)
 
 	IniFile* config = new IniFile(GetGamePath() / reloadedDir / "config.ini");
 	Config::ReloadedModOriginalExpertRingDropBehavior = config->getBool("General", "ReloadedModOriginalExpertRingDropBehavior", false);
-	Config::ReloadedOriginalElecCodeEnemySpeed = config->getBool("General", "ReloadedOriginalElecCodeEnemySpeed", false);
+	Config::ReloadedModOriginalElecCodeEnemySpeed = config->getBool("General", "ReloadedModOriginalElecCodeEnemySpeed", false);
+	Config::ReloadedModOriginalEscapePodHealth = config->getBool("General", "ReloadedModOriginalEscapePodHealth", false);
+	Config::ReloadedModOriginalSkid = config->getBool("General", "ReloadedModOriginalSkid", false);
+	Config::ReloadedModOriginalCarPhysics = config->getBool("General", "ReloadedModOriginalCarPhysics", false);
+	Config::ReloadedModOriginalAirSaucerPhysics = config->getBool("General", "ReloadedModOriginalAirSaucerPhysics", false);
+	Config::ReloadedModOriginalAirSaucerDoubleJump = config->getBool("General", "ReloadedModOriginalAirSaucerDoubleJump", false);
+	Config::ReloadedModOriginalWeaponKnockback = config->getBool("General", "ReloadedModOriginalWeaponKnockback", false);
+	Config::ReloadedModDisableGhostRedRings = config->getBool("General", "ReloadedModDisableGhostRedRings", false);
+	Config::ReloadedModDisableSRank = config->getBool("General", "ReloadedModDisableSRank", false);
 	delete config;
 }
 
