@@ -2049,6 +2049,13 @@ X86_OVERRIDE_FUNC(sub_87760)
 	g_launchRequest--;
 }
 
+// LightDash stuck timer (checks per frame originally)
+void LightDashStuckThresholdMidAsmHook(X86Context& __restrict ctx, uint8_t* base)
+{
+	const float scale = std::min(X86_LOAD_F32(ctx.esp.u32 + 0xC0) * 60.0f, 1.0f);
+	ctx.fpu.st0() *= scale * scale;
+}
+
 // Player::Behavior::LightDash::End
 X86_FUNC_IMPL(__imp__sub_76FD0);
 X86_OVERRIDE_FUNC(sub_76FD0)
