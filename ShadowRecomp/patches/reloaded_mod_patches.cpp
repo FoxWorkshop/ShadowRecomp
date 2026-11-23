@@ -320,11 +320,16 @@ void AirSaucerJumpMidAsmHook(X86Context& __restrict ctx, uint8_t* base)
 	X86_STORE_F32(ctx.esp.u32, IsSuperAirSaucer() ? 200.0f : 100.0f);
 }
 
-// AirSaucer Replace Second Jump with Stomp
+// AirSaucer Replace Second Jump with Stomp (update second jump)
 void AirSaucerStompMidAsmHook(X86Context& __restrict ctx, uint8_t* base)
 {
+	float strength = 100.0f;
+	if (IsSuperAirSaucer())
+	{
+		strength = Config::ReloadedModOriginalAirSaucerDoubleJump ? 200.0f : -400.0f;
+	}
 	ctx.esp.u32 -= 4;
-	X86_STORE_F32(ctx.esp.u32, IsSuperAirSaucer() && !Config::ReloadedModOriginalAirSaucerDoubleJump ? -400.0f : 100.0f);
+	X86_STORE_F32(ctx.esp.u32, strength);
 }
 
 // Heal Unit Explosion Hitbox Size 20 -> 45
