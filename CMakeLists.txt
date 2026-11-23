@@ -19,14 +19,15 @@ if (POLICY CMP0141)
   set(CMAKE_MSVC_DEBUG_INFORMATION_FORMAT "$<IF:$<AND:$<C_COMPILER_ID:MSVC>,$<CXX_COMPILER_ID:MSVC>>,$<$<CONFIG:Debug,RelWithDebInfo>:EditAndContinue>,$<$<CONFIG:Debug,RelWithDebInfo,Release>:ProgramDatabase>>")
 endif()
 
-if (CMAKE_CXX_COMPILER_ID MATCHES "Clang")
-    # Disable PCH timestamp to resolve ccache issues, primarily on Windows.
-    list(APPEND CMAKE_CXX_COMPILE_OPTIONS_CREATE_PCH -Xclang -fno-pch-timestamp)
-endif()
-
 set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
 
 project ("ShadowRecomp-ALL")
+
+if (CMAKE_CXX_COMPILER_ID MATCHES "Clang")
+    # Enable using content hashes instead of mtimes for files used to build precompiled headers, to avoid ccache issues.
+    list(APPEND CMAKE_C_COMPILE_OPTIONS_CREATE_PCH -Xclang -fvalidate-ast-input-files-content)
+    list(APPEND CMAKE_CXX_COMPILE_OPTIONS_CREATE_PCH -Xclang -fvalidate-ast-input-files-content)
+endif()
 
 # Ship symbols with release builds (for now)
 if (MSVC)
