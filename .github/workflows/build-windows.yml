@@ -54,10 +54,11 @@ jobs:
           token: ${{ secrets.ASSET_REPO_TOKEN }}
           path: .\private
 
-      - name: Setup ccache
-        uses: hendrikmuhs/ccache-action@v1.2
-        with:
-          key: ${{ runner.os }}-${{ matrix.arch.name }}-${{ matrix.preset }}
+      # Disabled: Breaks with pre-compiled headers
+      #- name: Setup ccache
+      #  uses: hendrikmuhs/ccache-action@v1.2
+      #  with:
+      #    key: ${{ runner.os }}-${{ matrix.arch.name }}-${{ matrix.preset }}
 
       - name: Cache vcpkg
         uses: actions/cache@v6
@@ -89,7 +90,8 @@ jobs:
         run: copy .\private\* .\ShadowRecompLib\private
 
       - name: Configure Project
-        run: cmake . --preset ${{ env.CMAKE_PRESET }} -DCMAKE_CXX_COMPILER_LAUNCHER=ccache -DCMAKE_C_COMPILER_LAUNCHER=ccache -DSHADOW_RECOMP_XBOXRECOMP2=binary
+        run: cmake . --preset ${{ env.CMAKE_PRESET }} -DSHADOW_RECOMP_XBOXRECOMP2=binary
+        # -DCMAKE_CXX_COMPILER_LAUNCHER=ccache -DCMAKE_C_COMPILER_LAUNCHER=ccache
 
       - name: Build Project
         run: cmake --build .\out\build\${{ env.CMAKE_PRESET }} --target ShadowRecomp
