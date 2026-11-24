@@ -131,6 +131,7 @@ extern bool isHostThread;
 
 bool QuickBootConfig = false;
 int Ts_StageID = -1; // test spawn stage select
+bool Ts_expertMode = false;
 std::vector<int> Ts_EventIDs; // events/cutscenes to play directly on boot
 bool Ts_EventAll = false; // will play all events
 
@@ -253,6 +254,11 @@ int main(int argc, char* argv[])
                 Ts_StageID = atoi(argv[++i]);
             else
                 LOGN_WARNING("No argument was specified for --level. Option will be ignored.");
+        }
+
+        if (Ts_StageID != -1 && strcmp(argv[i], "--expert") == 0)
+        {
+            Ts_expertMode = true;
         }
 
         if (strcmp(argv[i], "-e") == 0 || strcmp(argv[i], "--event") == 0)

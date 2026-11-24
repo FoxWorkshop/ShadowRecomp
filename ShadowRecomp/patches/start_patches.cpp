@@ -1,11 +1,13 @@
 #include <kernel/function.h>
 #include <user/config.h>
 #include <os/logger.h>
+#include "code_patches.h"
 
 extern bool QuickBootConfig;
 extern int Ts_StageID;
 extern std::vector<int> Ts_EventIDs;
 extern bool Ts_EventAll;
+extern bool Ts_expertMode;
 
 static bool IsEventBoot()
 {
@@ -270,6 +272,19 @@ X86_OVERRIDE_FUNC(sub_5C5E0)
 	}
 
 	__imp__sub_5C5E0(ctx, base);
+}
+
+//static bool s_ExpertRedirectionDone = false;
+X86_FUNC_IMPL(__imp__sub_258610);
+X86_OVERRIDE_FUNC(sub_258610)
+{
+	__imp__sub_258610(ctx, base);
+	if (s_bootRedirectDone && Ts_StageID != -1 && Ts_expertMode)
+	{
+		ToggleExpertMode();
+		Ts_expertMode = false;
+	}
+
 }
 
 // Build the event queue.
