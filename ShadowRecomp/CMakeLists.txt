@@ -124,6 +124,7 @@ set(SHADOW_RECOMP_CPU_CXX_SOURCES
 
 set(SHADOW_RECOMP_GPU_CXX_SOURCES
     "gpu/video.cpp"
+    "gpu/profiler/profiler.cpp"
     "gpu/vertexbuffer.cpp"
     "gpu/textures.cpp"
     "gpu/guest_convert.cpp"

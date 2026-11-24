@@ -55,6 +55,33 @@ inline bool g_needsResize;
 
 using namespace plume;
 
+// GPU details shown in the profiler.
+struct GpuInfo
+{
+	const char* api;
+	const char* deviceName;
+	const char* deviceType;
+	double vramMiB;
+
+	uint32_t gpuWaits;
+	uint32_t bufferUploads;
+	std::span<const std::string> deviceNames;
+
+	// Features
+	bool dynamicDepthBias;
+	bool gpuUploadHeap;
+	bool resolveModes;
+	bool hardwareResolve;
+	bool hardwareDepthResolve;
+	bool presentWait;
+	bool triangleFan;
+	bool uma;
+
+	bool vulkan;
+	bool mailboxPresentMode; // Vulkan only.
+	const char* presentMode; // Vulkan only.
+};
+
 struct Video
 {
 	static inline bool s_dumpPipelineCacheHeader = false;
@@ -72,6 +99,7 @@ struct Video
 	static void Shutdown();
 	static void BeginGameThreadProfiler();
 	static void EndGameThreadProfiler();
+	static GpuInfo GetGpuInfo();
 };
 
 
