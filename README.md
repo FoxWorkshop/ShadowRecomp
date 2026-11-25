@@ -105,9 +105,6 @@ The mod format uses the same standard as the one used by Sonic Adventure mods.
 > [!NOTE]
 Code modding is currently not possible and is planned for a future update. As a workaround for the time being, some codes have been directly embedded into the game and can be accessed through SA Mod Manager's Codes tab.
 
-## Known Issues
-
-Before reporting any issues, check if they are listed [here](https://github.com/FoxWorkshop/ShadowRecomp/issues).
 
 ## Controls
 
@@ -179,7 +176,14 @@ This is a vanilla game issue.
 Higher resolutions unfortunately make this issue easier to see.
 
 - Please don't open an issue for it.
-- To fix it, use HD GUI mod(s).
+- To fix it, use the [UI Fixes mod](https://gamebanana.com/mods/745199) or any other HD GUI mod(s).
+
+### Why were some of the model defects not fixed?
+
+These required asset modifications and we felt it was better suited to a mod to not conflict with overhaul mods.
+
+- Please don't open an issue for it.
+- To fix it, you can use the [Model Fixes mod](https://gamebanana.com/mods/744779).
 
 ### Why are some sound effects missing
 
@@ -190,11 +194,9 @@ You will need to use a SFX Restoration mod to fix these defects.
 
 ### What other platforms will be supported?
 
-We only have Windows + Linux machines.  
-We'd happily accept community contribution for macOS.  
+Experimental ARM and MacOS builds can be found [here](https://github.com/FoxWorkshop/ShadowRecomp/issues/270)
 
-But folks who want to support platforms that require more significant modifications 
-(e.g. touchscreen on mobile); should make a fork.
+Platforms that require more significant modifications (such as touch screen / mobile support) should make a fork.
 
 ## Known Issues
 
