@@ -3833,6 +3833,14 @@ static void ProcEndFrame(const RenderCommand& cmd)
 	presentExecuted = false;
 	if (g_swapChainValid)
 	{
+		g_presentWaitProfiler.Begin();
+		// wait on fifo only
+		if (g_vulkan && g_capabilities.presentWait && Config::VSync && GetVulkanSwapChain()->createdPresentMode == VK_PRESENT_MODE_FIFO_KHR)
+		{
+			g_swapChain->wait();
+		}
+		g_presentWaitProfiler.End();
+
 		RenderCommandSemaphore* signalSemaphores[] = { g_renderSemaphores[g_frame].get() };
 		g_swapChainValid = g_swapChain->present(g_backBufferIndex, signalSemaphores, std::size(signalSemaphores));
 	}
@@ -3855,15 +3863,6 @@ static void ProcEndFrame(const RenderCommand& cmd)
 
 	g_dirtyStates = DirtyStates(true);
 	g_quadIndexData.reset();
-
-	g_presentWaitProfiler.Begin();
-
-	// wait on fifo only
-	if (g_vulkan && g_swapChainValid && g_capabilities.presentWait && Config::VSync && GetVulkanSwapChain()->createdPresentMode == VK_PRESENT_MODE_FIFO_KHR)
-	{
-		g_swapChain->wait();
-	}
-	g_presentWaitProfiler.End();
 
 	CheckSwapChain(cmd.endFrame.gameThreadWaits);
 	ProcBeginCommandList(cmd);
